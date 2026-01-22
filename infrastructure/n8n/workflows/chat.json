@@ -1,0 +1,89 @@
+{
+    "name": "EduPilot Chat",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "chat",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://host.docker.internal:11434/api/chat",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "model",
+                            "value": "llama3"
+                        },
+                        {
+                            "name": "stream",
+                            "value": false
+                        },
+                        {
+                            "name": "messages",
+                            "value": "={{ [ { \"role\": \"system\", \"content\": \"You are a helpful education assistant for the EduPilot platform in Benin. Answer in French. You have access to the following real-time school data: \" + JSON.stringify($json.body.context) + \". User Role: \" + $json.body.userRole + \". Use this data to answer questions about stats, students, or finance accurately.\" }, { \"role\": \"user\", \"content\": $json.body.message } ] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Ollama API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                660,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\n  \"response\": \"{{$json.message.content}}\"\n}",
+                "options": {}
+            },
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                860,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Ollama API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ollama API": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,190 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+import { logger } from "@/lib/utils/logger";
+
+const updatePeriodSchema = z.object({
+  name: z.string().min(1).optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  sequence: z.number().int().positive().optional(),
+});
+
+/**
+ * GET /api/periods/[id]
+ * Get a single period
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    }
+
+    const period = await prisma.period.findUnique({
+      where: { id: params.id },
+      include: {
+        academicYear: {
+          include: { school: true },
+        },
+      },
+    });
+
+    if (!period) {
+      return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
+    }
+
+    // Verify school access
+    if (session.user.role !== "SUPER_ADMIN" &&
+        period.academicYear.schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    return NextResponse.json(period);
+  } catch (error) {
+    logger.error(" fetching period:", error as Error);
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération de la période" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/periods/[id]
+ * Update a period
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    }
+
+    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+    if (!allowedRoles.includes(session.user.role as string)) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validatedData = updatePeriodSchema.parse(body);
+
+    const existingPeriod = await prisma.period.findUnique({
+      where: { id: params.id },
+      include: { academicYear: true },
+    });
+
+    if (!existingPeriod) {
+      return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
+    }
+
+    // Verify school access
+    if (session.user.role !== "SUPER_ADMIN" &&
+        existingPeriod.academicYear.schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    // Check for duplicate sequence if changing
+    if (validatedData.sequence && validatedData.sequence !== existingPeriod.sequence) {
+      const duplicate = await prisma.period.findFirst({
+        where: {
+          academicYearId: existingPeriod.academicYearId,
+          sequence: validatedData.sequence,
+          id: { not: params.id },
+        },
+      });
+
+      if (duplicate) {
+        return NextResponse.json(
+          { error: "Une période avec ce numéro existe déjà" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const period = await prisma.period.update({
+      where: { id: params.id },
+      data: validatedData,
+    });
+
+    return NextResponse.json(period);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Données invalides", details: error.issues },
+        { status: 400 }
+      );
+    }
+
+    logger.error(" updating period:", error as Error);
+    return NextResponse.json(
+      { error: "Erreur lors de la mise à jour de la période" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/periods/[id]
+ * Delete a period
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    }
+
+    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+    if (!allowedRoles.includes(session.user.role as string)) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+
+    const period = await prisma.period.findUnique({
+      where: { id: params.id },
+      include: { academicYear: true },
+    });
+
+    if (!period) {
+      return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
+    }
+
+    // Verify school access
+    if (session.user.role !== "SUPER_ADMIN" &&
+        period.academicYear.schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    // Check if period has grades or evaluations
+    const gradesCount = await prisma.grade.count({
+      where: { evaluation: { periodId: params.id } },
+    });
+
+    if (gradesCount > 0) {
+      return NextResponse.json(
+        { error: "Impossible de supprimer cette période : des notes sont associées" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.period.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error(" deleting period:", error as Error);
+    return NextResponse.json(
+      { error: "Erreur lors de la suppression de la période" },
+      { status: 500 }
+    );
+  }
+}

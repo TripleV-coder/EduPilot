@@ -1,0 +1,16 @@
+{
+    "api": {
+        "errors": {
+            "unauthenticated": "Unauthenticated",
+            "forbidden": "Forbidden",
+            "missing_permissions": "Missing permissions",
+            "rate_limit_exceeded": "Rate limit exceeded. Please try again later.",
+            "not_found": "{resource} not found",
+            "already_exists": "{resource} already exists",
+            "invalid_data": "Invalid data",
+            "invalid_id": "Invalid ID",
+            "internal_error": "Internal server error",
+            "invalid_class_ownership": "The class does not belong to your school"
+        }
+    }
+}

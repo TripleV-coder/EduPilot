@@ -1,0 +1,30 @@
+Contact: mailto:security@edupilot.app
+Expires: 2027-01-18T23:00:00.000Z
+Preferred-Languages: fr, en
+Canonical: https://edupilot.app/.well-known/security.txt
+
+# Security Policy
+
+## Reporting a Vulnerability
+
+If you discover a security vulnerability in EduPilot, please report it responsibly:
+
+1. **DO NOT** disclose the vulnerability publicly
+2. Send details to: security@edupilot.app
+3. Include:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
+
+## Response Time
+
+- Initial response: Within 48 hours
+- Status update: Every 7 days
+- Fix timeline: Depends on severity (Critical: 24-72h, High: 1-2 weeks)
+
+## Acknowledgments
+
+We maintain a Hall of Fame for responsible security researchers.
+
+Thank you for helping keep EduPilot secure!

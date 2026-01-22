@@ -1,0 +1,16 @@
+{
+    "api": {
+        "errors": {
+            "unauthenticated": "Non authentifié",
+            "forbidden": "Accès non autorisé",
+            "missing_permissions": "Permissions insuffisantes",
+            "rate_limit_exceeded": "Trop de requêtes. Veuillez réessayer plus tard.",
+            "not_found": "{resource} non trouvé(e)",
+            "already_exists": "{resource} existe déjà",
+            "invalid_data": "Données invalides",
+            "invalid_id": "ID invalide",
+            "internal_error": "Erreur serveur interne",
+            "invalid_class_ownership": "La classe n'appartient pas à votre établissement"
+        }
+    }
+}
