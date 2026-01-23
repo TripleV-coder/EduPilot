@@ -49,7 +49,7 @@ export function AnalyticsDashboard() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-green-600">
+                        <div className="text-3xl font-bold text-apogee-emerald">
                             {stats?.attendance.rate || 0}%
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -61,7 +61,7 @@ export function AnalyticsDashboard() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-orange-500" />
+                            <AlertTriangle className="h-5 w-5 text-apogee-gold" />
                             Alertes
                         </CardTitle>
                     </CardHeader>
@@ -73,12 +73,12 @@ export function AnalyticsDashboard() {
                                 </div>
                             )}
                             {(stats?.attendance.rate || 100) < 80 && (
-                                <div className="text-sm text-red-600">
+                                <div className="text-sm text-apogee-crimson">
                                     ⚠️ Taux de présence faible
                                 </div>
                             )}
                             {(stats?.overdueBooks || 0) === 0 && (stats?.attendance.rate || 100) >= 80 && (
-                                <div className="text-sm text-green-600">
+                                <div className="text-sm text-apogee-emerald">
                                     ✓ Aucune alerte
                                 </div>
                             )}

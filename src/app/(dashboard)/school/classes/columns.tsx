@@ -72,9 +72,9 @@ export const columns: ColumnDef<Class>[] = [
 
             return (
                 <div className="flex items-center gap-2">
-                    <div className="w-full bg-secondary h-2 rounded-full w-[60px] overflow-hidden">
+                    <div className="w-full bg-white/10 h-2 rounded-full w-[60px] overflow-hidden">
                         <div
-                            className={`h-full ${percentage > 100 ? 'bg-destructive' : percentage > 80 ? 'bg-amber-500' : 'bg-green-500'}`}
+                            className={`h-full ${percentage > 100 ? 'bg-apogee-crimson' : percentage > 80 ? 'bg-apogee-gold' : 'bg-apogee-emerald'}`}
                             style={{ width: `${Math.min(percentage, 100)}%` }}
                         />
                     </div>

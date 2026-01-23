@@ -15,13 +15,13 @@ const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 const HOURS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
 const COLORS = [
-    "bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300",
-    "bg-purple-100 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-300",
-    "bg-green-100 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300",
-    "bg-orange-100 border-orange-200 text-orange-700 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-300",
-    "bg-red-100 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300",
-    "bg-teal-100 border-teal-200 text-teal-700 dark:bg-teal-900/30 dark:border-teal-800 dark:text-teal-300",
-    "bg-pink-100 border-pink-200 text-pink-700 dark:bg-pink-900/30 dark:border-pink-800 dark:text-pink-300",
+    "bg-apogee-cobalt/15 border-white/10 text-apogee-cobalt",
+    "bg-apogee-emerald/15 border-white/10 text-apogee-emerald",
+    "bg-apogee-gold/15 border-white/10 text-apogee-gold",
+    "bg-apogee-crimson/15 border-white/10 text-apogee-crimson",
+    "bg-white/5 border-white/10 text-apogee-metal",
+    "bg-apogee-cobalt/10 border-white/10 text-apogee-cobalt",
+    "bg-apogee-emerald/10 border-white/10 text-apogee-emerald",
 ];
 
 interface ScheduleEvent {

@@ -86,7 +86,7 @@ export default function LoginPage() {
                         <div className="grid gap-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="password">Mot de passe</Label>
-                                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-500 hover:underline">
+                                <Link href="/forgot-password" className="text-xs text-apogee-gold hover:text-apogee-gold/80 hover:underline">
                                     Oublié ?
                                 </Link>
                             </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
-                        <Button disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white" variant="default">
+                        <Button disabled={isLoading} className="w-full" variant="default">
                             {isLoading && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
@@ -110,7 +110,7 @@ export default function LoginPage() {
 
                 <p className="px-8 text-center text-sm text-muted-foreground">
                     Pas encore de compte ?{" "}
-                    <Link href="/register" className="underline underline-offset-4 hover:text-blue-600 font-medium">
+                    <Link href="/register" className="underline underline-offset-4 hover:text-apogee-gold font-medium">
                         S&apos;inscrire
                     </Link>
                 </p>

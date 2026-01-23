@@ -68,14 +68,14 @@ export default function RegisterPage() {
     return (
         <>
             <div className="flex flex-col space-y-2 text-center">
-                <div className="mx-auto p-3 rounded-full bg-red-500/10 mb-2">
-                    <ShieldAlert className="h-8 w-8 text-red-500" />
+                <div className="mx-auto p-3 rounded-full bg-apogee-crimson/15 mb-2">
+                    <ShieldAlert className="h-8 w-8 text-apogee-crimson" />
                 </div>
                 <h1 className="text-2xl font-semibold tracking-tight">Configuration Initiale</h1>
                 <p className="text-sm text-muted-foreground">
                     Créez le compte <strong>Super Administrateur</strong>.
                 </p>
-                <p className="text-xs text-red-500 font-bold">
+                <p className="text-xs text-apogee-crimson font-bold">
                     ⚠️ Cette page se désactivera définitivement après la création.
                 </p>
             </div>
@@ -134,7 +134,7 @@ export default function RegisterPage() {
                                 minLength={8}
                             />
                         </div>
-                        <Button disabled={isLoading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold" variant="default">
+                        <Button disabled={isLoading} className="w-full font-bold" variant="destructive">
                             {isLoading && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
@@ -145,7 +145,7 @@ export default function RegisterPage() {
 
                 <p className="px-8 text-center text-sm text-muted-foreground">
                     Déjà initialisé ?{" "}
-                    <Link href="/login" className="underline underline-offset-4 hover:text-primary font-medium">
+                    <Link href="/login" className="underline underline-offset-4 hover:text-apogee-gold font-medium">
                         Se connecter
                     </Link>
                 </p>

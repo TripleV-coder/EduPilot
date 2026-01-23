@@ -240,6 +240,15 @@
     --accent-secondary: var(--apogee-cobalt);
     --accent-tertiary: var(--apogee-emerald);
 
+    --success: var(--apogee-emerald);
+    --success-foreground: 210 40% 98%;
+    --warning: var(--apogee-gold);
+    --warning-foreground: 210 40% 98%;
+    --destructive: var(--apogee-crimson);
+    --destructive-foreground: 210 40% 98%;
+    --info: var(--apogee-cobalt);
+    --info-foreground: 210 40% 98%;
+
     --muted: 220 20% 14%;
     --muted-foreground: 220 12% 70%;
     --border: 220 18% 18%;

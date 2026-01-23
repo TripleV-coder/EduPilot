@@ -23,8 +23,8 @@ const emptyStateConfig = {
         description: "Commencez par ajouter vos premiers élèves pour débloquer toutes les fonctionnalités.",
         actionLabel: "Inscrire un élève",
         actionHref: "/school/students/new",
-        color: "text-blue-500",
-        bgColor: "bg-blue-500/10",
+        color: "text-apogee-cobalt",
+        bgColor: "bg-apogee-cobalt/15",
     },
     teachers: {
         icon: GraduationCap,
@@ -32,8 +32,8 @@ const emptyStateConfig = {
         description: "Ajoutez votre équipe pédagogique pour leur donner accès à la plateforme.",
         actionLabel: "Ajouter un enseignant",
         actionHref: "/school/teachers/new",
-        color: "text-purple-500",
-        bgColor: "bg-purple-500/10",
+        color: "text-apogee-emerald",
+        bgColor: "bg-apogee-emerald/15",
     },
     classes: {
         icon: BookOpen,
@@ -41,8 +41,8 @@ const emptyStateConfig = {
         description: "Créez vos premières classes pour organiser vos élèves et emplois du temps.",
         actionLabel: "Créer une classe",
         actionHref: "/school/classes/new",
-        color: "text-green-500",
-        bgColor: "bg-green-500/10",
+        color: "text-apogee-gold",
+        bgColor: "bg-apogee-gold/15",
     },
     grades: {
         icon: FileText,
@@ -50,8 +50,8 @@ const emptyStateConfig = {
         description: "Les notes apparaîtront ici une fois les premières évaluations effectuées.",
         actionLabel: "Saisir des notes",
         actionHref: "/grades",
-        color: "text-orange-500",
-        bgColor: "bg-orange-500/10",
+        color: "text-apogee-crimson",
+        bgColor: "bg-apogee-crimson/15",
     },
     messages: {
         icon: MessageSquare,
@@ -59,8 +59,8 @@ const emptyStateConfig = {
         description: "Votre boîte de réception est vide. Commencez une conversation !",
         actionLabel: "Nouveau message",
         actionHref: "/messages",
-        color: "text-cyan-500",
-        bgColor: "bg-cyan-500/10",
+        color: "text-apogee-cobalt",
+        bgColor: "bg-apogee-cobalt/15",
     },
     payments: {
         icon: CreditCard,
@@ -68,8 +68,8 @@ const emptyStateConfig = {
         description: "Les paiements apparaîtront ici une fois les frais configurés.",
         actionLabel: "Configurer les frais",
         actionHref: "/admin",
-        color: "text-emerald-500",
-        bgColor: "bg-emerald-500/10",
+        color: "text-apogee-gold",
+        bgColor: "bg-apogee-gold/15",
     },
     library: {
         icon: Library,
@@ -77,8 +77,8 @@ const emptyStateConfig = {
         description: "Ajoutez des livres à votre catalogue pour permettre les emprunts.",
         actionLabel: "Ajouter un livre",
         actionHref: "/library",
-        color: "text-amber-500",
-        bgColor: "bg-amber-500/10",
+        color: "text-apogee-emerald",
+        bgColor: "bg-apogee-emerald/15",
     },
     achievements: {
         icon: Trophy,
@@ -86,8 +86,8 @@ const emptyStateConfig = {
         description: "Continuez à utiliser EduPilot pour débloquer vos premiers succès !",
         actionLabel: "Voir les objectifs",
         actionHref: "/achievements",
-        color: "text-yellow-500",
-        bgColor: "bg-yellow-500/10",
+        color: "text-apogee-gold",
+        bgColor: "bg-apogee-gold/15",
     },
     canteen: {
         icon: Utensils,
@@ -95,8 +95,8 @@ const emptyStateConfig = {
         description: "Configurez les menus de cantine pour cette semaine.",
         actionLabel: "Gérer les menus",
         actionHref: "/canteen",
-        color: "text-red-500",
-        bgColor: "bg-red-500/10",
+        color: "text-apogee-crimson",
+        bgColor: "bg-apogee-crimson/15",
     },
     default: {
         icon: Calendar,
@@ -104,8 +104,8 @@ const emptyStateConfig = {
         description: "Il n'y a rien à afficher pour le moment.",
         actionLabel: "Retour",
         actionHref: "/dashboard",
-        color: "text-gray-500",
-        bgColor: "bg-gray-500/10",
+        color: "text-apogee-metal",
+        bgColor: "bg-white/5",
     },
 };
 
@@ -132,7 +132,7 @@ export function EmptyState({ type, title, description, actionLabel, actionHref }
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="text-xl font-bold mb-2"
+                className="text-xl font-bold mb-2 text-white"
             >
                 {title || config.title}
             </motion.h3>
@@ -141,7 +141,7 @@ export function EmptyState({ type, title, description, actionLabel, actionHref }
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="text-muted-foreground max-w-md mb-6"
+                className="text-apogee-metal/70 max-w-md mb-6"
             >
                 {description || config.description}
             </motion.p>

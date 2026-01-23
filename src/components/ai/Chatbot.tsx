@@ -59,7 +59,7 @@ export function Chatbot() {
             {!isOpen && (
                 <Button
                     onClick={() => setIsOpen(true)}
-                    className="rounded-full h-14 w-14 shadow-lg bg-indigo-600 hover:bg-indigo-700"
+                    className="rounded-full h-14 w-14 shadow-[0_18px_40px_rgba(30,60,140,0.55)] bg-gradient-to-br from-apogee-cobalt to-apogee-emerald"
                 >
                     <MessageCircle className="h-6 w-6 text-white" />
                 </Button>
@@ -67,14 +67,14 @@ export function Chatbot() {
 
             {isOpen && (
                 <Card className="w-80 md:w-96 shadow-2xl animate-in slide-in-from-bottom-5">
-                    <CardHeader className="bg-indigo-600 text-white rounded-t-lg p-4 flex flex-row justify-between items-center">
+                    <CardHeader className="bg-gradient-to-r from-apogee-cobalt to-apogee-emerald text-white rounded-t-lg p-4 flex flex-row justify-between items-center">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <Bot className="h-4 w-4" /> EduPilot Assistant
                         </CardTitle>
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-white hover:bg-indigo-500 rounded-full"
+                            className="h-6 w-6 text-white hover:bg-white/15 rounded-full"
                             onClick={() => setIsOpen(false)}
                         >
                             <X className="h-4 w-4" />
@@ -88,8 +88,8 @@ export function Chatbot() {
                                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div
                                             className={`max-w-[80%] rounded-lg p-3 text-sm ${msg.role === 'user'
-                                                ? 'bg-indigo-600 text-white rounded-br-none'
-                                                : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                                                ? 'bg-apogee-cobalt text-white rounded-br-none'
+                                                : 'bg-apogee-abyss/80 border border-white/10 text-apogee-metal/90 rounded-bl-none'
                                                 }`}
                                         >
                                             {msg.content}
@@ -98,7 +98,7 @@ export function Chatbot() {
                                 ))}
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="bg-gray-100 rounded-lg p-3 rounded-bl-none text-xs text-gray-500">
+                                        <div className="bg-apogee-abyss/80 border border-white/10 rounded-lg p-3 rounded-bl-none text-xs text-apogee-metal/70">
                                             Écriture en cours...
                                         </div>
                                     </div>
@@ -108,7 +108,7 @@ export function Chatbot() {
                         </ScrollArea>
                     </CardContent>
 
-                    <CardFooter className="p-3 border-t">
+                    <CardFooter className="p-3 border-t border-white/10">
                         <form
                             className="flex w-full gap-2"
                             onSubmit={(e) => { e.preventDefault(); handleSend(); }}

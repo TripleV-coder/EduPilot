@@ -16,9 +16,9 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = "default", hover = false, children, ...props }, ref) => {
     const variants = {
-      default: "bg-card border",
-      glass: "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-white/20",
-      gradient: "bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800",
+      default: "bg-apogee-abyss/70 border border-white/10 text-white shadow-[0_20px_50px_rgba(4,8,18,0.55)]",
+      glass: "bg-white/5 border-white/15 text-white backdrop-blur-2xl shadow-[0_18px_40px_rgba(4,8,18,0.45)]",
+      gradient: "bg-gradient-to-br from-apogee-slate/80 to-apogee-abyss/80 border border-white/10 text-white",
     };
 
     return (
@@ -27,7 +27,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         className={cn(
           "rounded-xl transition-all duration-300",
           variants[variant],
-          hover && "hover:shadow-lg hover:border-primary/30 cursor-pointer",
+          hover && "hover:shadow-[0_24px_60px_rgba(4,8,18,0.6)] hover:border-white/20 cursor-pointer",
           className
         )}
         {...props}
@@ -55,13 +55,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", gradient, loading = false, isDisabled, children, ...props }, ref) => {
     const variants = {
       primary: gradient
-        ? `bg-gradient-to-r ${gradient} text-white hover:shadow-lg`
-        : "bg-primary text-primary-foreground hover:opacity-90",
-      secondary: "bg-secondary text-secondary-foreground hover:opacity-90",
-      outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-      ghost: "hover:bg-accent hover:text-accent-foreground",
-      danger: "bg-destructive text-destructive-foreground hover:opacity-90",
-      success: "bg-green-600 text-white hover:opacity-90",
+        ? `bg-gradient-to-r ${gradient} text-white hover:shadow-[0_16px_40px_rgba(30,60,140,0.5)]`
+        : "bg-gradient-to-r from-apogee-cobalt/90 to-apogee-emerald/90 text-white shadow-[0_12px_30px_rgba(30,60,140,0.35)] hover:shadow-[0_18px_40px_rgba(30,60,140,0.5)]",
+      secondary: "bg-apogee-slate/80 text-white border border-white/10 hover:bg-apogee-graphite/80",
+      outline: "border border-white/15 bg-white/5 text-white hover:bg-white/10",
+      ghost: "text-apogee-metal hover:bg-white/10 hover:text-white",
+      danger: "bg-apogee-crimson text-white hover:shadow-[0_16px_40px_rgba(180,40,80,0.5)]",
+      success: "bg-apogee-emerald text-white hover:shadow-[0_16px_40px_rgba(60,160,120,0.5)]",
     };
 
     const sizes = {
@@ -74,7 +74,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apogee-cobalt/60 focus-visible:ring-offset-2 focus-visible:ring-offset-apogee-abyss disabled:pointer-events-none disabled:opacity-50",
           variants[variant],
           sizes[size],
           className
@@ -107,12 +107,12 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
   ({ className, variant = "default", size = "md", ...props }, ref) => {
     const variants = {
-      default: "bg-primary text-primary-foreground",
-      success: "bg-green-100 text-green-700 border-green-200",
-      warning: "bg-yellow-100 text-yellow-700 border-yellow-200",
-      danger: "bg-red-100 text-red-700 border-red-200",
-      info: "bg-blue-100 text-blue-700 border-blue-200",
-      outline: "border border-input bg-background",
+      default: "bg-white/5 text-white border-white/10",
+      success: "bg-apogee-emerald/15 text-apogee-emerald border-apogee-emerald/30",
+      warning: "bg-apogee-gold/15 text-apogee-gold border-apogee-gold/30",
+      danger: "bg-apogee-crimson/15 text-apogee-crimson border-apogee-crimson/30",
+      info: "bg-apogee-cobalt/15 text-apogee-cobalt border-apogee-cobalt/30",
+      outline: "border border-white/15 text-apogee-metal bg-transparent",
     };
 
     const sizes = {
@@ -124,7 +124,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-full border font-semibold transition-colors",
+          "inline-flex items-center rounded-full border font-semibold uppercase tracking-[0.22em] transition-colors",
           variants[variant],
           sizes[size],
           className
@@ -156,11 +156,11 @@ export function Avatar({ src, alt, fallback, size = "md", className, ...props }:
   };
 
   return (
-    <div className={cn("relative rounded-full overflow-hidden bg-muted", sizes[size], className)} {...props}>
+    <div className={cn("relative rounded-full overflow-hidden bg-white/10", sizes[size], className)} {...props}>
       {src ? (
         <Image src={src} alt={alt || "Avatar"} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
       ) : (
-        <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-medium">
+        <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-apogee-cobalt to-apogee-emerald text-white font-medium">
           {fallback || alt?.charAt(0) || "?"}
         </div>
       )}
@@ -184,10 +184,10 @@ export function Progress({ value, max = 100, gradient = GRADIENTS.primary, showL
 
   return (
     <div className={cn("relative", className)} {...props}>
-      <div className="h-2 rounded-full bg-muted overflow-hidden">
+      <div className="h-2 rounded-full bg-white/10 overflow-hidden">
         <div className={cn("h-full bg-gradient-to-r transition-all duration-500", gradient)} style={{ width: `${percentage}%` }} />
       </div>
-      {showLabel && <span className="absolute right-0 -top-5 text-xs font-medium">{value.toFixed(1)}%</span>}
+      {showLabel && <span className="absolute right-0 -top-5 text-xs font-medium text-apogee-metal/70">{value.toFixed(1)}%</span>}
     </div>
   );
 }
@@ -212,17 +212,17 @@ export function StatCard({ title, value, subtitle, icon, trend, gradient = GRADI
       <Card className="p-6 h-full" hover>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold mt-2">{value}</p>
-            {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+            <p className="text-sm font-medium text-apogee-metal/70">{title}</p>
+            <p className="text-3xl font-bold mt-2 text-white">{value}</p>
+            {subtitle && <p className="text-sm text-apogee-metal/70 mt-1">{subtitle}</p>}
             {trend && (
-              <div className={cn("flex items-center mt-2 text-sm", trend.isPositive ? "text-green-600" : "text-red-600")}>
+              <div className={cn("flex items-center mt-2 text-sm", trend.isPositive ? "text-apogee-emerald" : "text-apogee-crimson")}>
                 <span>{trend.isPositive ? "↑" : "↓"}</span>
                 <span className="ml-1">{Math.abs(trend.value)}%</span>
               </div>
             )}
           </div>
-          {icon && <div className={cn("p-3 rounded-xl bg-gradient-to-r text-white shadow-lg", gradient)}>{icon}</div>}
+          {icon && <div className={cn("p-3 rounded-xl bg-gradient-to-r text-white shadow-[0_16px_35px_rgba(4,8,18,0.5)]", gradient)}>{icon}</div>}
         </div>
       </Card>
     </div>
@@ -246,7 +246,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
     return (
       <div
         ref={ref}
-        className={cn("animate-pulse bg-muted", variants[variant], className)}
+        className={cn("animate-pulse bg-white/10", variants[variant], className)}
         style={{ width, height, ...style }}
         {...props}
       />
@@ -269,9 +269,9 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      {icon && <div className="p-4 rounded-full bg-muted mb-4">{icon}</div>}
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {description && <p className="text-sm text-muted-foreground mt-1 max-w-sm">{description}</p>}
+      {icon && <div className="p-4 rounded-full bg-white/10 mb-4">{icon}</div>}
+      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      {description && <p className="text-sm text-apogee-metal/70 mt-1 max-w-sm">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -290,7 +290,7 @@ export function Spinner({ size = "md", className, ...props }: SpinnerProps) {
 
   return (
     <div className={cn("flex items-center justify-center", className)} {...props}>
-      <svg className={cn("animate-spin text-primary", sizes[size])} fill="none" viewBox="0 0 24 24">
+      <svg className={cn("animate-spin text-apogee-cobalt", sizes[size])} fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -317,14 +317,14 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onTabChange, className }: TabsProps) {
   return (
-    <div className={cn("flex space-x-1 rounded-lg bg-muted p-1", className)}>
+    <div className={cn("flex space-x-1 rounded-lg border border-white/10 bg-apogee-abyss/70 p-1", className)}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
           className={cn(
             "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-            activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            activeTab === tab.id ? "bg-white/10 text-white shadow-[0_12px_30px_rgba(4,8,18,0.4)]" : "text-apogee-metal/70 hover:text-white"
           )}
         >
           {tab.icon && <span className="mr-2">{tab.icon}</span>}
@@ -353,14 +353,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-red-500 focus-visible:ring-red-500",
+            "flex h-10 w-full rounded-lg border border-white/10 bg-apogee-abyss/70 px-3 py-2 text-sm text-white ring-offset-apogee-abyss file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-apogee-metal/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apogee-cobalt/60 disabled:cursor-not-allowed disabled:opacity-50",
+            error && "border-apogee-crimson focus-visible:ring-apogee-crimson/60",
             className
           )}
           ref={ref}
           {...props}
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-apogee-crimson">{error}</p>}
       </div>
     );
   }
@@ -389,7 +389,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && <label className="text-sm font-medium">{label}</label>}
         <select
           className={cn(
-            "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-10 w-full rounded-lg border border-white/10 bg-apogee-abyss/70 px-3 py-2 text-sm text-white ring-offset-apogee-abyss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apogee-cobalt/60 disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
           ref={ref}
@@ -424,14 +424,14 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && <label className="text-sm font-medium">{label}</label>}
         <textarea
           className={cn(
-            "flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-red-500 focus-visible:ring-red-500",
+            "flex min-h-[80px] w-full rounded-lg border border-white/10 bg-apogee-abyss/70 px-3 py-2 text-sm text-white ring-offset-apogee-abyss placeholder:text-apogee-metal/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apogee-cobalt/60 disabled:cursor-not-allowed disabled:opacity-50",
+            error && "border-apogee-crimson focus-visible:ring-apogee-crimson/60",
             className
           )}
           ref={ref}
           {...props}
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-apogee-crimson">{error}</p>}
       </div>
     );
   }
@@ -452,7 +452,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
       <label className={cn("flex items-center space-x-2 cursor-pointer", className)}>
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          className="h-4 w-4 rounded border-white/30 text-apogee-cobalt focus:ring-apogee-cobalt/60"
           ref={ref}
           {...props}
         />
@@ -483,7 +483,7 @@ export function Switch({ checked = false, onCheckedChange, label, className, ...
         onClick={() => onCheckedChange?.(!checked)}
         className={cn(
           "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-          checked ? "bg-primary" : "bg-gray-200 dark:bg-gray-700"
+          checked ? "bg-apogee-cobalt" : "bg-white/15"
         )}
         {...props}
       >
@@ -527,7 +527,7 @@ export function Dropdown({ trigger, items, align = "right" }: DropdownProps) {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
             className={cn(
-              "absolute z-50 mt-2 w-56 rounded-lg border bg-popover shadow-lg animate-fade-in",
+              "absolute z-50 mt-2 w-56 rounded-lg border border-white/10 bg-apogee-abyss/95 shadow-[0_20px_45px_rgba(4,8,18,0.6)] animate-fade-in backdrop-blur-2xl",
               align === "right" ? "right-0" : "left-0"
             )}
           >
@@ -540,8 +540,8 @@ export function Dropdown({ trigger, items, align = "right" }: DropdownProps) {
                     setOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors",
-                    item.danger ? "text-red-600 hover:bg-red-50" : "hover:bg-accent"
+                    "flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors text-apogee-metal",
+                    item.danger ? "text-apogee-crimson hover:bg-apogee-crimson/10" : "hover:bg-white/10 hover:text-white"
                   )}
                 >
                   {item.icon && <span className="mr-2">{item.icon}</span>}
@@ -581,10 +581,10 @@ export function Modal({ open, onClose, title, description, children, size = "md"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className={cn("relative z-50 w-full rounded-xl bg-background p-6 shadow-xl animate-scale-in", sizes[size])}>
+      <div className="fixed inset-0 bg-apogee-abyss/80" onClick={onClose} />
+      <div className={cn("relative z-50 w-full rounded-xl border border-white/10 bg-apogee-abyss/95 p-6 text-white shadow-[0_30px_80px_rgba(4,8,18,0.7)] animate-scale-in backdrop-blur-2xl", sizes[size])}>
         <h2 className="text-lg font-semibold">{title}</h2>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+        {description && <p className="text-sm text-apogee-metal/70 mt-1">{description}</p>}
         <div className="mt-4">{children}</div>
       </div>
     </div>
@@ -605,10 +605,10 @@ interface AlertProps {
 
 export function Alert({ title, description, variant = "default", icon, action }: AlertProps) {
   const variants = {
-    default: "bg-blue-50 border-blue-200 text-blue-800",
-    success: "bg-green-50 border-green-200 text-green-800",
-    warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
-    danger: "bg-red-50 border-red-200 text-red-800",
+    default: "bg-apogee-cobalt/10 border-apogee-cobalt/30 text-apogee-cobalt",
+    success: "bg-apogee-emerald/10 border-apogee-emerald/30 text-apogee-emerald",
+    warning: "bg-apogee-gold/10 border-apogee-gold/30 text-apogee-gold",
+    danger: "bg-apogee-crimson/10 border-apogee-crimson/30 text-apogee-crimson",
   };
 
   return (
@@ -641,7 +641,7 @@ export function Tooltip({ content, children, side = "top" }: TooltipProps) {
       {children}
       <div
         className={cn(
-          "absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap",
+          "absolute z-50 px-2 py-1 text-xs text-white bg-apogee-abyss/95 border border-white/10 rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap",
           side === "top" && "bottom-full left-1/2 -translate-x-1/2 mb-2",
           side === "bottom" && "top-full left-1/2 -translate-x-1/2 mt-2",
           side === "left" && "right-full top-1/2 -translate-y-1/2 mr-2",

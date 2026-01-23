@@ -26,10 +26,10 @@ interface Payment {
 }
 
 const statusConfig: Record<PaymentStatus, { icon: typeof CheckCircle; color: string; label: string }> = {
-    COMPLETED: { icon: CheckCircle, color: "text-green-500 bg-green-500/10", label: "Payé" },
-    PENDING: { icon: Clock, color: "text-orange-500 bg-orange-500/10", label: "En attente" },
-    FAILED: { icon: XCircle, color: "text-red-500 bg-red-500/10", label: "Échoué" },
-    REFUNDED: { icon: Banknote, color: "text-blue-500 bg-blue-500/10", label: "Remboursé" },
+    COMPLETED: { icon: CheckCircle, color: "text-apogee-emerald bg-apogee-emerald/15", label: "Payé" },
+    PENDING: { icon: Clock, color: "text-apogee-gold bg-apogee-gold/15", label: "En attente" },
+    FAILED: { icon: XCircle, color: "text-apogee-crimson bg-apogee-crimson/15", label: "Échoué" },
+    REFUNDED: { icon: Banknote, color: "text-apogee-cobalt bg-apogee-cobalt/15", label: "Remboursé" },
 };
 
 export default function PaymentsPage() {
@@ -86,10 +86,10 @@ export default function PaymentsPage() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
+                <Card className="bg-apogee-emerald/10 border-apogee-emerald/30">
                     <CardContent className="pt-6">
                         <p className="text-sm text-muted-foreground">Total Encaissé</p>
-                        <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.total)}</p>
+                        <p className="text-2xl font-bold text-apogee-emerald">{formatCurrency(stats.total)}</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -98,10 +98,10 @@ export default function PaymentsPage() {
                         <p className="text-2xl font-bold">{stats.completed}</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-orange-500/10 border-orange-500/20">
+                <Card className="bg-apogee-gold/10 border-apogee-gold/30">
                     <CardContent className="pt-6">
                         <p className="text-sm text-muted-foreground">En Attente</p>
-                        <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
+                        <p className="text-2xl font-bold text-apogee-gold">{stats.pending}</p>
                     </CardContent>
                 </Card>
                 <Card>

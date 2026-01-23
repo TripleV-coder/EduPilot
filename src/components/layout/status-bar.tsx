@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wifi, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -32,10 +32,9 @@ export function StatusBar() {
 
     return (
         <footer
-            className="flex items-center justify-between px-4 text-[11px] border-t border-border shrink-0 select-none"
+            className="flex items-center justify-between px-4 text-[10px] border-t border-white/10 shrink-0 select-none bg-apogee-abyss/80"
             style={{
                 height: "var(--statusbar-height)",
-                backgroundColor: "hsl(220 14% 96%)", // Gris très légèrement bleuté
             }}
         >
             {/* Left: System status */}
@@ -44,13 +43,13 @@ export function StatusBar() {
                     className={cn(
                         "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
                         isOnline
-                            ? "text-green-700 bg-green-100"
-                            : "text-red-700 bg-red-100"
+                            ? "text-apogee-emerald bg-apogee-emerald/15"
+                            : "text-apogee-crimson bg-apogee-crimson/15"
                     )}
                 >
                     {isOnline ? (
                         <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-apogee-emerald" />
                             Opérationnel
                         </>
                     ) : (
@@ -63,14 +62,14 @@ export function StatusBar() {
             </div>
 
             {/* Center: Last saved / Auto-sync */}
-            <div className="text-muted-foreground">
+            <div className="text-apogee-metal/70">
                 {lastSaved && `Sauvegarde auto · ${lastSaved}`}
             </div>
 
             {/* Right: Version + Support */}
-            <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="flex items-center gap-3 text-apogee-metal/70">
                 <span>v3.0.0</span>
-                <button className="hover:text-foreground transition-colors">
+                <button className="hover:text-white transition-colors">
                     Support
                 </button>
             </div>

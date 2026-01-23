@@ -22,7 +22,7 @@ export function ImportPreview({ data, validationErrors }: ImportPreviewProps) {
                 <h3 className="text-lg font-medium">Aperçu des données ({data.length} lignes)</h3>
                 <div className="flex gap-2">
                     <Badge variant="outline" className="gap-1">
-                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        <CheckCircle className="w-3 h-3 text-apogee-emerald" />
                         {data.length - Object.keys(validationErrors).length} Valides
                     </Badge>
                     {hasErrors && (
@@ -52,15 +52,15 @@ export function ImportPreview({ data, validationErrors }: ImportPreviewProps) {
                                 const isValid = !errors;
 
                                 return (
-                                    <TableRow key={index} className={!isValid ? "bg-red-50/50 dark:bg-red-900/10" : ""}>
+                                    <TableRow key={index} className={!isValid ? "bg-apogee-crimson/10" : ""}>
                                         <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                                         <TableCell>
                                             {isValid ? (
-                                                <Badge variant="success" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Valide</Badge>
+                                                <Badge variant="success">Valide</Badge>
                                             ) : (
                                                 <div className="flex flex-col gap-1">
                                                     <Badge variant="destructive" className="w-fit">Erreur</Badge>
-                                                    <span className="text-[10px] text-destructive font-medium leading-tight">
+                                                    <span className="text-[10px] text-apogee-crimson font-medium leading-tight">
                                                         {errors[0]}
                                                     </span>
                                                 </div>

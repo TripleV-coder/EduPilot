@@ -159,9 +159,9 @@ export default function SubjectsAdminPage() {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center gap-3"
+                        className="p-4 rounded-lg bg-apogee-emerald/10 border border-apogee-emerald/30 flex items-center gap-3"
                     >
-                        <CheckCircle className="w-5 h-5 text-green-500" />
+                        <CheckCircle className="w-5 h-5 text-apogee-emerald" />
                         <span>
                             {importResult.created} matière(s) importée(s), {importResult.skipped} ignorée(s) (déjà existantes)
                         </span>
@@ -288,7 +288,7 @@ export default function SubjectsAdminPage() {
                                                 </span>
                                                 <span className="font-medium">{subject.name}</span>
                                                 {!subject.isActive && (
-                                                    <span className="text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
+                                                    <span className="text-xs bg-apogee-gold/15 text-apogee-gold px-2 py-0.5 rounded">
                                                         Désactivée
                                                     </span>
                                                 )}

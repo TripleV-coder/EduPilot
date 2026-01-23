@@ -35,7 +35,7 @@ export function StudentRiskWidget({ studentId }: StudentRiskWidgetProps) {
                     <Button variant="ghost" size="sm" onClick={refresh}><RefreshCcw className="h-4 w-4" /></Button>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-sm text-red-500">
+                    <div className="text-sm text-apogee-crimson">
                         {error ? "Erreur de chargement" : "Aucune donnée"}
                     </div>
                 </CardContent>
@@ -44,7 +44,7 @@ export function StudentRiskWidget({ studentId }: StudentRiskWidgetProps) {
     }
 
     const riskLevel = prediction.dropoutRisk > 50 ? "HIGH" : prediction.dropoutRisk > 20 ? "MEDIUM" : "LOW";
-    const riskColor = riskLevel === "HIGH" ? "text-red-500" : riskLevel === "MEDIUM" ? "text-yellow-500" : "text-green-500";
+    const riskColor = riskLevel === "HIGH" ? "text-apogee-crimson" : riskLevel === "MEDIUM" ? "text-apogee-gold" : "text-apogee-emerald";
     const RiskIcon = riskLevel === "HIGH" ? AlertTriangle : CheckCircle;
 
     return (

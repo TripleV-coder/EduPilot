@@ -483,7 +483,7 @@ export default function ImportPage() {
                             </Button>
                         )}
                         {step === 3 && (
-                            <Button onClick={handleFinalImport} disabled={isProcessing} className="bg-green-600 hover:bg-green-700 text-white">
+                            <Button onClick={handleFinalImport} disabled={isProcessing}>
                                 {isProcessing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 Lancer l&apos;importation ({mappedData.length - Object.keys(validationErrors).length})
                             </Button>

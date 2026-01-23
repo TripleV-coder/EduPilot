@@ -17,8 +17,8 @@ export default function AnalyticsPage() {
         }
     });
 
-    if (isLoading) return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    if (error) return <div className="p-4 text-destructive bg-destructive/10 rounded-lg">Erreur: Impossible de charger les données analytiques.</div>;
+    if (isLoading) return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-apogee-cobalt" /></div>;
+    if (error) return <div className="p-4 text-apogee-crimson bg-apogee-crimson/10 rounded-lg">Erreur: Impossible de charger les données analytiques.</div>;
 
     // Mapping API data to Chart formats
     const performanceData = Object.values(data?.subjectSummary || []).map((s: any) => ({
@@ -28,10 +28,10 @@ export default function AnalyticsPage() {
     })).slice(0, 10); // Top 10 subjects
 
     const riskData = [
-        { name: 'Critique', value: data?.riskDistribution?.critical || 0, color: '#ef4444' },
-        { name: 'Élevé', value: data?.riskDistribution?.high || 0, color: '#f97316' },
-        { name: 'Moyen', value: data?.riskDistribution?.medium || 0, color: '#eab308' },
-        { name: 'Faible', value: data?.riskDistribution?.low || 0, color: '#22c55e' },
+        { name: 'Critique', value: data?.riskDistribution?.critical || 0, color: '#FF6EA0' },
+        { name: 'Élevé', value: data?.riskDistribution?.high || 0, color: '#F7C76B' },
+        { name: 'Moyen', value: data?.riskDistribution?.medium || 0, color: '#5A8CFF' },
+        { name: 'Faible', value: data?.riskDistribution?.low || 0, color: '#44F5C2' },
     ].filter(d => d.value > 0);
 
     const periodComparison = data?.periodComparison;
@@ -60,13 +60,13 @@ export default function AnalyticsPage() {
                 <Card variant="glass">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Moyenne Générale</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-green-500" />
+                        <TrendingUp className="h-4 w-4 text-apogee-emerald" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{data?.overview?.averageGrade || 0}/20</div>
                         {periodComparison && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                {periodComparison.improvement >= 0 ? <ArrowUpRight className="h-3 w-3 text-green-500" /> : <ArrowDownRight className="h-3 w-3 text-red-500" />}
+                                {periodComparison.improvement >= 0 ? <ArrowUpRight className="h-3 w-3 text-apogee-emerald" /> : <ArrowDownRight className="h-3 w-3 text-apogee-crimson" />}
                                 {Number(periodComparison.improvement).toFixed(2)} pts vs {periodComparison.previousPeriod}
                             </p>
                         )}
@@ -75,7 +75,7 @@ export default function AnalyticsPage() {
                 <Card variant="glass">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Élèves Actifs</CardTitle>
-                        <Activity className="h-4 w-4 text-blue-500" />
+                        <Activity className="h-4 w-4 text-apogee-cobalt" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{data?.overview?.activeStudents || 0}</div>
@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
                 <Card variant="glass">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Performance</CardTitle>
-                        <GraduationCap className="h-4 w-4 text-purple-500" />
+                        <GraduationCap className="h-4 w-4 text-apogee-gold" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{data?.performanceDistribution?.excellent || 0}</div>
@@ -99,11 +99,11 @@ export default function AnalyticsPage() {
                 <Card variant="glass">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">À Risque</CardTitle>
-                        <Users className="h-4 w-4 text-red-500" />
+                        <Users className="h-4 w-4 text-apogee-crimson" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{data?.riskDistribution?.critical || 0}</div>
-                        <p className="text-xs text-muted-foreground mt-1 text-red-500">
+                        <p className="text-xs text-muted-foreground mt-1 text-apogee-crimson">
                             Niveau critique détecté
                         </p>
                     </CardContent>

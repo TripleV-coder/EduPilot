@@ -81,7 +81,7 @@ export default function AdminPage() {
                     <CardContent>
                         {isLoadingStats ? <Loader2 className="animate-spin" /> : (
                             <>
-                                <div className="text-2xl font-bold text-green-500 flex items-center gap-2">
+                                <div className="text-2xl font-bold text-apogee-emerald flex items-center gap-2">
                                     <CheckCircle className="h-6 w-6" /> Opérationnel
                                 </div>
                                 <p className="text-xs text-muted-foreground">Santé {dashboardData?.stats?.systemHealth || 100}%</p>
@@ -122,7 +122,7 @@ export default function AdminPage() {
                         </div>
 
                         {isLoadingUsers ? (
-                            <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
+                            <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-apogee-cobalt" /></div>
                         ) : (
                             <Table>
                                 <TableHeader>
@@ -147,7 +147,7 @@ export default function AdminPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={user.isActive ? 'success' : 'secondary'} className={user.isActive ? "bg-green-100 text-green-800" : ""}>
+                                                <Badge variant={user.isActive ? 'success' : 'secondary'}>
                                                     {user.isActive ? 'Actif' : 'Inactif'}
                                                 </Badge>
                                             </TableCell>
@@ -155,7 +155,7 @@ export default function AdminPage() {
                                                 {format(new Date(user.createdAt), "dd MMM yyyy", { locale: fr })}
                                             </TableCell> */}
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(user.id)}>
+                                                <Button variant="ghost" size="icon" className="text-apogee-crimson hover:bg-apogee-crimson/10" onClick={() => handleDelete(user.id)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>
@@ -211,7 +211,7 @@ export default function AdminPage() {
                                         {i !== (dashboardData.recentLogins.length - 1) && (
                                             <div className="absolute left-[11px] top-6 bottom-[-20px] w-[1px] bg-muted-foreground/20"></div>
                                         )}
-                                        <div className={`mt-1 h-6 w-6 rounded-full flex items-center justify-center shrink-0 bg-blue-100 text-blue-600`}>
+                                        <div className="mt-1 h-6 w-6 rounded-full flex items-center justify-center shrink-0 bg-apogee-cobalt/20 text-apogee-cobalt">
                                             <div className="h-2 w-2 rounded-full bg-current" />
                                         </div>
                                         <div className="space-y-1">

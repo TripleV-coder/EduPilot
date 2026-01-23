@@ -16,7 +16,7 @@ export default function DashboardLayout({
     return (
         <SidebarProvider>
             <TabProvider>
-                <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
+                <div className="flex flex-col h-screen w-full overflow-hidden bg-apogee-abyss">
                     {/* Main App Area (Sidebar + Content) */}
                     <div className="flex flex-1 overflow-hidden">
                         {/* Desktop Sidebar */}
@@ -34,7 +34,7 @@ export default function DashboardLayout({
                             <TabBar />
 
                             {/* Main Content - Scrollable (includes Footer) */}
-                            <main className="flex-1 overflow-auto bg-background">
+                            <main className="flex-1 overflow-auto bg-apogee-abyss apogee-grid">
                                 <div className="p-4 lg:p-6">
                                     <DashboardClientWrapper>
                                         {children}

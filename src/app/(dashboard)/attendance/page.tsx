@@ -21,10 +21,10 @@ interface Student {
 }
 
 const statusConfig: Record<string, { icon: typeof Check; color: string; label: string }> = {
-    PRESENT: { icon: Check, color: "text-green-500 bg-green-500/10", label: "Présent" },
-    ABSENT: { icon: X, color: "text-red-500 bg-red-500/10", label: "Absent" },
-    LATE: { icon: Clock, color: "text-orange-500 bg-orange-500/10", label: "Retard" },
-    EXCUSED: { icon: Check, color: "text-blue-500 bg-blue-500/10", label: "Excusé" },
+    PRESENT: { icon: Check, color: "text-apogee-emerald bg-apogee-emerald/15", label: "Présent" },
+    ABSENT: { icon: X, color: "text-apogee-crimson bg-apogee-crimson/15", label: "Absent" },
+    LATE: { icon: Clock, color: "text-apogee-gold bg-apogee-gold/15", label: "Retard" },
+    EXCUSED: { icon: Check, color: "text-apogee-cobalt bg-apogee-cobalt/15", label: "Excusé" },
 };
 
 export default function AttendancePage() {
@@ -158,7 +158,7 @@ export default function AttendancePage() {
                             </Button>
                             <input
                                 type="date"
-                                className="flex-1 p-2 border rounded-lg text-center"
+                                className="flex-1 p-2 border border-white/10 rounded-lg text-center bg-apogee-abyss/70 text-white"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
                             />
@@ -173,28 +173,28 @@ export default function AttendancePage() {
             {/* Stats */}
             {selectedClass && (
                 <div className="grid grid-cols-4 gap-4">
-                    <Card className="bg-green-500/10 border-green-500/20">
+                    <Card className="bg-apogee-emerald/10 border-apogee-emerald/30">
                         <CardContent className="pt-4 text-center">
-                            <p className="text-2xl font-bold text-green-600">{stats.present}</p>
-                            <p className="text-sm text-green-600">Présents</p>
+                            <p className="text-2xl font-bold text-apogee-emerald">{stats.present}</p>
+                            <p className="text-sm text-apogee-emerald">Présents</p>
                         </CardContent>
                     </Card>
-                    <Card className="bg-red-500/10 border-red-500/20">
+                    <Card className="bg-apogee-crimson/10 border-apogee-crimson/30">
                         <CardContent className="pt-4 text-center">
-                            <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
-                            <p className="text-sm text-red-600">Absents</p>
+                            <p className="text-2xl font-bold text-apogee-crimson">{stats.absent}</p>
+                            <p className="text-sm text-apogee-crimson">Absents</p>
                         </CardContent>
                     </Card>
-                    <Card className="bg-orange-500/10 border-orange-500/20">
+                    <Card className="bg-apogee-gold/10 border-apogee-gold/30">
                         <CardContent className="pt-4 text-center">
-                            <p className="text-2xl font-bold text-orange-600">{stats.late}</p>
-                            <p className="text-sm text-orange-600">Retards</p>
+                            <p className="text-2xl font-bold text-apogee-gold">{stats.late}</p>
+                            <p className="text-sm text-apogee-gold">Retards</p>
                         </CardContent>
                     </Card>
-                    <Card className="bg-primary/10 border-primary/20">
+                    <Card className="bg-apogee-cobalt/10 border-apogee-cobalt/30">
                         <CardContent className="pt-4 text-center">
-                            <p className="text-2xl font-bold text-primary">{stats.total}</p>
-                            <p className="text-sm text-primary">Total</p>
+                            <p className="text-2xl font-bold text-apogee-cobalt">{stats.total}</p>
+                            <p className="text-sm text-apogee-cobalt">Total</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -203,7 +203,7 @@ export default function AttendancePage() {
             {/* Loading */}
             {isLoading && (
                 <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <Loader2 className="w-8 h-8 animate-spin text-apogee-cobalt" />
                 </div>
             )}
 

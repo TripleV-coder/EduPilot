@@ -15,15 +15,16 @@ const Card = React.forwardRef<
     <div
         ref={ref}
         className={cn(
-            // Base styles
-            "rounded-lg border bg-card text-card-foreground",
-            // Variant styles
-            variant === "default" && "border-border shadow-card",
-            variant === "glass" && "border-border/50 bg-card/95 backdrop-blur-sm shadow-card",
-            variant === "bordered" && "border-border shadow-none",
-            variant === "elevated" && "border-transparent shadow-md",
-            // Hover effect
-            hover && "transition-shadow duration-200 hover:shadow-card-hover",
+            "relative overflow-hidden rounded-xl border text-card-foreground",
+            variant === "default" &&
+            "border-white/10 bg-apogee-abyss/70 text-white shadow-[0_20px_50px_rgba(4,8,18,0.55)] backdrop-blur-xl",
+            variant === "glass" &&
+            "border-white/15 bg-white/5 text-white shadow-[0_18px_40px_rgba(4,8,18,0.45)] backdrop-blur-2xl",
+            variant === "bordered" &&
+            "border-white/15 bg-apogee-abyss/50 text-white shadow-none",
+            variant === "elevated" &&
+            "border-white/10 bg-apogee-slate/80 text-white shadow-[0_18px_40px_rgba(4,8,18,0.6)]",
+            hover && "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(4,8,18,0.65)]",
             className
         )}
         {...props}

@@ -66,16 +66,16 @@ export function TabBar() {
 
     return (
         <div
-            className="flex items-center border-b border-border bg-muted/30"
+            className="flex items-center border-b border-white/10 bg-apogee-abyss/70 backdrop-blur"
             style={{ height: "var(--tab-bar-height)" }}
         >
             {/* Scroll left indicator */}
             {showLeftScroll && (
                 <button
                     onClick={() => scroll("left")}
-                    className="flex items-center justify-center w-6 h-full border-r border-border bg-card hover:bg-muted transition-colors"
+                    className="flex items-center justify-center w-6 h-full border-r border-white/10 bg-apogee-abyss/80 hover:bg-white/5 transition-colors text-apogee-metal/70"
                 >
-                    <span className="text-muted-foreground">‹</span>
+                    <span>‹</span>
                 </button>
             )}
 
@@ -90,15 +90,15 @@ export function TabBar() {
                         data-tab-id={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={cn(
-                            "group flex items-center gap-2 h-full px-3 min-w-[120px] max-w-[200px] border-r border-border cursor-pointer transition-colors",
+                            "group flex items-center gap-2 h-full px-3 min-w-[120px] max-w-[200px] border-r border-white/10 cursor-pointer transition-colors",
                             activeTabId === tab.id
-                                ? "bg-card text-foreground"
-                                : "bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                ? "bg-white/10 text-white"
+                                : "bg-transparent text-apogee-metal/70 hover:bg-white/5 hover:text-white"
                         )}
                     >
                         {/* Dirty indicator */}
                         {tab.isDirty && (
-                            <span className="w-2 h-2 rounded-full bg-warning shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-apogee-gold shrink-0" />
                         )}
 
                         {/* Title */}
@@ -112,7 +112,7 @@ export function TabBar() {
                                     closeTab(tab.id);
                                 }}
                                 className={cn(
-                                    "shrink-0 p-0.5 rounded hover:bg-muted-foreground/20 transition-colors",
+                                    "shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors",
                                     activeTabId === tab.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                                 )}
                             >
@@ -127,9 +127,9 @@ export function TabBar() {
             {showRightScroll && (
                 <button
                     onClick={() => scroll("right")}
-                    className="flex items-center justify-center w-6 h-full border-l border-border bg-card hover:bg-muted transition-colors"
+                    className="flex items-center justify-center w-6 h-full border-l border-white/10 bg-apogee-abyss/80 hover:bg-white/5 transition-colors text-apogee-metal/70"
                 >
-                    <span className="text-muted-foreground">›</span>
+                    <span>›</span>
                 </button>
             )}
 
@@ -139,7 +139,7 @@ export function TabBar() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-full w-9 rounded-none border-l border-border"
+                        className="h-full w-9 rounded-none border-l border-white/10 text-apogee-metal/70 hover:text-white"
                     >
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>

@@ -34,7 +34,7 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
         >
-            <Card className="border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 shadow-md">
+            <Card className="border border-white/15 bg-apogee-abyss/70 shadow-[0_18px_40px_rgba(4,8,18,0.55)]">
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -50,13 +50,13 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
                 <CardContent className="space-y-3 pt-0">
                     {/* Progress Bar */}
                     <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-xs text-apogee-metal/70">
                             <span className="font-medium">{completedCount}/{steps.length} complétées</span>
-                            <span className="text-primary font-semibold">{Math.round(progress)}%</span>
+                            <span className="text-apogee-gold font-semibold">{Math.round(progress)}%</span>
                         </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                             <motion.div
-                                className="h-full bg-gradient-to-r from-primary to-violet-500"
+                                className="h-full bg-gradient-to-r from-apogee-gold via-apogee-cobalt to-apogee-emerald"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
                                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -75,19 +75,19 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
                             >
                                 <Link href={step.completed ? "#" : step.href}>
                                     <div className={cn(
-                                        "flex items-center gap-3 p-3 rounded-lg transition-all",
+                                        "flex items-center gap-3 p-3 rounded-lg transition-all border border-transparent",
                                         step.completed
-                                            ? "bg-green-500/10 opacity-60"
-                                            : "bg-white dark:bg-gray-900 hover:bg-primary/5 cursor-pointer"
+                                            ? "bg-apogee-emerald/10 opacity-70 border-apogee-emerald/20"
+                                            : "bg-white/5 hover:bg-white/10 cursor-pointer border-white/10"
                                     )}>
                                         <div className={cn(
                                             "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
-                                            step.completed ? "bg-green-500 text-white" : "border-2 border-primary"
+                                            step.completed ? "bg-apogee-emerald text-white" : "border-2 border-apogee-cobalt"
                                         )}>
                                             {step.completed ? (
                                                 <Check className="w-4 h-4" />
                                             ) : (
-                                                <Circle className="w-3 h-3 text-primary" />
+                                                <Circle className="w-3 h-3 text-apogee-cobalt" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -97,12 +97,12 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
                                             )}>
                                                 {step.title}
                                             </p>
-                                            <p className="text-xs text-muted-foreground truncate">
+                                            <p className="text-xs text-apogee-metal/60 truncate">
                                                 {step.description}
                                             </p>
                                         </div>
                                         {!step.completed && (
-                                            <ArrowRight className="w-4 h-4 text-primary" />
+                                            <ArrowRight className="w-4 h-4 text-apogee-cobalt" />
                                         )}
                                     </div>
                                 </Link>

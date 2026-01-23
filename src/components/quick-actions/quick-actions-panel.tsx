@@ -60,7 +60,7 @@ export function QuickActionsPanel({ onAttendance, onPayment, onSMS }: QuickActio
             label: "Présence",
             description: "Marquer absences/retards",
             icon: <UserCheck className="h-5 w-5" />,
-            color: "text-emerald-600 bg-emerald-500/25 hover:bg-emerald-500/40 border-emerald-500/30",
+            color: "text-apogee-emerald bg-apogee-emerald/15 hover:bg-apogee-emerald/25 border-apogee-emerald/30",
             onClick: () => handleAction("attendance", onAttendance),
         },
         {
@@ -68,7 +68,7 @@ export function QuickActionsPanel({ onAttendance, onPayment, onSMS }: QuickActio
             label: "Paiement",
             description: "Enregistrer paiement",
             icon: <CreditCard className="h-5 w-5" />,
-            color: "text-blue-600 bg-blue-500/25 hover:bg-blue-500/40 border-blue-500/30",
+            color: "text-apogee-gold bg-apogee-gold/15 hover:bg-apogee-gold/25 border-apogee-gold/30",
             onClick: () => handleAction("payment", onPayment),
         },
         {
@@ -76,7 +76,7 @@ export function QuickActionsPanel({ onAttendance, onPayment, onSMS }: QuickActio
             label: "SMS Parents",
             description: "Notifier les parents",
             icon: <MessageSquare className="h-5 w-5" />,
-            color: "text-violet-600 bg-violet-500/25 hover:bg-violet-500/40 border-violet-500/30",
+            color: "text-apogee-cobalt bg-apogee-cobalt/15 hover:bg-apogee-cobalt/25 border-apogee-cobalt/30",
             onClick: () => handleAction("sms", onSMS),
         },
     ];
@@ -90,7 +90,7 @@ export function QuickActionsPanel({ onAttendance, onPayment, onSMS }: QuickActio
 
     return (
         <Wrapper {...wrapperProps}>
-            <Card className="border border-primary/30 shadow-sm">
+            <Card className="border border-white/10 shadow-[0_18px_45px_rgba(4,8,18,0.5)]">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                         ⚡ Actions Rapides
@@ -110,7 +110,7 @@ export function QuickActionsPanel({ onAttendance, onPayment, onSMS }: QuickActio
                                     {loading === action.id ? (
                                         <Loader2 className="h-5 w-5 animate-spin" />
                                     ) : success === action.id ? (
-                                        <Check className="h-5 w-5 text-emerald-600" />
+                                        <Check className="h-5 w-5 text-apogee-emerald" />
                                     ) : (
                                         action.icon
                                     )}

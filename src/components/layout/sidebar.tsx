@@ -19,12 +19,8 @@ import {
     FileText,
     CheckSquare,
     CreditCard,
-    ChevronLeft,
-    ChevronRight,
     Menu,
     X,
-    Pin,
-    PinOff,
     LucideIcon
 } from "lucide-react";
 import { useSidebar } from "@/lib/hooks/use-sidebar";
@@ -151,7 +147,7 @@ export function MobileSidebarTrigger() {
         <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-9 w-9"
+            className="lg:hidden h-9 w-9 text-apogee-metal/70 hover:text-white"
             onClick={openMobile}
             aria-label="Ouvrir le menu"
         >
@@ -218,9 +214,9 @@ export function Sidebar() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             className={cn(
-                "hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 relative z-40",
+                "hidden lg:flex flex-col border-r border-white/10 bg-apogee-abyss/80 shrink-0 transition-all duration-300 relative z-40 apogee-grid",
                 showExpanded ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-collapsed)]",
-                isHovering && effectivelyCollapsed && "shadow-xl"
+                isHovering && effectivelyCollapsed && "shadow-[0_25px_60px_rgba(4,8,18,0.6)]"
             )}
             style={{
                 height: "calc(100vh - var(--header-height))",
@@ -247,7 +243,7 @@ export function MobileSidebar() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+                        className="fixed inset-0 z-40 bg-apogee-abyss/70 backdrop-blur-sm lg:hidden"
                         onClick={closeMobile}
                     />
 
@@ -257,12 +253,12 @@ export function MobileSidebar() {
                         animate={{ x: 0 }}
                         exit={{ x: "-100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed inset-y-0 left-0 z-50 w-[280px] border-r border-border bg-card lg:hidden"
+                        className="fixed inset-y-0 left-0 z-50 w-[280px] border-r border-white/10 bg-apogee-abyss/90 apogee-grid lg:hidden"
                     >
                         {/* Close button */}
                         <button
                             onClick={closeMobile}
-                            className="absolute top-4 right-4 p-2 rounded-md hover:bg-muted transition-colors"
+                            className="absolute top-4 right-4 p-2 rounded-md text-apogee-metal/70 hover:text-white hover:bg-white/10 transition-colors"
                             aria-label="Fermer le menu"
                         >
                             <X className="h-5 w-5" />
@@ -300,15 +296,15 @@ export function SidebarContent({ collapsed = false, onItemClick }: SidebarConten
         <div className="flex h-full flex-col">
             {/* Logo */}
             <div className={cn(
-                "flex items-center h-16 border-b border-border shrink-0",
+                "flex items-center h-16 border-b border-white/10 shrink-0",
                 collapsed ? "justify-center px-2" : "px-4"
             )}>
                 <Link href="/" className="flex items-center gap-3 font-semibold text-lg">
-                    <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-apogee-cobalt to-apogee-emerald flex items-center justify-center text-white shadow-[0_10px_25px_rgba(30,60,140,0.45)]">
                         <span className="text-sm font-bold">EP</span>
                     </div>
                     {!collapsed && (
-                        <span className="text-foreground">EduPilot</span>
+                        <span className="text-white">EduPilot</span>
                     )}
                 </Link>
             </div>
@@ -318,7 +314,7 @@ export function SidebarContent({ collapsed = false, onItemClick }: SidebarConten
                 {filteredMenu.map((section) => (
                     <div key={section.title}>
                         {!collapsed && (
-                            <div className="px-3 mb-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            <div className="px-3 mb-2 text-[10px] font-semibold text-apogee-metal/60 uppercase tracking-[0.32em]">
                                 {section.title}
                             </div>
                         )}
@@ -338,10 +334,10 @@ export function SidebarContent({ collapsed = false, onItemClick }: SidebarConten
             </nav>
 
             {/* Logout */}
-            <div className="p-2 border-t border-border">
+            <div className="p-2 border-t border-white/10">
                 <button
                     className={cn(
-                        "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10",
+                        "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-apogee-crimson transition-colors hover:bg-apogee-crimson/15",
                         collapsed && "justify-center"
                     )}
                     title={collapsed ? "Déconnexion" : undefined}
@@ -375,8 +371,8 @@ function SidebarItem({ item, collapsed, isActive, onClick }: SidebarItemProps) {
             className={cn(
                 "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
                 isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    ? "bg-white/10 text-white border border-white/15 shadow-[0_12px_30px_rgba(4,8,18,0.35)]"
+                    : "text-apogee-metal/70 hover:bg-white/10 hover:text-white",
                 collapsed && "justify-center px-2"
             )}
             title={item.label}
@@ -385,13 +381,13 @@ function SidebarItem({ item, collapsed, isActive, onClick }: SidebarItemProps) {
             {isActive && (
                 <motion.div
                     layoutId="sidebar-active-indicator"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary-foreground rounded-r-full"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-apogee-cobalt rounded-r-full"
                     initial={false}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
             )}
 
-            <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary-foreground")} />
+            <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-white")} />
 
             {!collapsed && (
                 <span className="truncate">{item.label}</span>

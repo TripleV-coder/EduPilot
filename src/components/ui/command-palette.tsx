@@ -29,7 +29,6 @@ import {
     CommandList,
     CommandSeparator,
 } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 
 // ============================================
 // TYPES
@@ -130,7 +129,7 @@ export function CommandPalette() {
         items: recentPaths.map((path) => ({
             id: `recent-${path}`,
             label: getPathLabel(path),
-            icon: <Clock className="h-4 w-4 text-muted-foreground" />,
+            icon: <Clock className="h-4 w-4 text-apogee-metal/60" />,
             action: () => navigate(path),
         })),
     };
@@ -141,8 +140,8 @@ export function CommandPalette() {
             <CommandList>
                 <CommandEmpty>
                     <div className="py-6 text-center">
-                        <Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                        <p className="text-sm text-muted-foreground">
+                        <Search className="h-12 w-12 mx-auto text-apogee-metal/40 mb-3" />
+                        <p className="text-sm text-apogee-metal/70">
                             Aucun résultat trouvé.
                         </p>
                     </div>
@@ -173,7 +172,7 @@ export function CommandPalette() {
                         >
                             {item.icon}
                             <span className="ml-2">{item.label}</span>
-                            <ArrowRight className="ml-auto h-3 w-3 text-muted-foreground" />
+                            <ArrowRight className="ml-auto h-3 w-3 text-apogee-metal/60" />
                         </CommandItem>
                     ))}
                 </CommandGroup>
@@ -188,7 +187,7 @@ export function CommandPalette() {
                             onSelect={item.action}
                             keywords={item.keywords}
                         >
-                            <span className="flex items-center justify-center h-4 w-4 rounded-sm bg-primary/10 text-primary">
+                            <span className="flex items-center justify-center h-4 w-4 rounded-sm bg-apogee-cobalt/20 text-apogee-cobalt">
                                 {item.icon}
                             </span>
                             <span className="ml-2">{item.label}</span>

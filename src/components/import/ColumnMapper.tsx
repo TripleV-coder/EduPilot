@@ -52,17 +52,17 @@ export function ColumnMapper({ headers, requiredFields, onMappingComplete, initi
                     const isSet = !!mappedHeader;
 
                     return (
-                        <Card key={field.key} className={cn("transition-all duration-200", isSet ? "border-green-500/50 bg-green-500/5" : field.required ? "border-amber-500/50" : "")}>
+                        <Card key={field.key} className={cn("transition-all duration-200", isSet ? "border-apogee-emerald/40 bg-apogee-emerald/10" : field.required ? "border-apogee-gold/40" : "")}>
                             <CardHeader className="p-4 pb-2">
                                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                                     {field.label}
-                                    {field.required && <span className="text-xs text-amber-500 font-normal">Requis</span>}
-                                    {isSet && <Check className="w-4 h-4 text-green-500" />}
+                                    {field.required && <span className="text-xs text-apogee-gold font-normal">Requis</span>}
+                                    {isSet && <Check className="w-4 h-4 text-apogee-emerald" />}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-2">
                                 <Select value={mappedHeader} onValueChange={(val) => handleMap(field.key, val)}>
-                                    <SelectTrigger className={cn("w-full transition-colors", isSet && "border-green-500/30")}>
+                                    <SelectTrigger className={cn("w-full transition-colors", isSet && "border-apogee-emerald/40")}>
                                         <SelectValue placeholder="Sélectionner une colonne..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -80,7 +80,7 @@ export function ColumnMapper({ headers, requiredFields, onMappingComplete, initi
             </div>
 
             {!allRequiredMapped && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-amber-600 flex items-center gap-3">
+                <div className="rounded-lg border border-apogee-gold/30 bg-apogee-gold/10 p-4 text-apogee-gold flex items-center gap-3">
                     <AlertCircle className="w-5 h-5" />
                     <p className="text-sm font-medium">Veuillez mapper tous les champs requis pour continuer.</p>
                 </div>

@@ -15,25 +15,25 @@ export function StreakDisplay({ currentStreak, longestStreak, todayCompleted }: 
         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20"
+            className="flex items-center gap-3 p-3 rounded-xl bg-apogee-abyss/70 border border-white/10 shadow-[0_16px_35px_rgba(4,8,18,0.45)]"
         >
             <motion.div
                 animate={todayCompleted ? { scale: [1, 1.2, 1] } : {}}
                 transition={{ repeat: Infinity, duration: 2 }}
                 className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center",
-                    todayCompleted ? "bg-gradient-to-br from-orange-500 to-yellow-500" : "bg-gray-300 dark:bg-gray-700"
+                    "w-12 h-12 rounded-full flex items-center justify-center border border-white/10",
+                    todayCompleted ? "bg-gradient-to-br from-apogee-gold to-apogee-crimson" : "bg-apogee-graphite/80"
                 )}
             >
-                <Flame className={cn("w-6 h-6", todayCompleted ? "text-white" : "text-gray-500")} />
+                <Flame className={cn("w-6 h-6", todayCompleted ? "text-white" : "text-apogee-metal/60")} />
             </motion.div>
 
             <div className="flex-1">
                 <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-orange-600">{currentStreak}</span>
-                    <span className="text-sm text-muted-foreground">jours consécutifs</span>
+                    <span className="text-2xl font-bold text-white">{currentStreak}</span>
+                    <span className="text-sm text-apogee-metal/70">jours consécutifs</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-apogee-metal/60">
                     Record : {longestStreak} jours
                 </p>
             </div>
@@ -44,7 +44,7 @@ export function StreakDisplay({ currentStreak, longestStreak, todayCompleted }: 
                     animate={{ rotate: 15 }}
                     transition={{ repeat: Infinity, repeatType: "reverse", duration: 0.5 }}
                 >
-                    <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                    <Star className="w-6 h-6 text-apogee-gold fill-apogee-gold" />
                 </motion.div>
             )}
         </motion.div>
@@ -66,20 +66,20 @@ export function QuickWinCard({ title, description, points, completed, onClick }:
             whileTap={{ scale: completed ? 1 : 0.98 }}
             onClick={!completed ? onClick : undefined}
             className={cn(
-                "p-4 rounded-xl border-2 transition-all cursor-pointer",
+                "p-4 rounded-xl border transition-all cursor-pointer",
                 completed
-                    ? "border-green-500/30 bg-green-500/5 opacity-60"
-                    : "border-primary/20 bg-white dark:bg-gray-900 hover:border-primary/50 hover:shadow-lg"
+                    ? "border-apogee-emerald/30 bg-apogee-emerald/10 opacity-70"
+                    : "border-white/10 bg-white/5 hover:border-apogee-cobalt/40 hover:shadow-[0_18px_40px_rgba(4,8,18,0.5)]"
             )}
         >
             <div className="flex items-start justify-between">
                 <div>
                     <h4 className={cn("font-medium", completed && "line-through")}>{title}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                    <p className="text-sm text-apogee-metal/70 mt-1">{description}</p>
                 </div>
                 <div className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold",
-                    completed ? "bg-green-500 text-white" : "bg-yellow-500/20 text-yellow-600"
+                    "flex items-center gap-1 px-2 py-1 rounded-full text-[0.65rem] font-semibold uppercase tracking-[0.24em]",
+                    completed ? "bg-apogee-emerald text-white" : "bg-apogee-gold/15 text-apogee-gold"
                 )}>
                     <Zap className="w-3 h-3" />
                     +{points}
@@ -103,8 +103,8 @@ export function DailyQuickWins() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="font-bold">⚡ Objectifs du jour</h3>
-                <span className="text-sm text-muted-foreground">
+                <h3 className="font-bold text-white">⚡ Objectifs du jour</h3>
+                <span className="text-sm text-apogee-metal/70">
                     {totalPoints}/{maxPoints} points
                 </span>
             </div>

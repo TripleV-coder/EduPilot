@@ -16,7 +16,7 @@ export function Confetti({ trigger }: { trigger: boolean }) {
 
     useEffect(() => {
         if (trigger) {
-            const colors = ["#3B82F6", "#8B5CF6", "#EC4899", "#10B981", "#F59E0B", "#EF4444"];
+            const colors = ["#5A8CFF", "#44F5C2", "#F7C76B", "#FF6EA0", "#2B2B2B", "#8B5CF6"];
             const newPieces: ConfettiPiece[] = [];
 
             for (let i = 0; i < 50; i++) {
@@ -82,18 +82,18 @@ export function SuccessAnimation({ show, message }: { show: boolean; message: st
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    className="fixed inset-0 z-40 flex items-center justify-center bg-apogee-abyss/80 backdrop-blur-sm"
                 >
                     <motion.div
                         initial={{ y: 20 }}
                         animate={{ y: 0 }}
-                        className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl text-center max-w-md mx-4"
+                        className="bg-apogee-abyss/90 border border-white/10 rounded-2xl p-8 shadow-[0_30px_80px_rgba(4,8,18,0.7)] text-center max-w-md mx-4"
                     >
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", delay: 0.2 }}
-                            className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-500 flex items-center justify-center"
+                            className="w-20 h-20 mx-auto mb-4 rounded-full bg-apogee-emerald flex items-center justify-center"
                         >
                             <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <motion.path
@@ -107,8 +107,8 @@ export function SuccessAnimation({ show, message }: { show: boolean; message: st
                                 />
                             </svg>
                         </motion.div>
-                        <h2 className="text-2xl font-bold text-green-600 mb-2">Bravo ! 🎉</h2>
-                        <p className="text-muted-foreground">{message}</p>
+                        <h2 className="text-2xl font-bold text-apogee-emerald mb-2">Bravo ! 🎉</h2>
+                        <p className="text-apogee-metal/70">{message}</p>
                     </motion.div>
                 </motion.div>
             )}
