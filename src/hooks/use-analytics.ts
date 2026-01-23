@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-interface SchoolStats {
+export interface SchoolStats {
     students: number;
     teachers: number;
     classes: number;
@@ -23,7 +23,7 @@ interface SchoolStats {
     };
 }
 
-interface GradeDistribution {
+export interface GradeDistribution {
     A: number;
     B: number;
     C: number;
@@ -31,7 +31,7 @@ interface GradeDistribution {
     F: number;
 }
 
-interface ActivityItem {
+export interface ActivityItem {
     action: string;
     entity: string;
     user: string;

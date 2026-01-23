@@ -23,6 +23,17 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        apogee: {
+          abyss: "hsl(var(--apogee-abyss))",
+          slate: "hsl(var(--apogee-slate))",
+          graphite: "hsl(var(--apogee-graphite))",
+          metal: "hsl(var(--apogee-metal))",
+          gold: "hsl(var(--apogee-gold))",
+          cobalt: "hsl(var(--apogee-cobalt))",
+          emerald: "hsl(var(--apogee-emerald))",
+          crimson: "hsl(var(--apogee-crimson))",
+          neon: "hsl(var(--apogee-neon))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

@@ -204,6 +204,63 @@
     --gradient-success: linear-gradient(135deg, hsl(142 76% 45%) 0%, hsl(173 58% 44%) 100%);
     --gradient-warning: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(43 74% 71%) 100%);
   }
+
+  /* ========================================
+     APOGÉE THEME - Luxury Engineering Palette
+     ======================================== */
+  .apogee {
+    --apogee-abyss: 222 34% 6%;
+    --apogee-slate: 220 24% 10%;
+    --apogee-graphite: 220 18% 16%;
+    --apogee-metal: 220 10% 62%;
+    --apogee-gold: 42 86% 58%;
+    --apogee-cobalt: 214 90% 60%;
+    --apogee-emerald: 160 76% 45%;
+    --apogee-crimson: 350 75% 58%;
+    --apogee-neon: 186 95% 65%;
+
+    --background: var(--apogee-abyss);
+    --foreground: 210 40% 98%;
+    --card: 220 28% 10%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 28% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: var(--apogee-cobalt);
+    --primary-foreground: 210 40% 98%;
+    --primary-hover: 214 90% 66%;
+    --primary-active: 214 90% 70%;
+
+    --secondary: 220 22% 14%;
+    --secondary-foreground: 210 40% 98%;
+    --secondary-hover: 220 22% 18%;
+
+    --accent: var(--apogee-gold);
+    --accent-foreground: 220 28% 10%;
+    --accent-secondary: var(--apogee-cobalt);
+    --accent-tertiary: var(--apogee-emerald);
+
+    --muted: 220 20% 14%;
+    --muted-foreground: 220 12% 70%;
+    --border: 220 18% 18%;
+    --input: 220 18% 18%;
+    --ring: var(--apogee-cobalt);
+
+    --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.35);
+    --shadow-md: 0 10px 30px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 25px 60px rgb(0 0 0 / 0.55);
+    --shadow-xl: 0 35px 80px rgb(0 0 0 / 0.6);
+    --shadow-2xl: 0 45px 120px rgb(0 0 0 / 0.65);
+    --shadow-glow: 0 0 45px hsl(var(--apogee-cobalt) / 0.35);
+
+    --gradient-primary: linear-gradient(135deg, hsl(var(--apogee-cobalt)) 0%, hsl(var(--apogee-emerald)) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--apogee-graphite)) 0%, hsl(var(--apogee-slate)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--apogee-gold)) 0%, hsl(var(--apogee-cobalt)) 55%, hsl(var(--apogee-emerald)) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(var(--apogee-emerald)) 0%, hsl(var(--apogee-cobalt)) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(var(--apogee-gold)) 0%, hsl(var(--apogee-crimson)) 100%);
+
+    color-scheme: dark;
+  }
 }
 
 @layer base {
@@ -222,6 +279,15 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+
+  body.apogee {
+    background-color: hsl(var(--apogee-abyss));
+    background-image:
+      radial-gradient(circle at 20% 20%, hsl(var(--apogee-cobalt) / 0.18), transparent 45%),
+      radial-gradient(circle at 80% 10%, hsl(var(--apogee-emerald) / 0.12), transparent 40%),
+      radial-gradient(circle at 90% 80%, hsl(var(--apogee-gold) / 0.18), transparent 45%);
     background-attachment: fixed;
   }
 
@@ -411,6 +477,49 @@
     background: rgba(30, 41, 59, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.05);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+
+  /* ========================================
+     APOGEE SURFACES & SHADERS
+     ======================================== */
+  .apogee-sheen {
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.12) 35%,
+      transparent 70%
+    );
+    mask-image: linear-gradient(120deg, transparent 0%, #000 40%, transparent 70%);
+    animation: apogee-sheen 6s ease-in-out infinite;
+  }
+
+  .apogee-shader {
+    background:
+      radial-gradient(circle at 20% 10%, rgba(90, 140, 255, 0.22), transparent 55%),
+      radial-gradient(circle at 90% 0%, rgba(72, 255, 190, 0.16), transparent 45%),
+      radial-gradient(circle at 50% 100%, rgba(255, 205, 120, 0.16), transparent 60%);
+    mix-blend-mode: screen;
+  }
+
+  .apogee-grid {
+    background-image:
+      linear-gradient(hsl(var(--apogee-graphite) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--apogee-graphite) / 0.35) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  @keyframes apogee-sheen {
+    0% {
+      transform: translateX(-30%);
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.9;
+    }
+    100% {
+      transform: translateX(40%);
+      opacity: 0.4;
+    }
   }
 
   /* ========================================

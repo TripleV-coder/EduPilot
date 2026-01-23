@@ -1,357 +1,315 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, BookOpen, GraduationCap, Banknote, Clock, AlertTriangle, TrendingUp, Plus, Library, Trophy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useSchoolStats, useRecentActivity, useGradeDistribution } from "@/hooks/use-analytics";
-import { OnboardingChecklist, useOnboardingSteps } from "@/components/onboarding/onboarding-checklist";
-import { StreakDisplay } from "@/components/engagement/streak-display";
-import { QuickActionsPanel } from "@/components/quick-actions/quick-actions-panel";
-import { useRouter } from "next/navigation";
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  BookOpen,
+  GraduationCap,
+  Sparkles,
+  Users,
+  Wallet,
+  Zap,
+} from "lucide-react";
+import { ApogeePanel } from "@/components/apogee/panel";
+import { ApogeeMetricTile } from "@/components/apogee/metric-tile";
+import { ApogeeSignalPill } from "@/components/apogee/signal-pill";
+import { useApogeeDashboard } from "@/hooks/use-apogee-dashboard";
+import { ApogeeMetric, PerformanceBand, Signal, SignalMomentum } from "@/domain/apogee/model";
+import { formatRelativeTime } from "@/lib/design-system/tokens";
 
 const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: { staggerChildren: 0.08 }
-    }
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
+    },
+  },
 };
 
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-        opacity: 1,
-        y: 0,
-        transition: { type: "spring" as const, stiffness: 100 }
-    }
+const panelVariants = {
+  hidden: { opacity: 0, y: 24, rotateX: -6 },
+  show: {
+    opacity: 1,
+    y: 0,
+    rotateX: 0,
+    transition: { type: "spring", damping: 18, stiffness: 140, mass: 0.7 },
+  },
 };
+
+const metricIcons: Record<string, ReactNode> = {
+  students: <Users className="h-5 w-5" />,
+  teachers: <GraduationCap className="h-5 w-5" />,
+  classes: <BookOpen className="h-5 w-5" />,
+  attendance: <Activity className="h-5 w-5" />,
+  payments: <Wallet className="h-5 w-5" />,
+  streak: <Zap className="h-5 w-5" />,
+};
+
+const momentumIcon: Record<SignalMomentum, ReactNode> = {
+  UP: <ArrowUpRight className="h-3.5 w-3.5" />,
+  DOWN: <ArrowDownRight className="h-3.5 w-3.5" />,
+  STABLE: <Sparkles className="h-3.5 w-3.5" />,
+};
+
+const fallbackMetrics: ApogeeMetric[] = [
+  {
+    id: "sync",
+    label: "Synchronisation",
+    value: "—",
+    hint: "Flux d'analyse en amorce.",
+    tone: "graphite",
+  },
+  {
+    id: "cadence",
+    label: "Cadence",
+    value: "—",
+    hint: "Calibration en cours.",
+    tone: "graphite",
+  },
+];
+
+const fallbackPerformance: PerformanceBand[] = [
+  { grade: "A", count: 0, intensity: 0, tone: "emerald" },
+  { grade: "B", count: 0, intensity: 0, tone: "cobalt" },
+  { grade: "C", count: 0, intensity: 0, tone: "gold" },
+  { grade: "D", count: 0, intensity: 0, tone: "graphite" },
+  { grade: "F", count: 0, intensity: 0, tone: "crimson" },
+];
 
 export default function DashboardPage() {
-    const { data: stats, isLoading } = useSchoolStats();
-    const { data: activity } = useRecentActivity();
-    const { data: gradeDistribution } = useGradeDistribution();
-    const onboardingSteps = useOnboardingSteps(stats);
-    const router = useRouter();
+  const { model, isLoading } = useApogeeDashboard();
 
-    const showOnboarding = onboardingSteps.filter(s => !s.completed).length > 0;
+  const metrics = model?.metrics ?? fallbackMetrics;
+  const queue = model?.queue ?? { primary: [], backlog: [] };
+  const performance = model?.performance ?? fallbackPerformance;
+  const activity = model?.activity ?? { items: [], tempo: 0, freshness: 0 };
+  const logbook = model?.logbook ?? [];
+  const narrative = model?.narrative ?? {
+    headline: "Synchronisation APOGÉE",
+    subline: "Alignement des flux en cours.",
+  };
 
-    return (
-        <div className="space-y-4">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between"
-            >
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Vue d&apos;ensemble
-                    </h1>
-                    <p className="text-sm text-muted-foreground">Bienvenue sur votre espace de gestion EduPilot.</p>
-                </div>
-            </motion.div>
-
-            {/* Quick Actions - 3 clics max */}
-            <QuickActionsPanel
-                onAttendance={() => router.push("/attendance")}
-                onPayment={() => router.push("/payments")}
-                onSMS={() => router.push("/messages")}
-            />
-
-            {/* Onboarding & Engagement Row */}
-            {showOnboarding && (
-                <div className="grid gap-4 md:grid-cols-2">
-                    <OnboardingChecklist steps={onboardingSteps} />
-                    <div className="space-y-4">
-                        <StreakDisplay
-                            currentStreak={stats?.userStats?.streak || 0}
-                            longestStreak={stats?.userStats?.longestStreak || 0}
-                            todayCompleted={stats?.userStats?.todayCompleted || false}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Main Stats Grid */}
-            <motion.div
-                className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-            >
-                <StatCard
-                    title="Élèves"
-                    value={stats?.students || 0}
-                    icon={<Users className="h-5 w-5" />}
-                    color="blue"
-                    loading={isLoading}
-                />
-                <StatCard
-                    title="Enseignants"
-                    value={stats?.teachers || 0}
-                    icon={<GraduationCap className="h-5 w-5" />}
-                    color="purple"
-                    loading={isLoading}
-                />
-                <StatCard
-                    title="Classes"
-                    value={stats?.classes || 0}
-                    icon={<BookOpen className="h-5 w-5" />}
-                    color="green"
-                    loading={isLoading}
-                />
-                <StatCard
-                    title="Paiements (mois)"
-                    value={`${((stats?.payments.total || 0) / 1000).toFixed(0)}K XOF`}
-                    subtitle={`${stats?.payments.count || 0} transactions`}
-                    icon={<Banknote className="h-5 w-5" />}
-                    color="emerald"
-                    loading={isLoading}
-                />
-            </motion.div>
-
-            {/* Attendance & Alerts Row */}
-            <motion.div
-                className="grid gap-4 md:grid-cols-2"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-            >
-                <motion.div variants={itemVariants}>
-                    <Card className="border-0 bg-gradient-to-br from-green-500/10 to-emerald-500/5 backdrop-blur">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                                <Clock className="h-5 w-5" />
-                                Présence Aujourd&apos;hui
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-end gap-4">
-                                <motion.div
-                                    className="text-5xl font-bold text-green-600"
-                                    initial={{ scale: 0.5 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ type: "spring", delay: 0.3 }}
-                                >
-                                    {stats?.attendance.rate || 0}%
-                                </motion.div>
-                                <div className="text-sm text-muted-foreground pb-2">
-                                    <span className="text-green-600 font-medium">{stats?.attendance.present || 0}</span> présents
-                                    <span className="mx-2">·</span>
-                                    <span className="text-red-500">{stats?.attendance.absent || 0}</span> absents
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                <motion.div variants={itemVariants}>
-                    <Card className="border-0 bg-gradient-to-br from-orange-500/10 to-red-500/5 backdrop-blur">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-                                <AlertTriangle className="h-5 w-5" />
-                                Alertes
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {(stats?.overdueBooks || 0) > 0 && (
-                                    <motion.div
-                                        className="flex items-center gap-2 text-sm"
-                                        initial={{ x: -20, opacity: 0 }}
-                                        animate={{ x: 0, opacity: 1 }}
-                                    >
-                                        <Library className="h-4 w-4 text-orange-500" />
-                                        <span>{stats?.overdueBooks} livres en retard</span>
-                                    </motion.div>
-                                )}
-                                {(stats?.attendance.rate || 100) < 80 && (
-                                    <motion.div
-                                        className="flex items-center gap-2 text-sm text-red-600"
-                                        initial={{ x: -20, opacity: 0 }}
-                                        animate={{ x: 0, opacity: 1 }}
-                                    >
-                                        <TrendingUp className="h-4 w-4" />
-                                        <span>Taux de présence faible</span>
-                                    </motion.div>
-                                )}
-                                {(stats?.overdueBooks || 0) === 0 && (stats?.attendance.rate || 100) >= 80 && (
-                                    <div className="text-sm text-green-600 font-medium">
-                                        ✓ Aucune alerte active
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </motion.div>
-
-            {/* Grade Distribution & Activity */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <motion.div
-                    className="col-span-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
-                >
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Trophy className="h-5 w-5 text-yellow-500" />
-                                Distribution des Notes
-                            </CardTitle>
-                            <CardDescription>Répartition par tranche de performance</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-end gap-3 h-[200px]">
-                                {gradeDistribution && Object.entries(gradeDistribution).map(([grade, count], i) => (
-                                    <motion.div
-                                        key={grade}
-                                        className="flex-1 flex flex-col items-center gap-2"
-                                        initial={{ height: 0 }}
-                                        animate={{ height: "auto" }}
-                                        transition={{ delay: 0.5 + i * 0.1 }}
-                                    >
-                                        <motion.div
-                                            className={`w-full rounded-t-lg ${getGradeColor(grade)}`}
-                                            style={{ height: `${Math.max(20, (count as number) * 3)}px` }}
-                                            initial={{ scaleY: 0 }}
-                                            animate={{ scaleY: 1 }}
-                                            transition={{ delay: 0.6 + i * 0.1, type: "spring" }}
-                                        />
-                                        <span className="text-xs font-medium">{grade}</span>
-                                        <span className="text-xs text-muted-foreground">{count as number}</span>
-                                    </motion.div>
-                                ))}
-                                {!gradeDistribution && (
-                                    <div className="flex-1 flex gap-3 items-end h-full">
-                                        {[0.6, 0.8, 0.5, 0.7, 0.4].map((h, i) => (
-                                            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                                                <div
-                                                    className="w-full bg-muted rounded-t-lg animate-pulse"
-                                                    style={{ height: `${h * 150}px` }}
-                                                />
-                                                <div className="w-4 h-3 bg-muted rounded animate-pulse" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                <motion.div
-                    className="col-span-3"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
-                >
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Activité Récente</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                {activity?.slice(0, 5).map((item, i) => (
-                                    <motion.div
-                                        key={i}
-                                        className="flex justify-between text-sm border-b pb-2 last:border-0"
-                                        initial={{ opacity: 0, x: 10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.6 + i * 0.1 }}
-                                    >
-                                        <span>
-                                            <strong>{item.user}</strong> · {item.action}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                            {new Date(item.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                        </span>
-                                    </motion.div>
-                                ))}
-                                {(!activity || activity.length === 0) && (
-                                    <p className="text-muted-foreground text-sm">Aucune activité récente</p>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
-
+  return (
+    <div className="space-y-6">
+      <motion.header
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"
+      >
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.6em] text-apogee-metal/70">
+            APOGÉE · Ingénierie de luxe
+          </p>
+          <h1 className="text-3xl font-semibold text-white lg:text-4xl">Atelier de Commande</h1>
+          <p className="max-w-xl text-sm text-apogee-metal/80">{narrative.subline}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            {queue.primary.slice(0, 2).map((signal) => (
+              <ApogeeSignalPill key={signal.id} signal={signal} />
+            ))}
+          </div>
         </div>
-    );
-}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-apogee-abyss/70 px-4 py-3 shadow-[0_20px_40px_rgba(2,8,20,0.4)]">
+            <p className="text-[0.6rem] uppercase tracking-[0.3em] text-apogee-metal/70">Tempo</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{activity.tempo}%</p>
+            <p className="text-xs text-apogee-metal/70">Cadence des opérations (60 min).</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-apogee-abyss/70 px-4 py-3 shadow-[0_20px_40px_rgba(2,8,20,0.4)]">
+            <p className="text-[0.6rem] uppercase tracking-[0.3em] text-apogee-metal/70">Fraîcheur</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{activity.freshness}%</p>
+            <p className="text-xs text-apogee-metal/70">Dernier événement consolidé.</p>
+          </div>
+        </div>
+      </motion.header>
 
-function StatCard({ title, value, subtitle, icon, color, loading }: {
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    icon: React.ReactNode;
-    color: string;
-    loading?: boolean;
-}) {
-    const colorClasses: Record<string, string> = {
-        blue: "from-blue-500/20 to-blue-600/5 text-blue-600",
-        purple: "from-purple-500/20 to-purple-600/5 text-purple-600",
-        green: "from-green-500/20 to-green-600/5 text-green-600",
-        emerald: "from-emerald-500/20 to-emerald-600/5 text-emerald-600",
-    };
+      <div className="grid grid-cols-12 gap-6">
+        <section className="col-span-12 space-y-6 xl:col-span-8">
+          <motion.div variants={panelVariants} initial="hidden" animate="show">
+            <ApogeePanel
+              title="Matrice opérationnelle"
+              subtitle={narrative.headline}
+              className="apogee-grid"
+              actions={
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[0.6rem] uppercase tracking-[0.3em] text-apogee-metal/80">
+                  {isLoading ? "Calibrage" : "Actif"}
+                </span>
+              }
+            >
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {metrics.map((metric) => (
+                  <motion.div key={metric.id} variants={panelVariants}>
+                    <ApogeeMetricTile metric={metric} icon={metricIcons[metric.id]} />
+                  </motion.div>
+                ))}
+              </motion.div>
 
-    return (
-        <motion.div variants={itemVariants}>
-            <Card className={`border-0 bg-gradient-to-br ${colorClasses[color]} backdrop-blur hover:scale-[1.02] transition-transform`}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                    <div className={`p-2 rounded-lg bg-white/50 dark:bg-black/20 ${colorClasses[color].split(" ")[2]}`}>
-                        {icon}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.32em] text-apogee-metal/70">
+                    Priorité en file
+                  </p>
+                  <p className="mt-2 text-sm text-white">
+                    {queue.primary[0]?.label ?? "Analyse en attente d'entrées réelles."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {queue.primary.map((signal) => (
+                    <ApogeeSignalPill key={signal.id} signal={signal} />
+                  ))}
+                </div>
+              </div>
+            </ApogeePanel>
+          </motion.div>
+
+          <div className="grid grid-cols-12 gap-6">
+            <motion.div className="col-span-12 lg:col-span-7" variants={panelVariants} initial="hidden" animate="show">
+              <ApogeePanel
+                title="Spectre académique"
+                subtitle="Densité de performance consolidée"
+                tone="gold"
+              >
+                <div className="relative mt-4 h-[220px] w-full overflow-hidden rounded-xl border border-white/10 bg-apogee-abyss/60 p-4">
+                  <div className="pointer-events-none absolute inset-0 apogee-grid opacity-40" />
+                  <div className="relative z-10 flex h-full items-end gap-4">
+                    {performance.map((band) => (
+                      <div key={band.grade} className="flex flex-1 flex-col items-center gap-2">
+                        <motion.div
+                          initial={{ height: 0, opacity: 0.4 }}
+                          animate={{ height: `${Math.max(16, band.intensity * 1.6)}px`, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 120, damping: 16 }}
+                          className="w-full rounded-t-xl bg-gradient-to-b from-white/10 to-transparent"
+                          style={{
+                            background:
+                              band.tone === "emerald"
+                                ? "linear-gradient(180deg, rgba(72,255,190,0.7), transparent)"
+                                : band.tone === "cobalt"
+                                  ? "linear-gradient(180deg, rgba(90,140,255,0.7), transparent)"
+                                  : band.tone === "gold"
+                                    ? "linear-gradient(180deg, rgba(255,205,120,0.7), transparent)"
+                                    : band.tone === "crimson"
+                                      ? "linear-gradient(180deg, rgba(255,110,160,0.7), transparent)"
+                                      : "linear-gradient(180deg, rgba(255,255,255,0.3), transparent)",
+                          }}
+                        />
+                        <span className="text-xs text-apogee-metal/80">{band.grade}</span>
+                        <span className="text-[0.65rem] text-apogee-metal/60">{band.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </ApogeePanel>
+            </motion.div>
+
+            <motion.div className="col-span-12 lg:col-span-5" variants={panelVariants} initial="hidden" animate="show">
+              <ApogeePanel title="Flux d'activité" subtitle="Chronologie opérationnelle" tone="cobalt">
+                <div className="space-y-3">
+                  {activity.items.map((item) => (
+                    <div
+                      key={`${item.user}-${item.time}`}
+                      className="flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                    >
+                      <div>
+                        <p className="text-sm text-white">
+                          <span className="font-medium">{item.user}</span> · {item.action}
+                        </p>
+                        <p className="text-xs text-apogee-metal/70">{item.entity}</p>
+                      </div>
+                      <span className="text-xs text-apogee-metal/60">{formatRelativeTime(item.time)}</span>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-3xl font-bold">
-                        {loading ? <div className="h-8 w-16 bg-current/10 rounded animate-pulse" /> : value}
+                  ))}
+                  {activity.items.length === 0 && (
+                    <p className="text-sm text-apogee-metal/70">Flux silencieux, en attente d'activité.</p>
+                  )}
+                </div>
+              </ApogeePanel>
+            </motion.div>
+          </div>
+        </section>
+
+        <aside className="col-span-12 space-y-6 xl:col-span-4">
+          <motion.div variants={panelVariants} initial="hidden" animate="show">
+            <ApogeePanel title="File d'intervention" subtitle="Signaux hiérarchisés" tone="crimson">
+              <div className="space-y-3">
+                {queue.primary.map((signal) => (
+                  <SignalRow key={signal.id} signal={signal} />
+                ))}
+                {queue.backlog.map((signal) => (
+                  <SignalRow key={signal.id} signal={signal} compact />
+                ))}
+                {queue.primary.length === 0 && (
+                  <p className="text-sm text-apogee-metal/70">Rien à signaler pour l'instant.</p>
+                )}
+              </div>
+            </ApogeePanel>
+          </motion.div>
+
+          <motion.div variants={panelVariants} initial="hidden" animate="show">
+            <ApogeePanel title="Journal tactique" subtitle="Décisions & micro-optimisations" tone="emerald">
+              <div className="space-y-3">
+                {logbook.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between text-xs uppercase tracking-[0.28em] text-apogee-metal/60">
+                      <span>{entry.scope}</span>
+                      <span>{formatRelativeTime(entry.timestamp)}</span>
                     </div>
-                    {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-                </CardContent>
-            </Card>
-        </motion.div>
-    );
+                    <p className="mt-2 text-sm text-white">{entry.message}</p>
+                  </div>
+                ))}
+                {logbook.length === 0 && (
+                  <p className="text-sm text-apogee-metal/70">Journal en cours d'alimentation.</p>
+                )}
+              </div>
+            </ApogeePanel>
+          </motion.div>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function QuickActionButton({ href, icon, label, color }: {
-    href: string;
-    icon: React.ReactNode;
-    label: string;
-    color: string;
-}) {
-    const colorClasses: Record<string, string> = {
-        blue: "hover:bg-blue-500/10 hover:border-blue-500/50 text-blue-600",
-        purple: "hover:bg-purple-500/10 hover:border-purple-500/50 text-purple-600",
-        green: "hover:bg-green-500/10 hover:border-green-500/50 text-green-600",
-        orange: "hover:bg-orange-500/10 hover:border-orange-500/50 text-orange-600",
-    };
+function SignalRow({ signal, compact = false }: { signal: Signal; compact?: boolean }) {
+  const gradient =
+    signal.tone === "emerald"
+      ? "from-apogee-emerald/70 via-apogee-emerald/30 to-transparent"
+      : signal.tone === "gold"
+        ? "from-apogee-gold/70 via-apogee-gold/30 to-transparent"
+        : signal.tone === "cobalt"
+          ? "from-apogee-cobalt/70 via-apogee-cobalt/30 to-transparent"
+          : signal.tone === "crimson"
+            ? "from-apogee-crimson/70 via-apogee-crimson/30 to-transparent"
+            : "from-white/30 via-white/10 to-transparent";
 
-    return (
-        <Button
-            variant="outline"
-            className={`h-20 flex flex-col gap-2 transition-all ${colorClasses[color]}`}
-            onClick={() => window.location.href = href}
-        >
-            <div className={colorClasses[color].split(" ")[2]}>
-                {icon}
-            </div>
-            <span className="text-foreground">{label}</span>
-        </Button>
-    );
-}
-
-function getGradeColor(grade: string): string {
-    const colors: Record<string, string> = {
-        A: "bg-green-500",
-        B: "bg-blue-500",
-        C: "bg-yellow-500",
-        D: "bg-orange-500",
-        F: "bg-red-500",
-    };
-    return colors[grade] || "bg-gray-500";
+  return (
+    <div className="rounded-xl border border-white/10 bg-apogee-abyss/70 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-white">{signal.label}</p>
+          <p className="text-xs text-apogee-metal/70">{signal.hint}</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-apogee-metal/70">
+          {momentumIcon[signal.momentum]}
+          <span>{signal.score}</span>
+        </div>
+      </div>
+      {!compact && (
+        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+          <div className={`h-full w-full bg-gradient-to-r ${gradient}`} style={{ width: `${signal.score}%` }} />
+        </div>
+      )}
+    </div>
+  );
 }
