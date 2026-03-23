@@ -17,8 +17,7 @@ const nextConfig = {
   // Strict mode pour détecter les problèmes
   reactStrictMode: true,
   
-  // Compiler en mode SWC rapide
-  swcMinify: true,
+  // Note: swcMinify est maintenant activé par défaut dans Next.js 16+
 
   // ─────────────────────────────────────────────────────────────
   // OPTIMISATION DES PERFORMANCES

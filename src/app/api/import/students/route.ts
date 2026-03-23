@@ -156,13 +156,17 @@ export async function POST(request: NextRequest) {
                         },
                     });
 
+                    // Map gender from M/F to MALE/FEMALE
+                    const genderMap: Record<string, string> = { 'M': 'MALE', 'F': 'FEMALE' };
+                    const mappedGender = studentData.gender ? genderMap[studentData.gender] || studentData.gender : undefined;
+                    
                     const studentProfile = await tx.studentProfile.create({
                         data: {
                             userId: user.id,
                             schoolId: schoolId,
                             matricule: studentData.matricule || `STU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
                             dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth) : undefined,
-                            gender: studentData.gender as any || undefined,
+                            gender: mappedGender as any || undefined,
                             birthPlace: studentData.birthPlace,
                         },
                     });
