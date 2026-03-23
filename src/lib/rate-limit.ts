@@ -107,25 +107,28 @@ const createLimiter = hasUpstash
       })
   : null;
 
-/** API générale : 100 req / minute par IP */
-export const apiLimiter = createLimiter?.(1, "m", 100, "@edupilot/api") ?? null;
+// Assouplir les limites en développement pour éviter les ralentissements
+const isDev = process.env.NODE_ENV === "development";
 
-/** Auth (login, forgot-password) : 5 essais / 15 minutes */
-export const authLimiter = createLimiter?.(15, "m", 5, "@edupilot/auth") ?? null;
+/** API générale : 100 req / minute par IP (500 en dev) */
+export const apiLimiter = createLimiter?.(1, "m", isDev ? 500 : 100, "@edupilot/api") ?? null;
 
-/** Opérations sensibles (paiements, notes, users) : 20 req / minute */
-export const strictLimiter = createLimiter?.(1, "m", 20, "@edupilot/strict") ?? null;
+/** Auth (login, forgot-password) : 5 essais / 15 minutes (20 en dev) */
+export const authLimiter = createLimiter?.(15, "m", isDev ? 20 : 5, "@edupilot/auth") ?? null;
 
-/** Upload : 10 fichiers / minute */
-export const uploadLimiter = createLimiter?.(1, "m", 10, "@edupilot/upload") ?? null;
+/** Opérations sensibles (paiements, notes, users) : 20 req / minute (100 en dev) */
+export const strictLimiter = createLimiter?.(1, "m", isDev ? 100 : 20, "@edupilot/strict") ?? null;
+
+/** Upload : 10 fichiers / minute (50 en dev) */
+export const uploadLimiter = createLimiter?.(1, "m", isDev ? 50 : 10, "@edupilot/upload") ?? null;
 
 // ─── Fallback configs (must match the Upstash configs above) ──────────────────
 
 const FALLBACK_CONFIGS: Record<string, FallbackConfig> = {
-  auth:   { limit: 5,   windowMs: 15 * 60 * 1000 },
-  strict: { limit: 20,  windowMs: 60 * 1000 },
-  upload: { limit: 10,  windowMs: 60 * 1000 },
-  api:    { limit: 100, windowMs: 60 * 1000 },
+  auth:   { limit: isDev ? 20 : 5,    windowMs: 15 * 60 * 1000 },
+  strict: { limit: isDev ? 100 : 20,  windowMs: 60 * 1000 },
+  upload: { limit: isDev ? 50 : 10,   windowMs: 60 * 1000 },
+  api:    { limit: isDev ? 500 : 100, windowMs: 60 * 1000 },
 };
 
 function getFallbackConfig(limiter: Ratelimit | null): FallbackConfig {

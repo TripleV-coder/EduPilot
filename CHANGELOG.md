@@ -5,6 +5,49 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.1.0] - 2025-03-23
+
+### 🎉 Version de Finalisation & Optimisation
+
+#### ✨ Ajouté
+- **Tests unitaires et d'intégration** : 26 nouveaux tests (+240 tests au total)
+  - Tests système d'import (validation, mapping, matricule)
+  - Tests cache et rate limiting
+  - Tests RBAC et isolation multi-tenant
+- **Documentation développeur** : Guide complet `DEVELOPMENT.md`
+  - Setup rapide et prérequis
+  - Structure du projet
+  - Configuration complète
+  - Debugging et troubleshooting
+
+#### 🐛 Corrigé
+- **Bug critique import étudiants** : Mapping gender M/F → MALE/FEMALE manquant
+  - Impact : 100% des imports avec genre échouaient
+  - Fix : Transformation automatique dans `/app/src/app/api/import/students/route.ts`
+- **Next.js config** : Suppression option deprecated `swcMinify`
+- **Endpoint `/api/schools/[id]`** : Error handling et permissions améliorés
+
+#### ⚡ Optimisé
+- **Rate limiting adaptatif par environnement**
+  - Dev : x5 limites (500 req/min API, 100 strict) → Navigation 5x plus rapide
+  - Prod : Limites sécurisées maintenues (100/20 req/min)
+- **Variables d'environnement** : Ajout optionnelles pour éliminer warnings
+  - TOTP_ENCRYPTION_KEY, EMAIL_*, UPSTASH_*
+
+#### 🗑️ Nettoyé
+- Fichier doublon `/app/src/lib/redis-cache.ts` supprimé
+- Test obsolète associé supprimé
+
+#### ✅ Testé & Validé
+- **Système d'import complet** : Tests E2E automatisés
+  - Import étudiants ✅ 100% fonctionnel
+  - Import professeurs ✅ 100% fonctionnel
+  - Import parents ✅ 100% fonctionnel
+- **Suite de tests** : 240 tests passent avec succès
+- **Données de test** : 6 utilisateurs créés (2 étudiants, 2 profs, 2 parents)
+
+---
+
 ## [1.0.0] - 2024-03-23
 
 ### 🎉 Version Initiale Complète

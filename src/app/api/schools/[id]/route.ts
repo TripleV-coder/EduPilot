@@ -5,8 +5,13 @@ import { Permission } from "@/lib/rbac/permissions";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 
 export const GET = createApiHandler(
-  async (_request, { params }) => {
+  async (_request, { params, session }) => {
     const { id } = params;
+
+    // Security: Non-super-admins can only view their own school
+    if (session?.user?.role !== "SUPER_ADMIN" && id !== session?.user?.schoolId) {
+      return NextResponse.json({ error: "Accès refusé à cet établissement" }, { status: 403 });
+    }
 
     const school = await prisma.school.findUnique({
       where: { id },
