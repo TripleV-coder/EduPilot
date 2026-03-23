@@ -7,6 +7,8 @@
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig = {
+  // Turbopack config (vide pour accepter config webpack existante)
+  turbopack: {},
   // ─────────────────────────────────────────────────────────────
   // BUILD & DEPLOYMENT
   // ─────────────────────────────────────────────────────────────

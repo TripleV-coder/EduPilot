@@ -180,7 +180,7 @@ export function GlobalSearch() {
     return commands.filter((command) => {
       if (!command.roles || command.roles.length === 0) return true;
       if (!userRole) return false;
-      return command.roles.includes(userRole as QuickCommand["roles"][number]);
+      return command.roles.includes(userRole as any);
     });
   }, [commands, userRole]);
 

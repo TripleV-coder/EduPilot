@@ -204,7 +204,7 @@ export function optimizeAPIResponse<T extends Record<string, unknown>>(
 
   for (const field of fields) {
     if (field in data) {
-      optimized[field as keyof T] = data[field];
+      (optimized as any)[field] = data[field];
     }
   }
 

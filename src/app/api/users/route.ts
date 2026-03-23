@@ -195,7 +195,8 @@ export const POST = createApiHandler(
 
     // Quota Enforcement
     if (targetSchoolId) {
-      if (validatedData.role === "STUDENT") {
+      const role = validatedData.role as string;
+      if (role === "STUDENT") {
         const studentQuota = await checkStudentQuota(targetSchoolId);
         if (!studentQuota.allowed) {
           return NextResponse.json(
@@ -207,7 +208,7 @@ export const POST = createApiHandler(
             { status: 403 }
           );
         }
-      } else if (validatedData.role === "TEACHER") {
+      } else if (role === "TEACHER") {
         const teacherQuota = await checkTeacherQuota(targetSchoolId);
         if (!teacherQuota.allowed) {
           return NextResponse.json(

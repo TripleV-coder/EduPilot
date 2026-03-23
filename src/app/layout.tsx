@@ -20,6 +20,7 @@ import { SessionProvider } from "@/components/providers/session-provider";
 import { SchoolProvider } from "@/components/providers/school-provider";
 import { SWRProvider } from "@/components/providers/swr-provider";
 import { CookieBanner } from "@/components/gdpr/CookieBanner";
+import { Toaster as SonnerToaster } from "sonner";
 
 export const viewport: Viewport = {
     width: "device-width",
@@ -51,6 +52,7 @@ export default function RootLayout({
                             {children}
                             <CookieBanner />
                             <Toaster />
+                            <SonnerToaster position="top-right" richColors closeButton />
                         </SchoolProvider>
                     </SWRProvider>
                 </SessionProvider>

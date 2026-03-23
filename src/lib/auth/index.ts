@@ -9,7 +9,7 @@ import { authConfig } from "./config";
 
 const nextAuth = NextAuth({
     ...authConfig,
-    adapter: PrismaAdapter(prisma),
+    adapter: PrismaAdapter(prisma) as any, // Type casting pour compatibilité Next Auth v5
 });
 
 export const { handlers, auth, signIn, signOut } = nextAuth;
