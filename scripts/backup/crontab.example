@@ -1,0 +1,83 @@
+# ╔════════════════════════════════════════════════════════════╗
+# ║  EduPilot - Crontab Configuration for Automated Backups   ║
+# ╚════════════════════════════════════════════════════════════╝
+#
+# Installation:
+# 1. Copier ce fichier: sudo cp crontab.example /etc/cron.d/edupilot-backup
+# 2. Ajuster les chemins selon votre installation
+# 3. Redémarrer cron: sudo service cron restart
+#
+# Note: Assurez-vous que l'utilisateur spécifié a les permissions
+# nécessaires pour accéder à la base de données et aux fichiers
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Backup directory (must be writable by the user)
+BACKUP_DIR=/backups/edupilot
+
+# Email for notifications (optional)
+MAILTO=admin@edupilot.bj
+
+# ────────────────────────────────────────────────────────────────
+# Backup Schedules
+# ────────────────────────────────────────────────────────────────
+
+# Daily backup at 2:00 AM (recommended for production)
+0 2 * * * edupilot /app/scripts/backup/backup.sh >> /var/log/edupilot-backup.log 2>&1
+
+# Hourly backup (for critical production environments)
+# 0 * * * * edupilot /app/scripts/backup/backup.sh >> /var/log/edupilot-backup.log 2>&1
+
+# Weekly full backup on Sunday at 3:00 AM
+# 0 3 * * 0 edupilot /app/scripts/backup/backup.sh >> /var/log/edupilot-backup-weekly.log 2>&1
+
+# ────────────────────────────────────────────────────────────────
+# Cleanup Old Backups
+# ────────────────────────────────────────────────────────────────
+
+# Daily cleanup of backups older than 30 days at 4:00 AM
+# 0 4 * * * edupilot find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
+
+# ────────────────────────────────────────────────────────────────
+# Database Optimization
+# ────────────────────────────────────────────────────────────────
+
+# Weekly vacuum and analyze on Sunday at 5:00 AM
+# 0 5 * * 0 postgres psql -d edupilot -c "VACUUM ANALYZE;"
+
+# ────────────────────────────────────────────────────────────────
+# Log Rotation
+# ────────────────────────────────────────────────────────────────
+
+# Monthly log rotation on the 1st at 6:00 AM
+# 0 6 1 * * root logrotate /etc/logrotate.d/edupilot
+
+# ────────────────────────────────────────────────────────────────
+# Health Checks
+# ────────────────────────────────────────────────────────────────
+
+# Every 5 minutes health check
+# */5 * * * * edupilot curl -f http://localhost:3000/api/system/health || echo "Health check failed"
+
+# ────────────────────────────────────────────────────────────────
+# Notes
+# ────────────────────────────────────────────────────────────────
+#
+# Cron time format:
+# * * * * * command
+# | | | | |
+# | | | | +-- Day of week (0-7, Sunday=0 or 7)
+# | | | +---- Month (1-12)
+# | | +------ Day of month (1-31)
+# | +-------- Hour (0-23)
+# +---------- Minute (0-59)
+#
+# Special strings:
+# @reboot    - Run once at startup
+# @yearly    - Run once a year (0 0 1 1 *)
+# @monthly   - Run once a month (0 0 1 * *)
+# @weekly    - Run once a week (0 0 * * 0)
+# @daily     - Run once a day (0 0 * * *)
+# @hourly    - Run once an hour (0 * * * *)
+#

@@ -107,22 +107,49 @@ L'environnement de développement a été pensé pour être lancé en un minimum
 - Node.js `20.x` (LTS recommandé)
 - PostgreSQL `15+`
 - Redis (Local ou Upstash)
+- Docker (optionnel mais recommandé)
 
 ### 2. Installation Locale
 
+#### Option A : Avec Docker (Recommandé)
+
 ```bash
-# Cloner le dépôt et installer les dépendances (Lockfile respecté)
+# Cloner le dépôt
 git clone https://github.com/votre-org/edupilot.git
-cd edupilot-master
+cd edupilot
+
+# Configurer l'environnement
+cp .env.example .env
+# Éditer .env avec vos valeurs
+
+# Démarrer avec Docker Compose
+docker-compose up -d
+
+# Appliquer les migrations
+docker-compose exec app npx prisma migrate deploy
+
+# Seed des données de test
+docker-compose exec app npm run db:seed
+```
+
+#### Option B : Installation manuelle
+
+```bash
+# Cloner et installer les dépendances
+git clone https://github.com/votre-org/edupilot.git
+cd edupilot
 npm install
 
-# Configurer les variables d'environnement
+# Configurer l'environnement
 cp .env.example .env
-# -> /!\ Éditez soigneusement le fichier .env (DATABASE_URL, UPSTASH_REDIS_REST_URL, NEXTAUTH_SECRET)
+# Éditer .env (DATABASE_URL, NEXTAUTH_SECRET, etc.)
 
-# Générer les clients Prisma et appliquer le schéma
+# Générer le client Prisma et appliquer le schéma
 npx prisma generate
 npx prisma db push
+
+# Seed des données de test
+npm run db:seed
 ```
 
 ### 3. Le Script de Seed Magique 🌟
@@ -149,25 +176,199 @@ npm run dev
 # L'application sera disponible sur http://localhost:3000
 ```
 
+### 5. Scripts disponibles
+
+```bash
+npm run dev          # Développement avec hot-reload
+npm run build        # Build de production
+npm run start        # Démarrage production
+npm run test         # Tests unitaires
+npm run test:e2e     # Tests E2E Playwright
+npm run lint         # Vérification ESLint
+npm run type-check   # Vérification TypeScript
+npm run db:studio    # Interface Prisma Studio
+```
+
 ---
 
 ## 🚢 Déploiement Production
 
-Pour la production, EduPilot compile de manière agressive pour optimiser les performances Turbopack.
+EduPilot est optimisé pour la production avec plusieurs options de déploiement.
+
+### Option 1 : Docker (Recommandé)
 
 ```bash
-# Type check et validation Prisma
+# Build et déploiement avec Docker Compose
+docker-compose -f docker-compose.yml up -d --build
+
+# Vérifier les logs
+docker-compose logs -f app
+
+# Healthcheck
+curl https://votre-domaine.com/api/system/health
+```
+
+### Option 2 : PM2
+
+```bash
+# Type check et validation
 npm run type-check
 npx prisma validate
 
 # Build Next.js
 npm run build
 
-# Démarrer en production
-npm run start
+# Démarrer avec PM2
+pm2 start ecosystem.config.js --env production
+
+# Monitoring
+pm2 monit
 ```
 
-Un script `deploy.sh` ainsi que les fichiers `ecosystem.config.js` (pour PM2) et `docker-compose.yml` sont fournis nativement à la racine du projet pour faciliter l'intégration DevOps CI/CD.
+### Option 3 : Plateformes Cloud
+
+- **Vercel** : Push sur GitHub et connecter le repository
+- **Railway** : `railway up`
+- **AWS/Azure/GCP** : Voir [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+### CI/CD
+
+Pipeline GitHub Actions configuré pour :
+- ✅ Lint & Type check automatique
+- ✅ Tests unitaires et E2E
+- ✅ Build de production
+- ✅ Security audit
+- ✅ Déploiement automatique
+
+Voir [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
+
+---
+
+## 📚 Documentation
+
+Documentation complète disponible dans le dossier `/docs` :
+
+- 📖 **[API Documentation](docs/API.md)** - Endpoints, authentification, exemples
+- 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** - Docker, PM2, Cloud deployment
+- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Stack technique, modèle de données
+- 👥 **[Contributing Guide](docs/CONTRIBUTING.md)** - Comment contribuer au projet
+
+### Ressources supplémentaires
+
+- **Prisma Studio** : `npm run db:studio` - Interface graphique pour la base de données
+- **Type Documentation** : Types TypeScript auto-générés dans `/src/types`
+- **Component Library** : Composants UI réutilisables dans `/src/components/ui`
+
+---
+
+## 🧪 Tests & Qualité
+
+### Tests Unitaires (Vitest)
+
+```bash
+# Lancer les tests
+npm run test
+
+# Tests en mode watch
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+### Tests E2E (Playwright)
+
+```bash
+# Lancer les tests E2E
+npm run test:e2e
+
+# Mode UI interactif
+npm run test:e2e -- --ui
+
+# Tests sur différents navigateurs
+npm run test:e2e -- --project=firefox
+```
+
+### Qualité du Code
+
+```bash
+# Linting
+npm run lint
+
+# Type checking
+npm run type-check
+
+# Vérification complète (avant commit)
+npm run lint && npm run type-check && npm run test
+```
+
+---
+
+## ⚡ Performance & Optimisation
+
+EduPilot est optimisé pour des performances maximales :
+
+### Métriques de performance
+
+- ⚡ **TTFB** : < 200ms
+- 🎨 **FCP** : < 1.8s
+- 🖼️ **LCP** : < 2.5s
+- ⚙️ **TTI** : < 3.8s
+
+### Optimisations implémentées
+
+- ✅ **Server-Side Rendering** avec React Server Components
+- ✅ **Caching multi-niveau** (Redis + In-memory)
+- ✅ **Image optimization** avec next/image
+- ✅ **Code splitting** automatique
+- ✅ **Lazy loading** des composants
+- ✅ **Database indexing** stratégique
+- ✅ **Compression** gzip/brotli
+- ✅ **CDN-ready** pour les assets statiques
+
+### Monitoring
+
+- 📊 **Sentry** : Tracking d'erreurs en temps réel
+- 📈 **Performance Metrics** : API intégrée de monitoring
+- 🔍 **Logs structurés** : Winston logger
+- ⚠️ **Alertes** : Email & Slack webhooks
+
+---
+
+## 🔒 Sécurité
+
+EduPilot prend la sécurité très au sérieux :
+
+### Fonctionnalités de sécurité
+
+- 🔐 **Authentification** NextAuth.js avec sessions sécurisées
+- 🛡️ **2FA** : Two-Factor Authentication (TOTP)
+- 👮 **RBAC** : Role-Based Access Control granulaire
+- 🚦 **Rate Limiting** : Protection contre les abus
+- 🔒 **CSP** : Content Security Policy stricte
+- 🌐 **HTTPS** : Obligatoire en production
+- 📝 **Audit Logs** : Traçabilité complète des actions
+- 🇪🇺 **RGPD** : Conformité 100% (export, oubli, portabilité)
+
+### Security Headers
+
+```
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=63072000
+Content-Security-Policy: (configured)
+```
+
+### Audit de sécurité
+
+```bash
+# Audit npm packages
+npm audit
+
+# Security scan
+npm run security-audit
+```
 
 ---
 

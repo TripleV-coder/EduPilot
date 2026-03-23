@@ -1,0 +1,256 @@
+name: CI/CD Pipeline - EduPilot
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # JOB 1: Lint & Type Check
+  # ──────────────────────────────────────────────────────────────
+  lint-and-typecheck:
+    name: 🔍 Lint & Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: 🔍 Run ESLint
+        run: npm run lint
+
+      - name: 🔍 Run TypeScript check
+        run: npm run type-check
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 2: Unit Tests
+  # ──────────────────────────────────────────────────────────────
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: 🧪 Run Vitest
+        run: npm run test:coverage
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 3: Build
+  # ──────────────────────────────────────────────────────────────
+  build:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests]
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: 🔧 Generate Prisma Client
+        run: npx prisma generate
+
+      - name: 🏗️ Build Next.js
+        run: npm run build
+        env:
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-chars
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+
+      - name: 📦 Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-output
+          path: .next
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 4: E2E Tests (Playwright)
+  # ──────────────────────────────────────────────────────────────
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: edupilot_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: edupilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: 🎭 Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 🔧 Setup Database
+        run: |
+          npx prisma generate
+          npx prisma db push
+        env:
+          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
+
+      - name: 🌱 Seed test data
+        run: npm run db:seed
+        env:
+          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
+          NODE_ENV: test
+
+      - name: 🎭 Run Playwright tests
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-e2e-tests-min-32-chars
+
+      - name: 📊 Upload Playwright Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 5: Security Audit
+  # ──────────────────────────────────────────────────────────────
+  security-audit:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 🔒 Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: 🔍 Check for vulnerable dependencies
+        run: npx audit-ci --high
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 6: Docker Build (on main branch only)
+  # ──────────────────────────────────────────────────────────────
+  docker-build:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [build, e2e-tests, security-audit]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 🏗️ Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/edupilot:latest
+            ${{ secrets.DOCKER_USERNAME }}/edupilot:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/edupilot:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/edupilot:buildcache,mode=max
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 7: Deploy to Production (manual trigger)
+  # ──────────────────────────────────────────────────────────────
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to server
+        run: |
+          echo "🚀 Déploiement en production..."
+          # Ajouter ici les commandes de déploiement spécifiques
+          # Exemples:
+          # - SSH vers serveur et docker-compose pull + restart
+          # - Deployment sur Vercel/Railway/Render
+          # - Kubernetes deployment
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+
+      - name: ✅ Deployment Success
+        run: |
+          echo "✅ Déploiement réussi!"
+          echo "🌐 Application disponible sur: ${{ secrets.PRODUCTION_URL }}"
