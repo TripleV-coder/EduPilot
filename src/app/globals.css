@@ -1,0 +1,530 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
+    /* Variables injectées par next/font via layout.tsx className */
+    /* --font-display → DM Sans     (var injectée) */
+    /* --font-body    → Inter       (var injectée) */
+    /* --font-ui      → alias de --font-display */
+    --font-ui: var(--font-display);
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+    /* ─── PALETTE PRINCIPALE : EduPilot Elegant Neutral ─────── */
+    /* Accent principal vert institutionnel */
+    --primary:            147 40% 30%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50:         228 80% 97%;
+    --primary-100:        228 70% 93%;
+    --primary-200:        228 64% 85%;
+    --primary-300:        228 60% 74%;
+    --primary-400:        228 57% 62%;
+    --primary-500:        228 55% 52%;
+    --primary-600:        228 54% 45%;
+    --primary-700:        228 52% 38%;
+    --primary-800:        228 49% 30%;
+    --primary-900:        228 45% 23%;
+    --primary-950:        228 42% 14%;
+
+    /* Secondary: Slate Teal */
+    --secondary:            147 36% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-50:         191 68% 97%;
+    --secondary-100:        191 55% 92%;
+    --secondary-200:        191 48% 83%;
+    --secondary-300:        191 45% 70%;
+    --secondary-400:        191 44% 56%;
+    --secondary-500:        191 44% 44%;
+    --secondary-600:        191 43% 37%;
+    --secondary-700:        191 41% 30%;
+    --secondary-800:        191 38% 24%;
+    --secondary-900:        191 35% 18%;
+    --secondary-950:        191 30% 11%;
+
+    /* Accent: Violet grisé (signaux doux) */
+    --accent:            147 36% 45%;
+    --accent-foreground: 0 0% 100%;
+    --accent-50:         258 70% 97%;
+    --accent-100:        258 55% 93%;
+    --accent-200:        258 45% 85%;
+    --accent-300:        258 40% 76%;
+    --accent-400:        258 38% 66%;
+    --accent-500:        258 36% 58%;
+    --accent-600:        258 34% 49%;
+    --accent-700:        258 33% 40%;
+    --accent-800:        258 31% 32%;
+    --accent-900:        258 29% 25%;
+    --accent-950:        258 26% 16%;
+
+    /* ─── SÉMANTIQUE (Shadcn/UI standard) ───────────────────── */
+    --background:           40 14% 95%;
+    --foreground:           36 5% 11%;
+
+    --card:                 0 0% 100%;
+    --card-foreground:      36 5% 11%;
+
+    --popover:              0 0% 100%;
+    --popover-foreground:   224 35% 14%;
+
+    --muted:                40 10% 93%;
+    --muted-foreground:     60 3% 40%;
+
+    --border:               48 10% 90%;
+    --input:                48 10% 90%;
+    --ring:                 147 40% 30%;
+
+    --destructive:          0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* ─── SURFACE (couches d'élévation) ─────────────────────── */
+    --surface-ground:    220 28% 98%;
+    --surface-base:      0 0% 100%;
+    --surface-elevated:  0 0% 100%;
+    --surface-overlay:   0 0% 100%;
+    --surface-hover:     220 22% 95%;
+    --surface-active:    220 20% 92%;
+
+    /* ─── TEXTE sémantique ───────────────────────────────────── */
+    --text-primary:     36 5% 11%;
+    --text-secondary:   60 4% 23%;
+    --text-tertiary:    60 3% 40%;
+    --text-placeholder: 60 3% 55%;
+    --text-disabled:    60 3% 68%;
+    --text-inverse:     0 0% 100%;
+
+    /* Sidebar dédiée */
+    --sidebar-bg: 48 6% 10%;
+    --sidebar-fg: 50 9% 91%;
+    --sidebar-muted: 60 3% 54%;
+
+    /* ─── SLATE (palette grise complète) ────────────────────── */
+    --slate-50:  210 40% 98%;
+    --slate-100: 210 40% 96%;
+    --slate-200: 214 32% 91%;
+    --slate-300: 213 27% 84%;
+    --slate-400: 215 20% 65%;
+    --slate-500: 215 16% 47%;
+    --slate-600: 215 19% 35%;
+    --slate-700: 215 25% 27%;
+    --slate-800: 217 33% 17%;
+    --slate-900: 222 47% 11%;
+    --slate-950: 229 84% 5%;
+
+    /* ─── ÉTATS : success / warning / error / info ───────────── */
+    --success:        151 45% 40%;
+    --success-light:  152 44% 96%;
+    --success-border: 151 35% 77%;
+    --success-bg:     152 44% 96%;
+
+    --warning:        37 87% 45%;
+    --warning-light:  40 90% 96%;
+    --warning-border: 35 62% 76%;
+    --warning-bg:     40 90% 96%;
+
+    --error:          6 62% 47%;
+    --error-light:    0 100% 97%;
+    --error-border:   0 94% 82%;
+    --error-bg:       0 100% 97%;
+
+    --info:           208 56% 41%;
+    --info-light:     212 78% 96%;
+    --info-border:    212 52% 78%;
+    --info-bg:        212 78% 96%;
+
+    /* ─── EXPLORER (thème sombre de la carte 3D) ─────────────── */
+    --explorer-bg:                  222 47% 6%;
+    --explorer-bg-elevated:         220 43% 9%;
+    --explorer-bg-hover:            220 40% 12%;
+    --explorer-surface:             217 33% 14%;
+    --explorer-surface-elevated:    217 30% 18%;
+    --explorer-accent:              228 55% 52%;
+    --explorer-accent-dim:          228 45% 42%;
+    --explorer-accent-glow:         228 55% 52%;
+    --explorer-accent-muted:        228 34% 30%;
+    --explorer-accent-secondary:    191 44% 44%;
+    --explorer-foreground:          210 40% 98%;
+    --explorer-foreground-secondary:215 25% 70%;
+    --explorer-muted:               215 20% 55%;
+    --explorer-muted-strong:        215 18% 40%;
+    --explorer-border:              217 30% 20%;
+    --explorer-border-subtle:       217 28% 16%;
+    --explorer-border-luminous:     32 60% 35%;
+
+    /* ─── OMBRES ─────────────────────────────────────────────── */
+    --shadow-xs:  0 1px 2px 0 hsl(215 25% 27% / 0.05);
+    --shadow-sm:  0 1px 3px 0 hsl(215 25% 27% / 0.10), 0 1px 2px -1px hsl(215 25% 27% / 0.10);
+    --shadow-md:  0 4px 6px -1px hsl(215 25% 27% / 0.10), 0 2px 4px -2px hsl(215 25% 27% / 0.10);
+    --shadow-lg:  0 10px 15px -3px hsl(215 25% 27% / 0.10), 0 4px 6px -4px hsl(215 25% 27% / 0.10);
+    --shadow-xl:  0 20px 25px -5px hsl(215 25% 27% / 0.10), 0 8px 10px -6px hsl(215 25% 27% / 0.10);
+    --shadow-2xl: 0 25px 50px -12px hsl(215 25% 27% / 0.25);
+    --shadow-glow-primary:   0 0 20px hsl(228 55% 52% / 0.30);
+    --shadow-glow-secondary: 0 0 20px hsl(191 44% 44% / 0.24);
+    --shadow-glow-accent:    0 0 20px hsl(258 36% 58% / 0.24);
+
+    /* ─── BORDER RADIUS ──────────────────────────────────────── */
+    --radius-xs:   0.125rem;
+    --radius-sm:   0.25rem;
+    --radius-md:   0.375rem;
+    --radius-lg:   0.5rem;
+    --radius-xl:   0.75rem;
+    --radius-2xl:  1rem;
+    --radius-3xl:  1.5rem;
+    --radius-full: 9999px;
+
+    /* ─── TRANSITIONS ────────────────────────────────────────── */
+    --ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out:      cubic-bezier(0, 0, 0.2, 1);
+    --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+    --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    --duration-instant: 50ms;
+    --duration-fast:    100ms;
+    --duration-normal:  200ms;
+    --duration-slow:    300ms;
+    --duration-slower:  500ms;
+
+    /* ─── BACKDROP BLUR ──────────────────────────────────────── */
+    --glass-blur:        12px;
+    --glass-blur-strong: 24px;
+
+    /* ─── Z-INDEX ────────────────────────────────────────────── */
+    --z-dropdown:       1000;
+    --z-sticky:         1020;
+    --z-fixed:          1030;
+    --z-modal-backdrop: 1040;
+    --z-modal:          1050;
+    --z-popover:        1060;
+    --z-tooltip:        1070;
+    --z-toast:          1080;
+  }
+
+  /* ─── DARK MODE ─────────────────────────────────────────────── */
+  .dark {
+    --background:   226 22% 11%;
+    --foreground:   210 40% 98%;
+
+    --card:              224 20% 14%;
+    --card-foreground:   210 40% 98%;
+
+    --popover:           224 20% 14%;
+    --popover-foreground:210 40% 98%;
+
+    --primary:            228 60% 62%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:            191 42% 54%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent:            258 38% 66%;
+    --accent-foreground: 0 0% 100%;
+
+    --muted:           224 16% 20%;
+    --muted-foreground:218 15% 70%;
+
+    --border: 224 14% 24%;
+    --input:  224 14% 24%;
+    --ring:   228 60% 62%;
+
+    --destructive:            0 63% 45%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Surfaces dark */
+    --surface-ground:    226 24% 10%;
+    --surface-base:      226 22% 11%;
+    --surface-elevated:  224 20% 14%;
+    --surface-overlay:   224 18% 17%;
+    --surface-hover:     224 17% 19%;
+    --surface-active:    224 16% 22%;
+
+    /* Texte dark */
+    --text-primary:     210 40% 98%;
+    --text-secondary:   218 17% 78%;
+    --text-tertiary:    218 14% 60%;
+    --text-placeholder: 218 12% 45%;
+    --text-disabled:    218 10% 33%;
+    --text-inverse:     222 47% 11%;
+
+    /* Slate dark */
+    --slate-50:  217 33% 17%;
+    --slate-100: 215 28% 22%;
+    --slate-200: 215 25% 28%;
+    --slate-300: 215 22% 36%;
+    --slate-400: 215 20% 50%;
+    --slate-500: 215 16% 62%;
+    --slate-600: 213 20% 73%;
+    --slate-700: 210 28% 83%;
+    --slate-800: 210 34% 91%;
+    --slate-900: 210 40% 96%;
+    --slate-950: 210 40% 98%;
+
+    /* États dark */
+    --success:        151 44% 52%;
+    --success-light:  152 28% 15%;
+    --success-border: 151 28% 30%;
+    --success-bg:     152 28% 15%;
+
+    --warning:        35 76% 56%;
+    --warning-light:  35 28% 16%;
+    --warning-border: 35 32% 30%;
+    --warning-bg:     35 28% 16%;
+
+    --error:          0 84% 55%;
+    --error-light:    0 30% 12%;
+    --error-border:   0 45% 28%;
+    --error-bg:       0 30% 12%;
+
+    --info:           212 58% 62%;
+    --info-light:     212 26% 16%;
+    --info-border:    212 30% 31%;
+    --info-bg:        212 26% 16%;
+
+    /* Ombres dark */
+    --shadow-xs:  0 1px 2px 0 hsl(0 0% 0% / 0.20);
+    --shadow-sm:  0 1px 3px 0 hsl(0 0% 0% / 0.30), 0 1px 2px -1px hsl(0 0% 0% / 0.20);
+    --shadow-md:  0 4px 6px -1px hsl(0 0% 0% / 0.30), 0 2px 4px -2px hsl(0 0% 0% / 0.20);
+    --shadow-lg:  0 10px 15px -3px hsl(0 0% 0% / 0.30), 0 4px 6px -4px hsl(0 0% 0% / 0.20);
+    --shadow-xl:  0 20px 25px -5px hsl(0 0% 0% / 0.35), 0 8px 10px -6px hsl(0 0% 0% / 0.25);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.50);
+  }
+
+  /* ─── REDUCED MOTION ─────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ─── FOCUS VISIBLE ──────────────────────────────────────────── */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.5);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ─── COMPOSANTS UTILITAIRES ─────────────────────────────────────── */
+@layer components {
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-secondary;
+  }
+
+  .card-interactive {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border border-border bg-card/70 backdrop-blur-sm;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-muted rounded-md;
+  }
+
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(40 8% 92%);
+  }
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, hsl(40 22% 96%) 48%, transparent 100%);
+    transform: translateX(-100%);
+    animation: skeleton-shimmer 1.8s linear infinite;
+  }
+
+  .metric-serif {
+    font-family: var(--font-display), Georgia, serif;
+    font-style: italic;
+    letter-spacing: -0.01em;
+  }
+
+  .sidebar-shell {
+    background: #1a1a18;
+    color: #e8e8e2;
+  }
+
+  /* Scrollbar discrète */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: var(--radius-full);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* ─── EXPLORER UTILS ─────────────────────────────────────────── */
+  .explorer-gradient {
+    background: radial-gradient(circle at 50% 50%, hsl(var(--explorer-surface-elevated)) 0%, hsl(var(--explorer-bg)) 100%);
+  }
+
+  .explorer-grid {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, hsl(var(--explorer-border) / 0.2) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--explorer-border) / 0.2) 1px, transparent 1px);
+  }
+
+  .dashboard-motion {
+    --dash-lift-distance: 2px;
+    --dash-anim-fast: 180ms;
+    --dash-anim-normal: 240ms;
+  }
+
+  .dashboard-motion .dashboard-block,
+  .dashboard-motion .dashboard-panel,
+  .dashboard-motion .table-shell {
+    @apply rounded-xl border border-border/70 bg-card backdrop-blur-[1.5px];
+    background-color: hsl(var(--card) / 0.78);
+    box-shadow: 0 12px 28px -22px hsl(226 42% 8% / 0.44);
+    transition:
+      transform var(--dash-anim-normal) var(--ease-expo-out),
+      border-color var(--dash-anim-fast) var(--ease-out),
+      box-shadow var(--dash-anim-normal) var(--ease-out),
+      background-color var(--dash-anim-fast) var(--ease-out);
+  }
+
+  .dashboard-motion .dashboard-block:hover,
+  .dashboard-motion .dashboard-panel:hover,
+  .dashboard-motion .table-shell:hover {
+    transform: translateY(calc(var(--dash-lift-distance) * -1));
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: 0 18px 38px -24px hsl(var(--primary) / 0.32);
+  }
+
+  .dashboard-motion .kpi-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .dashboard-motion .kpi-card::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(140deg, hsl(var(--primary) / 0.14), transparent 44%, hsl(var(--secondary) / 0.12));
+    opacity: 0.86;
+    transition: opacity var(--dash-anim-normal) var(--ease-out);
+  }
+
+  .dashboard-motion .kpi-card:hover::before {
+    opacity: 1;
+  }
+
+  /* ─── MODES DENSITE ─────────────────────────────────────────── */
+  .ui-density-comfort {
+    --table-row-h: 44px;
+    --cell-font-size: 13px;
+  }
+
+  .ui-density-dense {
+    --table-row-h: 32px;
+    --cell-font-size: 12px;
+  }
+
+  .ui-density-dense .dashboard-panel,
+  .ui-density-dense .dashboard-block {
+    border-radius: 10px;
+  }
+
+  .ui-density-dense table td,
+  .ui-density-dense table th {
+    font-size: var(--cell-font-size);
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .ui-density-dense table tr {
+    min-height: var(--table-row-h);
+  }
+
+  .ui-density-dense .text-3xl {
+    font-size: 1.6rem;
+  }
+
+  .ui-density-dense .text-2xl {
+    font-size: 1.35rem;
+  }
+
+  /* ─── MODE FOCUS ────────────────────────────────────────────── */
+  .ui-focus-mode {
+    --dash-lift-distance: 1px;
+  }
+
+  .ui-focus-mode .dashboard-motion {
+    max-width: 100%;
+  }
+
+  /* Utilitaires d'interaction premium */
+  .touch-target {
+    min-height: 44px;
+  }
+
+  .action-critical {
+    position: relative;
+    isolation: isolate;
+    box-shadow: 0 8px 20px -14px hsl(var(--primary) / 0.65);
+    transition:
+      transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-normal) var(--ease-expo-out),
+      filter var(--duration-normal) var(--ease-out);
+  }
+
+  .action-critical:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px -18px hsl(var(--primary) / 0.7);
+    filter: saturate(1.05);
+  }
+
+  .action-critical:active {
+    transform: translateY(0);
+  }
+
+  .action-critical::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid hsl(var(--primary) / 0.22);
+    opacity: 0;
+    transition: opacity var(--duration-normal) var(--ease-out);
+    pointer-events: none;
+  }
+
+  .action-critical:hover::after {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* ─── BASE ────────────────────────────────────────────────────────── */
+@layer base {
+  * { @apply border-border; }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Hiérarchie typographique cohérente (SaaS pro) */
+  h1, h2, h3 {
+    @apply font-heading tracking-tight;
+  }
+  h4, h5, h6 {
+    @apply font-ui tracking-tight;
+  }
+}

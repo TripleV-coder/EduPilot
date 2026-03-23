@@ -1,0 +1,119 @@
+# ============================================================
+# EduPilot — Stack complète (app + PostgreSQL + n8n)
+# Usage dev/prod : docker compose up -d
+# ============================================================
+
+services:
+  # -----------------------------------------------
+  # Application Next.js
+  # -----------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: edupilot-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # En production, POSTGRES_PASSWORD doit impérativement être défini via les secrets d'infra.
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - edupilot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/system/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # -----------------------------------------------
+  # PostgreSQL 16
+  # -----------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: edupilot-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-edupilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-edupilot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - edupilot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edupilot} -d ${POSTGRES_DB:-edupilot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -----------------------------------------------
+  # n8n — Workflows IA (optionnel)
+  # -----------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: edupilot-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${N8N_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-edupilot}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      # En production, définir N8N_ENCRYPTION_KEY via les secrets d'infra, aucune valeur par défaut n'est utilisée.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - edupilot-network
+
+  # -----------------------------------------------
+  # Redis — Rate limiting multi-instance (optionnel)
+  # -----------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: edupilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    # En production, REDIS_PASSWORD doit être fourni par l'environnement sans valeur par défaut faible.
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - edupilot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  n8n_data:
+  redis_data:
+
+networks:
+  edupilot-network:
+    driver: bridge

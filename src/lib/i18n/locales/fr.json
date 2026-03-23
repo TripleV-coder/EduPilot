@@ -1,0 +1,164 @@
+{
+    "api": {
+        "issues": {
+            "unauthorized": "Non authentifié",
+            "forbidden": "Accès refusé",
+            "no_school_associated": "Accès refusé : Aucun établissement associé",
+            "account_disabled": "Compte désactivé. Veuillez contacter l'administration.",
+            "mfa_required": "Authentification à deux facteurs requise.",
+            "invalid_data": "Données invalides : veuillez vérifier les champs fournis.",
+            "not_found": "{entity} non trouvé(e).",
+            "already_exists": "{entity} existe déjà dans le système.",
+            "db_error": "Une base de données a empêché l'opération. Veuillez réessayer.",
+            "unexpected": "Une erreur inattendue est survenue.",
+            "invalid_class_ownership": "Accès refusé : cette classe n'appartient pas à votre établissement.",
+            "quota_exceeded": "Quota de {resource} atteint ({limit}). Veuillez passer à un plan supérieur."
+        },
+        "errors": {
+            "unauthenticated": "Non authentifié",
+            "forbidden": "Accès refusé",
+            "missing_permissions": "Permissions insuffisantes pour cette action.",
+            "rate_limit_exceeded": "Trop de requêtes. Veuillez réessayer plus tard.",
+            "not_found": "{resource} non trouvé(e).",
+            "already_exists": "{resource} existe déjà.",
+            "invalid_data": "Données invalides.",
+            "invalid_id": "Identifiant invalide.",
+            "internal_error": "Erreur interne du serveur."
+        },
+        "success": {
+            "created": "{entity} créé(e) avec succès.",
+            "updated": "{entity} mis(e) à jour avec succès.",
+            "deleted": "{entity} supprimé(e) avec succès."
+        },
+        "finance": {
+            "payment_initiated": "Paiement initié avec succès.",
+            "payment_failed": "L'initiation du paiement a échoué. Veuillez réessayer.",
+            "idempotent_hit": "Un paiement est déjà en cours. Redirection vers le portail sécurisé."
+        }
+    },
+    "landing": {
+        "hero": {
+            "badge": "Nouvelle génération • 2026",
+            "title": "L'excellence éducative simplifiée",
+            "description": "Plateforme complète de gestion scolaire au Bénin propulsée par l'Intelligence Artificielle. Notes, présences, finances et orientation dans une interface sophistiquée.",
+            "trainedStudents": "{count} élèves déjà formés",
+            "dashboardCta": "Accéder au dashboard"
+        },
+        "cta": {
+            "access": "Accéder à l'espace",
+            "explorer": "Découvrir l'Explorer 3D"
+        },
+        "trust": "Ils nous font confiance pour l'excellence académique"
+    },
+    "dashboard": {
+        "welcome": "Bonjour, {name} 👋",
+        "subtitle": "Bienvenue dans votre centre de commandement.",
+        "loading": "Chargement des statistiques...",
+        "error_loading": "Erreur lors du chargement des données.",
+        "kpis": {
+            "students": "Élèves Inscrits",
+            "average": "Moyenne Générale",
+            "attendance": "Taux de Présence",
+            "teachers": "Enseignants"
+        },
+        "sections": {
+            "summary": "Résumé de l'Établissement",
+            "quick_access": "Accès Rapide"
+        },
+        "links": {
+            "students": "Gestion des élèves",
+            "grades": "Notes & évaluations",
+            "finance": "Finances",
+            "attendance": "Présences"
+        }
+    },
+    "common": {
+        "reset": "Réinitialiser",
+        "noChanges": "Aucune modification",
+        "saveWithCount": "Enregistrer ({count})",
+        "saving": "Enregistrement...",
+        "generating": "Génération...",
+        "cancel": "Annuler",
+        "delete": "Supprimer",
+        "save": "Enregistrer",
+        "create": "Créer",
+        "back": "Retour",
+        "publish": "Publier",
+        "unpublish": "Dépublier",
+        "export": "Exporter",
+        "import": "Importer",
+        "view": "Voir",
+        "new": "Nouveau",
+        "exportCsv": "Exporter CSV",
+        "publishNow": "Publier immédiatement",
+        "newMessage": "Nouveau message"
+    },
+    "globalSearch": {
+        "commands": {
+            "newStudent": "Inscrire un élève",
+            "students": "Élèves",
+            "settings": "Paramètres généraux",
+            "enterEvaluation": "Saisir une évaluation maintenant",
+            "declareIncident": "Déclarer un incident"
+        },
+        "groups": {
+            "recents": "Récents",
+            "settings": "Paramètres"
+        }
+    },
+    "dashboardOverview": {
+        "greeting": {
+            "morning": "Bonjour",
+            "afternoon": "Bon après-midi",
+            "evening": "Bonne soirée"
+        },
+        "statusLine": "{greeting}, voici l'état en temps réel de votre établissement.",
+        "statusSuffix": "voici l'état en temps réel de votre établissement."
+    },
+    "analytics": {
+        "actions": {
+            "syncing": "Sync...",
+            "syncAll": "Synchroniser tout"
+        }
+    },
+    "attendance": {
+        "toasts": {
+            "savedTitle": "Appel enregistré",
+            "savedDescription": "Les présences ont été sauvegardées avec succès.",
+            "viewAnalytics": "Voir analytics"
+        }
+    },
+    "gradesEntry": {
+        "actions": {
+            "saving": "Enregistrement...",
+            "publishWithCount": "Publier les notes ({count})"
+        }
+    },
+    "incidentDetails": {
+        "toasts": {
+            "resolvedTitle": "Incident résolu",
+            "resolvedDescription": "Le statut a été mis à jour avec le rapport.",
+            "backToListAlt": "Revenir à la liste",
+            "viewList": "Voir la liste",
+            "sanctionAddedTitle": "Sanction ajoutée",
+            "sanctionAddedDescription": "La sanction a été assignée à l'élève.",
+            "refreshAlt": "Rafraîchir la fiche",
+            "refresh": "Rafraîchir"
+        }
+    },
+    "appActions": {
+        "finalizeDeployment": "Finaliser le déploiement",
+        "planCourse": "Planifier le cours",
+        "saveEvent": "Enregistrer l'événement",
+        "createHomework": "Créer le devoir",
+        "createExam": "Créer l'examen",
+        "viewDetails": "Voir les détails",
+        "viewRecord": "Voir dossier",
+        "viewAll": "Voir tout",
+        "viewStudents": "Voir les élèves",
+        "exportReport": "Exporter le rapport",
+        "exportPdf": "Exporter PDF",
+        "exportRemindersPdf": "Exporter les relances (PDF)",
+        "importStatement": "Importer un relevé"
+    }
+}

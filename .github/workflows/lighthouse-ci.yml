@@ -1,0 +1,57 @@
+# Lighthouse CI - Audits de performance, accessibilité, bonnes pratiques et SEO
+# Déclenché sur push/PR sur main et manuellement
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          SKIP_ENV_VALIDATION: "true"
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:3000
+            http://localhost:3000/dashboard
+            http://localhost:3000/dashboard/students
+            http://localhost:3000/dashboard/teachers
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: .lighthouserc.js
+          runs: 3
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # Rapport optionnel : décommenter si vous avez LHCI server
+  # report:
+  #   needs: lighthouse
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: treosh/lighthouse-ci-action@v11
+  #       with:
+  #         configPath: .lighthouserc.js
+  #         uploadArtifacts: true
+  #         temporaryPublicStorage: true
