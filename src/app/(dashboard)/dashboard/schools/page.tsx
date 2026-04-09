@@ -1,23 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { School, AlertCircle, Users, MapPin } from "lucide-react";
+import { School, AlertCircle, Users, MapPin, Plus } from "lucide-react";
 
 type SchoolItem = {
     id: string;
     name: string;
     type: string;
     level: string;
+    siteType?: "MAIN" | "ANNEXE";
+    organization?: { id: string; name: string; code: string } | null;
+    parentSchool?: { name: string } | null;
     address?: string;
     isActive: boolean;
-    _count?: { users: number };
+    _count?: { users: number; childSchools?: number };
 };
 
 export default function SchoolsPage() {
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
     const [schools, setSchools] = useState<SchoolItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -30,7 +37,13 @@ export default function SchoolsPage() {
                 return r.json();
             })
             .then((data) => {
-                if (!cancelled) setSchools(Array.isArray(data) ? data : data.schools ?? []);
+                const resolvedSchools = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.data)
+                        ? data.data
+                        : data?.schools ?? [];
+
+                if (!cancelled) setSchools(resolvedSchools);
             })
             .catch((e) => { if (!cancelled) setError(e.message); })
             .finally(() => { if (!cancelled) setLoading(false); });
@@ -47,6 +60,17 @@ export default function SchoolsPage() {
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Établissements" },
                     ]}
+                    actions={
+                        isSuperAdmin ? (
+                            <Link
+                                href="/dashboard/root-control/schools"
+                                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Créer un établissement
+                            </Link>
+                        ) : undefined
+                    }
                 />
 
                 {loading && (
@@ -80,7 +104,19 @@ export default function SchoolsPage() {
                                     </div>
                                     <div className="overflow-hidden">
                                         <CardTitle className="text-sm font-semibold truncate">{school.name}</CardTitle>
-                                        <p className="text-xs text-muted-foreground">{school.type} • {school.level}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {school.type} • {school.level} • {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}
+                                        </p>
+                                        {school.organization?.name ? (
+                                            <p className="text-[11px] text-muted-foreground truncate">
+                                                Organisation {school.organization.name}
+                                            </p>
+                                        ) : null}
+                                        {school.parentSchool?.name ? (
+                                            <p className="text-[11px] text-muted-foreground truncate">
+                                                Rattaché à {school.parentSchool.name}
+                                            </p>
+                                        ) : null}
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-0 flex items-center justify-between">

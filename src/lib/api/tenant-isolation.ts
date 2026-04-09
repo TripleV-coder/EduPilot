@@ -26,18 +26,75 @@ export function ensureSchoolAccess(session: Session | null, resourceSchoolId?: s
         return null;
     }
 
-    // User must be attached to a school
-    if (!user.schoolId) {
+    const activeSchoolId = getActiveSchoolId(session);
+
+    // User must be attached to an active school
+    if (!activeSchoolId) {
         return NextResponse.json(
             { error: "Aucun établissement associé à ce compte" },
             { status: 403 }
         );
     }
 
-    // If a specific resource school ID is provided, check against user's school ID
-    if (resourceSchoolId && resourceSchoolId !== user.schoolId) {
+    // If a specific resource school ID is provided, check against the accessible schools
+    if (resourceSchoolId && !canAccessSchool(session, resourceSchoolId)) {
         return NextResponse.json(
             { error: "Accès refusé : vous ne pouvez pas accéder aux données d'un autre établissement" },
+            { status: 403 }
+        );
+    }
+
+    return null;
+}
+
+export function getAccessibleSchoolIds(session: Session | null): string[] {
+    if (!session?.user) return [];
+
+    const user = session.user as AuthUser;
+
+    if (user.role === "SUPER_ADMIN") {
+        return [];
+    }
+
+    const declaredSchoolIds = Array.isArray(user.accessibleSchoolIds)
+        ? user.accessibleSchoolIds.filter((schoolId): schoolId is string => typeof schoolId === "string" && schoolId.length > 0)
+        : [];
+
+    if (declaredSchoolIds.length > 0) {
+        return Array.from(new Set(declaredSchoolIds));
+    }
+
+    const activeSchoolId = getActiveSchoolId(session);
+    return activeSchoolId ? [activeSchoolId] : [];
+}
+
+export function canAccessSchool(session: Session | null, targetSchoolId: string | null | undefined): boolean {
+    if (!session?.user || !targetSchoolId) return false;
+
+    const user = session.user as AuthUser;
+    if (user.role === "SUPER_ADMIN") {
+        return true;
+    }
+
+    return getAccessibleSchoolIds(session).includes(targetSchoolId);
+}
+
+export function ensureRequestedSchoolAccess(
+    session: Session | null,
+    requestedSchoolId?: string | null
+): NextResponse | null {
+    if (!requestedSchoolId || !session?.user) {
+        return null;
+    }
+
+    const user = session.user as AuthUser;
+    if (user.role === "SUPER_ADMIN") {
+        return null;
+    }
+
+    if (!canAccessSchool(session, requestedSchoolId)) {
+        return NextResponse.json(
+            { error: "Accès refusé : établissement hors périmètre autorisé." },
             { status: 403 }
         );
     }
@@ -52,7 +109,7 @@ export function ensureSchoolAccess(session: Session | null, resourceSchoolId?: s
  * @returns Object to spreads into Prisma `where` clause
  */
 export function getSchoolFilter(session: Session | null) {
-    if (!session?.user) return {}; // Should ideally throw or return a "never match" filter if strict
+    if (!session?.user) return { schoolId: "NO_ACCESS" }; // Return an impossible filter — no record has this schoolId
 
     const user = session.user as AuthUser;
 
@@ -60,7 +117,9 @@ export function getSchoolFilter(session: Session | null) {
         return {}; // No filter for super admin
     }
 
-    if (!user.schoolId) {
+    const activeSchoolId = getActiveSchoolId(session);
+
+    if (!activeSchoolId) {
         // If no school ID (and not super admin), arguably should return a filter that matches nothing 
         // or rely on ensureSchoolAccess to block the request first.
         // For safety, we return a filter that likely matches nothing or throws specific error logic upstream.
@@ -69,17 +128,16 @@ export function getSchoolFilter(session: Session | null) {
         return { schoolId: "NO_ACCESS" };
     }
 
-    return { schoolId: user.schoolId };
+    return { schoolId: activeSchoolId };
 }
 
 /**
  * Helper to get the active school ID from session (supporting future multi-school switching)
  */
-export function getActiveSchoolId(session: Session | null): string | null {
-    if (!session?.user) return null;
+export function getActiveSchoolId(session: Session | null): string | undefined {
+    if (!session?.user) return undefined;
     const user = session.user as AuthUser;
 
-    // In Phase 3, we might look for a specific 'activeSchoolId' field if implemented.
-    // For now, we default to the user's primary schoolId.
-    return user.schoolId || null;
+    // The active school is currently stored directly in session.user.schoolId.
+    return user.schoolId || undefined;
 }

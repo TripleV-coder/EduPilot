@@ -3,14 +3,14 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { studentCreateSchema } from "@/lib/validations/user";
-import type { StudentWhereFilter } from "@/lib/types/api";
 import { logger } from "@/lib/utils/logger";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
-import { checkStudentQuota } from "@/lib/saas/quotas"; // Added import
+import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/students
@@ -78,9 +78,9 @@ export const GET = createApiHandler(
 
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
 
-    if (!academicYearId && session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+    if (!academicYearId && session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       const currentYear = await prisma.academicYear.findFirst({
-        where: { schoolId: session.user.schoolId, isCurrent: true },
+        where: { schoolId: getActiveSchoolId(session), isCurrent: true },
         select: { id: true }
       });
       if (currentYear) {
@@ -121,7 +121,7 @@ export const GET = createApiHandler(
     }
 
     if (session.user.role !== "SUPER_ADMIN") {
-      userFilter.schoolId = session.user.schoolId;
+      userFilter.schoolId = getActiveSchoolId(session);
     }
 
     if (status) {
@@ -241,23 +241,15 @@ export const GET = createApiHandler(
 
 export const POST = createApiHandler(
   async (request, { session }, t) => {
-    if (session.user.role !== "SUPER_ADMIN" && !session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !getActiveSchoolId(session)) {
       return NextResponse.json(translateError({ error: "Aucun établissement associé", key: "api.issues.no_school_associated" }, t), { status: 403 });
     }
 
-    const schoolId = session.user.schoolId;
-    if (schoolId) {
-      const quota = await checkStudentQuota(schoolId);
-      if (!quota.allowed) {
-        return NextResponse.json(translateError({
-          error: `Quota d'élèves atteint (${quota.limit}). Veuillez passer à un plan supérieur.`,
-          code: "QUOTA_EXCEEDED"
-        }, t), { status: 403 });
-      }
-    }
+    const activeSchoolId = getActiveSchoolId(session);
 
     const body = await request.json();
     const validatedData = studentCreateSchema.parse(body);
+    let targetSchoolId = activeSchoolId;
 
     // Validate Class ID if provided
     if (validatedData.classId) {
@@ -269,21 +261,24 @@ export const POST = createApiHandler(
         return NextResponse.json(translateError(API_ERRORS.NOT_FOUND("Classe"), t), { status: 404 });
       }
 
-      // Ensure class belongs to the same school
-      if (session.user.role !== "SUPER_ADMIN" && classExists.schoolId !== session.user.schoolId) {
+      if (!canAccessSchool(session, classExists.schoolId)) {
         return NextResponse.json({
           ...translateError(API_ERRORS.INVALID_DATA, t),
           error: t("api.issues.invalid_class_ownership")
         }, { status: 400 });
       }
+
+      targetSchoolId = classExists.schoolId;
     }
 
-    // Determine schoolId for the new user (SUPER_ADMIN can specify school via classId)
-    // We already have a base schoolId from session, but let's be more precise
-    let targetSchoolId = schoolId;
-    if (session.user.role === "SUPER_ADMIN" && validatedData.classId) {
-      const classRecord = await prisma.class.findUnique({ where: { id: validatedData.classId }, select: { schoolId: true } });
-      targetSchoolId = classRecord?.schoolId || null;
+    if (targetSchoolId) {
+      const quota = await checkStudentQuota(targetSchoolId);
+      if (!quota.allowed) {
+        return NextResponse.json(translateError({
+          error: `Quota d'élèves atteint (${quota.limit}). Veuillez passer à un plan supérieur.`,
+          code: "QUOTA_EXCEEDED"
+        }, t), { status: 403 });
+      }
     }
 
     if (!targetSchoolId) {

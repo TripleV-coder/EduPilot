@@ -3,13 +3,12 @@
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Activity, Server, Cpu, HardDrive, Users, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function SystemMonitoringPage() {
     return (
-        <PageGuard permission={["*" as Permission] /* Needs ROOT/SUPER_ADMIN effectively */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6">
                 <PageHeader
                     title="Monitoring Système"

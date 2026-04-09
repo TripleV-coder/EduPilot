@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { studentOrientationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET(request: NextRequest) {
     try {
@@ -20,11 +21,11 @@ export async function GET(request: NextRequest) {
         if (studentId) where.studentId = studentId;
 
         // Limiter aux écoles de l'utilisateur
-        if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+        if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
             where.student = {
                 enrollments: {
                     some: {
-                        class: { schoolId: session.user.schoolId }
+                        class: { schoolId: getActiveSchoolId(session) }
                     }
                 }
             };

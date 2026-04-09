@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -34,8 +35,9 @@ export async function GET(request: NextRequest) {
       where.status = { in: ["ABSENT", "EXCUSED", "LATE"] };
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
-      where.student = { schoolId: session.user.schoolId };
+    const activeSchoolId = getActiveSchoolId(session);
+    if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
+      where.student = { schoolId: activeSchoolId };
     }
 
     const absences = await prisma.attendance.findMany({

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { z } from "zod";
 import type { NotificationWhereFilter } from "@/lib/types/api";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createNotificationSchema = z.object({
   userId: z.string().cuid(),
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
 
     // SUPER_ADMIN can send to anyone, others only to their school
     if (session.user.role !== "SUPER_ADMIN") {
-      if (targetUser.schoolId !== session.user.schoolId) {
+      if (targetUser.schoolId !== getActiveSchoolId(session)) {
         return NextResponse.json(
           { error: "Vous ne pouvez envoyer des notifications qu'aux utilisateurs de votre établissement" },
           { status: 403 }

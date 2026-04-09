@@ -43,12 +43,18 @@ import {
 } from '@/lib/rbac/api-guard'
 
 // Helper to create a mock session
-function mockSession(role: string, schoolId: string | null = 'school-1', userId: string = 'user-1') {
+function mockSession(
+    role: string,
+    schoolId: string | null = 'school-1',
+    userId: string = 'user-1',
+    accessibleSchoolIds?: string[]
+) {
     return {
         user: {
             id: userId,
             role,
             schoolId,
+            accessibleSchoolIds,
             name: 'Test User',
             email: 'test@test.com',
         },
@@ -172,6 +178,12 @@ describe('API Guard - RBAC', () => {
             const session = mockSession('TEACHER', 'school-1')
             const result = hasSchoolAccess(session, 'school-2')
             expect(result.authorized).toBe(false)
+        })
+
+        it('should allow access to another explicitly accessible school', () => {
+            const session = mockSession('TEACHER', 'school-1', 'user-1', ['school-1', 'school-2'])
+            const result = hasSchoolAccess(session, 'school-2')
+            expect(result.authorized).toBe(true)
         })
     })
 

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { ShieldCheck, FileText, Download, Users, AlertTriangle, Loader2, AlertCircle, Clock, CheckCircle } from "lucide-react";
+import { ShieldCheck, FileText, Download, Users, AlertTriangle, Loader2, AlertCircle, Clock, CheckCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
  
 
@@ -32,6 +33,7 @@ export default function ComplianceDashboardPage() {
     const [requests, setRequests] = useState<DataRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [fulfillingId, setFulfillingId] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -54,6 +56,28 @@ export default function ComplianceDashboardPage() {
             .catch((e) => { if (!cancelled) setError(e.message); })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
+    }, []);
+
+    const handleFulfill = useCallback(async (requestId: string) => {
+        setFulfillingId(requestId);
+        try {
+            const res = await fetch(`/api/compliance/data-requests/${requestId}/fulfill`, {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Erreur lors du traitement");
+            }
+            toast.success("Demande traitée avec succès");
+            setRequests(prev => prev.map(r =>
+                r.id === requestId ? { ...r, status: "COMPLETED" } : r
+            ));
+        } catch (e: any) {
+            toast.error(e.message || "Erreur lors du traitement de la demande");
+        } finally {
+            setFulfillingId(null);
+        }
     }, []);
 
     const formatDate = (d: string) =>
@@ -154,9 +178,25 @@ export default function ComplianceDashboardPage() {
                                                             {req.type === "ACCESS" ? "Droit d'accès" : req.type === "DELETE" ? "Droit à l'oubli" : req.type === "EXPORT" ? "Portabilité" : req.type} · {formatDate(req.requestedAt)}
                                                         </p>
                                                     </div>
-                                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(req.status)}`}>
-                                                        {req.status}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        {(req.status === "PENDING" || req.status === "IN_PROGRESS") && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-7 text-xs gap-1"
+                                                                disabled={fulfillingId === req.id}
+                                                                onClick={() => handleFulfill(req.id)}
+                                                            >
+                                                                {fulfillingId === req.id
+                                                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                                    : <Play className="w-3 h-3" />}
+                                                                Traiter
+                                                            </Button>
+                                                        )}
+                                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(req.status)}`}>
+                                                            {req.status}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

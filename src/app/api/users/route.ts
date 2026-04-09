@@ -12,6 +12,9 @@ import { createApiHandler, getPaginationParams, createPaginatedResponse, transla
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { checkStudentQuota, checkTeacherQuota } from "@/lib/saas/quotas";
 import { canCreateRole } from "@/lib/rbac/permissions";
+import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createSchoolWithDefaults } from "@/lib/schools/provisioning";
 
 export const GET = createApiHandler(
   async (request, { session }) => {
@@ -31,7 +34,7 @@ export const GET = createApiHandler(
       if (role) where.role = role as UserRole;
     } else {
       // Non-super admins can only see users from their school
-      where.schoolId = session.user.schoolId;
+      where.schoolId = getActiveSchoolId(session);
       if (role) where.role = role as UserRole;
     }
 
@@ -101,13 +104,15 @@ export const POST = createApiHandler(
     const sanitizedBody = sanitizeRequestBody(body);
     const schoolCreateSchema = z.object({
       name: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
-      address: z.string().optional(),
-      city: z.string().optional(),
-      phone: z.string().optional(),
-      email: z.string().email("Email invalide").optional(),
+      organizationId: z.string().cuid().optional().nullable(),
+      address: z.string().optional().nullable(),
+      city: z.string().optional().nullable(),
+      phone: z.string().optional().nullable(),
+      email: z.string().email("Email invalide").optional().nullable().or(z.literal("")),
+      logo: z.string().url("URL du logo invalide").optional().nullable().or(z.literal("")),
       type: z.nativeEnum(SchoolType).optional(),
       level: z.nativeEnum(SchoolLevel).optional(),
-      parentSchoolId: z.string().cuid().optional(),
+      parentSchoolId: z.string().cuid().optional().nullable(),
     });
 
     const createUserSchema = userSchema.extend({
@@ -156,7 +161,7 @@ export const POST = createApiHandler(
 
     // Non-super admins can only create users for their school
     const targetSchoolId =
-      session.user.role === "SUPER_ADMIN" ? validatedData.schoolId : session.user.schoolId;
+      session.user.role === "SUPER_ADMIN" ? validatedData.schoolId : getActiveSchoolId(session);
 
     if (session.user.role !== "SUPER_ADMIN" && !targetSchoolId) {
       return NextResponse.json(
@@ -241,67 +246,17 @@ export const POST = createApiHandler(
         let resolvedSchoolId = targetSchoolId ?? null;
 
         if (validatedData.school) {
-          if (validatedData.school.parentSchoolId) {
-            const parent = await tx.school.findUnique({
-              where: { id: validatedData.school.parentSchoolId },
-              select: { id: true },
-            });
-            if (!parent) {
-              throw new Error("PARENT_SCHOOL_NOT_FOUND");
-            }
-          }
-
-          const school = await tx.school.create({
-            data: {
-              name: validatedData.school.name,
-              address: validatedData.school.address,
-              city: validatedData.school.city,
-              phone: validatedData.school.phone,
-              email: validatedData.school.email,
-              type: validatedData.school.type ?? "PRIVATE",
-              level: validatedData.school.level ?? "PRIMARY",
-              parentSchoolId: validatedData.school.parentSchoolId ?? null,
-              code: validatedData.school.name.substring(0, 3).toUpperCase() + "-" + Math.floor(Math.random() * 1000),
-              academicConfig: {
-                create: {
-                  periodType: "TRIMESTER",
-                }
-              },
-              academicYears: {
-                create: {
-                  name: new Date().getFullYear().toString() + "-" + (new Date().getFullYear() + 1).toString(),
-                  startDate: new Date(new Date().getFullYear(), 8, 1),
-                  endDate: new Date(new Date().getFullYear() + 1, 5, 30),
-                  isCurrent: true,
-                  periods: {
-                    create: [
-                      {
-                        name: "Trimestre 1",
-                        type: "TRIMESTER",
-                        startDate: new Date(new Date().getFullYear(), 8, 1),
-                        endDate: new Date(new Date().getFullYear(), 11, 20),
-                        sequence: 1
-                      },
-                      {
-                        name: "Trimestre 2",
-                        type: "TRIMESTER",
-                        startDate: new Date(new Date().getFullYear() + 1, 0, 5),
-                        endDate: new Date(new Date().getFullYear() + 1, 2, 30),
-                        sequence: 2
-                      },
-                      {
-                        name: "Trimestre 3",
-                        type: "TRIMESTER",
-                        startDate: new Date(new Date().getFullYear() + 1, 3, 10),
-                        endDate: new Date(new Date().getFullYear() + 1, 5, 30),
-                        sequence: 3
-                      },
-                    ]
-                  }
-                }
-              }
-            },
-            select: { id: true },
+          const school = await createSchoolWithDefaults(tx, {
+            name: validatedData.school.name,
+            organizationId: validatedData.school.organizationId,
+            address: validatedData.school.address,
+            city: validatedData.school.city,
+            phone: validatedData.school.phone,
+            email: validatedData.school.email,
+            logo: validatedData.school.logo,
+            type: validatedData.school.type,
+            level: validatedData.school.level,
+            parentSchoolId: validatedData.school.parentSchoolId,
           });
           resolvedSchoolId = school.id;
         }
@@ -331,12 +286,64 @@ export const POST = createApiHandler(
           },
         });
 
+        if (validatedData.role === "TEACHER" && resolvedSchoolId) {
+          const profile = await tx.teacherProfile.create({
+            data: {
+              userId: user.id,
+              schoolId: resolvedSchoolId,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          await tx.teacherSchoolAssignment.createMany({
+            data: buildTeacherSchoolAssignments({
+              teacherId: profile.id,
+              userId: user.id,
+              primarySchoolId: resolvedSchoolId,
+              schoolIds: [resolvedSchoolId],
+            }),
+            skipDuplicates: true,
+          });
+        }
+
         return { user };
       });
     } catch (error) {
       if (error instanceof Error && error.message === "PARENT_SCHOOL_NOT_FOUND") {
         return NextResponse.json(
           { error: "Établissement parent introuvable" },
+          { status: 400 }
+        );
+      }
+      if (error instanceof Error && error.message === "PARENT_SCHOOL_MUST_BE_MAIN") {
+        return NextResponse.json(
+          { error: "Une annexe doit être rattachée à un site principal." },
+          { status: 400 }
+        );
+      }
+      if (error instanceof Error && error.message === "ORGANIZATION_NOT_FOUND") {
+        return NextResponse.json(
+          { error: "Organisation introuvable." },
+          { status: 400 }
+        );
+      }
+      if (error instanceof Error && error.message === "ORGANIZATION_INACTIVE") {
+        return NextResponse.json(
+          { error: "Organisation inactive." },
+          { status: 400 }
+        );
+      }
+      if (error instanceof Error && error.message === "PARENT_SCHOOL_ORGANIZATION_MISMATCH") {
+        return NextResponse.json(
+          { error: "Le site parent appartient à une autre organisation." },
+          { status: 400 }
+        );
+      }
+      if (error instanceof Error && error.message === "PARENT_SCHOOL_REQUIRES_SHARED_ORGANIZATION") {
+        return NextResponse.json(
+          { error: "Une annexe doit partager la même organisation que son site parent." },
           { status: 400 }
         );
       }

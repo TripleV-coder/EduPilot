@@ -5,6 +5,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const createResourceSchema = z.object({
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
+    const activeSchoolId = getActiveSchoolId(session);
 
     const where: Prisma.ResourceWhereInput = {
     };
@@ -75,6 +77,13 @@ export async function GET(request: NextRequest) {
 
     // Role-based filtering
     const userRole = session.user.role;
+    if (userRole !== "SUPER_ADMIN") {
+      if (!activeSchoolId) {
+        return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
+      }
+      where.schoolId = activeSchoolId;
+    }
+
     if (userRole === "STUDENT" || userRole === "PARENT") {
       // Students and parents only see public resources
       where.isPublic = true;
@@ -150,7 +159,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    if (!session.user.schoolId) {
+    const activeSchoolId = getActiveSchoolId(session);
+    if (!activeSchoolId) {
       return NextResponse.json(
         { error: "Utilisateur non associé à un établissement" },
         { status: 400 }
@@ -173,7 +183,7 @@ export async function POST(request: NextRequest) {
         fileSize: validatedData.fileSize,
         thumbnailUrl: validatedData.thumbnailUrl,
         isPublic: validatedData.isPublic,
-        schoolId: session.user.schoolId,
+        schoolId: activeSchoolId,
         uploadedById: session.user.id,
       },
       include: {

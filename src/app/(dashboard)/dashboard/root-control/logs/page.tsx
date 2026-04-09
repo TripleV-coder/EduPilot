@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Activity, Search, Filter, Loader2, AlertCircle, Clock, User, Building2, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -70,7 +69,7 @@ export default function RootLogsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission]} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-7xl mx-auto">
                 <PageHeader
                     title="Journal d'Infrastructure"

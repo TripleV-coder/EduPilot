@@ -5,6 +5,7 @@ import {
   dedupeLatestAnalyticsByStudent,
   roundTo,
 } from "@/lib/analytics/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -21,28 +22,52 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get("academicYearId");
     const classIds = searchParams.getAll("classIds"); // Multiple classIds
-    const schoolId = session.user.schoolId;
 
-    if (!schoolId || !academicYearId || classIds.length === 0) {
+    if (!academicYearId || classIds.length === 0) {
       return NextResponse.json(
         { error: "Paramètres manquants" },
         { status: 400 }
       );
     }
 
+    const classRecords = await prisma.class.findMany({
+      where: {
+        id: { in: classIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        schoolId: true,
+        school: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (classRecords.length !== classIds.length) {
+      return NextResponse.json({ error: "Une ou plusieurs classes sont introuvables" }, { status: 404 });
+    }
+
+    const outOfScopeClass = classRecords.find((classRecord) => !canAccessSchool(session, classRecord.schoolId));
+    if (outOfScopeClass) {
+      return NextResponse.json({ error: "Accès refusé à une ou plusieurs classes demandées" }, { status: 403 });
+    }
+
     const comparisons = await Promise.all(
-      classIds.map(async (classId) => {
+      classRecords.map(async (classRecord) => {
         const enrollmentCount = await prisma.enrollment.count({
-          where: { classId, academicYearId, status: "ACTIVE" },
+          where: { classId: classRecord.id, academicYearId, status: "ACTIVE" },
         });
 
         const analytics = await prisma.studentAnalytics.findMany({
           where: {
             academicYearId,
             student: {
-              schoolId,
+              schoolId: classRecord.schoolId,
               enrollments: {
-                some: { classId, academicYearId },
+                some: { classId: classRecord.id, academicYearId },
               },
             },
           },
@@ -78,14 +103,11 @@ export async function GET(request: NextRequest) {
           critical: latestAnalytics.filter((a) => a.riskLevel === "CRITICAL").length,
         };
 
-        const className = await prisma.class.findFirst({
-          where: { id: classId, schoolId },
-          select: { name: true },
-        });
-
         return {
-          classId,
-          className: className?.name || "Unknown",
+          classId: classRecord.id,
+          className: classRecord.name,
+          schoolId: classRecord.schoolId,
+          schoolName: classRecord.school.name,
           studentCount: enrollmentCount,
           averageGrade: roundTo(avgGrade),
           passRate: roundTo(passRate),

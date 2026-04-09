@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { assertModelAccess } from "@/lib/security/tenant";
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,8 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
+    const guard = await assertModelAccess(session, "lesson", id, "Leçon non trouvée");
+    if (guard) return guard;
 
     const lesson = await prisma.lesson.findUnique({
       where: { id: id },
@@ -51,11 +54,6 @@ export async function GET(
 
     if (!lesson) {
       return NextResponse.json({ error: "Leçon non trouvée" }, { status: 404 });
-    }
-
-    // Verify access (same school)
-    if (lesson.module.course.classSubject.subject.schoolId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Students only see published courses

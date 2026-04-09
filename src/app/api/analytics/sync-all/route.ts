@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 import prisma from "@/lib/prisma";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 export async function POST(request: NextRequest) {
@@ -12,11 +13,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { academicYearId } = await request.json();
+    const activeSchoolId = getActiveSchoolId(session);
 
     let yearId = academicYearId;
     if (!yearId) {
         const currentYear = await prisma.academicYear.findFirst({
-            where: { schoolId: session.user.schoolId as string, isCurrent: true },
+            where: { schoolId: activeSchoolId as string, isCurrent: true },
             select: { id: true }
         });
         yearId = currentYear?.id;
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Année académique requise" }, { status: 400 });
     }
 
-    const schoolId = session.user.schoolId;
+    const schoolId = activeSchoolId;
     if (!schoolId) {
         return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
     }

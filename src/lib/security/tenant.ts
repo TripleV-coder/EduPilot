@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Session } from "next-auth";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export type TenantGuardResult = NextResponse | null;
 
@@ -14,7 +15,7 @@ function notFound(message: string) {
 
 export function requireSchoolContext(session: Session): TenantGuardResult {
   if (session.user.role === "SUPER_ADMIN") return null;
-  if (!session.user.schoolId) {
+  if (!getActiveSchoolId(session)) {
     return forbidden("Aucun établissement associé à ce compte");
   }
   return null;
@@ -23,7 +24,7 @@ export function requireSchoolContext(session: Session): TenantGuardResult {
 export function ensureSchoolMatch(session: Session, schoolId: string | null, notFoundMsg = "Ressource introuvable") {
   if (session.user.role === "SUPER_ADMIN") return null;
   if (!schoolId) return notFound(notFoundMsg);
-  if (schoolId !== session.user.schoolId) return forbidden("Accès refusé à cet établissement");
+  if (!canAccessSchool(session, schoolId)) return forbidden("Accès refusé à cet établissement");
   return null;
 }
 
@@ -237,13 +238,13 @@ export async function assertModelAccess(
   notFoundMsg = "Ressource introuvable"
 ): Promise<TenantGuardResult> {
   if (session.user.role === "SUPER_ADMIN") return null;
-  if (!session.user.schoolId) return forbidden("Aucun établissement associé à ce compte");
+  if (!getActiveSchoolId(session)) return forbidden("Aucun établissement associé à ce compte");
 
   const resolver = modelSchoolResolvers[model];
   if (!resolver) return forbidden("Accès refusé à cet établissement");
 
   const schoolId = await resolver(id);
   if (!schoolId) return notFound(notFoundMsg);
-  if (schoolId !== session.user.schoolId) return forbidden("Accès refusé à cet établissement");
+  if (!canAccessSchool(session, schoolId)) return forbidden("Accès refusé à cet établissement");
   return null;
 }

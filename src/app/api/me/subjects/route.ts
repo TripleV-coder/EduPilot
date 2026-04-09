@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET() {
   try {
@@ -21,9 +22,12 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
+    const activeSchoolId = getActiveSchoolId(session);
+
     const subjects = await prisma.classSubject.findMany({
       where: {
         teacherId: teacherProfile.id,
+        ...(activeSchoolId ? { class: { schoolId: activeSchoolId } } : {}),
       },
       include: {
         subject: { select: { name: true } },

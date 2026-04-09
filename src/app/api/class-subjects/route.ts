@@ -6,6 +6,8 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 
 interface ClassSubjectWhereFilter {
@@ -23,6 +25,7 @@ export const GET = createApiHandler(
     if (schoolContext) return schoolContext;
 
     const where: Prisma.ClassSubjectWhereInput = {};
+    const activeSchoolId = getActiveSchoolId(session);
     if (classId) {
       const classAccess = await assertModelAccess(session, "class", classId, "Classe introuvable");
       if (classAccess) return classAccess;
@@ -37,15 +40,15 @@ export const GET = createApiHandler(
         if (!teacher) {
           return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
         }
-        if (teacher.schoolId !== session.user.schoolId) {
+        if (!activeSchoolId || !(await isTeacherAssignedToSchool(teacherId, activeSchoolId))) {
           return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
         }
       }
       where.teacherId = teacherId;
     }
 
-    if (session.user.role !== "SUPER_ADMIN") {
-      where.class = { schoolId: session.user.schoolId };
+    if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
+      where.class = { schoolId: activeSchoolId };
     }
 
     const classSubjects = await prisma.classSubject.findMany({
@@ -81,9 +84,19 @@ export const POST = createApiHandler(
 
     const schoolContext = requireSchoolContext(session);
     if (schoolContext) return schoolContext;
+    const activeSchoolId = getActiveSchoolId(session);
 
     const classAccess = await assertModelAccess(session, "class", validatedData.classId, "Classe introuvable");
     if (classAccess) return classAccess;
+
+    const schoolClass = await prisma.class.findUnique({
+      where: { id: validatedData.classId },
+      select: { schoolId: true },
+    });
+
+    if (!schoolClass) {
+      return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
+    }
 
     if (session.user.role !== "SUPER_ADMIN") {
       const subject = await prisma.subject.findUnique({
@@ -93,7 +106,7 @@ export const POST = createApiHandler(
       if (!subject) {
         return NextResponse.json({ error: "Matière introuvable" }, { status: 404 });
       }
-      if (subject.schoolId !== session.user.schoolId) {
+      if (subject.schoolId !== schoolClass.schoolId) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
 
@@ -105,7 +118,7 @@ export const POST = createApiHandler(
         if (!teacher) {
           return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
         }
-        if (teacher.schoolId !== session.user.schoolId) {
+        if (!activeSchoolId || !(await isTeacherAssignedToSchool(validatedData.teacherId, schoolClass.schoolId))) {
           return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
         }
       }

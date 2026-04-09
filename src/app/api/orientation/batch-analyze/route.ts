@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { aiService } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
                 status: "ACTIVE",
                 ...(classId ? { classId } : {}),
                 student: {
-                    schoolId: session.user.schoolId || undefined
+                    schoolId: getActiveSchoolId(session) || undefined
                 }
             },
             include: {

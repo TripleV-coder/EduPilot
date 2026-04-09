@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { exportUserData } from "@/lib/security/rgpd";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * POST /api/compliance/data-requests/[id]/fulfill
@@ -31,10 +32,10 @@ export async function POST(
         }
 
         if (session.user.role === "SCHOOL_ADMIN") {
-            if (!session.user.schoolId) {
+            if (!getActiveSchoolId(session)) {
                 return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
             }
-            if (dataRequest.user.schoolId !== session.user.schoolId) {
+            if (dataRequest.user.schoolId !== getActiveSchoolId(session)) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
         }

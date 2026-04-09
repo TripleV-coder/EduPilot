@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const updatePeriodSchema = z.object({
@@ -42,7 +43,7 @@ export async function GET(
 
     // Verify school access
     if (session.user.role !== "SUPER_ADMIN" &&
-        period.academicYear.schoolId !== session.user.schoolId) {
+        !canAccessSchool(session, period.academicYear.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -90,7 +91,7 @@ export async function PUT(
 
     // Verify school access
     if (session.user.role !== "SUPER_ADMIN" &&
-        existingPeriod.academicYear.schoolId !== session.user.schoolId) {
+        !canAccessSchool(session, existingPeriod.academicYear.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -165,7 +166,7 @@ export async function DELETE(
 
     // Verify school access
     if (session.user.role !== "SUPER_ADMIN" &&
-        period.academicYear.schoolId !== session.user.schoolId) {
+        !canAccessSchool(session, period.academicYear.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

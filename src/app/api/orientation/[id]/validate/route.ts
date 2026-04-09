@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { validateRecommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * POST /api/orientation/[id]/validate
@@ -51,7 +52,7 @@ export async function POST(
     // Vérifier l'accès (même école)
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      recommendation.orientation.student.user.schoolId !== session.user.schoolId
+      recommendation.orientation.student.user.schoolId !== getActiveSchoolId(session)
     ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }

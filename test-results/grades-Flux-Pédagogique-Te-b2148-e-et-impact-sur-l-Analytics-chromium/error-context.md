@@ -1,0 +1,48 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - heading "Bon retour !" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Connectez-vous pour accéder à votre espace
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - text: Adresse email
+          - generic [ref=e15]:
+            - img [ref=e16]
+            - textbox "Adresse email" [ref=e19]
+          - paragraph [ref=e20]: Utilisez l'email fourni par votre établissement pour accéder à EduPilot.
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - generic [ref=e23]: Mot de passe
+            - link "Mot de passe oublié ?" [ref=e24] [cursor=pointer]:
+              - /url: /forgot-password
+          - generic [ref=e25]:
+            - img [ref=e26]
+            - textbox "Mot de passe" [ref=e29]
+            - button "Afficher le mot de passe" [ref=e30] [cursor=pointer]:
+              - img [ref=e31]
+          - paragraph [ref=e34]: Ne partagez jamais votre mot de passe. Contactez l'administration en cas de doute.
+        - button "Se connecter" [ref=e35] [cursor=pointer]:
+          - generic [ref=e36]:
+            - text: Se connecter
+            - img
+    - paragraph [ref=e37]: EduPilot — Système de Gestion Scolaire Intelligent
+  - dialog "Consentement cookies" [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - text: Cookies & confidentialité — EduPilot utilise uniquement des cookies de session strictement nécessaires au fonctionnement de l'authentification. Aucun cookie publicitaire ou de tracking.
+        - link "En savoir plus" [ref=e41] [cursor=pointer]:
+          - /url: /privacy
+      - generic [ref=e42]:
+        - link "Politique de confidentialité" [ref=e43] [cursor=pointer]:
+          - /url: /privacy
+        - button "J'accepte" [ref=e44] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - alert [ref=e45]
+```

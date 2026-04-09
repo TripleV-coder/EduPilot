@@ -43,9 +43,10 @@ export async function POST(
         // Create or update session
         const examSession = await tx.examSession.upsert({
             where: {
-                examTemplateId_studentId: {
+                examTemplateId_studentId_attempt: {
                     examTemplateId: id,
-                    studentId: studentProfile.id
+                    studentId: studentProfile.id,
+                    attempt: 1,
                 }
             },
             create: {

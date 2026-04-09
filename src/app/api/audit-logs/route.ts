@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/audit-logs
@@ -63,9 +64,9 @@ export const GET = createApiHandler(
     }
 
     // For SCHOOL_ADMIN, only show logs for their school's users
-    if (session.user.role === "SCHOOL_ADMIN" && session.user.schoolId) {
+    if (session.user.role === "SCHOOL_ADMIN" && getActiveSchoolId(session)) {
       const schoolUserIds = await prisma.user.findMany({
-        where: { schoolId: session.user.schoolId },
+        where: { schoolId: getActiveSchoolId(session) },
         select: { id: true },
       });
       where.userId = { in: schoolUserIds.map((u) => u.id) };

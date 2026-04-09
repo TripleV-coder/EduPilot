@@ -5,6 +5,7 @@ import {
   dedupeLatestAnalyticsByStudent,
   roundTo,
 } from "@/lib/analytics/helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -37,7 +38,7 @@ export async function GET(
       return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
     }
 
-    let schoolId = session.user.schoolId;
+    let schoolId = getActiveSchoolId(session);
     if (!schoolId && session.user.role === "SUPER_ADMIN") {
       schoolId = classData.schoolId;
     }

@@ -12,8 +12,22 @@ import {
 } from "./account-lockout";
 import { verifyToken, findMatchingBackupCode } from "./two-factor";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
+import { getOrganizationAccessForUser } from "./organization-access";
+import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
 
-// Extended user type for authentication
+/**
+ * Extended user type for authentication.
+ *
+ * P7 CONVENTION: `role` is the PRIMARY role used for dashboard routing and UI decisions.
+ * `roles` is the union of all assigned roles, used for permission calculation via getRolePermissions().
+ * At login, if `user.roles` is populated, it is used; otherwise `[user.role]` is the fallback.
+ * The session always exposes both fields for maximum flexibility.
+ *
+ * P15 NOTE: The JWT status cache (`userStatusCache`) is an in-memory Map with 30s TTL.
+ * In multi-instance deployments (Vercel serverless, PM2 cluster), each instance has its own cache.
+ * Token invalidation after password/role changes may take up to 30s × instances to propagate.
+ * This is an acceptable trade-off vs. adding a Redis dependency for this single use case.
+ */
 export interface AuthUser {
   id: string;
   email: string;
@@ -22,7 +36,12 @@ export interface AuthUser {
   lastName: string;
   role: UserRole;
   roles: UserRole[]; // Hybrid roles support
+  primaryOrganizationId: string | null;
+  organizationIds: string[];
+  isOrganizationManager: boolean;
+  primarySchoolId: string | null;
   schoolId: string | null;
+  accessibleSchoolIds: string[];
   isTwoFactorEnabled: boolean;
   isTwoFactorAuthenticated: boolean;
   permissions?: Permission[]; // Union of permissions
@@ -35,9 +54,8 @@ const loginSchema = z.object({
   twoFactorCode: z.string().optional(),
 });
 
-// ─── JWT User Status Cache ─────────────────────────────────────────────────
-// Cache DB lookups for token invalidation checks (30s TTL)
-// Prevents a `SELECT` on every single authenticated request.
+// P15: In-memory cache for JWT token invalidation checks (30s TTL).
+// Prevents a `SELECT` per authenticated request. Trade-off: multi-instance inconsistency (see AuthUser doc).
 const JWT_CACHE_TTL_MS = 30_000;
 interface CachedUserStatus {
   passwordChangedAt: Date | null;
@@ -215,6 +233,16 @@ export const authConfig: NextAuthConfig = {
         });
 
         const effectiveRoles = (user.roles && user.roles.length > 0) ? user.roles : [user.role];
+        const organizationAccess = await getOrganizationAccessForUser(user.id);
+        const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+          userId: user.id,
+          role: user.role,
+          primarySchoolId: user.schoolId,
+        });
+        const activeSchoolId = resolveActiveSchoolId({
+          primarySchoolId: user.schoolId,
+          accessibleSchoolIds,
+        });
 
         return {
           id: user.id,
@@ -224,7 +252,12 @@ export const authConfig: NextAuthConfig = {
           lastName: user.lastName,
           role: user.role,
           roles: effectiveRoles,
-          schoolId: user.schoolId,
+          primaryOrganizationId: organizationAccess.primaryOrganizationId,
+          organizationIds: organizationAccess.organizationIds,
+          isOrganizationManager: organizationAccess.isOrganizationManager,
+          primarySchoolId: user.schoolId,
+          schoolId: activeSchoolId,
+          accessibleSchoolIds,
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
           permissions: getRolePermissions(effectiveRoles),
@@ -241,7 +274,12 @@ export const authConfig: NextAuthConfig = {
         token.role = authUser.role;
         token.roles = authUser.roles;
         token.permissions = authUser.permissions;
+        token.primaryOrganizationId = authUser.primaryOrganizationId;
+        token.organizationIds = authUser.organizationIds;
+        token.isOrganizationManager = authUser.isOrganizationManager;
+        token.primarySchoolId = authUser.primarySchoolId;
         token.schoolId = authUser.schoolId;
+        token.accessibleSchoolIds = authUser.accessibleSchoolIds;
         token.firstName = authUser.firstName;
         token.lastName = authUser.lastName;
         token.isTwoFactorEnabled = authUser.isTwoFactorEnabled;
@@ -286,27 +324,44 @@ export const authConfig: NextAuthConfig = {
         }
 
         // Changement de contexte école
-        if (session?.schoolId && userId) {
-          // Vérifier si l'utilisateur a le droit d'accéder à cette école
-          // 1. C'est son école principale
-          // 2. Il a une assignation explicite (TeacherSchoolAssignment)
-          // 3. C'est un SUPER_ADMIN (accès partout)
+        const hasSchoolContextUpdate =
+          !!userId &&
+          !!session &&
+          Object.prototype.hasOwnProperty.call(session, "schoolId");
 
+        if (hasSchoolContextUpdate && userId) {
           if (token.role === "SUPER_ADMIN") {
-            token.schoolId = session.schoolId;
+            token.schoolId = (session.schoolId as string | null | undefined) ?? null;
           } else {
-            // Vérifier DB
-            const user = await prisma.user.findUnique({
+            const dbUser = await prisma.user.findUnique({
               where: { id: userId },
-              select: {
-                schoolId: true
-              }
+              select: { schoolId: true, role: true },
             });
 
-            if (user) {
-              const isPrimary = user.schoolId === session.schoolId;
-              if (isPrimary) {
-                token.schoolId = session.schoolId;
+            if (dbUser) {
+              const organizationAccess = await getOrganizationAccessForUser(userId);
+              const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+                userId,
+                role: dbUser.role,
+                primarySchoolId: dbUser.schoolId,
+              });
+              token.primaryOrganizationId = organizationAccess.primaryOrganizationId;
+              token.organizationIds = organizationAccess.organizationIds;
+              token.isOrganizationManager = organizationAccess.isOrganizationManager;
+              token.primarySchoolId = dbUser.schoolId;
+              token.accessibleSchoolIds = accessibleSchoolIds;
+
+              const requestedSchoolId =
+                typeof session.schoolId === "string" ? session.schoolId : null;
+
+              if (requestedSchoolId && accessibleSchoolIds.includes(requestedSchoolId)) {
+                token.schoolId = requestedSchoolId;
+              } else {
+                token.schoolId = resolveActiveSchoolId({
+                  primarySchoolId: dbUser.schoolId,
+                  accessibleSchoolIds,
+                  requestedSchoolId,
+                });
               }
             }
           }
@@ -360,7 +415,12 @@ export const authConfig: NextAuthConfig = {
         session.user.role = token.role;
         session.user.roles = token.roles as UserRole[];
         session.user.permissions = token.permissions as Permission[];
+        session.user.primaryOrganizationId = token.primaryOrganizationId as string | null;
+        session.user.organizationIds = (token.organizationIds as string[] | undefined) || [];
+        session.user.isOrganizationManager = token.isOrganizationManager as boolean | undefined;
+        session.user.primarySchoolId = token.primarySchoolId as string | null;
         session.user.schoolId = token.schoolId;
+        session.user.accessibleSchoolIds = (token.accessibleSchoolIds as string[] | undefined) || [];
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;

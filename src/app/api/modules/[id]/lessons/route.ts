@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { assertModelAccess } from "@/lib/security/tenant";
 
 const createLessonSchema = z.object({
   title: z.string().min(3).max(200),
@@ -28,6 +29,8 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
+    const guard = await assertModelAccess(session, "module", id, "Module non trouvé");
+    if (guard) return guard;
 
     const courseModule = await prisma.courseModule.findUnique({
       where: { id: id },
@@ -49,11 +52,6 @@ export async function GET(
 
     if (!courseModule) {
       return NextResponse.json({ error: "Module non trouvé" }, { status: 404 });
-    }
-
-    // Verify access
-    if (courseModule.course.classSubject.subject.schoolId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Students only see published courses
@@ -79,6 +77,8 @@ export async function POST(
     if (!session?.user || !["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
+    const guard = await assertModelAccess(session, "module", id, "Module non trouvé");
+    if (guard) return guard;
 
     const body = await request.json();
     const validatedData = createLessonSchema.parse(body);

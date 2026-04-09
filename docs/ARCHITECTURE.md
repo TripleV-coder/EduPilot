@@ -71,17 +71,35 @@ EduPilot est une application SaaS (Software as a Service) de gestion scolaire co
 
 ### Modèle Multi-Tenant
 
-EduPilot utilise un modèle multi-tenant avec **isolation par schoolId** :
+EduPilot utilise un modèle multi-tenant avec **isolation par schoolId**. Récemment, le système a été étendu pour prendre en charge les enseignants multi-établissements via un modèle de rattachement flexible :
+
+1. **École active (Contexte de travail)** :
+   Chaque utilisateur a une école active dans sa session (`getActiveSchoolId(session)`). Toutes les actions et requêtes (tableaux de bord, listes d'élèves, notes) se font dans le contexte de cette école active.
+   
+2. **Écoles accessibles (Périmètre de droits)** :
+   Un utilisateur (comme un enseignant) peut être rattaché à plusieurs écoles via la table `TeacherSchoolAssignment`. Lors de sa connexion, sa session charge la liste de ses écoles accessibles (`session.user.accessibleSchoolIds`). Il peut basculer d'une école à l'autre sans se reconnecter.
+   
+3. **SUPER_ADMIN** :
+   Le rôle `SUPER_ADMIN` n'est rattaché à aucune école spécifique (`schoolId` null). Il a un accès global et peut consulter les données de toutes les écoles ou se "restreindre" à une école spécifique en la sélectionnant.
 
 ```typescript
-// Chaque requête est filtrée par l'école de l'utilisateur
+// Exemple de vérification des droits
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+
+// 1. Quel est le contexte courant ?
+const activeSchoolId = getActiveSchoolId(session);
+
+// 2. Est-ce que l'utilisateur a le droit d'accéder à cette ressource ?
+if (!canAccessSchool(session, resourceSchoolId)) {
+  throw new Error("Accès refusé");
+}
+
+// 3. Filtrage des requêtes
 const students = await prisma.studentProfile.findMany({
   where: {
-    schoolId: session.user.schoolId, // Isolation tenant
+    schoolId: activeSchoolId, // Isolation tenant
     enrollments: {
-      some: {
-        academicYearId: currentYear.id
-      }
+      some: { academicYearId: currentYear.id }
     }
   }
 });

@@ -15,6 +15,10 @@ type StudentAccessRecord = {
   userId: string;
 };
 
+function getActiveSchoolId(session: SessionLike) {
+  return session?.user?.schoolId ?? null;
+}
+
 export const HEALTH_STAFF_ROLES = [
   "SUPER_ADMIN",
   "SCHOOL_ADMIN",
@@ -40,7 +44,7 @@ export function requireHealthRole(session: SessionLike, allowedRoles: readonly s
   if (
     session.user.role !== "SUPER_ADMIN" &&
     HEALTH_STAFF_ROLES.includes(session.user.role as (typeof HEALTH_STAFF_ROLES)[number]) &&
-    !session.user.schoolId
+    !getActiveSchoolId(session)
   ) {
     return NextResponse.json(
       { error: "Aucun établissement associé à ce compte" },
@@ -108,7 +112,7 @@ export async function ensureStudentHealthAccess(
   }
 
   if (HEALTH_STAFF_ROLES.includes(session.user.role as (typeof HEALTH_STAFF_ROLES)[number])) {
-    if (!session.user.schoolId || session.user.schoolId !== student.schoolId) {
+    if (getActiveSchoolId(session) !== student.schoolId) {
       return {
         response: NextResponse.json({ error: "Accès refusé" }, { status: 403 }),
       };

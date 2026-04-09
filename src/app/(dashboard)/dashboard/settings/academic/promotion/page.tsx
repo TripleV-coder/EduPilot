@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -21,9 +21,16 @@ type StudentPromotion = {
   status: "PROMOTE" | "REPEAT" | "LEAVE";
 };
 
+type RankedStudent = {
+  studentId: string;
+  studentName: string;
+  average: number | string;
+};
+
 export default function PromotionEnginePage() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, StudentPromotion["status"]>>({});
 
   const { data: classes } = useSWR("/api/classes", fetcher);
 
@@ -35,22 +42,23 @@ export default function PromotionEnginePage() {
     fetcher
   );
 
-  const [students, setStudents] = useState<StudentPromotion[]>([]);
+  const students = useMemo<StudentPromotion[]>(() => {
+    const list = (gradeStatsData?.ranking?.students ?? []) as RankedStudent[];
+    return list.map((student) => {
+      const average = Number(student.average);
+      const defaultStatus = average >= 10 ? "PROMOTE" : "REPEAT";
 
-  useEffect(() => {
-    const list = gradeStatsData?.ranking?.students ?? [];
-    setStudents(
-      list.map((s: any) => ({
-        id: s.studentId,
-        name: s.studentName,
-        average: Number(s.average),
-        status: Number(s.average) >= 10 ? "PROMOTE" : "REPEAT",
-      }))
-    );
-  }, [gradeStatsData]);
+      return {
+        id: student.studentId,
+        name: student.studentName,
+        average,
+        status: statusOverrides[student.studentId] ?? defaultStatus,
+      };
+    });
+  }, [gradeStatsData, statusOverrides]);
 
   const setStatus = (id: string, status: "PROMOTE" | "REPEAT" | "LEAVE") => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    setStatusOverrides((prev) => ({ ...prev, [id]: status }));
   };
 
   const handlePromotion = async () => {
@@ -94,7 +102,10 @@ export default function PromotionEnginePage() {
               {classes?.map((c: any) => (
                 <button
                   key={c.id}
-                  onClick={() => setSelectedClassId(c.id)}
+                  onClick={() => {
+                    setSelectedClassId(c.id);
+                    setStatusOverrides({});
+                  }}
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left",
                     selectedClassId === c.id 

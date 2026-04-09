@@ -8,6 +8,8 @@ import { withHttpCache } from "@/lib/api/cache-http";
 import type { ClassWhereFilter } from "@/lib/types/api";
 import { Permission } from "@/lib/rbac/permissions";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
 /**
  * GET /api/classes
@@ -63,17 +65,16 @@ import { API_ERRORS } from "@/lib/constants/api-messages";
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get("schoolId") || session.user.schoolId;
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolId = requestedSchoolId || activeSchoolId;
     const classLevelId = searchParams.get("classLevelId");
     const search = searchParams.get("search");
 
     // Pagination
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
-
-    // Security: Non-SUPER_ADMIN can only access their school
-    if (session.user.role !== "SUPER_ADMIN" && schoolId !== session.user.schoolId) {
-      return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
-    }
 
     if (session.user.role !== "SUPER_ADMIN" && !schoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
@@ -154,7 +155,7 @@ export const POST = createApiHandler(
     const validatedData = classSchema.parse(body);
 
     // Get schoolId - SUPER_ADMIN must get it from classLevel
-    let schoolId: string | null = session.user.schoolId;
+    let schoolId: string | null = getActiveSchoolId(session) ?? null;
 
     // Récupérer le classLevel une seule fois (évite la double requête)
     const classLevel = await prisma.classLevel.findUnique({
@@ -203,7 +204,7 @@ export const POST = createApiHandler(
         select: { schoolId: true },
       });
 
-      if (!teacher || teacher.schoolId !== schoolId) {
+      if (!teacher || !(await isTeacherAssignedToSchool(validatedData.mainTeacherId, schoolId))) {
         return NextResponse.json(
           { ...translateError(API_ERRORS.INVALID_DATA, t), error: t("api.issues.invalid_teacher_ownership") || "Cet enseignant n'appartient pas à votre établissement" },
           { status: 403 }

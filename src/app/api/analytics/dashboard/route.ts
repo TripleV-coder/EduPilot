@@ -8,7 +8,10 @@ import {
   getStudentDashboardData,
   getParentDashboardData,
   getAccountantDashboardData,
+  getStaffDashboardData,
 } from "@/lib/services/analytics-dashboard";
+import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -24,10 +27,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const role = session.user.role as string;
-    let schoolId = session.user.schoolId;
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    let schoolId = getActiveSchoolId(session);
 
-    if (!schoolId && role === "SUPER_ADMIN" && searchParams.get("schoolId")) {
-      schoolId = searchParams.get("schoolId") as string;
+    if (requestedSchoolId) {
+      schoolId = requestedSchoolId;
     }
 
     if (!schoolId && role !== "SUPER_ADMIN") {
@@ -67,7 +73,22 @@ export async function GET(request: NextRequest) {
 
     // ─── SUPER_ADMIN / SCHOOL_ADMIN / DIRECTOR ───
     if (["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(role)) {
-      const data = await getAdminDashboardData(schoolId as string, yearId, classId, periodId, subjectId);
+      const comparisonSchoolIds =
+        Array.isArray(session.user.accessibleSchoolIds) && session.user.accessibleSchoolIds.length > 0
+          ? session.user.accessibleSchoolIds
+          : await getAccessibleSchoolIdsForUser({
+              userId: session.user.id,
+              role: session.user.role,
+              primarySchoolId: session.user.primarySchoolId ?? (schoolId as string | null),
+            });
+      const data = await getAdminDashboardData(
+        schoolId as string,
+        yearId,
+        classId,
+        periodId,
+        subjectId,
+        comparisonSchoolIds
+      );
       return NextResponse.json(data);
     }
 
@@ -92,6 +113,11 @@ export async function GET(request: NextRequest) {
     // ─── ACCOUNTANT ───
     if (role === "ACCOUNTANT") {
       const data = await getAccountantDashboardData(schoolId as string);
+      return NextResponse.json(data);
+    }
+
+    if (role === "STAFF") {
+      const data = await getStaffDashboardData(schoolId as string, yearId);
       return NextResponse.json(data);
     }
 

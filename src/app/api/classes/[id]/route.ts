@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const GET = createApiHandler(
     async (request, { params, session }, t) => {
@@ -11,7 +12,7 @@ export const GET = createApiHandler(
             return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
         }
 
-        const schoolId = session.user.schoolId;
+        const schoolId = getActiveSchoolId(session);
 
         const classData = await prisma.class.findUnique({
             where: { id: classId as string },

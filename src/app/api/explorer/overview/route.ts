@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         prisma.school.count({ where: { isActive: true } }),
         prisma.studentProfile.count({ where: { deletedAt: null } }),
         prisma.class.count(),
-        prisma.teacherProfile.count(),
+        prisma.teacherProfile.count({ where: { deletedAt: null } }),
       ]);
 
     return NextResponse.json(

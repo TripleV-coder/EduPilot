@@ -62,6 +62,23 @@ export const teacherCreateSchema = z.object({
   matricule: z.string().max(50).optional(),
   specialization: z.string().max(100).optional(),
   hireDate: z.coerce.date().optional(),
+  schoolId: z.string().cuid().optional(),
+  primarySchoolId: z.string().cuid().optional(),
+  additionalSchoolIds: z.array(z.string().cuid()).max(20).optional().default([]),
+});
+
+export const teacherUpdateSchema = z.object({
+  email: z.string().email("Email invalide").toLowerCase().trim().optional(),
+  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim().optional(),
+  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim().optional(),
+  phone: phoneSchema,
+  matricule: z.string().max(50).optional().nullable(),
+  specialization: z.string().max(100).optional().nullable(),
+  hireDate: z.coerce.date().optional().nullable(),
+  isActive: z.boolean().optional(),
+  schoolId: z.string().cuid().optional(),
+  primarySchoolId: z.string().cuid().optional(),
+  additionalSchoolIds: z.array(z.string().cuid()).max(20).optional().default([]),
 });
 
 export const parentProfileSchema = z.object({
@@ -95,5 +112,6 @@ export type TeacherProfileInput = z.infer<typeof teacherProfileSchema>;
 export type StudentProfileInput = z.infer<typeof studentProfileSchema>;
 export type StudentCreateInput = z.infer<typeof studentCreateSchema>;
 export type TeacherCreateInput = z.infer<typeof teacherCreateSchema>;
+export type TeacherUpdateInput = z.infer<typeof teacherUpdateSchema>;
 export type ParentProfileInput = z.infer<typeof parentProfileSchema>;
 export type EnrollmentInput = z.infer<typeof enrollmentSchema>;

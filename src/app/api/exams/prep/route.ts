@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { examPrepService } from "@/lib/benin/exam-prep-service";
 import { logger } from "@/lib/utils/logger";
 import prisma from "@/lib/prisma";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 // GET: Analyser la préparation d'un élève ou d'une classe
 export async function GET(req: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
                 if (!student) {
                     return NextResponse.json({ error: "Student not found" }, { status: 404 });
                 }
-                if (student.schoolId !== session.user.schoolId) {
+                if (!canAccessSchool(session, student.schoolId)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
             }
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
                 if (!classRecord) {
                     return NextResponse.json({ error: "Class not found" }, { status: 404 });
                 }
-                if (classRecord.schoolId !== session.user.schoolId) {
+                if (!canAccessSchool(session, classRecord.schoolId)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
             }

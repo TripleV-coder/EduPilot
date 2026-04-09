@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { aiService } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       studentId,
       userId: session.user.id,
       userRole: session.user.role as any,
-      schoolId: session.user.schoolId,
+      schoolId: getActiveSchoolId(session),
       data: { academicYearId },
     });
 

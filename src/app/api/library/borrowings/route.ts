@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { libraryService } from "@/lib/library/service";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // Helper to get studentProfileId from userId
 async function getStudentProfileId(userId: string): Promise<string | null> {
@@ -71,7 +72,7 @@ export async function PUT(req: NextRequest) {
                 if (recordInfo.student.userId !== session.user.id) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
-            } else if (recordInfo.book.schoolId !== session.user.schoolId) {
+            } else if (recordInfo.book.schoolId !== getActiveSchoolId(session)) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
         }
@@ -99,7 +100,7 @@ export async function GET(_req: NextRequest) {
             const records = await prisma.borrowingRecord.findMany({
                 where: session.user.role === "SUPER_ADMIN"
                     ? {}
-                    : { book: { schoolId: session.user.schoolId! } },
+                    : { book: { schoolId: getActiveSchoolId(session)! } },
                 include: {
                     book: { select: { title: true, author: true } },
                     student: { include: { user: { select: { firstName: true, lastName: true } } } }

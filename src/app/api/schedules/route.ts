@@ -3,7 +3,9 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { scheduleSchema } from "@/lib/validations/schedule";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
 interface ScheduleWhereFilter {
   classId?: string;
@@ -21,6 +23,11 @@ export const GET = createApiHandler(
     const classId = searchParams.get("classId");
     const teacherId = searchParams.get("teacherId");
     const dayOfWeek = searchParams.get("dayOfWeek");
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
+    const scopedSchoolId = requestedSchoolId || activeSchoolId;
 
     const schoolContext = requireSchoolContext(session);
     if (schoolContext) return schoolContext;
@@ -41,14 +48,14 @@ export const GET = createApiHandler(
         if (!teacher) {
           return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
         }
-        if (teacher.schoolId !== session.user.schoolId) {
+        if (!scopedSchoolId || !(await isTeacherAssignedToSchool(teacherId, scopedSchoolId))) {
           return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
         }
       }
       const teacherSubjects = await prisma.classSubject.findMany({
         where: session.user.role === "SUPER_ADMIN"
           ? { teacherId }
-          : { teacherId, class: { schoolId: session.user.schoolId } },
+          : { teacherId, class: { schoolId: scopedSchoolId || undefined } },
         select: { id: true },
       });
       where.classSubjectId = {
@@ -57,7 +64,7 @@ export const GET = createApiHandler(
     }
 
     if (session.user.role !== "SUPER_ADMIN") {
-      where.class = { schoolId: session.user.schoolId };
+      where.class = { schoolId: scopedSchoolId || undefined };
     }
 
     const schedules = await prisma.schedule.findMany({
@@ -118,7 +125,14 @@ export const POST = createApiHandler(
       if (classSubject.classId !== validatedData.classId) {
         return NextResponse.json({ error: "Cette matière n'appartient pas à la classe sélectionnée" }, { status: 400 });
       }
-      if (session.user.role !== "SUPER_ADMIN" && classSubject.class.schoolId !== session.user.schoolId) {
+      if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, classSubject.class.schoolId)) {
+        return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+      }
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        classSubject.teacherId &&
+        !(await isTeacherAssignedToSchool(classSubject.teacherId, classSubject.class.schoolId))
+      ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
       teacherIdForConflict = classSubject.teacherId;

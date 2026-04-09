@@ -26,7 +26,7 @@ export async function GET(_request: NextRequest) {
       prisma.user.count(),
       prisma.school.count(),
       prisma.studentProfile.count(),
-      prisma.teacherProfile.count(),
+      prisma.teacherProfile.count({ where: { deletedAt: null } }),
       prisma.enrollment.count(),
       prisma.grade.count(),
     ]);

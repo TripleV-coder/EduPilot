@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
 import { auth } from "@/lib/auth";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 
@@ -46,7 +47,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      evaluationType.schoolId !== session.user.schoolId
+      !canAccessSchool(session, evaluationType.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
@@ -84,7 +85,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingType.schoolId !== session.user.schoolId
+      !canAccessSchool(session, existingType.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
@@ -136,7 +137,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingType.schoolId !== session.user.schoolId
+      !canAccessSchool(session, existingType.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }

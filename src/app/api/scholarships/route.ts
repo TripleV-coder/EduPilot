@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createScholarshipSchema = z.object({
   studentId: z.string().cuid(),
@@ -75,10 +76,10 @@ export async function GET(request: NextRequest) {
       }
     } else if (["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(session.user.role)) {
       // Admins see all scholarships for their school
-      if (!session.user.schoolId) {
+      if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
-      where.student = { schoolId: session.user.schoolId };
+      where.student = { schoolId: getActiveSchoolId(session) };
       if (studentId) {
         where.studentId = studentId;
       }
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
     if (!student) {
       return NextResponse.json({ error: "Étudiant non trouvé" }, { status: 404 });
     }
-    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

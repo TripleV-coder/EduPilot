@@ -4,7 +4,6 @@ import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { ShieldCheck, Database, FileText, Activity, Play, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -50,7 +49,7 @@ export default function SystemRetentionPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission]} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Rétention & RGPD"

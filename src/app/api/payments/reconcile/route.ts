@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -23,12 +24,15 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { paymentIds, notes, reconcileAllVerified } = body;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolAccess = ensureRequestedSchoolAccess(session, body.schoolId);
+    if (schoolAccess) return schoolAccess;
 
     // Handle batch reconciliation of verified payments
     if (reconcileAllVerified) {
       const schoolId = session.user.role === "SUPER_ADMIN"
         ? body.schoolId
-        : session.user.schoolId;
+        : activeSchoolId;
 
       if (!schoolId) {
         return NextResponse.json(
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
 
     const schoolId = session.user.role === "SUPER_ADMIN"
       ? paymentsToReconcile[0]?.fee.schoolId
-      : session.user.schoolId;
+      : activeSchoolId;
 
     for (const payment of paymentsToReconcile) {
       if (session.user.role !== "SUPER_ADMIN" && payment.fee.schoolId !== schoolId) {
@@ -154,6 +158,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
     const status = searchParams.get("status") || "VERIFIED"; // Default to VERIFIED status
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
+    if (schoolAccess) return schoolAccess;
 
     if (!schoolId && session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json(
@@ -164,7 +171,7 @@ export async function GET(request: Request) {
 
     const targetSchoolId = session.user.role === "SUPER_ADMIN" && schoolId
       ? schoolId
-      : session.user.schoolId;
+      : schoolId || activeSchoolId;
 
     const payments = await prisma.payment.findMany({
       where: {

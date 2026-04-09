@@ -3,12 +3,11 @@
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Info, Cpu, Database, Blocks, ShieldCheck, Server } from "lucide-react";
 
 export default function SystemInfoPage() {
     return (
-        <PageGuard permission={["*" as Permission] /* Needs ROOT/SUPER_ADMIN effectively */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Informations Système"

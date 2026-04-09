@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { assertModelAccess } from "@/lib/security/tenant";
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +14,8 @@ export async function POST(
     if (!session?.user || session.user.role !== "STUDENT") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
+    const guard = await assertModelAccess(session, "examTemplate", id, "Examen non disponible");
+    if (guard) return guard;
 
     const studentProfile = await prisma.studentProfile.findUnique({
       where: { userId: session.user.id },
@@ -23,12 +26,10 @@ export async function POST(
     }
 
     // Check if already started
-    const existing = await prisma.examSession.findUnique({
+    const existing = await prisma.examSession.findFirst({
       where: {
-        examTemplateId_studentId: {
-          examTemplateId: id,
-          studentId: studentProfile.id,
-        },
+        examTemplateId: id,
+        studentId: studentProfile.id,
       },
     });
 
@@ -46,10 +47,6 @@ export async function POST(
 
     if (!exam || !exam.isPublished) {
       return NextResponse.json({ error: "Examen non disponible" }, { status: 404 });
-    }
-
-    if (exam.classSubject.class.schoolId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     const classEnrollment = await prisma.enrollment.findFirst({

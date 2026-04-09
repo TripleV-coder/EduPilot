@@ -15,6 +15,7 @@ import {
   resolvePreviousFinanceDateRange,
   summarizePaymentPlans,
 } from "@/lib/finance/helpers";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 function calculateGrowth(currentValue: number, previousValue: number): number {
@@ -40,26 +41,21 @@ export async function GET(request: NextRequest) {
   const cacheKey = generateCacheKey("/api/finance/stats", url.searchParams, session.user.id);
 
   const handler = async () => {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { schoolId: true },
-    });
-
-    let schoolId = url.searchParams.get("schoolId");
+    const activeSchoolId = getActiveSchoolId(session);
+    const requestedSchoolId = url.searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    let schoolId = requestedSchoolId;
 
     // If no schoolId provided in URL, fallback to user's schoolId
-    if (!schoolId && user?.schoolId) {
-      schoolId = user.schoolId;
+    if (!schoolId && activeSchoolId) {
+      schoolId = activeSchoolId;
     }
 
     if (!schoolId) {
       return NextResponse.json({ error: "Établissement (schoolId) requis" }, { status: 400 });
     }
 
-    // Security check: non-super-admins can ONLY view their own school
-    if (session.user.role !== "SUPER_ADMIN" && schoolId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const period = url.searchParams.get("period") || "academic";
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");

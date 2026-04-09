@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -32,6 +33,7 @@ type EvalType = {
 export default function SubjectsSettingsPage() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [evalTypes, setEvalTypes] = useState<EvalType[]>([]);
+    const [subjectCategories, setSubjectCategories] = useState<Array<{ id: string; name: string; code: string }>>([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
@@ -44,9 +46,10 @@ export default function SubjectsSettingsPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [subjRes, evalRes] = await Promise.all([
+            const [subjRes, evalRes, categoriesRes] = await Promise.all([
                 fetch("/api/subjects"),
-                fetch("/api/evaluation-types")
+                fetch("/api/evaluation-types"),
+                fetch("/api/subject-categories")
             ]);
 
             if (subjRes.ok) {
@@ -56,6 +59,10 @@ export default function SubjectsSettingsPage() {
             if (evalRes.ok) {
                 const data = await evalRes.json();
                 setEvalTypes(Array.isArray(data) ? data : data.data || []);
+            }
+            if (categoriesRes.ok) {
+                const data = await categoriesRes.json();
+                setSubjectCategories(Array.isArray(data) ? data : data.data || []);
             }
         } catch (err: any) {
             setError(err.message);
@@ -190,10 +197,17 @@ export default function SubjectsSettingsPage() {
                                 </div>
                             </div>
                             {!isAddingSubject && (
-                                <Button onClick={() => setIsAddingSubject(true)} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                                    <Plus className="h-4 w-4" />
-                                    Nouvelle Matière
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button asChild variant="outline">
+                                        <Link href="/dashboard/settings/subject-categories">
+                                            Gérer les catégories
+                                        </Link>
+                                    </Button>
+                                    <Button onClick={() => setIsAddingSubject(true)} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                                        <Plus className="h-4 w-4" />
+                                        Nouvelle Matière
+                                    </Button>
+                                </div>
                             )}
                         </div>
 
@@ -221,11 +235,11 @@ export default function SubjectsSettingsPage() {
                                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                                 >
                                                     <option value="">Sélectionner...</option>
-                                                    <option value="SCIENTIFIQUE">Scientifique</option>
-                                                    <option value="LITTERAIRE">Littéraire</option>
-                                                    <option value="LANGUES">Langues</option>
-                                                    <option value="SPORT">Sport</option>
-                                                    <option value="ARTS">Arts & Culture</option>
+                                                    {subjectCategories.map((category) => (
+                                                        <option key={category.id} value={category.code}>
+                                                            {category.name}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                             <div className="space-y-2">

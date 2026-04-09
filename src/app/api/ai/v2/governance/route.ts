@@ -9,6 +9,7 @@ import { AIServiceError, aiService } from '@/lib/ai/ai-service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // Available governance actions
 const ACTIONS = [
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       action,
       userId: session.user.id,
       userRole: session.user.role || 'user',
-      schoolId: session.user.schoolId,
+      schoolId: getActiveSchoolId(session),
       classId: data?.classId,
       data,
     });
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
         action: 'detect-at-risk',
         userId: session.user.id,
         userRole: session.user.role || 'user',
-        schoolId: session.user.schoolId,
+        schoolId: getActiveSchoolId(session),
       });
 
       return NextResponse.json({

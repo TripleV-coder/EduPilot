@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac/api-guard";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
+    const activeSchoolId = getActiveSchoolId(session);
 
     interface HomeworkWhereFilter {
       isPublished?: boolean;
@@ -102,10 +104,10 @@ export async function GET(request: NextRequest) {
     const where: HomeworkWhereFilter = { isPublished: true };
 
     // Non-SUPER_ADMIN must only see homework from their school
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
       where.classSubject = {
         class: {
-          schoolId: session.user.schoolId,
+          schoolId: activeSchoolId,
         },
       };
     }
@@ -298,7 +300,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = createHomeworkSchema.parse(body);
-
     // Verify teacher has access to this classSubject
     if (session.user.role === "TEACHER") {
       const [classSubject, teacherProfile] = await Promise.all([
@@ -325,7 +326,7 @@ export async function POST(request: NextRequest) {
         include: { class: { select: { schoolId: true } } }
       });
 
-      if (!classSubject || classSubject.class.schoolId !== session.user.schoolId) {
+      if (!classSubject || !canAccessSchool(session, classSubject.class.schoolId)) {
         return NextResponse.json(
           { error: "Accès refusé: Cette matière n'appartient pas à votre établissement" },
           { status: 403 }

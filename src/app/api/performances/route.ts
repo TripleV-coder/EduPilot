@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,8 +16,8 @@ export async function GET(request: NextRequest) {
         const periodId = url.searchParams.get("periodId");
         const academicYearId = url.searchParams.get("academicYearId");
 
-        const schoolConstraint = (session.user.role !== "SUPER_ADMIN" && session.user.schoolId)
-            ? { schoolId: session.user.schoolId }
+        const schoolConstraint = (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session))
+            ? { schoolId: getActiveSchoolId(session) }
             : {};
 
         // Find the academic year
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         // Fetch all classes and their classSubjects and evaluations
         const classes = await prisma.class.findMany({
             where: {
-                schoolId: session.user.role !== "SUPER_ADMIN" && session.user.schoolId ? session.user.schoolId : undefined
+                schoolId: session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session) ? getActiveSchoolId(session) : undefined
             },
             include: {
                 classLevel: true,

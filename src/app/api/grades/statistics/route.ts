@@ -7,6 +7,7 @@ import {
   normalizeGradeTo20,
   roundTo,
 } from "@/lib/analytics/helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 type AggregateBucket = {
   average: number;
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
     const subjectId = searchParams.get("subjectId");
     const periodId = searchParams.get("periodId");
     const type = searchParams.get("type"); // "student" | "class" | "subject"
+    const activeSchoolId = getActiveSchoolId(session);
 
     const where: Record<string, unknown> = {
       deletedAt: null,
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
     const evaluationWhere: Record<string, unknown> = {};
 
     if (session.user.role !== "SUPER_ADMIN") {
-      if (!session.user.schoolId) {
+      if (!activeSchoolId) {
         return NextResponse.json(
           {
             error: "Accès refusé : aucun établissement associé",
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       }
 
       classSubjectWhere.class = {
-        schoolId: session.user.schoolId,
+        schoolId: activeSchoolId,
       };
     }
 

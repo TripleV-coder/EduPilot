@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const paymentUpdateSchema = z.object({
@@ -55,7 +56,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      payment.student.user.schoolId !== session.user.schoolId
+      !canAccessSchool(session, payment.student.user.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
@@ -120,7 +121,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingPayment.student.user.schoolId !== session.user.schoolId
+      !canAccessSchool(session, existingPayment.student.user.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
@@ -202,7 +203,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingPayment.student.user.schoolId !== session.user.schoolId
+      !canAccessSchool(session, existingPayment.student.user.schoolId)
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }

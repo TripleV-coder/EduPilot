@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { schoolHolidaySchema } from "@/lib/validations/calendar";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/calendar/holidays/[id]
@@ -28,7 +29,7 @@ export const GET = createApiHandler(
     }
 
     // Vérifier l'accès
-    if (session.user.role !== "SUPER_ADMIN" && holiday.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, holiday.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 
@@ -58,7 +59,7 @@ export const PUT = createApiHandler(
       );
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && holiday.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, holiday.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 
@@ -107,7 +108,7 @@ export const DELETE = createApiHandler(
       );
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && holiday.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, holiday.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 

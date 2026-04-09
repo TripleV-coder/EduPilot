@@ -6,11 +6,15 @@ import {
   getTeacherDashboardData,
   getStudentDashboardData,
   getParentDashboardData,
-  getAccountantDashboardData
+  getAccountantDashboardData,
+  getStaffDashboardData,
 } from "@/lib/services/analytics-dashboard";
 import DashboardOverviewContent from "@/components/dashboard/DashboardOverviewContent";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
+import type { UserRole } from "@prisma/client";
+import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -23,12 +27,21 @@ export default async function DashboardPage(props: {
   const searchParams = await props.searchParams;
   const cookieStore = await cookies();
   const role = session.user.role;
-  const schoolId = session.user.schoolId;
+  const schoolId = getActiveSchoolId(session) ?? null;
   const academicYearId = (searchParams.academicYearId as string) || cookieStore.get("edupilot_year_id")?.value;
   
   const isSuperAdminGlobal = role === "SUPER_ADMIN" && !schoolId;
 
-  let analyticsData: any;
+  type DashboardAnalytics = 
+    | Awaited<ReturnType<typeof getGlobalDashboardData>>
+    | Awaited<ReturnType<typeof getAdminDashboardData>>
+    | Awaited<ReturnType<typeof getTeacherDashboardData>>
+    | Awaited<ReturnType<typeof getStudentDashboardData>>
+    | Awaited<ReturnType<typeof getParentDashboardData>>
+    | Awaited<ReturnType<typeof getAccountantDashboardData>>
+    | Awaited<ReturnType<typeof getStaffDashboardData>>;
+
+  let analyticsData: DashboardAnalytics | null = null;
 
   try {
     if (isSuperAdminGlobal) {
@@ -80,12 +93,21 @@ export default async function DashboardPage(props: {
       }
 
       if (["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(role)) {
+        const comparisonSchoolIds =
+          Array.isArray(session.user.accessibleSchoolIds) && session.user.accessibleSchoolIds.length > 0
+            ? session.user.accessibleSchoolIds
+            : await getAccessibleSchoolIdsForUser({
+                userId: session.user.id,
+                role: session.user.role,
+                primarySchoolId: session.user.primarySchoolId ?? schoolId,
+              });
         analyticsData = await getAdminDashboardData(
           schoolId,
           yearId,
           searchParams.classId as string,
           searchParams.periodId as string,
-          searchParams.subjectId as string
+          searchParams.subjectId as string,
+          comparisonSchoolIds
         );
       } else if (role === "TEACHER") {
         analyticsData = await getTeacherDashboardData(session.user.id, schoolId, yearId);
@@ -95,6 +117,10 @@ export default async function DashboardPage(props: {
         analyticsData = await getParentDashboardData(session.user.id, yearId);
       } else if (role === "ACCOUNTANT") {
         analyticsData = await getAccountantDashboardData(schoolId);
+      } else if (role === "STAFF") {
+        analyticsData = await getStaffDashboardData(schoolId, yearId);
+      } else {
+        throw new Error(`Unsupported dashboard role: ${role}`);
       }
     }
   } catch (error) {
@@ -122,7 +148,8 @@ export default async function DashboardPage(props: {
   return (
     <DashboardOverviewContent 
       analytics={analyticsData} 
-      isSuperAdminGlobal={isSuperAdminGlobal} 
+      isSuperAdminGlobal={isSuperAdminGlobal}
+      role={role as UserRole}
     />
   );
 }

@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { assertModelAccess } from "@/lib/security/tenant";
 
 const submitExamSchema = z.object({
   answers: z.array(z.object({
@@ -25,6 +26,8 @@ export async function POST(
     if (!session?.user || session.user.role !== "STUDENT") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
+    const guard = await assertModelAccess(session, "examSession", id, "Session non trouvée");
+    if (guard) return guard;
 
     const body = await request.json();
     const validatedData = submitExamSchema.parse(body);
@@ -53,9 +56,6 @@ export async function POST(
     }
 
     if (examSession.student.user.id !== session.user.id) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-    if (examSession.examTemplate.classSubject.class.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

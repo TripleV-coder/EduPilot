@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { calculateWeightedAverage, getAppreciation, getRank } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const _BULLETIN_ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"];
 
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
     if (!student) {
       return NextResponse.json({ error: "Élève non trouvé" }, { status: 404 });
     }
-    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

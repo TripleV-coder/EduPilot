@@ -40,7 +40,12 @@ export function useRBAC() {
             if (_permission) {
                 const userPermissions = getRolePermissions(userRoles);
                 const requiredPermissions = Array.isArray(_permission) ? _permission : [_permission];
-                if (!requiredPermissions.every((p) => userPermissions.includes(p as any))) {
+                const grantsAuthenticatedAccess = requiredPermissions.includes("*");
+                if (grantsAuthenticatedAccess) {
+                    return true;
+                }
+
+                if (!requiredPermissions.some((p) => userPermissions.includes(p as any))) {
                     return false;
                 }
             }

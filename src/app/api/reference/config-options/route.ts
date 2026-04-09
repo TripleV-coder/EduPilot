@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { auth } from "@/lib/auth";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 // Removed authOptions import
 
 /**
@@ -22,7 +23,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
-    const schoolId = searchParams.get("schoolId") || session.user.schoolId;
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolId = requestedSchoolId || activeSchoolId;
 
     if (!category) {
       return NextResponse.json(
@@ -82,19 +87,15 @@ export async function POST(request: NextRequest) {
     // Les admins d'école peuvent créer des options pour leur école
     const body = await request.json();
     const { category, code, label, description, order, metadata, schoolId } = body;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
+    if (schoolAccess) return schoolAccess;
 
     if (!category || !code || !label) {
       return NextResponse.json(
         { error: "Catégorie, code et label requis" },
         { status: 400 }
       );
-    }
-
-    // Vérification des permissions
-    if (schoolId && schoolId !== session.user.schoolId) {
-      if (session.user.role !== "SUPER_ADMIN") {
-        return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
-      }
     }
 
     if (!schoolId && !["SUPER_ADMIN"].includes(session.user.role)) {

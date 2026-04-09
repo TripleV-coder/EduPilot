@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/compliance/dashboard
@@ -17,7 +18,7 @@ export async function GET(_request: NextRequest) {
     }
 
     // SUPER_ADMIN can see all data (no schoolId filter)
-    const schoolId = session.user.role === "SUPER_ADMIN" ? null : session.user.schoolId;
+    const schoolId = session.user.role === "SUPER_ADMIN" ? null : getActiveSchoolId(session);
 
     // Get counts for various compliance metrics
     const [

@@ -5,6 +5,7 @@
 
 import prisma from "@/lib/prisma";
 import { normalizeGradeTo20 } from "@/lib/analytics/helpers";
+import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
 
 export const analyticsService = {
     /**
@@ -13,7 +14,7 @@ export const analyticsService = {
     async getSchoolStats(schoolId: string) {
         const [studentsCount, teachersCount, classesCount] = await Promise.all([
             prisma.studentProfile.count({ where: { schoolId } }),
-            prisma.teacherProfile.count({ where: { schoolId } }),
+            countTeachersForSchool(schoolId),
             prisma.class.count({ where: { schoolId } }),
         ]);
 

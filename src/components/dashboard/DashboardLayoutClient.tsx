@@ -3,8 +3,10 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Minimize2 } from "lucide-react";
+import useSWR from "swr";
 
 import { usePathname } from "next/navigation";
+import { fetcher } from "@/lib/fetcher";
 
 type SidebarContextType = {
     isOpen: boolean;
@@ -42,24 +44,104 @@ export function DashboardLayoutClient({
     const shellRef = useRef<HTMLDivElement | null>(null);
     const bgTopRef = useRef<HTMLDivElement | null>(null);
     const bgBottomRef = useRef<HTMLDivElement | null>(null);
+    const hasLoadedPreferencesRef = useRef(false);
 
     const [isOpen, setIsOpen] = useState(true);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [density, setDensity] = useState<"comfort" | "dense">("comfort");
     const [isFocusMode, setIsFocusMode] = useState(false);
+    const { data: profileData, mutate: mutateProfile } = useSWR("/api/user/profile", fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 60000,
+    });
 
-    useEffect(() => {
-        const savedOpen = localStorage.getItem("edupilot-sidebar");
-        if (savedOpen !== null) setIsOpen(savedOpen === "true");
+    const persistAppearancePreferences = async (nextDensity: "comfort" | "dense", nextFocusMode: boolean) => {
+        localStorage.setItem("edupilot-density", nextDensity);
+        localStorage.setItem("edupilot-focus-mode", String(nextFocusMode));
 
-        const savedDensity = localStorage.getItem("edupilot-density");
-        if (savedDensity === "dense" || savedDensity === "comfort") {
-            setDensity(savedDensity as "comfort" | "dense");
+        const currentPreferences =
+            profileData?.preferences && typeof profileData.preferences === "object"
+                ? profileData.preferences
+                : {};
+        const currentAppearance =
+            currentPreferences.appearance && typeof currentPreferences.appearance === "object"
+                ? currentPreferences.appearance
+                : {};
+        const nextPreferences = {
+            ...currentPreferences,
+            appearance: {
+                ...currentAppearance,
+                density: nextDensity,
+                focusMode: nextFocusMode,
+                displayMode: nextFocusMode ? "focus" : nextDensity,
+            },
+        };
+
+        if (profileData) {
+            void mutateProfile({ ...profileData, preferences: nextPreferences }, false);
         }
 
-        const savedFocus = localStorage.getItem("edupilot-focus-mode");
-        if (savedFocus !== null) setIsFocusMode(savedFocus === "true");
+        try {
+            await fetch("/api/user/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ preferences: nextPreferences }),
+            });
+            void mutateProfile();
+        } catch {
+            // Keep the local preference even if server persistence fails.
+        }
+    };
+
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(() => {
+            const savedOpen = localStorage.getItem("edupilot-sidebar");
+            if (savedOpen !== null) {
+                setIsOpen(savedOpen === "true");
+            }
+
+            const savedDensity = localStorage.getItem("edupilot-density");
+            if (savedDensity === "dense" || savedDensity === "comfort") {
+                setDensity(savedDensity as "comfort" | "dense");
+            }
+
+            const savedFocus = localStorage.getItem("edupilot-focus-mode");
+            if (savedFocus !== null) {
+                setIsFocusMode(savedFocus === "true");
+            }
+        });
+
+        return () => window.cancelAnimationFrame(frame);
     }, []);
+
+    useEffect(() => {
+        if (hasLoadedPreferencesRef.current) return;
+        if (profileData === undefined) return;
+        const appearance =
+            profileData?.preferences?.appearance &&
+            typeof profileData.preferences.appearance === "object"
+                ? profileData.preferences.appearance
+                : null;
+        if (!appearance) {
+            hasLoadedPreferencesRef.current = true;
+            return;
+        }
+
+        const savedDensity = localStorage.getItem("edupilot-density");
+        const savedFocus = localStorage.getItem("edupilot-focus-mode");
+
+        if (!savedDensity && (appearance.density === "comfort" || appearance.density === "dense")) {
+            setDensity(appearance.density);
+            localStorage.setItem("edupilot-density", appearance.density);
+        }
+
+        if (!savedFocus && typeof appearance.focusMode === "boolean") {
+            setIsFocusMode(appearance.focusMode);
+            localStorage.setItem("edupilot-focus-mode", String(appearance.focusMode));
+        }
+
+        hasLoadedPreferencesRef.current = true;
+    }, [profileData]);
 
     const toggle = () => {
         setIsOpen((prev) => {
@@ -72,14 +154,15 @@ export function DashboardLayoutClient({
     const toggleFocusMode = () => {
         setIsFocusMode((prev) => {
             const next = !prev;
-            localStorage.setItem("edupilot-focus-mode", String(next));
+            void persistAppearancePreferences(density, next);
             return next;
         });
     };
 
     const setDensityMode = (next: "comfort" | "dense") => {
         setDensity(next);
-        localStorage.setItem("edupilot-density", next);
+        setIsFocusMode(false);
+        void persistAppearancePreferences(next, false);
     };
 
     const contextValue = {
@@ -100,7 +183,7 @@ export function DashboardLayoutClient({
                 event.preventDefault();
                 setIsFocusMode((prev) => {
                     const next = !prev;
-                    localStorage.setItem("edupilot-focus-mode", String(next));
+                    void persistAppearancePreferences(density, next);
                     return next;
                 });
             }

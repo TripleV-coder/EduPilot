@@ -4,6 +4,7 @@ import { gamificationService } from "@/lib/gamification/service";
 import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET(req: NextRequest) {
     const session = await auth();
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     try {
         const response = await withCache(
             async () => {
-                const leaderboard = await gamificationService.getLeaderboard(session.user.schoolId!);
+                const leaderboard = await gamificationService.getLeaderboard(getActiveSchoolId(session)!);
                 return NextResponse.json(leaderboard);
             },
             { ttl: CACHE_TTL_MEDIUM, key: cacheKey }
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     } catch (error) {
         logger.error("Leaderboard failed", error instanceof Error ? error : new Error(String(error)), {
             module: "api/gamification/leaderboard",
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session),
         });
         return NextResponse.json({ error: "Failed to fetch leaderboard" }, { status: 500 });
     }

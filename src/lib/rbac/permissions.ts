@@ -147,6 +147,11 @@ export enum Permission {
   INCIDENT_UPDATE = "incident:update",
   INCIDENT_DELETE = "incident:delete",
 
+  // Specific Modules
+  MEDICAL_READ = "medical:read",
+  CANTEEN_READ = "canteen:read",
+  LIBRARY_READ = "library:read",
+
   // System Management
   SYSTEM_BACKUP_CREATE = "system:backup:create",
   SYSTEM_BACKUP_VIEW = "system:backup:view",
@@ -158,6 +163,88 @@ export enum Permission {
 // ============================================
 // ROLE PERMISSIONS MATRIX
 // ============================================
+
+// ============================================
+// SHARED BASE PERMISSIONS (P5: Composition-based to avoid duplication)
+// ============================================
+
+/** Shared permissions for school-level administrative roles (SCHOOL_ADMIN, DIRECTOR) */
+const SCHOOL_LEVEL_BASE_PERMISSIONS: Permission[] = [
+  Permission.SCHOOL_READ,
+  Permission.SCHOOL_UPDATE,
+  Permission.USER_CREATE,
+  Permission.USER_READ,
+  Permission.USER_UPDATE,
+  Permission.STUDENT_CREATE,
+  Permission.STUDENT_READ,
+  Permission.STUDENT_UPDATE,
+  Permission.STUDENT_DELETE,
+  Permission.TEACHER_CREATE,
+  Permission.TEACHER_READ,
+  Permission.TEACHER_UPDATE,
+  Permission.TEACHER_DELETE,
+  Permission.CLASS_CREATE,
+  Permission.CLASS_READ,
+  Permission.CLASS_UPDATE,
+  Permission.CLASS_DELETE,
+  Permission.SUBJECT_CREATE,
+  Permission.SUBJECT_READ,
+  Permission.SUBJECT_UPDATE,
+  Permission.SUBJECT_DELETE,
+  Permission.GRADE_CREATE,
+  Permission.GRADE_READ,
+  Permission.GRADE_UPDATE,
+  Permission.GRADE_DELETE,
+  Permission.EVALUATION_CREATE,
+  Permission.EVALUATION_READ,
+  Permission.EVALUATION_UPDATE,
+  Permission.EVALUATION_DELETE,
+  Permission.SCHEDULE_CREATE,
+  Permission.SCHEDULE_READ,
+  Permission.SCHEDULE_UPDATE,
+  Permission.SCHEDULE_DELETE,
+  Permission.FEE_CREATE,
+  Permission.FEE_READ,
+  Permission.FEE_UPDATE,
+  Permission.FINANCE_CREATE,
+  Permission.FINANCE_READ,
+  Permission.FINANCE_UPDATE,
+  Permission.PAYMENT_CREATE,
+  Permission.PAYMENT_READ,
+  Permission.PAYMENT_UPDATE,
+  Permission.REPORT_VIEW,
+  Permission.STATISTICS_VIEW,
+  Permission.NOTIFICATION_CREATE,
+  Permission.NOTIFICATION_READ,
+  Permission.ACADEMIC_YEAR_CREATE,
+  Permission.ACADEMIC_YEAR_READ,
+  Permission.ACADEMIC_YEAR_UPDATE,
+  Permission.ACADEMIC_YEAR_DELETE,
+  Permission.ACADEMIC_YEAR_CLOSE,
+  Permission.STUDENT_PROMOTION,
+  Permission.CALENDAR_EVENT_CREATE,
+  Permission.CALENDAR_EVENT_READ,
+  Permission.CALENDAR_EVENT_UPDATE,
+  Permission.CALENDAR_EVENT_DELETE,
+  Permission.HOLIDAY_CREATE,
+  Permission.HOLIDAY_READ,
+  Permission.HOLIDAY_UPDATE,
+  Permission.HOLIDAY_DELETE,
+  Permission.ORIENTATION_CREATE,
+  Permission.ORIENTATION_READ,
+  Permission.ORIENTATION_UPDATE,
+  Permission.ORIENTATION_VALIDATE,
+  Permission.ANALYTICS_VIEW,
+  Permission.ANALYTICS_GENERATE,
+  Permission.AI_PREDICT_STUDENT,
+  Permission.AI_PREDICT_CLASS,
+  Permission.ATTENDANCE_READ,
+  Permission.ATTENDANCE_CREATE,
+  Permission.ATTENDANCE_UPDATE,
+  Permission.MEDICAL_READ,
+  Permission.CANTEEN_READ,
+  Permission.LIBRARY_READ,
+];
 
 export const rolePermissions: Record<UserRole, Permission[]> = {
   SUPER_ADMIN: [
@@ -243,158 +330,30 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.SYSTEM_WRITE,
     Permission.ACADEMIC_YEAR_CLOSE,
     Permission.STUDENT_PROMOTION,
+    Permission.MEDICAL_READ,
+    Permission.CANTEEN_READ,
+    Permission.LIBRARY_READ,
   ],
 
   SCHOOL_ADMIN: [
-    // School-level admin (within their school only)
-    Permission.SCHOOL_READ,
-    Permission.SCHOOL_UPDATE,
-    Permission.USER_CREATE,
-    Permission.USER_READ,
-    Permission.USER_UPDATE,
+    // School-level admin: inherits base + full CRUD extras (DELETE on users, fees, finance, notifications)
+    ...SCHOOL_LEVEL_BASE_PERMISSIONS,
     Permission.USER_DELETE,
-    Permission.STUDENT_CREATE,
-    Permission.STUDENT_READ,
-    Permission.STUDENT_UPDATE,
-    Permission.STUDENT_DELETE,
-    Permission.TEACHER_CREATE,
-    Permission.TEACHER_READ,
-    Permission.TEACHER_UPDATE,
-    Permission.TEACHER_DELETE,
-    Permission.CLASS_CREATE,
-    Permission.CLASS_READ,
-    Permission.CLASS_UPDATE,
-    Permission.CLASS_DELETE,
-    Permission.SUBJECT_CREATE,
-    Permission.SUBJECT_READ,
-    Permission.SUBJECT_UPDATE,
-    Permission.SUBJECT_DELETE,
-    Permission.GRADE_CREATE,
-    Permission.GRADE_READ,
-    Permission.GRADE_UPDATE,
-    Permission.GRADE_DELETE,
-    Permission.EVALUATION_CREATE,
-    Permission.EVALUATION_READ,
-    Permission.EVALUATION_UPDATE,
-    Permission.EVALUATION_DELETE,
-    Permission.SCHEDULE_CREATE,
-    Permission.SCHEDULE_READ,
-    Permission.SCHEDULE_UPDATE,
-    Permission.SCHEDULE_DELETE,
-    Permission.FEE_CREATE,
-    Permission.FEE_READ,
-    Permission.FEE_UPDATE,
     Permission.FEE_DELETE,
-    Permission.FINANCE_CREATE,
-    Permission.FINANCE_READ,
-    Permission.FINANCE_UPDATE,
     Permission.FINANCE_DELETE,
-    Permission.PAYMENT_CREATE,
-    Permission.PAYMENT_READ,
-    Permission.PAYMENT_UPDATE,
     Permission.PAYMENT_DELETE,
-    Permission.REPORT_VIEW,
-    Permission.STATISTICS_VIEW,
-    Permission.NOTIFICATION_CREATE,
-    Permission.NOTIFICATION_READ,
     Permission.NOTIFICATION_DELETE,
-    Permission.ACADEMIC_YEAR_CREATE,
-    Permission.ACADEMIC_YEAR_READ,
-    Permission.ACADEMIC_YEAR_UPDATE,
-    Permission.ACADEMIC_YEAR_DELETE,
-    Permission.ACADEMIC_YEAR_CLOSE,
-    Permission.STUDENT_PROMOTION,
-    Permission.CALENDAR_EVENT_CREATE,
-    Permission.CALENDAR_EVENT_READ,
-    Permission.CALENDAR_EVENT_UPDATE,
-    Permission.CALENDAR_EVENT_DELETE,
-    Permission.HOLIDAY_CREATE,
-    Permission.HOLIDAY_READ,
-    Permission.HOLIDAY_UPDATE,
-    Permission.HOLIDAY_DELETE,
-    Permission.ORIENTATION_CREATE,
-    Permission.ORIENTATION_READ,
-    Permission.ORIENTATION_UPDATE,
     Permission.ORIENTATION_DELETE,
-    Permission.ORIENTATION_VALIDATE,
-    Permission.ANALYTICS_VIEW,
-    Permission.ANALYTICS_GENERATE,
   ],
 
   DIRECTOR: [
-    // Same as SCHOOL_ADMIN (Director is a type of school admin)
-    Permission.SCHOOL_READ,
-    Permission.SCHOOL_UPDATE,
-    Permission.USER_CREATE,
-    Permission.USER_READ,
-    Permission.USER_UPDATE,
-    Permission.STUDENT_CREATE,
-    Permission.STUDENT_READ,
-    Permission.STUDENT_UPDATE,
-    Permission.STUDENT_DELETE,
-    Permission.TEACHER_CREATE,
-    Permission.TEACHER_READ,
-    Permission.TEACHER_UPDATE,
-    Permission.TEACHER_DELETE,
-    Permission.CLASS_CREATE,
-    Permission.CLASS_READ,
-    Permission.CLASS_UPDATE,
-    Permission.CLASS_DELETE,
-    Permission.SUBJECT_CREATE,
-    Permission.SUBJECT_READ,
-    Permission.SUBJECT_UPDATE,
-    Permission.SUBJECT_DELETE,
-    Permission.GRADE_CREATE,
-    Permission.GRADE_READ,
-    Permission.GRADE_UPDATE,
-    Permission.GRADE_DELETE,
-    Permission.EVALUATION_CREATE,
-    Permission.EVALUATION_READ,
-    Permission.EVALUATION_UPDATE,
-    Permission.EVALUATION_DELETE,
-    Permission.SCHEDULE_CREATE,
-    Permission.SCHEDULE_READ,
-    Permission.SCHEDULE_UPDATE,
-    Permission.SCHEDULE_DELETE,
-    Permission.FEE_CREATE,
-    Permission.FEE_READ,
-    Permission.FEE_UPDATE,
-    Permission.FINANCE_CREATE,
-    Permission.FINANCE_READ,
-    Permission.FINANCE_UPDATE,
-    Permission.PAYMENT_CREATE,
-    Permission.PAYMENT_READ,
-    Permission.PAYMENT_UPDATE,
-    Permission.REPORT_VIEW,
-    Permission.STATISTICS_VIEW,
-    Permission.NOTIFICATION_CREATE,
-    Permission.NOTIFICATION_READ,
-    Permission.ACADEMIC_YEAR_CREATE,
-    Permission.ACADEMIC_YEAR_READ,
-    Permission.ACADEMIC_YEAR_UPDATE,
-    Permission.ACADEMIC_YEAR_DELETE,
-    Permission.ACADEMIC_YEAR_CLOSE,
-    Permission.STUDENT_PROMOTION,
-    Permission.CALENDAR_EVENT_CREATE,
-    Permission.CALENDAR_EVENT_READ,
-    Permission.CALENDAR_EVENT_UPDATE,
-    Permission.CALENDAR_EVENT_DELETE,
-    Permission.HOLIDAY_CREATE,
-    Permission.HOLIDAY_READ,
-    Permission.HOLIDAY_UPDATE,
-    Permission.HOLIDAY_DELETE,
-    Permission.ORIENTATION_CREATE,
-    Permission.ORIENTATION_READ,
-    Permission.ORIENTATION_UPDATE,
-    Permission.ORIENTATION_VALIDATE,
-    Permission.ANALYTICS_VIEW,
-    Permission.ANALYTICS_GENERATE,
-    Permission.AI_PREDICT_STUDENT,
-    Permission.AI_PREDICT_CLASS,
+    // Director: inherits base (no DELETE on users, fees, finance, notifications — intentional)
+    ...SCHOOL_LEVEL_BASE_PERMISSIONS,
   ],
 
   TEACHER: [
     // Teaching and grading
+    Permission.SCHOOL_READ,
     Permission.STUDENT_READ,
     Permission.CLASS_READ,
     Permission.SUBJECT_READ,
@@ -415,11 +374,19 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.ANALYTICS_GENERATE,
     Permission.AI_PREDICT_STUDENT,
     Permission.AI_PREDICT_CLASS,
+    Permission.ATTENDANCE_READ,
+    Permission.ATTENDANCE_CREATE,
+    Permission.ATTENDANCE_UPDATE,
+    Permission.CANTEEN_READ,
+    Permission.LIBRARY_READ,
   ],
 
   STUDENT: [
     // View own data only
+    Permission.SCHOOL_READ,
     Permission.STUDENT_READ_OWN,
+    Permission.EVALUATION_READ,
+    Permission.GRADE_READ,
     Permission.GRADE_READ_OWN,
     Permission.SCHEDULE_READ,
     Permission.NOTIFICATION_READ,
@@ -428,11 +395,16 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.ORIENTATION_READ_OWN,
     Permission.ANALYTICS_VIEW_OWN,
     Permission.AI_PREDICT_VIEW_OWN,
+    Permission.CANTEEN_READ,
+    Permission.LIBRARY_READ,
   ],
 
   PARENT: [
     // View children's data only
+    Permission.SCHOOL_READ,
     Permission.STUDENT_READ,
+    Permission.EVALUATION_READ,
+    Permission.GRADE_READ,
     Permission.GRADE_READ_CHILDREN,
     Permission.PAYMENT_READ_OWN,
     Permission.SCHEDULE_READ,
@@ -442,10 +414,12 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.ORIENTATION_READ_CHILDREN,
     Permission.ANALYTICS_VIEW_CHILDREN,
     Permission.AI_PREDICT_VIEW_CHILDREN,
+    Permission.CANTEEN_READ,
   ],
 
   ACCOUNTANT: [
-    // Financial operations
+    // Financial operations (P3: added SCHOOL_READ for tenant-isolation consistency)
+    Permission.SCHOOL_READ,
     Permission.STUDENT_READ,
     Permission.FEE_CREATE,
     Permission.FEE_READ,
@@ -463,6 +437,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
 
   STAFF: [
     // General school staff (secretariat, supervisors)
+    Permission.SCHOOL_READ,
     Permission.STUDENT_READ,
     Permission.USER_READ,
     Permission.CLASS_READ,
@@ -472,6 +447,9 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.INCIDENT_CREATE,
     Permission.CALENDAR_EVENT_READ,
     Permission.NOTIFICATION_READ,
+    Permission.MEDICAL_READ,
+    Permission.CANTEEN_READ,
+    Permission.LIBRARY_READ,
   ],
 };
 
@@ -576,9 +554,10 @@ export function canManageRole(managerRole: UserRole, targetRole: UserRole): bool
   // SUPER_ADMIN can manage anyone
   if (managerRole === "SUPER_ADMIN") return true;
 
-  // SCHOOL_ADMIN and DIRECTOR can manage everyone except SUPER_ADMIN
+  // P6: School-level admins can only manage roles STRICTLY below them in the hierarchy.
+  // A SCHOOL_ADMIN cannot manage another SCHOOL_ADMIN; a DIRECTOR cannot manage another DIRECTOR.
   if (["SCHOOL_ADMIN", "DIRECTOR"].includes(managerRole)) {
-    return targetRole !== "SUPER_ADMIN";
+    return targetRole !== "SUPER_ADMIN" && isHigherRole(managerRole, targetRole);
   }
 
   // Others cannot manage users
@@ -588,6 +567,20 @@ export function canManageRole(managerRole: UserRole, targetRole: UserRole): bool
 // ============================================
 // RESOURCE ACCESS HELPERS
 // ============================================
+
+/**
+ * Roles that can access authenticated dashboard-only pages
+ */
+export const AUTHENTICATED_DASHBOARD_ROLES: UserRole[] = [
+  "SUPER_ADMIN",
+  "SCHOOL_ADMIN",
+  "DIRECTOR",
+  "TEACHER",
+  "STUDENT",
+  "PARENT",
+  "ACCOUNTANT",
+  "STAFF",
+];
 
 /**
  * Roles that can access admin panel

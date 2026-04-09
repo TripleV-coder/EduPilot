@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const DAY_MAP: Record<string, number> = {
   lundi: 1,
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (!classData) {
       return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
     }
-    if (session.user.role !== "SUPER_ADMIN" && classData.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && classData.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

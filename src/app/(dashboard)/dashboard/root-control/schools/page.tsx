@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Building, Plus, Search, Settings, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
     Table,
@@ -36,13 +36,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
 import { 
     User, 
     Mail, 
     Lock, 
-    Globe, 
+    Image as ImageIcon,
     MapPin, 
     Phone, 
     School as SchoolIcon,
@@ -57,6 +58,13 @@ type SchoolStat = {
     city: string | null;
     isActive: boolean;
     planId: string | null;
+    type: string;
+    level: string;
+    siteType?: "MAIN" | "ANNEXE";
+    organizationId?: string | null;
+    organization?: { id: string; name: string; code: string } | null;
+    parentSchoolId?: string | null;
+    parentSchool?: { id: string; name: string } | null;
     stats: {
         users: number;
         classes: number;
@@ -74,6 +82,17 @@ type SubscriptionPlan = {
     isActive: boolean;
 };
 
+type OrganizationOption = {
+    id: string;
+    name: string;
+    code: string;
+    isActive: boolean;
+    _count: {
+        schools: number;
+        memberships: number;
+    };
+};
+
 const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => {
     if (!res.ok) throw new Error("Erreur serveur");
     return res.json();
@@ -86,6 +105,14 @@ export default function RootSchoolsPage() {
     const [activeTab, setActiveTab] = useState("school");
     const [selectedSchool, setSelectedSchool] = useState<SchoolStat | null>(null);
     const [isQuotaDialogOpen, setIsQuotaDialogOpen] = useState(false);
+    const [createType, setCreateType] = useState("PRIVATE");
+    const [createLevel, setCreateLevel] = useState("SECONDARY_COLLEGE");
+    const [createParentSchoolId, setCreateParentSchoolId] = useState("none");
+    const [organizationMode, setOrganizationMode] = useState<"NONE" | "CREATE" | "EXISTING">("NONE");
+    const [createOrganizationId, setCreateOrganizationId] = useState("none");
+    const [assignAdminAsOrganizationManager, setAssignAdminAsOrganizationManager] = useState(true);
+    const [selectedPlanId, setSelectedPlanId] = useState("none");
+    const [selectedActiveState, setSelectedActiveState] = useState("true");
     
     const { data, error, isLoading, mutate } = useSWR<{ data: SchoolStat[] }>(
         `/api/root/schools?search=${encodeURIComponent(searchTerm)}&limit=50`,
@@ -96,24 +123,57 @@ export default function RootSchoolsPage() {
         "/api/root/plans",
         fetcher
     );
+    const { data: parentSchoolsData } = useSWR<{ data: SchoolStat[] }>(
+        "/api/root/schools?limit=100",
+        fetcher
+    );
+    const { data: organizationsData } = useSWR<{ data: OrganizationOption[] }>(
+        "/api/root/organizations?limit=200",
+        fetcher
+    );
 
     const schools = data?.data || [];
     const plans = plansData?.data || [];
+    const parentSchoolOptions = (parentSchoolsData?.data || schools).filter(
+        (school) => school.siteType === "MAIN" && !school.parentSchoolId
+    );
+    const organizationOptions = (organizationsData?.data || []).filter((organization) => organization.isActive);
+    const selectedParentSchool = parentSchoolOptions.find((school) => school.id === createParentSchoolId) || null;
+
+    useEffect(() => {
+        if (!selectedSchool) return;
+        setSelectedPlanId(selectedSchool.planId || "none");
+        setSelectedActiveState(selectedSchool.isActive ? "true" : "false");
+    }, [selectedSchool]);
+
+    useEffect(() => {
+        if (selectedParentSchool) {
+            setOrganizationMode("NONE");
+            setCreateOrganizationId("none");
+        }
+    }, [selectedParentSchool?.id]);
 
     const handleCreateSchool = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const formData = new FormData(e.currentTarget);
+        const form = e.currentTarget;
+        const formData = new FormData(form);
         
         const payload = {
             name: formData.get("name") as string,
-            type: formData.get("type") as string,
-            level: formData.get("level") as string,
+            type: createType,
+            level: createLevel,
             city: formData.get("city") as string,
             phone: formData.get("phone") as string,
             address: formData.get("address") as string,
             email: formData.get("email") as string,
-            website: formData.get("website") as string,
+            logo: formData.get("logo") as string,
+            parentSchoolId: createParentSchoolId === "none" ? null : createParentSchoolId,
+            organizationMode,
+            organizationId: organizationMode === "EXISTING" ? (createOrganizationId === "none" ? null : createOrganizationId) : null,
+            organizationName: organizationMode === "CREATE" ? (formData.get("organizationName") as string) : null,
+            organizationDescription: organizationMode === "CREATE" ? (formData.get("organizationDescription") as string) : null,
+            assignAdminAsOrganizationManager,
             adminFirstName: formData.get("adminFirstName") as string,
             adminLastName: formData.get("adminLastName") as string,
             adminEmail: formData.get("adminEmail") as string,
@@ -136,6 +196,14 @@ export default function RootSchoolsPage() {
                 title: "Succès",
                 description: "L'établissement et son administrateur ont été créés.",
             });
+            form.reset();
+            setCreateType("PRIVATE");
+            setCreateLevel("SECONDARY_COLLEGE");
+            setCreateParentSchoolId("none");
+            setOrganizationMode("NONE");
+            setCreateOrganizationId("none");
+            setAssignAdminAsOrganizationManager(true);
+            setActiveTab("school");
             setIsCreateDialogOpen(false);
             mutate();
         } catch (err: any) {
@@ -154,12 +222,10 @@ export default function RootSchoolsPage() {
         if (!selectedSchool) return;
 
         setIsSubmitting(true);
-        const formData = new FormData(e.currentTarget);
-        const planId = formData.get("planId");
         const payload = {
             id: selectedSchool.id,
-            planId: planId === "none" ? null : (planId || null),
-            isActive: formData.get("isActive") === "true",
+            planId: selectedPlanId === "none" ? null : selectedPlanId,
+            isActive: selectedActiveState === "true",
         };
 
         try {
@@ -192,7 +258,7 @@ export default function RootSchoolsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Needs SUPER_ADMIN */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -205,7 +271,21 @@ export default function RootSchoolsPage() {
                         ]}
                     />
                     
-                    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <Dialog
+                        open={isCreateDialogOpen}
+                        onOpenChange={(open) => {
+                            setIsCreateDialogOpen(open);
+                            if (!open) {
+                                setActiveTab("school");
+                                setCreateType("PRIVATE");
+                                setCreateLevel("SECONDARY_COLLEGE");
+                                setCreateParentSchoolId("none");
+                                setOrganizationMode("NONE");
+                                setCreateOrganizationId("none");
+                                setAssignAdminAsOrganizationManager(true);
+                            }
+                        }}
+                    >
                         <DialogTrigger asChild>
                             <Button className="gap-2 shadow-md bg-orange-600 hover:bg-orange-700 text-white border-0 transition-all active:scale-95">
                                 <Plus className="w-4 h-4" />
@@ -253,7 +333,7 @@ export default function RootSchoolsPage() {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="create-type">Type</Label>
-                                                        <Select name="type" defaultValue="PRIVATE">
+                                                        <Select value={createType} onValueChange={setCreateType}>
                                                             <SelectTrigger id="create-type" className="h-11">
                                                                 <SelectValue />
                                                             </SelectTrigger>
@@ -267,7 +347,7 @@ export default function RootSchoolsPage() {
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="create-level">Niveau Principal</Label>
-                                                        <Select name="level" defaultValue="SECONDARY">
+                                                        <Select value={createLevel} onValueChange={setCreateLevel}>
                                                             <SelectTrigger id="create-level" className="h-11">
                                                                 <SelectValue />
                                                             </SelectTrigger>
@@ -280,6 +360,106 @@ export default function RootSchoolsPage() {
                                                         </Select>
                                                     </div>
                                                 </div>
+
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="create-parent-school">Structure multi-site</Label>
+                                                    <Select value={createParentSchoolId} onValueChange={setCreateParentSchoolId}>
+                                                        <SelectTrigger id="create-parent-school" className="h-11">
+                                                            <SelectValue placeholder="Choisir le rattachement" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">École indépendante / site principal</SelectItem>
+                                                            {parentSchoolOptions.map((school) => (
+                                                                <SelectItem key={school.id} value={school.id}>
+                                                                    Annexe de {school.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        Choisis un site principal pour créer une annexe avec ses propres accès.
+                                                    </p>
+                                                    {selectedParentSchool?.organization ? (
+                                                        <p className="text-[11px] text-orange-700">
+                                                            Le site hérite de l&apos;organisation {selectedParentSchool.organization.name}.
+                                                        </p>
+                                                    ) : selectedParentSchool ? (
+                                                        <p className="text-[11px] text-muted-foreground">
+                                                            Cette annexe restera hors organisation tant que le site principal n&apos;est pas lui-même rattaché.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="organization-mode">Mode organisation</Label>
+                                                    <Select
+                                                        value={organizationMode}
+                                                        onValueChange={(value) => setOrganizationMode(value as "NONE" | "CREATE" | "EXISTING")}
+                                                        disabled={Boolean(selectedParentSchool)}
+                                                    >
+                                                        <SelectTrigger id="organization-mode" className="h-11">
+                                                            <SelectValue placeholder="Choisir le rattachement organisationnel" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="NONE">Aucune organisation</SelectItem>
+                                                            <SelectItem value="CREATE">Créer une nouvelle organisation</SelectItem>
+                                                            <SelectItem value="EXISTING">Rattacher à une organisation existante</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        Utilise une organisation pour gérer plusieurs sites indépendants avec un cockpit transverse.
+                                                    </p>
+                                                </div>
+
+                                                {organizationMode === "CREATE" && !selectedParentSchool?.organization ? (
+                                                    <div className="grid gap-4 rounded-xl border border-orange-200 bg-orange-50/40 p-4">
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="organization-name">Nom de l&apos;organisation</Label>
+                                                            <Input id="organization-name" name="organizationName" className="h-11" required={organizationMode === "CREATE"} />
+                                                        </div>
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="organization-description">Description</Label>
+                                                            <Textarea id="organization-description" name="organizationDescription" className="min-h-[90px]" />
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+
+                                                {organizationMode === "EXISTING" && !selectedParentSchool?.organization ? (
+                                                    <div className="grid gap-2 rounded-xl border border-border bg-muted/20 p-4">
+                                                        <Label htmlFor="create-organization">Organisation existante</Label>
+                                                        <Select value={createOrganizationId} onValueChange={setCreateOrganizationId}>
+                                                            <SelectTrigger id="create-organization" className="h-11">
+                                                                <SelectValue placeholder="Choisir une organisation" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {organizationOptions.map((organization) => (
+                                                                    <SelectItem key={organization.id} value={organization.id}>
+                                                                        {organization.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                                <SelectItem value="none">Sélection requise</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                ) : null}
+
+                                                {(organizationMode !== "NONE" || selectedParentSchool?.organization) && (
+                                                    <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                                                        <Checkbox
+                                                            id="assign-org-admin"
+                                                            checked={assignAdminAsOrganizationManager}
+                                                            onCheckedChange={(checked) => setAssignAdminAsOrganizationManager(checked === true)}
+                                                        />
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor="assign-org-admin" className="text-sm font-medium">
+                                                                Donner aussi un accès chef d&apos;organisation
+                                                            </Label>
+                                                            <p className="text-[11px] text-muted-foreground">
+                                                                L&apos;administrateur créé pourra piloter et comparer les sites de cette organisation.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="grid gap-2">
@@ -309,10 +489,10 @@ export default function RootSchoolsPage() {
                                                         <Input id="create-email" name="email" type="email" className="h-11" />
                                                     </div>
                                                     <div className="grid gap-2">
-                                                        <Label htmlFor="create-website" className="flex items-center gap-2">
-                                                            <Globe className="w-3 h-3 text-muted-foreground" /> Site Web
+                                                        <Label htmlFor="create-logo" className="flex items-center gap-2">
+                                                            <ImageIcon className="w-3 h-3 text-muted-foreground" /> Logo (URL)
                                                         </Label>
-                                                        <Input id="create-website" name="website" className="h-11" />
+                                                        <Input id="create-logo" name="logo" className="h-11" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -383,7 +563,7 @@ export default function RootSchoolsPage() {
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                
+                                placeholder="Rechercher par nom, code, ville ou organisation"
                                 className="pl-9 bg-muted/50 border-border"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -431,7 +611,22 @@ export default function RootSchoolsPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-bold text-foreground text-sm">{school.name}</p>
-                                                        <Badge variant="secondary" className="mt-1 font-mono text-[10px] uppercase">{school.code}</Badge>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                            <Badge variant="secondary" className="font-mono text-[10px] uppercase">{school.code}</Badge>
+                                                            <Badge variant="outline" className="text-[10px]">
+                                                                {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}
+                                                            </Badge>
+                                                            {school.organization?.name ? (
+                                                                <Badge variant="outline" className="text-[10px]">
+                                                                    {school.organization.name}
+                                                                </Badge>
+                                                            ) : null}
+                                                            {school.parentSchool?.name ? (
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    Rattaché à {school.parentSchool.name}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -473,7 +668,15 @@ export default function RootSchoolsPage() {
                     </div>
                 </Card>
 
-                <Dialog open={isQuotaDialogOpen} onOpenChange={setIsQuotaDialogOpen}>
+                <Dialog
+                    open={isQuotaDialogOpen}
+                    onOpenChange={(open) => {
+                        setIsQuotaDialogOpen(open);
+                        if (!open) {
+                            setSelectedSchool(null);
+                        }
+                    }}
+                >
                     <DialogContent className="sm:max-w-[500px]">
                         {selectedSchool && (
                             <form onSubmit={handleUpdateQuotas}>
@@ -487,7 +690,7 @@ export default function RootSchoolsPage() {
                                 <div className="grid gap-6 py-6">
                                     <div className="grid gap-2">
                                         <Label htmlFor="planId">Plan de souscription</Label>
-                                        <Select name="planId" defaultValue={selectedSchool.planId || "none"}>
+                                        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
                                             <SelectTrigger id="planId" className="h-11">
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -504,7 +707,7 @@ export default function RootSchoolsPage() {
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="isActive">Statut de l'établissement</Label>
-                                        <Select name="isActive" defaultValue={selectedSchool.isActive ? "true" : "false"}>
+                                        <Select value={selectedActiveState} onValueChange={setSelectedActiveState}>
                                             <SelectTrigger id="isActive" className="h-11">
                                                 <SelectValue />
                                             </SelectTrigger>

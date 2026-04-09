@@ -6,6 +6,7 @@ import { strongPasswordSchema } from "@/lib/validations/auth";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 const studentUpdateSchema = z.object({
   email: z.string().email("Email invalide").optional(),
@@ -73,10 +74,7 @@ export const GET = createApiHandler(
     }
 
     // Verify school access for non-super admins
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      student.user.schoolId !== session.user.schoolId
-    ) {
+    if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 
@@ -129,15 +127,27 @@ export const PATCH = createApiHandler(
     }
 
     // Verify school access
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      student.user.schoolId !== session.user.schoolId
-    ) {
+    if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 
     const body = await request.json();
     const validatedData = studentUpdateSchema.parse(body);
+
+    if (validatedData.classId) {
+      const targetClass = await prisma.class.findUnique({
+        where: { id: validatedData.classId },
+        select: { id: true, schoolId: true },
+      });
+
+      if (!targetClass) {
+        return NextResponse.json(translateError(API_ERRORS.NOT_FOUND("Classe"), t), { status: 404 });
+      }
+
+      if (!canAccessSchool(session, targetClass.schoolId)) {
+        return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
+      }
+    }
 
     // Update user and student profile in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -232,10 +242,7 @@ export const DELETE = createApiHandler(
     }
 
     // Verify school access
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      student.user.schoolId !== session.user.schoolId
-    ) {
+    if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 

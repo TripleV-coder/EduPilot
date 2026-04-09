@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyticsService } from "@/lib/analytics/service";
 import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
@@ -9,7 +10,7 @@ const ANALYTICS_ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEA
 
 export const GET = createApiHandler(
     async (req: NextRequest, { session }) => {
-        const schoolId = session.user.schoolId;
+        const schoolId = getActiveSchoolId(session);
         if (!schoolId) {
             return NextResponse.json({ error: "École introuvable" }, { status: 400 });
         }
@@ -56,7 +57,7 @@ export const GET = createApiHandler(
             logger.error("Analytics failed", error instanceof Error ? error : new Error(String(error)), {
                 module: "api/analytics",
                 userId: session.user.id,
-                schoolId: session.user.schoolId,
+                schoolId,
             });
             return NextResponse.json({ error: "Analytics failed" }, { status: 500 });
         }

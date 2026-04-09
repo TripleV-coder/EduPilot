@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { Session } from "next-auth";
-import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -9,7 +8,17 @@ import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access
 import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
-import { SchoolType, SchoolLevel, UserRole } from "@prisma/client";
+import { SchoolType, SchoolLevel } from "@prisma/client";
+import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
+import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
+import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import {
+  createOrganization,
+  createOrganizationMembership,
+  createSchoolAdminUser,
+  createSchoolWithDefaults,
+} from "@/lib/schools/provisioning";
+import { schoolDeploymentSchema, schoolQuotaUpdateSchema } from "@/lib/validations/root";
 
 function requireRoot(session: Session | null, userEmail?: string | null, userId?: string | null) {
   if (!userId || !userEmail) {
@@ -43,13 +52,14 @@ export async function GET(request: NextRequest) {
         { code: { contains: search, mode: "insensitive" } },
         { city: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { organization: { is: { name: { contains: search, mode: "insensitive" } } } },
       ];
     }
     if (type) where.type = type as SchoolType;
     if (level) where.level = level as SchoolLevel;
     if (isActive !== null) where.isActive = isActive === "true";
 
-    const [schools, total, studentCounts, teacherCounts, userCounts] = await Promise.all([
+    const [schools, total, studentCounts, userCounts] = await Promise.all([
       prisma.school.findMany({
         where,
         skip,
@@ -59,8 +69,24 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           code: true,
+          organizationId: true,
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
           type: true,
           level: true,
+          siteType: true,
+          parentSchoolId: true,
+          parentSchool: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           city: true,
           email: true,
           phone: true,
@@ -79,10 +105,6 @@ export async function GET(request: NextRequest) {
         by: ["schoolId"],
         _count: true,
       }),
-      prisma.teacherProfile.groupBy({
-        by: ["schoolId"],
-        _count: true,
-      }),
       prisma.user.groupBy({
         by: ["schoolId"],
         _count: true,
@@ -90,18 +112,19 @@ export async function GET(request: NextRequest) {
     ]);
 
     const studentCountBySchool = new Map(studentCounts.map((s) => [s.schoolId, s._count]));
-    const teacherCountBySchool = new Map(teacherCounts.map((t) => [t.schoolId, t._count]));
     const userCountBySchool = new Map(userCounts.filter(u => u.schoolId !== null).map((u) => [u.schoolId, u._count]));
+    const teacherCountBySchool = new Map(
+      await Promise.all(
+        schools.map(async (school) => [school.id, await countTeachersForSchool(school.id)] as const)
+      )
+    );
 
     return createPaginatedResponse(
       schools.map((s) => {
-        const totalUsers = Math.max(1, userCountBySchool.get(s.id) ?? 0);
-        // Business Rule: A school should always have at least 1 user (the admin). 
-        // If technical issues occurred during manual database edits, we enforce the rule.
         return {
           ...s,
           stats: {
-            users: totalUsers,
+            users: userCountBySchool.get(s.id) ?? 0,
             classes: s._count.classes,
             students: studentCountBySchool.get(s.id) ?? 0,
             teachers: teacherCountBySchool.get(s.id) ?? 0,
@@ -120,13 +143,17 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-import { schoolDeploymentSchema, schoolQuotaUpdateSchema } from "@/lib/validations/root";
-
 export async function PATCH(request: NextRequest) {
   const session = await auth();
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
+
+  // P8: Rate-limit root write operations
+  const identifier = getClientIdentifier(request);
+  const rl = await checkRateLimit(authLimiter, identifier);
+  if (!rl.success) {
+    return NextResponse.json({ error: "Trop de requêtes. Réessayez plus tard." }, { status: 429 });
+  }
 
   try {
     const body = await request.json();
@@ -171,79 +198,78 @@ export async function POST(request: NextRequest) {
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
+  // P8: Rate-limit root write operations
+  const identifier = getClientIdentifier(request);
+  const rl = await checkRateLimit(authLimiter, identifier);
+  if (!rl.success) {
+    return NextResponse.json({ error: "Trop de requêtes. Réessayez plus tard." }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
     const validatedData = schoolDeploymentSchema.parse(body);
     
     const result = await prisma.$transaction(async (tx) => {
-      const currentYear = new Date().getFullYear();
-      const t1Start = new Date(currentYear, 8, 1);
-      const t1End = new Date(currentYear, 11, 20);
-      const t2Start = new Date(currentYear + 1, 0, 5);
-      const t2End = new Date(currentYear + 1, 2, 30);
-      const t3Start = new Date(currentYear + 1, 3, 10);
-      const t3End = new Date(currentYear + 1, 5, 30);
+      let organization = null;
 
-      // 1. Create School (The Tenant Box)
-      const school = await tx.school.create({
-        data: {
-          name: validatedData.name,
-          code: validatedData.name.substring(0, 3).toUpperCase() + "-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
-          email: validatedData.email || null,
-          phone: validatedData.phone || null,
-          city: validatedData.city || null,
-          address: validatedData.address || null,
-          type: validatedData.type,
-          level: validatedData.level,
-          isActive: true,
-          academicConfig: {
-            create: { 
-              periodType: "TRIMESTER",
-              periodsCount: 3,
-              maxGrade: 20,
-              passingGrade: 10
-            }
-          },
-          academicYears: {
-            create: {
-              name: `${currentYear}-${currentYear + 1}`,
-              startDate: t1Start,
-              endDate: t3End,
-              isCurrent: true,
-              periods: {
-                create: [
-                  { name: "Trimestre 1", type: "TRIMESTER", startDate: t1Start, endDate: t1End, sequence: 1 },
-                  { name: "Trimestre 2", type: "TRIMESTER", startDate: t2Start, endDate: t2End, sequence: 2 },
-                  { name: "Trimestre 3", type: "TRIMESTER", startDate: t3Start, endDate: t3End, sequence: 3 },
-                ]
-              }
-            }
-          }
-        }
+      if (validatedData.organizationMode === "CREATE") {
+        organization = await createOrganization(tx, {
+          name: validatedData.organizationName as string,
+          description: validatedData.organizationDescription || null,
+        });
+      }
+
+      const resolvedOrganizationId =
+        validatedData.organizationMode === "CREATE"
+          ? organization?.id || null
+          : validatedData.organizationMode === "EXISTING"
+            ? validatedData.organizationId || null
+            : null;
+
+      const school = await createSchoolWithDefaults(tx, {
+        organizationId: resolvedOrganizationId,
+        name: validatedData.name,
+        email: validatedData.email || null,
+        phone: validatedData.phone || null,
+        city: validatedData.city || null,
+        address: validatedData.address || null,
+        logo: validatedData.logo || null,
+        type: validatedData.type,
+        level: validatedData.level,
+        parentSchoolId: validatedData.parentSchoolId || null,
       });
 
-      // 2. Create the SCHOOL_ADMIN (The Tenant Owner)
-      const hashedPassword = await hash(validatedData.adminPassword, 12);
-      const adminUser = await tx.user.create({
-        data: {
-          email: validatedData.adminEmail,
-          password: hashedPassword,
-          firstName: validatedData.adminFirstName,
-          lastName: validatedData.adminLastName,
-          role: UserRole.SCHOOL_ADMIN,
-          schoolId: school.id,
-          isActive: true,
-          mustChangePassword: true,
-        }
+      const adminUser = await createSchoolAdminUser(tx, school.id, {
+        email: validatedData.adminEmail,
+        password: validatedData.adminPassword,
+        firstName: validatedData.adminFirstName,
+        lastName: validatedData.adminLastName,
       });
 
-      return { school, adminUser };
+      const membershipOrganizationId =
+        resolvedOrganizationId ||
+        school.organizationId ||
+        school.organization?.id ||
+        null;
+
+      if (membershipOrganizationId && validatedData.assignAdminAsOrganizationManager) {
+        await createOrganizationMembership(tx, {
+          organizationId: membershipOrganizationId,
+          userId: adminUser.id,
+          title: "Chef d'organisation",
+          isOwner: true,
+          canManageSites: true,
+        });
+      }
+
+      return { school, adminUser, organization };
     });
 
     await invalidateByPath(CACHE_PATHS.schools);
 
     return NextResponse.json({ 
       data: result.school,
+      organization: result.organization || result.school.organization || null,
       admin: { 
         id: result.adminUser.id, 
         email: result.adminUser.email,
@@ -254,6 +280,24 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "PARENT_SCHOOL_NOT_FOUND") {
+      return NextResponse.json({ error: "Établissement parent introuvable" }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "PARENT_SCHOOL_MUST_BE_MAIN") {
+      return NextResponse.json({ error: "Une annexe doit être rattachée à un site principal." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "ORGANIZATION_NOT_FOUND") {
+      return NextResponse.json({ error: "Organisation introuvable." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "ORGANIZATION_INACTIVE") {
+      return NextResponse.json({ error: "Organisation inactive." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "PARENT_SCHOOL_ORGANIZATION_MISMATCH") {
+      return NextResponse.json({ error: "Le site parent appartient à une autre organisation." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "PARENT_SCHOOL_REQUIRES_SHARED_ORGANIZATION") {
+      return NextResponse.json({ error: "Une annexe doit partager la même organisation que son site parent." }, { status: 400 });
     }
     if ((error as any).code === 'P2002') {
       return NextResponse.json({ error: "Cet email administrateur est déjà utilisé" }, { status: 400 });

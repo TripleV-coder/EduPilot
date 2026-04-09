@@ -11,7 +11,12 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   role: UserRole;
+  primaryOrganizationId?: string | null;
+  organizationIds?: string[];
+  isOrganizationManager?: boolean;
+  primarySchoolId?: string | null;
   schoolId: string | null;
+  accessibleSchoolIds?: string[];
   firstName: string;
   lastName: string;
 }
@@ -49,7 +54,12 @@ export async function authenticateRequest(
     id: token.id as string,
     email: token.email as string,
     role: token.role as UserRole,
+    primaryOrganizationId: token.primaryOrganizationId as string | null | undefined,
+    organizationIds: token.organizationIds as string[] | undefined,
+    isOrganizationManager: token.isOrganizationManager as boolean | undefined,
+    primarySchoolId: token.primarySchoolId as string | null,
     schoolId: token.schoolId as string | null,
+    accessibleSchoolIds: token.accessibleSchoolIds as string[] | undefined,
     firstName: token.firstName as string,
     lastName: token.lastName as string,
   };
@@ -87,7 +97,11 @@ export function canAccessSchool(
     return true;
   }
 
-  // Les autres doivent être du même établissement
+  const accessibleSchoolIds = Array.isArray(user.accessibleSchoolIds) ? user.accessibleSchoolIds : [];
+  if (accessibleSchoolIds.length > 0) {
+    return accessibleSchoolIds.includes(targetSchoolId);
+  }
+
   return user.schoolId === targetSchoolId;
 }
 

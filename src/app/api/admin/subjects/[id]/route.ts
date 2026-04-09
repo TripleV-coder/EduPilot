@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // PUT: Modifier une matière
 export async function PUT(
@@ -19,7 +20,7 @@ export async function PUT(
 
     // Verify subject belongs to school
     const subject = await prisma.subject.findFirst({
-        where: { id, schoolId: session.user.schoolId },
+        where: { id, schoolId: getActiveSchoolId(session) },
     });
 
     if (!subject) {
@@ -59,7 +60,7 @@ export async function DELETE(
 
     // Verify subject belongs to school
     const subject = await prisma.subject.findFirst({
-        where: { id, schoolId: session.user.schoolId },
+        where: { id, schoolId: getActiveSchoolId(session) },
     });
 
     if (!subject) {

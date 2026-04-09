@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/attendance/stats
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     const classId = searchParams.get("classId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const activeSchoolId = getActiveSchoolId(session);
 
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
     const handler = async () => {
@@ -81,8 +83,11 @@ export async function GET(request: NextRequest) {
         where.studentId = { in: parentProfile.parentStudents.map((c) => c.studentId) };
       } else if (userRole !== "SUPER_ADMIN") {
         // Protection mutli-tenants stricte : force le filtrage par schoolId de la session
+        if (!activeSchoolId) {
+          return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
         where.student = {
-          schoolId: session.user.schoolId as string,
+          schoolId: activeSchoolId,
           user: { isActive: true }
         };
       }

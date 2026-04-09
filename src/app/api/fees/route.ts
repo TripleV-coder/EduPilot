@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/fees
@@ -11,7 +12,10 @@ import { API_ERRORS } from "@/lib/constants/api-messages";
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get("schoolId") || session.user.schoolId;
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const schoolId = requestedSchoolId || getActiveSchoolId(session);
 
     if (!schoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
@@ -51,11 +55,14 @@ export const POST = createApiHandler(
   async (request, { session }, t) => {
     const body = await request.json();
     const data = feeSchema.parse(body);
+    const requestedSchoolId = (body as any).schoolId as string | undefined;
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
 
     // Determine schoolId
-    let schoolId = session.user.schoolId;
-    if (session.user.role === "SUPER_ADMIN" && (body as any).schoolId) {
-      schoolId = (body as any).schoolId;
+    let schoolId = getActiveSchoolId(session);
+    if (requestedSchoolId) {
+      schoolId = requestedSchoolId;
     }
 
     if (!schoolId) {

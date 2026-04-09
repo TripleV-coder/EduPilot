@@ -5,6 +5,7 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { syncAnalyticsAfterGradeChange } from "@/lib/services/analytics-sync";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 export const POST = createApiHandler(
     async (request, { session }, t) => {
@@ -42,7 +43,7 @@ export const POST = createApiHandler(
         }
 
         if (session.user.role !== "SUPER_ADMIN") {
-            if (evaluation.classSubject.class.schoolId !== session.user.schoolId) {
+            if (!canAccessSchool(session, evaluation.classSubject.class.schoolId)) {
                 return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
             }
 

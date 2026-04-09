@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Server, Database, Activity, HardDrive, Cpu, AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -68,7 +67,7 @@ export default function RootMonitoringPage() {
         new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(d));
 
     return (
-        <PageGuard permission={["*" as Permission] /* Needs SUPER_ADMIN */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-7xl mx-auto">
                 <PageHeader
                     title="Root Monitoring (Infrastructure)"

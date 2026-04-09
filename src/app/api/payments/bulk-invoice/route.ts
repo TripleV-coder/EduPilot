@@ -5,6 +5,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import prisma from "@/lib/prisma";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 const bulkInvoiceSchema = z.object({
   paymentIds: z.array(z.string().cuid()).min(1).max(100),
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       if (payments.length !== validatedData.paymentIds.length) {
         return NextResponse.json({ error: "Paiements invalides" }, { status: 400 });
       }
-      const outOfScope = payments.some(p => p.fee.schoolId !== session.user.schoolId);
+      const outOfScope = payments.some((payment) => !canAccessSchool(session, payment.fee.schoolId));
       if (outOfScope) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }

@@ -5,6 +5,7 @@ import {
   dedupeLatestAnalyticsByStudent,
   roundTo,
 } from "@/lib/analytics/helpers";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
@@ -33,19 +34,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
-    let schoolId = session.user.schoolId;
-
-    // Super Admins don't have a default schoolId, fallback to the first available school for the dashboard preview
-    if (!schoolId && session.user.role === "SUPER_ADMIN") {
-      const firstSchool = await prisma.school.findFirst();
-      if (firstSchool) schoolId = firstSchool.id;
-    }
+    const { searchParams } = new URL(request.url);
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const schoolId = requestedSchoolId || getActiveSchoolId(session);
 
     if (!schoolId) {
       return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
     }
-
-    const { searchParams } = new URL(request.url);
     const periodId = searchParams.get("periodId");
     const academicYearId = searchParams.get("academicYearId");
 

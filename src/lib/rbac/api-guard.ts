@@ -16,6 +16,7 @@ import {
   REPORT_VIEWER_ROLES,
   isAllowedRole,
 } from "./permissions";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // ============================================
 // AUTHORIZATION ERROR RESPONSES
@@ -141,7 +142,7 @@ export function hasSchoolAccess(
   }
 
   // Others can only access their own school
-  if (session.user.schoolId !== targetSchoolId) {
+  if (!canAccessSchool(session, targetSchoolId)) {
     return {
       authorized: false,
       response: unauthorizedResponse("Vous n'avez pas accès à cet établissement"),
@@ -165,7 +166,9 @@ export function requireSchoolMembership(
   }
 
   // Others must have a schoolId
-  if (!session.user.schoolId) {
+  const activeSchoolId = getActiveSchoolId(session);
+
+  if (!activeSchoolId) {
     return {
       authorized: false,
       schoolId: null,
@@ -176,7 +179,7 @@ export function requireSchoolMembership(
     };
   }
 
-  return { authorized: true, schoolId: session.user.schoolId };
+  return { authorized: true, schoolId: activeSchoolId };
 }
 
 // ============================================

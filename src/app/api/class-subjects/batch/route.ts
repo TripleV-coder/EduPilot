@@ -6,6 +6,8 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const batchSchema = z.object({
   assignments: z.array(classSubjectSchema).min(1),
@@ -18,6 +20,7 @@ export const POST = createApiHandler(
 
     const schoolContext = requireSchoolContext(session);
     if (schoolContext) return schoolContext;
+    const activeSchoolId = getActiveSchoolId(session);
 
     const assignments = validated.assignments;
     const classIds = Array.from(new Set(assignments.map((a) => a.classId)));
@@ -25,6 +28,13 @@ export const POST = createApiHandler(
     for (const classId of classIds) {
       const classAccess = await assertModelAccess(session, "class", classId, "Classe introuvable");
       if (classAccess) return classAccess;
+      const schoolClass = await prisma.class.findUnique({
+        where: { id: classId },
+        select: { schoolId: true },
+      });
+      if (!schoolClass) {
+        return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
+      }
 
       const classAssignments = assignments.filter((a) => a.classId === classId);
       const subjectIds = classAssignments.map((a) => a.subjectId);
@@ -41,7 +51,7 @@ export const POST = createApiHandler(
           if (!subject) {
             return NextResponse.json({ error: "Matière introuvable" }, { status: 404 });
           }
-          if (subject.schoolId !== session.user.schoolId) {
+          if (subject.schoolId !== schoolClass.schoolId) {
             return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
           }
 
@@ -53,7 +63,7 @@ export const POST = createApiHandler(
             if (!teacher) {
               return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
             }
-            if (teacher.schoolId !== session.user.schoolId) {
+            if (!activeSchoolId || !(await isTeacherAssignedToSchool(assignment.teacherId, schoolClass.schoolId))) {
               return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
             }
           }
@@ -115,4 +125,3 @@ export const POST = createApiHandler(
     requiredPermissions: [Permission.SUBJECT_UPDATE],
   }
 );
-

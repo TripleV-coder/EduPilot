@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +22,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
-    const userSchoolId = session.user.schoolId;
+    const activeSchoolId = getActiveSchoolId(session);
 
     try {
         const whereClause: Prisma.ExamTemplateWhereInput = {};
 
         // Si l'utilisateur a une école (pas SUPER_ADMIN global), filtrer par l'école
-        if (userSchoolId) {
+        if (activeSchoolId) {
             whereClause.classSubject = {
                 class: {
-                    schoolId: userSchoolId
+                    schoolId: activeSchoolId
                 }
             };
         }
@@ -93,7 +94,10 @@ export async function POST(request: NextRequest) {
         // Verify classSubject exists
         const classSubject = await prisma.classSubject.findUnique({
             where: { id: validatedData.classSubjectId },
-            include: { class: { select: { schoolId: true } } },
+            include: {
+                class: { select: { schoolId: true } },
+                teacher: { select: { userId: true } },
+            },
         });
 
         if (!classSubject) {
@@ -101,8 +105,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify same school if user has a school
-        if (session.user.schoolId && classSubject.class.schoolId !== session.user.schoolId) {
+        if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, classSubject.class.schoolId)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+
+        if (session.user.role === "TEACHER" && classSubject.teacher?.userId !== session.user.id) {
+            return NextResponse.json({ error: "Vous ne pouvez créer des examens que pour vos propres matières" }, { status: 403 });
         }
 
         const exam = await prisma.examTemplate.create({

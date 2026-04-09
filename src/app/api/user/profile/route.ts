@@ -7,10 +7,10 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 const profileUpdateSchema = z.object({
-    firstName: z.string().min(2, "Le prenom doit contenir au moins 2 caracteres").trim(),
-    lastName: z.string().min(2, "Le nom doit contenir au moins 2 caracteres").trim(),
+    firstName: z.string().min(2, "Le prenom doit contenir au moins 2 caracteres").trim().optional(),
+    lastName: z.string().min(2, "Le nom doit contenir au moins 2 caracteres").trim().optional(),
     phone: z.string().optional().nullable(),
-    preferences: z.record(z.string(), z.any()).optional(),
+    preferences: z.record(z.string(), z.unknown()).optional(),
     avatar: z.string().optional().nullable(),
 });
 
@@ -27,6 +27,7 @@ export const GET = createApiHandler(
                 phone: true,
                 role: true,
                 isActive: true,
+                isTwoFactorEnabled: true,
                 preferences: true,
                 avatar: true,
                 createdAt: true,
@@ -48,8 +49,8 @@ export const PATCH = createApiHandler(
         const body = await request.json();
 
         const parsed = profileUpdateSchema.safeParse({
-            firstName: body.firstName ? sanitizePlainText(body.firstName) : undefined,
-            lastName: body.lastName ? sanitizePlainText(body.lastName) : undefined,
+            firstName: body.firstName !== undefined ? sanitizePlainText(body.firstName) : undefined,
+            lastName: body.lastName !== undefined ? sanitizePlainText(body.lastName) : undefined,
             phone: body.phone ? sanitizePlainText(body.phone) : body.phone,
             preferences: body.preferences,
             avatar: body.avatar,
@@ -68,7 +69,7 @@ export const PATCH = createApiHandler(
         if (firstName !== undefined) updateData.firstName = firstName;
         if (lastName !== undefined) updateData.lastName = lastName;
         if (phone !== undefined) updateData.phone = phone;
-        if (preferences !== undefined) updateData.preferences = preferences;
+        if (preferences !== undefined) updateData.preferences = preferences as Prisma.InputJsonValue;
         if (avatar !== undefined) updateData.avatar = avatar;
 
         const updatedUser = await prisma.user.update({
@@ -82,6 +83,7 @@ export const PATCH = createApiHandler(
                 phone: true,
                 role: true,
                 isActive: true,
+                isTwoFactorEnabled: true,
                 preferences: true,
                 createdAt: true,
             },

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
 
 export interface QuotaStatus {
     allowed: boolean;
@@ -46,9 +47,7 @@ export async function checkTeacherQuota(schoolId: string): Promise<QuotaStatus> 
 
     const limit = school.plan?.maxTeachers ?? 5; // Default for trial
 
-    const current = await prisma.teacherProfile.count({
-        where: { schoolId }
-    });
+    const current = await countTeachersForSchool(schoolId);
 
     return {
         allowed: current < limit,

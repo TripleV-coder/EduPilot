@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { Prisma, EventType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createEventSchema = z.object({
   title: z.string().min(3),
@@ -37,8 +38,8 @@ export async function GET(request: NextRequest) {
       isPublished: true,
     };
 
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
-      where.schoolId = session.user.schoolId;
+    if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
+      where.schoolId = getActiveSchoolId(session);
     }
 
     if (type) where.type = type as EventType;
@@ -85,8 +86,8 @@ export async function POST(request: NextRequest) {
 
     const targetSchoolId =
       session.user.role === "SUPER_ADMIN"
-        ? (body.schoolId || session.user.schoolId || null)
-        : (session.user.schoolId || null);
+        ? (body.schoolId || getActiveSchoolId(session) || null)
+        : (getActiveSchoolId(session) || null);
 
     if (!targetSchoolId) {
       return NextResponse.json({ error: "Établissement requis" }, { status: 400 });

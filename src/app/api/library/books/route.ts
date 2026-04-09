@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { libraryService } from "@/lib/library/service";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET(req: NextRequest) {
     try {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
         if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         
         // Allowed if user has schoolId OR is SUPER_ADMIN
-        if (!session.user.schoolId && session.user.role !== "SUPER_ADMIN") {
+        if (!getActiveSchoolId(session) && session.user.role !== "SUPER_ADMIN") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
         const category = searchParams.get('category') || undefined;
 
         // If Super Admin has no schoolId, they see a global view or we pass undefined
-        const books = await libraryService.searchBooks(session.user.schoolId || "", query, category);
+        const books = await libraryService.searchBooks(getActiveSchoolId(session) || "", query, category);
         return NextResponse.json(books);
     } catch (error) {
         console.error("Library books error:", error);

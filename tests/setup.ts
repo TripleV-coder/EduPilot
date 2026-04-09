@@ -13,24 +13,46 @@ vi.mock("next-auth", () => ({
 vi.mock("next-auth/react", () => ({ signIn: vi.fn(), signOut: vi.fn(), useSession: vi.fn() }));
 
 // Mock PrismaClient since schema.prisma may not be generated
-vi.mock("@prisma/client", () => ({
-  PrismaClient: vi.fn().mockImplementation(() => ({
+vi.mock("@prisma/client", () => {
+  const mockPrisma = {
     $disconnect: vi.fn(),
     $connect: vi.fn(),
     $transaction: vi.fn(),
-    user: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
-    auditLog: { create: vi.fn() },
-  })),
-  UserRole: {
-    SUPER_ADMIN: "SUPER_ADMIN",
-    SCHOOL_ADMIN: "SCHOOL_ADMIN",
-    DIRECTOR: "DIRECTOR",
-    TEACHER: "TEACHER",
-    STUDENT: "STUDENT",
-    PARENT: "PARENT",
-    ACCOUNTANT: "ACCOUNTANT",
-  },
-}));
+    user: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+    school: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+    class: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+    classSubject: { findMany: vi.fn(), create: vi.fn() },
+    studentProfile: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+    teacherProfile: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), count: vi.fn() },
+    parentProfile: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
+    enrollment: { findMany: vi.fn(), count: vi.fn() },
+    auditLog: { create: vi.fn(), findMany: vi.fn() },
+    payment: { aggregate: vi.fn(), groupBy: vi.fn(), findMany: vi.fn() },
+    attendance: { groupBy: vi.fn(), findMany: vi.fn() },
+    academicYear: { findFirst: vi.fn(), findUnique: vi.fn() },
+    period: { findMany: vi.fn() },
+    organizationMembership: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
+    organization: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+  };
+
+  return {
+    PrismaClient: vi.fn(function() { return mockPrisma; }),
+    UserRole: {
+      SUPER_ADMIN: "SUPER_ADMIN",
+      SCHOOL_ADMIN: "SCHOOL_ADMIN",
+      DIRECTOR: "DIRECTOR",
+      TEACHER: "TEACHER",
+      STUDENT: "STUDENT",
+      PARENT: "PARENT",
+      ACCOUNTANT: "ACCOUNTANT",
+      STAFF: "STAFF",
+    },
+    SiteType: {
+      MAIN: "MAIN",
+      ANNEXE: "ANNEXE",
+    },
+  };
+});
 
 // Mock next/server for NextResponse
 vi.mock("next/server", () => ({

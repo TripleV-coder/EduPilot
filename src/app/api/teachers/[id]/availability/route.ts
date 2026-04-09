@@ -4,6 +4,8 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const availabilitySchema = z.object({
   dayOfWeek: z.number().min(0).max(6),
@@ -39,7 +41,12 @@ export async function GET(
       );
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && teacherProfile.schoolId !== session.user.schoolId) {
+    const activeSchoolId = getActiveSchoolId(session);
+
+    if (
+      session.user.role !== "SUPER_ADMIN" &&
+      (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
+    ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -115,8 +122,12 @@ export async function POST(
 
     const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role);
     const isOwner = teacherProfile.userId === session.user.id;
+    const activeSchoolId = getActiveSchoolId(session);
 
-    if (session.user.role !== "SUPER_ADMIN" && teacherProfile.schoolId !== session.user.schoolId) {
+    if (
+      session.user.role !== "SUPER_ADMIN" &&
+      (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
+    ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -222,8 +233,12 @@ export async function DELETE(
 
     const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role);
     const isOwner = teacherProfile.userId === session.user.id;
+    const activeSchoolId = getActiveSchoolId(session);
 
-    if (session.user.role !== "SUPER_ADMIN" && teacherProfile.schoolId !== session.user.schoolId) {
+    if (
+      session.user.role !== "SUPER_ADMIN" &&
+      (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
+    ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

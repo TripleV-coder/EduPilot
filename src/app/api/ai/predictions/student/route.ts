@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateStudentPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * POST /api/ai/predictions/student
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         include: { user: true },
       });
 
-      if (!student || student.user.schoolId !== session.user.schoolId) {
+      if (!student || student.user.schoolId !== getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
     }

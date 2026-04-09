@@ -5,7 +5,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Users, AlertCircle, Plus, Trash2, ArrowUpDown, Download, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, AlertCircle, Plus, Trash2, ArrowUpDown, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { useSession } from "next-auth/react";
 
 type ParentUser = {
     id: string;
@@ -34,12 +35,13 @@ type ParentUser = {
 export default function ParentsPage() {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
+    const { data: session } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 30;
     const debouncedSearch = useDebounce(searchTerm, 300);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; email: string } | null>(null);
     const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
     const searchParams = new URLSearchParams();
@@ -56,8 +58,8 @@ export default function ParentsPage() {
     const totalParents = pagination?.total ?? parents.length;
     const totalPages = pagination?.totalPages ?? 1;
 
-    const handleDelete = (id: string, name: string) => {
-        setDeleteTarget({ id, name });
+    const handleDelete = (id: string, name: string, email: string) => {
+        setDeleteTarget({ id, name, email });
         setDeleteDialogOpen(true);
     };
 
@@ -65,9 +67,20 @@ export default function ParentsPage() {
         if (!deleteTarget) return;
         setIsDeleteConfirmLoading(true);
         try {
-            const res = await fetch(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
-            if (!res.ok) throw new Error("Erreur de suppression");
-            toast({ title: "Succès", description: "Le parent a été supprimé." });
+            const res = await fetch(`/api/users/${deleteTarget.id}/delete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    confirmEmail: deleteTarget.email,
+                    deleteType: "SOFT",
+                }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(data?.error || "Erreur de suppression");
+            toast({
+                title: "Succès",
+                description: data?.message || "Le compte parent a été anonymisé avec succès.",
+            });
             mutate(url);
         } catch (err: any) {
             toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -160,12 +173,24 @@ export default function ParentsPage() {
             header: "",
             cell: ({ row }) => (
                 <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/dashboard/users/${row.original.id}`}><Eye className="h-4 w-4 mr-1" /> {t("common.view")}</Link>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(row.original.id, `${row.original.firstName} ${row.original.lastName}`)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {session?.user?.role === "SUPER_ADMIN" ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() =>
+                                handleDelete(
+                                    row.original.id,
+                                    `${row.original.firstName} ${row.original.lastName}`,
+                                    row.original.email
+                                )
+                            }
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">Aucune action</span>
+                    )}
                 </div>
             ),
         },
@@ -202,8 +227,12 @@ export default function ParentsPage() {
                         setDeleteDialogOpen(open);
                         if (!open) setDeleteTarget(null);
                     }}
-                    title="Supprimer le parent"
-                    description={deleteTarget ? `Cette action supprimera "${deleteTarget.name}".` : undefined}
+                    title="Anonymiser le parent"
+                    description={
+                        deleteTarget
+                            ? `Cette action utilisera la route RGPD existante pour anonymiser "${deleteTarget.name}".`
+                            : undefined
+                    }
                     confirmLabel={t("common.delete")}
                     cancelLabel={t("common.cancel")}
                     variant="destructive"

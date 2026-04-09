@@ -6,27 +6,27 @@
   :root {
     /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
     /* Variables injectées par next/font via layout.tsx className */
-    /* --font-display → DM Sans     (var injectée) */
-    /* --font-body    → Inter       (var injectée) */
-    /* --font-ui      → alias de --font-display */
-    --font-ui: var(--font-display);
+    /* --font-display → DM Serif Display (titres, métriques) */
+    /* --font-body    → Geist            (corps, interface)   */
+    /* --font-ui      → alias de --font-body */
+    --font-ui: var(--font-body);
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
-    /* ─── PALETTE PRINCIPALE : EduPilot Elegant Neutral ─────── */
-    /* Accent principal vert institutionnel */
-    --primary:            147 40% 30%;
+    /* ─── PALETTE PRINCIPALE : EduPilot Design System ────────── */
+    /* Accent principal vert profond désaturé #2D6A4F */
+    --primary:            153 40% 30%;
     --primary-foreground: 0 0% 100%;
-    --primary-50:         228 80% 97%;
-    --primary-100:        228 70% 93%;
-    --primary-200:        228 64% 85%;
-    --primary-300:        228 60% 74%;
-    --primary-400:        228 57% 62%;
-    --primary-500:        228 55% 52%;
-    --primary-600:        228 54% 45%;
-    --primary-700:        228 52% 38%;
-    --primary-800:        228 49% 30%;
-    --primary-900:        228 45% 23%;
-    --primary-950:        228 42% 14%;
+    --primary-50:         153 40% 97%;
+    --primary-100:        153 38% 92%;
+    --primary-200:        153 36% 82%;
+    --primary-300:        153 34% 68%;
+    --primary-400:        153 36% 46%;
+    --primary-500:        153 40% 30%;
+    --primary-600:        153 44% 24%;
+    --primary-700:        155 48% 18%;
+    --primary-800:        155 50% 14%;
+    --primary-900:        155 52% 10%;
+    --primary-950:        155 54% 6%;
 
     /* Secondary: Slate Teal */
     --secondary:            147 36% 45%;
@@ -59,24 +59,29 @@
     --accent-950:        258 26% 16%;
 
     /* ─── SÉMANTIQUE (Shadcn/UI standard) ───────────────────── */
-    --background:           40 14% 95%;
-    --foreground:           36 5% 11%;
+    /* #F5F4F2 ivoire warm */
+    --background:           40 10% 95%;
+    /* #2A2A28 texte principal */
+    --foreground:           60 3% 16%;
 
     --card:                 0 0% 100%;
-    --card-foreground:      36 5% 11%;
+    --card-foreground:      60 3% 16%;
 
     --popover:              0 0% 100%;
-    --popover-foreground:   224 35% 14%;
+    --popover-foreground:   60 3% 16%;
 
+    /* #6B6B63 texte secondaire */
     --muted:                40 10% 93%;
-    --muted-foreground:     60 3% 40%;
+    --muted-foreground:     55 4% 40%;
 
-    --border:               48 10% 90%;
-    --input:                48 10% 90%;
-    --ring:                 147 40% 30%;
+    /* #E8E7E4 bordures */
+    --border:               40 6% 90%;
+    --input:                40 6% 90%;
+    --ring:                 153 40% 30%;
 
-    --destructive:          0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    /* #C0392B rouge brique */
+    --destructive:          6 63% 46%;
+    --destructive-foreground: 0 0% 100%;
 
     /* ─── SURFACE (couches d'élévation) ─────────────────────── */
     --surface-ground:    220 28% 98%;
@@ -87,17 +92,20 @@
     --surface-active:    220 20% 92%;
 
     /* ─── TEXTE sémantique ───────────────────────────────────── */
-    --text-primary:     36 5% 11%;
-    --text-secondary:   60 4% 23%;
-    --text-tertiary:    60 3% 40%;
-    --text-placeholder: 60 3% 55%;
-    --text-disabled:    60 3% 68%;
+    /* #2A2A28 */
+    --text-primary:     60 3% 16%;
+    /* #6B6B63 */
+    --text-secondary:   55 4% 40%;
+    /* #9A9A92 */
+    --text-tertiary:    55 3% 59%;
+    --text-placeholder: 55 3% 65%;
+    --text-disabled:    55 3% 74%;
     --text-inverse:     0 0% 100%;
 
-    /* Sidebar dédiée */
-    --sidebar-bg: 48 6% 10%;
+    /* Sidebar dédiée — #1A1A18 charbon warm */
+    --sidebar-bg: 60 6% 10%;
     --sidebar-fg: 50 9% 91%;
-    --sidebar-muted: 60 3% 54%;
+    --sidebar-muted: 55 3% 54%;
 
     /* ─── SLATE (palette grise complète) ────────────────────── */
     --slate-50:  210 40% 98%;

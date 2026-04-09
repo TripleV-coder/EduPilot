@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const templateSchema = z.object({
     name: z.string().min(1, "Le nom est requis"),
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get("type");
 
-        const schoolId = session.user.schoolId;
+        const schoolId = getActiveSchoolId(session);
         if (!schoolId) {
             return NextResponse.json({ error: "School ID required" }, { status: 400 });
         }
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedData = templateSchema.parse(body);
 
-        const schoolId = session.user.schoolId;
+        const schoolId = getActiveSchoolId(session);
         if (!schoolId) {
             return NextResponse.json({ error: "School ID required" }, { status: 400 });
         }

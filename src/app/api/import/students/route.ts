@@ -8,6 +8,8 @@ import crypto from "crypto";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
@@ -34,7 +36,7 @@ export async function POST(request: NextRequest) {
         const DEFAULT_IMPORT_PASSWORD = "00000000";
 
         // Get School ID
-        let schoolId = session.user.schoolId || null;
+        let schoolId = getActiveSchoolId(session) || null;
         if (session.user.role === "SUPER_ADMIN") {
             const { searchParams } = new URL(request.url);
             schoolId = bodySchoolId || searchParams.get("schoolId") || null;

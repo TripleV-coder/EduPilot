@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { recommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(
     request: NextRequest,
@@ -28,7 +29,7 @@ export async function POST(
         if (!orientation) {
             return NextResponse.json({ error: "Dossier d'orientation introuvable" }, { status: 404 });
         }
-        if (session.user.role !== "SUPER_ADMIN" && orientation.student.schoolId !== session.user.schoolId) {
+        if (session.user.role !== "SUPER_ADMIN" && orientation.student.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 

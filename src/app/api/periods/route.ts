@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const periodSchema = z.object({
@@ -26,7 +27,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     let academicYearId = searchParams.get("academicYearId");
-    const schoolId = searchParams.get("schoolId") || (session.user.role !== "SUPER_ADMIN" ? session.user.schoolId : null);
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolId = requestedSchoolId || (session.user.role !== "SUPER_ADMIN" ? activeSchoolId : null);
 
     if (!academicYearId && schoolId) {
       // Find current academic year for the school
@@ -43,6 +48,19 @@ export async function GET(request: NextRequest) {
 
     if (!academicYearId) {
       return NextResponse.json({ error: "Année scolaire requise (ou année courante non trouvée)" }, { status: 400 });
+    }
+
+    const academicYear = await prisma.academicYear.findUnique({
+      where: { id: academicYearId },
+      select: { schoolId: true },
+    });
+
+    if (!academicYear) {
+      return NextResponse.json({ error: "Année scolaire non trouvée" }, { status: 404 });
+    }
+
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, academicYear.schoolId)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     const periods = await prisma.period.findMany({
@@ -97,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify school access
-    if (session.user.role !== "SUPER_ADMIN" && year.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, year.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

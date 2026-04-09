@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { assertModelAccess } from "@/lib/security/tenant";
 
 /**
  * GET /api/exams/[id]
@@ -17,6 +18,8 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
+    const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
+    if (guard) return guard;
 
     const exam = await prisma.examTemplate.findUnique({
       where: { id },
@@ -52,17 +55,6 @@ export async function GET(
       return NextResponse.json({ error: "Examen non trouvé" }, { status: 404 });
     }
 
-    // Verify same school if user has a school
-    if (session.user.schoolId && exam.classSubject?.class) {
-      const classSubject = await prisma.classSubject.findUnique({
-        where: { id: exam.classSubjectId },
-        include: { class: { select: { schoolId: true } } },
-      });
-      if (classSubject && classSubject.class.schoolId !== session.user.schoolId) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    }
-
     return NextResponse.json(exam);
   } catch (error) {
     logger.error("Error fetching exam", error as Error, { module: "api/exams/[id]" });
@@ -92,6 +84,8 @@ export async function DELETE(
     if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
+    const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
+    if (guard) return guard;
 
     const exam = await prisma.examTemplate.findUnique({
       where: { id },
@@ -104,11 +98,6 @@ export async function DELETE(
 
     if (!exam) {
       return NextResponse.json({ error: "Examen non trouvé" }, { status: 404 });
-    }
-
-    // Verify same school if user has a school
-    if (session.user.schoolId && exam.classSubject?.class.schoolId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Only creator or admin can delete

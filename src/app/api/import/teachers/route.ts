@@ -6,6 +6,9 @@ import { logger } from "@/lib/utils/logger";
 import { importTeacherSchema } from "@/lib/import/schemas";
 import { hash } from "bcryptjs";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
+import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
+
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
         const DEFAULT_IMPORT_PASSWORD = "00000000";
 
         // Resolve school context once
-        let schoolId = session.user.schoolId || null;
+        let schoolId = getActiveSchoolId(session) || null;
         if (session.user.role === "SUPER_ADMIN") {
             const { searchParams } = new URL(request.url);
             schoolId = bodySchoolId || searchParams.get("schoolId") || null;
@@ -113,18 +116,29 @@ export async function POST(request: NextRequest) {
                             firstName: teacherData.firstName,
                             lastName: teacherData.lastName,
                             role: "TEACHER",
+                            roles: ["TEACHER"],
                             schoolId: schoolId,
                             phone: teacherData.phone,
                             mustChangePassword: true,
                         },
                     });
 
-                    await tx.teacherProfile.create({
+                    const profile = await tx.teacherProfile.create({
                         data: {
                             userId: user.id,
                             specialization: teacherData.subjects || "General",
                             schoolId: schoolId || "",
                         },
+                    });
+
+                    await tx.teacherSchoolAssignment.createMany({
+                        data: buildTeacherSchoolAssignments({
+                            teacherId: profile.id,
+                            userId: user.id,
+                            primarySchoolId: schoolId || "",
+                            schoolIds: [schoolId || ""],
+                        }),
+                        skipDuplicates: true,
                     });
                 });
 

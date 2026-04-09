@@ -26,12 +26,50 @@ model SubscriptionPlan {
   @@map("subscription_plans")
 }
 
+enum SiteType {
+  MAIN
+  ANNEXE
+}
+
+model Organization {
+  id                String                   @id @default(cuid())
+  name              String
+  code              String                   @unique
+  description       String?
+  isActive          Boolean                  @default(true)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  memberships       OrganizationMembership[]
+  schools           School[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id               String       @id @default(cuid())
+  organizationId   String
+  userId           String
+  title            String?
+  isOwner          Boolean      @default(false)
+  canManageSites   Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_memberships")
+}
+
 model School {
   id                    String                @id @default(cuid())
+  organizationId        String?
   name                  String
   code                  String                @unique
   type                  SchoolType            @default(PRIVATE)
   level                 SchoolLevel
+  siteType              SiteType              @default(MAIN)
   address               String?
   city                  String?
   phone                 String?
@@ -65,13 +103,18 @@ model School {
   schoolHolidays        SchoolHoliday[]
   parentSchool          School?               @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id])
   childSchools          School[]              @relation("SchoolHierarchy")
+  organization          Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   plan                  SubscriptionPlan?     @relation(fields: [planId], references: [id])
   studentProfiles       StudentProfile[]
   subjectCategories     SubjectCategory[]
   subjects              Subject[]
+  teacherAssignments    TeacherSchoolAssignment[]
   teacherProfiles       TeacherProfile[]
   users                 User[]
 
+  @@index([organizationId])
+  @@index([parentSchoolId])  // P10: Performance index for hierarchy queries (childSchools)
+  @@index([email])           // P4: Index for email lookups (not unique — multi-site orgs may share email)
   @@map("schools")
 }
 
@@ -188,7 +231,9 @@ model User {
   sessions                  Session[]
   studentProfile            StudentProfile?
   teacherProfile            TeacherProfile?
+  teacherSchoolAssignments  TeacherSchoolAssignment[]
   userAchievements          UserAchievement[]
+  organizationMemberships   OrganizationMembership[]
   school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
@@ -285,6 +330,7 @@ model TeacherProfile {
   id             String                @id @default(cuid())
   userId         String                @unique
   matricule      String?
+  // Legacy primary school kept during Phase 3 migration.
   schoolId       String
   specialization String?
   hireDate       DateTime?
@@ -295,12 +341,36 @@ model TeacherProfile {
   classSubjects  ClassSubject[]
   mainClasses    Class[]
   availabilities TeacherAvailability[]
+  schoolAssignments TeacherSchoolAssignment[]
   school         School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, matricule])
   @@index([schoolId])
   @@map("teacher_profiles")
+}
+
+model TeacherSchoolAssignment {
+  id         String                  @id @default(cuid())
+  teacherId  String
+  userId     String
+  schoolId   String
+  status     TeacherAssignmentStatus @default(ACTIVE)
+  isPrimary  Boolean                 @default(false)
+  startDate  DateTime?
+  endDate    DateTime?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  school     School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher    TeacherProfile          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  user       User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, schoolId])
+  @@unique([userId, schoolId])
+  @@index([schoolId, status])
+  @@index([teacherId, status])
+  @@index([userId, status])
+  @@map("teacher_school_assignments")
 }
 
 model StudentProfile {
@@ -339,7 +409,7 @@ model StudentProfile {
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([schoolId, matricule])
+  @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
   @@index([matricule])
   @@map("student_profiles")
@@ -455,6 +525,8 @@ model ClassSubject {
   @@map("class_subjects")
 }
 
+/// P12: One enrollment per student per year. For transfers, mark old enrollment as
+/// TRANSFERRED before creating the new one in the same academic year.
 model Enrollment {
   id             String           @id @default(cuid())
   studentId      String
@@ -469,7 +541,7 @@ model Enrollment {
   class          Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
   student        StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, academicYearId])
+  @@index([studentId, academicYearId]) // Fixed Edge Case: Removed unique to allow multiple enrollments (e.g., transfers) per year
   @@map("enrollments")
 }
 
@@ -662,6 +734,7 @@ model Attendance {
   studentId             String
   classId               String
   date                  DateTime
+  timeSlot              String?          // P14: Optional slot (e.g. "MORNING", "AFTERNOON") for half-day tracking
   status                AttendanceStatus
   reason                String?
   justificationDocument String?
@@ -672,7 +745,7 @@ model Attendance {
   recordedBy            User?            @relation("RecordedBy", fields: [recordedById], references: [id])
   student               StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, classId, date])
+  @@unique([studentId, classId, date, timeSlot]) // P14: Updated unique to include timeSlot
   @@index([studentId, date])
   @@index([classId, date])
   @@index([status])
@@ -1162,6 +1235,7 @@ model ExamSession {
   id             String         @id @default(cuid())
   examTemplateId String
   studentId      String
+  attempt        Int            @default(1) // P16: Support exam retakes/rattrapages
   startedAt      DateTime       @default(now())
   submittedAt    DateTime?
   timeSpent      Int?
@@ -1174,7 +1248,7 @@ model ExamSession {
   examTemplate   ExamTemplate   @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
   student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([examTemplateId, studentId])
+  @@unique([examTemplateId, studentId, attempt]) // P16: Allow multiple attempts
   @@index([studentId])
   @@map("exam_sessions")
 }
@@ -1729,6 +1803,12 @@ enum UserRole {
   PARENT
   ACCOUNTANT
   STAFF
+}
+
+enum TeacherAssignmentStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
 enum AcademicYearStatus {

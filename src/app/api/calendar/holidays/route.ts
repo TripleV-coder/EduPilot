@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { schoolHolidaySchema } from "@/lib/validations/calendar";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/calendar/holidays
@@ -13,8 +14,12 @@ export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get("academicYearId");
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
     const schoolId =
-      session.user.role === "SUPER_ADMIN" ? searchParams.get("schoolId") : session.user.schoolId;
+      requestedSchoolId || activeSchoolId;
 
     if (!schoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
@@ -66,7 +71,7 @@ export const POST = createApiHandler(
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      academicYear.schoolId !== session.user.schoolId
+      !canAccessSchool(session, academicYear.schoolId)
     ) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }

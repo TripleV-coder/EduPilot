@@ -86,25 +86,6 @@ export default function AcademicSettingsPage() {
         }
     };
 
-    const handleSetCurrent = async (id: string) => {
-        try {
-            // Note: In a real implementation this might be a specific endpoint like POST /api/academic-years/[id]/set-current
-            // Using PATCH to the specific year
-            const res = await fetch(`/api/academic-years/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isCurrent: true }),
-            });
-
-            if (!res.ok) throw new Error("Erreur de mise à jour");
-
-            showSuccess("Année académique définie comme active");
-            fetchYears();
-        } catch (err: any) {
-            setError(err.message);
-        }
-    };
-
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE}>
             <div className="space-y-6 max-w-5xl mx-auto pb-24">
@@ -218,14 +199,30 @@ export default function AcademicSettingsPage() {
 
                                     <div className="flex items-center gap-2">
                                         {!year.isCurrent && (
-                                            <Button variant="outline" size="sm" onClick={() => handleSetCurrent(year.id)}>
-                                                Définir comme active
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled
+                                                title="Le backend actuel n'expose aucune route de mise à jour pour une année académique existante."
+                                            >
+                                                Activation indisponible
                                             </Button>
                                         )}
-                                        <Button variant="ghost" size="icon" title="Modifier">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled
+                                            title="Le backend actuel n'expose aucune route d'édition pour une année académique existante."
+                                        >
                                             <Edit2 className="h-4 w-4 text-muted-foreground" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="hover:text-destructive hover:bg-destructive/10" title="Archiver/Supprimer">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled
+                                            className="hover:text-destructive hover:bg-destructive/10"
+                                            title="Le backend actuel n'expose aucune route d'archivage ou suppression pour une année académique."
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>

@@ -14,7 +14,12 @@ export const { auth: edgeAuth } = NextAuth({
             if (token && session.user) {
                 session.user.id = token.id as string;
                 session.user.role = token.role as UserRole;
+                session.user.primaryOrganizationId = token.primaryOrganizationId as string | null;
+                session.user.organizationIds = token.organizationIds as string[] | undefined;
+                session.user.isOrganizationManager = token.isOrganizationManager as boolean | undefined;
+                session.user.primarySchoolId = token.primarySchoolId as string | null;
                 session.user.schoolId = token.schoolId as string;
+                session.user.accessibleSchoolIds = token.accessibleSchoolIds as string[] | undefined;
                 session.user.firstName = token.firstName as string;
                 session.user.lastName = token.lastName as string;
                 session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;

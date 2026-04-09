@@ -5,6 +5,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import Redis from "ioredis";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const broadcastSchema = z.object({
     classId: z.string().cuid(),
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
         }
 
-        if (session.user.role !== "SUPER_ADMIN" && classRecord.schoolId !== session.user.schoolId) {
+        if (session.user.role !== "SUPER_ADMIN" && classRecord.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Accès non autorisé à cette classe" }, { status: 403 });
         }
 

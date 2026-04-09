@@ -6,7 +6,6 @@ import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Folder, UploadCloud, FileText, Video, Link as LinkIcon, Download, MoreVertical, Search, Plus, Loader2, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +93,7 @@ export default function ResourcesPage() {
     const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Usually TEACHER_READ / STUDENT_READ_OWN */} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}>
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}>
             <div className="space-y-6 max-w-6xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader

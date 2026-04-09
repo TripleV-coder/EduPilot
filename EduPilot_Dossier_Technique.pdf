@@ -1,0 +1,530 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 3572
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F2 18 Tf
+20.6999999999999993 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(Rapport Technique : EduPilot) Tj
+ET
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0 g
+56.6929133858267775 728.5041732283464171 Td
+(Présentation du Projet : EduPilot) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 683.1498425196850803 Td
+(INTRODUCTION) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 660.4726771653542983 Td
+(Ce document présente le projet EduPilot de manière simple. Il est divisé en deux parties : une présentation) Tj
+T* (du concept et une liste concrète de ce qui est déjà construit techniquement.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 612.2837007874015853 Td
+(---) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 575.4333070866141497 Td
+(PARTIE I : LE CONCEPT EDUPILOT) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 544.2522047244094665 Td
+(1. C'est quoi ?) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 524.4096850393700606 Td
+(EduPilot est une application complète pour gérer les écoles privées. C'est un outil moderne qui remplace les) Tj
+T* (vieux logiciels compliqués par une interface belle, rapide et facile à utiliser.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 476.2207086614172908 Td
+(2. Pour qui ?) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 456.378188976377885 Td
+(Elle s'adresse aux écoles qui veulent offrir un service de qualité supérieure à leurs élèves et aux parents. On) Tj
+T* (appelle cela le style "Academic Luxe" : c'est propre, élégant et professionnel.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 408.1892125984251152 Td
+(3. Pourquoi c'est différent ?) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 388.3466929133857661 Td
+(*   **Facile à utiliser** : Tout est pensé pour que les secrétaires, les profs et les parents n'aient pas besoin de) Tj
+T* (formation pour comprendre.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 348.6616535433070112 Td
+(*   **Tout-en-un** : Un seul outil pour tout faire \(notes, argent, cantine, messages\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 328.8191338582676053 Td
+(*   **Moderne** : L'application fonctionne sur ordinateur et sur téléphone, et elle est très rapide.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 300.4726771653542983 Td
+(---) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 263.6222834645668627 Td
+(PARTIE II : CE QUI EST DÉJÀ DÉVELOPPÉ) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 232.4411811023621794 Td
+(Le moteur de l'application est déjà construit. Voici tout ce qui fonctionne aujourd'hui :) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 204.0947244094487587 Td
+(1. Gestion de l'École) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 184.2522047244093528 Td
+(*   **Multi-écoles** : On peut gérer plusieurs établissements ou plusieurs sites avec le même compte.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 164.4096850393699469 Td
+(*   **Inscriptions** : Les dossiers des élèves, des professeurs et des parents sont complets.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 144.5671653543306547 Td
+(*   **Classes** : On peut créer les classes, les matières et les emplois du temps.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 116.220708661417234 Td
+(2. Scolarité et Cours) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 96.3781889763778281 Td
+(*   **Notes et Bulletins** : Les profs saisissent les notes et l'application calcule les moyennes et génère les) Tj
+T* (bulletins automatiquement.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 2488
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(*   **Cours en ligne** : On peut mettre des leçons et des devoirs que les élèves récupèrent chez eux.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 765.3545669291338527 Td
+(*   **Présences** : Un système pour faire l'appel et envoyer des alertes si un élève est absent.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 737.0081102362204319 Td
+(3. Vie Scolaire et Santé) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 717.1655905511811397 Td
+(*   **Cantine** : Gestion des menus et des tickets avec des codes QR.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 697.3230708661417339 Td
+(*   **Santé** : Un carnet de santé numérique pour suivre les allergies et les urgences.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 677.480551181102328 Td
+(*   **Discipline** : Un carnet pour noter le comportement et les sanctions.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 657.6380314960629221 Td
+(*   **Médiathèque** : Gestion des livres prêtés à la bibliothèque.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 629.291574803149615 Td
+(4. Argent et Paiements) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 609.4490551181102092 Td
+(*   **Frais de scolarité** : On peut gérer les prix par classe et voir qui a payé.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 589.6065354330708033 Td
+(*   **Paiement par étapes** : On peut proposer aux parents de payer en plusieurs fois.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 569.7640157480313974 Td
+(*   **Bourses** : Gestion des réductions pour certains élèves.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 541.4175590551180903 Td
+(5. Technologie et Sécurité) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 521.5750393700786844 Td
+(*   **Sécurité** : L'accès est protégé par mot de passe et un code de sécurité \(2FA\). Tout est chiffré.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 501.7325196850393354 Td
+(*   **Respect de la vie privée** : On respecte les lois \(RGPD\). Les données sont isolées école par école.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 481.8899999999999295 Td
+(*   **Intelligence Artificielle** : Un petit robot IA est intégré pour aider les élèves dans leurs révisions.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 453.5435433070865656 Td
+(Ce document montre que le projet est déjà très avancé et prêt à être utilisé par de premières écoles.) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R ]
+/Count 2
+>>
+endobj
+7 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+8 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+9 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+10 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+11 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+12 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+13 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+14 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+15 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+16 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+17 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+18 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+19 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+20 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 7 0 R
+/F2 8 0 R
+/F3 9 0 R
+/F4 10 0 R
+/F5 11 0 R
+/F6 12 0 R
+/F7 13 0 R
+/F8 14 0 R
+/F9 15 0 R
+/F10 16 0 R
+/F11 17 0 R
+/F12 18 0 R
+/F13 19 0 R
+/F14 20 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+21 0 obj
+<<
+/Producer (jsPDF 4.2.1)
+/CreationDate (D:20260331130407+01'00')
+>>
+endobj
+22 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 23
+0000000000 65535 f 
+0000006453 00000 n 
+0000008278 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000003776 00000 n 
+0000003913 00000 n 
+0000006516 00000 n 
+0000006641 00000 n 
+0000006771 00000 n 
+0000006904 00000 n 
+0000007042 00000 n 
+0000007166 00000 n 
+0000007295 00000 n 
+0000007427 00000 n 
+0000007563 00000 n 
+0000007691 00000 n 
+0000007818 00000 n 
+0000007947 00000 n 
+0000008080 00000 n 
+0000008182 00000 n 
+0000008528 00000 n 
+0000008614 00000 n 
+trailer
+<<
+/Size 23
+/Root 22 0 R
+/Info 21 0 R
+/ID [ <56221D5183BD042A51356E2886EB483A> <56221D5183BD042A51356E2886EB483A> ]
+>>
+startxref
+8718
+%%EOF

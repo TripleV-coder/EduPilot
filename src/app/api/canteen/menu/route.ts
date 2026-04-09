@@ -4,6 +4,7 @@ import { canteenService } from "@/lib/canteen/service";
 import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function GET(req: NextRequest) {
     const session = await auth();
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
             async () => {
                 const dateParam = url.searchParams.get("date");
                 const date = dateParam ? new Date(dateParam) : new Date();
-                const menu = await canteenService.getMenu(session.user.schoolId!, date);
+                const menu = await canteenService.getMenu(getActiveSchoolId(session)!, date);
                 return NextResponse.json(menu || { message: "No menu found for this date" });
             },
             { ttl: CACHE_TTL_MEDIUM, key: cacheKey }
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     } catch (error) {
         logger.error("Menu fetch failed", error instanceof Error ? error : new Error(String(error)), {
             module: "api/canteen/menu",
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session),
         });
         return NextResponse.json({ error: "Failed to fetch menu" }, { status: 500 });
     }
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
         if (!date) return NextResponse.json({ error: "Date is required" }, { status: 400 });
 
-        const menu = await canteenService.upsertMenu(session.user.schoolId, new Date(date), {
+        const menu = await canteenService.upsertMenu(getActiveSchoolId(session) as string, new Date(date), {
             starter,
             mainCourse,
             dessert
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         logger.error("Menu upsert failed", error instanceof Error ? error : new Error(String(error)), {
             module: "api/canteen/menu",
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session),
         });
         return NextResponse.json({ error: "Failed to update menu" }, { status: 500 });
     }

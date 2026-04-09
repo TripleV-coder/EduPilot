@@ -7,6 +7,7 @@ import { PaymentWhereFilter } from "@/lib/types/api";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/payments
@@ -70,6 +71,7 @@ export const GET = createApiHandler(
       const { searchParams } = new URL(request.url);
       const studentId = searchParams.get("studentId");
       const feeId = searchParams.get("feeId");
+      const activeSchoolId = getActiveSchoolId(session);
 
       const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
 
@@ -78,8 +80,8 @@ export const GET = createApiHandler(
       if (feeId) where.feeId = feeId;
 
       // Multi-tenant security: filter by school
-      if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
-        where.fee = { schoolId: session.user.schoolId };
+      if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
+        where.fee = { schoolId: activeSchoolId };
       }
 
       // PARENT can only see their children's payments
@@ -303,7 +305,6 @@ export const POST = createApiHandler(
   async (request, { session }, t) => {
     const body = await request.json();
     const validatedData = paymentSchema.parse(body);
-
     // Verify fee belongs to user's school
     const fee = await prisma.fee.findUnique({
       where: { id: validatedData.feeId },
@@ -317,7 +318,7 @@ export const POST = createApiHandler(
       );
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && fee.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, fee.schoolId)) {
       return NextResponse.json(
         translateError({ error: "Vous ne pouvez pas enregistrer de paiements pour d'autres établissements", key: "api.issues.forbidden" }, t),
         { status: 403 }
@@ -337,7 +338,7 @@ export const POST = createApiHandler(
       );
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, student.schoolId)) {
       return NextResponse.json(
         translateError({ error: "Cet élève n'appartient pas à votre établissement", key: "api.issues.forbidden" }, t),
         { status: 403 }

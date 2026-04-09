@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/debug/session
@@ -35,7 +36,7 @@ export async function GET() {
           firstName: session.user.firstName,
           lastName: session.user.lastName,
           role: session.user.role,
-          schoolId: session.user.schoolId,
+          schoolId: getActiveSchoolId(session),
         }
       } : null,
       timestamp: new Date().toISOString(),

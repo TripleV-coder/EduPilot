@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
         if (!student) {
             return NextResponse.json({ error: "Étudiant non trouvé" }, { status: 404 });
         }
-        if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== session.user.schoolId) {
+        if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 

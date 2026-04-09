@@ -7,6 +7,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizeRichText } from "@/lib/sanitize";
 import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createCourseSchema = z.object({
   classSubjectId: z.string().cuid(),
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
     const classSubjectId = searchParams.get("classSubjectId");
     const isPublished = searchParams.get("isPublished");
     const search = searchParams.get("search");
+    const activeSchoolId = getActiveSchoolId(session);
 
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 50 });
 
@@ -72,8 +74,8 @@ export async function GET(request: NextRequest) {
       });
       where.classSubject = { classId: { in: childClassIds } };
       where.isPublished = true;
-    } else if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
-      where.classSubject = { class: { schoolId: session.user.schoolId } };
+    } else if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
+      where.classSubject = { class: { schoolId: activeSchoolId } };
     }
 
     if (classSubjectId) where.classSubjectId = classSubjectId;
@@ -145,6 +147,10 @@ export async function POST(request: NextRequest) {
 
     if (!classSubject) {
       return NextResponse.json({ error: "Matière non trouvée", code: "NOT_FOUND" }, { status: 404 });
+    }
+
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, classSubject.class.schoolId)) {
+      return NextResponse.json({ error: "Accès refusé", code: "FORBIDDEN" }, { status: 403 });
     }
 
     // If teacher, verify assignment

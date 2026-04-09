@@ -5,6 +5,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -37,10 +38,10 @@ export async function GET(request: NextRequest) {
       // Non-admins can only see their own requests
       where.userId = session.user.id;
     } else if (session.user.role === "SCHOOL_ADMIN") {
-      if (!session.user.schoolId) {
+      if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
-      where.user = { schoolId: session.user.schoolId };
+      where.user = { schoolId: getActiveSchoolId(session) };
     }
 
     if (status) {
@@ -143,11 +144,11 @@ export async function POST(request: NextRequest) {
 
     // Create notification for admins
     const adminWhere: import("@prisma/client").Prisma.UserWhereInput =
-      session.user.schoolId
+      getActiveSchoolId(session)
         ? {
           OR: [
             { role: "SUPER_ADMIN" as const },
-            { role: "SCHOOL_ADMIN" as const, schoolId: session.user.schoolId },
+            { role: "SCHOOL_ADMIN" as const, schoolId: getActiveSchoolId(session) },
           ],
         }
         : { role: "SUPER_ADMIN" as const };

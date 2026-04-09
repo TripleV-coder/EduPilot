@@ -12,6 +12,7 @@ import {
     SMSType
 } from "@/lib/notifications/sms-service";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 type BulkTarget = "parents_all" | "parents_debt" | "teachers_all";
 
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
         }
 
-        const schoolId = session.user.schoolId;
+        const schoolId = getActiveSchoolId(session);
         if (!schoolId && session.user.role !== "SUPER_ADMIN") {
             return NextResponse.json({ error: "Contexte école requis" }, { status: 400 });
         }

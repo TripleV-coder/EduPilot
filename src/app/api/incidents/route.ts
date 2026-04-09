@@ -7,6 +7,7 @@ import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytic
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { incidentCreateSchema } from "@/lib/validations/incident";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/incidents
@@ -32,12 +33,12 @@ export async function GET(request: NextRequest) {
     const where: Prisma.BehaviorIncidentWhereInput = {};
 
     // Non-SUPER_ADMIN must only see incidents from their school
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       where.student = {
         enrollments: {
           some: {
             class: {
-              schoolId: session.user.schoolId,
+              schoolId: getActiveSchoolId(session),
             },
           },
         },

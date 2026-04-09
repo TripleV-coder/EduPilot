@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const updateTemplateSchema = z.object({
     name: z.string().min(1).optional(),
@@ -35,7 +36,7 @@ export async function GET(
         }
 
         // Verify access
-        if (template.schoolId !== session.user.schoolId) {
+        if (template.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -68,7 +69,7 @@ export async function PUT(
             return NextResponse.json({ error: "Template not found" }, { status: 404 });
         }
 
-        if (template.schoolId !== session.user.schoolId) {
+        if (template.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -115,7 +116,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Template not found" }, { status: 404 });
         }
 
-        if (template.schoolId !== session.user.schoolId) {
+        if (template.schoolId !== getActiveSchoolId(session)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

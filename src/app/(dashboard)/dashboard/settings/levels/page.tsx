@@ -5,7 +5,6 @@ import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Layers, Network, Boxes, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +41,7 @@ export default function AcademicLevelsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission]}>
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <div className="space-y-6 max-w-6xl mx-auto">
                 <PageHeader
                     title="Cycles, Niveaux & Séries"

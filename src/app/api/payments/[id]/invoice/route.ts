@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -89,7 +90,7 @@ export async function GET(
     ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
-    if (userRole !== "SUPER_ADMIN" && payment.fee.schoolId !== session.user.schoolId) {
+    if (userRole !== "SUPER_ADMIN" && !canAccessSchool(session, payment.fee.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

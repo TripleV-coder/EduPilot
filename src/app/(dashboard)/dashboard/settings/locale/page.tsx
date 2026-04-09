@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { Globe, Clock, Save, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -72,7 +72,7 @@ export default function LocaleSettingsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Accessible by everyone */}>
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Langue & Région"

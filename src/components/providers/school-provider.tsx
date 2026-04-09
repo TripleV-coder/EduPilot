@@ -1,9 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+
+interface AccessibleSchool {
+    id: string;
+    name: string;
+    code: string;
+    city?: string | null;
+    isActive: boolean;
+}
 
 interface SchoolContextType {
     schoolId: string | null;
@@ -11,9 +20,12 @@ interface SchoolContextType {
     periodId: string | null;
     setAcademicYearId: (id: string | null) => void;
     setPeriodId: (id: string | null) => void;
+    setActiveSchoolId: (id: string | null) => Promise<void>;
     schoolName: string | null;
     currentPeriodName: string | null;
+    accessibleSchools: AccessibleSchool[];
     isLoading: boolean;
+    isSwitchingSchool: boolean;
     error: any;
     isOffline: boolean;
 }
@@ -34,16 +46,36 @@ const setCookie = (name: string, value: string) => {
     document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
 };
 
+const clearCookie = (name: string) => {
+    if (typeof document === "undefined") return;
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+};
+
 export function SchoolProvider({ children }: { children: React.ReactNode }) {
-    const { data: session, status } = useSession();
+    const router = useRouter();
+    const { data: session, status, update } = useSession();
     
     // Level 1: Hydrate from Cookies/LocalStorage for instant UI
     const [academicYearId, setAcademicYearId] = useState<string | null>(() => getCookie('edupilot_year_id'));
     const [periodId, setPeriodId] = useState<string | null>(() => getCookie('edupilot_period_id'));
     const [schoolName, setSchoolName] = useState<string | null>(null);
     const [isOffline, setIsOffline] = useState(false);
+    const [isSwitchingSchool, setIsSwitchingSchool] = useState(false);
+    const previousSchoolIdRef = useRef<string | null | undefined>(undefined);
 
     const isGlobalMode = session?.user?.role === "SUPER_ADMIN" && !session.user.schoolId;
+
+    const { data: schoolContextData } = useSWR(
+        session?.user ? "/api/schools/context" : null,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+        }
+    );
+
+    const accessibleSchools: AccessibleSchool[] = Array.isArray(schoolContextData?.schools)
+        ? schoolContextData.schools
+        : [];
 
     // Reset school-specific contexts when entering Global Mode
     useEffect(() => {
@@ -55,6 +87,23 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
             // it doesn't cause issues.
         }
     }, [isGlobalMode]);
+
+    useEffect(() => {
+        const currentSchoolId = session?.user?.schoolId;
+
+        if (previousSchoolIdRef.current === undefined) {
+            previousSchoolIdRef.current = currentSchoolId;
+            return;
+        }
+
+        if (previousSchoolIdRef.current !== currentSchoolId) {
+            setAcademicYearId(null);
+            setPeriodId(null);
+            clearCookie("edupilot_year_id");
+            clearCookie("edupilot_period_id");
+            previousSchoolIdRef.current = currentSchoolId;
+        }
+    }, [session?.user?.schoolId]);
 
     // Level 2: Fetch with SWR (Automatic Fallback to Cache)
     const { data: schoolInfo, error: schoolError } = useSWR(
@@ -127,15 +176,36 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
 
     const currentPeriod = Array.isArray(periods) ? periods.find(p => p.id === periodId) : null;
 
+    const setActiveSchoolId = async (id: string | null) => {
+        if (!session?.user) return;
+        if (session.user.role !== "SUPER_ADMIN" && !id) return;
+        if ((session.user.schoolId || null) === id) return;
+
+        setIsSwitchingSchool(true);
+        try {
+            setAcademicYearId(null);
+            setPeriodId(null);
+            clearCookie("edupilot_year_id");
+            clearCookie("edupilot_period_id");
+            await update({ schoolId: id });
+            router.refresh();
+        } finally {
+            setIsSwitchingSchool(false);
+        }
+    };
+
     const value = {
         schoolId: session?.user?.schoolId || null,
         academicYearId: isGlobalMode ? null : academicYearId,
         periodId: isGlobalMode ? null : periodId,
         setAcademicYearId,
         setPeriodId,
+        setActiveSchoolId,
         schoolName: isGlobalMode ? "Console Globale" : (schoolName || "Établissement"),
         currentPeriodName: isGlobalMode ? null : (currentPeriod?.name || null),
+        accessibleSchools,
         isLoading: status === "loading",
+        isSwitchingSchool,
         error: schoolError || yearsError || periodsError,
         isOffline,
     };

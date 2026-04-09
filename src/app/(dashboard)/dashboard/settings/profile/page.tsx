@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { User, Mail, Phone, Upload, Save, UserCircle, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,7 @@ export default function ProfileSettingsPage() {
     // Loading state while session and profile are being fetched
     if (status === "loading" || profileLoading) {
         return (
-            <PageGuard permission={["*" as Permission]}>
+            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
                 <div className="space-y-6 max-w-4xl mx-auto">
                     <PageHeader
                         title="Mon Profil"
@@ -121,7 +122,7 @@ export default function ProfileSettingsPage() {
     // Error state
     if (profileError) {
         return (
-            <PageGuard permission={["*" as Permission]}>
+            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
                 <div className="space-y-6 max-w-4xl mx-auto">
                     <PageHeader
                         title="Mon Profil"
@@ -142,7 +143,7 @@ export default function ProfileSettingsPage() {
     }
 
     return (
-        <PageGuard permission={["*" as Permission] /* Accessible by everyone */}>
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Mon Profil"
@@ -182,7 +183,14 @@ export default function ProfileSettingsPage() {
                         <CardContent className="pt-6 flex flex-col sm:flex-row items-center gap-6">
                             <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-3xl border-4 border-background shadow-sm overflow-hidden relative">
                                 {avatar ? (
-                                    <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                                    <Image
+                                        src={avatar}
+                                        alt="Profile"
+                                        fill
+                                        unoptimized
+                                        sizes="96px"
+                                        className="object-cover"
+                                    />
                                 ) : (
                                     initials || "??"
                                 )}

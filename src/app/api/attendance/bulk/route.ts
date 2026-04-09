@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Classe non trouvée" }, { status: 404 });
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && classRecord.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, classRecord.schoolId)) {
       return NextResponse.json(
         { error: "Accès non autorisé à cette classe" },
         { status: 403 }
@@ -88,32 +89,47 @@ export async function POST(request: Request) {
     }
 
     // Create or update attendance records
-    // Loop over records. Note: upsert requires unique constraint on [studentId, classId, date] which exists in schema
+    // Compound unique includes nullable timeSlot, so we use findFirst + create/update
     const results = await prisma.$transaction(
-      records.map((record: { studentId: string; status: string; notes?: string }) =>
-        prisma.attendance.upsert({
-          where: {
-            studentId_classId_date: {
+      async (tx) => {
+        const ops = [];
+        for (const record of records as { studentId: string; status: string; notes?: string }[]) {
+          const existing = await tx.attendance.findFirst({
+            where: {
               studentId: record.studentId,
               classId,
-              date: new Date(date)
-            }
-          },
-          create: {
-            studentId: record.studentId,
-            classId,
-            date: new Date(date),
-            status: record.status as any, // Cast to enum
-            reason: record.notes, // Map notes to reason
-            recordedById: session.user.id,
-          },
-          update: {
-            status: record.status as any,
-            reason: record.notes,
-            recordedById: session.user.id,
-          },
-        })
-      )
+              date: new Date(date),
+              timeSlot: null,
+            },
+          });
+          if (existing) {
+            ops.push(
+              tx.attendance.update({
+                where: { id: existing.id },
+                data: {
+                  status: record.status as any,
+                  reason: record.notes,
+                  recordedById: session.user.id,
+                },
+              })
+            );
+          } else {
+            ops.push(
+              tx.attendance.create({
+                data: {
+                  studentId: record.studentId,
+                  classId,
+                  date: new Date(date),
+                  status: record.status as any,
+                  reason: record.notes,
+                  recordedById: session.user.id,
+                },
+              })
+            );
+          }
+        }
+        return Promise.all(ops);
+      }
     );
 
     await syncAnalyticsAfterStudentActivityChange(
@@ -170,7 +186,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Classe non trouvée" }, { status: 404 });
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && targetClass.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, targetClass.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

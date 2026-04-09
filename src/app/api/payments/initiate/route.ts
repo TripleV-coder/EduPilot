@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { SupportedProvider } from "@/lib/finance/types";
 import { logger } from "@/lib/utils/logger";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
@@ -39,7 +40,6 @@ export async function POST(req: NextRequest) {
         }
 
         const { amount, currency, feeId, studentId, provider } = parsed.data;
-
         // 3. Multi-tenant Check
         const [studentProfile, fee] = await Promise.all([
             prisma.studentProfile.findUnique({
@@ -63,9 +63,8 @@ export async function POST(req: NextRequest) {
         if (
             session.user.role !== "SUPER_ADMIN" &&
             (
-                !session.user.schoolId ||
-                studentProfile.schoolId !== session.user.schoolId ||
-                fee.schoolId !== session.user.schoolId
+                !canAccessSchool(session, studentProfile.schoolId) ||
+                !canAccessSchool(session, fee.schoolId)
             )
         ) {
             return NextResponse.json({ error: "Forbidden: cross-tenant access denied" }, { status: 403 });

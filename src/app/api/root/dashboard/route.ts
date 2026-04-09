@@ -48,7 +48,7 @@ export async function GET(_request: NextRequest) {
       prisma.user.count(),
       prisma.user.count({ where: { isActive: true } }),
       prisma.studentProfile.count(),
-      prisma.teacherProfile.count(),
+      prisma.teacherProfile.count({ where: { deletedAt: null } }),
       prisma.class.count(),
       prisma.payment.count(),
       prisma.payment.aggregate({

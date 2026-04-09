@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const participationSchema = z.object({
   studentId: z.string().cuid(),
@@ -52,7 +53,7 @@ export async function POST(
       return NextResponse.json({ error: "Élève hors établissement" }, { status: 403 });
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && event.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && event.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

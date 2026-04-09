@@ -6,6 +6,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const UPLOAD_MANIFEST_PATH = path.join(UPLOAD_DIR, ".upload-manifest.json");
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
     const entry: UploadManifestEntry = {
       id: nanoid(),
       uploaderId: session.user.id,
-      schoolId: session.user.schoolId ?? null,
+      schoolId: getActiveSchoolId(session) ?? null,
       type: sanitizedType,
       originalFilename: file.name,
       storedFilename: filename,

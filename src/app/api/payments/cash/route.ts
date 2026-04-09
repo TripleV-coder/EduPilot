@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { paymentSchema } from "@/lib/validations/finance";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      (!session.user.schoolId || student.schoolId !== session.user.schoolId || fee.schoolId !== session.user.schoolId)
+      (!canAccessSchool(session, student.schoolId) || !canAccessSchool(session, fee.schoolId))
     ) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }

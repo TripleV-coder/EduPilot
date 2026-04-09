@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -37,7 +38,7 @@ export async function POST(
     }
 
     // Check access
-    if (resource.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && resource.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

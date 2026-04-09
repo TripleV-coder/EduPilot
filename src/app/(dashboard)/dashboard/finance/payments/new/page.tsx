@@ -136,8 +136,8 @@ export default function NewPaymentPage() {
                     window.open(initiateData.paymentUrl, "_blank");
                 }
             } else {
-                // Use the finance payment API for all manual entries
-                const res = await fetch("/api/finance/payments", {
+                // Use the optimized cash payment API for all manual entries
+                const res = await fetch("/api/payments/cash", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),

@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getPaginationParams } from "@/lib/api/api-helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createAnnouncementSchema = z.object({
   title: z.string().min(3).max(200),
@@ -89,8 +90,9 @@ export async function GET(request: NextRequest) {
     const searchParams = new URLSearchParams(url.searchParams);
     // Include role and schoolId in search params for cache key
     searchParams.set("role", session.user.role);
-    if (session.user.schoolId) {
-      searchParams.set("schoolId", session.user.schoolId);
+    const activeSchoolId = getActiveSchoolId(session);
+    if (activeSchoolId) {
+      searchParams.set("schoolId", activeSchoolId);
     }
     const cacheKey = generateCacheKey("/api/announcements", searchParams, session.user.id);
 
@@ -109,8 +111,8 @@ export async function GET(request: NextRequest) {
 
       // Multi-tenant filtering: users only see announcements from their school
       // SUPER_ADMIN can see all if no schoolId is provided in session (unlikely) or filters
-      if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
-        where.schoolId = session.user.schoolId;
+      if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
+        where.schoolId = getActiveSchoolId(session);
       }
 
       // Filter by type
@@ -212,7 +214,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    if (!session.user.schoolId) {
+    if (!getActiveSchoolId(session)) {
       return NextResponse.json(
         { error: "Utilisateur non associé à un établissement" },
         { status: 400 }
@@ -222,7 +224,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createAnnouncementSchema.parse(body);
 
-    const targetSchoolId = session.user.role === "SUPER_ADMIN" ? (body.schoolId || session.user.schoolId) : session.user.schoolId;
+    const targetSchoolId = session.user.role === "SUPER_ADMIN" ? (body.schoolId || getActiveSchoolId(session)) : getActiveSchoolId(session);
 
     if (!targetSchoolId) {
       return NextResponse.json(

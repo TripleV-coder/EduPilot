@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { ensureRequestedSchoolAccess } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -21,19 +22,13 @@ export async function GET(request: Request) {
     const schoolId = searchParams.get("schoolId");
     const classId = searchParams.get("classId");
     const daysBack = parseInt(searchParams.get("daysBack") || "7");
+    const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
+    if (schoolAccess) return schoolAccess;
 
     if (!schoolId) {
       return NextResponse.json(
         { error: "ID d'établissement requis" },
         { status: 400 }
-      );
-    }
-
-    // Security check
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId !== schoolId) {
-      return NextResponse.json(
-        { error: "Accès non autorisé" },
-        { status: 403 }
       );
     }
 

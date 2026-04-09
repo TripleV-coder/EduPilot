@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -43,7 +44,7 @@ export async function GET(
 
     const schoolId = classSubject.class.schoolId;
 
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId !== schoolId) {
+    if (!canAccessSchool(session, schoolId)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

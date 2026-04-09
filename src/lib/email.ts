@@ -6,10 +6,11 @@
  * - Resend (recommended)
  * - SendGrid
  * - AWS SES
- * - Nodemailer with SMTP
+ * - Nodemailer with SMTP ("smtp")
  */
 
 import { logger } from "@/lib/utils/logger";
+import nodemailer from "nodemailer";
 
 interface EmailOptions {
   to: string;
@@ -43,9 +44,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   // Check if email service is configured
   const emailProvider = process.env.EMAIL_PROVIDER;
   const emailApiKey = process.env.EMAIL_API_KEY;
-  const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.app";
+  const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.bj";
 
-  if (!emailProvider || !emailApiKey) {
+  const isSmtpIncomplete = emailProvider === "smtp" && (!process.env.SMTP_HOST || !process.env.SMTP_PORT);
+  const isApiIncomplete = (emailProvider === "resend" || emailProvider === "sendgrid") && !emailApiKey;
+
+  if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
     if (isDev) {
       console.log("=".repeat(60));
       console.log("EMAIL SERVICE - Development Mode");
@@ -126,6 +130,29 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         logger.error("SendGrid API error", new Error(error), { module: "email" });
         return false;
       }
+
+      return true;
+    }
+
+    // SMTP (Nodemailer) integration
+    if (emailProvider === "smtp") {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "localhost",
+        port: parseInt(process.env.SMTP_PORT || "587", 10),
+        secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+        auth: (process.env.SMTP_USER && process.env.SMTP_PASS) ? {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        } : undefined,
+      });
+
+      await transporter.sendMail({
+        from: emailFrom,
+        to,
+        subject,
+        html,
+        text,
+      });
 
       return true;
     }

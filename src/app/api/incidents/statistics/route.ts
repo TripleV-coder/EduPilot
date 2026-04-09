@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // GET /api/incidents/statistics - Get incident statistics
 export async function GET(request: NextRequest) {
@@ -73,13 +74,13 @@ export async function GET(request: NextRequest) {
       } else {
         return NextResponse.json({ error: "Parent non trouvé" }, { status: 404 });
       }
-    } else if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+    } else if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       // School filter for other staff
       studentFilter = {
         enrollments: {
           some: {
             class: {
-              schoolId: session.user.schoolId,
+              schoolId: getActiveSchoolId(session),
             },
           },
         },

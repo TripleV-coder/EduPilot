@@ -6,10 +6,12 @@ import { Permission } from "@/lib/rbac/permissions";
 import { hash } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+
 export const POST = createApiHandler(
   async (request, { session }) => {
     const { type, data, schoolId } = await request.json();
-    const targetSchoolId = schoolId || session.user.schoolId;
+    const targetSchoolId = schoolId || getActiveSchoolId(session);
 
     if (!targetSchoolId) {
       return NextResponse.json({ error: "Établissement requis" }, { status: 400 });

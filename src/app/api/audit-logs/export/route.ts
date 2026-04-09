@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { translateEntity } from "@/lib/utils/entity-translator";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/audit-logs/export
@@ -30,12 +31,12 @@ export async function GET(request: NextRequest) {
 
     // For SCHOOL_ADMIN, only show logs for their school (Inviolable isolation)
     if (session.user.role === "SCHOOL_ADMIN") {
-      if (!session.user.schoolId) {
+      if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
 
       const schoolUserIds = await prisma.user.findMany({
-        where: { schoolId: session.user.schoolId },
+        where: { schoolId: getActiveSchoolId(session) },
         select: { id: true },
       });
 

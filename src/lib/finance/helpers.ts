@@ -103,14 +103,16 @@ export function summarizePaymentPlans(
       isWithinDateRange(installment.dueDate, range)
     );
 
-    if (relevantInstallments.length > 0) {
-      totalExpected += relevantInstallments.reduce(
-        (sum, installment) => sum + Number(installment.amount),
-        0
-      );
-      totalPending += relevantInstallments
-        .filter((installment) => isUnpaidInstallment(installment.status))
-        .reduce((sum, installment) => sum + Number(installment.amount), 0);
+    if (plan.installmentPayments.length > 0) {
+      if (relevantInstallments.length > 0) {
+        totalExpected += relevantInstallments.reduce(
+          (sum, installment) => sum + Number(installment.amount),
+          0
+        );
+        totalPending += relevantInstallments
+          .filter((installment) => isUnpaidInstallment(installment.status))
+          .reduce((sum, installment) => sum + Number(installment.amount), 0);
+      }
       continue;
     }
 

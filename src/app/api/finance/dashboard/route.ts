@@ -8,6 +8,7 @@ import {
   isUnpaidInstallment,
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -32,21 +33,16 @@ export async function GET(request: Request) {
     const querySchoolId = searchParams.get("schoolId");
     const academicYearId = searchParams.get("academicYearId");
     const periodId = searchParams.get("periodId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, querySchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
 
-    const schoolId = querySchoolId || session.user.schoolId;
+    const schoolId = querySchoolId || activeSchoolId;
 
     if (!schoolId) {
       return NextResponse.json(
         { error: "ID d'établissement requis" },
         { status: 400 }
-      );
-    }
-
-    // Security check
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId !== schoolId) {
-      return NextResponse.json(
-        { error: "Accès non autorisé" },
-        { status: 403 }
       );
     }
 

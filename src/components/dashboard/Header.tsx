@@ -9,14 +9,17 @@ import { useSchool } from "@/components/providers/school-provider";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { NotificationCenter } from "./NotificationCenter";
 import { GlobalSearch } from "./GlobalSearch";
 
+const GLOBAL_CONTEXT_VALUE = "__GLOBAL_CONTEXT__";
+
 export function Header() {
     const { data: session } = useSession();
     const { toggle, setIsMobileOpen, density, setDensity, isFocusMode, toggleFocusMode } = useSidebar();
-    const { currentPeriodName } = useSchool();
+    const { currentPeriodName, schoolId, accessibleSchools, setActiveSchoolId, isSwitchingSchool } = useSchool();
     const pathname = usePathname();
     const [isElevated, setIsElevated] = useState(false);
     
@@ -62,6 +65,7 @@ export function Header() {
         announcements: "Annonces",
         appointments: "Rendez-vous",
         library: "Bibliothèque",
+        organization: "Organisation",
         orientation: "Orientation",
         gamification: "Gamification",
         rooms: "Salles & lieux",
@@ -181,6 +185,34 @@ export function Header() {
                 {currentPeriodName && (
                     <div className="hidden md:flex items-center h-7 px-3 rounded-full bg-[#EEF7F3] border border-[#B8DFC8] text-[11px] font-medium text-[#2D6A4F]">
                         {currentPeriodName}
+                    </div>
+                )}
+
+                {((session?.user?.role === "SUPER_ADMIN" && accessibleSchools.length > 0) || accessibleSchools.length > 1) && (
+                    <div className="hidden lg:block w-[210px]">
+                        <Select
+                            value={schoolId || (session?.user?.role === "SUPER_ADMIN" ? GLOBAL_CONTEXT_VALUE : undefined)}
+                            onValueChange={(value) => {
+                                void setActiveSchoolId(value === GLOBAL_CONTEXT_VALUE ? null : value);
+                            }}
+                            disabled={isSwitchingSchool}
+                        >
+                            <SelectTrigger className="h-8 bg-[#F7F7F5] border-[#E1E0DB] text-xs">
+                                <SelectValue placeholder="Choisir un établissement" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {session?.user?.role === "SUPER_ADMIN" && (
+                                    <SelectItem value={GLOBAL_CONTEXT_VALUE}>
+                                        Console globale
+                                    </SelectItem>
+                                )}
+                                {accessibleSchools.map((school) => (
+                                    <SelectItem key={school.id} value={school.id}>
+                                        {school.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 )}
 

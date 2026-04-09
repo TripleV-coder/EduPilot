@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -17,9 +18,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
     const schoolId = session.user.role === "SUPER_ADMIN"
       ? requestedSchoolId
-      : session.user.schoolId;
+      : requestedSchoolId || activeSchoolId;
     const academicYearId = searchParams.get("academicYearId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -29,14 +33,6 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: "ID d'établissement requis" },
         { status: 400 }
-      );
-    }
-
-    // Security check
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId !== schoolId) {
-      return NextResponse.json(
-        { error: "Accès non autorisé" },
-        { status: 403 }
       );
     }
 

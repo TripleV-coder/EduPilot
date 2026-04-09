@@ -9,6 +9,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // Chat schema
 const chatSchema = z.object({
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
           message: chatData.message,
           userId: session.user.id,
           userRole: session.user.role || "user",
-          schoolId: session.user.schoolId,
+          schoolId: getActiveSchoolId(session),
         });
         return NextResponse.json(chatResult);
 
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
           action: actionData.action,
           userId: session.user.id,
           userRole: session.user.role || "user",
-          schoolId: session.user.schoolId,
+          schoolId: getActiveSchoolId(session),
           data: actionData.data,
         });
         return NextResponse.json(actionResult);
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
             action: `analyze-${analyzeData_.dataType}`,
             userId: session.user.id,
             userRole: session.user.role || "user",
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session),
             data: analyzeData_.data,
           }),
         });
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
           message: body.message || "Hello",
           userId: session.user.id,
           userRole: session.user.role || "user",
-          schoolId: session.user.schoolId,
+          schoolId: getActiveSchoolId(session),
         });
         return NextResponse.json(result);
     }

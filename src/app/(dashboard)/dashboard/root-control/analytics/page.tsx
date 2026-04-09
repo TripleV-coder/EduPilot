@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Building2, Users, CreditCard, TrendingUp, Activity, Loader2, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
@@ -59,7 +58,7 @@ export default function RootAnalyticsPage() {
         new Intl.NumberFormat("fr-BJ", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(amount);
 
     return (
-        <PageGuard permission={["*" as Permission] /* Needs SUPER_ADMIN */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader

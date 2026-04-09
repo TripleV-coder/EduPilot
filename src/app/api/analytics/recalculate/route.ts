@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { schoolId } = await request.json();
-  const targetSchoolId = schoolId || session.user.schoolId;
+  const targetSchoolId = schoolId || getActiveSchoolId(session);
 
   if (!targetSchoolId) {
     return NextResponse.json({ error: "schoolId requis" }, { status: 400 });

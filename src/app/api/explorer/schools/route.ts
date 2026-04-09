@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     const session = await auth();
     let where: { isActive: boolean; id?: string } = { isActive: true };
     if (session?.user?.role !== "SUPER_ADMIN" && session?.user?.schoolId) {
-      where = { ...where, id: session.user.schoolId };
+      where = { ...where, id: getActiveSchoolId(session) };
     }
 
     const schools = await prisma.school.findMany({

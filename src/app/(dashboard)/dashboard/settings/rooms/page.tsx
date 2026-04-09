@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import {
     Building2,
     Plus,
@@ -523,7 +522,7 @@ export default function RoomsPage() {
     // -- Render --------------------------------------------------------------
 
     return (
-        <PageGuard permission={["*" as Permission]}>
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <div className="space-y-6 max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

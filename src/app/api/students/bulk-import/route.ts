@@ -8,6 +8,7 @@ import { importStudentSchema } from "@/lib/import/schemas";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { checkStudentQuota } from "@/lib/saas/quotas";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // Wrap the shared schema in an array for bulk import structure expectations if needed
 // But the shared schema is for a single student. 
@@ -21,7 +22,7 @@ const bodySchema = z.object({
 
 export const POST = createApiHandler(
   async (request, { session }, t) => {
-    const schoolId = session.user.schoolId;
+    const schoolId = getActiveSchoolId(session);
     if (!schoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
     }

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
@@ -76,8 +77,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Trouver toutes les classes où l'enseignant enseigne
+      const activeSchoolId = getActiveSchoolId(session);
       const classSubjects = await prisma.classSubject.findMany({
-        where: { teacherId: teacherProfile.id },
+        where: {
+          teacherId: teacherProfile.id,
+          ...(activeSchoolId ? { class: { schoolId: activeSchoolId } } : {}),
+        },
         select: { classId: true },
       });
 
@@ -95,8 +100,12 @@ export async function GET(request: NextRequest) {
       allowedStudentIds = enrollments.map((e) => e.studentId);
     } else if (session.user.role !== "SUPER_ADMIN") {
       // Pour les admins d'école
+      const activeSchoolId = getActiveSchoolId(session);
+      if (!activeSchoolId) {
+        return NextResponse.json([]);
+      }
       where.student = {
-        schoolId: session.user.schoolId as string,
+        schoolId: activeSchoolId,
       };
     }
 
@@ -274,7 +283,7 @@ export async function POST(request: NextRequest) {
         include: { user: true },
       });
 
-      if (!student || student.user.schoolId !== session.user.schoolId) {
+      if (!student || !canAccessSchool(session, student.user.schoolId)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
     }

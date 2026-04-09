@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { BookMarked, Save, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -99,7 +98,7 @@ export default function ClassSubjectsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Usually SCHOOL_ADMIN or DIRECTOR */}>
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <div className="space-y-6 max-w-5xl mx-auto">
                 <PageHeader
                     title="Matières par Classe"

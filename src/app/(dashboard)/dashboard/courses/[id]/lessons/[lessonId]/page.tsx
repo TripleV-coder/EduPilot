@@ -117,7 +117,7 @@ export default function LessonViewerPage() {
     }
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
             <div className="max-w-5xl mx-auto space-y-6 pb-20">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between">

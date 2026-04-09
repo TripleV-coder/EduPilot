@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@/lib/utils/logger";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createPaymentPlanSchema = z.object({
   studentId: z.string().cuid(),
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const status = searchParams.get("status");
+    const activeSchoolId = getActiveSchoolId(session);
 
     const where: Prisma.PaymentPlanWhereInput = {};
 
@@ -58,10 +60,10 @@ export async function GET(request: NextRequest) {
       }
     } else if (["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(session.user.role)) {
       // Admins see all plans for their school
-      if (!session.user.schoolId) {
+      if (!activeSchoolId) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
-      where.student = { schoolId: session.user.schoolId };
+      where.student = { schoolId: activeSchoolId };
       if (studentId) {
         where.studentId = studentId;
       }
@@ -116,7 +118,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = createPaymentPlanSchema.parse(body);
-
     // Verify student exists and belongs to school
     const student = await prisma.studentProfile.findFirst({
       where: { id: validatedData.studentId },
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
     if (!student) {
       return NextResponse.json({ error: "Étudiant non trouvé" }, { status: 404 });
     }
-    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== session.user.schoolId) {
+    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, student.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

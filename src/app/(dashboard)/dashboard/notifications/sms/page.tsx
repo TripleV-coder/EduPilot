@@ -4,7 +4,6 @@ import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { MessageSquare, Send, Users, AlertCircle, Phone, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -90,7 +89,7 @@ export default function SmsNotificationsPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Usually SCHOOL_ADMIN */} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Campagnes SMS"

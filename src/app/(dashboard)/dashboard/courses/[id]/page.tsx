@@ -81,7 +81,7 @@ export default function CourseDetailPage() {
     const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
             <div className="space-y-8 max-w-5xl mx-auto pb-20">
                 <PageHeader
                     title={course.title}

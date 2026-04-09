@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -19,9 +20,8 @@ export async function GET(request: NextRequest) {
     const academicYearId = searchParams.get("academicYearId");
     const classId = searchParams.get("classId");
     const periodIds = searchParams.getAll("periodIds"); // Multiple periodIds
-    const schoolId = session.user.schoolId;
 
-    if (!schoolId || !academicYearId || !classId || periodIds.length === 0) {
+    if (!academicYearId || !classId || periodIds.length === 0) {
       return NextResponse.json(
         { error: "Paramètres manquants" },
         { status: 400 }
@@ -29,12 +29,16 @@ export async function GET(request: NextRequest) {
     }
 
     const classRecord = await prisma.class.findFirst({
-      where: { id: classId, schoolId },
-      select: { id: true },
+      where: { id: classId },
+      select: { id: true, schoolId: true, name: true },
     });
 
     if (!classRecord) {
       return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
+    }
+
+    if (!canAccessSchool(session, classRecord.schoolId)) {
+      return NextResponse.json({ error: "Accès refusé à cette classe" }, { status: 403 });
     }
 
     const comparisons = await Promise.all(
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
             academicYearId,
             periodId,
             student: {
-              schoolId,
+              schoolId: classRecord.schoolId,
               enrollments: {
                 some: { classId, academicYearId },
               },
@@ -85,6 +89,9 @@ export async function GET(request: NextRequest) {
         return {
           periodId,
           periodName: period?.name || "Unknown",
+          classId: classRecord.id,
+          className: classRecord.name,
+          schoolId: classRecord.schoolId,
           studentCount: analytics.length,
           averageGrade: roundTo(avgGrade),
           passRate: roundTo(passRate),

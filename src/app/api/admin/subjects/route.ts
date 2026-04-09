@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { primarySubjects, collegeSubjects } from "@/lib/benin/config";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // GET: Liste des matières de l'école
 export async function GET(_req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(_req: NextRequest) {
     }
 
     const subjects = await prisma.subject.findMany({
-        where: { schoolId: session.user.schoolId },
+        where: { schoolId: getActiveSchoolId(session) },
         orderBy: [{ category: "asc" }, { name: "asc" }],
     });
 
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Check if code already exists
     const existing = await prisma.subject.findUnique({
-        where: { schoolId_code: { schoolId: session.user.schoolId, code } },
+        where: { schoolId_code: { schoolId: getActiveSchoolId(session) as string, code } },
     });
 
     if (existing) {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const subject = await prisma.subject.create({
         data: {
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session) as string,
             name,
             code: code.toUpperCase(),
             category: category || null,
@@ -79,7 +80,7 @@ export async function PUT(req: NextRequest) {
 
     for (const subj of subjectsToImport) {
         const existing = await prisma.subject.findUnique({
-            where: { schoolId_code: { schoolId: session.user.schoolId, code: subj.code } },
+            where: { schoolId_code: { schoolId: getActiveSchoolId(session) as string, code: subj.code } },
         });
 
         if (existing) {
@@ -89,7 +90,7 @@ export async function PUT(req: NextRequest) {
 
         await prisma.subject.create({
             data: {
-                schoolId: session.user.schoolId,
+                schoolId: getActiveSchoolId(session) as string,
                 name: subj.name,
                 code: subj.code,
                 category: subj.category,

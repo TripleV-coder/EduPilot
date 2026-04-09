@@ -10,6 +10,8 @@ import { sendWelcomeEmail } from "@/lib/email";
 import crypto from "crypto";
 import type { UserRole } from "@prisma/client";
 import { canCreateRole } from "@/lib/rbac/permissions";
+import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 // Validation schema for user invitation
 const inviteUserSchema = z.object({
@@ -134,14 +136,22 @@ export async function POST(request: NextRequest) {
             });
 
             // Create associated profile based on role
-            const targetSchoolId = validatedData.schoolId || session.user.schoolId;
+            const targetSchoolId = validatedData.schoolId || session.user.primarySchoolId || getActiveSchoolId(session);
 
             if (validatedData.role === "TEACHER" && targetSchoolId) {
-                await tx.teacherProfile.create({
+                const teacherProfile = await tx.teacherProfile.create({
                     data: {
                         userId: user.id,
                         schoolId: targetSchoolId,
                     },
+                });
+                await tx.teacherSchoolAssignment.createMany({
+                    data: buildTeacherSchoolAssignments({
+                        teacherId: teacherProfile.id,
+                        userId: user.id,
+                        primarySchoolId: targetSchoolId,
+                        schoolIds: [targetSchoolId],
+                    }),
                 });
             } else if (validatedData.role === "STUDENT" && targetSchoolId) {
                 const matricule = `STU-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;

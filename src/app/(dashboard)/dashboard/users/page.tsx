@@ -5,7 +5,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Users, AlertCircle, Plus, Search, Trash2, ArrowUpDown, Download } from "lucide-react";
+import { Users, AlertCircle, Plus, Trash2, ArrowUpDown, Download } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
+import { useSession } from "next-auth/react";
 
 type User = {
     id: string;
@@ -50,11 +51,12 @@ const roleLabels: Record<string, string> = {
 export default function UsersPage() {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
+    const { data: session } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("ALL");
     const debouncedSearch = useDebounce(searchTerm, 300);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string; email: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const searchParams = new URLSearchParams();
@@ -67,8 +69,8 @@ export default function UsersPage() {
 
     const users: User[] = response?.data || response?.users || (Array.isArray(response) ? response : []);
 
-    const requestDelete = (id: string, name: string) => {
-        setPendingDelete({ id, name });
+    const requestDelete = (id: string, name: string, email: string) => {
+        setPendingDelete({ id, name, email });
         setDeleteDialogOpen(true);
     };
 
@@ -76,9 +78,20 @@ export default function UsersPage() {
         if (!pendingDelete) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/users/${pendingDelete.id}`, { method: "DELETE" });
-            if (!res.ok) throw new Error("Erreur de suppression");
-            toast({ title: "Succès", description: "L'utilisateur a été supprimé." });
+            const res = await fetch(`/api/users/${pendingDelete.id}/delete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    confirmEmail: pendingDelete.email,
+                    deleteType: "SOFT",
+                }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(data?.error || "Erreur de suppression");
+            toast({
+                title: "Succès",
+                description: data?.message || "Le compte a été anonymisé avec succès.",
+            });
             setDeleteDialogOpen(false);
             setPendingDelete(null);
             mutate(url);
@@ -186,14 +199,24 @@ export default function UsersPage() {
             header: "",
             cell: ({ row }) => (
                 <div className="flex items-center justify-end gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => requestDelete(row.original.id, `${row.original.firstName} ${row.original.lastName}`)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {session?.user?.role === "SUPER_ADMIN" ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() =>
+                                requestDelete(
+                                    row.original.id,
+                                    `${row.original.firstName} ${row.original.lastName}`,
+                                    row.original.email
+                                )
+                            }
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">Aucune action</span>
+                    )}
                 </div>
             ),
         },
@@ -225,6 +248,24 @@ export default function UsersPage() {
                 </div>
 
                 <Card className="p-4 rounded-xl shadow-sm border border-border">
+                    <ConfirmActionDialog
+                        open={deleteDialogOpen}
+                        onOpenChange={(open) => {
+                            setDeleteDialogOpen(open);
+                            if (!open) setPendingDelete(null);
+                        }}
+                        title="Anonymiser l'utilisateur"
+                        description={
+                            pendingDelete
+                                ? `Cette action utilisera la route RGPD existante pour anonymiser "${pendingDelete.name}".`
+                                : undefined
+                        }
+                        confirmLabel={t("common.delete")}
+                        cancelLabel={t("common.cancel")}
+                        variant="destructive"
+                        isConfirmLoading={isDeleting}
+                        onConfirm={confirmDelete}
+                    />
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <div className="w-full sm:w-[200px]">
                             <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -266,21 +307,6 @@ export default function UsersPage() {
                 </Card>
             </div>
 
-            <ConfirmActionDialog
-                open={deleteDialogOpen}
-                onOpenChange={(open) => {
-                    setDeleteDialogOpen(open);
-                    if (!open) setPendingDelete(null);
-                }}
-                title={pendingDelete ? `Supprimer ${pendingDelete.name} ?` : "Supprimer cet utilisateur ?"}
-                description="Cette action est définitive. L’utilisateur perdra l’accès à la plateforme."
-                confirmLabel={t("common.delete")}
-                cancelLabel={t("common.cancel")}
-                variant="destructive"
-                isConfirmLoading={isDeleting}
-                onConfirm={confirmDelete}
-            />
         </PageGuard>
     );
 }
-

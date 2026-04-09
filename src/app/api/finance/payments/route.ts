@@ -8,6 +8,7 @@ import {
     buildPaymentDateWhere,
     syncPaymentPlanLedger,
 } from "@/lib/finance/helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 
 export const GET = createApiHandler(
@@ -86,7 +87,7 @@ export const POST = createApiHandler(
         const validatedData = paymentSchema.parse(body);
 
         const receivedByUserId = authSession.user.id;
-        const actorSchoolId = authSession.user.schoolId;
+        const actorSchoolId = getActiveSchoolId(authSession);
 
         // Vérification multi-tenant : le student ET la fee doivent appartenir
         // à l'école de l'utilisateur connecté (sauf SUPER_ADMIN).

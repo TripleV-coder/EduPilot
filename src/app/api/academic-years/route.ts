@@ -4,12 +4,17 @@ import { academicYearSchema } from "@/lib/validations/school";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get("schoolId") || session.user.schoolId;
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const activeSchoolId = getActiveSchoolId(session);
+    const schoolId = requestedSchoolId || activeSchoolId;
 
     if (!schoolId) {
       if (session.user.role === "SUPER_ADMIN") {
@@ -24,14 +29,6 @@ export const GET = createApiHandler(
       }
       return NextResponse.json(translateError(API_ERRORS.MISSING_PERMISSIONS, t), { status: 400 });
     }
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      schoolId !== session.user.schoolId
-    ) {
-      return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
-    }
-
     const academicYears = await prisma.academicYear.findMany({
       where: { schoolId },
       include: {
@@ -55,7 +52,7 @@ export const GET = createApiHandler(
 
 export const POST = createApiHandler(
   async (request, { session }, t) => {
-    let schoolId = session.user.schoolId;
+    let schoolId = getActiveSchoolId(session);
     const body = await request.json();
 
     if (session.user.role === "SUPER_ADMIN" && body.schoolId) {

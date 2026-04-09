@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Settings, User, Bell, Shield, Palette, Globe, GraduationCap, Calendar, Building, BookOpen } from "lucide-react";
+import { Settings, User, Bell, Shield, Palette, Globe, GraduationCap, Calendar, Building, BookOpen, SlidersHorizontal, Tags } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 
@@ -18,6 +18,8 @@ const adminSettings = [
   { icon: Calendar, title: "Années Académiques", desc: "Gérer les années et périodes", href: "/dashboard/settings/academic", color: "text-primary", bg: "bg-primary/10" },
   { icon: GraduationCap, title: "Niveaux d'Étude", desc: "Configuration des classes", href: "/dashboard/settings/class-levels", color: "text-secondary", bg: "bg-secondary/10" },
   { icon: BookOpen, title: "Matières & Évaluations", desc: "Matières, coefficients et catégories", href: "/dashboard/settings/subjects", color: "text-accent", bg: "bg-accent/10" },
+  { icon: Tags, title: "Catégories de matières", desc: "Référentiel des familles de matières", href: "/dashboard/settings/subject-categories", color: "text-primary", bg: "bg-primary/10" },
+  { icon: SlidersHorizontal, title: "Options de configuration", desc: "Référentiels métiers simples du tenant", href: "/dashboard/settings/config-options", color: "text-secondary", bg: "bg-secondary/10" },
   { icon: Shield, title: "RGPD & Conformité", desc: "Politiques, consentements et données", href: "/dashboard/settings/compliance", color: "text-info", bg: "bg-info/10" },
   { icon: Building, title: "Profil Établissement", desc: "Informations de l'école", href: "/dashboard/settings/school", color: "text-primary", bg: "bg-primary/10" },
 ];

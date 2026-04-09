@@ -105,7 +105,7 @@ export default function CoursesPage() {
     }, []);
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ, Permission.SUBJECT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <PageGuard permission={[Permission.CLASS_READ, Permission.SUBJECT_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
             <div className="space-y-6">
                 <PageHeader
                     title="Mes Cours & Apprentissages"

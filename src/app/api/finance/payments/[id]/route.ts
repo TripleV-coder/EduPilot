@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -59,9 +60,8 @@ export async function PUT(
         if (
             session.user.role !== "SUPER_ADMIN" &&
             (
-                !session.user.schoolId ||
-                existingPayment.student.user.schoolId !== session.user.schoolId ||
-                existingPayment.fee.schoolId !== session.user.schoolId
+                !canAccessSchool(session, existingPayment.student.user.schoolId) ||
+                !canAccessSchool(session, existingPayment.fee.schoolId)
             )
         ) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -125,7 +125,6 @@ export async function DELETE(
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
         if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"].includes(session.user.role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -158,9 +157,8 @@ export async function DELETE(
         if (
             session.user.role !== "SUPER_ADMIN" &&
             (
-                !session.user.schoolId ||
-                payment.student.user.schoolId !== session.user.schoolId ||
-                payment.fee.schoolId !== session.user.schoolId
+                !canAccessSchool(session, payment.student.user.schoolId) ||
+                !canAccessSchool(session, payment.fee.schoolId)
             )
         ) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });

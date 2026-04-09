@@ -7,6 +7,7 @@ import { softDelete } from "@/lib/db/soft-delete";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const updateAnnouncementSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -62,7 +63,7 @@ export async function GET(
     }
 
     // Check if user has access (same school and targeted role)
-    if (announcement.schoolId !== session.user.schoolId) {
+    if (announcement.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -128,7 +129,7 @@ export async function PATCH(
     }
 
     // Verify same school
-    if (existingAnnouncement.schoolId !== session.user.schoolId) {
+    if (existingAnnouncement.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -217,7 +218,7 @@ export async function DELETE(
     }
 
     // Verify same school
-    if (announcement.schoolId !== session.user.schoolId) {
+    if (announcement.schoolId !== getActiveSchoolId(session)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

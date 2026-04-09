@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
+import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
-import { DollarSign, TrendingUp, AlertCircle, CreditCard, Activity, Plus, CalendarClock, CheckCircle, Loader2, ArrowUpDown, Filter, Zap } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,12 +17,18 @@ import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
-
+import { 
+    DollarSign, TrendingUp, AlertCircle, Plus, CalendarClock, 
+    CheckCircle, Loader2, ArrowUpDown, Filter, Zap, Activity 
+} from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { ParentFinanceView } from "@/components/dashboard/finance/parent-finance-view";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { useSession } from "next-auth/react";
+import { useSchool } from "@/components/providers/school-provider";
 import { PageCallout } from "@/components/layout/page-callout";
-import { t } from "@/lib/i18n";
+import { Permission } from "@/lib/rbac/permissions";
+import { toast } from "sonner";
 
 type FinanceSummary = {
     totalFees: number;
@@ -37,14 +43,9 @@ type Payment = {
     status: string;
     createdAt: string;
     student: {
-        user: {
-            firstName: string;
-            lastName: string;
-        };
+        user: { firstName: string; lastName: string; };
     };
-    fee: {
-        name: string;
-    };
+    fee: { name: string; };
 };
 
 type OverdueStudent = {
@@ -66,14 +67,9 @@ type PaymentPlan = {
     installments: number;
     status: string;
     student: {
-        user: {
-            firstName: string;
-            lastName: string;
-        };
+        user: { firstName: string; lastName: string; };
     };
-    fee: {
-        name: string;
-    };
+    fee: { name: string; };
     installmentPayments: {
         id: string;
         amount: number;
@@ -82,7 +78,7 @@ type PaymentPlan = {
     }[];
 };
 
-type FinanceData = {
+type FinanceDashboardData = {
     summary: FinanceSummary;
     recentPayments: Payment[];
     overdueStudents: OverdueStudent[];
@@ -91,89 +87,50 @@ type FinanceData = {
 
 export default function FinanceDashboardPage() {
     const { data: session } = useSession();
-    const [data, setData] = useState<FinanceData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([]);
-    const [plansLoading, setPlansLoading] = useState(true);
-    const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
-
-    // Filters
-    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const { schoolId } = useSchool();
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>("ALL");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
+    const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
 
-    // Fetch Academic Years
-    useEffect(() => {
-        fetch("/api/academic-years")
-            .then(r => r.ok ? r.json() : [])
-            .then(data => {
-                if (Array.isArray(data) && data.length > 0) {
-                    setAcademicYears(data);
-                    const currentYear = data.find((y: any) => y.isCurrent);
-                    if (currentYear) {
-                        setSelectedAcademicYearId(currentYear.id);
-                    } else {
-                        setSelectedAcademicYearId(data[0].id);
-                    }
-                }
-            })
-            .catch(() => { });
-    }, []);
-
-    // Fetch dashboard data based on filters
-    useEffect(() => {
-        let cancelled = false;
-        if (session?.user?.role === "PARENT") return;
-        
-        setLoading(true);
-
-        const params = new URLSearchParams();
-        if (selectedAcademicYearId !== "ALL") params.set("academicYearId", selectedAcademicYearId);
-        if (selectedPeriodId !== "ALL") params.set("periodId", selectedPeriodId);
-
-        fetch(`/api/finance/dashboard?${params.toString()}`, { credentials: "include" })
-            .then((r) => {
-                if (!r.ok) throw new Error("Erreur de chargement des données financières");
-                return r.json();
-            })
-            .then((d) => {
-                if (!cancelled) setData(d);
-            })
-            .catch((e) => {
-                if (!cancelled) setError(e.message);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedAcademicYearId, selectedPeriodId, session?.user?.role]);
-
-    // Handle Year Change
-    const handleYearChange = (yearId: string) => {
-        setSelectedAcademicYearId(yearId);
-        setSelectedPeriodId("ALL");
-    };
-
-    const activeYear = academicYears.find(y => y.id === selectedAcademicYearId);
+    // Fetch Academic Years for filters
+    const { data: academicYears } = useSWR(schoolId ? `/api/academic-years?schoolId=${schoolId}` : null, fetcher);
+    
+    const activeYear = useMemo(() => 
+        Array.isArray(academicYears) ? academicYears.find(y => y.id === selectedAcademicYearId) : null
+    , [academicYears, selectedAcademicYearId]);
+    
     const periods = activeYear?.periods || [];
 
-    // Fetch payment plans
-    useEffect(() => {
-        if (session?.user?.role === "PARENT") return;
-        fetch("/api/payment-plans", { credentials: "include" })
-            .then((r) => {
-                if (!r.ok) throw new Error("Erreur");
-                return r.json();
-            })
-            .then((plans) => setPaymentPlans(plans))
-            .catch(() => { })
-            .finally(() => setPlansLoading(false));
-    }, [session?.user?.role]);
+    // Main Dashboard Data
+    const dashboardQuery = useMemo(() => {
+        const params = new URLSearchParams();
+        if (schoolId) params.set("schoolId", schoolId);
+        if (selectedAcademicYearId !== "ALL") params.set("academicYearId", selectedAcademicYearId);
+        if (selectedPeriodId !== "ALL") params.set("periodId", selectedPeriodId);
+        return params.toString();
+    }, [schoolId, selectedAcademicYearId, selectedPeriodId]);
+
+    const { 
+        data: dashData, 
+        error: dashError, 
+        isLoading: dashLoading,
+        mutate: mutateDash
+    } = useSWR<FinanceDashboardData>(schoolId ? `/api/finance/dashboard?${dashboardQuery}` : null, fetcher);
+
+    // Payment Plans
+    const { 
+        data: paymentPlans, 
+        isLoading: plansLoading,
+        mutate: mutatePlans 
+    } = useSWR<PaymentPlan[]>(schoolId ? `/api/payment-plans?schoolId=${schoolId}` : null, fetcher);
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("fr-BJ", {
+            style: "currency",
+            currency: "XOF",
+            maximumFractionDigits: 0,
+        }).format(amount);
+    };
 
     const handlePayInstallment = async (planId: string, installmentId: string) => {
         setPayingInstallment(installmentId);
@@ -185,108 +142,94 @@ export default function FinanceDashboardPage() {
             });
             if (!res.ok) {
                 const data = await res.json();
-                setError(data.error || "Erreur lors du paiement");
+                toast.error(data.error || "Erreur lors du paiement");
                 return;
             }
-            const plansRes = await fetch("/api/payment-plans", { credentials: "include" });
-            if (plansRes.ok) setPaymentPlans(await plansRes.json());
+            toast.success("Paiement enregistré");
+            await Promise.all([mutateDash(), mutatePlans()]);
         } catch {
-            setError("Erreur réseau");
+            toast.error("Erreur réseau");
         } finally {
             setPayingInstallment(null);
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat("fr-BJ", {
-            style: "currency",
-            currency: "XOF",
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
     // --- Charts data transforms ---
     const barChartData = useMemo(() => {
-        if (!data?.paymentsTrend) return [];
+        if (!dashData?.paymentsTrend) return [];
         const byMonth: Record<string, { received: number; pending: number }> = {};
-        for (const t of data.paymentsTrend) {
+        for (const t of dashData.paymentsTrend) {
             const month = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(new Date(t.date));
             if (!byMonth[month]) byMonth[month] = { received: 0, pending: 0 };
             byMonth[month].received += t.amount;
         }
         const months = Object.keys(byMonth);
-        if (months.length > 0 && data.summary.totalPending > 0) {
-            const pendingPerMonth = data.summary.totalPending / months.length;
+        if (months.length > 0 && dashData.summary.totalPending > 0) {
+            const pendingPerMonth = dashData.summary.totalPending / months.length;
             for (const m of months) {
                 byMonth[m].pending = Math.round(pendingPerMonth);
             }
         }
         return months.map(m => ({ month: m, received: byMonth[m].received, pending: byMonth[m].pending }));
-    }, [data]);
+    }, [dashData]);
 
     const collectionPieData = useMemo(() => {
-        if (!data?.summary) return [];
+        if (!dashData?.summary) return [];
         return [
-            { name: "Collecté", value: data.summary.totalCollected, color: CHART_COLORS.excellent },
-            { name: "Reste à recouvrer", value: data.summary.totalPending, color: CHART_COLORS.average },
+            { name: "Collecté", value: dashData.summary.totalCollected, color: CHART_COLORS.excellent },
+            { name: "Reste à recouvrer", value: dashData.summary.totalPending, color: CHART_COLORS.average },
         ];
-    }, [data]);
+    }, [dashData]);
 
-    // --- Payment Plans DataTable columns ---
     const planColumns: ColumnDef<PaymentPlan>[] = useMemo(() => [
         {
             id: "student",
             header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="-ml-4">
                     Élève <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
             ),
             accessorFn: (row) => `${row.student.user.firstName} ${row.student.user.lastName}`,
             cell: ({ row }) => (
-                <span className="font-medium">
-                    {row.original.student.user.firstName} {row.original.student.user.lastName}
-                </span>
+                <div className="flex flex-col">
+                    <span className="font-bold text-foreground">
+                        {row.original.student.user.firstName} {row.original.student.user.lastName}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-medium">{row.original.fee.name}</span>
+                </div>
             ),
-        },
-        {
-            id: "fee",
-            header: "Frais",
-            accessorFn: (row) => row.fee.name,
-            cell: ({ row }) => <span className="text-muted-foreground">{row.original.fee.name}</span>,
         },
         {
             accessorKey: "totalAmount",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Total <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.totalAmount)}</span>,
+            header: "Total",
+            cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.totalAmount)}</span>,
         },
         {
             accessorKey: "paidAmount",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Payé <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            cell: ({ row }) => <span className="text-right block text-secondary">{formatCurrency(row.original.paidAmount)}</span>,
+            header: "Payé",
+            cell: ({ row }) => <span className="font-bold text-emerald-600">{formatCurrency(row.original.paidAmount)}</span>,
         },
         {
-            id: "installmentsProgress",
+            id: "installments",
             header: "Échéances",
             cell: ({ row }) => {
                 const paidCount = row.original.installmentPayments.filter(i => i.status === "PAID").length;
-                return <span className="text-center block">{paidCount}/{row.original.installments}</span>;
+                return (
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted h-1 rounded-full overflow-hidden w-16">
+                            <div className="bg-primary h-full" style={{ width: `${(paidCount/row.original.installments)*100}%` }} />
+                        </div>
+                        <span className="text-xs font-medium">{paidCount}/{row.original.installments}</span>
+                    </div>
+                );
             },
         },
         {
             id: "status",
             header: "Statut",
-            accessorFn: (row) => row.status,
             cell: ({ row }) => (
-                <Badge variant={row.original.status === "COMPLETED" ? "default" : "secondary"}>
-                    {row.original.status === "COMPLETED" ? "Terminé" : "Actif"}
+                <Badge variant={row.original.status === "COMPLETED" ? "default" : "secondary"} className="text-[10px] uppercase font-black">
+                    {row.original.status === "COMPLETED" ? "Terminé" : "En cours"}
                 </Badge>
             ),
         },
@@ -295,343 +238,232 @@ export default function FinanceDashboardPage() {
             header: "",
             cell: ({ row }) => {
                 const nextInstallment = row.original.installmentPayments.find(i => i.status === "PENDING");
-                if (!nextInstallment) return <span className="text-xs text-muted-foreground">Complet</span>;
+                if (!nextInstallment) return null;
                 return (
                     <Button
                         size="sm"
                         variant="outline"
                         disabled={payingInstallment === nextInstallment.id}
                         onClick={() => handlePayInstallment(row.original.id, nextInstallment.id)}
-                        className="gap-1"
+                        className="h-7 text-[10px] font-bold uppercase gap-1"
                     >
                         {payingInstallment === nextInstallment.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                             <CheckCircle className="h-3 w-3" />
                         )}
-                        Payer échéance
+                        Encaisser
                     </Button>
                 );
             },
         },
     ], [payingInstallment]);
 
+    if (session?.user?.role === "PARENT") return <ParentFinanceView />;
+
     return (
-        <PageGuard permission={Permission.FINANCE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT"]}>
-            <div className="space-y-6 dashboard-motion">
-                {session?.user?.role === "PARENT" ? (
-                    <ParentFinanceView />
-                ) : (
+        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <div className="space-y-6 dashboard-motion pb-12">
+                <PageHeader
+                    title="Finances"
+                    description="Suivi des encaissements, des impayés et santé financière globale."
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Finances" },
+                    ]}
+                    actions={
+                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}>
+                            <div className="flex items-center gap-2">
+                                <Link href="/dashboard/finance/bulk-invoice">
+                                    <Button variant="outline" size="sm" className="gap-2 hidden md:flex">
+                                        <Zap className="h-4 w-4" />
+                                        Facturation de Masse
+                                    </Button>
+                                </Link>
+                                <Link href="/dashboard/finance/payments/new">
+                                    <Button size="sm" className="gap-2 action-critical">
+                                        <Plus className="h-4 w-4" />
+                                        Nouvel Encaissement
+                                    </Button>
+                                </Link>
+                            </div>
+                        </RoleActionGuard>
+                    }
+                />
+
+                {/* Filtres contextuels */}
+                <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-xl shadow-sm" data-reveal>
+                    <div className="flex items-center gap-2 mr-2">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
+                    </div>
+                    <Select value={selectedAcademicYearId} onValueChange={(v) => { setSelectedAcademicYearId(v); setSelectedPeriodId("ALL"); }}>
+                        <SelectTrigger className="w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="Année" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Toutes les années</SelectItem>
+                            {Array.isArray(academicYears) && academicYears.map((y: any) => (
+                                <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId} disabled={selectedAcademicYearId === "ALL" || periods.length === 0}>
+                        <SelectTrigger className="w-[160px] h-9 text-xs">
+                            <SelectValue placeholder="Période" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Toute l&apos;année</SelectItem>
+                            {periods.map((p: any) => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {dashError && (
+                    <PageCallout
+                        icon={AlertCircle}
+                        title="Erreur de chargement"
+                        description="Impossible de récupérer les indicateurs financiers."
+                        tone="danger"
+                    />
+                )}
+
+                {dashLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {[1, 2, 3, 4].map(i => <Card key={i} className="h-24 animate-pulse bg-muted/20" />)}
+                    </div>
+                ) : dashData && (
                     <>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <PageHeader
-                                title="Finances"
-                                description="Vue d'ensemble de la santé financière de l'établissement"
-                                breadcrumbs={[
-                                    { label: "Tableau de bord", href: "/dashboard" },
-                                    { label: "Finances" },
-                                ]}
-                            />
-                            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <Link href="/dashboard/finance/bulk-invoice">
-                                        <Button variant="outline" className="gap-2 shadow-sm border-primary/25 text-primary hover:bg-primary/10">
-                                            <Zap className="h-4 w-4" />
-                                            Facturation de Masse
-                                        </Button>
-                                    </Link>
-                                    <Link href="/dashboard/finance/fees">
-                                        <Button variant="outline" className="gap-2 shadow-sm">
-                                            <DollarSign className="h-4 w-4" />
-                                            Gérer les Frais
-                                        </Button>
-                                    </Link>
-                                    <Link href="/dashboard/finance/payments/new">
-                                        <Button className="gap-2 shadow-sm">
-                                            <Plus className="h-4 w-4" />
-                                            Nouvel Encaissement
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </RoleActionGuard>
-                        </div>
-
-                        {/* Filtres Financiers */}
-                        <Card className="dashboard-block border-border shadow-sm" data-reveal>
-                            <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-muted/20">
-                                <div className="flex items-center gap-2 text-muted-foreground mr-2">
-                                    <Filter className="h-4 w-4" />
-                                    <span className="text-sm font-medium">Filtres</span>
-                                </div>
-                                <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                                    <Select value={selectedAcademicYearId} onValueChange={handleYearChange}>
-                                        <SelectTrigger className="w-[180px] bg-background">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">Toutes les années</SelectItem>
-                                            {academicYears.map((year: any) => (
-                                                <SelectItem key={year.id} value={year.id}>
-                                                    {year.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-
-                                    <Select
-                                        value={selectedPeriodId}
-                                        onValueChange={setSelectedPeriodId}
-                                        disabled={selectedAcademicYearId === "ALL" || periods.length === 0}
-                                    >
-                                        <SelectTrigger className="w-[160px] bg-background">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">Toute l&apos;année</SelectItem>
-                                            {periods.map((period: any) => (
-                                                <SelectItem key={period.id} value={period.id}>
-                                                    {period.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </Card>
-
-                        {loading && (
-                            <div className="flex justify-center items-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            </div>
-                        )}
-
-                        {error && (
-                            <PageCallout
-                                icon={AlertCircle}
-                                title="Impossible de charger les données financières"
-                                description={error}
-                                tone="danger"
-                                actions={[
-                                    { label: "Gérer les frais", href: "/dashboard/finance/fees", variant: "outline" },
-                                    { label: "Nouvel encaissement", href: "/dashboard/finance/payments/new" },
-                                ]}
-                            />
-                        )}
-
-                        {!loading && !error && data && (
-                            <>
-                                {/* Summary Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <Card className="dashboard-block kpi-card border-border bg-card" data-reveal>
-                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                            <CardTitle className="text-sm font-medium text-muted-foreground">Total Attendu</CardTitle>
-                                            <DollarSign className="w-4 h-4 text-primary" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatCurrency(data.summary.totalFees)}</div>
-                                            <p className="text-xs text-muted-foreground mt-1">Pour l&apos;année académique</p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="dashboard-block kpi-card border-border bg-card" data-reveal>
-                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                            <CardTitle className="text-sm font-medium text-muted-foreground">Total Encaissé</CardTitle>
-                                            <TrendingUp className="w-4 h-4 text-secondary" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatCurrency(data.summary.totalCollected)}</div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <div className="flex-1 bg-muted h-1.5 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="bg-secondary h-full"
-                                                        style={{ width: `${Math.min(100, data.summary.collectionRate)}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-xs font-medium">{data.summary.collectionRate.toFixed(1)}%</span>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="dashboard-block kpi-card border-border bg-card" data-reveal>
-                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                            <CardTitle className="text-sm font-medium text-muted-foreground">Reste à Recouvrer</CardTitle>
-                                            <AlertCircle className="w-4 h-4 text-warning" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatCurrency(data.summary.totalPending)}</div>
-                                            <p className="text-xs text-muted-foreground mt-1">Montant en attente</p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="dashboard-block kpi-card border-border bg-card" data-reveal>
-                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                            <CardTitle className="text-sm font-medium text-muted-foreground">Volume Transactions</CardTitle>
-                                            <Activity className="w-4 h-4 text-info" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{data.recentPayments.length}</div>
-                                            <p className="text-xs text-muted-foreground mt-1">Paiements récents</p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Charts Row */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <Card className="dashboard-block lg:col-span-2 border-border shadow-sm" data-reveal>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <TrendingUp className="w-5 h-5 text-secondary" />
-                                                Évolution des Encaissements
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="h-[300px]">
-                                            <PaymentBarChart data={barChartData} />
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="dashboard-block border-border shadow-sm" data-reveal>
-                                        <CardHeader>
-                                            <CardTitle>Répartition Globale</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={collectionPieData}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius={60}
-                                                        outerRadius={80}
-                                                        paddingAngle={5}
-                                                        dataKey="value"
-                                                    >
-                                                        {collectionPieData.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Lists Row */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <Card className="dashboard-block lg:col-span-2 border-border shadow-sm overflow-hidden" data-reveal>
-                                        <CardHeader className="border-b bg-muted/10">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-lg">Transactions Récentes</CardTitle>
-                                                <Link href="/dashboard/finance/payments">
-                                                    <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
-                                                        {t("appActions.viewAll")}
-                                                    </Button>
-                                                </Link>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="p-0">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead className="bg-muted/5 text-muted-foreground">
-                                                        <tr className="border-b">
-                                                            <th className="px-4 py-3 text-left font-medium">Élève</th>
-                                                            <th className="px-4 py-3 text-left font-medium">Frais</th>
-                                                            <th className="px-4 py-3 text-right font-medium">Montant</th>
-                                                            <th className="px-4 py-3 text-center font-medium">Statut</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-border/50">
-                                                        {data.recentPayments.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                                                                    Aucune transaction récente
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            data.recentPayments.map((p) => (
-                                                                <tr key={p.id} className="hover:bg-muted/5 transition-colors">
-                                                                    <td className="px-4 py-3 font-medium">
-                                                                        {p.student.user.firstName} {p.student.user.lastName}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-muted-foreground">{p.fee.name}</td>
-                                                                    <td className="px-4 py-3 text-right font-bold text-secondary">
-                                                                        {formatCurrency(p.amount)}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-center">
-                                                                        <Badge variant="default" className="bg-secondary hover:bg-secondary/90">
-                                                                            Validé
-                                                                        </Badge>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="dashboard-block border-border shadow-sm border-l-4 border-l-destructive" data-reveal>
-                                        <CardHeader>
-                                            <CardTitle className="text-lg flex items-center gap-2 text-destructive">
-                                                <AlertCircle className="w-5 h-5" />
-                                                Impayés Majeurs
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {data.overdueStudents.length === 0 ? (
-                                                <p className="text-sm text-muted-foreground py-4 text-center">Aucun impayé majeur</p>
-                                            ) : (
-                                                <div className="space-y-4">
-                                                    {data.overdueStudents.map((student, i) => (
-                                                        <div key={student.studentId || i} className="flex items-center justify-between">
-                                                            <p className="font-medium text-sm truncate pr-4">{student.studentName}</p>
-                                                            <p className="font-bold text-sm text-destructive">{formatCurrency(student.balance)}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Payment Plans with DataTable */}
-                                <Card className="dashboard-block border-border bg-card" data-reveal>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <CalendarClock className="w-5 h-5" />
-                                            Plans de Paiement
-                                        </CardTitle>
-                                        <CardDescription>Échéanciers en cours pour les élèves</CardDescription>
+                        {/* KPI Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {[
+                                { label: "Total Attendu", value: formatCurrency(dashData.summary.totalFees), color: "text-foreground", icon: DollarSign },
+                                { label: "Total Encaissé", value: formatCurrency(dashData.summary.totalCollected), color: "text-emerald-600", icon: TrendingUp, progress: dashData.summary.collectionRate },
+                                { label: "Reste à Recouvrer", value: formatCurrency(dashData.summary.totalPending), color: "text-orange-600", icon: AlertCircle },
+                                { label: "Recouvrement", value: `${dashData.summary.collectionRate.toFixed(1)}%`, color: "text-primary", icon: Activity },
+                            ].map((kpi, i) => (
+                                <Card key={i} className="dashboard-block kpi-card border-border bg-card">
+                                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{kpi.label}</div>
+                                        <kpi.icon className="w-3.5 h-3.5 text-muted-foreground/50" />
                                     </CardHeader>
                                     <CardContent>
-                                        {plansLoading ? (
-                                            <div className="flex justify-center py-6">
-                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                        <div className={cn("text-2xl metric-serif", kpi.color)}>{kpi.value}</div>
+                                        {kpi.progress !== undefined && (
+                                            <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+                                                <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, kpi.progress)}%` }} />
                                             </div>
-                                        ) : paymentPlans.length === 0 ? (
-                                            <PageCallout
-                                                icon={CalendarClock}
-                                                title="Aucun plan de paiement"
-                                                description="Les plans de paiement apparaîtront ici une fois créés pour des élèves. Vous pouvez commencer par définir les frais puis générer des factures."
-                                                actions={[
-                                                    { label: "Définir les frais", href: "/dashboard/finance/fees", variant: "outline" },
-                                                    { label: "Facturation de masse", href: "/dashboard/finance/bulk-invoice" },
-                                                ]}
-                                            />
-                                        ) : (
-                                            <DataTable
-                                                columns={planColumns}
-                                                data={paymentPlans}
-                                                searchKey="student"
-                                                searchPlaceholder="Rechercher un élève..."
-                                            />
                                         )}
                                     </CardContent>
                                 </Card>
-                            </>
-                        )}
+                            ))}
+                        </div>
+
+                        {/* Visualisations */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <Card className="dashboard-block lg:col-span-2 border-border" data-reveal>
+                                <CardHeader><CardTitle className="text-sm font-medium">Évolution des Encaissements</CardTitle></CardHeader>
+                                <CardContent className="h-[300px]">
+                                    <PaymentBarChart data={barChartData} />
+                                </CardContent>
+                            </Card>
+                            <Card className="dashboard-block border-border" data-reveal>
+                                <CardHeader><CardTitle className="text-sm font-medium">Répartition du Recouvrement</CardTitle></CardHeader>
+                                <CardContent className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={collectionPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                {collectionPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} />
+                                            <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Recent Transactions & Overdue */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <Card className="dashboard-block lg:col-span-2 border-border overflow-hidden" data-reveal>
+                                <CardHeader className="bg-muted/10 border-b flex flex-row items-center justify-between space-y-0">
+                                    <CardTitle className="text-sm font-bold uppercase tracking-tight">Derniers Paiements</CardTitle>
+                                    <Link href="/dashboard/finance/payments" className="text-[10px] font-black uppercase text-primary hover:underline">Voir tout</Link>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs">
+                                            <thead>
+                                                <tr className="bg-muted/5 text-muted-foreground border-b uppercase font-bold text-[10px]">
+                                                    <th className="px-4 py-3 text-left">Élève</th>
+                                                    <th className="px-4 py-3 text-left">Frais</th>
+                                                    <th className="px-4 py-3 text-right">Montant</th>
+                                                    <th className="px-4 py-3 text-center">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border/50">
+                                                {dashData.recentPayments.map((p) => (
+                                                    <tr key={p.id} className="hover:bg-muted/5 transition-colors group">
+                                                        <td className="px-4 py-3 font-bold">{p.student.user.firstName} {p.student.user.lastName}</td>
+                                                        <td className="px-4 py-3 text-muted-foreground">{p.fee.name}</td>
+                                                        <td className="px-4 py-3 text-right font-black text-emerald-600">{formatCurrency(p.amount)}</td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <Badge variant="outline" className="text-[9px] uppercase font-black bg-emerald-50 text-emerald-700 border-emerald-200">Validé</Badge>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="dashboard-block border-border border-l-4 border-l-destructive shadow-lg" data-reveal>
+                                <CardHeader>
+                                    <CardTitle className="text-sm font-bold uppercase text-destructive flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4" />
+                                        Alertes Impayés
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {dashData.overdueStudents.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground py-4 text-center italic">Aucune alerte critique</p>
+                                        ) : dashData.overdueStudents.map((student, i) => (
+                                            <div key={student.studentId || i} className="flex items-center justify-between p-2 rounded-lg hover:bg-destructive/5 transition-colors border border-transparent hover:border-destructive/10">
+                                                <p className="font-bold text-xs truncate pr-2">{student.studentName}</p>
+                                                <p className="font-black text-xs text-destructive">{formatCurrency(student.balance)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Payment Plans Table */}
+                        <Card className="dashboard-block border-border bg-card" data-reveal>
+                            <CardHeader>
+                                <CardTitle className="text-sm font-bold uppercase tracking-tight flex items-center gap-2">
+                                    <CalendarClock className="w-4 h-4 text-primary" />
+                                    Gestion des Échéanciers
+                                </CardTitle>
+                                <CardDescription className="text-xs">Plans de paiement actifs et progression des encaissements.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {plansLoading ? (
+                                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                                ) : (
+                                    <DataTable
+                                        columns={planColumns}
+                                        data={paymentPlans || []}
+                                        searchKey="student"
+                                        searchPlaceholder="Rechercher un élève ou un frais..."
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
                     </>
                 )}
             </div>

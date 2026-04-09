@@ -5,6 +5,7 @@ import { evaluationSchema } from "@/lib/validations/evaluation";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import type { EvaluationWhereFilter } from "@/lib/types/api";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const GET = createApiHandler(
   async (request, { session }, _t) => {
@@ -21,11 +22,12 @@ export const GET = createApiHandler(
     }
 
     // Multi-tenant security: filter by school
-    if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+    const activeSchoolId = getActiveSchoolId(session);
+    if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
       if (where.classSubject) {
-        where.classSubject.class = { schoolId: session.user.schoolId };
+        where.classSubject.class = { schoolId: activeSchoolId };
       } else {
-        where.classSubject = { class: { schoolId: session.user.schoolId } };
+        where.classSubject = { class: { schoolId: activeSchoolId } };
       }
     }
 
@@ -132,7 +134,7 @@ export const POST = createApiHandler(
 
     // Verify school access
     if (session.user.role !== "SUPER_ADMIN") {
-      if (classSubject.class.schoolId !== session.user.schoolId) {
+      if (!canAccessSchool(session, classSubject.class.schoolId)) {
         return NextResponse.json(
           translateError(API_ERRORS.FORBIDDEN, t),
           { status: 403 }
@@ -161,7 +163,7 @@ export const POST = createApiHandler(
     }
 
     if (session.user.role !== "SUPER_ADMIN") {
-      if (period.academicYear.schoolId !== session.user.schoolId) {
+      if (!canAccessSchool(session, period.academicYear.schoolId)) {
         return NextResponse.json(
           translateError({ error: "Cette période n'appartient pas à votre établissement", key: "api.issues.period_wrong_school" }, t),
           { status: 403 }
@@ -180,7 +182,7 @@ export const POST = createApiHandler(
     }
 
     if (session.user.role !== "SUPER_ADMIN") {
-      if (evalType.schoolId !== session.user.schoolId) {
+      if (!canAccessSchool(session, evalType.schoolId)) {
         return NextResponse.json(
           translateError({ error: "Ce type d'évaluation n'appartient pas à votre établissement", key: "api.issues.eval_type_wrong_school" }, t),
           { status: 403 }

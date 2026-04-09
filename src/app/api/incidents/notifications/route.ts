@@ -3,6 +3,7 @@ import { NotificationType } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const VALID_NOTIFICATION_TYPES = new Set<string>(Object.values(NotificationType));
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       if (targetUsers.length !== userIds.length) {
         return NextResponse.json({ error: "Utilisateurs invalides" }, { status: 400 });
       }
-      const outOfScope = targetUsers.some(u => u.schoolId !== session.user.schoolId);
+      const outOfScope = targetUsers.some(u => u.schoolId !== getActiveSchoolId(session));
       if (outOfScope) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }

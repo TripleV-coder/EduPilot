@@ -133,7 +133,7 @@ describe("RBAC permissions", () => {
   });
 
   describe("rolePermissions coverage", () => {
-    it("all 7 roles have permissions defined", () => {
+    it("all 8 roles have permissions defined", () => {
       const roles: UserRole[] = [
         "SUPER_ADMIN",
         "SCHOOL_ADMIN",
@@ -142,11 +142,32 @@ describe("RBAC permissions", () => {
         "STUDENT",
         "PARENT",
         "ACCOUNTANT",
+        "STAFF",
       ];
       roles.forEach((role) => {
         expect(rolePermissions[role]).toBeDefined();
         expect(Array.isArray(rolePermissions[role])).toBe(true);
       });
+    });
+  });
+
+  describe("role-specific dashboard permissions", () => {
+    it("teacher can access attendance and school-wide read surfaces", () => {
+      expect(hasPermission("TEACHER", Permission.ATTENDANCE_READ)).toBe(true);
+      expect(hasPermission("TEACHER", Permission.SCHOOL_READ)).toBe(true);
+    });
+
+    it("student and parent can access read-only learning surfaces", () => {
+      expect(hasPermission("STUDENT", Permission.SCHOOL_READ)).toBe(true);
+      expect(hasPermission("STUDENT", Permission.EVALUATION_READ)).toBe(true);
+      expect(hasPermission("PARENT", Permission.SCHOOL_READ)).toBe(true);
+      expect(hasPermission("PARENT", Permission.EVALUATION_READ)).toBe(true);
+    });
+
+    it("allows appropriate access to medical and canteen modules", () => {
+      expect(hasPermission("STAFF", Permission.MEDICAL_READ)).toBe(true);
+      expect(hasPermission("TEACHER", Permission.MEDICAL_READ)).toBe(false);
+      expect(hasPermission("STUDENT", Permission.CANTEEN_READ)).toBe(true);
     });
   });
 });

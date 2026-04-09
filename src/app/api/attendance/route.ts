@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
         const from = searchParams.get("from");
         const to = searchParams.get("to");
         const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") ?? "500")));
+        const activeSchoolId = getActiveSchoolId(session);
 
         if (!studentId && !classId) {
             return NextResponse.json({ error: "studentId ou classId requis" }, { status: 400 });
@@ -40,11 +42,11 @@ export async function GET(request: NextRequest) {
 
         // School isolation for non-super admins
         if (session.user.role !== "SUPER_ADMIN") {
-            if (!session.user.schoolId) {
+            if (!activeSchoolId) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
             where.student = {
-                user: { schoolId: session.user.schoolId },
+                user: { schoolId: activeSchoolId },
             };
         }
 

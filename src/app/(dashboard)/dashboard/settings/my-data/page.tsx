@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { ShieldCheck, Download, Trash2, FileText, Fingerprint, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ export default function MyDataSettingsPage() {
         }
     };
     return (
-        <PageGuard permission={["*" as Permission] /* Accessible to EVERYONE via PageGuard defaults */}>
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Mes Données Personnelles"

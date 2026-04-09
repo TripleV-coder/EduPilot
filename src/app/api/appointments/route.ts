@@ -5,7 +5,8 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
 const createAppointmentSchema = z.object({
   teacherId: z.string().cuid(),
@@ -29,6 +30,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
+    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const teacherId = searchParams.get("teacherId");
@@ -45,13 +51,21 @@ export async function GET(request: NextRequest) {
     const userRole = session.user.role;
 
     // Protection Multi-Tenant pour les admins
-    if (userRole !== "SUPER_ADMIN" && session.user.schoolId) {
-      // Filtrer par les professeurs de l'école (relation indirecte via teacher.user)
-      if (where.teacher) {
-        where.teacher.user = { schoolId: session.user.schoolId };
-      } else {
-        where.teacher = { user: { schoolId: session.user.schoolId } };
-      }
+    const activeSchoolId = getActiveSchoolId(session);
+    if (userRole !== "SUPER_ADMIN" && activeSchoolId) {
+      where.teacher = {
+        OR: [
+          { schoolId: activeSchoolId },
+          {
+            schoolAssignments: {
+              some: {
+                schoolId: activeSchoolId,
+                status: "ACTIVE",
+              },
+            },
+          },
+        ],
+      };
     }
 
     if (userRole === "TEACHER") {
@@ -80,9 +94,9 @@ export async function GET(request: NextRequest) {
 
     // Additional filters
     if (status) where.status = status as AppointmentStatus;
-    if (teacherId) where.teacherId = teacherId;
-    if (parentId) where.parentId = parentId;
-    if (studentId) where.studentId = studentId;
+    if (teacherId && userRole !== "TEACHER") where.teacherId = teacherId;
+    if (parentId && userRole !== "PARENT") where.parentId = parentId;
+    if (studentId && userRole !== "STUDENT") where.studentId = studentId;
 
     if (upcoming) {
       where.scheduledAt = { gte: new Date() };
@@ -160,22 +174,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
+    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT"];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
     const body = await request.json();
     const validatedData = createAppointmentSchema.parse(body);
 
     // Verify teacher exists and school check
     const teacher = await prisma.teacherProfile.findUnique({
       where: { id: validatedData.teacherId },
-      include: { user: { select: { schoolId: true } } },
+      include: {
+        user: { select: { schoolId: true } },
+        schoolAssignments: {
+          where: { status: "ACTIVE" },
+          select: { schoolId: true },
+        },
+      },
     });
 
     if (!teacher) {
       return NextResponse.json({ error: "Enseignant non trouvé" }, { status: 404 });
     }
 
-    const accessError = ensureSchoolAccess(session, teacher.user.schoolId);
-    if (accessError) {
-      return accessError;
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: validatedData.studentId },
+      select: { id: true, schoolId: true, userId: true },
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: "Élève non trouvé" }, { status: 404 });
+    }
+
+    if (!canAccessSchool(session, student.schoolId)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    if (!(await isTeacherAssignedToSchool(teacher.id, student.schoolId))) {
+      return NextResponse.json(
+        { error: "Cet enseignant n'est pas affecté à l'établissement de l'élève" },
+        { status: 400 }
+      );
+    }
+
+    if (session.user.role === "PARENT") {
+      const parentProfile = await prisma.parentProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!parentProfile || parentProfile.id !== validatedData.parentId) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
     }
 
     // Verify parent has access to student
@@ -301,6 +352,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (isZodError(error)) {
       return NextResponse.json(
+        { error: "Données invalides", details: error.issues },
         { status: 400 }
       );
     }

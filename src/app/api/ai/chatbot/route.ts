@@ -4,6 +4,7 @@ import { chatWithAI } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
         // Context for AI
         const context = {
             userId: session.user.id,
-            schoolId: session.user.schoolId,
+            schoolId: getActiveSchoolId(session),
             role: session.user.role,
             history: history || []
         };

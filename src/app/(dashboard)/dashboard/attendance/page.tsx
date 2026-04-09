@@ -163,7 +163,7 @@ export default function AttendancePage() {
     }, { PRESENT: 0, ABSENT: 0, EXCUSED: 0 } as any);
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <PageGuard permission={Permission.ATTENDANCE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
             <div className={cn("max-w-[1200px] mx-auto animate-fade-in pb-24", isFocusMode ? "space-y-4" : "space-y-6")}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader 

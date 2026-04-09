@@ -5,7 +5,6 @@ import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
 import { Users, Search, MoreHorizontal, ShieldCheck, Mail, Loader2, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +50,7 @@ export default function RootUsersPage() {
     };
 
     return (
-        <PageGuard permission={["*" as Permission] /* Needs SUPER_ADMIN */} roles={["SUPER_ADMIN"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-7xl mx-auto">
                 <PageHeader
                     title="Annuaire Global"

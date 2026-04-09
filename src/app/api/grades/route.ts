@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /**
  * GET /api/grades
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
         const classId = searchParams.get("classId");
         const periodId = searchParams.get("periodId");
         const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") ?? "200")));
+        const activeSchoolId = getActiveSchoolId(session);
 
         if (!studentId && !classId) {
             return NextResponse.json({ error: "studentId ou classId requis" }, { status: 400 });
@@ -36,14 +38,24 @@ export async function GET(request: NextRequest) {
             where.evaluation = { ...where.evaluation as Prisma.EvaluationWhereInput, periodId };
         }
 
+        if (classId) {
+            where.evaluation = {
+                ...where.evaluation as Prisma.EvaluationWhereInput,
+                classSubject: {
+                    ...((where.evaluation as Prisma.EvaluationWhereInput)?.classSubject as Prisma.ClassSubjectWhereInput ?? {}),
+                    classId,
+                },
+            };
+        }
+
         // School isolation for non-super admins
         if (session.user.role !== "SUPER_ADMIN") {
-            if (!session.user.schoolId) {
+            if (!activeSchoolId) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
             where.student = {
                 ...(where.student as Prisma.StudentProfileWhereInput),
-                user: { schoolId: session.user.schoolId },
+                schoolId: activeSchoolId,
             };
         }
 

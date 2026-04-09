@@ -34,6 +34,21 @@ export const metadata: Metadata = {
         template: "%s — EduPilot",
     },
     description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
+    openGraph: {
+        title: "EduPilot",
+        description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
+        url: "https://edupilot.bj",
+        siteName: "EduPilot",
+        images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
+        locale: "fr_FR",
+        type: "website",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "EduPilot",
+        description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
+        images: ["/og-image.jpg"],
+    },
 };
 
 import { Toaster } from "@/components/ui/toaster";

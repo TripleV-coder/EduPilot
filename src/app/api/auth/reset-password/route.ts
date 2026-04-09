@@ -81,6 +81,17 @@ export async function POST(request: NextRequest) {
       where: { id: resetToken.id },
     });
 
+    // Audit log for successful password reset
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "PASSWORD_RESET_SUCCESS",
+        entity: "user",
+        entityId: user.id,
+        newValues: { message: "Password reset via email token" },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "Mot de passe réinitialisé avec succès",

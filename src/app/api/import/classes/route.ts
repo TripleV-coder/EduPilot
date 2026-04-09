@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { importClassSchema } from "@/lib/import/schemas";
+import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
             errors: [] as any[],
         };
 
-        let schoolId = session.user.schoolId || null;
+        let schoolId = getActiveSchoolId(session) || null;
         if (session.user.role === "SUPER_ADMIN") {
             const { searchParams } = new URL(request.url);
             schoolId = bodySchoolId || searchParams.get("schoolId") || null;
@@ -100,7 +102,11 @@ export async function POST(request: NextRequest) {
                             where: { email: classData.mainTeacherEmail },
                             include: { teacherProfile: true }
                         });
-                        if (teacherUser?.teacherProfile && teacherUser.teacherProfile.schoolId === schoolId) {
+                        if (
+                            teacherUser?.teacherProfile &&
+                            schoolId &&
+                            await isTeacherAssignedToSchool(teacherUser.teacherProfile.id, schoolId)
+                        ) {
                             mainTeacherId = teacherUser.teacherProfile.id;
                         } else {
                             // Warning: Teacher not found, but we create class anyway

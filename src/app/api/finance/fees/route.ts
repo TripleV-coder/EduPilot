@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -46,14 +47,11 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const schoolId = searchParams.get("schoolId");
+        const requestedSchoolId = searchParams.get("schoolId");
+        const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+        if (schoolAccess) return schoolAccess;
+        const activeSchoolId = getActiveSchoolId(session);
 
-        // Only allow fetching fees for user's school or if admin
-        // For now, assume schoolId is passed or derived from user profile
-        // But schema doesn't link User directly to School easily for all roles,
-        // usually we use `session.user.schoolId` if added to session, or fetch profile.
-
-        // Let's check user permissions
         const userRole = session.user.role;
         const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"];
 
@@ -61,27 +59,10 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Since we don't have schoolId in session easily (yet), we fetch user profile
-        // Or we rely on client passing schoolId (which should be validated)
-
-        let targetSchoolId = schoolId;
-
-        if (userRole !== "SUPER_ADMIN") {
-            targetSchoolId = session.user.schoolId || null;
-        }
-
-        if (!targetSchoolId) {
-            // Try to find school from user profile
-            // This depends on how User is linked to School. 
-            // TeacherProfile, StudentProfile have schoolId. But what about Accountant?
-            // Accountant should likely have a profile or a direct link.
-            // Looking at ProfileData in profile/page.tsx, it seems there is `school` relation on User or profile.
-            const user = await prisma.user.findUnique({
-                where: { id: session.user.id },
-                include: { school: true } // Assuming User has schoolId or relation
-            });
-            targetSchoolId = user?.schoolId || null;
-        }
+        const targetSchoolId =
+            userRole === "SUPER_ADMIN"
+                ? (requestedSchoolId || activeSchoolId || null)
+                : activeSchoolId;
 
         if (!targetSchoolId) {
             return NextResponse.json({ error: "School ID required" }, { status: 400 });
@@ -178,24 +159,14 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const bodySchoolId = body?.schoolId as string | undefined;
         const validatedData = feeSchema.parse(body);
-
-        // Ensure schoolId is present. If not in body (schema doesn't have it?), get from user.
-        // feeSchema has: name, description, amount, academicYearId, classLevelCode, dueDate, isRequired.
-        // It does NOT have schoolId. So we must infer it.
-
-        const user = await prisma.user.findUnique({
-            where: { id: authSession.user.id },
-            select: { schoolId: true }
-        });
+        const schoolAccess = ensureRequestedSchoolAccess(authSession, bodySchoolId);
+        if (schoolAccess) return schoolAccess;
+        const activeSchoolId = getActiveSchoolId(authSession);
 
         const targetSchoolId =
             userRole === "SUPER_ADMIN"
-                ? (bodySchoolId || user?.schoolId || null)
-                : (user?.schoolId || null);
-
-        if (userRole !== "SUPER_ADMIN" && bodySchoolId && bodySchoolId !== user?.schoolId) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+                ? (bodySchoolId || activeSchoolId || null)
+                : activeSchoolId;
 
         if (!targetSchoolId) {
             return NextResponse.json({ error: "User not associated with a school" }, { status: 400 });

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const updateRequestSchema = z.object({
   status: z.enum(["IN_PROGRESS", "COMPLETED", "REJECTED"]),
@@ -62,10 +63,10 @@ export async function GET(
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     if (session.user.role === "SCHOOL_ADMIN") {
-      if (!session.user.schoolId) {
+      if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
-      if (dataRequest.user.schoolId !== session.user.schoolId) {
+      if (dataRequest.user.schoolId !== getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
     }
@@ -120,14 +121,14 @@ export async function PATCH(
       );
     }
     if (session.user.role === "SCHOOL_ADMIN") {
-      if (!session.user.schoolId) {
+      if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
       const requestUser = await prisma.user.findUnique({
         where: { id: existingRequest.userId },
         select: { schoolId: true },
       });
-      if (!requestUser || requestUser.schoolId !== session.user.schoolId) {
+      if (!requestUser || requestUser.schoolId !== getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
     }

@@ -4,6 +4,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -61,7 +62,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      event.schoolId !== session.user.schoolId
+      event.schoolId !== getActiveSchoolId(session)
     ) {
       return NextResponse.json(
         { error: "Accès non autorisé" },
@@ -108,7 +109,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingEvent.schoolId !== session.user.schoolId
+      existingEvent.schoolId !== getActiveSchoolId(session)
     ) {
       return NextResponse.json(
         { error: "Accès non autorisé" },
@@ -169,7 +170,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     if (
       session.user.role !== "SUPER_ADMIN" &&
-      existingEvent.schoolId !== session.user.schoolId
+      existingEvent.schoolId !== getActiveSchoolId(session)
     ) {
       return NextResponse.json(
         { error: "Accès non autorisé" },
