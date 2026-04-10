@@ -23,6 +23,9 @@ MAILTO=admin@edupilot.bj
 # Backup Schedules
 # ────────────────────────────────────────────────────────────────
 
+# Daily maintenance (Analytics sync + Alerts) at 3:00 AM
+0 3 * * * edupilot /usr/bin/npx tsx /app/scripts/daily-maintenance.ts >> /var/log/edupilot-maintenance.log 2>&1
+
 # Daily backup at 2:00 AM (recommended for production)
 0 2 * * * edupilot /app/scripts/backup/backup.sh >> /var/log/edupilot-backup.log 2>&1
 
