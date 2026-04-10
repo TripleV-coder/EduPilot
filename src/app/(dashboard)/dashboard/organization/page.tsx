@@ -14,6 +14,11 @@ import {
   ShieldAlert,
   Users,
 } from "lucide-react";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
+} from "recharts";
+import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +82,41 @@ function SummaryCard({
         <div className="rounded-2xl border border-border/60 bg-muted/40 p-3 text-primary">
           <Icon className="h-5 w-5" />
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PerformanceComparisonChart({ sites }: { sites: OrganizationSiteSummary[] }) {
+  const data = sites.map(s => ({
+    name: s.name,
+    average: s.averageGrade,
+    isComparable: !s.comparisonNote
+  }));
+
+  return (
+    <Card className="border-border shadow-sm h-full">
+      <CardHeader>
+        <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            Moyennes par Établissement
+        </CardTitle>
+        <CardDescription className="text-[10px]">Comparaison consolidée de la performance académique.</CardDescription>
+      </CardHeader>
+      <CardContent className="h-[300px] pt-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+            <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+            <RechartsTooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} cursor={{ fill: 'hsl(var(--muted)/0.4)' }} />
+            <Bar dataKey="average" radius={[4, 4, 0, 0]} barSize={40}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.isComparable ? "hsl(var(--primary))" : "hsl(var(--muted-foreground)/0.3)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );
@@ -365,37 +405,36 @@ export default function OrganizationDashboardPage() {
             />
           </div>
 
-          <Card className="border-border/60 bg-slate-950 text-slate-100 shadow-sm">
-            <CardContent className="grid gap-4 p-6 md:grid-cols-3">
-              <div className="space-y-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                  Référence de comparaison
-                </p>
-                <p className="text-lg font-black">{overview.reference.academicYearName}</p>
-                <p className="text-xs text-slate-400">
-                  Site de référence: {overview.reference.schoolName}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                  Période
-                </p>
-                <p className="text-lg font-black">{overview.reference.periodName || "Dernier état annuel"}</p>
-                <p className="text-xs text-slate-400">
-                  Harmonisation par année puis par période quand elle est demandée.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                  Non comparables
-                </p>
-                <p className="text-lg font-black">{overview.reference.nonComparableSiteCount}</p>
-                <p className="text-xs text-slate-400">
-                  Sites exclus des moyennes réseau faute d’équivalence stricte.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <PerformanceComparisonChart sites={overview.sites} />
+            </div>
+            <div className="lg:col-span-1">
+                <Card className="border-border/60 bg-slate-950 text-slate-100 shadow-sm h-full">
+                    <CardHeader>
+                        <CardTitle className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Périmètre de Comparaison</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-2">
+                        <div className="space-y-1">
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">Année</p>
+                            <p className="text-xl font-black">{overview.reference.academicYearName}</p>
+                            <p className="text-[10px] text-slate-500 italic">Site de référence: {overview.reference.schoolName}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">Période</p>
+                            <p className="text-xl font-black">{overview.reference.periodName || "Dernier état annuel"}</p>
+                        </div>
+                        <div className="pt-4 border-t border-white/10">
+                            <p className="text-xs text-slate-400 mb-2">Exclusion automatique</p>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-lg font-black border-slate-700">{overview.reference.nonComparableSiteCount}</Badge>
+                                <span className="text-[10px] text-slate-400 font-medium">Sites non comparables</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
 
           <Card className="border-border/60 bg-white shadow-sm">
             <CardHeader className="border-b border-border/60">
@@ -493,4 +532,3 @@ export default function OrganizationDashboardPage() {
     </div>
   );
 }
-
