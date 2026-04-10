@@ -194,18 +194,16 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                         </div>
 
                         {analyzingId === selectedStudent.student.id ? (
-                            <div className="py-20 flex flex-col items-center justify-center gap-4">
-                                <span className="relative flex h-12 w-12">
+                            <Card className="flex flex-col items-center justify-center p-20 text-center bg-muted/10 border-dashed">
+                                <span className="relative flex h-12 w-12 mb-4">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-12 w-12 bg-primary flex items-center justify-center">
                                         <BrainCircuit className="h-6 w-6 text-white" />
                                     </span>
                                 </span>
-                                <div className="text-center">
-                                    <h3 className="font-semibold text-lg">Analyse en cours...</h3>
-                                    <p className="text-sm text-muted-foreground">Gemini traite les données de performance et de comportement.</p>
-                                </div>
-                            </div>
+                                <h3 className="font-semibold text-lg">Analyse en cours...</h3>
+                                <p className="text-sm text-muted-foreground mt-2">Gemini traite les données de performance et de comportement pour générer le plan d'action.</p>
+                            </Card>
                         ) : interventionPlan ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Risk Assessment */}

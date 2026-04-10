@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Permission } from "@/lib/rbac/permissions";
-import { Save, AlertCircle, ArrowLeft, CheckCircle, FileSpreadsheet } from "lucide-react";
+import { Save, AlertCircle, ArrowLeft, CheckCircle, FileSpreadsheet, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { t } from "@/lib/i18n";
+import { toast } from "sonner";
 
 export default function GradesEntryPage() {
     const { isFocusMode } = useSidebar();
@@ -42,6 +43,7 @@ export default function GradesEntryPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [generatingComments, setGeneratingComments] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
@@ -125,6 +127,49 @@ export default function GradesEntryPage() {
                 [field]: val
             }
         }));
+    };
+
+    const handleGenerateComments = async () => {
+        if (!students.length) return;
+        setGeneratingComments(true);
+        toast.loading("Génération des appréciations IA en cours...", { id: "ai-comments" });
+
+        try {
+            // Dans une vraie implémentation, on pourrait envoyer toutes les notes d'un coup
+            // Ici on itère sur les élèves qui ont une note
+            const studentsWithGrades = students.filter(s => grades[s.id]?.value && !grades[s.id].isAbsent);
+            let generatedCount = 0;
+
+            for (const student of studentsWithGrades) {
+                const res = await fetch("/api/ai/v2", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        endpoint: "governance",
+                        action: "draft-report-comment",
+                        studentId: student.id,
+                        data: {
+                            currentGrade: grades[student.id].value,
+                            maxGrade
+                        }
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.data?.comment) {
+                        handleGradeChange(student.id, "comment", data.data.comment);
+                        generatedCount++;
+                    }
+                }
+            }
+
+            toast.success(`${generatedCount} appréciations générées par l'IA`, { id: "ai-comments" });
+        } catch (error) {
+            toast.error("Erreur lors de la génération des appréciations", { id: "ai-comments" });
+        } finally {
+            setGeneratingComments(false);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -390,6 +435,25 @@ export default function GradesEntryPage() {
                                         {students.length} Eleve(s) · {completedCount} renseigne(s)
                                     </span>
                                 </div>
+                                {!isFocusMode && students.length > 0 && (
+                                    <div className="mt-4 flex justify-end">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+                                            onClick={handleGenerateComments}
+                                            disabled={generatingComments || completedCount === 0}
+                                        >
+                                            {generatingComments ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Sparkles className="w-4 h-4" />
+                                            )}
+                                            Suggérer des appréciations par l'IA
+                                        </Button>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent className="p-0">
                                 {dirtyCount > 0 && (

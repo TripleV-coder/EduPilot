@@ -387,6 +387,12 @@ class AIService {
       case "analyze-risk":
         result = await this.analyzeRiskIntervention(request);
         break;
+      case "generate-action-plan":
+        result = await this.generateActionPlan(request);
+        break;
+      case "draft-report-comment":
+        result = await this.draftReportComment(request);
+        break;
       default:
         throw new AIServiceError(`Action IA non prise en charge: ${request.action}`, 400, "INVALID_ACTION");
     }
@@ -400,6 +406,104 @@ class AIService {
       recommendations: result.recommendations ?? [],
       alerts: result.alerts ?? [],
     };
+  }
+
+  private async generateActionPlan(request: GovernanceRequest): Promise<GovernanceActionResult> {
+    const studentId = this.resolveRequestedStudentId(request);
+    if (!studentId) {
+      throw new AIServiceError("studentId requis pour générer un plan d'action", 400, "MISSING_STUDENT_ID");
+    }
+
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        enrollments: {
+          where: { status: "ACTIVE" },
+          orderBy: { enrolledAt: "desc" },
+          take: 1,
+          include: { class: true },
+        },
+      },
+    });
+
+    if (!student) throw new AIServiceError("Élève introuvable", 404, "STUDENT_NOT_FOUND");
+    await this.ensureStudentScope(request, { id: student.id, userId: student.userId, schoolId: student.schoolId });
+
+    const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
+    
+    // Simulate or call external AI to generate a detailed plan
+    let planData;
+    if (hasExternalAIConfigured() && analytics) {
+        try {
+            const prompt = `Crée un plan d'action de remédiation personnalisé pour ${formatStudentName(student)} en classe de ${student.enrollments[0]?.class.name}. Moyenne actuelle: ${analytics.generalAverage}. Risque: ${analytics.riskLevel}. Faiblesses: ${analytics.subjectPerformances.filter(s => s.isWeakness).map(s => s.subject.name).join(', ')}. Renvoie un JSON strict: { "title": "...", "description": "...", "priority": "HIGH", "steps": ["étape 1", "étape 2"], "suggestedBy": "Gemini AI" }`;
+            const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
+            if (externalResponse.success) {
+                const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
+                if (jsonMatch) planData = JSON.parse(jsonMatch[0]);
+            }
+        } catch (error) {
+             logger.warn("Failed to generate action plan via external AI", { error });
+        }
+    }
+
+    if (!planData) {
+        planData = {
+            title: `Plan de Remédiation - ${formatStudentName(student)}`,
+            description: `Intervention pédagogique ciblée pour améliorer les résultats académiques.`,
+            priority: "HIGH",
+            steps: [
+                "Entretien individuel avec l'élève pour identifier les blocages.",
+                "Mise en place de séances de tutorat hebdomadaires en mathématiques.",
+                "Rendez-vous téléphonique avec les parents dans les 7 jours."
+            ],
+            suggestedBy: "Système Expert EduPilot"
+        };
+    }
+
+    return { data: planData, confidence: 0.85 };
+  }
+
+  private async draftReportComment(request: GovernanceRequest): Promise<GovernanceActionResult> {
+    const studentId = this.resolveRequestedStudentId(request);
+    if (!studentId) {
+      throw new AIServiceError("studentId requis pour rédiger une appréciation", 400, "MISSING_STUDENT_ID");
+    }
+
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    if (!student) throw new AIServiceError("Élève introuvable", 404, "STUDENT_NOT_FOUND");
+    await this.ensureStudentScope(request, { id: student.id, userId: student.userId, schoolId: student.schoolId });
+
+    const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
+    const average = analytics?.generalAverage ? Number(analytics.generalAverage) : 0;
+    
+    let comment = "";
+    if (hasExternalAIConfigured()) {
+        try {
+            const prompt = `Rédige une appréciation de bulletin bienveillante et constructive (max 2 phrases) pour ${formatStudentName(student)}. Moyenne générale: ${average.toFixed(2)}/20. Tendance: ${analytics?.progressionRate && Number(analytics.progressionRate) > 0 ? 'En progrès' : 'En baisse'}. Renvoie UNIQUEMENT le texte de l'appréciation.`;
+            const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
+            if (externalResponse.success) {
+                comment = externalResponse.response.replace(/^["']|["']$/g, '').trim();
+            }
+        } catch (error) {
+            logger.warn("Failed to draft comment via external AI", { error });
+        }
+    }
+
+    if (!comment) {
+        if (average >= 16) comment = "Excellent trimestre. Continuez ainsi !";
+        else if (average >= 12) comment = "Bon trimestre, des résultats satisfaisants dans l'ensemble.";
+        else if (average >= 10) comment = "Ensemble juste. Des efforts sont nécessaires pour consolider les acquis.";
+        else comment = "Trimestre difficile. Il faut se ressaisir et s'impliquer davantage au prochain trimestre.";
+    }
+
+    return { data: { comment }, confidence: 0.9 };
   }
 
   private resolveRequestedStudentId(request: GovernanceRequest) {

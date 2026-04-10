@@ -3,6 +3,14 @@
  * Shared interfaces for all prediction modules.
  */
 
+export interface ActionPlan {
+    title: string;
+    description: string;
+    priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    steps: string[];
+    suggestedBy: string;
+}
+
 export interface StudentPrediction {
     studentId: string;
     predictions: {
@@ -28,8 +36,10 @@ export interface StudentPrediction {
         behaviorRisk: {
             probability: number;
             nextIncidentPrediction: string;
+            recommendedActions?: string[];
         };
     };
+    recommendedActions?: ActionPlan[];
     confidence: number; // Confiance globale du modèle
     dataQuality: "LOW" | "MEDIUM" | "HIGH";
     generatedAt: Date;
