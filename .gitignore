@@ -1,8 +1,29 @@
 node_modules/
 .next/
+
+# Env files (NEVER commit)
 .env
 .env.local
+.env.test
 .env.production
 .env.production.example
+.env.*.local
+
+# Uploads
 uploads/
+
+# Database dumps
 *.sql
+db_dump_*.sql
+
+# Logs
+*.log
+
+# TypeScript build cache
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Test/coverage artifacts
+coverage/
+playwright-report/
+test-results/
