@@ -22,9 +22,9 @@ export class ConfigService {
         });
 
         if (config && config.metadata && typeof config.metadata === "object") {
-            const metadata = config.metadata as any;
+            const metadata = config.metadata as Record<string, unknown>;
             if (Array.isArray(metadata.subjects)) {
-                return metadata.subjects;
+                return metadata.subjects as ExamSubjectConfig[];
             }
         }
 
@@ -35,10 +35,10 @@ export class ConfigService {
         else if (examType === "BEPC") fallback = bepcSubjects;
         else fallback = bacSubjects;
 
-        return fallback.map(s => ({
+        return fallback.map((s: { code: string; name: string; defaultCoefficient: number; isPractical?: boolean }) => ({
             code: s.code,
             name: s.name,
-            coefficient: (s as any).defaultCoefficient || (s as any).coefficient || 1,
+            coefficient: s.defaultCoefficient || 1,
             isPractical: s.code === "EPS" || s.code === "EAR",
         }));
     }
@@ -56,7 +56,7 @@ export class ConfigService {
         });
 
         if (config && config.metadata && typeof config.metadata === "object") {
-            const metadata = config.metadata as any;
+            const metadata = config.metadata as Record<string, unknown>;
             if (Array.isArray(metadata.mentions)) {
                 return metadata.mentions;
             }

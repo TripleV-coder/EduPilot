@@ -25,7 +25,7 @@ export function useRBAC() {
         ({ permission: _permission, roles }: RBACCheck): boolean => {
             if (!user) return false;
 
-            const userRoles = (user as any).roles || [user.role];
+            const userRoles: UserRole[] = user.roles || [user.role];
             const isSuperAdmin = userRoles.includes("SUPER_ADMIN");
 
             // Super admin can access everything
@@ -45,7 +45,7 @@ export function useRBAC() {
                     return true;
                 }
 
-                if (!requiredPermissions.some((p) => userPermissions.includes(p as any))) {
+                if (!requiredPermissions.some((p) => (userPermissions as string[]).includes(p))) {
                     return false;
                 }
             }
@@ -59,7 +59,7 @@ export function useRBAC() {
         (role: string | string[]): boolean => {
             if (!user) return false;
             const targetRoles = Array.isArray(role) ? role : [role];
-            const userRoles = (user as any).roles || [user.role];
+            const userRoles: UserRole[] = user.roles || [user.role];
             return targetRoles.some(r => userRoles.includes(r as UserRole));
         },
         [user]

@@ -1,7 +1,7 @@
 /**
  * External AI APIs Client
  * Support for OpenAI, Anthropic, and Google Gemini APIs
- * Used as alternatives to Ollama for AI-powered features
+ * Used as cloud AI providers for AI-powered features
  */
 
 import { logger } from '@/lib/utils/logger';

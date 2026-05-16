@@ -48,7 +48,118 @@
             "access": "Accéder à l'espace",
             "explorer": "Découvrir l'Explorer 3D"
         },
-        "trust": "Ils nous font confiance pour l'excellence académique"
+        "trust": "Ils nous font confiance pour l'excellence académique",
+        "stats": {
+            "badge": "En chiffres",
+            "title": "L'impact EduPilot au quotidien",
+            "subtitle": "Des résultats concrets dans les établissements du Bénin",
+            "students": "Élèves suivis",
+            "schools": "Établissements",
+            "grades": "Notes traitées",
+            "uptime": "Disponibilité"
+        },
+        "features": {
+            "badge": "Fonctionnalités",
+            "title": "Tout ce qu'il faut pour piloter un établissement",
+            "subtitle": "Une plateforme complète conçue pour les réalités du système éducatif béninois",
+            "students": {
+                "title": "Gestion des Élèves",
+                "description": "Inscriptions, dossiers, suivi individuel et orientation. Toute la scolarité centralisée."
+            },
+            "grades": {
+                "title": "Notes & Bulletins",
+                "description": "Saisie collaborative, calcul automatique des moyennes, génération de bulletins PDF conformes."
+            },
+            "schedule": {
+                "title": "Emplois du Temps",
+                "description": "Planification intelligente qui respecte les contraintes de salles, enseignants et volumes horaires."
+            },
+            "finance": {
+                "title": "Finance & Comptabilité",
+                "description": "Frais de scolarité, paiements, bourses et rapports financiers avec traçabilité complète."
+            },
+            "communication": {
+                "title": "Communication",
+                "description": "Messages, annonces, rendez-vous parents-enseignants et notifications en temps réel."
+            },
+            "analytics": {
+                "title": "Analytics & IA",
+                "description": "Tableaux de bord prédictifs, détection du décrochage et aide à la décision basée sur les données."
+            }
+        },
+        "pricing": {
+            "badge": "Tarification",
+            "title": "Un plan adapté à chaque établissement",
+            "subtitle": "Commencez gratuitement, évoluez selon vos besoins",
+            "monthly": "Mensuel",
+            "annual": "Annuel",
+            "annualSave": "Économisez 20%",
+            "popular": "Populaire",
+            "cta": "Commencer",
+            "ctaPopular": "Démarrer l'essai gratuit",
+            "ctaEnterprise": "Nous contacter",
+            "perMonth": "/mois",
+            "essential": {
+                "name": "Essentiel",
+                "price": "0",
+                "description": "Pour découvrir la plateforme",
+                "features": ["Jusqu'à 100 élèves", "Gestion des notes", "Emplois du temps", "1 utilisateur admin", "Support communautaire"]
+            },
+            "professional": {
+                "name": "Professionnel",
+                "price": "25 000",
+                "description": "Pour les établissements en croissance",
+                "features": ["Élèves illimités", "Toutes les fonctionnalités", "Finance & comptabilité", "Analytics avancés", "5 utilisateurs admin", "Support prioritaire"]
+            },
+            "enterprise": {
+                "name": "Entreprise",
+                "price": "Sur mesure",
+                "description": "Pour les réseaux d'établissements",
+                "features": ["Multi-établissements", "API personnalisée", "Prédictions IA", "Formation dédiée", "Utilisateurs illimités", "Support 24/7"]
+            }
+        },
+        "faq": {
+            "badge": "Questions fréquentes",
+            "title": "Tout ce que vous devez savoir",
+            "subtitle": "Les réponses aux questions les plus posées par nos partenaires",
+            "questions": {
+                "q1": "EduPilot est-il adapté au système éducatif béninois ?",
+                "a1": "Absolument. EduPilot est conçu spécifiquement pour le Bénin : programmes officiels, calcul des moyennes conforme, bulletins réglementaires et gestion des périodes académiques locales.",
+                "q2": "Mes données sont-elles en sécurité ?",
+                "a2": "Vos données sont chiffrées en transit et au repos. Nous appliquons les normes RGPD et proposons des outils d'export et de suppression à la demande. Aucune donnée n'est partagée avec des tiers.",
+                "q3": "Puis-je migrer depuis mon système actuel ?",
+                "a3": "Oui. Notre outil d'import accepte les fichiers CSV et Excel. Nous proposons également un accompagnement gratuit pour la migration initiale des données.",
+                "q4": "L'application fonctionne-t-elle hors connexion ?",
+                "a4": "EduPilot fonctionne en ligne pour garantir la synchronisation des données. Une version progressive (PWA) permet de consulter certaines informations en mode déconnecté.",
+                "q5": "Comment fonctionne le support technique ?",
+                "a5": "Le plan Essentiel bénéficie du support communautaire. Les plans Professionnel et Entreprise incluent un support prioritaire par email et téléphone avec un temps de réponse garanti.",
+                "q6": "Peut-on gérer plusieurs établissements ?",
+                "a6": "Oui. Le plan Entreprise permet le pilotage multi-sites avec un tableau de bord consolidé, des comparaisons inter-établissements et une gestion centralisée des utilisateurs."
+            }
+        },
+        "footer": {
+            "description": "Plateforme de gestion scolaire intelligente pour les établissements du Bénin.",
+            "product": "Produit",
+            "company": "Entreprise",
+            "legal": "Légal",
+            "links": {
+                "features": "Fonctionnalités",
+                "pricing": "Tarifs",
+                "explorer": "Explorer 3D",
+                "about": "À propos",
+                "contact": "Contact",
+                "blog": "Blog",
+                "privacy": "Confidentialité",
+                "terms": "Conditions d'utilisation",
+                "rgpd": "RGPD"
+            },
+            "copyright": "© 2026 EduPilot. Tous droits réservés."
+        },
+        "testimonials": {
+            "badge": "Témoignages",
+            "title": "Ce que disent nos utilisateurs",
+            "subtitle": "Des directeurs, enseignants et parents qui utilisent EduPilot au quotidien"
+        }
     },
     "dashboard": {
         "welcome": "Bonjour, {name} 👋",
@@ -94,6 +205,9 @@
         "newMessage": "Nouveau message"
     },
     "globalSearch": {
+        "inputLabel": "Recherche globale",
+        "placeholder": "Rechercher une page ou une action...",
+        "openLabel": "Ouvrir la recherche globale",
         "commands": {
             "newStudent": "Inscrire un élève",
             "students": "Élèves",
@@ -103,6 +217,9 @@
         },
         "groups": {
             "recents": "Récents",
+            "context": "Contexte",
+            "quickActions": "Actions rapides",
+            "navigation": "Navigation",
             "settings": "Paramètres"
         }
     },

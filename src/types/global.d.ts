@@ -2,8 +2,6 @@
  * Déclarations de modules pour résoudre les types mal résolus (exports package.json).
  */
 
-/// <reference types="@react-three/fiber" />
-
 declare module "date-fns" {
   export function format(date: Date | number, formatStr: string, options?: unknown): string;
   export function addDays(date: Date | number, amount: number): Date;

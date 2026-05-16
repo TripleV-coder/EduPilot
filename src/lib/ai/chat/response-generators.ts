@@ -1,6 +1,6 @@
 /**
  * Chat Response Generators — Pattern-matching fallback
- * Used when neither Ollama nor n8n is available.
+ * Used only as a last-resort deterministic fallback when cloud providers are unavailable.
  * Each function generates a context-aware response for a specific topic.
  */
 

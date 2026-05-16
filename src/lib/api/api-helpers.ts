@@ -6,8 +6,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { Permission, hasPermission } from "@/lib/rbac/permissions";
+import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
 
 // ============================================
 // CUID VALIDATION
@@ -110,6 +112,35 @@ export function translateError(error: any, t?: TranslationFn): { error: string; 
 }
 
 // ============================================
+// PRISMA ERROR HANDLING
+// ============================================
+
+export function handlePrismaError(error: unknown): { status: number; body: { error: string; code?: string } } {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        switch (error.code) {
+            case "P2002": {
+                const fields = (error.meta?.target as string[])?.join(", ") || "champ";
+                return { status: 409, body: { error: `Un enregistrement avec ce ${fields} existe déjà.`, code: "DUPLICATE" } };
+            }
+            case "P2025":
+                return { status: 404, body: { error: "Enregistrement non trouvé.", code: "NOT_FOUND" } };
+            case "P2003": {
+                const field = (error.meta?.field_name as string) || "référence";
+                return { status: 400, body: { error: `Référence invalide : ${field} n'existe pas.`, code: "INVALID_REFERENCE" } };
+            }
+            case "P2014":
+                return { status: 400, body: { error: "Violation de contrainte relationnelle.", code: "RELATION_VIOLATION" } };
+            default:
+                return { status: 500, body: { error: "Erreur de base de données.", code: error.code } };
+        }
+    }
+    if (error instanceof Prisma.PrismaClientValidationError) {
+        return { status: 400, body: { error: "Données invalides pour la requête.", code: "VALIDATION_ERROR" } };
+    }
+    return { status: 500, body: { error: "Erreur inattendue." } };
+}
+
+// ============================================
 // PAGINATION HELPERS
 // ============================================
 
@@ -182,6 +213,8 @@ export function createPaginatedResponse<T>(
     });
 }
 
+// Rate limiting is now handled via the unified checkRateLimit from @/lib/auth/rate-limiter
+
 // ============================================
 // ROUTE HANDLER (AUTH, RBAC, TENANT)
 // ============================================
@@ -209,6 +242,7 @@ interface HandlerOptions {
     requiredPermissions?: Permission[];
     allowedRoles?: string[];
     rateLimit?: boolean;
+    rateLimitCount?: number;
 }
 
 type RouteHandler = (
@@ -221,6 +255,25 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
     return async (request: NextRequest, routeContext?: any) => {
         const t = defaultT;
         try {
+            // ── RATE LIMITING ──
+            if (options.rateLimit !== false) {
+                const ip = request.headers.get("x-forwarded-for") || "anonymous";
+                const rlKey = `rl:api:${ip}:${request.nextUrl.pathname}`;
+                const limitCount = options.rateLimitCount || API_RATE_LIMIT.maxAttempts;
+                
+                const rl = await checkUnifiedRateLimit(rlKey, {
+                    ...API_RATE_LIMIT,
+                    maxAttempts: limitCount
+                });
+                
+                if (!rl.allowed) {
+                    return NextResponse.json(
+                        { error: "Trop de requêtes. Veuillez réessayer plus tard.", code: "TOO_MANY_REQUESTS" },
+                        { status: 429, headers: { "Retry-After": "60" } }
+                    );
+                }
+            }
+
             const session = await auth();
 
             if (options.requireAuth !== false && !session?.user) {
@@ -271,6 +324,16 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             console.error("[API Error]", { path: request.url, error: message });
+
+            // Handle Prisma-specific errors with appropriate HTTP status codes
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError ||
+                error instanceof Prisma.PrismaClientValidationError
+            ) {
+                const { status, body } = handlePrismaError(error);
+                return NextResponse.json(body, { status });
+            }
+
             return NextResponse.json(
                 { error: "Une erreur interne est survenue. Veuillez réessayer.", code: "INTERNAL_ERROR" },
                 { status: 500 }

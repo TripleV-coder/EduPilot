@@ -21,7 +21,7 @@ export interface AIPredictionResult {
 }
 
 /**
- * Sends student data to n8n for comprehensive analysis via Ollama/LLM.
+ * Sends student data to n8n for comprehensive cloud LLM analysis.
  */
 export async function analyzeStudentPerformance(data: any): Promise<AIAnalysisResult> {
     const result = await fetchJsonWithPolicy<AIAnalysisResult>(`${N8N_HOST}/webhook/analyze-performance`, {

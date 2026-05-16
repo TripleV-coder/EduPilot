@@ -78,7 +78,7 @@ export function buildAtRiskStudents(analytics: AnalyticsWithDetails[], yearId: s
       className: item.student.enrollments.find(
         (enrollment) =>
           enrollment.academicYearId === yearId && enrollment.status === "ACTIVE"
-      )?.class?.name || "N/A",
+      )?.class?.name || "Indisponible",
       average: Number(item.generalAverage),
       riskLevel: (item.riskLevel || "").toLowerCase(),
     }));
@@ -255,7 +255,7 @@ async function buildSiteComparison(input: {
         return {
           id: school.id,
           name: school.name,
-          city: school.city || "N/A",
+          city: school.city || "Indisponible",
           studentCount: 0,
           averageGrade: 0,
           attendanceRate: 0,
@@ -329,7 +329,7 @@ async function buildSiteComparison(input: {
         return {
           id: school.id,
           name: school.name,
-          city: school.city || "N/A",
+          city: school.city || "Indisponible",
           studentCount: 0,
           averageGrade: 0,
           attendanceRate: 0,
@@ -343,7 +343,7 @@ async function buildSiteComparison(input: {
         return {
           id: school.id,
           name: school.name,
-          city: school.city || "N/A",
+          city: school.city || "Indisponible",
           studentCount: 0,
           averageGrade: 0,
           attendanceRate: 0,
@@ -357,7 +357,7 @@ async function buildSiteComparison(input: {
         return {
           id: school.id,
           name: school.name,
-          city: school.city || "N/A",
+          city: school.city || "Indisponible",
           studentCount: 0,
           averageGrade: 0,
           attendanceRate: 0,
@@ -460,7 +460,7 @@ async function buildSiteComparison(input: {
       return {
         id: school.id,
         name: school.name,
-        city: school.city || "N/A",
+        city: school.city || "Indisponible",
         studentCount,
         averageGrade: roundTo(averageGrade),
         attendanceRate: roundTo(attendanceRate),
@@ -750,7 +750,49 @@ export async function getGlobalDashboardData(yearId?: string, filterClassId?: st
     })
   ]);
 
-  // Remove fake storage calculation. 
+  // Per-school SaaS counters (counts only — no PII, no academic data).
+  // Respects the GDPR boundary noted above: we only ask "how many accounts
+  // exist on each tenant" so the SuperAdmin can monitor adoption.
+  const allActiveSchools = await prisma.school.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, city: true, isActive: true, createdAt: true },
+    orderBy: { name: "asc" },
+  });
+
+  const networkSchools = await Promise.all(
+    allActiveSchools.map(async (s) => {
+      const [userCount, studentCount, teacherCount, openAlerts] = await Promise.all([
+        prisma.user.count({ where: { schoolId: s.id, isActive: true } }),
+        prisma.user.count({ where: { schoolId: s.id, isActive: true, role: "STUDENT" } }),
+        prisma.user.count({ where: { schoolId: s.id, isActive: true, role: "TEACHER" } }),
+        // "Alerts" for the SuperAdmin = sensitive ops (DELETE / REVOKE) on this
+        // school in the past 7 days. Stays in the SaaS-monitoring lane (no PII).
+        prisma.auditLog.count({
+          where: {
+            schoolId: s.id,
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+            OR: [
+              { action: { contains: "DELETE", mode: "insensitive" } },
+              { action: { contains: "REVOKE", mode: "insensitive" } },
+              { action: { contains: "ERROR", mode: "insensitive" } },
+            ],
+          },
+        }),
+      ]);
+      return {
+        id: s.id,
+        name: s.name,
+        city: s.city,
+        isActive: s.isActive,
+        studentCount,
+        teacherCount,
+        userCount,
+        openAlerts,
+      };
+    })
+  );
+
+  // Remove fake storage calculation.
   // Using a simpler realistic metric: showing pure counts without making up storage MBs
   const storageUsed = "N/A (Non mesuré)";
 
@@ -759,6 +801,7 @@ export async function getGlobalDashboardData(yearId?: string, filterClassId?: st
     totalUsers,
     storageUsed,
     recentSchools,
+    networkSchools,
     recentActivity,
     isGlobal: true,
   };
@@ -774,6 +817,47 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
       class: { select: { id: true, name: true } },
       subject: { select: { name: true } },
     },
+  });
+
+  // Today's schedule for this teacher (Schedule.dayOfWeek: 0=Sunday … 6=Saturday)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const classSubjectIds = classSubjects.map((cs) => cs.id);
+  const todayScheduleRaw = classSubjectIds.length
+    ? await prisma.schedule.findMany({
+        where: { classSubjectId: { in: classSubjectIds }, dayOfWeek },
+        include: {
+          class: { select: { name: true } },
+          classSubject: {
+            select: {
+              subject: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { startTime: "asc" },
+      })
+    : [];
+
+  const parseHHMM = (t: string): number => {
+    const [h, m] = t.split(":").map((v) => Number(v) || 0);
+    return h * 60 + m;
+  };
+
+  const todaySchedule = todayScheduleRaw.map((slot) => {
+    const start = parseHHMM(slot.startTime);
+    const end = parseHHMM(slot.endTime);
+    let state: "done" | "now" | "next" = "next";
+    if (currentMinutes >= end) state = "done";
+    else if (currentMinutes >= start && currentMinutes < end) state = "now";
+    return {
+      id: slot.id,
+      time: `${slot.startTime} — ${slot.endTime}`,
+      className: slot.class.name,
+      subjectName: slot.classSubject?.subject.name ?? "Cours",
+      room: slot.room ?? "—",
+      state,
+    };
   });
 
   const classIds = [...new Set(classSubjects.map(cs => cs.classId))];
@@ -842,6 +926,7 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
     classPerformance,
     monthlyTrend,
     atRiskStudents: buildAtRiskStudents(currentAnalytics, yearId),
+    todaySchedule,
   };
 }
 
@@ -911,10 +996,10 @@ export async function getParentDashboardData(userId: string, yearId: string) {
 
   if (!parentProfile) throw new Error("Profil parent introuvable");
 
-  // Note (Audit) : Bien que cela génère des requêtes N+1 (appels multiples à getStudentDashboardData), 
-  // on utilise Promise.all pour paralléliser l'exécution. C'est un choix délibéré (trade-off) 
-  // pour centraliser et réutiliser la logique métier complexe (croissance, assiduité, classement) 
-  // de `getStudentDashboardData` sans dupliquer le code. Un parent ayant généralement peu d'enfants (1-3), 
+  // Note (Audit) : Bien que cela génère des requêtes N+1 (appels multiples à getStudentDashboardData),
+  // on utilise Promise.all pour paralléliser l'exécution. C'est un choix délibéré (trade-off)
+  // pour centraliser et réutiliser la logique métier complexe (croissance, assiduité, classement)
+  // de `getStudentDashboardData` sans dupliquer le code. Un parent ayant généralement peu d'enfants (1-3),
   // l'impact sur les performances reste négligeable.
   const children = await Promise.all(
     parentProfile.parentStudents.map(async (ps) => {
@@ -926,7 +1011,75 @@ export async function getParentDashboardData(userId: string, yearId: string) {
     })
   );
 
-  return { children };
+  // Aggregate payment installments across all children for the parent view.
+  const studentIds = parentProfile.parentStudents.map((ps) => ps.student.id);
+  const studentFirstName = new Map(
+    parentProfile.parentStudents.map((ps) => [ps.student.id, ps.student.user.firstName ?? ""]),
+  );
+
+  const installments = studentIds.length
+    ? await prisma.installmentPayment.findMany({
+        where: { paymentPlan: { studentId: { in: studentIds } } },
+        include: {
+          paymentPlan: {
+            select: {
+              studentId: true,
+              fee: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { dueDate: "asc" },
+      })
+    : [];
+
+  const today = new Date();
+  const horizonDays = 60;
+  const horizon = new Date(today.getTime() + horizonDays * 24 * 60 * 60 * 1000);
+
+  type ParentPayment = {
+    id: string;
+    childName: string;
+    label: string;
+    amount: number;
+    dueDate: string | null;
+    state: "paid" | "due" | "overdue";
+  };
+
+  const pendingPayments: ParentPayment[] = installments
+    .filter((i) => {
+      if (i.status === "PAID") return true;
+      const d = new Date(i.dueDate);
+      return d <= horizon;
+    })
+    .map((i) => {
+      const paid = i.status === "PAID";
+      const overdue = !paid && new Date(i.dueDate) < today;
+      return {
+        id: i.id,
+        childName: studentFirstName.get(i.paymentPlan.studentId) ?? "Enfant",
+        label: i.paymentPlan.fee.name,
+        amount: Number(i.amount),
+        dueDate: paid && i.paidAt ? i.paidAt.toISOString() : i.dueDate.toISOString(),
+        state: paid ? "paid" : overdue ? "overdue" : "due",
+      } satisfies ParentPayment;
+    })
+    .slice(0, 12);
+
+  const totalDue = pendingPayments
+    .filter((p) => p.state !== "paid")
+    .reduce((acc, p) => acc + p.amount, 0);
+
+  const nextDueDate = pendingPayments
+    .filter((p) => p.state !== "paid" && p.dueDate)
+    .map((p) => new Date(p.dueDate as string).getTime())
+    .sort((a, b) => a - b)[0] ?? null;
+
+  return {
+    children,
+    pendingPayments,
+    totalDue,
+    nextDueDate: nextDueDate ? new Date(nextDueDate).toISOString() : null,
+  };
 }
 
 export async function getAccountantDashboardData(schoolId: string) {

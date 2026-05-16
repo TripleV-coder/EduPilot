@@ -432,8 +432,8 @@ ${req.description}
 
 **Analyse:**
 - Moyenne générale: ${generalAverage.toFixed(2)}/20
-- Groupe principal (${req.primaryGroup}): ${groupAverages.get(req.primaryGroup)?.toFixed(2) ?? "N/A"}/20
-${req.secondaryGroups.map((g) => `- Groupe secondaire (${g}): ${groupAverages.get(g)?.toFixed(2) ?? "N/A"}/20`).join("\n")}
+- Groupe principal (${req.primaryGroup}): ${groupAverages.get(req.primaryGroup)?.toFixed(2) ?? "Indisponible"}/20
+${req.secondaryGroups.map((g) => `- Groupe secondaire (${g}): ${groupAverages.get(g)?.toFixed(2) ?? "Indisponible"}/20`).join("\n")}
 
 **Score de compatibilité:** ${score}/100
     `.trim();

@@ -8,14 +8,14 @@ export class TemplateEngineService {
     async getTemplate(name: string, schoolId?: string, language: string = 'fr') {
         // 1. Try to find school-specific template in requested language
         if (schoolId) {
-            const schoolTemplate = await (prisma as any).communicationTemplate.findFirst({
+            const schoolTemplate = await prisma.communicationTemplate.findFirst({
                 where: { schoolId, name, language, isActive: true }
             });
             if (schoolTemplate) return schoolTemplate;
         }
 
         // 2. Try to find system-wide template in requested language
-        const systemTemplate = await (prisma as any).communicationTemplate.findFirst({
+        const systemTemplate = await prisma.communicationTemplate.findFirst({
             where: { schoolId: null, name, language, isActive: true }
         });
         if (systemTemplate) return systemTemplate;
@@ -23,12 +23,12 @@ export class TemplateEngineService {
         // 3. Fallback to default language (FR)
         if (language !== 'fr') {
             if (schoolId) {
-                const fallbackSchool = await (prisma as any).communicationTemplate.findFirst({
+                const fallbackSchool = await prisma.communicationTemplate.findFirst({
                     where: { schoolId, name, language: 'fr', isActive: true }
                 });
                 if (fallbackSchool) return fallbackSchool;
             }
-            const fallbackSystem = await (prisma as any).communicationTemplate.findFirst({
+            const fallbackSystem = await prisma.communicationTemplate.findFirst({
                 where: { schoolId: null, name, language: 'fr', isActive: true }
             });
             if (fallbackSystem) return fallbackSystem;

@@ -1,6 +1,3 @@
-import { jsPDF } from "jspdf";
-import "jspdf-autotable"; // Add table support
-
 export interface ExportData {
   title: string;
   headers: string[];
@@ -33,7 +30,10 @@ export function exportToCSV(data: ExportData): void {
   document.body.removeChild(link);
 }
 
-export function exportToPDF(data: ExportData): void {
+export async function exportToPDF(data: ExportData): Promise<void> {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
   const { title, headers, rows, timestamp } = data;
   const doc = new jsPDF();
   const date = (timestamp || new Date()).toLocaleDateString();
@@ -43,7 +43,7 @@ export function exportToPDF(data: ExportData): void {
   doc.setFontSize(10);
   doc.text(`Généré le ${date}`, 14, 25);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: [headers],
     body: rows,
     startY: 35,

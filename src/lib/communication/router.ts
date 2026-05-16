@@ -14,7 +14,7 @@ export class MessageRouterService {
 
         try {
             // 1. Log the attempt
-            const log = await (prisma as any).communicationLog.create({
+            const log = await prisma.communicationLog.create({
                 data: {
                     schoolId,
                     userId,
@@ -30,7 +30,7 @@ export class MessageRouterService {
             await this.dispatchViaProvider(channel, recipient);
 
             // 3. Update Log
-            await (prisma as any).communicationLog.update({
+            await prisma.communicationLog.update({
                 where: { id: log.id },
                 data: { status: "SENT" },
             });
@@ -43,7 +43,7 @@ export class MessageRouterService {
 
             // Log failure if possible (might fail if DB is down, but we try)
             try {
-                await (prisma as any).communicationLog.create({
+                await prisma.communicationLog.create({
                     data: {
                         schoolId,
                         userId,

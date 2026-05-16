@@ -32,30 +32,30 @@ enum SiteType {
 }
 
 model Organization {
-  id                String                   @id @default(cuid())
-  name              String
-  code              String                   @unique
-  description       String?
-  isActive          Boolean                  @default(true)
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-  memberships       OrganizationMembership[]
-  schools           School[]
+  id          String                   @id @default(cuid())
+  name        String
+  code        String                   @unique
+  description String?
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  memberships OrganizationMembership[]
+  schools     School[]
 
   @@map("organizations")
 }
 
 model OrganizationMembership {
-  id               String       @id @default(cuid())
-  organizationId   String
-  userId           String
-  title            String?
-  isOwner          Boolean      @default(false)
-  canManageSites   Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String?
+  isOwner        Boolean      @default(false)
+  canManageSites Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -63,58 +63,60 @@ model OrganizationMembership {
 }
 
 model School {
-  id                    String                @id @default(cuid())
-  organizationId        String?
-  name                  String
-  code                  String                @unique
-  type                  SchoolType            @default(PRIVATE)
-  level                 SchoolLevel
-  siteType              SiteType              @default(MAIN)
-  address               String?
-  city                  String?
-  phone                 String?
-  email                 String?
-  logo                  String?
-  isActive              Boolean               @default(true)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  planId                String?
-  parentSchoolId        String?
-  subscriptionStatus    SubscriptionStatus?   @default(TRIAL)
-  academicConfig        AcademicConfig?
-  academicYears         AcademicYear[]
-  announcements         Announcement[]
-  auditLogs             AuditLog[]
-  books                 Book[]
-  canteenMenus          CanteenMenu[]
-  classLevels           ClassLevel[]
-  classes               Class[]
-  configOptions         ConfigOption[]
-  dataRetentionPolicies DataRetentionPolicy[]
-  evaluationTypes       EvaluationType[]
-  fees                  Fee[]
-  importTemplates       ImportTemplate[]
-  leaderboard           Leaderboard[]
-  mealTickets           MealTicket[]
-  publicHolidays        PublicHoliday[]
-  resources             Resource[]
-  schoolCalendarEvents  SchoolCalendarEvent[]
-  schoolEvents          SchoolEvent[]
-  schoolHolidays        SchoolHoliday[]
-  parentSchool          School?               @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id])
-  childSchools          School[]              @relation("SchoolHierarchy")
-  organization          Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  plan                  SubscriptionPlan?     @relation(fields: [planId], references: [id])
-  studentProfiles       StudentProfile[]
-  subjectCategories     SubjectCategory[]
-  subjects              Subject[]
-  teacherAssignments    TeacherSchoolAssignment[]
-  teacherProfiles       TeacherProfile[]
-  users                 User[]
+  id                     String                    @id @default(cuid())
+  organizationId         String?
+  name                   String
+  code                   String                    @unique
+  type                   SchoolType                @default(PRIVATE)
+  level                  SchoolLevel
+  siteType               SiteType                  @default(MAIN)
+  address                String?
+  city                   String?
+  phone                  String?
+  email                  String?
+  logo                   String?
+  isActive               Boolean                   @default(true)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  planId                 String?
+  parentSchoolId         String?
+  subscriptionStatus     SubscriptionStatus?       @default(TRIAL)
+  academicConfig         AcademicConfig?
+  academicYears          AcademicYear[]
+  announcements          Announcement[]
+  auditLogs              AuditLog[]
+  books                  Book[]
+  canteenMenus           CanteenMenu[]
+  classLevels            ClassLevel[]
+  communicationLogs      CommunicationLog[]
+  communicationTemplates CommunicationTemplate[]
+  classes                Class[]
+  configOptions          ConfigOption[]
+  dataRetentionPolicies  DataRetentionPolicy[]
+  evaluationTypes        EvaluationType[]
+  fees                   Fee[]
+  importTemplates        ImportTemplate[]
+  leaderboard            Leaderboard[]
+  mealTickets            MealTicket[]
+  publicHolidays         PublicHoliday[]
+  resources              Resource[]
+  schoolCalendarEvents   SchoolCalendarEvent[]
+  schoolEvents           SchoolEvent[]
+  schoolHolidays         SchoolHoliday[]
+  parentSchool           School?                   @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id], onDelete: SetNull)
+  childSchools           School[]                  @relation("SchoolHierarchy")
+  organization           Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  plan                   SubscriptionPlan?         @relation(fields: [planId], references: [id])
+  studentProfiles        StudentProfile[]
+  subjectCategories      SubjectCategory[]
+  subjects               Subject[]
+  teacherAssignments     TeacherSchoolAssignment[]
+  teacherProfiles        TeacherProfile[]
+  users                  User[]
 
   @@index([organizationId])
-  @@index([parentSchoolId])  // P10: Performance index for hierarchy queries (childSchools)
-  @@index([email])           // P4: Index for email lookups (not unique — multi-site orgs may share email)
+  @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
+  @@index([email]) // P4: Index for email lookups (not unique — multi-site orgs may share email)
   @@map("schools")
 }
 
@@ -186,7 +188,7 @@ model User {
   phone                     String?
   avatar                    String?
   role                      UserRole
-  roles                     UserRole[]                  // Hybrid roles support
+  roles                     UserRole[] // Hybrid roles support
   isActive                  Boolean                     @default(true)
   schoolId                  String?
   failedLoginAttempts       Int                         @default(0)
@@ -207,6 +209,8 @@ model User {
   auditLogs                 AuditLog[]
   behaviorIncidentsReported BehaviorIncident[]
   certificatesIssued        Certificate[]
+  communicationLogs         CommunicationLog[]
+  communicationPreference   CommunicationPreference?
   coursesCreated            Course[]
   dataAccessProcessed       DataAccessRequest[]         @relation("Processor")
   dataAccessRequests        DataAccessRequest[]         @relation("Requester")
@@ -242,6 +246,7 @@ model User {
   @@index([role])
   @@index([isActive])
   @@index([createdAt])
+  @@index([schoolId, role])
   @@map("users")
 }
 
@@ -327,23 +332,23 @@ model SystemSetting {
 }
 
 model TeacherProfile {
-  id             String                @id @default(cuid())
-  userId         String                @unique
-  matricule      String?
+  id                String                    @id @default(cuid())
+  userId            String                    @unique
+  matricule         String?
   // Legacy primary school kept during Phase 3 migration.
-  schoolId       String
-  specialization String?
-  hireDate       DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  deletedAt      DateTime?
-  appointments   Appointment[]
-  classSubjects  ClassSubject[]
-  mainClasses    Class[]
-  availabilities TeacherAvailability[]
+  schoolId          String
+  specialization    String?
+  hireDate          DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  deletedAt         DateTime?
+  appointments      Appointment[]
+  classSubjects     ClassSubject[]
+  mainClasses       Class[]
+  availabilities    TeacherAvailability[]
   schoolAssignments TeacherSchoolAssignment[]
-  school         School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school            School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, matricule])
   @@index([schoolId])
@@ -351,19 +356,19 @@ model TeacherProfile {
 }
 
 model TeacherSchoolAssignment {
-  id         String                  @id @default(cuid())
-  teacherId  String
-  userId     String
-  schoolId   String
-  status     TeacherAssignmentStatus @default(ACTIVE)
-  isPrimary  Boolean                 @default(false)
-  startDate  DateTime?
-  endDate    DateTime?
-  createdAt  DateTime                @default(now())
-  updatedAt  DateTime                @updatedAt
-  school     School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  teacher    TeacherProfile          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  user       User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String                  @id @default(cuid())
+  teacherId String
+  userId    String
+  schoolId  String
+  status    TeacherAssignmentStatus @default(ACTIVE)
+  isPrimary Boolean                 @default(false)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  school    School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher   TeacherProfile          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, schoolId])
   @@unique([userId, schoolId])
@@ -412,6 +417,7 @@ model StudentProfile {
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
   @@index([matricule])
+  @@index([schoolId, createdAt])
   @@map("student_profiles")
 }
 
@@ -479,6 +485,7 @@ model Class {
   schedules     Schedule[]
 
   @@unique([schoolId, classLevelId, name])
+  @@index([schoolId, classLevelId])
   @@map("classes")
 }
 
@@ -522,6 +529,7 @@ model ClassSubject {
   schedules     Schedule[]
 
   @@unique([classId, subjectId])
+  @@index([teacherId])
   @@map("class_subjects")
 }
 
@@ -542,6 +550,7 @@ model Enrollment {
   student        StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, academicYearId]) // Fixed Edge Case: Removed unique to allow multiple enrollments (e.g., transfers) per year
+  @@index([classId, academicYearId])
   @@map("enrollments")
 }
 
@@ -734,7 +743,7 @@ model Attendance {
   studentId             String
   classId               String
   date                  DateTime
-  timeSlot              String?          // P14: Optional slot (e.g. "MORNING", "AFTERNOON") for half-day tracking
+  timeSlot              String? // P14: Optional slot (e.g. "MORNING", "AFTERNOON") for half-day tracking
   status                AttendanceStatus
   reason                String?
   justificationDocument String?
@@ -2157,4 +2166,59 @@ enum ScholarshipType {
   PARTIAL
   FULL
   OTHER
+}
+
+// ─── Communication Models ────────────────────────────────────────────────────
+
+model CommunicationLog {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String?
+  recipient String
+  channel   String
+  type      String   @default("TRANSACTIONAL")
+  status    String   @default("PENDING")
+  error     String?
+  metadata  Json?    @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("communication_logs")
+}
+
+model CommunicationPreference {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  channels        String[] @default(["EMAIL"])
+  language        String   @default("fr")
+  quietHoursStart String?
+  quietHoursEnd   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("communication_preferences")
+}
+
+model CommunicationTemplate {
+  id        String   @id @default(cuid())
+  schoolId  String?
+  name      String
+  language  String   @default("fr")
+  subject   String?
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school    School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([name, language])
+  @@map("communication_templates")
 }

@@ -176,8 +176,8 @@ export class AutomationService {
         let alertsSent = 0;
 
         for (const installment of overdueInstallments) {
-            const student = (installment as any).paymentPlan.student;
-            const parents = student.parentStudents.map((ps: any) => ps.parent.user.id);
+            const student = installment.paymentPlan.student;
+            const parents = student.parentStudents.map((ps: typeof student.parentStudents[number]) => ps.parent.user.id);
 
             if (parents.length > 0) {
                 await createBulkNotifications({

@@ -21,6 +21,7 @@ declare module "next-auth" {
       phone?: string | null;
       isTwoFactorEnabled: boolean;
       isTwoFactorAuthenticated: boolean;
+      mustChangePassword?: boolean;
       avatar?: string | null;
     } & DefaultSession["user"];
   }
@@ -41,6 +42,7 @@ declare module "next-auth" {
     phone?: string | null;
     isTwoFactorEnabled: boolean;
     isTwoFactorAuthenticated: boolean;
+    mustChangePassword?: boolean;
     avatar?: string | null;
   }
 }
@@ -61,6 +63,7 @@ declare module "@auth/core/adapters" {
     phone?: string | null;
     isTwoFactorEnabled: boolean;
     isTwoFactorAuthenticated: boolean;
+    mustChangePassword?: boolean;
     avatar?: string | null;
   }
 }
@@ -82,6 +85,7 @@ declare module "next-auth/jwt" {
     phone?: string | null;
     isTwoFactorEnabled: boolean;
     isTwoFactorAuthenticated: boolean;
+    mustChangePassword?: boolean;
     avatar?: string | null;
   }
 }

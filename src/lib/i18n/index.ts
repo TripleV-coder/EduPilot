@@ -4,7 +4,7 @@ export type TranslationFn = (key: string, data?: Record<string, unknown>) => str
 
 const translations: Record<string, any> = { fr };
 
-export const t: TranslationFn = (key: string, data?: Record<string, unknown>) => {
+export const t = (key: string, data?: Record<string, unknown>): any => {
     // Traverse the JSON object (e.g., "api.issues.forbidden")
     const keys = key.split(".");
     let value: any = translations["fr"]; // Default to FR for now
@@ -17,13 +17,14 @@ export const t: TranslationFn = (key: string, data?: Record<string, unknown>) =>
         }
     }
 
-    if (typeof value !== "string") return key;
-
-    // Replace variables like {entity}
-    if (data) {
-        Object.entries(data).forEach(([k, v]) => {
-            value = value.replace(`{${k}}`, String(v));
-        });
+    if (typeof value === "string") {
+        // Replace variables like {entity}
+        if (data) {
+            Object.entries(data).forEach(([k, v]) => {
+                value = value.replace(`{${k}}`, String(v));
+            });
+        }
+        return value;
     }
 
     return value;

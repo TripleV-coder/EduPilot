@@ -7,12 +7,12 @@ export class CommunicationPreferencesService {
      * Get preferences for a user, creating defaults if they don't exist
      */
     async getUserPreferences(userId: string) {
-        let prefs = await (prisma as any).communicationPreference.findUnique({
+        let prefs = await prisma.communicationPreference.findUnique({
             where: { userId },
         });
 
         if (!prefs) {
-            prefs = await (prisma as any).communicationPreference.create({
+            prefs = await prisma.communicationPreference.create({
                 data: {
                     userId,
                     channels: DEFAULT_CHANNELS,
@@ -33,7 +33,7 @@ export class CommunicationPreferencesService {
         quietHoursStart?: string | null;
         quietHoursEnd?: string | null;
     }) {
-        return (prisma as any).communicationPreference.upsert({
+        return prisma.communicationPreference.upsert({
             where: { userId },
             create: {
                 userId,
