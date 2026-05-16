@@ -1,0 +1,432 @@
+/* ============================================================
+   EduPilot Design System — Tokens (EduFlow spec)
+   Brand: Sky → Indigo · Neutrals: warm slate · Type: Inter + JetBrains Mono
+   Ported from /design-handoff/EduPilot Design System v2 · 2026
+   ============================================================ */
+
+:root {
+  /* ── Brand: Sky → Indigo (default) ────────────────────── */
+  --brand-50:  #EFF6FF;
+  --brand-100: #DBEAFE;
+  --brand-200: #BFDBFE;
+  --brand-300: #93C5FD;
+  --brand-400: #60A5FA;
+  --brand-500: #3B82F6;   /* links, active icons */
+  --brand-600: #2563EB;   /* CTA primary */
+  --brand-700: #1D4ED8;   /* CTA hover/pressed */
+  --brand-800: #1E40AF;
+  --brand-900: #172554;
+
+  --brand-accent-500: #6366F1;
+  --brand-accent-600: #4F46E5;
+  --gradient-cta: linear-gradient(90deg, #2563EB, #4F46E5);
+
+  /* ── Semantic ─────────────────────────────────────────── */
+  --eduflow-success-50:  #ECFDF5;
+  --eduflow-success-100: #D1FAE5;
+  --eduflow-success-200: #A7F3D0;
+  --eduflow-success-300: #6EE7B7;
+  --eduflow-success-400: #34D399;
+  --eduflow-success-500: #10B981;
+  --eduflow-success-600: #059669;
+  --eduflow-success-700: #047857;
+  --eduflow-success-800: #065F46;
+  --eduflow-success-900: #064E3B;
+
+  --eduflow-info-50:  #EFF6FF;
+  --eduflow-info-100: #DBEAFE;
+  --eduflow-info-200: #BFDBFE;
+  --eduflow-info-300: #93C5FD;
+  --eduflow-info-400: #60A5FA;
+  --eduflow-info-500: #3B82F6;
+  --eduflow-info-600: #2563EB;
+  --eduflow-info-700: #1D4ED8;
+  --eduflow-info-800: #1E40AF;
+  --eduflow-info-900: #1E3A8A;
+
+  --eduflow-warning-50:  #FFFBEB;
+  --eduflow-warning-100: #FEF3C7;
+  --eduflow-warning-200: #FDE68A;
+  --eduflow-warning-300: #FCD34D;
+  --eduflow-warning-400: #FBBF24;
+  --eduflow-warning-500: #F59E0B;
+  --eduflow-warning-600: #D97706;
+  --eduflow-warning-700: #B45309;
+  --eduflow-warning-800: #92400E;
+  --eduflow-warning-900: #78350F;
+
+  --eduflow-danger-50:  #FEF2F2;
+  --eduflow-danger-100: #FEE2E2;
+  --eduflow-danger-200: #FECACA;
+  --eduflow-danger-300: #FCA5A5;
+  --eduflow-danger-400: #F87171;
+  --eduflow-danger-500: #EF4444;
+  --eduflow-danger-600: #DC2626;
+  --eduflow-danger-700: #B91C1C;
+  --eduflow-danger-800: #991B1B;
+  --eduflow-danger-900: #7F1D1D;
+
+  /* ── Neutrals (warm slate) ────────────────────────────── */
+  --eduflow-neutral-0:   #FFFFFF;
+  --eduflow-neutral-50:  #F8FAFC;
+  --eduflow-neutral-100: #F1F5F9;
+  --eduflow-neutral-200: #E2E8F0;
+  --eduflow-neutral-300: #CBD5E1;
+  --eduflow-neutral-400: #94A3B8;
+  --eduflow-neutral-500: #64748B;
+  --eduflow-neutral-600: #475569;
+  --eduflow-neutral-700: #334155;
+  --eduflow-neutral-800: #1E293B;
+  --eduflow-neutral-900: #0F172A;
+  --eduflow-neutral-950: #020617;
+
+  /* ── EduFlow surfaces (composed) ──────────────────────── */
+  --eduflow-surface-page:    var(--eduflow-neutral-50);
+  --eduflow-surface-card:    var(--eduflow-neutral-0);
+  --eduflow-surface-sunken:  var(--eduflow-neutral-100);
+  --eduflow-surface-inverse: var(--eduflow-neutral-900);
+
+  --eduflow-text-primary:   var(--eduflow-neutral-900);
+  --eduflow-text-secondary: var(--eduflow-neutral-600);
+  --eduflow-text-tertiary:  var(--eduflow-neutral-400);
+  --eduflow-text-on-brand:  var(--eduflow-neutral-0);
+
+  --eduflow-border-subtle:  var(--eduflow-neutral-200);
+  --eduflow-border-default: var(--eduflow-neutral-200);
+  --eduflow-border-strong:  var(--eduflow-neutral-300);
+
+  /* ── Type ─────────────────────────────────────────────── */
+  --eduflow-font-display: var(--font-eduflow-body, 'Inter'), system-ui, sans-serif;
+  --eduflow-font-body:    var(--font-eduflow-body, 'Inter'), system-ui, sans-serif;
+  --eduflow-font-mono:    var(--font-eduflow-mono, 'JetBrains Mono'), ui-monospace, monospace;
+
+  --eduflow-text-xs:   11px;
+  --eduflow-text-sm:   13px;
+  --eduflow-text-base: 14px;
+  --eduflow-text-md:   15px;
+  --eduflow-text-lg:   18px;
+  --eduflow-text-xl:   22px;
+  --eduflow-text-2xl:  28px;
+  --eduflow-text-3xl:  32px;
+  --eduflow-text-4xl:  40px;
+
+  --eduflow-weight-regular:  400;
+  --eduflow-weight-medium:   500;
+  --eduflow-weight-semibold: 600;
+  --eduflow-weight-bold:     700;
+
+  --eduflow-leading-tight:  1.15;
+  --eduflow-leading-snug:   1.3;
+  --eduflow-leading-normal: 1.5;
+  --eduflow-leading-loose:  1.7;
+
+  /* ── Spacing (4px base) ───────────────────────────────── */
+  --eduflow-space-1:  4px;
+  --eduflow-space-2:  8px;
+  --eduflow-space-3:  12px;
+  --eduflow-space-4:  16px;
+  --eduflow-space-5:  20px;
+  --eduflow-space-6:  24px;
+  --eduflow-space-8:  32px;
+  --eduflow-space-10: 40px;
+  --eduflow-space-12: 48px;
+  --eduflow-space-16: 64px;
+  --eduflow-space-20: 80px;
+  --eduflow-space-24: 96px;
+
+  /* ── Radius ───────────────────────────────────────────── */
+  --eduflow-radius-sm:    8px;
+  --eduflow-radius-md:    12px;
+  --eduflow-radius-lg:    16px;
+  --eduflow-radius-xl:    22px;
+  --eduflow-radius-2xl:   28px;
+  --eduflow-radius-full:  9999px;
+
+  --eduflow-radius-chip:  8px;
+  --eduflow-radius-input: 12px;
+  --eduflow-radius-soft:  16px;
+  --eduflow-radius-card:  22px;
+  --eduflow-radius-pill:  9999px;
+
+  /* ── Shadows ──────────────────────────────────────────── */
+  --eduflow-shadow-none:       0 0 #0000;
+  --eduflow-shadow-sm:         0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --eduflow-shadow-card:       0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --eduflow-shadow-md:         var(--eduflow-shadow-card);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(37, 99, 235, 0.10);
+  --eduflow-shadow-cta:        0 6px 18px rgba(37, 99, 235, 0.25);
+  --eduflow-shadow-lg:         0 12px 28px -8px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --eduflow-shadow-overlay:    0 24px 48px rgba(15, 23, 42, 0.18);
+  --eduflow-shadow-pop:        var(--eduflow-shadow-overlay);
+
+  /* ── Motion ───────────────────────────────────────────── */
+  --eduflow-motion-tap:       80ms;
+  --eduflow-motion-fast:      150ms;
+  --eduflow-motion-enter:     200ms;
+  --eduflow-motion-base:      280ms;
+  --eduflow-motion-page:      280ms;
+  --eduflow-motion-slow:      500ms;
+  --eduflow-motion-celebrate: 600ms;
+  --eduflow-motion-attention: 1200ms;
+
+  --eduflow-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --eduflow-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --eduflow-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Z-index ──────────────────────────────────────────── */
+  --eduflow-z-base:     1;
+  --eduflow-z-dropdown: 100;
+  --eduflow-z-sticky:   200;
+  --eduflow-z-modal:    1000;
+  --eduflow-z-toast:    1100;
+  --eduflow-z-overlay:  1200;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Palette swaps — keep brand-600 = the CTA hue
+   ────────────────────────────────────────────────────────── */
+[data-eduflow-palette="deepblue"] {
+  --brand-50:  #EFF6FF;  --brand-100: #DBEAFE;  --brand-200: #BFDBFE;
+  --brand-300: #93C5FD;  --brand-400: #60A5FA;  --brand-500: #3B82F6;
+  --brand-600: #2563EB;  --brand-700: #1D4ED8;  --brand-800: #1E40AF;
+  --brand-900: #172554;
+  --gradient-cta: linear-gradient(90deg, #2563EB, #4F46E5);
+  --eduflow-shadow-cta: 0 6px 18px rgba(37, 99, 235, 0.25);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(37, 99, 235, 0.10);
+}
+[data-eduflow-palette="emerald"] {
+  --brand-50:  #ECFDF5;  --brand-100: #D1FAE5;  --brand-200: #A7F3D0;
+  --brand-300: #6EE7B7;  --brand-400: #34D399;  --brand-500: #10B981;
+  --brand-600: #059669;  --brand-700: #047857;  --brand-800: #065F46;
+  --brand-900: #064E3B;
+  --gradient-cta: linear-gradient(90deg, #059669, #0D9488);
+  --eduflow-shadow-cta: 0 6px 18px rgba(5, 150, 105, 0.25);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(5, 150, 105, 0.10);
+}
+[data-eduflow-palette="terracotta"] {
+  --brand-50:  #FDF4EE;  --brand-100: #FBE5D3;  --brand-200: #F6C69E;
+  --brand-300: #F0A26D;  --brand-400: #E87D4A;  --brand-500: #D9622E;
+  --brand-600: #B94A23;  --brand-700: #93371D;  --brand-800: #6F2A18;
+  --brand-900: #4A1C10;
+  --gradient-cta: linear-gradient(90deg, #B94A23, #D9622E);
+  --eduflow-shadow-cta: 0 6px 18px rgba(185, 74, 35, 0.25);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(185, 74, 35, 0.10);
+}
+[data-eduflow-palette="indigo"] {
+  --brand-50:  #F5F3FF;  --brand-100: #EDE9FE;  --brand-200: #DDD6FE;
+  --brand-300: #C4B5FD;  --brand-400: #A78BFA;  --brand-500: #8B5CF6;
+  --brand-600: #7C3AED;  --brand-700: #6D28D9;  --brand-800: #5B21B6;
+  --brand-900: #4C1D95;
+  --gradient-cta: linear-gradient(90deg, #7C3AED, #6366F1);
+  --eduflow-shadow-cta: 0 6px 18px rgba(124, 58, 237, 0.25);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(124, 58, 237, 0.10);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Dark mode for EduFlow tokens
+   ────────────────────────────────────────────────────────── */
+[data-eduflow-theme="dark"],
+.dark [data-eduflow-theme],
+.dark .eduflow-scope {
+  --eduflow-surface-page:    #0B1220;
+  --eduflow-surface-card:    #111827;
+  --eduflow-surface-sunken:  #0F172A;
+  --eduflow-surface-inverse: var(--eduflow-neutral-50);
+
+  --eduflow-text-primary:   #F1F5F9;
+  --eduflow-text-secondary: #CBD5E1;
+  --eduflow-text-tertiary:  #64748B;
+  --eduflow-text-on-brand:  var(--eduflow-neutral-0);
+
+  --eduflow-border-subtle:  rgba(255, 255, 255, 0.06);
+  --eduflow-border-default: rgba(255, 255, 255, 0.10);
+  --eduflow-border-strong:  rgba(255, 255, 255, 0.18);
+
+  --brand-600: #3B82F6;
+  --brand-700: #2563EB;
+
+  --eduflow-shadow-card:       0 1px 3px rgba(0, 0, 0, 0.40), 0 4px 12px rgba(0, 0, 0, 0.30);
+  --eduflow-shadow-md:         var(--eduflow-shadow-card);
+  --eduflow-shadow-lg:         0 12px 28px -8px rgba(0, 0, 0, 0.50);
+  --eduflow-shadow-overlay:    0 24px 48px rgba(0, 0, 0, 0.60);
+  --eduflow-shadow-card-brand: 0 4px 16px rgba(59, 130, 246, 0.18);
+  --eduflow-shadow-cta:        0 6px 18px rgba(59, 130, 246, 0.35);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Density (compact — for teacher/admin)
+   ────────────────────────────────────────────────────────── */
+[data-eduflow-density="compact"] {
+  --eduflow-space-3: 10px;
+  --eduflow-space-4: 12px;
+  --eduflow-space-5: 16px;
+  --eduflow-space-6: 20px;
+  --eduflow-leading-normal: 1.4;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Scope helpers
+   ────────────────────────────────────────────────────────── */
+.eduflow-scope {
+  font-family: var(--eduflow-font-body);
+  color: var(--eduflow-text-primary);
+  background: var(--eduflow-surface-page);
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+.eduflow-scope .eduflow-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.eduflow-scope .eduflow-display {
+  font-family: var(--eduflow-font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.eduflow-scope .eduflow-mono {
+  font-family: var(--eduflow-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes eduflowSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes eduflowPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* ──────────────────────────────────────────────────────────
+   A11y: focus-visible ring on every interactive surface
+   ────────────────────────────────────────────────────────── */
+.eduflow-scope :focus-visible,
+[data-eduflow-theme] :focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Reduced motion: kill every non-essential transition.
+   Applies inside the EduFlow scope only — global rules in
+   globals.css already cover the rest of the app.
+   ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .eduflow-scope *,
+  .eduflow-scope *::before,
+  .eduflow-scope *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   Design handoff alias layer — matches Claude Design v2 output
+   Lets the original handoff CSS work without `--eduflow-*` prefix
+   ────────────────────────────────────────────────────────── */
+:root {
+  /* Semantic color ramps (handoff names → eduflow-*) */
+  --success-50:  var(--eduflow-success-50);
+  --success-100: var(--eduflow-success-100);
+  --success-200: var(--eduflow-success-200);
+  --success-300: var(--eduflow-success-300);
+  --success-400: var(--eduflow-success-400);
+  --success-500: var(--eduflow-success-500);
+  --success-600: var(--eduflow-success-600);
+  --success-700: var(--eduflow-success-700);
+  --success-800: var(--eduflow-success-800);
+  --success-900: var(--eduflow-success-900);
+
+  --warning-50:  var(--eduflow-warning-50);
+  --warning-100: var(--eduflow-warning-100);
+  --warning-200: var(--eduflow-warning-200);
+  --warning-300: var(--eduflow-warning-300);
+  --warning-400: var(--eduflow-warning-400);
+  --warning-500: var(--eduflow-warning-500);
+  --warning-600: var(--eduflow-warning-600);
+  --warning-700: var(--eduflow-warning-700);
+  --warning-800: var(--eduflow-warning-800);
+  --warning-900: var(--eduflow-warning-900);
+
+  --danger-50:  var(--eduflow-danger-50);
+  --danger-100: var(--eduflow-danger-100);
+  --danger-200: var(--eduflow-danger-200);
+  --danger-300: var(--eduflow-danger-300);
+  --danger-400: var(--eduflow-danger-400);
+  --danger-500: var(--eduflow-danger-500);
+  --danger-600: var(--eduflow-danger-600);
+  --danger-700: var(--eduflow-danger-700);
+  --danger-800: var(--eduflow-danger-800);
+  --danger-900: var(--eduflow-danger-900);
+
+  /* Note: --info-* already defined globally for shadcn; we keep
+     handoff `info` aliased onto eduflow's blue info ramp. */
+  --info-50-handoff:  var(--eduflow-info-50);
+  --info-100-handoff: var(--eduflow-info-100);
+  --info-600-handoff: var(--eduflow-info-600);
+  --info-700-handoff: var(--eduflow-info-700);
+  --info-800-handoff: var(--eduflow-info-800);
+
+  /* Neutral (handoff `--neutral-*` → eduflow-neutral-*) */
+  --neutral-0:   var(--eduflow-neutral-0);
+  --neutral-50:  var(--eduflow-neutral-50);
+  --neutral-100: var(--eduflow-neutral-100);
+  --neutral-200: var(--eduflow-neutral-200);
+  --neutral-300: var(--eduflow-neutral-300);
+  --neutral-400: var(--eduflow-neutral-400);
+  --neutral-500: var(--eduflow-neutral-500);
+  --neutral-600: var(--eduflow-neutral-600);
+  --neutral-700: var(--eduflow-neutral-700);
+  --neutral-800: var(--eduflow-neutral-800);
+  --neutral-900: var(--eduflow-neutral-900);
+  --neutral-950: var(--eduflow-neutral-950);
+
+  /* Surfaces */
+  --surface-page:    var(--eduflow-surface-page);
+  --surface-card:    var(--eduflow-surface-card);
+  --surface-sunken:  var(--eduflow-surface-sunken);
+  --surface-inverse: var(--eduflow-surface-inverse);
+
+  /* Text colors (intentionally do NOT redefine --text-primary
+     which is already set globally as HSL triplets for shadcn;
+     we instead expose the handoff color via dedicated names) */
+  --eduflow-text-on-brand: var(--eduflow-neutral-0);
+
+  /* Borders */
+  --border-subtle:  var(--eduflow-border-subtle);
+  --border-default: var(--eduflow-border-default);
+  --border-strong:  var(--eduflow-border-strong);
+
+  /* Type families */
+  --font-display-eduflow: var(--eduflow-font-display);
+  --font-body-eduflow:    var(--eduflow-font-body);
+  --font-mono-eduflow:    var(--eduflow-font-mono);
+
+  /* Motion */
+  --motion-tap:        var(--eduflow-motion-tap);
+  --motion-fast:       var(--eduflow-motion-fast);
+  --motion-enter:      var(--eduflow-motion-enter);
+  --motion-base:       var(--eduflow-motion-base);
+  --motion-page:       var(--eduflow-motion-page);
+  --motion-slow:       var(--eduflow-motion-slow);
+  --motion-celebrate:  var(--eduflow-motion-celebrate);
+  --motion-attention:  var(--eduflow-motion-attention);
+
+  /* Shadow extras from handoff (eduflow already aliases these) */
+  --shadow-card-brand: var(--eduflow-shadow-card-brand);
+  --shadow-cta:        var(--eduflow-shadow-cta);
+  --shadow-overlay:    var(--eduflow-shadow-overlay);
+  --shadow-pop:        var(--eduflow-shadow-overlay);
+}
+
+/* Scoped text/surface aliases (avoid shadowing shadcn HSL tokens). */
+.eduflow-scope {
+  --text-primary:   var(--eduflow-text-primary);
+  --text-secondary: var(--eduflow-text-secondary);
+  --text-tertiary:  var(--eduflow-text-tertiary);
+  --text-on-brand:  var(--eduflow-neutral-0);
+}

@@ -36,7 +36,7 @@ export function InteractiveSubjectRadarChart({
 }: InteractiveSubjectRadarChartProps) {
   // Normalize data to handle both formats (API vs expected)
   const normalizedData = data.map((item, index) => ({
-    subject: item.subject || (item as any).name || "N/A",
+    subject: item.subject || (item as any).name || "Indisponible",
     subjectId: item.subjectId || (item as any).id || `subject-${index}`,
     grade: item.grade !== undefined ? item.grade : (item as any).average || 0,
     passRate: item.passRate !== undefined ? item.passRate : 0,

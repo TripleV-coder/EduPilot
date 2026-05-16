@@ -33,12 +33,10 @@ export function AttendanceGradesScatter() {
     if (!Array.isArray(analyticsData)) return [];
     
     return analyticsData
-      .filter(item => item.averageGrade !== null && item.absenceCount !== null)
+      .filter(item => item.averageGrade !== null && typeof item.attendanceRate === "number")
       .map((item) => ({
         studentName: item.studentName || "Unknown",
-        attendance: typeof item.attendanceRate === "number"
-          ? item.attendanceRate
-          : Math.max(0, Math.min(100, 100 - (item.absenceCount || 0) * 5)),
+        attendance: item.attendanceRate,
         averageGrade: Number(item.averageGrade || 0),
         risk: item.riskLevel || "LOW",
       }))
