@@ -1,335 +1,289 @@
-# 🧪 Guide de Tests - EduPilot
+# Tests — EduPilot
 
-## Vue d'Ensemble
+Guide complet de la stratégie de tests, des outils, et des bonnes pratiques.
 
-EduPilot dispose d'une suite complète de tests automatisés avec **240 tests** couvrant :
-- ✅ Fonctionnalités critiques (import, auth, RBAC)
-- ✅ Sécurité (rate limiting, permissions, RGPD)
-- ✅ Performance (cache, optimisation)
-- ✅ API et intégration
+> **État actuel** (2026-05-16) : 46 fichiers de tests, **539 tests** unit/integration verts + 6 specs E2E Playwright.
 
 ---
 
-## 🚀 Lancer les Tests
+## 1. Pyramide de tests
 
-### Tests Complets
-```bash
-# Tous les tests (240 tests)
-yarn test
-
-# Avec coverage
-yarn test:coverage
-
-# Mode watch (pendant développement)
-yarn test:watch
+```
+              ╱╲          E2E (Playwright)  — 6 specs
+             ╱──╲         Parcours critiques, multi-pages
+            ╱────╲
+           ╱──────╲       Integration (Vitest + Prisma mock)
+          ╱────────╲      ~15 fichiers — API helpers, services
+         ╱──────────╲
+        ╱────────────╲    Unit (Vitest)
+       ╱──────────────╲   ~30 fichiers — validations, utils, calculs
+      ╱────────────────╲
 ```
 
-### Tests Spécifiques
-```bash
-# Un seul fichier
-yarn test tests/unit/core-features.test.ts
-
-# Pattern
-yarn test tests/lib/
-
-# Tests d'import uniquement
-yarn test import
-```
+| Niveau | Outil | Volume | Vitesse | Coverage cible |
+|--------|-------|--------|---------|----------------|
+| Unit | Vitest | 80 % des tests | < 2 ms / test | ≥ 80 % du code lib/ |
+| Integration | Vitest + mocks | 15 % | 10–50 ms / test | endpoints critiques |
+| E2E | Playwright | 5 % | 5–30 s / scénario | 5 parcours métier majeurs |
 
 ---
 
-## 📊 Résultats Attendus
+## 2. Commandes essentielles
 
 ```bash
-Test Files  15 passed (15)
-Tests       240 passed (240)
-Duration    ~1.5s
-```
+# Tests unitaires + intégration
+npm run test                # un run unique
+npm run test:watch          # mode TDD
+npm run test:coverage       # avec rapport coverage (HTML + lcov)
 
-### Répartition des Tests
+# Tests E2E
+npm run test:e2e            # tous les tests Playwright
+npx playwright test e2e/auth-flow.spec.ts        # un seul fichier
+npx playwright test --debug                       # mode debug interactif
+npx playwright show-report                        # voir le dernier rapport
 
-| Catégorie | Nombre | Fichiers |
-|-----------|--------|----------|
-| **Import System** | 14 | `core-features.test.ts` |
-| **API Integration** | 12 | `api.test.ts` |
-| **RBAC & Permissions** | 22 | `rbac.permissions.test.ts` |
-| **Security** | 34 | `api-guard.test.ts` |
-| **Brute Force Protection** | 12 | `brute-force.test.ts` |
-| **Account Lockout** | 13 | `account-lockout.test.ts` |
-| **RGPD Compliance** | 14 | `rgpd.test.ts` |
-| **Performance** | 16 | `performance.test.ts` |
-| **AI Predictions** | 35 | `ai-predictive.test.ts` |
-| **Curriculum** | 36 | `benin-curriculum-system.test.ts` |
-| **Error Handling** | 7 | `api-error-response.test.ts` |
-| **API Helpers** | 10 | `api-helpers.test.ts` |
-| **Gamification** | 10 | `gamification.test.ts` |
-| **Homework** | 4 | `homework.test.ts` |
-| **Auth** | 1 | `auth.test.ts` |
-
----
-
-## 🎯 Tests E2E (Testing Agent v3)
-
-### Système d'Import Testé
-Le testing agent automatisé a validé le système d'import complet :
-
-✅ **Backend (100% succès)**
-- Import étudiants : CSV parsing, validation, mapping gender, insertion DB
-- Import professeurs : CSV parsing, validation, insertion DB
-- Import parents : CSV parsing, validation, liaison enfants
-
-✅ **Frontend (80% succès)**
-- Wizard UI : Sélection type, upload, mapping colonnes, validation
-- Performance : ~4.3s par requête (rate limiting intentionnel)
-
-### Données de Test Créées
-```bash
-# Vérifier les données créées par les tests
-psql $DATABASE_URL -c "
-  SELECT role, COUNT(*) 
-  FROM users 
-  WHERE email LIKE '%test%' 
-  GROUP BY role;
-"
-
-# Résultat attendu :
-# STUDENT  | 2
-# TEACHER  | 2
-# PARENT   | 2
-```
-
-### Rapport de Test
-```bash
-# Consulter le dernier rapport
-cat /app/test_reports/iteration_1.json | jq '.'
+# Lint + type-check
+npm run lint
+npm run type-check
 ```
 
 ---
 
-## 🐛 Tests de Régression
+## 3. Conventions de tests
 
-Avant chaque release majeure, exécuter :
-
-### 1. Tests Unitaires
-```bash
-yarn test
+### 3.1 Structure du dossier
+```
+tests/
+├── setup.ts                       # mocks globaux (Prisma, NextAuth, next/server)
+├── unit/                          # tests purs sans DB
+│   ├── core-features.test.ts
+│   └── lib/
+│       ├── analytics/helpers.test.ts
+│       └── finance/helpers.test.ts
+├── integration/
+│   └── api.test.ts                # tests d'intégration API
+├── lib/                           # tests unitaires lib/
+│   ├── api-helpers.test.ts
+│   ├── auth-crypto.test.ts
+│   ├── validations-*.test.ts
+│   ├── utils-*.test.ts
+│   └── rbac-*.test.ts
+└── api/                           # tests d'endpoint API
+    ├── auth.test.ts
+    └── homework.test.ts
 ```
 
-### 2. Tests E2E Manuels
-```bash
-# Se connecter
-open http://localhost:3000/login
-# Credentials : admin@edupilot.com / admin123
+### 3.2 Nommage des fichiers
+- `<module>-<feature>.test.ts` (ex: `validations-finance.test.ts`)
+- 1 fichier = 1 module testé. Pas de "tests fourre-tout".
+- Un test E2E par scénario utilisateur dans `e2e/<feature>.spec.ts`
 
-# Tester flows critiques :
-1. Login/Logout
-2. Import CSV (students, teachers, parents)
-3. Navigation dashboard
-4. CRUD opérations (ajouter/modifier/supprimer élève)
+### 3.3 Structure d'un test
+```ts
+import { describe, it, expect } from "vitest";
+import { feeSchema } from "@/lib/validations/finance";
+
+describe("validations/finance", () => {
+  describe("feeSchema", () => {
+    it("accepts a valid fee", () => {
+      const r = feeSchema.safeParse({ name: "Inscription", amount: 50000 });
+      expect(r.success).toBe(true);
+    });
+
+    it("rejects negative amount", () => {
+      expect(feeSchema.safeParse({ name: "X", amount: -1 }).success).toBe(false);
+    });
+  });
+});
 ```
 
-### 3. Tests API
-```bash
-# Tester endpoints critiques
-API_URL="http://localhost:3000"
-
-# Health check
-curl $API_URL/api/health
-
-# Import students (requiert auth, tester via UI)
-# Finance stats
-# etc.
-```
+### 3.4 Règles d'or
+- **AAA** : Arrange / Act / Assert. Pas de logique métier dans les tests.
+- **1 test = 1 comportement**. Si un test contient 5 `expect()` indépendants, le découper.
+- **Pas de tests pour les setters/getters triviaux** (vide ratio signal/bruit).
+- **Tests déterministes** : pas de `Date.now()`, pas de `Math.random()` sans mock. Utiliser `vi.useFakeTimers()` si besoin.
+- **Pas de logique conditionnelle dans le test** (`if`, `for` étranges). Utiliser `it.each` à la place.
 
 ---
 
-## 📝 Écrire Nouveaux Tests
+## 4. Mocking
 
-### Structure de Test Vitest
+### 4.1 Mocks globaux (`tests/setup.ts`)
+- **Prisma** : `vi.mock("@prisma/client", ...)` retourne un client avec toutes les méthodes mockées (`vi.fn()`)
+- **NextAuth** : `auth()` retourne `null` par défaut, à override par test
+- **next/server** : `NextResponse.json/redirect/next` mockés en objets simples
 
-```typescript
-// tests/mon-feature.test.ts
-import { describe, it, expect, beforeEach } from 'vitest'
+### 4.2 Mocker la session dans un test
+```ts
+import { auth } from "@/lib/auth";
 
-describe('Ma Fonctionnalité', () => {
-  beforeEach(() => {
-    // Setup avant chaque test
-  })
+vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 
-  it('should faire quelque chose', () => {
-    const result = maFonction('input')
-    expect(result).toBe('expected')
-  })
-
-  it('should gérer les erreurs', () => {
-    expect(() => maFonction(null)).toThrow()
-  })
-})
-```
-
-### Tests API Routes
-
-```typescript
-// tests/api/mon-endpoint.test.ts
-import { describe, it, expect, vi } from 'vitest'
-
-describe('GET /api/mon-endpoint', () => {
-  it('should return data', async () => {
-    // Mock prisma
-    const mockData = [{ id: '1', name: 'Test' }]
-    vi.spyOn(prisma.myModel, 'findMany').mockResolvedValue(mockData)
-
-    // Test
-    const response = await fetch('/api/mon-endpoint')
-    const data = await response.json()
-    
-    expect(response.status).toBe(200)
-    expect(data).toEqual(mockData)
-  })
-})
-```
-
----
-
-## 🎨 Coverage
-
-### Générer Rapport de Coverage
-```bash
-yarn test:coverage
-```
-
-### Visualiser Coverage
-```bash
-# Ouvrir dans navigateur
-open coverage/index.html
-```
-
-### Objectifs Coverage
-- **Statements** : > 70%
-- **Branches** : > 60%
-- **Functions** : > 70%
-- **Lines** : > 70%
-
----
-
-## 🔧 Configuration Tests
-
-### vitest.config.ts
-```typescript
-import { defineConfig } from 'vitest/config'
-import path from 'path'
-
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'json'],
+beforeEach(() => {
+  vi.mocked(auth).mockResolvedValue({
+    user: {
+      id: "u1",
+      role: "TEACHER",
+      schoolId: "school-1",
+      isTwoFactorEnabled: false,
+      isTwoFactorAuthenticated: true,
     },
+  } as any);
+});
+```
+
+### 4.3 Mocker Prisma localement
+```ts
+import prisma from "@/lib/prisma";
+
+vi.mock("@/lib/prisma", () => ({
+  default: {
+    user: { findUnique: vi.fn() },
   },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-})
+}));
+
+vi.mocked(prisma.user.findUnique).mockResolvedValue({
+  id: "u1",
+  email: "a@b.com",
+  // ... reste des champs requis
+} as any);
 ```
 
 ---
 
-## 🚨 Tests Critiques (Ne Doivent JAMAIS Échouer)
+## 5. Coverage
 
-### 1. Import System
-```bash
-yarn test core-features
-# 14 tests doivent passer
-```
+### 5.1 Configuration (`vitest.config.ts`)
+- Provider : **V8** (rapide, natif Node 20+)
+- Inclus : `src/lib/**/*.ts`
+- Exclus : `src/lib/types/**`, `*.d.ts`, `swagger.ts`
+- Seuils :
+  - Statements : 60 % (cible : 80 %)
+  - Branches : 50 % (cible : 70 %)
+  - Functions : 60 % (cible : 80 %)
 
-### 2. RBAC & Permissions
-```bash
-yarn test rbac
-# 22 tests doivent passer
-```
+### 5.2 Lire le rapport
+Après `npm run test:coverage` :
+- HTML : `coverage/index.html` (ouvrir dans un navigateur)
+- LCOV : `coverage/lcov.info` (uploadé vers Codecov en CI)
+- Texte : affiché dans la console
 
-### 3. Security
-```bash
-yarn test api-guard brute-force account-lockout
-# 59 tests doivent passer
-```
-
----
-
-## 📊 Monitoring Tests en CI/CD
-
-### GitHub Actions
-Les tests s'exécutent automatiquement sur :
-- ✅ Chaque push sur `main`
-- ✅ Chaque pull request
-- ✅ Before deploy
-
-### Voir résultats
-```bash
-# Localement
-yarn test
-
-# CI/CD
-# Voir .github/workflows/ci-cd.yml
-# Les tests doivent passer avant merge/deploy
-```
+### 5.3 Quels modules cibler en priorité ?
+1. `src/lib/auth/**` — sécurité critique
+2. `src/lib/rbac/**` — sécurité critique
+3. `src/lib/validations/**` — défense en profondeur sur l'entrée
+4. `src/lib/finance/**` — argent
+5. `src/lib/api/api-helpers.ts` — utilisé par toutes les routes
 
 ---
 
-## 🐞 Debugging Tests qui Échouent
+## 6. E2E (Playwright)
 
-### 1. Mode Verbose
-```bash
-yarn test --reporter=verbose
+### 6.1 Specs en place (`e2e/`)
+| Fichier | Couverture |
+|---------|-----------|
+| `auth-flow.spec.ts` | Login → dashboard → logout |
+| `auth.setup.ts` | Bootstrap session pour réutilisation |
+| `dashboard.spec.ts` | Navigation, RBAC visuel |
+| `public-routes.spec.ts` | Pages publiques (/, /privacy, /terms) |
+| `security-anonymous.spec.ts` | Anonyme ne peut pas accéder aux pages protégées |
+| `security-rbac.spec.ts` | Un STUDENT ne voit pas la route Finance |
+| `security-tenant.spec.ts` | École A ne peut pas lire l'école B |
+
+### 6.2 Configuration
+- `playwright.config.ts` : Chromium uniquement en CI (rapide), tous browsers en local
+- Base URL : `http://localhost:3000` (lancée par `webServer` du config)
+- Storage state : `e2e/.auth/<role>.json` pour réutiliser les sessions
+
+### 6.3 Ajouter un test E2E
+```ts
+// e2e/grades.spec.ts
+import { test, expect } from "@playwright/test";
+
+test.use({ storageState: "e2e/.auth/teacher.json" });
+
+test("a teacher can add a grade", async ({ page }) => {
+  await page.goto("/dashboard/grades");
+  await page.getByRole("button", { name: "Nouvelle note" }).click();
+  await page.getByLabel("Valeur").fill("15");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Note enregistrée")).toBeVisible();
+});
 ```
 
-### 2. Isoler Test Qui Échoue
-```bash
-# Utiliser .only
-it.only('test qui échoue', () => {
-  // ...
-})
-```
+### 6.4 A11y dans Playwright
+Pour ajouter axe-core à un test :
+```ts
+import AxeBuilder from "@axe-core/playwright";
 
-### 3. Console Logs
-```bash
-# Ajouter console.log dans le test
-it('test', () => {
-  console.log('Debug:', variable)
-  expect(variable).toBe(expected)
-})
+test("dashboard a11y", async ({ page }) => {
+  await page.goto("/dashboard");
+  const a = await new AxeBuilder({ page }).analyze();
+  expect(a.violations).toEqual([]);
+});
 ```
-
-### 4. Vérifier Mocks
-```bash
-# S'assurer que les mocks sont corrects
-vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(mockUser)
-```
+Lib à installer : `@axe-core/playwright` (cf. ADR à venir).
 
 ---
 
-## ✅ Checklist Tests Avant Deploy
+## 7. Tests de sécurité
 
-- [ ] `yarn test` : 240 tests passent
-- [ ] `yarn test:coverage` : > 70% coverage
-- [ ] Tests E2E manuels passent
-- [ ] Pas de console errors dans tests
-- [ ] Pas de warnings TypeScript
-- [ ] Tests API endpoints critiques OK
+### 7.1 Tenant isolation
+`e2e/security-tenant.spec.ts` doit valider :
+- Un user de l'école A se voit en 403 sur `/api/students?schoolId=B`
+- Un user de l'école A ne voit aucune donnée de l'école B dans aucune page
+
+### 7.2 RBAC
+`tests/lib/rbac.permissions.test.ts` valide la matrice :
+- `STUDENT` n'a aucune permission `grade:create`
+- `TEACHER` ne peut pas créer un autre `TEACHER`
+
+### 7.3 Brute force
+`tests/lib/brute-force.test.ts` (existant) + `tests/lib/auth-rate-limiter.test.ts` (nouveau) :
+- Après 5 logins KO, le compte est lock 30 min
+- Le rate-limiter empêche > 5 tentatives / 15 min / IP
+
+### 7.4 RGPD
+`tests/lib/rgpd.test.ts` (existant) :
+- Export inclut toutes les données du user
+- Suppression purge ou anonymise correctement
 
 ---
 
-## 📚 Ressources
+## 8. Performance
 
-- [Vitest Docs](https://vitest.dev/)
-- [Testing Library](https://testing-library.com/)
-- [Playwright E2E](https://playwright.dev/)
+À implémenter en V2 :
+- Tests **k6** pour charger les endpoints critiques (target : p95 < 500 ms à 50 RPS)
+- **Lighthouse CI** sur les 5 pages publiques + dashboard (déjà en place via `lighthouse-ci.yml`)
 
 ---
 
-**Dernière mise à jour** : 23 Mars 2025  
-**Tests Version** : 1.1.0 (240 tests)
+## 9. CI
+
+Voir `.github/workflows/ci.yml`. Le pipeline exécute :
+- `lint` (matrix Node 20 + 22)
+- `unit-tests` (avec coverage upload vers Codecov)
+- `build` (Next.js production build)
+- `e2e` (Playwright Chromium)
+- `codeql`, `dependency-audit`, `trivy`, `sbom`
+- `quality-gate` : fail si l'un des précédents échoue
+
+PR sont **bloquées** tant que `Quality Gate` n'est pas vert.
+
+---
+
+## 10. Diagnostic des tests qui échouent
+
+### 10.1 Un test cassé en CI mais passe en local
+- Vérifier que les variables d'env de CI matchent : `DATABASE_URL`, `NEXTAUTH_SECRET`, `TOTP_ENCRYPTION_KEY`
+- Vérifier que `prisma generate` a tourné (CI le fait automatiquement, dev local non)
+- Vérifier le timezone (CI = UTC, local = Africa/Porto-Novo) : utiliser des dates ISO partout
+
+### 10.2 Un test flaky
+- Identifier la cause : timing, ordre des tests, mocks partagés
+- Ajouter `vi.restoreAllMocks()` en `afterEach` si pas déjà
+- Pour les tests qui dépendent du temps, utiliser `vi.useFakeTimers()` + `vi.setSystemTime(...)`
+
+### 10.3 Snapshot tests obsolètes
+- Mettre à jour : `npm run test -- -u`
+- **Toujours** vérifier le diff avant de merger
