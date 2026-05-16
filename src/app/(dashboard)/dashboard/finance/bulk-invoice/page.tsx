@@ -80,13 +80,13 @@ export default function BulkInvoicePage() {
                             <form onSubmit={handleGenerate}>
                                 <CardContent className="pt-6 space-y-6">
                                     {error && (
-                                        <div className="p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-600 text-sm flex items-center gap-2">
+                                        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm flex items-center gap-2">
                                             <AlertCircle className="w-4 h-4 shrink-0" />
                                             {error}
                                         </div>
                                     )}
                                     {success && (
-                                        <div className="p-3 rounded-md bg-green-500/10 border border-green-500/20 text-green-600 text-sm">
+                                        <div className="p-3 rounded-md bg-success/10 border border-success/30 text-success text-sm">
                                             {success}
                                         </div>
                                     )}
@@ -94,7 +94,7 @@ export default function BulkInvoicePage() {
                                         <div className="space-y-2">
                                             <Label htmlFor="target">Cible de la facturation</Label>
                                             <Select defaultValue="level">
-                                                <SelectTrigger id="target" className="bg-background">
+                                                <SelectTrigger id="target" aria-label="Cible de facturation" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -107,7 +107,7 @@ export default function BulkInvoicePage() {
                                         <div className="space-y-2">
                                             <Label htmlFor="levelOrClass">Niveau / Classe</Label>
                                             <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                                                <SelectTrigger id="levelOrClass" className="bg-background">
+                                                <SelectTrigger id="levelOrClass" aria-label="Niveau ou classe cible" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -125,7 +125,7 @@ export default function BulkInvoicePage() {
                                         <div className="space-y-2">
                                             <Label htmlFor="feeType">Type de frais</Label>
                                             <Select value={selectedFee} onValueChange={setSelectedFee}>
-                                                <SelectTrigger id="feeType" className="bg-background">
+                                                <SelectTrigger id="feeType" aria-label="Type de frais" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -142,6 +142,8 @@ export default function BulkInvoicePage() {
                                                 <Input
                                                     id="amount"
                                                     type="number"
+                                                    aria-label="Montant de la facture"
+                                                    placeholder="Ex: 45000"
                                                     required
                                                     defaultValue={45000}
                                                     className="bg-background font-medium"
@@ -152,6 +154,7 @@ export default function BulkInvoicePage() {
                                                 <Input
                                                     id="dueDate"
                                                     type="date"
+                                                    aria-label="Date d'échéance"
                                                     required
                                                     className="bg-background"
                                                 />

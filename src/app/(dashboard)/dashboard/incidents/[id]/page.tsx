@@ -79,7 +79,7 @@ export default function IncidentDetailsPage() {
     }, [id]);
 
     if (isLoading) return <div className="p-12 flex justify-center"><AlertTriangle className="animate-pulse text-muted-foreground" /></div>;
-    if (!incident) return <div className="p-12 text-center text-red-500">Incident introuvable.</div>;
+    if (!incident) return <div className="p-12 text-center text-destructive">Incident introuvable.</div>;
 
     const handleResolve = async () => {
         setIsSubmitting(true);
@@ -185,9 +185,9 @@ export default function IncidentDetailsPage() {
                                     {incident.student?.user.firstName} {incident.student?.user.lastName}
                                 </CardTitle>
                                 {incident.isResolved ? (
-                                    <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 px-3"><CheckCircle2 className="w-4 h-4 mr-1" /> Dossier Clos</Badge>
+                                    <Badge className="bg-success/10 text-success hover:bg-success/20 px-3"><CheckCircle2 className="w-4 h-4 mr-1" /> Dossier Clos</Badge>
                                 ) : (
-                                    <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 px-3"><AlertTriangle className="w-4 h-4 mr-1" /> En attente</Badge>
+                                    <Badge className="bg-warning/10 text-warning hover:bg-warning/20 px-3"><AlertTriangle className="w-4 h-4 mr-1" /> En attente</Badge>
                                 )}
                             </CardHeader>
                             <CardContent className="space-y-6 pt-4">
@@ -218,8 +218,8 @@ export default function IncidentDetailsPage() {
                                 {(incident.actionTaken || incident.followUpNotes) && (
                                     <div className="space-y-2 pt-4 border-t border-border">
                                         <h4 className="font-semibold">Mesures conservatoires et suivi</h4>
-                                        {incident.actionTaken && <p className="text-sm bg-blue-500/5 text-blue-700/90 p-3 rounded-lg border border-blue-500/10"><b>Action immédiate:</b> {incident.actionTaken}</p>}
-                                        {incident.followUpNotes && <p className="text-sm bg-emerald-500/5 text-emerald-700/90 p-3 rounded-lg border border-emerald-500/10"><b>Notes de clôture:</b> {incident.followUpNotes}</p>}
+                                        {incident.actionTaken && <p className="text-sm bg-primary/10 text-primary p-3 rounded-lg border border-primary/20"><b>Action immédiate:</b> {incident.actionTaken}</p>}
+                                        {incident.followUpNotes && <p className="text-sm bg-success/10 text-success p-3 rounded-lg border border-success/20"><b>Notes de clôture:</b> {incident.followUpNotes}</p>}
                                     </div>
                                 )}
                             </CardContent>
@@ -236,7 +236,7 @@ export default function IncidentDetailsPage() {
                                 <CardContent className="space-y-4">
                                     <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
                                         <DialogTrigger asChild>
-                                            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white action-critical touch-target"><CheckCircle2 className="w-4 h-4 mr-2" /> Clore l'incident</Button>
+                                            <Button className="w-full bg-success hover:bg-success/90 text-white action-critical touch-target"><CheckCircle2 className="w-4 h-4 mr-2" /> Clore l'incident</Button>
                                         </DialogTrigger>
                                         <DialogContent>
                                             <DialogHeader>
@@ -247,7 +247,8 @@ export default function IncidentDetailsPage() {
                                                 <div className="space-y-2">
                                                     <Label>Notes de clôture / Conclusion</Label>
                                                     <Textarea
-                                                        
+                                                        aria-label="Notes de clôture de l'incident"
+                                                        placeholder="Saisissez les conclusions et décisions finales..."
                                                         value={followUpNotes}
                                                         onChange={(e) => setFollowUpNotes(e.target.value)}
                                                     />
@@ -273,7 +274,7 @@ export default function IncidentDetailsPage() {
                                                 <div className="space-y-2">
                                                     <Label>Type de Sanction</Label>
                                                     <Select onValueChange={setSanctionType} defaultValue={sanctionType}>
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectTrigger aria-label="Type de sanction"><SelectValue /></SelectTrigger>
                                                         <SelectContent>
                                                             {SANCTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                                                         </SelectContent>
@@ -282,17 +283,18 @@ export default function IncidentDetailsPage() {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-2">
                                                         <Label>Début (Date & Heure)</Label>
-                                                        <Input type="datetime-local" value={sanctionStartDate} onChange={(e) => setSanctionStartDate(e.target.value)} />
+                                                        <Input aria-label="Date de début de la sanction" type="datetime-local" value={sanctionStartDate} onChange={(e) => setSanctionStartDate(e.target.value)} />
                                                     </div>
                                                     <div className="space-y-2">
                                                         <Label>Fin (Optionnel)</Label>
-                                                        <Input type="datetime-local" value={sanctionEndDate} onChange={(e) => setSanctionEndDate(e.target.value)} />
+                                                        <Input aria-label="Date de fin de la sanction" type="datetime-local" value={sanctionEndDate} onChange={(e) => setSanctionEndDate(e.target.value)} />
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label>Motif / Travail demandé</Label>
                                                     <Textarea
-                                                        
+                                                        aria-label="Description de la sanction"
+                                                        placeholder="Détaillez le motif et les modalités..."
                                                         value={sanctionDescription}
                                                         onChange={(e) => setSanctionDescription(e.target.value)}
                                                     />

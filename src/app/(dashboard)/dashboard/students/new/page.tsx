@@ -27,6 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Permission } from "@/lib/rbac/permissions";
+import { StudentIdentityFields, StudentContactFields } from "@/components/students/student-basic-fields";
 import { studentCreateSchema } from "@/lib/validations/user";
 import { AlertCircle, Save, ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -148,53 +149,7 @@ export default function NewStudentPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormField control={form.control as any} name="matricule" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Matricule <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormDescription className="text-xs">
-                                            Identifiant interne unique de l'élève dans votre établissement.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control as any} name="gender" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Genre <span className="text-destructive">*</span></FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="MALE">Masculin</SelectItem>
-                                                <SelectItem value="FEMALE">Féminin</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control as any} name="firstName" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Prénoms <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormDescription className="text-xs">
-                                            Prénoms officiels tels qu'ils apparaissent sur les documents scolaires.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control as any} name="lastName" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nom de famille <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormDescription className="text-xs">
-                                            Nom de famille principal de l'élève.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
+                                <StudentIdentityFields control={form.control as any} showDescriptions={true} />
                                 <FormField control={form.control as any} name="dateOfBirth" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Date de naissance</FormLabel>
@@ -300,16 +255,7 @@ export default function NewStudentPage() {
                                 <CardTitle className="text-lg">Compte & Contacts</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormField control={form.control as any} name="email" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl><Input type="email" {...field} /></FormControl>
-                                        <FormDescription className="text-xs">
-                                            Adresse email utilisée pour la connexion élève et les notifications.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
+                                <StudentContactFields control={form.control as any} showDescriptions={true} />
                                 <FormField control={form.control as any} name="password" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Mot de passe provisoire <span className="text-destructive">*</span></FormLabel>
@@ -335,20 +281,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="phone" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Téléphone</FormLabel>
-                                        <FormControl><Input type="tel" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control as any} name="address" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Adresse de résidence</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
+
                             </CardContent>
                         </Card>
 

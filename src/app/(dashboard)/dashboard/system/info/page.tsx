@@ -64,8 +64,8 @@ export default function SystemInfoPage() {
                                 <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">v1.8</span>
                             </div>
                             <div className="flex justify-between py-2 border-b border-border/50">
-                                <span className="text-foreground">IA Assistant (Ollama)</span>
-                                <span className="text-xs px-2 py-1 bg-purple-500/10 text-purple-600 rounded-full">Bêta</span>
+                                <span className="text-foreground">IA Assistant (Google AI + n8n)</span>
+                                <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">Cloud</span>
                             </div>
                             <div className="flex justify-between py-2">
                                 <span className="text-foreground">Portail Parent/Élève</span>

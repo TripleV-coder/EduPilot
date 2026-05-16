@@ -105,7 +105,7 @@ export default function RootMaintenancePage() {
                         <CardContent className="pt-6 space-y-6">
                             <div className="p-4 bg-muted/50 rounded-lg border border-border">
                                 <h4 className="font-medium flex items-center gap-2 mb-2">
-                                    <ShieldAlert className="w-4 h-4 text-orange-500" />
+                                    <ShieldAlert className="w-4 h-4 text-warning" />
                                     Que se passe-t-il lorsque ce mode est activé ?
                                 </h4>
                                 <ul className="text-sm text-muted-foreground list-disc pl-4 space-y-1">
@@ -119,7 +119,8 @@ export default function RootMaintenancePage() {
                                 <label className="text-sm font-medium text-foreground">Message personnalisé (Bientôt disponible)</label>
                                 <Textarea
                                     disabled
-                                    
+                                    aria-label="Message de maintenance personnalisé"
+                                    placeholder="Le message de maintenance personnalisable sera disponible dans une prochaine version."
                                     className="min-h-[100px] bg-background"
                                 />
                             </div>
@@ -129,6 +130,7 @@ export default function RootMaintenancePage() {
                                     * L'activation est immédiate (sans redémarrage serveur requis)
                                 </p>
                                 <Button
+                                    type="button"
                                     disabled={loading || toggling}
                                     variant={isMaintenance ? "default" : "destructive"}
                                     className="gap-2 font-bold"
@@ -154,14 +156,14 @@ export default function RootMaintenancePage() {
                                     <h4 className="font-semibold text-foreground">Purger le Cache Redis</h4>
                                     <p className="text-xs text-muted-foreground mt-1">Déclenche une invalidation complète de la base Redis (Sessions, requêtes).</p>
                                 </div>
-                                <Button onClick={() => handleTechnicalAction("Purger Redis")} variant="outline" size="sm">Exécuter</Button>
+                                <Button type="button" onClick={() => handleTechnicalAction("Purger Redis")} variant="outline" size="sm">Exécuter</Button>
                             </div>
                             <div className="flex justify-between items-center p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-colors">
                                 <div>
                                     <h4 className="font-semibold text-foreground">Reconstruire les Index DB</h4>
                                     <p className="text-xs text-muted-foreground mt-1">Optimise PostgreSQL sans downtime significatif `REINDEX CONCURRENTLY`.</p>
                                 </div>
-                                <Button onClick={() => handleTechnicalAction("Reconstruire DB")} variant="outline" size="sm">Exécuter</Button>
+                                <Button type="button" onClick={() => handleTechnicalAction("Reconstruire DB")} variant="outline" size="sm">Exécuter</Button>
                             </div>
                         </CardContent>
                     </Card>

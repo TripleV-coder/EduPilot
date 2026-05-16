@@ -11,6 +11,7 @@ import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+const DEFAULT_PASSWORD = "00000000";
 
 /**
  * GET /api/students
@@ -295,7 +296,8 @@ export const POST = createApiHandler(
       }
     }
 
-    const hashedPassword = validatedData.password ? await bcrypt.hash(validatedData.password, 10) : undefined;
+    const passwordToSet = validatedData.password || DEFAULT_PASSWORD;
+    const hashedPassword = await bcrypt.hash(passwordToSet, 10);
 
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -303,10 +305,11 @@ export const POST = createApiHandler(
           email: validatedData.email,
           firstName: validatedData.firstName,
           lastName: validatedData.lastName,
-          password: hashedPassword || await bcrypt.hash(Math.random().toString(36), 10), // Fallback if password missing (should be covered by validation)
+          password: hashedPassword,
           role: "STUDENT",
           schoolId: targetSchoolId,
           phone: validatedData.phone,
+          mustChangePassword: !validatedData.password,
         },
       });
 

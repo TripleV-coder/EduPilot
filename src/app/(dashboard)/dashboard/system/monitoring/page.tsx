@@ -21,7 +21,7 @@ export default function SystemMonitoringPage() {
                 />
 
                 {/* Global Status */}
-                <div className="flex items-center gap-3 p-4 bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border border-[hsl(var(--success-border))] rounded-xl shadow-sm">
+                <div className="flex items-center gap-3 p-4 bg-success/10 text-success border border-success/30 rounded-xl shadow-sm">
                     <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                     <div>
                         <h3 className="font-semibold">Tous les systèmes sont opérationnels</h3>
@@ -55,7 +55,7 @@ export default function SystemMonitoringPage() {
                                     <p className="text-sm font-medium text-muted-foreground">Mémoire RAM</p>
                                     <p className="text-2xl font-bold text-foreground">42%</p>
                                 </div>
-                                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-lg">
+                                <div className="p-2 bg-warning/10 text-warning rounded-lg">
                                     <Server className="w-5 h-5" />
                                 </div>
                             </div>
@@ -70,7 +70,7 @@ export default function SystemMonitoringPage() {
                                     <p className="text-sm font-medium text-muted-foreground">Espace Disque (DB)</p>
                                     <p className="text-2xl font-bold text-foreground">18.5 GB</p>
                                 </div>
-                                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
+                                <div className="p-2 bg-primary/10 text-primary rounded-lg">
                                     <HardDrive className="w-5 h-5" />
                                 </div>
                             </div>
@@ -85,7 +85,7 @@ export default function SystemMonitoringPage() {
                                     <p className="text-sm font-medium text-muted-foreground">Sessions Actives</p>
                                     <p className="text-2xl font-bold text-foreground">142</p>
                                 </div>
-                                <div className="p-2 bg-green-500/10 text-green-600 rounded-lg">
+                                <div className="p-2 bg-success/10 text-success rounded-lg">
                                     <Users className="w-5 h-5" />
                                 </div>
                             </div>
@@ -114,7 +114,7 @@ export default function SystemMonitoringPage() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="text-sm text-muted-foreground font-mono">45ms</span>
-                                    <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))] font-normal">En ligne</Badge>
+                                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-normal">En ligne</Badge>
                                 </div>
                             </div>
 
@@ -125,7 +125,7 @@ export default function SystemMonitoringPage() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="text-sm text-muted-foreground font-mono">112ms</span>
-                                    <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))] font-normal">En ligne</Badge>
+                                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-normal">En ligne</Badge>
                                 </div>
                             </div>
 
@@ -136,7 +136,7 @@ export default function SystemMonitoringPage() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="text-sm text-muted-foreground font-mono">--</span>
-                                    <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))] font-normal">En ligne</Badge>
+                                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-normal">En ligne</Badge>
                                 </div>
                             </div>
                         </div>

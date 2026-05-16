@@ -118,10 +118,10 @@ export default function PerformancesPage() {
     };
 
     const getColorForAverage = (avg: number) => {
-        if (avg >= 14) return "#22c55e"; // Vert
-        if (avg >= 10) return "#F97316"; // Primary
-        if (avg >= 8) return "#f59e0b";  // Orange
-        return "#ef4444";            // Rouge
+        if (avg >= 14) return "hsl(var(--success))";
+        if (avg >= 10) return "hsl(var(--primary))";
+        if (avg >= 8) return "hsl(var(--warning))";
+        return "hsl(var(--destructive))";
     };
 
     return (
@@ -146,7 +146,7 @@ export default function PerformancesPage() {
                         </div>
                         <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
                             <Select value={selectedAcademicYearId} onValueChange={handleYearChange}>
-                                <SelectTrigger className="w-[200px] bg-background">
+                                <SelectTrigger aria-label="Filtrer par année académique" className="w-[200px] bg-background">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -164,7 +164,7 @@ export default function PerformancesPage() {
                                 onValueChange={setSelectedPeriodId}
                                 disabled={selectedAcademicYearId === "ALL" || !stats || stats.terms?.length === 0}
                             >
-                                <SelectTrigger className="w-[180px] bg-background">
+                                <SelectTrigger aria-label="Filtrer par période" className="w-[180px] bg-background">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -259,12 +259,12 @@ export default function PerformancesPage() {
                                             <p className="text-lg font-bold tracking-tight text-foreground truncate max-w-[150px]">
                                                 {stats.performanceBySubject?.[0]?.name || "N/A"}
                                             </p>
-                                            <p className="text-xs font-semibold text-emerald-600 bg-emerald-500/10 w-fit px-2 py-0.5 rounded-full">
+                                            <p className="text-xs font-semibold text-success bg-success/10 w-fit px-2 py-0.5 rounded-full">
                                                 {stats.performanceBySubject?.[0]?.average || "0"}/20
                                             </p>
                                         </div>
-                                        <div className="p-2 bg-emerald-500/20 rounded-lg">
-                                            <BookOpen className="h-5 w-5 text-emerald-600" />
+                                        <div className="p-2 bg-success/20 rounded-lg">
+                                            <BookOpen className="h-5 w-5 text-success" />
                                         </div>
                                     </div>
                                 </CardContent>
@@ -278,12 +278,12 @@ export default function PerformancesPage() {
                                             <p className="text-lg font-bold tracking-tight text-foreground truncate max-w-[150px]">
                                                 {stats.performanceByClass?.[0]?.name || "N/A"}
                                             </p>
-                                            <p className="text-xs font-semibold text-amber-600 bg-amber-500/10 w-fit px-2 py-0.5 rounded-full">
+                                            <p className="text-xs font-semibold text-warning bg-warning/10 w-fit px-2 py-0.5 rounded-full">
                                                 {stats.performanceByClass?.[0]?.average || "0"}/20
                                             </p>
                                         </div>
-                                        <div className="p-2 bg-amber-500/20 rounded-lg">
-                                            <Trophy className="h-5 w-5 text-amber-600" />
+                                        <div className="p-2 bg-warning/20 rounded-lg">
+                                            <Trophy className="h-5 w-5 text-warning" />
                                         </div>
                                     </div>
                                 </CardContent>
@@ -382,7 +382,7 @@ export default function PerformancesPage() {
                                                 cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
                                                 contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
                                             />
-                                            <Bar dataKey="average" name="Moyenne" radius={[4, 4, 0, 0]} fill="#F97316" />
+                                            <Bar dataKey="average" name="Moyenne" radius={[4, 4, 0, 0]} fill="hsl(var(--warning))" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>

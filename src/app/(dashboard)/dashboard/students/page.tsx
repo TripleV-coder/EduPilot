@@ -1,471 +1,1028 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Permission } from "@/lib/rbac/permissions";
-import { GraduationCap, AlertCircle, Plus, UploadCloud, Trash2, Search as SearchIcon, Filter, Eye, LayoutGrid, TableProperties, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import useSWR, { useSWRConfig } from "swr";
+
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { PageCallout } from "@/components/layout/page-callout";
+import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
 
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    Icon,
+    type IconName,
+} from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
+
 type Student = {
-  id: string;
-  studentNumber?: string;
-  matricule?: string;
-  user?: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    isActive: boolean;
-  };
-  enrollments?: {
-    class?: {
-      name: string;
-    }
-  }[];
+    id: string;
+    studentNumber?: string;
+    matricule?: string;
+    user?: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        isActive: boolean;
+    };
+    enrollments?: {
+        class?: {
+            name: string;
+        };
+    }[];
 };
 
+type ClassOption = { id: string; name: string };
+
+type StudentResponse = {
+    data?: Student[];
+    students?: Student[];
+    pagination?: { total?: number; totalPages?: number };
+};
+
+type ClassesResponse = { data?: ClassOption[]; classes?: ClassOption[] };
+
+const PAGE_SIZE = 30;
+
 export default function StudentsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
-  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 30;
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const activeFiltersCount = [
-    selectedClassId !== "ALL",
-    selectedStatus !== "ALL",
-    !!searchTerm.trim(),
-  ].filter(Boolean).length;
+    const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearch = useDebounce(searchTerm, 500);
+    const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
+    const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+    const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(
+        null
+    );
+    const [isDeleting, setIsDeleting] = useState(false);
 
-  const queryParams = new URLSearchParams();
-  queryParams.set("limit", String(pageSize));
-  queryParams.set("page", String(currentPage));
-  if (selectedClassId !== "ALL") queryParams.set("classId", selectedClassId);
-  if (selectedStatus !== "ALL") queryParams.set("status", selectedStatus);
-  if (debouncedSearch) queryParams.set("search", debouncedSearch);
+    const queryParams = new URLSearchParams();
+    queryParams.set("limit", String(PAGE_SIZE));
+    queryParams.set("page", String(currentPage));
+    if (selectedClassId !== "ALL") queryParams.set("classId", selectedClassId);
+    if (selectedStatus !== "ALL") queryParams.set("status", selectedStatus);
+    if (debouncedSearch) queryParams.set("search", debouncedSearch);
 
-  const { data: response, error, isLoading: loading } = useSWR<any>(`/api/students?${queryParams.toString()}`, fetcher);
-  const { data: classesData } = useSWR<any>("/api/classes", fetcher);
+    const {
+        data: response,
+        error,
+        isLoading: loading,
+    } = useSWR<StudentResponse | Student[]>(
+        `/api/students?${queryParams.toString()}`,
+        fetcher
+    );
+    const { data: classesData } = useSWR<ClassesResponse | ClassOption[]>(
+        "/api/classes",
+        fetcher
+    );
 
-  const { mutate } = useSWRConfig();
-  const { toast } = useToast();
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
 
-  const students: Student[] = response?.data || response?.students || (Array.isArray(response) ? response : []);
-  const pagination = response?.pagination || null;
-  const totalStudents = pagination?.total ?? students.length;
-  const totalPages = pagination?.totalPages ?? 1;
-  const classes = classesData?.data || classesData?.classes || (Array.isArray(classesData) ? classesData : []);
+    const students: Student[] = Array.isArray(response)
+        ? response
+        : response?.data ?? response?.students ?? [];
+    const pagination = !Array.isArray(response) ? response?.pagination : undefined;
+    const totalStudents = pagination?.total ?? students.length;
+    const totalPages = pagination?.totalPages ?? 1;
+    const classes: ClassOption[] = Array.isArray(classesData)
+        ? classesData
+        : classesData?.data ?? classesData?.classes ?? [];
 
-  // Reset to page 1 when filters change
-  const handleFilterChange = (setter: (val: string) => void) => (val: string) => {
-    setter(val);
-    setCurrentPage(1);
-  };
+    const activeFiltersCount = [
+        selectedClassId !== "ALL",
+        selectedStatus !== "ALL",
+        !!searchTerm.trim(),
+    ].filter(Boolean).length;
 
-  const handleExportCSV = () => {
-    if (!students || students.length === 0) {
-      toast({ title: "Export impossible", description: "Aucune donnée à exporter.", variant: "destructive" });
-      return;
-    }
-    const headers = ["Matricule", "Nom", "Prénom", "Classe", "Statut d'inscription"];
-    const rows = students.map(s => {
-      const className = Array.isArray(s.enrollments) && s.enrollments.length > 0
-        ? s.enrollments[0].class?.name
-        : "Non assigné";
+    const handleFilterChange = (setter: (val: string) => void) => (val: string) => {
+        setter(val);
+        setCurrentPage(1);
+    };
 
-      return [
-        s.matricule || s.studentNumber || "",
-        s.user?.lastName || "",
-        s.user?.firstName || "",
-        className || "",
-        s.user?.isActive ? "Actif" : "Inactif"
-      ];
-    });
+    const resetFilters = () => {
+        setSearchTerm("");
+        setSelectedClassId("ALL");
+        setSelectedStatus("ALL");
+        setCurrentPage(1);
+    };
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `eleves_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const requestDelete = (e: React.MouseEvent, id: string, name: string) => {
-    e.preventDefault(); // prevent link navigation
-    setPendingDelete({ id, name });
-    setDeleteDialogOpen(true);
-  };
-
-  const markStudentTransition = (studentId: string) => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem("edupilot-student-transition", studentId);
-  };
-  const resetFilters = () => {
-    setSearchTerm("");
-    setSelectedClassId("ALL");
-    setSelectedStatus("ALL");
-    setCurrentPage(1);
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/students/${pendingDelete.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur lors de la suppression");
-      toast({ title: "Succès", description: "L'élève a été supprimé." });
-      setDeleteDialogOpen(false);
-      setPendingDelete(null);
-      mutate(`/api/students?${queryParams.toString()}`);
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const studentColumns: ColumnDef<Student>[] = [
-    {
-      accessorKey: "matricule",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Matricule <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => row.original.matricule || row.original.studentNumber || "—",
-    },
-    {
-      id: "lastName",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Nom <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row.user?.lastName || "",
-    },
-    {
-      id: "firstName",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Prénom <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row.user?.firstName || "",
-    },
-    {
-      id: "class",
-      header: "Classe",
-      accessorFn: (row) =>
-        (Array.isArray(row.enrollments) && row.enrollments.length > 0
-          ? row.enrollments[0].class?.name
-          : "Non assigné") || "Non assigné",
-    },
-    {
-      id: "status",
-      header: "Statut",
-      accessorFn: (row) => (row.user?.isActive ? "Actif" : "Inactif"),
-      cell: ({ row }) => {
-        const isActive = row.original.user?.isActive;
-        return (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${isActive ? "bg-secondary/10 text-secondary" : "bg-muted text-muted-foreground"
-              }`}
-          >
-            {isActive ? "Actif" : "Inactif"}
-          </span>
+    const handleExportCSV = () => {
+        if (!students || students.length === 0) {
+            toast({
+                title: "Export impossible",
+                description: "Aucune donnée à exporter.",
+                variant: "destructive",
+            });
+            return;
+        }
+        const headers = ["Matricule", "Nom", "Prénom", "Classe", "Statut d'inscription"];
+        const rows = students.map((s) => {
+            const className =
+                Array.isArray(s.enrollments) && s.enrollments.length > 0
+                    ? s.enrollments[0].class?.name
+                    : "Non assigné";
+            return [
+                s.matricule || s.studentNumber || "",
+                s.user?.lastName || "",
+                s.user?.firstName || "",
+                className || "",
+                s.user?.isActive ? "Actif" : "Inactif",
+            ];
+        });
+        const csvContent =
+            "data:text/csv;charset=utf-8," +
+            [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute(
+            "download",
+            `eleves_export_${new Date().toISOString().split("T")[0]}.csv`
         );
-      },
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => {
-        const student = row.original;
-        const name = student.user
-          ? `${student.user.firstName} ${student.user.lastName}`
-          : student.studentNumber ?? student.matricule ?? "—";
-        return (
-          <div className="flex items-center gap-2">
-            <Link href={`/dashboard/students/${student.id}`} onClick={() => markStudentTransition(student.id)}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Eye className="h-4 w-4" />
-              </Button>
-            </Link>
-            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                onClick={(e) => requestDelete(e, student.id, name)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </RoleActionGuard>
-          </div>
-        );
-      },
-    },
-  ];
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
-  const deleteDialogTitle = pendingDelete ? `Supprimer ${pendingDelete.name} ?` : "Supprimer cet élève ?";
+    const requestDelete = (e: React.MouseEvent, id: string, name: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingDelete({ id, name });
+        setDeleteDialogOpen(true);
+    };
 
-  return (
-    <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
-      <motion.div
-        className="space-y-6"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <PageHeader
-            title="Élèves"
-            description="Liste et gestion des élèves de l'établissement"
-            breadcrumbs={[
-              { label: "Tableau de bord", href: "/dashboard" },
-              { label: "Élèves" },
+    const markStudentTransition = (studentId: string) => {
+        if (typeof window === "undefined") return;
+        window.sessionStorage.setItem("edupilot-student-transition", studentId);
+    };
+
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/students/${pendingDelete.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Erreur lors de la suppression");
+            toast({ title: "Succès", description: "L'élève a été supprimé." });
+            setDeleteDialogOpen(false);
+            setPendingDelete(null);
+            mutate(`/api/students?${queryParams.toString()}`);
+        } catch (err) {
+            toast({
+                title: "Erreur",
+                description: err instanceof Error ? err.message : "Erreur inconnue",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const deleteDialogTitle = pendingDelete
+        ? `Supprimer ${pendingDelete.name} ?`
+        : "Supprimer cet élève ?";
+
+    return (
+        <PageGuard
+            permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]}
+            roles={[
+                "SUPER_ADMIN",
+                "SCHOOL_ADMIN",
+                "DIRECTOR",
+                "TEACHER",
+                "ACCOUNTANT",
+                "PARENT",
+                "STUDENT",
             ]}
-          />
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center border rounded-lg bg-background p-0.5">
-              <Button
-                variant={viewMode === "grid" ? "default" : "ghost"}
-                size="sm"
-                className="rounded-md touch-target"
-                onClick={() => setViewMode("grid")}
-              >
-                <LayoutGrid className="w-4 h-4 mr-2" />
-                Grille
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                className="rounded-md touch-target"
-                onClick={() => setViewMode("table")}
-              >
-                <TableProperties className="w-4 h-4 mr-2" />
-                Tableau
-              </Button>
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Élèves"
+                        sub={`${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`}
+                        actions={
+                            <>
+                                <SegmentedToggle
+                                    value={viewMode}
+                                    onChange={setViewMode}
+                                    options={[
+                                        { value: "grid", label: "Grille", icon: "grid" },
+                                        { value: "table", label: "Tableau", icon: "cards" },
+                                    ]}
+                                />
+                                <RoleActionGuard
+                                    allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                                >
+                                    <Button variant="ghost" icon="download" onClick={handleExportCSV}>
+                                        {t("common.exportCsv")}
+                                    </Button>
+                                    <Link href="/dashboard/import">
+                                        <Button variant="secondary" icon="download">
+                                            {t("common.import")}
+                                        </Button>
+                                    </Link>
+                                    <Link href="/dashboard/students/new">
+                                        <Button icon="plus">Inscrire un élève</Button>
+                                    </Link>
+                                </RoleActionGuard>
+                            </>
+                        }
+                    />
+                </div>
+
+                {/* Filters */}
+                <Card padding={14}>
+                    <div
+                        className="grid items-end gap-3"
+                        style={{
+                            gridTemplateColumns:
+                                "minmax(220px, 1fr) minmax(160px, 200px) minmax(140px, 180px) auto",
+                        }}
+                    >
+                        <FieldSearch
+                            label="Rechercher"
+                            value={searchTerm}
+                            onChange={(v) => {
+                                setSearchTerm(v);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Nom, prénom, matricule…"
+                        />
+                        <FieldSelect
+                            label="Classe"
+                            value={selectedClassId}
+                            onChange={handleFilterChange(setSelectedClassId)}
+                            options={[
+                                { value: "ALL", label: "Toutes les classes" },
+                                ...classes.map((c) => ({ value: c.id, label: c.name })),
+                            ]}
+                            placeholder="Toutes les classes"
+                        />
+                        <FieldSelect
+                            label="Statut"
+                            value={selectedStatus}
+                            onChange={handleFilterChange(setSelectedStatus)}
+                            options={[
+                                { value: "ALL", label: "Tous les statuts" },
+                                { value: "ACTIVE", label: "Actif" },
+                                { value: "INACTIVE", label: "Inactif" },
+                            ]}
+                            placeholder="Tous les statuts"
+                        />
+                        {activeFiltersCount > 0 ? (
+                            <Button variant="ghost" size="sm" icon="x" onClick={resetFilters}>
+                                Réinitialiser ({activeFiltersCount})
+                            </Button>
+                        ) : (
+                            <div />
+                        )}
+                    </div>
+                </Card>
+
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                Impossible de charger les élèves.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {loading ? <SkeletonGrid /> : null}
+
+                {!loading && !error && students.length === 0 ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="users" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucun élève trouvé
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    maxWidth: 480,
+                                    lineHeight: 1.55,
+                                    margin: 0,
+                                }}
+                            >
+                                {activeFiltersCount > 0
+                                    ? "Aucun élève ne correspond aux filtres actuels. Essaie d'élargir la recherche."
+                                    : "Inscris des élèves manuellement ou via import. Une fois inscrits, tu pourras suivre leur présence, leurs notes et leurs documents."}
+                            </p>
+                            <div className="mt-2 flex flex-wrap justify-center gap-2">
+                                {activeFiltersCount > 0 ? (
+                                    <Button variant="secondary" icon="x" onClick={resetFilters}>
+                                        Réinitialiser les filtres
+                                    </Button>
+                                ) : (
+                                    <RoleActionGuard
+                                        allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                                    >
+                                        <Link href="/dashboard/import">
+                                            <Button variant="secondary" icon="download">
+                                                Importer
+                                            </Button>
+                                        </Link>
+                                        <Link href="/dashboard/students/new">
+                                            <Button icon="plus">Inscrire un élève</Button>
+                                        </Link>
+                                    </RoleActionGuard>
+                                )}
+                            </div>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {!loading && !error && students.length > 0 && viewMode === "grid" ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {students.map((student) => (
+                            <StudentCard
+                                key={student.id}
+                                student={student}
+                                onRequestDelete={(e) => {
+                                    const name = student.user
+                                        ? `${student.user.firstName} ${student.user.lastName}`
+                                        : student.studentNumber ?? student.matricule ?? "—";
+                                    requestDelete(e, student.id, name);
+                                }}
+                                onNavigate={() => markStudentTransition(student.id)}
+                            />
+                        ))}
+                    </div>
+                ) : null}
+
+                {!loading && !error && students.length > 0 && viewMode === "table" ? (
+                    <Card padding={0}>
+                        <div className="overflow-x-auto">
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr
+                                        style={{
+                                            background: "var(--eduflow-surface-sunken)",
+                                            textAlign: "left",
+                                        }}
+                                    >
+                                        <Th width={140}>Matricule</Th>
+                                        <Th>Élève</Th>
+                                        <Th>Classe</Th>
+                                        <Th width={120}>Statut</Th>
+                                        <Th width={100} center>
+                                            Actions
+                                        </Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {students.map((student) => {
+                                        const fullName = student.user
+                                            ? `${student.user.firstName} ${student.user.lastName}`
+                                            : student.studentNumber ?? student.matricule ?? "—";
+                                        const className =
+                                            Array.isArray(student.enrollments) &&
+                                            student.enrollments.length > 0
+                                                ? student.enrollments[0].class?.name
+                                                : null;
+                                        return (
+                                            <tr
+                                                key={student.id}
+                                                style={{
+                                                    borderTop: "1px solid var(--eduflow-border-subtle)",
+                                                    transition:
+                                                        "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                                }}
+                                            >
+                                                <Td>
+                                                    <span
+                                                        className="eduflow-mono"
+                                                        style={{
+                                                            fontSize: 11,
+                                                            color: "var(--eduflow-text-tertiary)",
+                                                            textTransform: "uppercase",
+                                                        }}
+                                                    >
+                                                        {student.matricule || student.studentNumber || "—"}
+                                                    </span>
+                                                </Td>
+                                                <Td>
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Avatar name={fullName} size="sm" />
+                                                        <div className="min-w-0">
+                                                            <div
+                                                                style={{
+                                                                    fontSize: 13,
+                                                                    fontWeight: 600,
+                                                                    color: "var(--eduflow-text-primary)",
+                                                                }}
+                                                            >
+                                                                {fullName}
+                                                            </div>
+                                                            {student.user?.email ? (
+                                                                <div
+                                                                    className="truncate"
+                                                                    style={{
+                                                                        fontSize: 11,
+                                                                        color:
+                                                                            "var(--eduflow-text-tertiary)",
+                                                                    }}
+                                                                >
+                                                                    {student.user.email}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                </Td>
+                                                <Td>
+                                                    {className ? (
+                                                        <Badge variant="brand" size="sm">
+                                                            {className}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span
+                                                            style={{
+                                                                fontSize: 12,
+                                                                color: "var(--eduflow-text-tertiary)",
+                                                            }}
+                                                        >
+                                                            Non assigné
+                                                        </span>
+                                                    )}
+                                                </Td>
+                                                <Td>
+                                                    {student.user?.isActive ? (
+                                                        <Badge variant="success" size="sm" dot>
+                                                            Actif
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="neutral" size="sm">
+                                                            Inactif
+                                                        </Badge>
+                                                    )}
+                                                </Td>
+                                                <Td center>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Link
+                                                            href={`/dashboard/students/${student.id}`}
+                                                            onClick={() =>
+                                                                markStudentTransition(student.id)
+                                                            }
+                                                            aria-label="Voir l'élève"
+                                                        >
+                                                            <Button variant="ghost" size="sm" icon="search">
+                                                                {""}
+                                                            </Button>
+                                                        </Link>
+                                                        <RoleActionGuard
+                                                            allowedRoles={[
+                                                                "SUPER_ADMIN",
+                                                                "SCHOOL_ADMIN",
+                                                                "DIRECTOR",
+                                                            ]}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                icon="x"
+                                                                onClick={(e) =>
+                                                                    requestDelete(
+                                                                        e,
+                                                                        student.id,
+                                                                        fullName
+                                                                    )
+                                                                }
+                                                            >
+                                                                {""}
+                                                            </Button>
+                                                        </RoleActionGuard>
+                                                    </div>
+                                                </Td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {/* Pagination */}
+                {!loading && !error && totalStudents > 0 ? (
+                    <div
+                        className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <p
+                            style={{
+                                fontSize: 12,
+                                color: "var(--eduflow-text-secondary)",
+                                margin: 0,
+                            }}
+                        >
+                            <span className="eduflow-tabular">{totalStudents}</span> élève
+                            {totalStudents > 1 ? "s" : ""} au total — Page{" "}
+                            <span className="eduflow-tabular">{currentPage}</span> sur{" "}
+                            <span className="eduflow-tabular">{totalPages}</span>
+                        </p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={currentPage <= 1}
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            >
+                                <span style={{ transform: "scaleX(-1)" }}>
+                                    <Icon name="chevron" size={13} />
+                                </span>
+                                <span>Précédent</span>
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                iconRight="chevron"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => setCurrentPage((p) => p + 1)}
+                            >
+                                Suivant
+                            </Button>
+                        </div>
+                    </div>
+                ) : null}
             </div>
-            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-              <Button variant="outline" className="gap-2 shadow-sm touch-target" onClick={handleExportCSV}>
-                <UploadCloud className="h-4 w-4" />
-                {t("common.exportCsv")}
-              </Button>
-              <Link href="/dashboard/import">
-                <Button variant="outline" className="gap-2 shadow-sm touch-target">
-                  <UploadCloud className="h-4 w-4" />
-                  {t("common.import")}
-                </Button>
-              </Link>
-              <Link href="/dashboard/students/new">
-                <Button className="gap-2 shadow-sm touch-target action-critical">
-                  <Plus className="h-4 w-4" />
-                  Inscrire un élève
-                </Button>
-              </Link>
-            </RoleActionGuard>
-          </div>
-        </div>
 
-        {/* Barre de Filtres */}
-        <Card className="border-border shadow-sm">
-          <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-muted/20">
-            <div className="relative flex-1 w-full max-w-md">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                
-                className="pl-9 bg-background touch-target"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                <Select value={selectedClassId} onValueChange={handleFilterChange(setSelectedClassId)}>
-                  <SelectTrigger className="w-[180px] bg-background touch-target">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Toutes les classes</SelectItem>
-                    {classes.map((cls: any) => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Select value={selectedStatus} onValueChange={handleFilterChange(setSelectedStatus)}>
-                <SelectTrigger className="w-[150px] bg-background touch-target">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tous les statuts</SelectItem>
-                  <SelectItem value="ACTIVE">Actif</SelectItem>
-                  <SelectItem value="INACTIVE">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
-              {activeFiltersCount > 0 && (
-                <>
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{activeFiltersCount} filtre{activeFiltersCount > 1 ? "s" : ""}</span>
-                  <Button variant="ghost" size="sm" className="touch-target" onClick={resetFilters}>
-                    {t("common.reset")}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        {loading && (
-          <div className="space-y-3 py-2">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="h-14 rounded-lg bg-muted/40 skeleton-shimmer" />
-            ))}
-          </div>
-        )}
-
-        {error && (
-          <div role="alert" className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && students.length === 0 && (
-          <PageCallout
-            icon={GraduationCap}
-            title="Aucun élève enregistré"
-            description="Ajoutez vos élèves manuellement ou via import. Une fois inscrits, vous pourrez suivre leur présence, leurs notes et leurs documents."
-            actions={[
-              { label: t("common.import"), href: "/dashboard/import", variant: "outline" },
-              { label: "Inscrire un élève", href: "/dashboard/students/new" },
-            ]}
-          />
-        )}
-
-        {!loading && !error && students.length > 0 && viewMode === "table" && (
-          <DataTable columns={studentColumns} data={students} searchKey="lastName" searchPlaceholder="Rechercher par nom..." />
-        )}
-
-        {!loading && !error && students.length > 0 && viewMode === "grid" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {students.map((student) => {
-              const name = student.user
-                ? `${student.user.firstName} ${student.user.lastName}`
-                : student.studentNumber ?? student.matricule ?? "—";
-              const initials = student.user
-                ? `${student.user.firstName[0] ?? ""}${student.user.lastName[0] ?? ""}`.toUpperCase()
-                : "?";
-              return (
-                <Link key={student.id} href={`/dashboard/students/${student.id}`} onClick={() => markStudentTransition(student.id)}>
-                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.16 }}>
-                  <Card className="border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer group">
-                    <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 flex items-center justify-center text-primary font-bold shrink-0 group-hover:scale-105 transition-transform">
-                        {initials}
-                      </div>
-                      <div className="overflow-hidden">
-                        <CardTitle className="text-sm font-semibold text-foreground truncate">{name}</CardTitle>
-                        <p className="text-xs text-muted-foreground truncate">{student.user?.email ?? "—"}</p>
-                      </div>
-                      <div className="ml-auto">
-                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={(e) => requestDelete(e, student.id, name)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </RoleActionGuard>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${student.user?.isActive ? "bg-secondary/10 text-secondary" : "bg-muted text-muted-foreground"}`}>
-                        {student.user?.isActive ? "Actif" : "Inactif"}
-                      </span>
-                    </CardContent>
-                  </Card>
-                  </motion.div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {!loading && !error && totalStudents > 0 && (
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <p className="text-sm text-muted-foreground">
-              {totalStudents} élève{totalStudents > 1 ? "s" : ""} au total — Page {currentPage} sur {totalPages}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="touch-target"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Précédent
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="touch-target"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                Suivant
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      <ConfirmActionDialog
-        open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open);
-          if (!open) setPendingDelete(null);
-        }}
-        title={deleteDialogTitle}
-        description="Cette action est définitive. Les données liées (inscriptions, historique) peuvent être affectées."
-        confirmLabel={t("common.delete")}
-        cancelLabel={t("common.cancel")}
-        variant="destructive"
-        isConfirmLoading={isDeleting}
-        onConfirm={confirmDelete}
-      />
-    </PageGuard>
-  );
+            <ConfirmActionDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    setDeleteDialogOpen(open);
+                    if (!open) setPendingDelete(null);
+                }}
+                title={deleteDialogTitle}
+                description="Cette action est définitive. Les données liées (inscriptions, historique) peuvent être affectées."
+                confirmLabel={t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                isConfirmLoading={isDeleting}
+                onConfirm={confirmDelete}
+            />
+        </PageGuard>
+    );
 }
+
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+function StudentCard({
+    student,
+    onRequestDelete,
+    onNavigate,
+}: {
+    student: Student;
+    onRequestDelete: (e: React.MouseEvent) => void;
+    onNavigate: () => void;
+}) {
+    const fullName = student.user
+        ? `${student.user.firstName} ${student.user.lastName}`
+        : student.studentNumber ?? student.matricule ?? "—";
+    const className =
+        Array.isArray(student.enrollments) && student.enrollments.length > 0
+            ? student.enrollments[0].class?.name
+            : null;
+    const isActive = student.user?.isActive ?? false;
+
+    return (
+        <Link
+            href={`/dashboard/students/${student.id}`}
+            onClick={onNavigate}
+            style={{ textDecoration: "none", color: "inherit" }}
+        >
+            <Card
+                padding={16}
+                style={{
+                    cursor: "pointer",
+                    transition:
+                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out), border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                }}
+                className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
+            >
+                <div className="flex items-start gap-3">
+                    <Avatar
+                        name={fullName}
+                        size="md"
+                        status={isActive ? "online" : undefined}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div
+                            className="truncate"
+                            style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "var(--eduflow-text-primary)",
+                                lineHeight: 1.2,
+                            }}
+                        >
+                            {fullName}
+                        </div>
+                        {student.user?.email ? (
+                            <div
+                                className="truncate"
+                                style={{
+                                    fontSize: 11,
+                                    color: "var(--eduflow-text-tertiary)",
+                                    marginTop: 2,
+                                }}
+                            >
+                                {student.user.email}
+                            </div>
+                        ) : null}
+                        {student.matricule || student.studentNumber ? (
+                            <div
+                                className="eduflow-mono"
+                                style={{
+                                    fontSize: 10,
+                                    color: "var(--eduflow-text-tertiary)",
+                                    textTransform: "uppercase",
+                                    marginTop: 4,
+                                }}
+                            >
+                                {student.matricule ?? student.studentNumber}
+                            </div>
+                        ) : null}
+                    </div>
+                    <RoleActionGuard
+                        allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                    >
+                        <button
+                            type="button"
+                            onClick={onRequestDelete}
+                            aria-label="Supprimer l'élève"
+                            className="grid place-items-center"
+                            style={{
+                                width: 30,
+                                height: 30,
+                                border: 0,
+                                background: "transparent",
+                                borderRadius: 8,
+                                color: "var(--eduflow-text-tertiary)",
+                                cursor: "pointer",
+                                transition:
+                                    "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background =
+                                    "var(--eduflow-danger-50)";
+                                e.currentTarget.style.color = "var(--eduflow-danger-700)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
+                            }}
+                        >
+                            <Icon name="x" size={14} />
+                        </button>
+                    </RoleActionGuard>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {className ? (
+                        <Badge variant="brand" size="sm">
+                            {className}
+                        </Badge>
+                    ) : (
+                        <Badge variant="neutral" size="sm">
+                            Non assigné
+                        </Badge>
+                    )}
+                    {isActive ? (
+                        <Badge variant="success" size="sm" dot>
+                            Actif
+                        </Badge>
+                    ) : (
+                        <Badge variant="neutral" size="sm">
+                            Inactif
+                        </Badge>
+                    )}
+                </div>
+            </Card>
+        </Link>
+    );
+}
+
+function SkeletonGrid() {
+    return (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                gap: 14,
+            }}
+        >
+            {Array.from({ length: 8 }).map((_, idx) => (
+                <Card key={idx} padding={16}>
+                    <div className="flex items-start gap-3">
+                        <div
+                            style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: "50%",
+                                background: "var(--eduflow-surface-sunken)",
+                            }}
+                        />
+                        <div className="flex-1 space-y-2">
+                            <div
+                                style={{
+                                    height: 14,
+                                    width: "70%",
+                                    background: "var(--eduflow-surface-sunken)",
+                                    borderRadius: 4,
+                                }}
+                            />
+                            <div
+                                style={{
+                                    height: 10,
+                                    width: "50%",
+                                    background: "var(--eduflow-surface-sunken)",
+                                    borderRadius: 4,
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        <div
+                            style={{
+                                height: 18,
+                                width: 70,
+                                background: "var(--eduflow-surface-sunken)",
+                                borderRadius: 9,
+                            }}
+                        />
+                        <div
+                            style={{
+                                height: 18,
+                                width: 50,
+                                background: "var(--eduflow-surface-sunken)",
+                                borderRadius: 9,
+                            }}
+                        />
+                    </div>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+function SegmentedToggle<T extends string>({
+    value,
+    onChange,
+    options,
+}: {
+    value: T;
+    onChange: (v: T) => void;
+    options: { value: T; label: string; icon: IconName }[];
+}) {
+    return (
+        <div
+            className="flex gap-1 rounded-md p-1"
+            style={{
+                background: "var(--eduflow-surface-sunken)",
+                border: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
+            {options.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChange(opt.value)}
+                        className="flex items-center gap-1.5 px-3 py-1.5"
+                        style={{
+                            background: active ? "var(--eduflow-surface-card)" : "transparent",
+                            border: 0,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: active ? 700 : 500,
+                            color: active
+                                ? "var(--brand-700)"
+                                : "var(--eduflow-text-secondary)",
+                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
+                            transition:
+                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                        }}
+                    >
+                        <Icon name={opt.icon} size={13} />
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function FieldSelect({
+    label,
+    value,
+    onChange,
+    options,
+    placeholder,
+    disabled,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                disabled={disabled}
+                style={{
+                    width: "100%",
+                    height: 38,
+                    padding: "0 12px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: value && value !== "ALL" ? 600 : 500,
+                    color:
+                        value && value !== "ALL"
+                            ? "var(--eduflow-text-primary)"
+                            : "var(--eduflow-text-secondary)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    opacity: disabled ? 0.55 : 1,
+                    outline: "none",
+                }}
+            >
+                <option value="">{placeholder}</option>
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function FieldSearch({
+    label,
+    value,
+    onChange,
+    placeholder,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <div
+                className="flex h-[38px] items-center gap-2 px-3"
+                style={{
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                }}
+            >
+                <Icon name="search" size={14} color="var(--eduflow-text-tertiary)" />
+                <input
+                    type="search"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    aria-label={label}
+                    className="flex-1 bg-transparent outline-none"
+                    style={{
+                        border: 0,
+                        fontFamily: "inherit",
+                        fontSize: 13,
+                        color: "var(--eduflow-text-primary)",
+                    }}
+                />
+            </div>
+        </label>
+    );
+}
+
+function Th({
+    children,
+    width,
+    center,
+}: {
+    children: React.ReactNode;
+    width?: number;
+    center?: boolean;
+}) {
+    return (
+        <th
+            style={{
+                padding: "10px 16px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                textAlign: center ? "center" : "left",
+                width,
+            }}
+        >
+            {children}
+        </th>
+    );
+}
+
+function Td({
+    children,
+    style,
+    center,
+}: {
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+    center?: boolean;
+}) {
+    return (
+        <td
+            style={{
+                padding: "12px 16px",
+                fontSize: 13,
+                textAlign: center ? "center" : "left",
+                ...style,
+            }}
+        >
+            {children}
+        </td>
+    );
+}
+

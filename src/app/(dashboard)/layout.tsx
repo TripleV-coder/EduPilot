@@ -1,8 +1,8 @@
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { Header } from "@/components/dashboard/Header";
 import { SkipToContent } from "@/components/a11y/skip-to-content";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardLayoutClient } from "@/components/dashboard/DashboardLayoutClient";
+import { EduSidebar } from "@/components/edu-shell/EduSidebar";
+import { EduTopBar } from "@/components/edu-shell/EduTopBar";
 
 export default function DashboardLayout({
     children,
@@ -11,12 +11,17 @@ export default function DashboardLayout({
 }) {
     return (
         <DashboardLayoutClient
-            sidebar={<><SkipToContent /><Sidebar /></>}
-            header={<Header />}
+            sidebar={
+                <>
+                    <SkipToContent />
+                    <EduSidebar />
+                </>
+            }
+            header={<EduTopBar />}
         >
-            <ErrorBoundary name="DashboardLayout">
-                {children}
-            </ErrorBoundary>
+            <div className="eduflow-scope" style={{ background: "var(--eduflow-surface-page)" }}>
+                <ErrorBoundary name="DashboardLayout">{children}</ErrorBoundary>
+            </div>
         </DashboardLayoutClient>
     );
 }

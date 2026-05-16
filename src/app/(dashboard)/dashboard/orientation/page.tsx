@@ -90,6 +90,7 @@ export default function OrientationPage() {
     const [orientations, setOrientations] = useState<Orientation[]>([]);
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState<StudentRecord[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Form state
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -310,15 +311,24 @@ export default function OrientationPage() {
 
     const getStatusDetails = (status: string) => {
         switch (status) {
-            case "PENDING": return { color: "bg-slate-500/10 text-slate-600 border-slate-500/20", label: "En attente" };
-            case "ANALYZED": return { color: "bg-blue-500/10 text-blue-600 border-blue-500/20", label: "Analysé" };
-            case "RECOMMENDED": return { color: "bg-amber-500/10 text-amber-600 border-amber-500/20", label: "Recommandation émise" };
-            case "VALIDATED": return { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", label: "Validé" };
-            case "REJECTED": return { color: "bg-red-500/10 text-red-600 border-red-500/20", label: "Rejeté" };
-            case "ACCEPTED": return { color: "bg-purple-500/10 text-purple-600 border-purple-500/20", label: "Accepté par la famille" };
-            default: return { color: "bg-slate-500/10 text-slate-600", label: status };
+            case "PENDING": return { color: "bg-muted text-muted-foreground border-border", label: "En attente" };
+            case "ANALYZED": return { color: "bg-primary/10 text-primary border-primary/30", label: "Analysé" };
+            case "RECOMMENDED": return { color: "bg-warning/10 text-warning border-warning/30", label: "Recommandation émise" };
+            case "VALIDATED": return { color: "bg-success/10 text-success border-success/30", label: "Validé" };
+            case "REJECTED": return { color: "bg-destructive/10 text-destructive border-destructive/30", label: "Rejeté" };
+            case "ACCEPTED": return { color: "bg-primary/10 text-primary border-primary/30", label: "Accepté par la famille" };
+            default: return { color: "bg-muted text-muted-foreground border-border", label: status };
         }
     };
+
+    const filteredOrientations = orientations.filter((item) => {
+        if (!searchTerm.trim()) return true;
+        const needle = searchTerm.trim().toLowerCase();
+        const fullName = `${item.student?.user?.firstName || ""} ${item.student?.user?.lastName || ""}`.toLowerCase();
+        const className = (item.classLevel?.name || "").toLowerCase();
+        const yearName = (item.academicYear?.name || "").toLowerCase();
+        return fullName.includes(needle) || className.includes(needle) || yearName.includes(needle);
+    });
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
@@ -335,17 +345,17 @@ export default function OrientationPage() {
                         <div className="flex gap-3">
                             <Button 
                                 variant="outline" 
-                                className="gap-2 border-primary/20 hover:bg-primary/5 hidden sm:flex"
+                                className="gap-2 border-primary/20 hover:bg-primary/5 hidden sm:flex h-11"
                                 onClick={handleBatchAnalyze}
                                 disabled={isBatchAnalyzing || students.length === 0}
                             >
-                                {isBatchAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-amber-500" />}
+                                {isBatchAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-warning" />}
                                 Lanceur d'Analyse Globale (IA)
                             </Button>
 
                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md">
+                                    <Button className="gap-2 h-11 shadow-md">
                                         <Plus className="w-4 h-4" /> Nouvel Avis d'Orientation
                                     </Button>
                                 </DialogTrigger>
@@ -382,7 +392,7 @@ export default function OrientationPage() {
                                         <div className="space-y-2">
                                             <Label>Élève Concerné</Label>
                                             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                                                <SelectTrigger>
+                                                <SelectTrigger aria-label="Élève concerné">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -413,7 +423,7 @@ export default function OrientationPage() {
                                         <div className="space-y-2">
                                             <Label>{orientationType === "BEPC" ? "Série Recommandée" : "Filière Universitaire Suggérée"}</Label>
                                             <Select value={selectedSeries} onValueChange={setSelectedSeries}>
-                                                <SelectTrigger>
+                                                <SelectTrigger aria-label="Série recommandée">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -428,7 +438,8 @@ export default function OrientationPage() {
                                         <div className="space-y-2">
                                             <Label>Justification Primaire (Conseil de classe)</Label>
                                             <Textarea
-                                                
+                                                aria-label="Justification de l'orientation"
+                                                placeholder="Argumentez la recommandation en vous appuyant sur les résultats et le profil."
                                                 value={justification}
                                                 onChange={(e) => setJustification(e.target.value)}
                                             />
@@ -468,7 +479,7 @@ export default function OrientationPage() {
                                             </thead>
                                             <tbody className="divide-y">
                                                 {batchResults.map((res, i) => (
-                                                    <tr key={i} className={res.success ? "" : "bg-red-50"}>
+                                                    <tr key={i} className={res.success ? "" : "bg-destructive/5"}>
                                                         <td className="px-4 py-3 font-medium">{res.studentName}</td>
                                                         <td className="px-4 py-3">
                                                             {res.success ? (
@@ -516,7 +527,7 @@ export default function OrientationPage() {
                         </Card>
                         <Card className="shadow-sm border-border bg-muted/5">
                             <CardContent className="p-6">
-                                <div className="p-3 bg-amber-500/10 w-fit rounded-xl mb-4 text-amber-600">
+                                <div className="p-3 bg-warning/10 w-fit rounded-xl mb-4 text-warning">
                                     <FileText className="w-6 h-6" />
                                 </div>
                                 <h3 className="text-2xl font-bold">{orientations.length}</h3>
@@ -530,10 +541,10 @@ export default function OrientationPage() {
                                     Guide d'Orientation Post-BEPC
                                 </h4>
                                 <ul className="text-sm space-y-2 text-foreground/80">
-                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-emerald-500 shrink-0" /> Séries Scientifiques (C, D, E)</li>
-                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-rose-500 shrink-0" /> Séries Littéraires (A, Littérature)</li>
-                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-blue-500 shrink-0" /> Séries Techniques (F, G, Pro)</li>
-                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-amber-500 shrink-0" /> Apprentissage Direct</li>
+                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-success shrink-0" /> Séries Scientifiques (C, D, E)</li>
+                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-primary shrink-0" /> Séries Littéraires (A, Littérature)</li>
+                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-primary shrink-0" /> Séries Techniques (F, G, Pro)</li>
+                                    <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-warning shrink-0" /> Apprentissage Direct</li>
                                 </ul>
                             </CardContent>
                         </Card>
@@ -544,7 +555,13 @@ export default function OrientationPage() {
                         <div className="p-4 border-b bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div className="relative w-full max-w-sm">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9 bg-background" />
+                                <Input
+                                    aria-label="Rechercher un dossier d'orientation"
+                                    placeholder="Rechercher un élève..."
+                                    className="pl-9 bg-background h-11"
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                />
                             </div>
                         </div>
 
@@ -567,16 +584,16 @@ export default function OrientationPage() {
                                                 <p className="text-muted-foreground">Chargement des dossiers d'orientation...</p>
                                             </td>
                                         </tr>
-                                    ) : orientations.length === 0 ? (
+                                    ) : filteredOrientations.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="px-6 py-16 text-center text-muted-foreground">
                                                 <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-20" />
                                                 <p className="text-lg font-medium text-foreground">Aucun dossier trouvé</p>
-                                                <p className="text-sm max-w-sm mx-auto mt-1">Les avis d'orientation Post-BEPC sont généralement saisis à l'issue du 3e trimestre.</p>
+                                                <p className="text-sm max-w-sm mx-auto mt-1">Aucun résultat ne correspond à votre recherche actuelle.</p>
                                             </td>
                                         </tr>
                                     ) : (
-                                        orientations.map((item) => {
+                                        filteredOrientations.map((item) => {
                                             const st = getStatusDetails(item.status);
                                             const topRec = item.recommendations?.[0];
                                             const seriesLabel = topRec ? POST_BEPC_SERIES.find(s => s.value === topRec.recommendedSeries)?.label || topRec.recommendedSeries : "";
@@ -601,11 +618,11 @@ export default function OrientationPage() {
                                                                     Série suggérée: {seriesLabel}
                                                                 </span>
                                                                 {topRec.isValidated ? (
-                                                                    <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-[10px] text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <CheckCircle2 className="w-3 h-3" /> Validé
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <AlertCircle className="w-3 h-3" /> Non-validé
                                                                     </span>
                                                                 )}

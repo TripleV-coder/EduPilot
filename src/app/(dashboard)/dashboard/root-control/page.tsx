@@ -2,6 +2,8 @@
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Activity,
   Building2,
@@ -45,16 +47,16 @@ type RootSummary = {
 
 function InfraStatCard({ title, value, subValue, icon: Icon, color }: any) {
   return (
-    <Card className="relative overflow-hidden border-none bg-slate-900 text-white shadow-xl group">
+    <Card className="relative overflow-hidden border border-border/60 bg-foreground text-background shadow-xl group">
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-10", color)} />
       <CardContent className="relative z-10 p-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{title}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-background/70">{title}</p>
             <h3 className="mt-2 text-3xl font-black">{value}</h3>
-            {subValue ? <p className="mt-1 text-[10px] font-medium text-slate-500">{subValue}</p> : null}
+            {subValue ? <p className="mt-1 text-[10px] font-medium text-background/60">{subValue}</p> : null}
           </div>
-          <div className={cn("rounded-2xl border border-white/10 bg-white/5 p-3 transition-transform group-hover:scale-110", color.replace("from-", "text-"))}>
+          <div className={cn("rounded-2xl border border-background/20 bg-background/5 p-3 transition-transform group-hover:scale-110", color.replace("from-", "text-"))}>
             <Icon className="h-6 w-6" />
           </div>
         </div>
@@ -78,7 +80,7 @@ function formatTimestamp(value: string) {
 
 function EmptyBlock({ label }: { label: string }) {
   return (
-    <div className="flex min-h-[220px] items-center justify-center text-center text-xs font-medium text-slate-500">
+    <div className="flex min-h-[220px] items-center justify-center text-center text-xs font-medium text-muted-foreground">
       {label}
     </div>
   );
@@ -98,11 +100,16 @@ export default function RootDashboard() {
             title="Console d'Infrastructure"
             description="État de santé global et métriques agrégées de la plateforme EduPilot."
           />
-          <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-bold uppercase tracking-tighter text-emerald-600">
-              Visibilité root active
-            </span>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" className="h-10">
+              <Link href="/dashboard/root-control/system-map">Ouvrir cartographie système</Link>
+            </Button>
+            <div className="flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-4 py-2">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-success" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-success">
+                Visibilité root active
+              </span>
+            </div>
           </div>
         </div>
 
@@ -112,36 +119,36 @@ export default function RootDashboard() {
             value={stats?.totalSchools ?? (isLoading ? "..." : "0")}
             subValue="Établissements déployés"
             icon={Building2}
-            color="from-blue-600"
+            color="from-primary"
           />
           <InfraStatCard
             title="Utilisateurs"
             value={stats?.totalUsers?.toLocaleString() ?? (isLoading ? "..." : "0")}
             subValue="Comptes actifs agrégés"
             icon={Users}
-            color="from-sky-600"
+            color="from-success"
           />
           <InfraStatCard
             title="Stockage LMS"
             value={stats?.storageUsed ?? (isLoading ? "..." : "N/A")}
             subValue="Mesure réellement exposée"
             icon={HardDrive}
-            color="from-amber-600"
+            color="from-warning"
           />
           <InfraStatCard
             title="Disponibilité"
             value="N/A"
             subValue="Monitoring SLA non instrumenté"
             icon={Zap}
-            color="from-emerald-600"
+            color="from-primary"
           />
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <Card className="border-none bg-slate-50 shadow-sm lg:col-span-2">
-            <CardHeader className="border-b border-slate-200">
-              <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                <Building2 className="h-4 w-4 text-blue-600" />
+          <Card className="border border-border/60 bg-card shadow-sm lg:col-span-2">
+            <CardHeader className="border-b border-border/60">
+              <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Building2 className="h-4 w-4 text-primary" />
                 Derniers établissements provisionnés
               </CardTitle>
             </CardHeader>
@@ -151,12 +158,12 @@ export default function RootDashboard() {
               ) : recentSchools.length === 0 ? (
                 <EmptyBlock label="Aucun établissement récent." />
               ) : (
-                <div className="divide-y divide-slate-200">
+                <div className="divide-y divide-border/60">
                   {recentSchools.map((school) => (
-                    <div key={school.id} className="flex items-center justify-between gap-4 p-5">
+                    <div key={school.id} className="flex items-center justify-between gap-4 p-5 transition-colors hover:bg-muted/20">
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-slate-900">{school.name}</p>
-                        <p className="flex items-center gap-2 text-xs text-slate-500">
+                        <p className="text-sm font-bold text-foreground">{school.name}</p>
+                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
                           <MapPin className="h-3 w-3" />
                           {school.city || "Ville non renseignée"}
                         </p>
@@ -165,8 +172,8 @@ export default function RootDashboard() {
                         className={cn(
                           "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
                           school.isActive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-200 text-slate-600"
+                            ? "bg-success/10 text-success"
+                            : "bg-muted text-muted-foreground"
                         )}
                       >
                         {school.isActive ? "Actif" : "Inactif"}
@@ -178,13 +185,13 @@ export default function RootDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-none bg-slate-50 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200">
-              <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                <ShieldAlert className="h-4 w-4 text-orange-600" />
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/60">
+              <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <ShieldAlert className="h-4 w-4 text-warning" />
                 Activité Root
               </CardTitle>
-              <span className="rounded-full bg-orange-100 px-2 py-1 text-[10px] font-black text-orange-700">
+              <span className="rounded-full bg-warning/10 px-2 py-1 text-[10px] font-black text-warning">
                 {recentActivity.length}
               </span>
             </CardHeader>
@@ -194,10 +201,10 @@ export default function RootDashboard() {
               ) : recentActivity.length === 0 ? (
                 <EmptyBlock label="Aucune activité root récente." />
               ) : (
-                <div className="divide-y divide-slate-200">
+                <div className="divide-y divide-border/60">
                   {recentActivity.slice(0, 5).map((activity) => (
                     <div key={activity.id} className="space-y-2 p-4">
-                      <div className="flex items-center justify-between gap-3 text-[10px] font-bold text-slate-400">
+                      <div className="flex items-center justify-between gap-3 text-[10px] font-bold text-muted-foreground">
                         <span className="uppercase tracking-tighter">
                           {activity.action.replaceAll("_", " ")}
                         </span>
@@ -206,7 +213,7 @@ export default function RootDashboard() {
                           {formatTimestamp(activity.createdAt)}
                         </span>
                       </div>
-                      <p className="text-xs font-medium leading-relaxed text-slate-700">
+                      <p className="text-xs font-medium leading-relaxed text-foreground/80">
                         {formatActor(activity)} a agi sur {activity.entity.toLowerCase()}.
                       </p>
                     </div>
@@ -217,34 +224,34 @@ export default function RootDashboard() {
           </Card>
         </div>
 
-        <Card className="border-none bg-slate-900 text-slate-300 shadow-sm">
-          <CardHeader className="border-b border-slate-800">
-            <CardTitle className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-              <Activity className="h-4 w-4 text-emerald-500" />
+        <Card className="border border-border/60 bg-foreground text-background shadow-sm">
+          <CardHeader className="border-b border-background/20">
+            <CardTitle className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-background/70">
+              <Activity className="h-4 w-4 text-success" />
               Journal d'audit racine
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {isLoading ? (
-              <div className="text-xs text-slate-500">Chargement du journal...</div>
+              <div className="text-xs text-background/60">Chargement du journal...</div>
             ) : recentActivity.length === 0 ? (
-              <div className="text-xs text-slate-500">Aucune entrée root disponible.</div>
+              <div className="text-xs text-background/60">Aucune entrée root disponible.</div>
             ) : (
               <div className="space-y-4">
                 {recentActivity.map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3 text-xs last:border-0 last:pb-0"
+                    className="flex items-center justify-between gap-4 border-b border-background/20 pb-3 text-xs last:border-0 last:pb-0"
                   >
                     <div className="flex items-center gap-4">
-                      <span className="font-mono font-bold text-emerald-500">
+                      <span className="font-mono font-bold text-success">
                         [{activity.action}]
                       </span>
-                      <span className="text-slate-400">{activity.entity}</span>
+                      <span className="text-background/70">{activity.entity}</span>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-slate-100">{formatActor(activity)}</p>
-                      <p className="text-[10px] text-slate-500">{formatTimestamp(activity.createdAt)}</p>
+                      <p className="font-bold text-background">{formatActor(activity)}</p>
+                      <p className="text-[10px] text-background/60">{formatTimestamp(activity.createdAt)}</p>
                     </div>
                   </div>
                 ))}

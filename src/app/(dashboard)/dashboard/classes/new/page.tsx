@@ -135,11 +135,11 @@ export default function NewClassPage() {
                         )}
 
                         {success ? (
-                            <div className="p-6 rounded-xl border-2 border-emerald-500/20 bg-emerald-500/5 text-center space-y-4">
-                                <div className="mx-auto w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                            <div className="p-6 rounded-xl border-2 border-success/30 bg-success/10 text-center space-y-4">
+                                <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-emerald-700">Classe créée avec succès !</h3>
+                                <h3 className="text-xl font-bold text-success">Classe créée avec succès !</h3>
                                 <p className="text-sm text-muted-foreground">Redirection vers la liste des classes...</p>
                             </div>
                         ) : (
@@ -152,7 +152,7 @@ export default function NewClassPage() {
                                             <FormItem>
                                                 <FormLabel>Nom de la classe <span className="text-destructive">*</span></FormLabel>
                                                 <FormControl>
-                                                    <Input {...field} />
+                                                    <Input aria-label="Nom de la classe" placeholder="Ex: 6ème A" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -167,8 +167,8 @@ export default function NewClassPage() {
                                                 <FormLabel>Niveau d'étude <span className="text-destructive">*</span></FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue />
+                                                        <SelectTrigger aria-label="Sélectionner le niveau d'étude">
+                                                            <SelectValue placeholder="Choisir un niveau" />
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
@@ -192,7 +192,7 @@ export default function NewClassPage() {
                                                 <FormItem>
                                                     <FormLabel>Capacité (élèves)</FormLabel>
                                                     <FormControl>
-                                                        <Input type="number" min="1" {...field} />
+                                                        <Input aria-label="Capacité maximale de la classe" type="number" min="1" placeholder="Ex: 45" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -207,8 +207,8 @@ export default function NewClassPage() {
                                                     <FormLabel>Professeur Principal</FormLabel>
                                                     <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                                                         <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue />
+                                                            <SelectTrigger aria-label="Sélectionner le professeur principal">
+                                                                <SelectValue placeholder="Aucun" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>

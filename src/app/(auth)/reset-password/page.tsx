@@ -7,10 +7,8 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { GraduationCap, AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { Button, Icon } from "@/components/edu";
 
 const resetPasswordSchema = z
     .object({
@@ -67,7 +65,7 @@ function ResetPasswordForm() {
                     router.push("/login?reset=1");
                 }, 3000);
             }
-        } catch (err) {
+        } catch {
             setError("Erreur de connexion au serveur.");
         } finally {
             setIsLoading(false);
@@ -76,15 +74,50 @@ function ResetPasswordForm() {
 
     if (!token) {
         return (
-            <div className="text-center">
-                <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-                <h2 className="text-xl font-bold mb-2">Lien invalide</h2>
-                <p className="text-muted-foreground mb-6">
-                    Votre lien de réinitialisation est manquant ou invalide.
-                </p>
-                <Button asChild className="w-full">
-                    <Link href="/forgot-password">Demander un nouveau lien</Link>
-                </Button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        padding: "14px 16px",
+                        borderRadius: "var(--eduflow-radius-card)",
+                        background: "var(--eduflow-danger-50)",
+                        border: "1px solid var(--eduflow-danger-200)",
+                    }}
+                >
+                    <Icon name="warning" size={20} color="var(--eduflow-danger-600)" />
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "var(--eduflow-danger-800)",
+                                marginBottom: 4,
+                            }}
+                        >
+                            Lien invalide
+                        </div>
+                        <p
+                            style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "var(--eduflow-danger-700)",
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Votre lien de réinitialisation est manquant ou expiré.
+                        </p>
+                    </div>
+                </div>
+                <Link href="/forgot-password" style={{ textDecoration: "none" }}>
+                    <Button
+                        iconRight="arrowRight"
+                        style={{ width: "100%", justifyContent: "center", height: 48 }}
+                    >
+                        Demander un nouveau lien
+                    </Button>
+                </Link>
             </div>
         );
     }
@@ -92,98 +125,114 @@ function ResetPasswordForm() {
     if (isSuccess) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center space-y-4"
+                style={{ display: "flex", flexDirection: "column", gap: 18 }}
             >
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] mx-auto mb-2">
-                    <CheckCircle2 className="w-6 h-6" />
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "14px 16px",
+                        borderRadius: "var(--eduflow-radius-card)",
+                        background: "var(--eduflow-success-50)",
+                        border: "1px solid var(--eduflow-success-200)",
+                    }}
+                >
+                    <Icon name="check" size={20} color="var(--eduflow-success-700)" />
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "var(--eduflow-success-800)",
+                            }}
+                        >
+                            Mot de passe réinitialisé
+                        </div>
+                        <p
+                            style={{
+                                margin: "2px 0 0",
+                                fontSize: 12,
+                                color: "var(--eduflow-success-700)",
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Redirection vers la page de connexion…
+                        </p>
+                    </div>
                 </div>
-                <h2 className="text-xl font-medium">Mot de passe réinitialisé !</h2>
-                <p className="text-muted-foreground text-sm">
-                    Votre mot de passe a été mis à jour avec succès. Vous allez être redirigé vers la page de connexion.
-                </p>
-                <div className="pt-4">
-                    <Button asChild className="w-full">
-                        <Link href="/login">Se connecter maintenant</Link>
+                <Link href="/login" style={{ textDecoration: "none" }}>
+                    <Button
+                        iconRight="arrowRight"
+                        style={{ width: "100%", justifyContent: "center", height: 48 }}
+                    >
+                        Se connecter maintenant
                     </Button>
-                </div>
+                </Link>
             </motion.div>
         );
     }
 
     return (
         <>
-            <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
-                    <GraduationCap className="w-7 h-7 text-primary" />
-                </div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">
-                    Nouveau mot de passe
-                </h1>
-                <p className="text-muted-foreground">
-                    Veuillez entrer votre nouveau mot de passe
-                </p>
-            </div>
-
-            {error && (
+            {error ? (
                 <motion.div
-                    initial={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     role="alert"
-                    className="flex items-start gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
+                    style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        padding: "12px 14px",
+                        borderRadius: 10,
+                        background: "var(--eduflow-danger-50)",
+                        border: "1px solid var(--eduflow-danger-200)",
+                        color: "var(--eduflow-danger-800)",
+                        marginBottom: 16,
+                    }}
                 >
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm font-medium">{error}</div>
+                    <Icon name="warning" size={16} color="var(--eduflow-danger-600)" />
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{error}</div>
                 </motion.div>
-            )}
+            ) : null}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="password">Nouveau mot de passe</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        autoComplete="new-password"
-                        {...register("password")}
-                        aria-invalid={!!errors.password}
-                    />
-                    {errors.password && (
-                        <p className="text-sm text-destructive">{errors.password.message}</p>
-                    )}
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                    <Input
-                        id="confirmPassword"
-                        type="password"
-                        autoComplete="new-password"
-                        {...register("confirmPassword")}
-                        aria-invalid={!!errors.confirmPassword}
-                    />
-                    {errors.confirmPassword && (
-                        <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-                    )}
-                </div>
+            <form
+                onSubmit={handleSubmit(onSubmit)}
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+            >
+                <FieldInput
+                    id="password"
+                    label="Nouveau mot de passe"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="8 caractères minimum"
+                    error={errors.password?.message}
+                    register={register("password")}
+                />
+                <FieldInput
+                    id="confirmPassword"
+                    label="Confirmer le mot de passe"
+                    type="password"
+                    autoComplete="new-password"
+                    error={errors.confirmPassword?.message}
+                    register={register("confirmPassword")}
+                />
 
                 <Button
                     type="submit"
-                    className="w-full mt-6"
-                    size="lg"
+                    iconRight="arrowRight"
                     disabled={isLoading}
+                    style={{
+                        width: "100%",
+                        justifyContent: "center",
+                        height: 48,
+                        marginTop: 4,
+                    }}
                 >
-                    {isLoading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                            Réinitialisation...
-                        </>
-                    ) : (
-                        <>
-                            Réinitialiser le mot de passe
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
-                    )}
+                    {isLoading ? "Réinitialisation…" : "Réinitialiser le mot de passe"}
                 </Button>
             </form>
         </>
@@ -192,18 +241,102 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
-                    <Suspense fallback={
-                        <div className="flex justify-center p-8">
-                            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-                        </div>
-                    }>
-                        <ResetPasswordForm />
-                    </Suspense>
-                </div>
-            </div>
-        </div>
+        <AuthShell
+            title="Nouveau mot de passe"
+            subtitle="Choisissez un mot de passe robuste pour reprendre la main sur votre compte."
+        >
+            <Suspense
+                fallback={
+                    <div
+                        className="flex items-center justify-center p-8"
+                        aria-label="Chargement en cours"
+                    >
+                        <div
+                            className="animate-spin"
+                            style={{
+                                width: 32,
+                                height: 32,
+                                border: "3px solid var(--brand-100)",
+                                borderTopColor: "var(--brand-600)",
+                                borderRadius: "50%",
+                            }}
+                        />
+                    </div>
+                }
+            >
+                <ResetPasswordForm />
+            </Suspense>
+        </AuthShell>
+    );
+}
+
+function FieldInput({
+    id,
+    label,
+    type,
+    autoComplete,
+    placeholder,
+    error,
+    register,
+}: {
+    id: string;
+    label: string;
+    type: string;
+    autoComplete?: string;
+    placeholder?: string;
+    error?: string;
+    register: ReturnType<ReturnType<typeof useForm>["register"]>;
+}) {
+    return (
+        <label style={{ display: "block" }}>
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-secondary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <input
+                id={id}
+                type={type}
+                autoComplete={autoComplete}
+                placeholder={placeholder}
+                aria-invalid={!!error}
+                {...register}
+                style={{
+                    width: "100%",
+                    height: 44,
+                    padding: "0 14px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: `1px solid ${
+                        error
+                            ? "var(--eduflow-danger-500)"
+                            : "var(--eduflow-border-default)"
+                    }`,
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 14,
+                    color: "var(--eduflow-text-primary)",
+                    outline: "none",
+                    transition:
+                        "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                }}
+            />
+            {error ? (
+                <p
+                    style={{
+                        margin: "6px 0 0",
+                        fontSize: 12,
+                        color: "var(--eduflow-danger-700)",
+                    }}
+                >
+                    {error}
+                </p>
+            ) : null}
+        </label>
     );
 }

@@ -174,7 +174,7 @@ export async function GET(
 
     const teacherName = classSubject.teacher
       ? `${classSubject.teacher.user.firstName} ${classSubject.teacher.user.lastName}`
-      : "N/A";
+      : "Indisponible";
 
     return NextResponse.json({
       subjectName: classSubject.subject.name,

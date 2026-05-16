@@ -2,236 +2,336 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { CheckCircle, Eye, Layout, Monitor, Moon, PanelsTopLeft, Sun } from "lucide-react";
 
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
+
+import { Badge, Card, Icon, type IconName } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 type ThemeValue = "light" | "dark" | "system";
 type DisplayMode = "comfort" | "dense" | "focus";
 
 type ProfileResponse = {
-  preferences?: Record<string, unknown> | null;
+    preferences?: Record<string, unknown> | null;
 };
 
 function applyTheme(theme: ThemeValue) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-    return;
-  }
-
-  if (theme === "light") {
-    root.classList.remove("dark");
-    return;
-  }
-
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  root.classList.toggle("dark", prefersDark);
+    const root = document.documentElement;
+    if (theme === "dark") {
+        root.classList.add("dark");
+        return;
+    }
+    if (theme === "light") {
+        root.classList.remove("dark");
+        return;
+    }
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", prefersDark);
 }
 
+const DISPLAY_MODES: { id: DisplayMode; title: string; description: string; icon: IconName }[] = [
+    {
+        id: "comfort",
+        title: "Confort",
+        description: "Lignes 44px, texte 13px, espacement standard. Idéal pour l'usage quotidien.",
+        icon: "cards",
+    },
+    {
+        id: "dense",
+        title: "Dense",
+        description: "Lignes 32px et espacement réduit pour afficher un maximum de données.",
+        icon: "grid",
+    },
+    {
+        id: "focus",
+        title: "Focus",
+        description: "Masque la sidebar et réduit l'interface pour se concentrer sur le contenu.",
+        icon: "sparkle",
+    },
+];
+
+const THEMES: { id: ThemeValue; title: string; description: string; icon: IconName }[] = [
+    { id: "light", title: "Clair", description: "Mode jour standard.", icon: "sun" },
+    { id: "dark", title: "Sombre", description: "Mode nuit, économise la rétine.", icon: "moon" },
+    { id: "system", title: "Système", description: "Suit la préférence du navigateur.", icon: "settings" },
+];
+
 export default function AppearanceSettingsPage() {
-  const { data: profileData, mutate } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
-    revalidateOnFocus: false,
-  });
-  const { density, setDensity, isFocusMode, toggleFocusMode } = useSidebar();
-  const [theme, setTheme] = useState<ThemeValue>("system");
-  const [saved, setSaved] = useState(false);
+    const {
+        data: profileData,
+        mutate,
+    } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
+        revalidateOnFocus: false,
+    });
+    const { density, setDensity, isFocusMode, toggleFocusMode } = useSidebar();
+    const [saved, setSaved] = useState(false);
 
-  const selectedMode = useMemo<DisplayMode>(
-    () => (isFocusMode ? "focus" : density),
-    [density, isFocusMode]
-  );
+    const selectedMode = useMemo<DisplayMode>(
+        () => (isFocusMode ? "focus" : density),
+        [density, isFocusMode]
+    );
 
-  useEffect(() => {
-    const appearance =
-      profileData?.preferences?.appearance &&
-      typeof profileData.preferences.appearance === "object"
-        ? (profileData.preferences.appearance as Record<string, unknown>)
-        : null;
-    const savedTheme = appearance?.theme;
-    if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    }
-  }, [profileData]);
+    const selectedTheme = useMemo<ThemeValue>(() => {
+        const appearance =
+            profileData?.preferences?.appearance &&
+            typeof profileData.preferences.appearance === "object"
+                ? (profileData.preferences.appearance as Record<string, unknown>)
+                : null;
+        const serverTheme = appearance?.theme;
+        return serverTheme === "light" || serverTheme === "dark" || serverTheme === "system"
+            ? serverTheme
+            : "system";
+    }, [profileData]);
 
-  const persistPreferences = async (partialAppearance: Record<string, unknown>) => {
-    const currentPreferences =
-      profileData?.preferences && typeof profileData.preferences === "object"
-        ? profileData.preferences
-        : {};
-    const currentAppearance =
-      currentPreferences.appearance && typeof currentPreferences.appearance === "object"
-        ? currentPreferences.appearance
-        : {};
-    const nextPreferences = {
-      ...currentPreferences,
-      appearance: {
-        ...currentAppearance,
-        ...partialAppearance,
-      },
+    useEffect(() => {
+        applyTheme(selectedTheme);
+    }, [selectedTheme]);
+
+    const persistPreferences = async (partialAppearance: Record<string, unknown>) => {
+        const currentPreferences =
+            profileData?.preferences && typeof profileData.preferences === "object"
+                ? profileData.preferences
+                : {};
+        const currentAppearance =
+            currentPreferences.appearance && typeof currentPreferences.appearance === "object"
+                ? currentPreferences.appearance
+                : {};
+        const nextPreferences = {
+            ...currentPreferences,
+            appearance: {
+                ...currentAppearance,
+                ...partialAppearance,
+            },
+        };
+
+        await fetch("/api/user/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preferences: nextPreferences }),
+        });
+
+        await mutate({ ...(profileData || {}), preferences: nextPreferences }, false);
+        setSaved(true);
+        window.setTimeout(() => setSaved(false), 2200);
     };
 
-    await fetch("/api/user/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preferences: nextPreferences }),
-    });
+    const handleThemeChange = async (nextTheme: ThemeValue) => {
+        applyTheme(nextTheme);
+        await persistPreferences({ theme: nextTheme });
+    };
 
-    await mutate({ ...(profileData || {}), preferences: nextPreferences }, false);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
-  };
+    const handleDisplayModeChange = async (mode: DisplayMode) => {
+        if (mode === "focus") {
+            if (!isFocusMode) toggleFocusMode();
+            await persistPreferences({ density, focusMode: true, displayMode: "focus" });
+            return;
+        }
+        if (isFocusMode) toggleFocusMode();
+        setDensity(mode);
+        await persistPreferences({ density: mode, focusMode: false, displayMode: mode });
+    };
 
-  const handleThemeChange = async (nextTheme: ThemeValue) => {
-    setTheme(nextTheme);
-    applyTheme(nextTheme);
-    await persistPreferences({ theme: nextTheme });
-  };
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <div className="eduflow-scope mx-auto flex max-w-5xl flex-col gap-6 pb-12">
+                <PageHeader
+                    greeting="Apparence & affichage"
+                    sub="Contrôle le rendu visuel, la densité et le mode focus de ton espace EduPilot."
+                />
 
-  const handleDisplayModeChange = async (mode: DisplayMode) => {
-    if (mode === "focus") {
-      if (!isFocusMode) toggleFocusMode();
-      await persistPreferences({ density, focusMode: true, displayMode: "focus" });
-      return;
-    }
+                {saved ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            background: "var(--eduflow-success-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="success" size={18} color="var(--eduflow-success-700)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-success-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                Préférences enregistrées sur ce navigateur et sur ton profil.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
 
-    if (isFocusMode) toggleFocusMode();
-    setDensity(mode);
-    await persistPreferences({ density: mode, focusMode: false, displayMode: mode });
-  };
-
-  return (
-    <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-      <div className="space-y-6 max-w-5xl mx-auto">
-        <PageHeader
-          title="Apparence & Modes d'affichage"
-          description="Contrôlez le rendu visuel, la densité et le mode focus de votre espace EduPilot."
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Paramètres", href: "/dashboard/settings" },
-            { label: "Apparence" },
-          ]}
-        />
-
-        {saved ? (
-          <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--success-border))] bg-[hsl(var(--success-bg))] px-4 py-3 text-sm text-[hsl(var(--success))]">
-            <CheckCircle className="h-4 w-4" />
-            Préférences enregistrées sur ce navigateur et sur votre profil.
-          </div>
-        ) : null}
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="border-b border-border bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Layout className="h-5 w-5 text-primary" />
-              Modes d'affichage
-            </CardTitle>
-            <CardDescription>
-              Le mode confort privilégie la lisibilité, le mode dense maximise la densité, le mode focus masque la structure secondaire.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 pt-6 md:grid-cols-3">
-            {[
-              {
-                id: "comfort" as const,
-                title: "Mode Confort",
-                description: "Lignes 44px, texte 13px et espacement standard pour un usage quotidien.",
-                icon: Layout,
-              },
-              {
-                id: "dense" as const,
-                title: "Mode Dense",
-                description: "Lignes 32px et espacement réduit pour afficher plus de données à l'écran.",
-                icon: PanelsTopLeft,
-              },
-              {
-                id: "focus" as const,
-                title: "Mode Focus",
-                description: "Masque la sidebar et réduit l'interface pour concentrer l'attention sur le contenu.",
-                icon: Eye,
-              },
-            ].map((option) => {
-              const isActive = selectedMode === option.id;
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => void handleDisplayModeChange(option.id)}
-                  className={[
-                    "rounded-2xl border p-5 text-left transition-all duration-150",
-                    isActive
-                      ? "border-[#2D6A4F] bg-[#EEF7F3] shadow-sm"
-                      : "border-border bg-card hover:border-[#B8DFC8] hover:bg-[#FAFAF8]",
-                  ].join(" ")}
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F5F4F2]">
-                      <option.icon className="h-5 w-5 text-[#2D6A4F]" />
+                {/* Display modes */}
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="cards" size={18} color="var(--brand-700)" />
+                        <div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Modes d&apos;affichage
+                            </h3>
+                            <p
+                                style={{
+                                    margin: "2px 0 0",
+                                    fontSize: 11,
+                                    color: "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                Confort = lisibilité · Dense = densité · Focus = concentration
+                            </p>
+                        </div>
                     </div>
-                    {isActive ? (
-                      <span className="rounded-full bg-[#2D6A4F] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+                    <div
+                        className="grid gap-3 px-5 py-5"
+                        style={{
+                            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        }}
+                    >
+                        {DISPLAY_MODES.map((option) => {
+                            const isActive = selectedMode === option.id;
+                            return (
+                                <ChoiceTile
+                                    key={option.id}
+                                    title={option.title}
+                                    description={option.description}
+                                    icon={option.icon}
+                                    active={isActive}
+                                    onClick={() => void handleDisplayModeChange(option.id)}
+                                />
+                            );
+                        })}
+                    </div>
+                </Card>
+
+                {/* Theme */}
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="settings" size={18} color="var(--brand-700)" />
+                        <div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Thème
+                            </h3>
+                            <p
+                                style={{
+                                    margin: "2px 0 0",
+                                    fontSize: 11,
+                                    color: "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                Conservé dans tes préférences utilisateur et appliqué immédiatement.
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        className="grid gap-3 px-5 py-5"
+                        style={{
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        }}
+                    >
+                        {THEMES.map((option) => {
+                            const isActive = selectedTheme === option.id;
+                            return (
+                                <ChoiceTile
+                                    key={option.id}
+                                    title={option.title}
+                                    description={option.description}
+                                    icon={option.icon}
+                                    active={isActive}
+                                    onClick={() => void handleThemeChange(option.id)}
+                                />
+                            );
+                        })}
+                    </div>
+                </Card>
+            </div>
+        </PageGuard>
+    );
+}
+
+function ChoiceTile({
+    title,
+    description,
+    icon,
+    active,
+    onClick,
+}: {
+    title: string;
+    description: string;
+    icon: IconName;
+    active: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="text-left"
+            style={{
+                padding: 16,
+                borderRadius: "var(--eduflow-radius-card)",
+                border: active
+                    ? "2px solid var(--brand-600)"
+                    : "1px solid var(--eduflow-border-default)",
+                background: active
+                    ? "var(--brand-50)"
+                    : "var(--eduflow-surface-card)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition:
+                    "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                boxShadow: active ? "var(--eduflow-shadow-card-brand)" : "none",
+            }}
+        >
+            <div className="mb-3 flex items-center justify-between">
+                <div
+                    className="grid place-items-center"
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: active
+                            ? "var(--brand-100)"
+                            : "var(--eduflow-surface-sunken)",
+                        color: active ? "var(--brand-700)" : "var(--eduflow-text-secondary)",
+                    }}
+                >
+                    <Icon name={icon} size={18} />
+                </div>
+                {active ? (
+                    <Badge variant="brand" size="sm" icon="check">
                         Actif
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-base font-semibold text-foreground">{option.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{option.description}</p>
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="border-b border-border bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Monitor className="h-5 w-5 text-primary" />
-              Thème
-            </CardTitle>
-            <CardDescription>
-              Le thème est conservé dans vos préférences utilisateur et appliqué immédiatement.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 pt-6 sm:grid-cols-3">
-            {[
-              { id: "light" as const, title: "Clair", icon: Sun },
-              { id: "dark" as const, title: "Sombre", icon: Moon },
-              { id: "system" as const, title: "Système", icon: Monitor },
-            ].map((option) => {
-              const isActive = theme === option.id;
-
-              return (
-                <Button
-                  key={option.id}
-                  type="button"
-                  variant="outline"
-                  className={[
-                    "h-auto min-h-[108px] flex-col items-start justify-between rounded-2xl border px-4 py-4 text-left",
-                    isActive ? "border-[#2D6A4F] bg-[#EEF7F3] text-[#1A4535]" : "border-border",
-                  ].join(" ")}
-                  onClick={() => void handleThemeChange(option.id)}
-                >
-                  <option.icon className="h-5 w-5" />
-                  <div>
-                    <div className="font-semibold">{option.title}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {option.id === "system" ? "Suit la préférence du navigateur." : `Applique le thème ${option.title.toLowerCase()}.`}
-                    </div>
-                  </div>
-                </Button>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-    </PageGuard>
-  );
+                    </Badge>
+                ) : null}
+            </div>
+            <div
+                style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: active ? "var(--brand-800)" : "var(--eduflow-text-primary)",
+                }}
+            >
+                {title}
+            </div>
+            <p
+                style={{
+                    margin: "6px 0 0",
+                    fontSize: 12,
+                    color: "var(--eduflow-text-secondary)",
+                    lineHeight: 1.5,
+                }}
+            >
+                {description}
+            </p>
+        </button>
+    );
 }

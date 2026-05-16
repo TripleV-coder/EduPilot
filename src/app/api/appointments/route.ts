@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
 
     // Generate meeting link if VIDEO_CALL
     const meetingLink = validatedData.type === "VIDEO_CALL"
-      ? `https://meet.edupilot.app/${Math.random().toString(36).substring(7)}`
+      ? `https://meet.edupilot.app/${crypto.randomUUID()}`
       : undefined;
 
     const appointment = await prisma.appointment.create({

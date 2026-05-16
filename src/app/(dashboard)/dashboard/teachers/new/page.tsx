@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -25,23 +24,16 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useSWRConfig } from "swr";
 
-const generateRandomPassword = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-    return Array.from(crypto.getRandomValues(new Uint32Array(12)))
-        .map((x) => chars[x % chars.length])
-        .join("") + "A1!";
-};
+const STANDARD_PASSWORD = "00000000";
 
 type TeacherFormValues = z.infer<typeof teacherCreateSchema>;
 
 export default function NewTeacherPage() {
-    const router = useRouter();
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [generatedPassword, setGeneratedPassword] = useState<string>("");
 
     const form = useForm<TeacherFormValues>({
         resolver: zodResolver(teacherCreateSchema) as any,
@@ -50,7 +42,7 @@ export default function NewTeacherPage() {
             lastName: "",
             email: "",
             phone: "",
-            password: generateRandomPassword(),
+            password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
             hireDate: undefined as any,
@@ -83,7 +75,6 @@ export default function NewTeacherPage() {
                 throw new Error(data.error || "Une erreur est survenue lors de l'enregistrement");
             }
 
-            setGeneratedPassword(values.password);
             setSuccess(true);
             mutate(key => typeof key === 'string' && key.startsWith('/api/teachers'));
 
@@ -101,13 +92,12 @@ export default function NewTeacherPage() {
 
     const resetForm = () => {
         setSuccess(false);
-        setGeneratedPassword("");
         form.reset({
             firstName: "",
             lastName: "",
             email: "",
             phone: "",
-            password: generateRandomPassword(),
+            password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
             hireDate: undefined as any,
@@ -136,7 +126,7 @@ export default function NewTeacherPage() {
                             Dossier de l'Enseignant
                         </CardTitle>
                         <CardDescription>
-                            Remplissez ce formulaire. Le mot de passe sera généré automatiquement.
+                            Remplissez ce formulaire. Le compte est créé avec le mot de passe standard et changement obligatoire à la première connexion.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -148,11 +138,11 @@ export default function NewTeacherPage() {
                         )}
 
                         {success ? (
-                            <div className="p-6 rounded-xl border-2 border-emerald-500/20 bg-emerald-500/5 text-center space-y-4">
-                                <div className="mx-auto w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                            <div className="p-6 rounded-xl border-2 border-success/30 bg-success/10 text-center space-y-4">
+                                <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-emerald-700">Enseignant créé avec succès !</h3>
+                                <h3 className="text-xl font-bold text-success">Enseignant créé avec succès !</h3>
 
                                 <Card className="bg-background max-w-md mx-auto p-4 text-left border-dashed shadow-sm">
                                     <p className="text-sm text-muted-foreground mb-2 flex flex-center gap-2">
@@ -162,7 +152,7 @@ export default function NewTeacherPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center bg-muted/50 p-2 rounded">
                                             <span className="text-xs font-semibold text-muted-foreground">Mot de passe temporaire :</span>
-                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{generatedPassword}</code>
+                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{STANDARD_PASSWORD}</code>
                                         </div>
                                     </div>
                                 </Card>
@@ -189,7 +179,7 @@ export default function NewTeacherPage() {
                                                     <FormItem>
                                                         <FormLabel>Prénoms <span className="text-destructive">*</span></FormLabel>
                                                         <FormControl>
-                                                            <Input {...field} />
+                                                            <Input aria-label="Prénom de l'enseignant" placeholder="Ex: Awa" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -202,7 +192,7 @@ export default function NewTeacherPage() {
                                                     <FormItem>
                                                         <FormLabel>Nom de famille <span className="text-destructive">*</span></FormLabel>
                                                         <FormControl>
-                                                            <Input {...field} />
+                                                            <Input aria-label="Nom de famille de l'enseignant" placeholder="Ex: Hountondji" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -215,7 +205,7 @@ export default function NewTeacherPage() {
                                                     <FormItem>
                                                         <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                                                         <FormControl>
-                                                            <Input type="email" {...field} />
+                                                            <Input aria-label="Adresse e-mail de l'enseignant" type="email" placeholder="prenom.nom@ecole.edu" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -228,7 +218,7 @@ export default function NewTeacherPage() {
                                                     <FormItem>
                                                         <FormLabel>Téléphone</FormLabel>
                                                         <FormControl>
-                                                            <Input {...field} />
+                                                            <Input aria-label="Téléphone de l'enseignant" placeholder="+229 01 00 00 00 00" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>

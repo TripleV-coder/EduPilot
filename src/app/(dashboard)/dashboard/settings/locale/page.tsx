@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
-import { Globe, Clock, Save, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
 
-const STORAGE_KEY = "edupilot-locale-prefs";
+import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
+
+import { Button, Card, Icon } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 interface LocalePrefs {
     language: string;
     timezone: string;
     dateformat: string;
     currency: string;
+}
+
+interface ProfileResponse {
+    preferences?: {
+        locale?: Partial<LocalePrefs>;
+        [key: string]: unknown;
+    } | null;
 }
 
 const defaults: LocalePrefs = {
@@ -28,19 +31,47 @@ const defaults: LocalePrefs = {
     currency: "xof",
 };
 
+const LANGUAGE_OPTIONS = [
+    { value: "fr", label: "Français (France)" },
+    { value: "en", label: "English (US)" },
+    { value: "es", label: "Español" },
+    { value: "ar", label: "العربية (Arabe) — Bêta" },
+];
+
+const TIMEZONE_OPTIONS = [
+    { value: "gmt", label: "GMT (Dakar, Abidjan, Cotonou)" },
+    { value: "gmt1", label: "GMT+1 (Paris, Kinshasa)" },
+    { value: "gmt2", label: "GMT+2 (Kigali, Bujumbura)" },
+];
+
+const DATEFORMAT_OPTIONS = [
+    { value: "dmy", label: "JJ/MM/AAAA (24/05/2026)" },
+    { value: "mdy", label: "MM/JJ/AAAA (05/24/2026)" },
+    { value: "ymd", label: "AAAA-MM-JJ (2026-05-24)" },
+];
+
+const CURRENCY_OPTIONS = [
+    { value: "xof", label: "FCFA (XOF)" },
+    { value: "eur", label: "Euro (€)" },
+    { value: "usd", label: "Dollar Américain ($)" },
+];
+
 export default function LocaleSettingsPage() {
-    const { data: profileData, mutate } = useSWR("/api/user/profile", fetcher);
+    const { data: profileData, mutate } = useSWR<ProfileResponse>(
+        "/api/user/profile",
+        fetcher
+    );
 
     const [language, setLanguage] = useState(defaults.language);
     const [timezone, setTimezone] = useState(defaults.timezone);
     const [dateformat, setDateformat] = useState(defaults.dateformat);
     const [currency, setCurrency] = useState(defaults.currency);
     const [saved, setSaved] = useState(false);
+    const [saving, setSaving] = useState(false);
 
-    // Load saved preferences from profile
     useEffect(() => {
-        if (profileData?.preferences?.locale) {
-            const prefs = profileData.preferences.locale;
+        const prefs = profileData?.preferences?.locale;
+        if (prefs) {
             queueMicrotask(() => {
                 if (prefs.language) setLanguage(prefs.language);
                 if (prefs.timezone) setTimezone(prefs.timezone);
@@ -51,132 +82,196 @@ export default function LocaleSettingsPage() {
     }, [profileData]);
 
     const handleSave = async () => {
-        const localePrefs: LocalePrefs = { language, timezone, dateformat, currency };
-
+        setSaving(true);
+        const localePrefs: LocalePrefs = {
+            language,
+            timezone,
+            dateformat,
+            currency,
+        };
         try {
             const currentPrefs = profileData?.preferences || {};
             const updatedPrefs = { ...currentPrefs, locale: localePrefs };
-
             await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ preferences: updatedPrefs }),
             });
-
-            mutate({ ...profileData, preferences: updatedPrefs }, false);
+            mutate({ ...(profileData || {}), preferences: updatedPrefs }, false);
             setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
-        } catch (error) {
-            console.error("Failed to save locale preferences:", error);
+            setTimeout(() => setSaved(false), 2200);
+        } finally {
+            setSaving(false);
         }
     };
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
                 <PageHeader
-                    title="Langue & Région"
-                    description="Configurez la langue de l'interface et le format des dates."
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Paramètres", href: "/dashboard/settings" },
-                        { label: "Localisation" },
-                    ]}
+                    greeting="Langue & région"
+                    sub="Configure la langue de l'interface, le fuseau horaire et le format des dates."
                 />
 
-                {saved && (
-                    <div className="p-3 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))] flex items-center gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4" /> Préférences enregistrées avec succès.
+                {saved ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            background: "var(--eduflow-success-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="success" size={18} color="var(--eduflow-success-700)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-success-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                Préférences enregistrées avec succès.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="tag" size={18} color="var(--brand-700)" />
+                        <div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Langue de l&apos;interface
+                            </h3>
+                            <p
+                                style={{
+                                    margin: "2px 0 0",
+                                    fontSize: 11,
+                                    color: "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                Cette modification ne s&apos;applique qu&apos;à ton compte personnel.
+                            </p>
+                        </div>
                     </div>
-                )}
+                    <div className="px-5 py-5">
+                        <FieldSelect
+                            label="Langue"
+                            value={language}
+                            onChange={setLanguage}
+                            options={LANGUAGE_OPTIONS}
+                        />
+                    </div>
+                </Card>
 
-                <div className="grid gap-6">
-                    <Card className="border-border shadow-sm">
-                        <CardHeader className="bg-muted/10 border-b border-border">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Globe className="w-5 h-5 text-primary" />
-                                Langue de l'interface
-                            </CardTitle>
-                            <CardDescription>
-                                Cette modification ne s'applique qu'à votre compte personnel.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                            <div className="space-y-3 max-w-md">
-                                <Label htmlFor="lang">Langue</Label>
-                                <Select value={language} onValueChange={setLanguage}>
-                                    <SelectTrigger id="lang" className="bg-background">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="fr">Français (France)</SelectItem>
-                                        <SelectItem value="en">English (US)</SelectItem>
-                                        <SelectItem value="es">Español</SelectItem>
-                                        <SelectItem value="ar">العربية (Arabic) - Bêta</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border shadow-sm">
-                        <CardHeader className="bg-muted/10 border-b border-border">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-primary" />
-                                Formats & Fuseau horaire
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 space-y-6 max-w-md">
-                            <div className="space-y-3">
-                                <Label htmlFor="timezone">Fuseau horaire</Label>
-                                <Select value={timezone} onValueChange={setTimezone}>
-                                    <SelectTrigger id="timezone" className="bg-background">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="gmt">GMT (Dakar, Abidjan)</SelectItem>
-                                        <SelectItem value="gmt1">GMT+1 (Paris, Kinshasa)</SelectItem>
-                                        <SelectItem value="gmt2">GMT+2 (Kigali, Bujumbura)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-3">
-                                <Label htmlFor="dateformat">Format de date</Label>
-                                <Select value={dateformat} onValueChange={setDateformat}>
-                                    <SelectTrigger id="dateformat" className="bg-background">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="dmy">JJ/MM/AAAA (ex: 24/05/2024)</SelectItem>
-                                        <SelectItem value="mdy">MM/JJ/AAAA (ex: 05/24/2024)</SelectItem>
-                                        <SelectItem value="ymd">AAAA-MM-JJ (ex: 2024-05-24)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-3">
-                                <Label htmlFor="currency">Devise d'affichage (Visuel uniquement)</Label>
-                                <Select value={currency} onValueChange={setCurrency}>
-                                    <SelectTrigger id="currency" className="bg-background">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="xof">FCFA (XOF)</SelectItem>
-                                        <SelectItem value="eur">Euro (€)</SelectItem>
-                                        <SelectItem value="usd">Dollar Américain ($)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-muted/10 border-t border-border py-4">
-                            <Button className="gap-2" onClick={handleSave}>
-                                <Save className="w-4 h-4" /> Enregistrer les préférences
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </div>
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="clock" size={18} color="var(--brand-700)" />
+                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            Formats & fuseau horaire
+                        </h3>
+                    </div>
+                    <div
+                        className="grid gap-4 px-5 py-5"
+                        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}
+                    >
+                        <FieldSelect
+                            label="Fuseau horaire"
+                            value={timezone}
+                            onChange={setTimezone}
+                            options={TIMEZONE_OPTIONS}
+                        />
+                        <FieldSelect
+                            label="Format de date"
+                            value={dateformat}
+                            onChange={setDateformat}
+                            options={DATEFORMAT_OPTIONS}
+                        />
+                        <FieldSelect
+                            label="Devise d'affichage"
+                            value={currency}
+                            onChange={setCurrency}
+                            options={CURRENCY_OPTIONS}
+                        />
+                    </div>
+                    <div
+                        className="flex justify-end border-t px-5 py-4"
+                        style={{
+                            borderColor: "var(--eduflow-border-subtle)",
+                            background: "var(--eduflow-surface-sunken)",
+                        }}
+                    >
+                        <Button
+                            icon={saving ? undefined : "check"}
+                            loading={saving}
+                            onClick={handleSave}
+                        >
+                            Enregistrer les préférences
+                        </Button>
+                    </div>
+                </Card>
             </div>
         </PageGuard>
+    );
+}
+
+function FieldSelect({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    width: "100%",
+                    height: 42,
+                    padding: "0 12px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-primary)",
+                    cursor: "pointer",
+                    outline: "none",
+                }}
+            >
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </label>
     );
 }

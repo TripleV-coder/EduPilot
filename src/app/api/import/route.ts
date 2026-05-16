@@ -73,10 +73,7 @@ export const POST = createApiHandler(
                 schoolId: targetSchoolId,
                 matricule:
                   item.matricule ||
-                  `MAT-${Math.random()
-                    .toString(36)
-                    .substr(2, 5)
-                    .toUpperCase()}`,
+                  `MAT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
               },
             });
 

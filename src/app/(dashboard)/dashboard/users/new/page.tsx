@@ -29,12 +29,7 @@ import { useSWRConfig } from "swr";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
-const generateRandomPassword = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-    return Array.from(crypto.getRandomValues(new Uint32Array(12)))
-        .map((x) => chars[x % chars.length])
-        .join("") + "A1!";
-};
+const STANDARD_PASSWORD = "00000000";
 
 const formSchema = z.object({
     firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
@@ -65,7 +60,6 @@ export default function NewUserPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [generatedPassword, setGeneratedPassword] = useState<string>("");
     const { user } = useRBAC();
     const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
@@ -82,7 +76,7 @@ export default function NewUserPage() {
             email: "",
             phone: "",
             role: "TEACHER",
-            password: generateRandomPassword(),
+            password: STANDARD_PASSWORD,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",
@@ -148,7 +142,6 @@ export default function NewUserPage() {
                 throw new Error(data.error || "Une erreur est survenue lors de l'enregistrement");
             }
 
-            setGeneratedPassword(values.password);
             setSuccess(true);
 
             // Revalidate the users list
@@ -168,14 +161,13 @@ export default function NewUserPage() {
 
     const resetForm = () => {
         setSuccess(false);
-        setGeneratedPassword("");
         form.reset({
             firstName: "",
             lastName: "",
             email: "",
             phone: "",
             role: "TEACHER",
-            password: generateRandomPassword(),
+            password: STANDARD_PASSWORD,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",
@@ -210,7 +202,7 @@ export default function NewUserPage() {
                             Informations du compte
                         </CardTitle>
                         <CardDescription>
-                            Renseignez les informations de connexion et le rôle de l'utilisateur. Le mot de passe sera généré automatiquement.
+                            Renseignez les informations de connexion et le rôle. Le compte est créé avec mot de passe standard puis changement obligatoire au premier accès.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -222,11 +214,11 @@ export default function NewUserPage() {
                         )}
 
                         {success ? (
-                            <div className="p-6 rounded-xl border-2 border-emerald-500/20 bg-emerald-500/5 text-center space-y-4">
-                                <div className="mx-auto w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                            <div className="p-6 rounded-xl border-2 border-success/30 bg-success/10 text-center space-y-4">
+                                <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-emerald-700">Utilisateur créé avec succès !</h3>
+                                <h3 className="text-xl font-bold text-success">Utilisateur créé avec succès !</h3>
 
                                 <Card className="bg-background max-w-md mx-auto p-4 text-left border-dashed shadow-sm">
                                     <p className="text-sm text-muted-foreground mb-2 flex flex-center gap-2">
@@ -236,7 +228,7 @@ export default function NewUserPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center bg-muted/50 p-2 rounded">
                                             <span className="text-xs font-semibold text-muted-foreground">Mot de passe temporaire :</span>
-                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{generatedPassword}</code>
+                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{STANDARD_PASSWORD}</code>
                                         </div>
                                     </div>
                                 </Card>
@@ -261,7 +253,7 @@ export default function NewUserPage() {
                                                 <FormItem>
                                                     <FormLabel>Prénom <span className="text-destructive">*</span></FormLabel>
                                                     <FormControl>
-                                                        <Input {...field} />
+                                                        <Input aria-label="Prénom de l'utilisateur" placeholder="Ex: Jeanne" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -274,7 +266,7 @@ export default function NewUserPage() {
                                                 <FormItem>
                                                     <FormLabel>Nom <span className="text-destructive">*</span></FormLabel>
                                                     <FormControl>
-                                                        <Input {...field} />
+                                                        <Input aria-label="Nom de l'utilisateur" placeholder="Ex: Koffi" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -287,7 +279,7 @@ export default function NewUserPage() {
                                                 <FormItem>
                                                     <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                                                     <FormControl>
-                                                        <Input type="email" {...field} />
+                                                        <Input aria-label="Adresse e-mail de l'utilisateur" type="email" placeholder="prenom.nom@ecole.edu" {...field} />
                                                     </FormControl>
                                                     <FormDescription className="text-xs">
                                                         Adresse professionnelle utilisée pour la connexion de cet utilisateur.
@@ -303,7 +295,7 @@ export default function NewUserPage() {
                                                 <FormItem>
                                                     <FormLabel>Téléphone</FormLabel>
                                                     <FormControl>
-                                                        <Input type="tel" {...field} />
+                                                        <Input aria-label="Téléphone de l'utilisateur" type="tel" placeholder="+229 01 00 00 00 00" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -317,8 +309,8 @@ export default function NewUserPage() {
                                                     <FormLabel>Rôle <span className="text-destructive">*</span></FormLabel>
                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue />
+                                                            <SelectTrigger aria-label="Sélectionner le rôle utilisateur">
+                                                                <SelectValue placeholder="Choisir un rôle" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
@@ -346,8 +338,8 @@ export default function NewUserPage() {
                                                         <FormLabel>Établissement <span className="text-destructive">*</span></FormLabel>
                                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                             <FormControl>
-                                                                <SelectTrigger>
-                                                                    <SelectValue />
+                                                                <SelectTrigger aria-label="Sélectionner l'établissement">
+                                                                    <SelectValue placeholder="Choisir un établissement" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>

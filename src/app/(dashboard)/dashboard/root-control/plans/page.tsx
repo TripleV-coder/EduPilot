@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Zap, Plus, Loader2, 
-  Users, HardDrive, GraduationCap, 
-  Edit, Trash2, DollarSign, ListChecks
+import {
+  Zap, Plus, Loader2,
+  Users, HardDrive, GraduationCap,
+  Edit, Trash2, DollarSign, ListChecks, Search, FilterX
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,10 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
+import { fetcher } from "@/lib/fetcher";
+import { SectionToolbar } from "@/components/ui/section-toolbar";
+import { MetricCardPro } from "@/components/ui/metric-card-pro";
+import { EmptyStateAction } from "@/components/ui/empty-state";
 
 type Plan = {
     id: string;
@@ -41,15 +45,10 @@ type Plan = {
     isActive: boolean;
 };
 
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => {
-    if (!res.ok) throw new Error("Erreur serveur");
-    return res.json();
-});
-
 export default function RootPlansPage() {
-    const [searchTerm] = useState("");
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
     
     const { data, isLoading, mutate } = useSWR<{ data: Plan[] }>(
         "/api/root/plans",
@@ -57,10 +56,21 @@ export default function RootPlansPage() {
     );
 
     const plans = data?.data || [];
-    const filteredPlans = plans.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPlans = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
+        if (!query) return plans;
+        return plans.filter((plan) =>
+            plan.name.toLowerCase().includes(query) ||
+            plan.code.toLowerCase().includes(query) ||
+            String(plan.description || "").toLowerCase().includes(query) ||
+            plan.features.some((feature) => feature.toLowerCase().includes(query))
+        );
+    }, [plans, searchTerm]);
+
+    const activePlansCount = plans.filter((plan) => plan.isActive).length;
+    const averageMonthlyPrice = plans.length > 0
+        ? Math.round(plans.reduce((sum, plan) => sum + Number(plan.priceMonthly || 0), 0) / plans.length)
+        : 0;
 
     const handleCreatePlan = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -113,21 +123,21 @@ export default function RootPlansPage() {
                     
                     <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button className="gap-2 shadow-lg bg-primary hover:bg-primary/90 text-white border-0 transition-all active:scale-95 px-6">
+                            <Button className="gap-2 h-11 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground border-0 transition-all active:scale-95 px-6">
                                 <Plus className="w-4 h-4" />
                                 Créer une Formule
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[600px] overflow-hidden p-0 border-0 shadow-2xl">
                             <form onSubmit={handleCreatePlan} className="flex flex-col">
-                                <DialogHeader className="p-6 bg-slate-950 text-white">
+                                <DialogHeader className="p-6 bg-foreground text-background">
                                     <div className="flex items-center gap-3 mb-1">
                                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
                                             <Zap className="w-5 h-5" />
                                         </div>
                                         <DialogTitle className="text-xl font-bold">Nouvelle Formule</DialogTitle>
                                     </div>
-                                    <DialogDescription className="text-slate-400">
+                                    <DialogDescription className="text-background/70">
                                         Définissez les quotas et les prix pour ce nouveau plan tarifaire.
                                     </DialogDescription>
                                 </DialogHeader>
@@ -136,48 +146,48 @@ export default function RootPlansPage() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="name">Nom du plan</Label>
-                                            <Input id="name" name="name" required />
+                                            <Input id="name" name="name" aria-label="Nom du plan" placeholder="Ex: Premium Campus" required />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="code">Code technique</Label>
-                                            <Input id="code" name="code" required />
+                                            <Input id="code" name="code" aria-label="Code technique" placeholder="Ex: PREMIUM_2026" required />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label htmlFor="description">Description courte</Label>
-                                        <Input id="description" name="description" />
+                                        <Input id="description" name="description" aria-label="Description du plan" placeholder="Résumé fonctionnel du plan" />
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="space-y-2">
                                             <Label className="flex items-center gap-2"><Users className="w-3 h-3 text-primary"/> Élèves max</Label>
-                                            <Input type="number" name="maxStudents" defaultValue="500" required />
+                                            <Input type="number" name="maxStudents" aria-label="Nombre maximum d'élèves" defaultValue="500" required />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="flex items-center gap-2"><GraduationCap className="w-3 h-3 text-primary"/> Profs max</Label>
-                                            <Input type="number" name="maxTeachers" defaultValue="50" required />
+                                            <Input type="number" name="maxTeachers" aria-label="Nombre maximum d'enseignants" defaultValue="50" required />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="flex items-center gap-2"><HardDrive className="w-3 h-3 text-primary"/> Stockage (GB)</Label>
-                                            <Input type="number" name="maxStorageGB" defaultValue="10" required />
+                                            <Input type="number" name="maxStorageGB" aria-label="Stockage maximum en gigaoctets" defaultValue="10" required />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label className="flex items-center gap-2"><DollarSign className="w-3 h-3 text-emerald-500"/> Prix Mensuel (FCFA)</Label>
-                                            <Input type="number" name="priceMonthly" required />
+                                            <Label className="flex items-center gap-2"><DollarSign className="w-3 h-3 text-success"/> Prix Mensuel (FCFA)</Label>
+                                            <Input type="number" name="priceMonthly" aria-label="Prix mensuel en FCFA" placeholder="Ex: 25000" required />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="flex items-center gap-2"><DollarSign className="w-3 h-3 text-emerald-500"/> Prix Annuel (FCFA)</Label>
-                                            <Input type="number" name="priceYearly" required />
+                                            <Label className="flex items-center gap-2"><DollarSign className="w-3 h-3 text-success"/> Prix Annuel (FCFA)</Label>
+                                            <Input type="number" name="priceYearly" aria-label="Prix annuel en FCFA" placeholder="Ex: 240000" required />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="flex items-center gap-2"><ListChecks className="w-3 h-3 text-blue-500"/> Fonctionnalités (séparées par des virgules)</Label>
-                                        <Input id="features" name="features" />
+                                        <Label className="flex items-center gap-2"><ListChecks className="w-3 h-3 text-primary"/> Fonctionnalités (séparées par des virgules)</Label>
+                                        <Input id="features" name="features" aria-label="Liste des fonctionnalités" placeholder="Ex: IA, SMS, API, LMS" />
                                     </div>
                                 </div>
 
@@ -193,13 +203,53 @@ export default function RootPlansPage() {
                     </Dialog>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <MetricCardPro label="Plans Totaux" value={plans.length} hint="Catalogue global des formules" icon={Zap} tone="primary" />
+                    <MetricCardPro label="Plans Actifs" value={activePlansCount} hint="Commercialisables immédiatement" icon={Users} tone="success" />
+                    <MetricCardPro label="Prix Moyen / Mois" value={`${averageMonthlyPrice.toLocaleString()} FCFA`} hint="Moyenne des tarifs mensuels" icon={DollarSign} tone="warning" />
+                </div>
+
+                <SectionToolbar
+                    title="Recherche des formules"
+                    description="Filtrez rapidement par nom, code, description ou fonctionnalité."
+                    leading={
+                        <div className="relative w-full sm:min-w-[320px]">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                aria-label="Rechercher une formule"
+                                placeholder="Ex: premium, API, 500 élèves..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9 bg-background"
+                            />
+                        </div>
+                    }
+                    actions={
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setSearchTerm("")}
+                            disabled={!searchTerm}
+                            className="gap-2"
+                        >
+                            <FilterX className="w-4 h-4" />
+                            Réinitialiser
+                        </Button>
+                    }
+                />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {isLoading ? (
                         [1, 2, 3].map(i => <Card key={i} className="h-[300px] animate-pulse bg-muted/50" />)
                     ) : filteredPlans.length === 0 ? (
-                        <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl bg-muted/10">
-                            <Zap className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-                            <p className="text-muted-foreground font-medium">Aucun plan tarifaire configuré.</p>
+                        <div className="col-span-full">
+                            <EmptyStateAction
+                                icon={Zap}
+                                title={searchTerm ? "Aucun plan trouvé pour ce filtre" : "Aucun plan tarifaire configuré"}
+                                description={searchTerm ? "Essayez une autre recherche ou réinitialisez le filtre." : "Créez votre première formule pour configurer les limites et la tarification."}
+                                actionLabel={searchTerm ? "Réinitialiser le filtre" : "Créer une formule"}
+                                onAction={() => searchTerm ? setSearchTerm("") : setIsCreateDialogOpen(true)}
+                            />
                         </div>
                     ) : (
                         filteredPlans.map((plan) => (
@@ -252,10 +302,10 @@ export default function RootPlansPage() {
                                     </div>
 
                                     <div className="flex gap-2 pt-2">
-                                        <Button variant="outline" size="sm" className="flex-1 h-9 gap-2 text-[11px] font-bold uppercase tracking-tight">
+                                        <Button aria-label={`Modifier le plan ${plan.name}`} variant="outline" size="sm" className="flex-1 h-9 gap-2 text-[11px] font-bold uppercase tracking-tight">
                                             <Edit className="w-3.5 h-3.5" /> Modifier
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10">
+                                        <Button aria-label={`Supprimer le plan ${plan.name}`} variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10">
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </div>

@@ -24,6 +24,7 @@ import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+const DEFAULT_PASSWORD = "00000000";
 
 /**
  * GET /api/teachers
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
     }
 
-    const hashedPassword = validatedData.password ? await bcrypt.hash(validatedData.password, 10) : await bcrypt.hash(Math.random().toString(36), 10);
+    const hashedPassword = await bcrypt.hash(validatedData.password || DEFAULT_PASSWORD, 10);
 
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -240,6 +241,7 @@ export async function POST(request: NextRequest) {
           roles: ["TEACHER"],
           schoolId: targetSchoolId,
           phone: validatedData.phone,
+          mustChangePassword: !validatedData.password,
         }
       });
 

@@ -2,64 +2,100 @@
 
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Permission } from "@/lib/rbac/permissions";
-import { 
-  Save, AlertCircle, CheckCircle, Search, UserCheck, 
-  Users, Clock, ShieldAlert, ArrowLeft, Filter, Calendar
-} from "lucide-react";
 import { useSession } from "next-auth/react";
-import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
-import { PageCallout } from "@/components/layout/page-callout";
+
+import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
+import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
+import { toast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
+
+import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 type RawStudent = {
     id: string;
     matricule?: string;
-    user?: {
-        firstName: string | null;
-        lastName: string | null;
-    } | null;
+    user?: { firstName: string | null; lastName: string | null } | null;
 };
 
+type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
 type AttendanceRecord = {
     studentId: string;
     studentName: string;
-    status: string; // 'PRESENT', 'ABSENT', 'EXCUSED'
+    matricule: string;
+    status: AttendanceStatus;
     notes: string;
 };
 
+interface ClassOption {
+    id: string;
+    name: string;
+}
+
+const STATUS_BUTTONS: {
+    key: AttendanceStatus;
+    letter: string;
+    label: string;
+    bg: string;
+    glow: string;
+}[] = [
+    {
+        key: "PRESENT",
+        letter: "P",
+        label: "Présent",
+        bg: "var(--eduflow-success-600)",
+        glow: "0 6px 16px rgba(5, 150, 105, 0.35)",
+    },
+    {
+        key: "EXCUSED",
+        letter: "E",
+        label: "Excusé",
+        bg: "var(--eduflow-warning-500)",
+        glow: "0 6px 16px rgba(245, 158, 11, 0.35)",
+    },
+    {
+        key: "ABSENT",
+        letter: "A",
+        label: "Absent",
+        bg: "var(--eduflow-danger-600)",
+        glow: "0 6px 16px rgba(220, 38, 38, 0.35)",
+    },
+];
+
 export default function AttendancePage() {
     const router = useRouter();
+    useSession();
     const { isFocusMode } = useSidebar();
-    const [classes, setClasses] = useState<any[]>([]);
+
+    const [classes, setClasses] = useState<ClassOption[]>([]);
     const [selectedClassId, setSelectedClassId] = useState("");
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+    const [selectedDate, setSelectedDate] = useState(
+        new Date().toISOString().split("T")[0]
+    );
     const [searchQuery, setSearchQuery] = useState("");
     const [saving, setSaving] = useState(false);
     const [isFetchingData, setIsFetchingData] = useState(false);
 
-    const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceRecord>>({});
-    const [initialAttendanceData, setInitialAttendanceData] = useState<Record<string, AttendanceRecord>>({});
+    const [attendanceData, setAttendanceData] = useState<
+        Record<string, AttendanceRecord>
+    >({});
+    const [initialAttendanceData, setInitialAttendanceData] = useState<
+        Record<string, AttendanceRecord>
+    >({});
     const [orderedStudentIds, setOrderedStudentIds] = useState<string[]>([]);
 
-    // Initial load
-    const { data: classesData, isLoading: classesLoading } = useSWR("/api/classes", fetcher);
+    const { data: classesData } = useSWR("/api/classes", fetcher);
     useEffect(() => {
-        if (classesData) setClasses(Array.isArray(classesData) ? classesData : classesData.data || []);
+        if (classesData)
+            setClasses(
+                Array.isArray(classesData) ? classesData : classesData.data || []
+            );
     }, [classesData]);
 
-    // Fetch students and current attendance
     useEffect(() => {
         if (!selectedClassId || !selectedDate) return;
 
@@ -68,32 +104,47 @@ export default function AttendancePage() {
             try {
                 const [stuRes, attRes] = await Promise.all([
                     fetch(`/api/students?classId=${selectedClassId}&limit=1000`),
-                    fetch(`/api/attendance/bulk?classId=${selectedClassId}&date=${selectedDate}`)
+                    fetch(
+                        `/api/attendance/bulk?classId=${selectedClassId}&date=${selectedDate}`
+                    ),
                 ]);
 
                 const stuData = await stuRes.json();
-                const existingRecords = attRes.ok ? await attRes.json() : [];
-                
-                const studentsList: RawStudent[] = Array.isArray(stuData) ? stuData : stuData.students || [];
+                const existingRecords: { studentId: string; status: string; reason?: string }[] = attRes.ok
+                    ? await attRes.json()
+                    : [];
+
+                const studentsList: RawStudent[] = Array.isArray(stuData)
+                    ? stuData
+                    : stuData.students || [];
                 const newAttrMap: Record<string, AttendanceRecord> = {};
                 const orderedIds: string[] = [];
 
-                studentsList.forEach(stu => {
+                studentsList.forEach((stu) => {
                     orderedIds.push(stu.id);
-                    const existing = existingRecords.find((r: any) => r.studentId === stu.id);
+                    const existing = existingRecords.find(
+                        (r) => r.studentId === stu.id
+                    );
+                    const fullName = `${stu.user?.lastName || ""} ${stu.user?.firstName || ""}`.trim();
                     newAttrMap[stu.id] = {
                         studentId: stu.id,
-                        studentName: `${stu.user?.lastName || ""} ${stu.user?.firstName || ""}`.trim() || "Inconnu",
-                        status: existing ? existing.status : "PRESENT",
-                        notes: existing?.reason || ""
+                        studentName: fullName || "Inconnu",
+                        matricule:
+                            stu.matricule ?? `00${stu.id.slice(-4).toUpperCase()}`,
+                        status: (existing?.status as AttendanceStatus) ?? "PRESENT",
+                        notes: existing?.reason ?? "",
                     };
                 });
 
                 setAttendanceData(newAttrMap);
                 setInitialAttendanceData(newAttrMap);
                 setOrderedStudentIds(orderedIds);
-            } catch (e) {
-                toast({ title: "Erreur", description: "Impossible de charger les données", variant: "destructive" });
+            } catch {
+                toast({
+                    title: "Erreur",
+                    description: "Impossible de charger les données",
+                    variant: "destructive",
+                });
             } finally {
                 setIsFetchingData(false);
             }
@@ -101,26 +152,30 @@ export default function AttendancePage() {
         fetchData();
     }, [selectedClassId, selectedDate]);
 
-    const handleStatusChange = (studentId: string, status: string) => {
-        setAttendanceData(prev => ({
+    const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
+        setAttendanceData((prev) => ({
             ...prev,
-            [studentId]: { ...prev[studentId], status }
+            [studentId]: { ...prev[studentId], status },
         }));
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            const records = Object.values(attendanceData).map(rec => ({
+            const records = Object.values(attendanceData).map((rec) => ({
                 studentId: rec.studentId,
                 status: rec.status,
-                notes: rec.notes
+                notes: rec.notes,
             }));
 
             const res = await fetch("/api/attendance/bulk", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ classId: selectedClassId, date: selectedDate, records })
+                body: JSON.stringify({
+                    classId: selectedClassId,
+                    date: selectedDate,
+                    records,
+                }),
             });
 
             if (!res.ok) throw new Error("Erreur de sauvegarde");
@@ -129,13 +184,20 @@ export default function AttendancePage() {
                 title: t("attendance.toasts.savedTitle"),
                 description: t("attendance.toasts.savedDescription"),
                 action: (
-                    <ToastAction altText={t("attendance.toasts.viewAnalytics")} onClick={() => router.push("/dashboard/analytics")}>
+                    <ToastAction
+                        altText={t("attendance.toasts.viewAnalytics")}
+                        onClick={() => router.push("/dashboard/analytics")}
+                    >
                         {t("attendance.toasts.viewAnalytics")}
                     </ToastAction>
                 ),
             });
-        } catch (e) {
-            toast({ title: "Erreur", description: "Erreur lors de la sauvegarde", variant: "destructive" });
+        } catch {
+            toast({
+                title: "Erreur",
+                description: "Erreur lors de la sauvegarde",
+                variant: "destructive",
+            });
         } finally {
             setSaving(false);
         }
@@ -146,242 +208,676 @@ export default function AttendancePage() {
             const current = attendanceData[id];
             const initial = initialAttendanceData[id];
             if (!current || !initial) return acc;
-            if (current.status !== initial.status || (current.notes || "") !== (initial.notes || "")) {
+            if (
+                current.status !== initial.status ||
+                (current.notes || "") !== (initial.notes || "")
+            ) {
                 return acc + 1;
             }
             return acc;
         }, 0);
     }, [attendanceData, initialAttendanceData, orderedStudentIds]);
 
-    const filteredIds = orderedStudentIds.filter(id => 
-        attendanceData[id]?.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredIds = useMemo(
+        () =>
+            orderedStudentIds.filter((id) =>
+                attendanceData[id]?.studentName
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase())
+            ),
+        [orderedStudentIds, attendanceData, searchQuery]
     );
 
-    const stats = Object.values(attendanceData).reduce((acc, curr) => {
-        acc[curr.status] = (acc[curr.status] || 0) + 1;
-        return acc;
-    }, { PRESENT: 0, ABSENT: 0, EXCUSED: 0 } as any);
+    const stats = useMemo(() => {
+        const counts = { PRESENT: 0, ABSENT: 0, EXCUSED: 0 };
+        Object.values(attendanceData).forEach((curr) => {
+            counts[curr.status as AttendanceStatus] = (counts[curr.status as AttendanceStatus] || 0) + 1;
+        });
+        return counts;
+    }, [attendanceData]);
+
+    const totalCount = orderedStudentIds.length;
+
+    const handleAllPresent = () => {
+        const next = { ...attendanceData };
+        Object.keys(next).forEach((id) => {
+            next[id] = { ...next[id], status: "PRESENT" };
+        });
+        setAttendanceData(next);
+    };
 
     return (
-        <PageGuard permission={Permission.ATTENDANCE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
-            <div className={cn("max-w-[1200px] mx-auto animate-fade-in pb-24", isFocusMode ? "space-y-4" : "space-y-6")}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <PageHeader 
-                        title="Feuille d'Appel" 
-                        description={isFocusMode ? "Mode focus actif : marquage rapide des présences." : "Saisissez les présences quotidiennes par classe et par date."}
+        <PageGuard
+            permission={Permission.ATTENDANCE_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
+        >
+            <div className="eduflow-scope mx-auto flex max-w-[1200px] flex-col gap-4 pb-32">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Feuille d'appel"
+                        sub={
+                            isFocusMode
+                                ? "Mode focus — marquage rapide P/E/A."
+                                : "Saisis les présences quotidiennes par classe et par date."
+                        }
+                        breadcrumb={["Tableau de bord", "Feuille d'appel"]}
                     />
-                    {!isFocusMode && (
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase" onClick={() => window.print()}>
-                                Imprimer
-                            </Button>
-                        </div>
-                    )}
+                    {!isFocusMode ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            icon="cards"
+                            onClick={() => window.print()}
+                        >
+                            Imprimer
+                        </Button>
+                    ) : null}
                 </div>
 
-                {/* Configuration */}
-                <Card className="border-none shadow-none bg-muted/20">
-                    <CardContent className="p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                            <div className="md:col-span-5 space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Sélectionner la classe</Label>
-                                <select
-                                    value={selectedClassId}
-                                    onChange={e => setSelectedClassId(e.target.value)}
-                                    className="flex h-9 w-full rounded-lg border border-border/50 bg-background px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                                >
-                                    <option value="">Choisir une classe...</option>
-                                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="md:col-span-4 space-y-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Date de l'appel</Label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                    <Input
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={e => setSelectedDate(e.target.value)}
-                                        className="h-9 pl-9 text-sm"
-                                    />
-                                </div>
-                            </div>
-                            <div className="md:col-span-3">
-                                <div className={cn("flex justify-between p-2 rounded-lg bg-background/50 border border-border/50", isFocusMode && "py-1")}>
-                                    <div className="text-center px-2">
-                                        <p className="text-[9px] font-bold text-emerald-600 uppercase">Présents</p>
-                                        <p className="text-sm font-bold">{stats.PRESENT}</p>
-                                    </div>
-                                    <div className="text-center px-2 border-x border-border/50">
-                                        <p className="text-[9px] font-bold text-destructive uppercase">Absents</p>
-                                        <p className="text-sm font-bold">{stats.ABSENT}</p>
-                                    </div>
-                                    <div className="text-center px-2">
-                                        <p className="text-[9px] font-bold text-orange-500 uppercase">Excusés</p>
-                                        <p className="text-sm font-bold">{stats.EXCUSED}</p>
-                                    </div>
-                                </div>
-                            </div>
+                {/* Config card */}
+                <Card padding={0}>
+                    <div className="px-5 py-5">
+                        <div
+                            className="grid items-end gap-4"
+                            style={{
+                                gridTemplateColumns:
+                                    "minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(280px, 1.4fr)",
+                            }}
+                        >
+                            <FieldSelect
+                                label="Classe"
+                                value={selectedClassId}
+                                onChange={setSelectedClassId}
+                                placeholder="Choisir une classe…"
+                                options={classes.map((c) => ({
+                                    value: c.id,
+                                    label: c.name,
+                                }))}
+                            />
+                            <FieldDate
+                                label="Date de l'appel"
+                                value={selectedDate}
+                                onChange={setSelectedDate}
+                            />
+                            <StatsStrip stats={stats} total={totalCount} />
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
 
-                {/* List */}
-                {!selectedClassId && (
-                    <PageCallout
-                        icon={UserCheck}
-                        title="Sélectionnez une classe pour démarrer l’appel"
-                        description="Choisissez la classe et la date, puis marquez les présents/absents. Vous pourrez ensuite enregistrer l’appel en bas de page."
-                        tone="info"
-                    />
-                )}
+                {!selectedClassId ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="check" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Sélectionne une classe pour démarrer l&apos;appel
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    maxWidth: 480,
+                                    lineHeight: 1.55,
+                                    margin: 0,
+                                }}
+                            >
+                                Choisis la classe et la date, puis marque les présences avec les
+                                boutons P / E / A. Tu pourras enregistrer l&apos;appel via le bouton
+                                en bas de page.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
 
-                {selectedClassId && (
-                    <Card className="border-none shadow-none bg-muted/20 overflow-hidden">
-                        <div className="p-4 border-b border-border/50 bg-background/40 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                <Input
-                                    
-                                    className="h-8 pl-9 text-xs bg-background border-none ring-1 ring-border/50 focus-visible:ring-primary/30"
+                {selectedClassId ? (
+                    <Card padding={0}>
+                        <div
+                            className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3"
+                            style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                        >
+                            <div
+                                className="flex h-9 items-center gap-2 px-3"
+                                style={{
+                                    width: "100%",
+                                    maxWidth: 280,
+                                    background: "var(--eduflow-surface-sunken)",
+                                    border: "1px solid transparent",
+                                    borderRadius: "var(--eduflow-radius-md)",
+                                }}
+                            >
+                                <Icon
+                                    name="search"
+                                    size={14}
+                                    color="var(--eduflow-text-tertiary)"
+                                />
+                                <input
+                                    type="search"
+                                    aria-label="Rechercher un élève dans la classe"
+                                    placeholder="Rechercher un élève…"
                                     value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="flex-1 bg-transparent outline-none"
+                                    style={{
+                                        border: 0,
+                                        fontFamily: "inherit",
+                                        fontSize: 13,
+                                        color: "var(--eduflow-text-primary)",
+                                    }}
                                 />
                             </div>
-                            {!isFocusMode && (
-                                <div className="flex gap-2 w-full sm:w-auto">
-                                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase flex-1 sm:flex-none" onClick={() => {
-                                        const next = { ...attendanceData };
-                                        Object.keys(next).forEach(id => next[id].status = "PRESENT");
-                                        setAttendanceData(next);
-                                    }}>Tous Présents</Button>
-                                </div>
-                            )}
+                            {!isFocusMode && totalCount > 0 ? (
+                                <Button
+                                    variant="soft"
+                                    size="sm"
+                                    icon="check"
+                                    onClick={handleAllPresent}
+                                >
+                                    Tous présents
+                                </Button>
+                            ) : null}
                         </div>
-                        <CardContent className="p-0">
-                            {dirtyCount > 0 && (
-                                <div className="px-4 py-2 text-[11px] text-primary bg-primary/5 border-b border-primary/10">
-                                    {dirtyCount} modification{dirtyCount > 1 ? "s" : ""} non enregistrée{dirtyCount > 1 ? "s" : ""}
-                                </div>
-                            )}
-                            {isFetchingData ? (
-                                <div className="p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-                            ) : filteredIds.length === 0 ? (
-                                <div className="p-8">
-                                    <PageCallout
-                                        icon={Users}
-                                        title="Aucun élève à afficher"
-                                        description="Aucun élève ne correspond à la recherche, ou la classe ne contient pas encore d’inscriptions actives."
-                                        tone="neutral"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="bg-background/20 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50">
-                                            <tr>
-                                                <th className="px-6 py-3">Élève</th>
-                                                <th className="px-6 py-3 text-center w-48">Statut</th>
-                                                {!isFocusMode && <th className="px-6 py-3">Observations / Justificatifs</th>}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/50">
-                                            {filteredIds.map(id => {
-                                                const rec = attendanceData[id];
-                                                return (
-                                                    <tr key={id} className="hover:bg-background/40 transition-colors">
-                                                        <td className="px-6 py-4">
-                                                            <p className="font-bold text-foreground">{rec.studentName}</p>
-                                                            <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-tighter mt-0.5">
-                                                                {orderedStudentIds.indexOf(id) + 1}. MATRICULE: 00{id.slice(-4).toUpperCase()}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex justify-center items-center gap-3">
-                                                                <button
-                                                                    onClick={() => handleStatusChange(id, 'PRESENT')}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-full border-2 font-bold text-[11px] transition-all flex items-center justify-center",
-                                                                        rec.status === 'PRESENT' ? "bg-emerald-500 border-emerald-500 text-white shadow-lg scale-110" : "border-border/50 text-muted-foreground hover:border-emerald-200"
-                                                                    )}
-                                                                    title="Présent"
-                                                                >P</button>
-                                                                <button
-                                                                    onClick={() => handleStatusChange(id, 'ABSENT')}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-full border-2 font-bold text-[11px] transition-all flex items-center justify-center",
-                                                                        rec.status === 'ABSENT' ? "bg-destructive border-destructive text-white shadow-lg scale-110" : "border-border/50 text-muted-foreground hover:border-destructive/20"
-                                                                    )}
-                                                                    title="Absent"
-                                                                >A</button>
-                                                                <button
-                                                                    onClick={() => handleStatusChange(id, 'EXCUSED')}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-full border-2 font-bold text-[11px] transition-all flex items-center justify-center",
-                                                                        rec.status === 'EXCUSED' ? "bg-orange-500 border-orange-500 text-white shadow-lg scale-110" : "border-border/50 text-muted-foreground hover:border-orange-200"
-                                                                    )}
-                                                                    title="Excusé"
-                                                                >E</button>
-                                                            </div>
-                                                        </td>
-                                                        {!isFocusMode && (
-                                                            <td className="px-6 py-4">
-                                                                <Input
-                                                                    value={rec.notes}
-                                                                    onChange={e => setAttendanceData(p => ({ ...p, [id]: { ...p[id], notes: e.target.value } }))}
-                                                                    className="h-8 text-[11px] bg-background/50 border-none ring-1 ring-border/50 focus-visible:ring-primary/30"
-                                                                />
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
 
-                {/* Floating Save Button */}
-                {selectedClassId && filteredIds.length > 0 && (
-                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-[400px] px-4">
-                        <Button 
-                            className="w-full h-12 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-sm font-bold uppercase tracking-widest gap-2 animate-in slide-in-from-bottom-4 duration-500 action-critical touch-target"
+                        {dirtyCount > 0 ? (
+                            <div
+                                className="flex items-center gap-2 border-b px-5 py-2"
+                                style={{
+                                    background: "var(--brand-50)",
+                                    borderColor: "var(--brand-100)",
+                                    color: "var(--brand-800)",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: 4,
+                                        background: "var(--brand-600)",
+                                        animation: "eduflowPulse 1.4s ease-in-out infinite",
+                                    }}
+                                />
+                                {dirtyCount} modification
+                                {dirtyCount > 1 ? "s" : ""} non enregistrée
+                                {dirtyCount > 1 ? "s" : ""}
+                            </div>
+                        ) : null}
+
+                        {isFetchingData ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Spinner size={28} color="var(--brand-600)" />
+                            </div>
+                        ) : filteredIds.length === 0 ? (
+                            <div className="px-5 py-12 text-center">
+                                <Icon
+                                    name="users"
+                                    size={28}
+                                    color="var(--eduflow-text-tertiary)"
+                                    style={{ marginBottom: 12 }}
+                                />
+                                <div
+                                    style={{
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                        color: "var(--eduflow-text-primary)",
+                                    }}
+                                >
+                                    Aucun élève à afficher
+                                </div>
+                                <p
+                                    style={{
+                                        fontSize: 13,
+                                        color: "var(--eduflow-text-secondary)",
+                                        marginTop: 6,
+                                    }}
+                                >
+                                    Aucun élève ne correspond à la recherche, ou la classe ne
+                                    contient pas encore d&apos;inscriptions actives.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr
+                                            style={{
+                                                background: "var(--eduflow-surface-sunken)",
+                                                textAlign: "left",
+                                            }}
+                                        >
+                                            <Th>Élève</Th>
+                                            <Th width={200} center>
+                                                Statut
+                                            </Th>
+                                            {!isFocusMode ? (
+                                                <Th>Observations / Justificatifs</Th>
+                                            ) : null}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredIds.map((id, idx) => {
+                                            const rec = attendanceData[id];
+                                            if (!rec) return null;
+                                            const isDirty =
+                                                rec.status !== initialAttendanceData[id]?.status ||
+                                                rec.notes !== (initialAttendanceData[id]?.notes ?? "");
+                                            return (
+                                                <tr
+                                                    key={id}
+                                                    style={{
+                                                        borderTop:
+                                                            "1px solid var(--eduflow-border-subtle)",
+                                                        background: isDirty
+                                                            ? "var(--brand-50)"
+                                                            : "transparent",
+                                                        transition:
+                                                            "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                                    }}
+                                                >
+                                                    <td style={{ padding: "12px 20px" }}>
+                                                        <div className="flex items-center gap-3">
+                                                            <span
+                                                                className="eduflow-mono"
+                                                                style={{
+                                                                    width: 24,
+                                                                    fontSize: 11,
+                                                                    color: "var(--eduflow-text-tertiary)",
+                                                                    fontWeight: 600,
+                                                                }}
+                                                            >
+                                                                {idx + 1}
+                                                            </span>
+                                                            <Avatar name={rec.studentName} size="sm" />
+                                                            <div className="min-w-0">
+                                                                <div
+                                                                    style={{
+                                                                        fontSize: 13,
+                                                                        fontWeight: 600,
+                                                                        color: "var(--eduflow-text-primary)",
+                                                                    }}
+                                                                >
+                                                                    {rec.studentName}
+                                                                </div>
+                                                                <div
+                                                                    className="eduflow-mono"
+                                                                    style={{
+                                                                        fontSize: 10,
+                                                                        color: "var(--eduflow-text-tertiary)",
+                                                                        textTransform: "uppercase",
+                                                                    }}
+                                                                >
+                                                                    {rec.matricule}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: "12px 20px" }}>
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            {STATUS_BUTTONS.map((b) => (
+                                                                <StatusButton
+                                                                    key={b.key}
+                                                                    active={rec.status === b.key}
+                                                                    letter={b.letter}
+                                                                    label={b.label}
+                                                                    bg={b.bg}
+                                                                    glow={b.glow}
+                                                                    onClick={() =>
+                                                                        handleStatusChange(id, b.key)
+                                                                    }
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    {!isFocusMode ? (
+                                                        <td style={{ padding: "12px 20px" }}>
+                                                            <input
+                                                                aria-label={`Observation pour ${rec.studentName}`}
+                                                                value={rec.notes}
+                                                                onChange={(e) =>
+                                                                    setAttendanceData((p) => ({
+                                                                        ...p,
+                                                                        [id]: {
+                                                                            ...p[id],
+                                                                            notes: e.target.value,
+                                                                        },
+                                                                    }))
+                                                                }
+                                                                placeholder="Justificatif…"
+                                                                style={{
+                                                                    width: "100%",
+                                                                    height: 32,
+                                                                    padding: "0 10px",
+                                                                    border:
+                                                                        "1px solid var(--eduflow-border-default)",
+                                                                    borderRadius: 8,
+                                                                    background:
+                                                                        "var(--eduflow-surface-card)",
+                                                                    fontFamily: "inherit",
+                                                                    fontSize: 12,
+                                                                    color: "var(--eduflow-text-primary)",
+                                                                    outline: "none",
+                                                                }}
+                                                            />
+                                                        </td>
+                                                    ) : null}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </Card>
+                ) : null}
+
+                {/* Sticky save bar — full-width pill, brand-tinted shadow */}
+                {selectedClassId && filteredIds.length > 0 ? (
+                    <div
+                        className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
+                        style={{ pointerEvents: saving ? "none" : "auto" }}
+                    >
+                        <button
+                            type="button"
                             onClick={handleSave}
                             disabled={saving || dirtyCount === 0}
+                            className="touch-target flex w-full items-center justify-center gap-2"
+                            style={{
+                                height: 52,
+                                padding: "0 24px",
+                                border: 0,
+                                borderRadius: "var(--eduflow-radius-pill)",
+                                background:
+                                    dirtyCount === 0
+                                        ? "var(--eduflow-neutral-300)"
+                                        : "var(--brand-700)",
+                                color: "var(--eduflow-text-on-brand)",
+                                fontFamily: "inherit",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                textTransform: "uppercase",
+                                cursor:
+                                    saving || dirtyCount === 0 ? "not-allowed" : "pointer",
+                                opacity: saving ? 0.7 : 1,
+                                boxShadow:
+                                    dirtyCount > 0
+                                        ? "var(--eduflow-shadow-cta)"
+                                        : "var(--eduflow-shadow-sm)",
+                                transition:
+                                    "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                            }}
                         >
-                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            {dirtyCount > 0 ? t("common.saveWithCount", { count: dirtyCount }) : t("common.noChanges")}
-                        </Button>
+                            {saving ? (
+                                <Spinner size={18} color="#fff" />
+                            ) : (
+                                <Icon name="check" size={18} />
+                            )}
+                            {dirtyCount > 0
+                                ? t("common.saveWithCount", { count: dirtyCount })
+                                : t("common.noChanges")}
+                        </button>
                     </div>
-                )}
+                ) : null}
             </div>
         </PageGuard>
     );
 }
 
-const Loader2 = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width="24" 
-    height="24" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M12 2v4"/>
-    <path d="m16.2 7.8 2.9-2.9"/>
-    <path d="M18 12h4"/>
-    <path d="m16.2 16.2 2.9 2.9"/>
-    <path d="M12 18v4"/>
-    <path d="m4.9 19.1 2.9-2.9"/>
-    <path d="M2 12h4"/>
-    <path d="m4.9 4.9 2.9 2.9"/>
-  </svg>
-);
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+function StatusButton({
+    active,
+    letter,
+    label,
+    bg,
+    glow,
+    onClick,
+}: {
+    active: boolean;
+    letter: string;
+    label: string;
+    bg: string;
+    glow: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            title={label}
+            aria-label={label}
+            aria-pressed={active}
+            className="touch-target flex items-center justify-center"
+            style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                border: active ? 0 : "1.5px solid var(--eduflow-border-default)",
+                background: active ? bg : "transparent",
+                color: active ? "#fff" : "var(--eduflow-text-tertiary)",
+                fontFamily: "inherit",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                boxShadow: active ? glow : "none",
+                transform: active ? "scale(1.06)" : "scale(1)",
+                transition:
+                    "transform var(--eduflow-motion-tap) var(--eduflow-ease-spring), background var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+            }}
+        >
+            {letter}
+        </button>
+    );
+}
+
+function StatsStrip({
+    stats,
+    total,
+}: {
+    stats: { PRESENT: number; ABSENT: number; EXCUSED: number };
+    total: number;
+}) {
+    const items: { key: AttendanceStatus; label: string; tone: "success" | "danger" | "warning" }[] = [
+        { key: "PRESENT", label: "Présents", tone: "success" },
+        { key: "EXCUSED", label: "Excusés", tone: "warning" },
+        { key: "ABSENT", label: "Absents", tone: "danger" },
+    ];
+    return (
+        <div
+            className="grid items-center gap-2"
+            style={{
+                gridTemplateColumns: "repeat(3, 1fr)",
+                background: "var(--eduflow-surface-sunken)",
+                border: "1px solid var(--eduflow-border-subtle)",
+                borderRadius: "var(--eduflow-radius-md)",
+                padding: "8px 6px",
+            }}
+        >
+            {items.map((item) => {
+                const count = stats[item.key] ?? 0;
+                const ratio = total > 0 ? Math.round((count / total) * 100) : 0;
+                return (
+                    <div key={item.key} className="px-2 text-center">
+                        <div
+                            style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                color: `var(--eduflow-${item.tone}-700)`,
+                            }}
+                        >
+                            {item.label}
+                        </div>
+                        <div
+                            className="eduflow-display eduflow-tabular"
+                            style={{
+                                fontSize: 22,
+                                fontWeight: 700,
+                                color: "var(--eduflow-text-primary)",
+                                lineHeight: 1.05,
+                            }}
+                        >
+                            {count}
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 9,
+                                color: "var(--eduflow-text-tertiary)",
+                            }}
+                        >
+                            {total > 0 ? `${ratio}%` : "—"}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function FieldSelect({
+    label,
+    value,
+    onChange,
+    options,
+    placeholder,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+    placeholder: string;
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    width: "100%",
+                    height: 38,
+                    padding: "0 12px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: value ? 600 : 500,
+                    color: value
+                        ? "var(--eduflow-text-primary)"
+                        : "var(--eduflow-text-tertiary)",
+                    cursor: "pointer",
+                    outline: "none",
+                }}
+            >
+                <option value="">{placeholder}</option>
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function FieldDate({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <div
+                className="flex h-[38px] items-center gap-2 px-3"
+                style={{
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                }}
+            >
+                <Icon name="calendar" size={14} color="var(--eduflow-text-tertiary)" />
+                <input
+                    aria-label={label}
+                    type="date"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="flex-1 bg-transparent outline-none"
+                    style={{
+                        border: 0,
+                        fontFamily: "inherit",
+                        fontSize: 13,
+                        color: "var(--eduflow-text-primary)",
+                    }}
+                />
+            </div>
+        </label>
+    );
+}
+
+function Th({
+    children,
+    width,
+    center,
+}: {
+    children: React.ReactNode;
+    width?: number;
+    center?: boolean;
+}) {
+    return (
+        <th
+            style={{
+                padding: "10px 20px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                textAlign: center ? "center" : "left",
+                width,
+            }}
+        >
+            {children}
+        </th>
+    );
+}
+

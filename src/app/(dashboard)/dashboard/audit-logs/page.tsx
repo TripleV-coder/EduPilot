@@ -21,6 +21,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { t } from "@/lib/i18n";
 import { formatAction, translateEntity } from "@/lib/utils/entity-translator";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
+import { getAuditLogActionClass } from "@/lib/ui/status-styles";
 
 type AuditLog = {
     id: string;
@@ -99,15 +100,15 @@ export default function AuditLogsPage() {
     const getActionDetails = (action: string) => {
         const actionLower = action.toLowerCase();
         if (actionLower.includes("delete") || actionLower.includes("remove")) {
-            return { color: "text-red-600 bg-red-500/10 border-red-500/20", icon: <ShieldAlert className="w-3.5 h-3.5" /> };
+            return { color: getAuditLogActionClass(action), icon: <ShieldAlert className="w-3.5 h-3.5" /> };
         }
         if (actionLower.includes("update") || actionLower.includes("edit")) {
-            return { color: "text-amber-600 bg-amber-500/10 border-amber-500/20", icon: <AlertTriangle className="w-3.5 h-3.5" /> };
+            return { color: getAuditLogActionClass(action), icon: <AlertTriangle className="w-3.5 h-3.5" /> };
         }
         if (actionLower.includes("create") || actionLower.includes("add")) {
-            return { color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20", icon: <CheckCircle2 className="w-3.5 h-3.5" /> };
+            return { color: getAuditLogActionClass(action), icon: <CheckCircle2 className="w-3.5 h-3.5" /> };
         }
-        return { color: "text-blue-600 bg-blue-500/10 border-blue-500/20", icon: <History className="w-3.5 h-3.5" /> };
+        return { color: getAuditLogActionClass(action), icon: <History className="w-3.5 h-3.5" /> };
     };
 
     // Compute chart data
@@ -245,14 +246,15 @@ export default function AuditLogsPage() {
                         <div className="relative flex-1 w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                
+                                aria-label="Rechercher dans les logs d'audit"
+                                placeholder="Rechercher un utilisateur, une action ou une entité..."
                                 className="pl-9 bg-background"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <Select value={actionFilter} onValueChange={setActionFilter}>
-                            <SelectTrigger className="w-[160px] bg-background">
+                            <SelectTrigger aria-label="Filtrer par type d'action" className="w-[160px] bg-background">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

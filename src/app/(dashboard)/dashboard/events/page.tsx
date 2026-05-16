@@ -1,20 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Permission } from "@/lib/rbac/permissions";
-import { Switch } from "@/components/ui/switch";
-import { Calendar, Plus, MapPin, Users, Ticket, CheckCircle, AlertCircle, CalendarDays, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { t } from "@/lib/i18n";
 
-type EventType = "GENERAL" | "SPORTS" | "CULTURAL" | "ACADEMIC" | "FIELD_TRIP" | "ASSEMBLY" | "PARENT_MEETING" | "GRADUATION" | "COMPETITION" | "WORKSHOP";
+import { PageGuard } from "@/components/guard/page-guard";
+import { Permission } from "@/lib/rbac/permissions";
+
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Input,
+    Spinner,
+} from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
+
+type EventType =
+    | "GENERAL"
+    | "SPORTS"
+    | "CULTURAL"
+    | "ACADEMIC"
+    | "FIELD_TRIP"
+    | "ASSEMBLY"
+    | "PARENT_MEETING"
+    | "GRADUATION"
+    | "COMPETITION"
+    | "WORKSHOP";
 
 type SchoolEvent = {
     id: string;
@@ -32,9 +45,37 @@ type SchoolEvent = {
     _count: { participations: number };
 };
 
+const TYPE_LABEL: Record<EventType, string> = {
+    GENERAL: "Général",
+    SPORTS: "Sport",
+    CULTURAL: "Culturel",
+    ACADEMIC: "Académique",
+    FIELD_TRIP: "Sortie scolaire",
+    ASSEMBLY: "Assemblée",
+    PARENT_MEETING: "Réunion parents",
+    GRADUATION: "Remise diplôme",
+    COMPETITION: "Compétition",
+    WORKSHOP: "Atelier",
+};
+
+const TYPE_VARIANT: Record<EventType, "brand" | "info" | "success" | "warning" | "neutral"> = {
+    GENERAL: "brand",
+    SPORTS: "success",
+    CULTURAL: "warning",
+    ACADEMIC: "brand",
+    FIELD_TRIP: "info",
+    ASSEMBLY: "brand",
+    PARENT_MEETING: "info",
+    GRADUATION: "warning",
+    COMPETITION: "warning",
+    WORKSHOP: "brand",
+};
+
 export default function EventsPage() {
     const { data: session } = useSession();
-    const isDirectorOrAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session?.user?.role || "");
+    const isDirectorOrAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
+        session?.user?.role || ""
+    );
 
     const [events, setEvents] = useState<SchoolEvent[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,7 +85,6 @@ export default function EventsPage() {
     const [isAdding, setIsAdding] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // Form Stats
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [type, setType] = useState<EventType>("GENERAL");
@@ -63,8 +103,8 @@ export default function EventsPage() {
             if (!res.ok) throw new Error("Erreur de récupération des événements");
             const data = await res.json();
             setEvents(data.events || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
             setLoading(false);
         }
@@ -78,38 +118,33 @@ export default function EventsPage() {
         e.preventDefault();
         setSaving(true);
         setError(null);
-
-        const payload = {
-            title,
-            description: description || undefined,
-            type,
-            startDate: new Date(startDate).toISOString(),
-            endDate: endDate ? new Date(endDate).toISOString() : undefined,
-            location: location || undefined,
-            maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
-            fee: fee ? parseFloat(fee) : undefined,
-            requiresPermission,
-            isPublished
-        };
-
         try {
             const res = await fetch("/api/events", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    title,
+                    description: description || undefined,
+                    type,
+                    startDate: new Date(startDate).toISOString(),
+                    endDate: endDate ? new Date(endDate).toISOString() : undefined,
+                    location: location || undefined,
+                    maxParticipants: maxParticipants
+                        ? parseInt(maxParticipants)
+                        : undefined,
+                    fee: fee ? parseFloat(fee) : undefined,
+                    requiresPermission,
+                    isPublished,
+                }),
             });
-
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Erreur de création");
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.error || "Erreur de création");
             }
-
             setSuccessMsg("Événement créé avec succès");
             setIsAdding(false);
             fetchEvents();
             setTimeout(() => setSuccessMsg(null), 3000);
-
-            // Reset
             setTitle("");
             setDescription("");
             setType("GENERAL");
@@ -120,246 +155,510 @@ export default function EventsPage() {
             setFee("");
             setRequiresPermission(false);
             setIsPublished(true);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
             setSaving(false);
         }
     };
 
-    const getTypeColor = (type: EventType) => {
-        const colors: Record<EventType, string> = {
-            GENERAL: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-            SPORTS: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-            CULTURAL: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-            ACADEMIC: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
-            FIELD_TRIP: "bg-green-500/10 text-green-600 border-green-500/20",
-            ASSEMBLY: "bg-slate-500/10 text-slate-600 border-slate-500/20",
-            PARENT_MEETING: "bg-teal-500/10 text-teal-600 border-teal-500/20",
-            GRADUATION: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-            COMPETITION: "bg-red-500/10 text-red-600 border-red-500/20",
-            WORKSHOP: "bg-pink-500/10 text-pink-600 border-pink-500/20",
-        };
-        return colors[type] || colors.GENERAL;
-    };
-
-    const getTypeLabel = (type: EventType) => {
-        const labels: Record<EventType, string> = {
-            GENERAL: "Général", SPORTS: "Sport", CULTURAL: "Culturel", ACADEMIC: "Académique",
-            FIELD_TRIP: "Sortie Scolaire", ASSEMBLY: "Assemblée", PARENT_MEETING: "Réunion Parents",
-            GRADUATION: "Remise Diplôme", COMPETITION: "Compétition", WORKSHOP: "Atelier"
-        };
-        return labels[type] || type;
-    };
-
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-6 max-w-6xl mx-auto pb-12">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <PageHeader
-                        title="Agenda & Événements"
-                        description="Calendrier des manifestations et sorties scolaires."
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Événements" },
-                        ]}
+                        greeting="Agenda & événements"
+                        sub={`${events.length} ${
+                            events.length > 1 ? "événements à venir" : "événement à venir"
+                        } · sorties scolaires, ateliers, compétitions`}
+                        breadcrumb={["Tableau de bord", "Agenda & événements"]}
                     />
-                    {isDirectorOrAdmin && !isAdding && (
-                        <Button onClick={() => setIsAdding(true)} className="gap-2 shadow-sm shrink-0">
-                            <Plus className="h-4 w-4" />
-                            Créer un Événement
+                    {isDirectorOrAdmin && !isAdding ? (
+                        <Button icon="plus" onClick={() => setIsAdding(true)}>
+                            Créer un événement
                         </Button>
-                    )}
+                    ) : null}
                 </div>
 
-                {error && (
-                    <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm">{error}</p>
-                    </div>
-                )}
-                {successMsg && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm">{successMsg}</p>
-                    </div>
-                )}
-
-                {/* Create Form */}
-                {isAdding && isDirectorOrAdmin && (
-                    <Card className="border-primary/20 bg-primary/5 shadow-md">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <CalendarDays className="w-5 h-5 text-primary" />
-                                Nouvel Événement
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleCreateEvent} className="space-y-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <Label>Titre <span className="text-destructive">*</span></Label>
-                                        <Input value={title} onChange={e => setTitle(e.target.value)} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Catégorie</Label>
-                                        <select
-                                            value={type}
-                                            onChange={e => setType(e.target.value as EventType)}
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                        >
-                                            <option value="GENERAL">Général</option>
-                                            <option value="SPORTS">Rencontre Sportive</option>
-                                            <option value="CULTURAL">Événement Culturel</option>
-                                            <option value="PARENT_MEETING">Réunion Parents-Profs</option>
-                                            <option value="FIELD_TRIP">Sortie Scolaire</option>
-                                            <option value="ACADEMIC">Conférence / Pédagogie</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <Label>Date & Heure de début <span className="text-destructive">*</span></Label>
-                                        <Input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Date de fin (Optionnel)</Label>
-                                        <Input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Description</Label>
-                                    <Textarea value={description} onChange={e => setDescription(e.target.value)} className="h-24 resize-none" />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                    <div className="space-y-2">
-                                        <Label>Lieu</Label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input value={location} onChange={e => setLocation(e.target.value)} className="pl-9" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Capacité max (Optionnel)</Label>
-                                        <div className="relative">
-                                            <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input type="number" min="1" value={maxParticipants} onChange={e => setMaxParticipants(e.target.value)} className="pl-9" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Frais de participation (Optionnel)</Label>
-                                        <div className="relative">
-                                            <Ticket className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input type="number" min="0" step="0.01" value={fee} onChange={e => setFee(e.target.value)} className="pl-9" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row gap-6 pt-4 border-t">
-                                    <div className="flex items-center gap-3">
-                                        <Switch checked={requiresPermission} onCheckedChange={setRequiresPermission} />
-                                        <div>
-                                            <Label className="text-sm font-medium cursor-pointer" onClick={() => setRequiresPermission(!requiresPermission)}>Nécessite une autorisation parentale</Label>
-                                            <p className="text-xs text-muted-foreground mt-0.5">Pour les sorties hors établissement.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Switch checked={isPublished} onCheckedChange={setIsPublished} />
-                                        <div>
-                                            <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsPublished(!isPublished)}>{t("common.publishNow")}</Label>
-                                            <p className="text-xs text-muted-foreground mt-0.5">Visible par l'audience cible.</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end gap-3 pt-4 border-t">
-                                    <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
-                                    <Button type="submit" disabled={saving || !startDate || !title} className="gap-2">
-                                        {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2" /> : <CalendarDays className="w-4 h-4" />}
-                                        {t("appActions.saveEvent")}
-                                    </Button>
-                                </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Events Feed */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {loading ? (
-                        <div className="col-span-1 lg:col-span-2 py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
-                    ) : events.length === 0 ? (
-                        <div className="col-span-1 lg:col-span-2 text-center py-16 border border-dashed rounded-xl bg-muted/30">
-                            <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                            <h3 className="text-lg font-medium">Aucun événement prévu</h3>
-                            <p className="text-sm text-muted-foreground mt-1">L'agenda de l'établissement est vide.</p>
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                }}
+                            >
+                                {error}
+                            </p>
                         </div>
-                    ) : (
-                        events.map(event => (
-                            <Card key={event.id} className="overflow-hidden hover:shadow-md transition-all flex flex-col h-full">
-                                <CardContent className="p-0 flex flex-col h-full">
-                                    <div className={`h-2 w-full ${getTypeColor(event.type).replace(/bg-.*\/10 text-.* border-.*\/20/, m => m.replace(/bg-(.*)\/10.*/, 'bg-$1-500'))}`} />
-                                    <div className="p-5 flex flex-col flex-1">
-                                        <div className="flex justify-between items-start gap-4 mb-3">
-                                            <h3 className="font-bold text-lg text-foreground leading-tight line-clamp-2">{event.title}</h3>
-                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border whitespace-nowrap ${getTypeColor(event.type)}`}>
-                                                {getTypeLabel(event.type)}
-                                            </span>
-                                        </div>
+                    </Card>
+                ) : null}
 
-                                        <div className="space-y-2 mb-4">
-                                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                                <Calendar className="w-4 h-4 shrink-0 mt-0.5 text-primary/70" />
-                                                <span>
-                                                    {new Date(event.startDate).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                                                    {event.endDate && ` - ${new Date(event.endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
-                                                </span>
-                                            </div>
+                {successMsg ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            background: "var(--eduflow-success-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="success" size={18} color="var(--eduflow-success-700)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-success-800)",
+                                }}
+                            >
+                                {successMsg}
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
 
-                                            {event.location && (
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <MapPin className="w-4 h-4 shrink-0 text-primary/70" />
-                                                    <span className="truncate">{event.location}</span>
-                                                </div>
-                                            )}
-                                        </div>
+                {isAdding && isDirectorOrAdmin ? (
+                    <Card padding={0} style={{ background: "var(--brand-50)" }}>
+                        <div
+                            className="flex items-center gap-2 border-b px-5 py-4"
+                            style={{ borderColor: "var(--brand-100)" }}
+                        >
+                            <Icon name="calendar" size={18} color="var(--brand-700)" />
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Nouvel événement
+                            </h3>
+                        </div>
+                        <form
+                            onSubmit={handleCreateEvent}
+                            className="flex flex-col gap-3 px-5 py-5"
+                        >
+                            <Input
+                                label="Titre"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                icon="calendar"
+                            />
+                            <label className="block">
+                                <span
+                                    style={{
+                                        display: "block",
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        letterSpacing: "0.04em",
+                                        textTransform: "uppercase",
+                                        color: "var(--eduflow-text-tertiary)",
+                                        marginBottom: 6,
+                                    }}
+                                >
+                                    Description
+                                </span>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={3}
+                                    placeholder="Décris l'événement…"
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px 14px",
+                                        borderRadius: "var(--eduflow-radius-input)",
+                                        border: "1px solid var(--eduflow-border-default)",
+                                        background: "var(--eduflow-surface-card)",
+                                        fontFamily: "inherit",
+                                        fontSize: 13,
+                                        color: "var(--eduflow-text-primary)",
+                                        outline: "none",
+                                        resize: "vertical",
+                                        minHeight: 80,
+                                    }}
+                                />
+                            </label>
+                            <div
+                                className="grid gap-3"
+                                style={{
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                }}
+                            >
+                                <FieldSelect
+                                    label="Type"
+                                    value={type}
+                                    onChange={(v) => setType(v as EventType)}
+                                    options={(
+                                        Object.entries(TYPE_LABEL) as [EventType, string][]
+                                    ).map(([v, l]) => ({ value: v, label: l }))}
+                                />
+                                <Input
+                                    label="Date début"
+                                    type="datetime-local"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    icon="calendar"
+                                />
+                                <Input
+                                    label="Date fin"
+                                    type="datetime-local"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    icon="calendar"
+                                />
+                                <Input
+                                    label="Lieu"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                    icon="school"
+                                />
+                                <Input
+                                    label="Max participants"
+                                    type="number"
+                                    value={maxParticipants}
+                                    onChange={(e) => setMaxParticipants(e.target.value)}
+                                    icon="users"
+                                />
+                                <Input
+                                    label="Tarif (FCFA)"
+                                    type="number"
+                                    value={fee}
+                                    onChange={(e) => setFee(e.target.value)}
+                                    icon="money"
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-4">
+                                <label className="flex items-center gap-2">
+                                    <ToggleSwitch
+                                        checked={isPublished}
+                                        onChange={setIsPublished}
+                                    />
+                                    <span style={{ fontSize: 13 }}>Publier maintenant</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <ToggleSwitch
+                                        checked={requiresPermission}
+                                        onChange={setRequiresPermission}
+                                    />
+                                    <span style={{ fontSize: 13 }}>
+                                        Autorisation parentale requise
+                                    </span>
+                                </label>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsAdding(false)}
+                                >
+                                    Annuler
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    icon={saving ? undefined : "check"}
+                                    loading={saving}
+                                    disabled={saving || !title.trim() || !startDate}
+                                >
+                                    Créer l&apos;événement
+                                </Button>
+                            </div>
+                        </form>
+                    </Card>
+                ) : null}
 
-                                        {event.description && (
-                                            <p className="text-sm text-foreground/80 line-clamp-3 mb-4 flex-1">
-                                                {event.description}
-                                            </p>
-                                        )}
-
-                                        <div className="mt-auto pt-4 border-t flex flex-wrap gap-3 items-center text-xs">
-                                            {event.fee && event.fee > 0 && (
-                                                <span className="flex items-center gap-1 font-medium bg-secondary/20 text-secondary-foreground px-2 py-1 rounded">
-                                                    <Ticket className="w-3.5 h-3.5" />
-                                                    {event.fee} € / pers.
-                                                </span>
-                                            )}
-                                            {event.requiresPermission && (
-                                                <span className="flex items-center gap-1 font-medium bg-amber-500/10 text-amber-700 px-2 py-1 rounded">
-                                                    <AlertCircle className="w-3.5 h-3.5" />
-                                                    Autorisation requise
-                                                </span>
-                                            )}
-                                            {event.maxParticipants && (
-                                                <span className="flex items-center gap-1 text-muted-foreground ml-auto">
-                                                    <Users className="w-3.5 h-3.5" />
-                                                    {event._count.participations}/{event.maxParticipants} max
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </div>
+                {loading ? (
+                    <Card padding={20}>
+                        <div className="flex items-center gap-3">
+                            <Spinner size={18} color="var(--brand-600)" />
+                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Chargement des événements…
+                            </span>
+                        </div>
+                    </Card>
+                ) : events.length === 0 ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="calendar" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucun événement programmé
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    margin: 0,
+                                }}
+                            >
+                                {isDirectorOrAdmin
+                                    ? "Crée le premier événement pour mobiliser la communauté scolaire."
+                                    : "Les événements à venir s'afficheront ici."}
+                            </p>
+                        </div>
+                    </Card>
+                ) : (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {events.map((ev) => (
+                            <EventCard key={ev.id} event={ev} />
+                        ))}
+                    </div>
+                )}
             </div>
         </PageGuard>
+    );
+}
+
+function EventCard({ event }: { event: SchoolEvent }) {
+    const variant = TYPE_VARIANT[event.type] ?? "brand";
+    const label = TYPE_LABEL[event.type] ?? event.type;
+    const start = new Date(event.startDate);
+    const formatter = new Intl.DateTimeFormat("fr-FR", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    return (
+        <Card
+            padding={0}
+            style={{
+                cursor: "default",
+                transition:
+                    "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+            }}
+            className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
+        >
+            <div className="flex items-start gap-3 px-5 py-4">
+                <div
+                    className="grid place-items-center"
+                    style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 12,
+                        background:
+                            variant === "brand" ? "var(--brand-50)" : `var(--eduflow-${variant}-50)`,
+                        color:
+                            variant === "brand" ? "var(--brand-700)" : `var(--eduflow-${variant}-700)`,
+                        flexShrink: 0,
+                    }}
+                >
+                    <span
+                        className="eduflow-display eduflow-tabular"
+                        style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}
+                    >
+                        {start.getDate()}
+                    </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                        <h3
+                            style={{
+                                margin: 0,
+                                fontSize: 15,
+                                fontWeight: 700,
+                                color: "var(--eduflow-text-primary)",
+                                lineHeight: 1.25,
+                            }}
+                        >
+                            {event.title}
+                        </h3>
+                        <Badge variant={variant} size="sm">
+                            {label}
+                        </Badge>
+                    </div>
+                    {event.description ? (
+                        <p
+                            style={{
+                                margin: "6px 0 0",
+                                fontSize: 12,
+                                color: "var(--eduflow-text-secondary)",
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            {event.description}
+                        </p>
+                    ) : null}
+                </div>
+            </div>
+            <div
+                className="flex flex-wrap items-center gap-3 border-t px-5 py-3"
+                style={{
+                    borderColor: "var(--eduflow-border-subtle)",
+                    background: "var(--eduflow-surface-sunken)",
+                }}
+            >
+                <span
+                    className="flex items-center gap-1.5"
+                    style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                >
+                    <Icon name="calendar" size={12} />
+                    {formatter.format(start)}
+                </span>
+                {event.location ? (
+                    <span
+                        className="flex items-center gap-1.5"
+                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    >
+                        <Icon name="school" size={12} />
+                        {event.location}
+                    </span>
+                ) : null}
+                {event.maxParticipants ? (
+                    <span
+                        className="flex items-center gap-1.5"
+                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    >
+                        <Icon name="users" size={12} />
+                        <span className="eduflow-tabular">
+                            {event._count?.participations ?? 0} / {event.maxParticipants}
+                        </span>
+                    </span>
+                ) : null}
+                {event.requiresPermission ? (
+                    <Badge variant="warning" size="sm" icon="warning">
+                        Autorisation
+                    </Badge>
+                ) : null}
+                {!event.isPublished ? (
+                    <Badge variant="neutral" size="sm">
+                        Brouillon
+                    </Badge>
+                ) : null}
+                <div className="ml-auto flex items-center gap-1.5">
+                    <Avatar
+                        name={`${event.createdBy.firstName} ${event.createdBy.lastName}`}
+                        size="xs"
+                    />
+                    <span
+                        style={{
+                            fontSize: 10,
+                            color: "var(--eduflow-text-tertiary)",
+                        }}
+                    >
+                        {event.createdBy.firstName[0]}. {event.createdBy.lastName}
+                    </span>
+                </div>
+            </div>
+        </Card>
+    );
+}
+
+function ToggleSwitch({
+    checked,
+    onChange,
+}: {
+    checked: boolean;
+    onChange: (c: boolean) => void;
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            onClick={() => onChange(!checked)}
+            style={{
+                width: 32,
+                height: 18,
+                padding: 2,
+                borderRadius: 9,
+                border: 0,
+                background: checked ? "var(--brand-600)" : "var(--eduflow-neutral-300)",
+                cursor: "pointer",
+                transition:
+                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+            }}
+        >
+            <span
+                aria-hidden
+                style={{
+                    display: "block",
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    transform: checked ? "translateX(7px)" : "translateX(-7px)",
+                    transition:
+                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.15)",
+                }}
+            />
+        </button>
+    );
+}
+
+function FieldSelect({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <label className="block">
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    width: "100%",
+                    height: 38,
+                    padding: "0 12px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: "1px solid var(--eduflow-border-default)",
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-primary)",
+                    cursor: "pointer",
+                    outline: "none",
+                }}
+            >
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </label>
     );
 }

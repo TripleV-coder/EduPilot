@@ -15,6 +15,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { t } from "@/lib/i18n";
+import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 
 type AnalyticsStudent = {
   studentId: string;
@@ -159,7 +160,7 @@ export default function AlertsRisksPage() {
         />
         <div className="flex items-center gap-2">
            <Select value={classId} onValueChange={setClassId}>
-            <SelectTrigger className="w-[220px] h-8 text-[11px] font-bold uppercase">
+            <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-[11px] font-bold uppercase">
               <SelectValue placeholder="Toutes les classes" />
             </SelectTrigger>
             <SelectContent>
@@ -171,11 +172,11 @@ export default function AlertsRisksPage() {
               ))}
             </SelectContent>
            </Select>
-           <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase" onClick={() => setClassId("all")}>
+           <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold uppercase" onClick={() => setClassId("all")}>
              <Filter className="w-3.5 h-3.5 mr-2" />
              {t("common.reset")} filtres
            </Button>
-          <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase">
+          <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold uppercase">
              <Download className="w-3.5 h-3.5 mr-2" />
              {t("common.export")}
            </Button>
@@ -211,14 +212,14 @@ export default function AlertsRisksPage() {
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
-                             <div className="w-3 h-3 rounded-full bg-orange-500 mt-0.5" />
+                             <div className="w-3 h-3 rounded-full bg-warning mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Vigilance Accrue</p>
                                 <p className="text-[10px] text-muted-foreground mt-1">Alerte sur l'un des deux axes majeurs.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
-                             <div className="w-3 h-3 rounded-full bg-emerald-500 mt-0.5" />
+                             <div className="w-3 h-3 rounded-full bg-success mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Zone de Stabilité</p>
                                 <p className="text-[10px] text-muted-foreground mt-1">Élèves sans risque majeur identifié.</p>
@@ -257,10 +258,14 @@ export default function AlertsRisksPage() {
                     ) : riskRows.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-4 py-10">
-                          <div className="flex flex-col items-center text-center gap-2">
-                            <AlertCircle className="w-8 h-8 text-muted-foreground/50" />
-                            <p className="font-bold text-sm">Aucune donnée de risque</p>
-                          </div>
+                          <AnalyticsEmptyState
+                            title="Aucune donnée de risque pour ce filtre"
+                            description="Ajustez la classe sélectionnée ou synchronisez les données analytiques pour afficher la matrice."
+                            primaryLabel="Voir Analytics"
+                            primaryHref="/dashboard/analytics"
+                            secondaryLabel="Réinitialiser"
+                            secondaryHref="/dashboard/alerts/risks"
+                          />
                         </td>
                       </tr>
                     ) : (
@@ -280,7 +285,7 @@ export default function AlertsRisksPage() {
                               row.status === "CRITICAL" ? "bg-destructive/10 text-destructive border-destructive/20" :
                               row.status === "HIGH" ? "bg-warning/10 text-warning border-warning/20" :
                               row.status === "MEDIUM" ? "bg-primary/10 text-primary border-primary/20" :
-                              "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))]"
+                              "bg-success/10 text-success border-success/30"
                             )}>
                               {row.riskScore}
                             </span>
@@ -318,10 +323,7 @@ export default function AlertsRisksPage() {
                  <div className="divide-y divide-border/50">
                   {topAlerts.length === 0 ? (
                     <div className="p-6">
-                      <div className="flex flex-col items-center text-center gap-2">
-                        <AlertCircle className="w-7 h-7 text-muted-foreground/50" />
-                        <p className="font-bold text-sm">Aucune alerte prioritaire</p>
-                      </div>
+                      <p className="text-sm font-medium text-muted-foreground text-center">Aucune alerte prioritaire sur ce périmètre.</p>
                     </div>
                   ) : (
                     topAlerts.map((alert) => (
@@ -349,13 +351,13 @@ export default function AlertsRisksPage() {
               </CardContent>
            </Card>
            
-           <Card className="border-none shadow-none bg-[hsl(var(--success-bg))] border border-[hsl(var(--success))]/10 p-4 space-y-4">
-              <h4 className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--success))]">Action Rapide</h4>
+           <Card className="border-none shadow-none bg-success/10 border border-success/20 p-4 space-y-4">
+              <h4 className="text-[11px] font-bold uppercase tracking-widest text-success">Action Rapide</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Besoin d&apos;une synthèse pour un conseil de classe ? L&apos;assistant IA peut générer un rapport complet des élèves à risque.
               </p>
-              <Button className="w-full h-8 text-[11px] font-bold uppercase bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90">
-                Générer Rapport IA
+              <Button asChild className="w-full h-8 text-[11px] font-bold uppercase bg-success hover:bg-success/90">
+                <Link href="/dashboard/ai">Générer Rapport IA</Link>
               </Button>
            </Card>
         </div>

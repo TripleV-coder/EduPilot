@@ -63,43 +63,59 @@ export const POST = createApiHandler(
     };
     const DEFAULT_IMPORT_PASSWORD = "00000000";
 
+    // Pre-fetch existing data in batch to avoid N+1 queries
+    const allEmails = students.map((s) => s.email);
+    const allMatricules = students.filter((s) => s.matricule).map((s) => s.matricule!);
+
+    const [existingUsers, existingMatricules, lastMatricule] = await Promise.all([
+      prisma.user.findMany({
+        where: { email: { in: allEmails } },
+        select: { email: true },
+      }),
+      allMatricules.length > 0
+        ? prisma.studentProfile.findMany({
+            where: { schoolId, matricule: { in: allMatricules } },
+            select: { matricule: true },
+          })
+        : Promise.resolve([]),
+      prisma.studentProfile.findFirst({
+        orderBy: { matricule: "desc" },
+        where: { schoolId },
+        select: { matricule: true },
+      }),
+    ]);
+
+    const existingEmailSet = new Set(existingUsers.map((u) => u.email));
+    const existingMatriculeSet = new Set(existingMatricules.map((m) => m.matricule));
+    let nextMatriculeNum = lastMatricule
+      ? parseInt(lastMatricule.matricule.replace(/^E/, "")) + 1
+      : 1;
+
+    const hashedPassword = await bcrypt.hash(DEFAULT_IMPORT_PASSWORD, 12);
+
     for (const student of students) {
       try {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: student.email },
-        });
-
-        if (existingUser) {
+        if (existingEmailSet.has(student.email)) {
           results.failed++;
           results.errors.push(`Email déjà utilisé: ${student.email}`);
           continue;
         }
 
-        const hashedPassword = await bcrypt.hash(DEFAULT_IMPORT_PASSWORD, 12);
-
-        // Generate matricule logic
-        // If provided, use it. Check uniqueness.
-        // If not, generate.
         let matricule = student.matricule;
         if (matricule) {
-          const existingMatricule = await prisma.studentProfile.findFirst({
-            where: { schoolId, matricule }
-          });
-          if (existingMatricule) {
+          if (existingMatriculeSet.has(matricule)) {
             results.failed++;
             results.errors.push(`Matricule déjà utilisé: ${matricule}`);
             continue;
           }
         } else {
-          const lastMatricule = await prisma.studentProfile.findFirst({
-            orderBy: { matricule: "desc" },
-            where: { schoolId },
-          });
-          const nextNum = lastMatricule
-            ? parseInt(lastMatricule.matricule.replace(/^E/, "")) + 1
-            : 1;
-          matricule = `E${nextNum.toString().padStart(5, "0")}`;
+          matricule = `E${nextMatriculeNum.toString().padStart(5, "0")}`;
+          nextMatriculeNum++;
         }
+
+        // Track newly created emails to catch duplicates within the same batch
+        existingEmailSet.add(student.email);
+        if (matricule) existingMatriculeSet.add(matricule);
 
         // Create user and student profile in a transaction
         await prisma.$transaction(async (tx) => {

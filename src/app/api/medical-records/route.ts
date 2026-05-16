@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 import {
   HEALTH_READ_ROLES,
   HEALTH_STAFF_ROLES,
@@ -21,9 +21,9 @@ const createMedicalRecordSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
+export const GET = createApiHandler(
+  async (request: NextRequest, { session }): Promise<NextResponse> => {
+    // Additional health-specific role check
     const roleError = requireHealthRole(session, HEALTH_READ_ROLES);
     if (roleError) return roleError;
 
@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get("studentId");
 
     let targetStudentId = studentId;
-    if (session!.user.role === "STUDENT") {
-      const ownStudentProfile = await getOwnStudentProfile(session!.user.id);
+    if (session.user.role === "STUDENT") {
+      const ownStudentProfile = await getOwnStudentProfile(session.user.id);
       if (!ownStudentProfile) {
         return NextResponse.json({ error: "Profil étudiant non trouvé" }, { status: 404 });
       }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const access = await ensureStudentHealthAccess(session, targetStudentId);
-    if ("response" in access) return access.response;
+    if ("response" in access) return access.response!;
 
     const medicalRecord = await prisma.medicalRecord.findUnique({
       where: { studentId: targetStudentId },
@@ -80,18 +80,16 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(medicalRecord);
-  } catch (error) {
-    logger.error(" fetching medical record:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération du dossier médical" },
-      { status: 500 }
-    );
+  },
+  {
+    requireAuth: true,
+    requiredPermissions: [Permission.MEDICAL_READ],
   }
-}
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
+export const POST = createApiHandler(
+  async (request: NextRequest, { session }): Promise<NextResponse> => {
+    // Additional health-specific staff role check
     const roleError = requireHealthRole(session, HEALTH_STAFF_ROLES);
     if (roleError) return roleError;
 
@@ -99,7 +97,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createMedicalRecordSchema.parse(body);
 
     const access = await ensureStudentHealthAccess(session, validatedData.studentId);
-    if ("response" in access) return access.response;
+    if ("response" in access) return access.response!;
 
     const medicalRecord = await prisma.medicalRecord.upsert({
       where: { studentId: validatedData.studentId },
@@ -134,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.auditLog.create({
       data: {
-        userId: session!.user.id,
+        userId: session.user.id,
         action: "UPDATE_MEDICAL_RECORD",
         entity: "MedicalRecord",
         entityId: medicalRecord.id,
@@ -143,18 +141,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(medicalRecord, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    logger.error(" creating medical record:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la création du dossier médical" },
-      { status: 500 }
-    );
+  },
+  {
+    requireAuth: true,
+    requiredPermissions: [Permission.MEDICAL_READ],
   }
-}
+);

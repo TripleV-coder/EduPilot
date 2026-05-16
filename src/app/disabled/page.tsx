@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 export default function DisabledPage() {
   return (
@@ -11,14 +12,14 @@ export default function DisabledPage() {
           <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
           </div>
-          <CardTitle className="text-foreground">Compte désactivé</CardTitle>
+          <CardTitle className="text-foreground">{t("auth.disabled.title")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            Votre compte a été désactivé. Contactez l&apos;administrateur de votre établissement pour plus d&apos;informations.
+            {t("auth.disabled.description")}
           </p>
           <Button asChild variant="outline" className="w-full">
-            <Link href="/login">Retour à la connexion</Link>
+            <Link href="/login">{t("auth.disabled.backToLogin")}</Link>
           </Button>
         </CardContent>
       </Card>

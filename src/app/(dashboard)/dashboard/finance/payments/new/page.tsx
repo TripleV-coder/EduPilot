@@ -216,14 +216,14 @@ export default function NewPaymentPage() {
                 )}
 
                 {successMsg && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-between">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/30 text-success flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <CheckCircle className="h-5 w-5 shrink-0" />
                             <p className="text-sm font-medium">{successMsg}</p>
                         </div>
                         <Button
                             variant="outline"
-                            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-2"
+                            className="text-success border-success/30 hover:bg-success/10 gap-2"
                             onClick={handleDownloadInvoice}
                             disabled={!lastPaymentId || downloadingInvoice}
                         >
@@ -249,7 +249,8 @@ export default function NewPaymentPage() {
                                     <div className="relative">
                                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            
+                                            aria-label="Rechercher un élève"
+                                            placeholder="Tapez un nom ou matricule..."
                                             className="pl-9"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -319,6 +320,7 @@ export default function NewPaymentPage() {
                                         <div className="space-y-2 md:col-span-2">
                                             <Label>Ligne Tarifaire (Frais) <span className="text-destructive">*</span></Label>
                                             <select
+                                                aria-label="Sélectionner une ligne tarifaire"
                                                 value={selectedFeeId}
                                                 onChange={e => setSelectedFeeId(e.target.value)}
                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
@@ -338,6 +340,7 @@ export default function NewPaymentPage() {
                                             <Label>Montant Payé (FCFA) <span className="text-destructive">*</span></Label>
                                             <div className="relative">
                                                 <Input
+                                                    aria-label="Saisir le montant payé"
                                                     type="number"
                                                     min="1"
                                                     required
@@ -354,6 +357,7 @@ export default function NewPaymentPage() {
                                         <div className="space-y-2">
                                             <Label>Mode de Paiement <span className="text-destructive">*</span></Label>
                                             <select
+                                                aria-label="Sélectionner le mode de paiement"
                                                 value={method}
                                                 onChange={e => setMethod(e.target.value)}
                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
@@ -371,9 +375,10 @@ export default function NewPaymentPage() {
                                         <div className="space-y-2 md:col-span-2">
                                             <Label>Référence de transaction (Optionnel)</Label>
                                             <Input
+                                                aria-label="Référence de transaction"
                                                 value={reference}
                                                 onChange={e => setReference(e.target.value)}
-                                                
+                                                placeholder="Ex: TXN-2026-0001"
                                                 disabled={!selectedStudentId || method === "CASH"}
                                             />
                                         </div>
@@ -381,9 +386,10 @@ export default function NewPaymentPage() {
                                         <div className="space-y-2 md:col-span-2">
                                             <Label>Observations</Label>
                                             <Textarea
+                                                aria-label="Observations du paiement"
                                                 value={notes}
                                                 onChange={e => setNotes(e.target.value)}
-                                                
+                                                placeholder="Notes internes ou justification du paiement..."
                                                 disabled={!selectedStudentId}
                                                 className="resize-none h-20"
                                             />

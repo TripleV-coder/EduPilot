@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { toast } from "sonner";
+
+import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Utensils, AlertCircle, Calendar, Plus, Loader2, QrCode, History, Wallet, ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { formatDateLong } from "@/lib/utils/formatters";
 import {
     Dialog,
     DialogContent,
@@ -16,14 +17,9 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSession } from "next-auth/react";
-import { toast } from "sonner";
-import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+
+import { Badge, Button, Card, Icon, Input, Spinner, type IconName } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 type MenuItem = {
     id: string;
@@ -33,40 +29,47 @@ type MenuItem = {
     dessert?: string;
 };
 
+type TicketHistoryItem = {
+    id: string;
+    purchasedAt: string;
+    balance: number;
+};
+
 type TicketSummary = {
     userId: string;
     userName: string;
     totalBalance: number;
-    activeTicket: {
-        qrCode: string;
-        expiresAt: string;
-    } | null;
-    history: any[];
+    activeTicket: { qrCode: string; expiresAt: string } | null;
+    history: TicketHistoryItem[];
 };
 
 export default function CanteenPage() {
-    const { data: session } = useSession();
     const [menus, setMenus] = useState<MenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [view, setView] = useState<"menu" | "tickets">("menu");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Tickets data
-    const { data: ticketSummaries, mutate: mutateTickets } = useSWR<TicketSummary[]>("/api/canteen/tickets", fetcher);
+    const { data: ticketSummaries, mutate: mutateTickets } = useSWR<TicketSummary[]>(
+        "/api/canteen/tickets",
+        fetcher
+    );
 
-    // Form state
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split("T")[0],
         starter: "",
         mainCourse: "",
-        dessert: ""
+        dessert: "",
     });
 
     const fetchMenus = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/canteen/menu?date=" + new Date().toISOString(), { credentials: "include" });
+            const res = await fetch(
+                "/api/canteen/menu?date=" + new Date().toISOString(),
+                { credentials: "include" }
+            );
             if (!res.ok) throw new Error("Erreur de chargement des menus");
             const data = await res.json();
             if (data.id) setMenus([data]);
@@ -96,7 +99,7 @@ export default function CanteenPage() {
             toast.success("Le menu a été mis à jour.");
             setIsDialogOpen(false);
             fetchMenus();
-        } catch (err) {
+        } catch {
             toast.error("Impossible de mettre à jour le menu.");
         } finally {
             setIsSubmitting(false);
@@ -119,160 +122,553 @@ export default function CanteenPage() {
         }
     };
 
-    const formatDate = (d: string) =>
-        new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "2-digit", month: "long" }).format(new Date(d));
-
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
-            <div className="space-y-6">
-                <PageHeader
-                    title="Cantine & Restauration"
-                    description="Suivi des menus quotidiens et gestion des tickets repas."
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Cantine" },
+        <PageGuard
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Cantine & restauration"
+                        sub="Menus quotidiens, tickets repas, portefeuille élève"
+                        actions={
+                            <RoleActionGuard
+                                allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                            >
+                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button icon="plus">Programmer un menu</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Programmer le menu</DialogTitle>
+                                            <DialogDescription>
+                                                Saisis les plats pour une date spécifique.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form
+                                            onSubmit={handleSubmit}
+                                            className="flex flex-col gap-3 py-4"
+                                        >
+                                            <Input
+                                                label="Date"
+                                                type="date"
+                                                value={formData.date}
+                                                onChange={(e) =>
+                                                    setFormData({ ...formData, date: e.target.value })
+                                                }
+                                                icon="calendar"
+                                            />
+                                            <Input
+                                                label="Entrée"
+                                                value={formData.starter}
+                                                onChange={(e) =>
+                                                    setFormData({ ...formData, starter: e.target.value })
+                                                }
+                                                placeholder="Ex : Salade de crudités"
+                                            />
+                                            <Input
+                                                label="Plat principal"
+                                                value={formData.mainCourse}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        mainCourse: e.target.value,
+                                                    })
+                                                }
+                                                placeholder="Ex : Riz sauce tomate et poulet"
+                                            />
+                                            <Input
+                                                label="Dessert"
+                                                value={formData.dessert}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        dessert: e.target.value,
+                                                    })
+                                                }
+                                                placeholder="Ex : Fruit de saison"
+                                            />
+                                            <DialogFooter>
+                                                <Button
+                                                    type="submit"
+                                                    icon={isSubmitting ? undefined : "check"}
+                                                    loading={isSubmitting}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    Enregistrer
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            </RoleActionGuard>
+                        }
+                    />
+                </div>
+
+                <SegmentedToggle
+                    value={view}
+                    onChange={setView}
+                    options={[
+                        { value: "menu", label: "Menu", icon: "book" },
+                        { value: "tickets", label: "Tickets & solde", icon: "money" },
                     ]}
-                    actions={
-                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="gap-2 action-critical">
-                                        <Plus className="w-4 h-4" /> Programmer un menu
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Programmer le menu</DialogTitle>
-                                        <DialogDescription>Saisissez les plats pour une date spécifique.</DialogDescription>
-                                    </DialogHeader>
-                                    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="date">Date</Label>
-                                            <Input id="date" type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="starter">Entrée</Label>
-                                            <Input id="starter" value={formData.starter} onChange={(e) => setFormData({ ...formData, starter: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="main">Plat principal</Label>
-                                            <Input id="main" value={formData.mainCourse} onChange={(e) => setFormData({ ...formData, mainCourse: e.target.value })} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="dessert">Dessert</Label>
-                                            <Input id="dessert" value={formData.dessert} onChange={(e) => setFormData({ ...formData, dessert: e.target.value })} />
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit" disabled={isSubmitting}>
-                                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                                Enregistrer le menu
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        </RoleActionGuard>
-                    }
                 />
 
-                <Tabs defaultValue="menu" className="space-y-6">
-                    <TabsList className="bg-muted/50 p-1">
-                        <TabsTrigger value="menu" className="gap-2">
-                            <Utensils className="w-4 h-4" /> Menu de la Semaine
-                        </TabsTrigger>
-                        <TabsTrigger value="tickets" className="gap-2">
-                            <Wallet className="w-4 h-4" /> Mes Tickets & Solde
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="menu" className="space-y-6">
-                        {loading && <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}
-                        {error && <div className="p-4 bg-destructive/10 text-destructive rounded-lg">{error}</div>}
-                        {!loading && !error && menus.length === 0 && (
-                            <div className="text-center py-16 border border-dashed rounded-xl bg-muted/30">
-                                <Utensils className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Aucun menu programmé</h3>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {view === "menu" ? (
+                    <div className="flex flex-col gap-4">
+                        {loading ? (
+                            <Card padding={20}>
+                                <div className="flex items-center gap-3">
+                                    <Spinner size={18} color="var(--brand-600)" />
+                                    <span
+                                        style={{
+                                            fontSize: 13,
+                                            color: "var(--eduflow-text-secondary)",
+                                        }}
+                                    >
+                                        Chargement du menu…
+                                    </span>
+                                </div>
+                            </Card>
+                        ) : null}
+                        {error ? (
+                            <Card
+                                padding={14}
+                                style={{
+                                    borderLeft: "3px solid var(--eduflow-danger-500)",
+                                    background: "var(--eduflow-danger-50)",
+                                }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Icon
+                                        name="warning"
+                                        size={18}
+                                        color="var(--eduflow-danger-600)"
+                                    />
+                                    <p
+                                        style={{
+                                            margin: 0,
+                                            fontSize: 13,
+                                            color: "var(--eduflow-danger-800)",
+                                        }}
+                                    >
+                                        {error}
+                                    </p>
+                                </div>
+                            </Card>
+                        ) : null}
+                        {!loading && !error && menus.length === 0 ? (
+                            <Card padding={36}>
+                                <div className="flex flex-col items-center gap-3 text-center">
+                                    <div
+                                        className="grid place-items-center"
+                                        style={{
+                                            width: 60,
+                                            height: 60,
+                                            borderRadius: 16,
+                                            background: "var(--brand-50)",
+                                        }}
+                                    >
+                                        <Icon name="book" size={26} color="var(--brand-700)" />
+                                    </div>
+                                    <h3
+                                        className="eduflow-display"
+                                        style={{ fontSize: 18, margin: 0 }}
+                                    >
+                                        Aucun menu programmé
+                                    </h3>
+                                    <p
+                                        style={{
+                                            fontSize: 13,
+                                            color: "var(--eduflow-text-secondary)",
+                                            margin: 0,
+                                        }}
+                                    >
+                                        Programme le menu de la semaine pour informer parents et
+                                        élèves.
+                                    </p>
+                                </div>
+                            </Card>
+                        ) : null}
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                                gap: 14,
+                            }}
+                        >
                             {menus.map((menu) => (
-                                <Card key={menu.id} className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                            <Calendar className="h-4 w-4 text-primary" />
-                                            {formatDate(menu.date)}
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-2">
-                                        {menu.starter && <div className="flex items-center gap-3 text-sm"><span className="w-8 h-8 rounded bg-emerald-50 flex items-center justify-center text-emerald-600">🥗</span> {menu.starter}</div>}
-                                        {menu.mainCourse && <div className="flex items-center gap-3 text-sm font-semibold"><span className="w-8 h-8 rounded bg-amber-50 flex items-center justify-center text-amber-600">🍽️</span> {menu.mainCourse}</div>}
-                                        {menu.dessert && <div className="flex items-center gap-3 text-sm"><span className="w-8 h-8 rounded bg-pink-50 flex items-center justify-center text-pink-600">🍰</span> {menu.dessert}</div>}
-                                    </CardContent>
+                                <Card key={menu.id} padding={0}>
+                                    <div
+                                        className="flex items-center gap-2 border-b px-5 py-3"
+                                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                                    >
+                                        <Icon name="calendar" size={14} color="var(--brand-700)" />
+                                        <h3
+                                            style={{
+                                                margin: 0,
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                color: "var(--eduflow-text-primary)",
+                                                textTransform: "capitalize",
+                                            }}
+                                        >
+                                            {formatDateLong(menu.date)}
+                                        </h3>
+                                    </div>
+                                    <div className="flex flex-col gap-3 px-5 py-4">
+                                        {menu.starter ? (
+                                            <DishRow
+                                                icon="sparkle"
+                                                accent="success"
+                                                label={menu.starter}
+                                                tag="Entrée"
+                                            />
+                                        ) : null}
+                                        {menu.mainCourse ? (
+                                            <DishRow
+                                                icon="flame"
+                                                accent="warning"
+                                                label={menu.mainCourse}
+                                                tag="Plat"
+                                                bold
+                                            />
+                                        ) : null}
+                                        {menu.dessert ? (
+                                            <DishRow
+                                                icon="sparkle"
+                                                accent="brand"
+                                                label={menu.dessert}
+                                                tag="Dessert"
+                                            />
+                                        ) : null}
+                                    </div>
                                 </Card>
                             ))}
                         </div>
-                    </TabsContent>
+                    </div>
+                ) : null}
 
-                    <TabsContent value="tickets" className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {(ticketSummaries || []).map(summary => (
-                                <Card key={summary.userId} className="border-border overflow-hidden">
-                                    <CardHeader className="bg-muted/30 border-b">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <CardTitle className="text-sm font-bold">{summary.userName}</CardTitle>
-                                                <CardDescription className="text-[10px] uppercase font-black">Portefeuille Repas</CardDescription>
-                                            </div>
-                                            <Badge variant="secondary" className="text-lg font-black px-3 py-1">
-                                                {summary.totalBalance} <span className="text-[10px] ml-1 uppercase opacity-60">repas</span>
-                                            </Badge>
+                {view === "tickets" ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {(ticketSummaries || []).map((summary) => (
+                            <Card key={summary.userId} padding={0}>
+                                <div
+                                    className="flex items-center justify-between border-b px-5 py-4"
+                                    style={{
+                                        borderColor: "var(--eduflow-border-subtle)",
+                                        background: "var(--eduflow-surface-sunken)",
+                                    }}
+                                >
+                                    <div>
+                                        <div
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                color: "var(--eduflow-text-primary)",
+                                            }}
+                                        >
+                                            {summary.userName}
                                         </div>
-                                    </CardHeader>
-                                    <CardContent className="p-6 space-y-6">
-                                        {summary.activeTicket ? (
-                                            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl bg-muted/5">
-                                                <div className="w-32 h-32 bg-white p-2 rounded-lg shadow-inner mb-4 flex items-center justify-center">
-                                                    <QrCode className="w-24 h-24 text-slate-900" />
+                                        <div
+                                            style={{
+                                                fontSize: 9,
+                                                fontWeight: 700,
+                                                letterSpacing: "0.08em",
+                                                textTransform: "uppercase",
+                                                color: "var(--eduflow-text-tertiary)",
+                                                marginTop: 2,
+                                            }}
+                                        >
+                                            Portefeuille repas
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span
+                                            className="eduflow-display eduflow-tabular"
+                                            style={{
+                                                fontSize: 28,
+                                                fontWeight: 700,
+                                                color: "var(--brand-700)",
+                                                lineHeight: 1,
+                                            }}
+                                        >
+                                            {summary.totalBalance}
+                                        </span>
+                                        <div
+                                            style={{
+                                                fontSize: 9,
+                                                fontWeight: 700,
+                                                letterSpacing: "0.08em",
+                                                textTransform: "uppercase",
+                                                color: "var(--eduflow-text-tertiary)",
+                                                marginTop: 2,
+                                            }}
+                                        >
+                                            repas
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-4 px-5 py-5">
+                                    {summary.activeTicket ? (
+                                        <div
+                                            className="flex flex-col items-center gap-3 p-5 text-center"
+                                            style={{
+                                                border: "2px dashed var(--eduflow-border-default)",
+                                                borderRadius: "var(--eduflow-radius-card)",
+                                                background: "var(--eduflow-surface-sunken)",
+                                            }}
+                                        >
+                                            <div
+                                                className="grid place-items-center"
+                                                style={{
+                                                    width: 100,
+                                                    height: 100,
+                                                    borderRadius: 12,
+                                                    background: "white",
+                                                    boxShadow: "var(--eduflow-shadow-sm)",
+                                                }}
+                                            >
+                                                <Icon
+                                                    name="grid"
+                                                    size={68}
+                                                    color="var(--eduflow-text-primary)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div
+                                                    style={{
+                                                        fontSize: 9,
+                                                        fontWeight: 700,
+                                                        letterSpacing: "0.08em",
+                                                        textTransform: "uppercase",
+                                                        color: "var(--eduflow-text-tertiary)",
+                                                    }}
+                                                >
+                                                    Code de passage unique
                                                 </div>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Code de passage unique</p>
-                                                <code className="text-xs font-mono font-bold bg-muted px-2 py-1 rounded">{summary.activeTicket.qrCode}</code>
+                                                <code
+                                                    className="eduflow-mono"
+                                                    style={{
+                                                        display: "inline-block",
+                                                        marginTop: 6,
+                                                        padding: "4px 10px",
+                                                        background: "var(--eduflow-surface-card)",
+                                                        border:
+                                                            "1px solid var(--eduflow-border-default)",
+                                                        borderRadius: 6,
+                                                        fontSize: 12,
+                                                        fontWeight: 700,
+                                                        color: "var(--eduflow-text-primary)",
+                                                    }}
+                                                >
+                                                    {summary.activeTicket.qrCode}
+                                                </code>
                                             </div>
-                                        ) : (
-                                            <div className="text-center py-8">
-                                                <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                                                <p className="text-sm font-medium text-muted-foreground">Aucun ticket actif</p>
-                                            </div>
-                                        )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2 py-6 text-center">
+                                            <Icon
+                                                name="info"
+                                                size={28}
+                                                color="var(--eduflow-text-tertiary)"
+                                            />
+                                            <p
+                                                style={{
+                                                    margin: 0,
+                                                    fontSize: 13,
+                                                    color: "var(--eduflow-text-secondary)",
+                                                    fontWeight: 500,
+                                                }}
+                                            >
+                                                Aucun ticket actif
+                                            </p>
+                                        </div>
+                                    )}
 
-                                        <div className="space-y-3">
-                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                                <History className="w-3 h-3" /> Historique récent
-                                            </h4>
-                                            <div className="space-y-2">
-                                                {summary.history.length === 0 ? (
-                                                    <p className="text-xs italic text-muted-foreground">Aucune transaction</p>
-                                                ) : summary.history.map((t: any) => (
-                                                    <div key={t.id} className="flex justify-between items-center text-xs p-2 rounded bg-muted/30">
-                                                        <span className="font-medium">{new Date(t.purchasedAt).toLocaleDateString()}</span>
-                                                        <Badge variant="outline" className="text-[9px] font-bold">+{t.balance} REPAS</Badge>
+                                    <div>
+                                        <div
+                                            style={{
+                                                fontSize: 9,
+                                                fontWeight: 700,
+                                                letterSpacing: "0.08em",
+                                                textTransform: "uppercase",
+                                                color: "var(--eduflow-text-tertiary)",
+                                                marginBottom: 8,
+                                            }}
+                                        >
+                                            Historique récent
+                                        </div>
+                                        {summary.history.length === 0 ? (
+                                            <p
+                                                style={{
+                                                    margin: 0,
+                                                    fontSize: 12,
+                                                    fontStyle: "italic",
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                }}
+                                            >
+                                                Aucune transaction
+                                            </p>
+                                        ) : (
+                                            <div className="flex flex-col gap-1.5">
+                                                {summary.history.slice(0, 5).map((tx) => (
+                                                    <div
+                                                        key={tx.id}
+                                                        className="flex items-center justify-between"
+                                                        style={{
+                                                            padding: "8px 10px",
+                                                            borderRadius: 8,
+                                                            background:
+                                                                "var(--eduflow-surface-sunken)",
+                                                            fontSize: 12,
+                                                        }}
+                                                    >
+                                                        <span style={{ fontWeight: 500 }}>
+                                                            {new Date(tx.purchasedAt).toLocaleDateString(
+                                                                "fr-FR"
+                                                            )}
+                                                        </span>
+                                                        <Badge variant="success" size="sm">
+                                                            +{tx.balance} repas
+                                                        </Badge>
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
+                                        )}
+                                    </div>
 
-                                        <Button 
-                                            className="w-full gap-2 font-bold uppercase tracking-tighter shadow-sm" 
-                                            onClick={() => handlePurchase(summary.userId)}
-                                        >
-                                            <ShoppingCart className="w-4 h-4" /> Acheter un carnet (10 repas)
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </TabsContent>
-                </Tabs>
+                                    <Button
+                                        full
+                                        icon="money"
+                                        onClick={() => handlePurchase(summary.userId)}
+                                    >
+                                        Acheter un carnet (10 repas)
+                                    </Button>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                ) : null}
             </div>
         </PageGuard>
+    );
+}
+
+function DishRow({
+    icon,
+    accent,
+    label,
+    tag,
+    bold,
+}: {
+    icon: IconName;
+    accent: "success" | "warning" | "brand" | "info";
+    label: string;
+    tag: string;
+    bold?: boolean;
+}) {
+    const bg =
+        accent === "brand" ? "var(--brand-50)" : `var(--eduflow-${accent}-50)`;
+    const fg =
+        accent === "brand" ? "var(--brand-700)" : `var(--eduflow-${accent}-700)`;
+    return (
+        <div className="flex items-center gap-3">
+            <div
+                className="grid place-items-center"
+                style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    background: bg,
+                    color: fg,
+                    flexShrink: 0,
+                }}
+            >
+                <Icon name={icon} size={14} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <div
+                    style={{
+                        fontSize: 13,
+                        fontWeight: bold ? 700 : 500,
+                        color: "var(--eduflow-text-primary)",
+                        lineHeight: 1.4,
+                    }}
+                >
+                    {label}
+                </div>
+                <div
+                    style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "var(--eduflow-text-tertiary)",
+                        marginTop: 2,
+                    }}
+                >
+                    {tag}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SegmentedToggle<T extends string>({
+    value,
+    onChange,
+    options,
+}: {
+    value: T;
+    onChange: (v: T) => void;
+    options: { value: T; label: string; icon: IconName }[];
+}) {
+    return (
+        <div
+            className="flex w-fit gap-1 rounded-md p-1"
+            style={{
+                background: "var(--eduflow-surface-sunken)",
+                border: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
+            {options.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChange(opt.value)}
+                        className="flex items-center gap-1.5 px-3 py-1.5"
+                        style={{
+                            background: active ? "var(--eduflow-surface-card)" : "transparent",
+                            border: 0,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: active ? 700 : 500,
+                            color: active
+                                ? "var(--brand-700)"
+                                : "var(--eduflow-text-secondary)",
+                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
+                            transition:
+                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                        }}
+                    >
+                        <Icon name={opt.icon} size={13} />
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
     );
 }

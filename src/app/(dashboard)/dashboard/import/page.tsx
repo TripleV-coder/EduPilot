@@ -45,8 +45,8 @@ const IMPORT_TYPES: Array<{
     label: "Élèves",
     description: "Importez votre base d'élèves, matricules et contacts parents.",
     icon: UserPlus,
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
+    color: "text-primary",
+    bg: "bg-primary/10",
   },
   {
     id: "TEACHERS",
@@ -55,8 +55,8 @@ const IMPORT_TYPES: Array<{
     label: "Enseignants",
     description: "Annuaires des professeurs et spécialités.",
     icon: GraduationCap,
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10",
+    color: "text-success",
+    bg: "bg-success/10",
   },
   {
     id: "CLASSES",
@@ -65,8 +65,8 @@ const IMPORT_TYPES: Array<{
     label: "Classes",
     description: "Créez vos classes avec niveau, capacité et professeur principal.",
     icon: BookOpen,
-    color: "text-purple-500",
-    bg: "bg-purple-500/10",
+    color: "text-primary",
+    bg: "bg-primary/10",
   },
   {
     id: "PARENTS",
@@ -75,8 +75,8 @@ const IMPORT_TYPES: Array<{
     label: "Parents",
     description: "Importez les contacts tuteurs et liez-les aux élèves existants.",
     icon: FileText,
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
+    color: "text-warning",
+    bg: "bg-warning/10",
   },
 ];
 
@@ -394,9 +394,9 @@ export default function ImportWizardPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         {mapping[header] ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
+                          <CheckCircle2 className="w-4 h-4 text-success mx-auto" />
                         ) : (
-                          <AlertTriangle className="w-4 h-4 text-amber-500 mx-auto" />
+                          <AlertTriangle className="w-4 h-4 text-warning mx-auto" />
                         )}
                       </td>
                     </tr>
@@ -423,15 +423,15 @@ export default function ImportWizardPage() {
       {step === "VALIDATE" && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-none shadow-none bg-emerald-500/5 border border-emerald-500/20 p-6 text-center space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-              <h4 className="text-xl font-black text-emerald-600">{previewSummary?.valid ?? 0}</h4>
-              <p className="text-xs font-bold text-emerald-600/70 uppercase">Lignes Prêtes</p>
+            <Card className="border-none shadow-none bg-success/10 border border-success/30 p-6 text-center space-y-2">
+              <CheckCircle2 className="w-8 h-8 text-success mx-auto" />
+              <h4 className="text-xl font-black text-success">{previewSummary?.valid ?? 0}</h4>
+              <p className="text-xs font-bold text-success/80 uppercase">Lignes Prêtes</p>
             </Card>
-            <Card className="border-none shadow-none bg-amber-500/5 border border-amber-500/20 p-6 text-center space-y-2">
-              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-              <h4 className="text-xl font-black text-amber-600">{previewSummary ? previewSummary.total - previewSummary.valid : 0}</h4>
-              <p className="text-xs font-bold text-amber-600/70 uppercase">Avertissements</p>
+            <Card className="border-none shadow-none bg-warning/10 border border-warning/30 p-6 text-center space-y-2">
+              <AlertTriangle className="w-8 h-8 text-warning mx-auto" />
+              <h4 className="text-xl font-black text-warning">{previewSummary ? previewSummary.total - previewSummary.valid : 0}</h4>
+              <p className="text-xs font-bold text-warning/80 uppercase">Avertissements</p>
             </Card>
             <Card className="border-none shadow-none bg-destructive/5 border border-destructive/20 p-6 text-center space-y-2">
               <Database className="w-8 h-8 text-destructive mx-auto" />

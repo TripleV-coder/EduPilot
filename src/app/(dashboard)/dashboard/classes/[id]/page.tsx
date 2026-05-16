@@ -188,7 +188,7 @@ export default function ClassDetailsPage() {
                     </div>
                 )}
                 {successMsg && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-3">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/30 text-success flex items-center gap-3">
                         <CheckCircle className="h-5 w-5 shrink-0" />
                         <p className="text-sm">{successMsg}</p>
                     </div>
@@ -247,7 +247,7 @@ export default function ClassDetailsPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="subjectId">Matière <span className="text-destructive">*</span></Label>
-                                                <select id="subjectId" name="subjectId" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                                                <select aria-label="Sélectionner une matière" id="subjectId" name="subjectId" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                                                     <option value="">Sélectionner une matière...</option>
                                                     {availableSubjects.map(s => (
                                                         <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
@@ -256,7 +256,7 @@ export default function ClassDetailsPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="teacherId">Professeur</Label>
-                                                <select id="teacherId" name="teacherId" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                                                <select aria-label="Sélectionner un enseignant" id="teacherId" name="teacherId" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                                                     <option value="">Aucun (À définir)</option>
                                                     {availableTeachers.map(t => (
                                                         <option key={t.id} value={t.id}>{t.user?.firstName} {t.user?.lastName}</option>
@@ -480,9 +480,9 @@ export default function ClassDetailsPage() {
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Moyenne</CardTitle></CardHeader>
                                         <CardContent><div className="text-2xl font-bold">{Number(subjectStats.average).toFixed(1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Plus haute</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold text-green-500">{Number(subjectStats.highest).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold text-success">{Number(subjectStats.highest).toFixed(1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Plus basse</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold text-red-500">{Number(subjectStats.lowest).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold text-destructive">{Number(subjectStats.lowest).toFixed(1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Médiane</CardTitle></CardHeader>
                                         <CardContent><div className="text-2xl font-bold">{Number(subjectStats.median).toFixed(1)}/20</div></CardContent></Card>
                                 </div>

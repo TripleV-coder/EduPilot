@@ -2,33 +2,32 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
-import { useSession } from "next-auth/react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
-import {
-    PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-} from "recharts";
-import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
-import { 
-    DollarSign, TrendingUp, AlertCircle, Plus, CalendarClock, 
-    CheckCircle, Loader2, ArrowUpDown, Filter, Zap, Activity 
-} from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { ParentFinanceView } from "@/components/dashboard/finance/parent-finance-view";
-import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { useSchool } from "@/components/providers/school-provider";
-import { PageCallout } from "@/components/layout/page-callout";
-import { Permission } from "@/lib/rbac/permissions";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+
+import { fetcher } from "@/lib/fetcher";
+import { useSchool } from "@/components/providers/school-provider";
+import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
+import { ParentFinanceView } from "@/components/dashboard/finance/parent-finance-view";
+import { Permission } from "@/lib/rbac/permissions";
+
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    FilterBar,
+    Icon,
+    MetricCard,
+    NotifItem,
+    Progress,
+} from "@/components/edu";
+import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
+import { BasePieChart } from "@/components/charts/BasePieChart";
+import { CHART_COLORS } from "@/components/charts/chart-theme";
 
 type FinanceSummary = {
     totalFees: number;
@@ -42,10 +41,8 @@ type Payment = {
     amount: number;
     status: string;
     createdAt: string;
-    student: {
-        user: { firstName: string; lastName: string; };
-    };
-    fee: { name: string; };
+    student: { user: { firstName: string; lastName: string } };
+    fee: { name: string };
 };
 
 type OverdueStudent = {
@@ -54,11 +51,7 @@ type OverdueStudent = {
     balance: number;
 };
 
-type PaymentTrend = {
-    date: string;
-    amount: number;
-    count: number;
-};
+type PaymentTrend = { date: string; amount: number; count: number };
 
 type PaymentPlan = {
     id: string;
@@ -66,10 +59,8 @@ type PaymentPlan = {
     paidAmount: number;
     installments: number;
     status: string;
-    student: {
-        user: { firstName: string; lastName: string; };
-    };
-    fee: { name: string; };
+    student: { user: { firstName: string; lastName: string } };
+    fee: { name: string };
     installmentPayments: {
         id: string;
         amount: number;
@@ -85,6 +76,15 @@ type FinanceDashboardData = {
     paymentsTrend: PaymentTrend[];
 };
 
+type AcademicYear = { id: string; name: string; periods?: { id: string; name: string }[] };
+
+const formatCurrency = (amount: number): string =>
+    new Intl.NumberFormat("fr-BJ", {
+        style: "currency",
+        currency: "XOF",
+        maximumFractionDigits: 0,
+    }).format(amount);
+
 export default function FinanceDashboardPage() {
     const { data: session } = useSession();
     const { schoolId } = useSchool();
@@ -92,16 +92,20 @@ export default function FinanceDashboardPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
     const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
 
-    // Fetch Academic Years for filters
-    const { data: academicYears } = useSWR(schoolId ? `/api/academic-years?schoolId=${schoolId}` : null, fetcher);
-    
-    const activeYear = useMemo(() => 
-        Array.isArray(academicYears) ? academicYears.find(y => y.id === selectedAcademicYearId) : null
-    , [academicYears, selectedAcademicYearId]);
-    
+    const { data: academicYears } = useSWR<AcademicYear[]>(
+        schoolId ? `/api/academic-years?schoolId=${schoolId}` : null,
+        fetcher
+    );
+
+    const activeYear = useMemo(
+        () =>
+            Array.isArray(academicYears)
+                ? academicYears.find((y) => y.id === selectedAcademicYearId)
+                : null,
+        [academicYears, selectedAcademicYearId]
+    );
     const periods = activeYear?.periods || [];
 
-    // Main Dashboard Data
     const dashboardQuery = useMemo(() => {
         const params = new URLSearchParams();
         if (schoolId) params.set("schoolId", schoolId);
@@ -110,36 +114,32 @@ export default function FinanceDashboardPage() {
         return params.toString();
     }, [schoolId, selectedAcademicYearId, selectedPeriodId]);
 
-    const { 
-        data: dashData, 
-        error: dashError, 
+    const {
+        data: dashData,
+        error: dashError,
         isLoading: dashLoading,
-        mutate: mutateDash
-    } = useSWR<FinanceDashboardData>(schoolId ? `/api/finance/dashboard?${dashboardQuery}` : null, fetcher);
+        mutate: mutateDash,
+    } = useSWR<FinanceDashboardData>(
+        schoolId ? `/api/finance/dashboard?${dashboardQuery}` : null,
+        fetcher
+    );
 
-    // Payment Plans
-    const { 
-        data: paymentPlans, 
-        isLoading: plansLoading,
-        mutate: mutatePlans 
-    } = useSWR<PaymentPlan[]>(schoolId ? `/api/payment-plans?schoolId=${schoolId}` : null, fetcher);
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat("fr-BJ", {
-            style: "currency",
-            currency: "XOF",
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
+    const { data: paymentPlans, mutate: mutatePlans } = useSWR<PaymentPlan[]>(
+        schoolId ? `/api/payment-plans?schoolId=${schoolId}` : null,
+        fetcher
+    );
 
     const handlePayInstallment = async (planId: string, installmentId: string) => {
         setPayingInstallment(installmentId);
         try {
-            const res = await fetch(`/api/payment-plans/${planId}/installments/${installmentId}/pay`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ method: "CASH" }),
-            });
+            const res = await fetch(
+                `/api/payment-plans/${planId}/installments/${installmentId}/pay`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ method: "CASH" }),
+                }
+            );
             if (!res.ok) {
                 const data = await res.json();
                 toast.error(data.error || "Erreur lors du paiement");
@@ -154,319 +154,683 @@ export default function FinanceDashboardPage() {
         }
     };
 
-    // --- Charts data transforms ---
     const barChartData = useMemo(() => {
         if (!dashData?.paymentsTrend) return [];
         const byMonth: Record<string, { received: number; pending: number }> = {};
         for (const t of dashData.paymentsTrend) {
-            const month = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(new Date(t.date));
+            const month = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(
+                new Date(t.date)
+            );
             if (!byMonth[month]) byMonth[month] = { received: 0, pending: 0 };
             byMonth[month].received += t.amount;
         }
         const months = Object.keys(byMonth);
         if (months.length > 0 && dashData.summary.totalPending > 0) {
             const pendingPerMonth = dashData.summary.totalPending / months.length;
-            for (const m of months) {
-                byMonth[m].pending = Math.round(pendingPerMonth);
-            }
+            for (const m of months) byMonth[m].pending = Math.round(pendingPerMonth);
         }
-        return months.map(m => ({ month: m, received: byMonth[m].received, pending: byMonth[m].pending }));
+        return months.map((m) => ({
+            month: m,
+            received: byMonth[m].received,
+            pending: byMonth[m].pending,
+        }));
     }, [dashData]);
 
     const collectionPieData = useMemo(() => {
         if (!dashData?.summary) return [];
         return [
             { name: "Collecté", value: dashData.summary.totalCollected, color: CHART_COLORS.excellent },
-            { name: "Reste à recouvrer", value: dashData.summary.totalPending, color: CHART_COLORS.average },
+            {
+                name: "Reste à recouvrer",
+                value: dashData.summary.totalPending,
+                color: CHART_COLORS.average,
+            },
         ];
     }, [dashData]);
-
-    const planColumns: ColumnDef<PaymentPlan>[] = useMemo(() => [
-        {
-            id: "student",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="-ml-4">
-                    Élève <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => `${row.student.user.firstName} ${row.student.user.lastName}`,
-            cell: ({ row }) => (
-                <div className="flex flex-col">
-                    <span className="font-bold text-foreground">
-                        {row.original.student.user.firstName} {row.original.student.user.lastName}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-medium">{row.original.fee.name}</span>
-                </div>
-            ),
-        },
-        {
-            accessorKey: "totalAmount",
-            header: "Total",
-            cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.totalAmount)}</span>,
-        },
-        {
-            accessorKey: "paidAmount",
-            header: "Payé",
-            cell: ({ row }) => <span className="font-bold text-emerald-600">{formatCurrency(row.original.paidAmount)}</span>,
-        },
-        {
-            id: "installments",
-            header: "Échéances",
-            cell: ({ row }) => {
-                const paidCount = row.original.installmentPayments.filter(i => i.status === "PAID").length;
-                return (
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-muted h-1 rounded-full overflow-hidden w-16">
-                            <div className="bg-primary h-full" style={{ width: `${(paidCount/row.original.installments)*100}%` }} />
-                        </div>
-                        <span className="text-xs font-medium">{paidCount}/{row.original.installments}</span>
-                    </div>
-                );
-            },
-        },
-        {
-            id: "status",
-            header: "Statut",
-            cell: ({ row }) => (
-                <Badge variant={row.original.status === "COMPLETED" ? "default" : "secondary"} className="text-[10px] uppercase font-black">
-                    {row.original.status === "COMPLETED" ? "Terminé" : "En cours"}
-                </Badge>
-            ),
-        },
-        {
-            id: "action",
-            header: "",
-            cell: ({ row }) => {
-                const nextInstallment = row.original.installmentPayments.find(i => i.status === "PENDING");
-                if (!nextInstallment) return null;
-                return (
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={payingInstallment === nextInstallment.id}
-                        onClick={() => handlePayInstallment(row.original.id, nextInstallment.id)}
-                        className="h-7 text-[10px] font-bold uppercase gap-1"
-                    >
-                        {payingInstallment === nextInstallment.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                            <CheckCircle className="h-3 w-3" />
-                        )}
-                        Encaisser
-                    </Button>
-                );
-            },
-        },
-    ], [payingInstallment]);
 
     if (session?.user?.role === "PARENT") return <ParentFinanceView />;
 
     return (
-        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 dashboard-motion pb-12">
+        <PageGuard
+            permission={[Permission.FINANCE_READ]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
                 <PageHeader
-                    title="Finances"
-                    description="Suivi des encaissements, des impayés et santé financière globale."
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Finances" },
-                    ]}
+                    greeting="Finances"
+                    sub="Suivi des encaissements, impayés et santé financière de l'établissement."
+                    breadcrumb={["Tableau de bord", "Finances"]}
                     actions={
-                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}>
-                            <div className="flex items-center gap-2">
+                        <RoleActionGuard
+                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}
+                        >
+                            <div className="flex flex-wrap gap-2">
                                 <Link href="/dashboard/finance/bulk-invoice">
-                                    <Button variant="outline" size="sm" className="gap-2 hidden md:flex">
-                                        <Zap className="h-4 w-4" />
-                                        Facturation de Masse
+                                    <Button variant="secondary" icon="sparkle">
+                                        Facturation de masse
                                     </Button>
                                 </Link>
                                 <Link href="/dashboard/finance/payments/new">
-                                    <Button size="sm" className="gap-2 action-critical">
-                                        <Plus className="h-4 w-4" />
-                                        Nouvel Encaissement
-                                    </Button>
+                                    <Button icon="plus">Nouvel encaissement</Button>
                                 </Link>
                             </div>
                         </RoleActionGuard>
                     }
                 />
 
-                {/* Filtres contextuels */}
-                <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-xl shadow-sm" data-reveal>
-                    <div className="flex items-center gap-2 mr-2">
-                        <Filter className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
-                    </div>
-                    <Select value={selectedAcademicYearId} onValueChange={(v) => { setSelectedAcademicYearId(v); setSelectedPeriodId("ALL"); }}>
-                        <SelectTrigger className="w-[180px] h-9 text-xs">
-                            <SelectValue placeholder="Année" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Toutes les années</SelectItem>
-                            {Array.isArray(academicYears) && academicYears.map((y: any) => (
-                                <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId} disabled={selectedAcademicYearId === "ALL" || periods.length === 0}>
-                        <SelectTrigger className="w-[160px] h-9 text-xs">
-                            <SelectValue placeholder="Période" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Toute l&apos;année</SelectItem>
-                            {periods.map((p: any) => (
-                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {dashError && (
-                    <PageCallout
-                        icon={AlertCircle}
-                        title="Erreur de chargement"
-                        description="Impossible de récupérer les indicateurs financiers."
-                        tone="danger"
+                {/* Filtres */}
+                <FilterBar>
+                    <FilterPill
+                        value={selectedAcademicYearId}
+                        onChange={(v) => {
+                            setSelectedAcademicYearId(v);
+                            setSelectedPeriodId("ALL");
+                        }}
+                        options={[
+                            { value: "ALL", label: "Toutes les années" },
+                            ...(academicYears ?? []).map((y) => ({ value: y.id, label: y.name })),
+                        ]}
+                        label="Année"
                     />
-                )}
+                    <FilterPill
+                        value={selectedPeriodId}
+                        onChange={setSelectedPeriodId}
+                        disabled={selectedAcademicYearId === "ALL" || periods.length === 0}
+                        options={[
+                            { value: "ALL", label: "Toute l'année" },
+                            ...periods.map((p) => ({ value: p.id, label: p.name })),
+                        ]}
+                        label="Période"
+                    />
+                </FilterBar>
 
+                {dashError ? (
+                    <Card padding={16} style={{ borderLeft: "3px solid var(--eduflow-danger-500)" }}>
+                        <div className="flex items-start gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                                    Erreur de chargement
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        color: "var(--eduflow-text-secondary)",
+                                        marginTop: 2,
+                                    }}
+                                >
+                                    Impossible de récupérer les indicateurs financiers.
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {/* KPI strip */}
                 {dashLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map(i => <Card key={i} className="h-24 animate-pulse bg-muted/20" />)}
-                    </div>
-                ) : dashData && (
+                    <KpiSkeleton />
+                ) : dashData ? (
                     <>
-                        {/* KPI Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {[
-                                { label: "Total Attendu", value: formatCurrency(dashData.summary.totalFees), color: "text-foreground", icon: DollarSign },
-                                { label: "Total Encaissé", value: formatCurrency(dashData.summary.totalCollected), color: "text-emerald-600", icon: TrendingUp, progress: dashData.summary.collectionRate },
-                                { label: "Reste à Recouvrer", value: formatCurrency(dashData.summary.totalPending), color: "text-orange-600", icon: AlertCircle },
-                                { label: "Recouvrement", value: `${dashData.summary.collectionRate.toFixed(1)}%`, color: "text-primary", icon: Activity },
-                            ].map((kpi, i) => (
-                                <Card key={i} className="dashboard-block kpi-card border-border bg-card">
-                                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{kpi.label}</div>
-                                        <kpi.icon className="w-3.5 h-3.5 text-muted-foreground/50" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className={cn("text-2xl metric-serif", kpi.color)}>{kpi.value}</div>
-                                        {kpi.progress !== undefined && (
-                                            <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
-                                                <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, kpi.progress)}%` }} />
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))}
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                                gap: 12,
+                            }}
+                        >
+                            <MetricCard
+                                label="Total attendu"
+                                value={formatCurrency(dashData.summary.totalFees)}
+                                icon="money"
+                                variant="neutral"
+                            />
+                            <MetricCard
+                                label="Total encaissé"
+                                value={formatCurrency(dashData.summary.totalCollected)}
+                                trend={dashData.summary.collectionRate}
+                                trendLabel="taux collecté"
+                                icon="check"
+                                variant="success"
+                            />
+                            <MetricCard
+                                label="Reste à recouvrer"
+                                value={formatCurrency(dashData.summary.totalPending)}
+                                icon="warning"
+                                variant="warning"
+                            />
+                            <MetricCard
+                                label="Recouvrement"
+                                value={`${dashData.summary.collectionRate.toFixed(1).replace(".", ",")}`}
+                                unit="%"
+                                icon="chart"
+                                variant="brand"
+                            />
                         </div>
 
-                        {/* Visualisations */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <Card className="dashboard-block lg:col-span-2 border-border" data-reveal>
-                                <CardHeader><CardTitle className="text-sm font-medium">Évolution des Encaissements</CardTitle></CardHeader>
-                                <CardContent className="h-[300px]">
-                                    <PaymentBarChart data={barChartData} />
-                                </CardContent>
-                            </Card>
-                            <Card className="dashboard-block border-border" data-reveal>
-                                <CardHeader><CardTitle className="text-sm font-medium">Répartition du Recouvrement</CardTitle></CardHeader>
-                                <CardContent className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie data={collectionPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                                {collectionPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                                            </Pie>
-                                            <Tooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} />
-                                            <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Recent Transactions & Overdue */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <Card className="dashboard-block lg:col-span-2 border-border overflow-hidden" data-reveal>
-                                <CardHeader className="bg-muted/10 border-b flex flex-row items-center justify-between space-y-0">
-                                    <CardTitle className="text-sm font-bold uppercase tracking-tight">Derniers Paiements</CardTitle>
-                                    <Link href="/dashboard/finance/payments" className="text-[10px] font-black uppercase text-primary hover:underline">Voir tout</Link>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="bg-muted/5 text-muted-foreground border-b uppercase font-bold text-[10px]">
-                                                    <th className="px-4 py-3 text-left">Élève</th>
-                                                    <th className="px-4 py-3 text-left">Frais</th>
-                                                    <th className="px-4 py-3 text-right">Montant</th>
-                                                    <th className="px-4 py-3 text-center">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-border/50">
-                                                {dashData.recentPayments.map((p) => (
-                                                    <tr key={p.id} className="hover:bg-muted/5 transition-colors group">
-                                                        <td className="px-4 py-3 font-bold">{p.student.user.firstName} {p.student.user.lastName}</td>
-                                                        <td className="px-4 py-3 text-muted-foreground">{p.fee.name}</td>
-                                                        <td className="px-4 py-3 text-right font-black text-emerald-600">{formatCurrency(p.amount)}</td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <Badge variant="outline" className="text-[9px] uppercase font-black bg-emerald-50 text-emerald-700 border-emerald-200">Validé</Badge>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                        {/* Charts */}
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
+                                gap: 16,
+                            }}
+                            className="dashboard-grid-collapse"
+                        >
+                            <Card padding={20}>
+                                <div className="mb-4 flex items-start justify-between">
+                                    <div>
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{ fontSize: 18, margin: 0 }}
+                                        >
+                                            Évolution des encaissements
+                                        </h3>
+                                        <p
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "4px 0 0",
+                                            }}
+                                        >
+                                            Reçu vs en attente · {periods.length || "période en cours"}
+                                        </p>
                                     </div>
-                                </CardContent>
+                                    <Badge variant="brand" size="sm">
+                                        {dashData.summary.collectionRate.toFixed(0)}% collecté
+                                    </Badge>
+                                </div>
+                                <div style={{ height: 280 }}>
+                                    <PaymentBarChart data={barChartData} />
+                                </div>
+                            </Card>
+                            <Card padding={20}>
+                                <SubLabel>Répartition</SubLabel>
+                                <div style={{ height: 220 }}>
+                                    <BasePieChart
+                                        data={collectionPieData}
+                                        height="100%"
+                                        cx="50%"
+                                        cy="50%"
+                                        paddingAngle={5}
+                                    />
+                                </div>
+                                <Progress
+                                    value={dashData.summary.collectionRate}
+                                    label="Progression"
+                                    sublabel={`${dashData.summary.collectionRate.toFixed(1).replace(".", ",")}%`}
+                                    variant="success"
+                                />
+                            </Card>
+                        </div>
+
+                        {/* Recent + overdue */}
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
+                                gap: 16,
+                            }}
+                            className="dashboard-grid-collapse"
+                        >
+                            <Card padding={0}>
+                                <div
+                                    className="flex items-center justify-between border-b px-5 py-4"
+                                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                                >
+                                    <div>
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{ fontSize: 18, margin: 0 }}
+                                        >
+                                            Derniers paiements
+                                        </h3>
+                                        <p
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            {dashData.recentPayments.length} encaissements récents
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href="/dashboard/finance/payments"
+                                        style={{
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            letterSpacing: "0.06em",
+                                            textTransform: "uppercase",
+                                            color: "var(--brand-700)",
+                                            textDecoration: "none",
+                                        }}
+                                    >
+                                        Voir tout
+                                    </Link>
+                                </div>
+                                {dashData.recentPayments.length === 0 ? (
+                                    <EmptyRow
+                                        title="Aucun paiement récent"
+                                        body="Les nouveaux encaissements apparaîtront ici."
+                                    />
+                                ) : (
+                                    dashData.recentPayments.slice(0, 6).map((p, i) => (
+                                        <div
+                                            key={p.id}
+                                            className="grid items-center gap-3 px-5 py-3"
+                                            style={{
+                                                gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                                                borderTop:
+                                                    i > 0
+                                                        ? "1px solid var(--eduflow-border-subtle)"
+                                                        : "none",
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <Avatar
+                                                    name={`${p.student.user.firstName} ${p.student.user.lastName}`}
+                                                    size="sm"
+                                                />
+                                                <div className="min-w-0">
+                                                    <div
+                                                        className="truncate"
+                                                        style={{ fontSize: 13, fontWeight: 600 }}
+                                                    >
+                                                        {p.student.user.firstName}{" "}
+                                                        {p.student.user.lastName}
+                                                    </div>
+                                                    <div
+                                                        className="truncate"
+                                                        style={{
+                                                            fontSize: 11,
+                                                            color: "var(--eduflow-text-tertiary)",
+                                                        }}
+                                                    >
+                                                        {p.fee.name}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <span
+                                                className="eduflow-display eduflow-tabular"
+                                                style={{
+                                                    fontSize: 16,
+                                                    fontWeight: 700,
+                                                    color: "var(--eduflow-success-700)",
+                                                }}
+                                            >
+                                                {formatCurrency(p.amount)}
+                                            </span>
+                                            <Badge variant="success" size="sm" icon="check">
+                                                Validé
+                                            </Badge>
+                                        </div>
+                                    ))
+                                )}
                             </Card>
 
-                            <Card className="dashboard-block border-border border-l-4 border-l-destructive shadow-lg" data-reveal>
-                                <CardHeader>
-                                    <CardTitle className="text-sm font-bold uppercase text-destructive flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Alertes Impayés
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        {dashData.overdueStudents.length === 0 ? (
-                                            <p className="text-xs text-muted-foreground py-4 text-center italic">Aucune alerte critique</p>
-                                        ) : dashData.overdueStudents.map((student, i) => (
-                                            <div key={student.studentId || i} className="flex items-center justify-between p-2 rounded-lg hover:bg-destructive/5 transition-colors border border-transparent hover:border-destructive/10">
-                                                <p className="font-bold text-xs truncate pr-2">{student.studentName}</p>
-                                                <p className="font-black text-xs text-destructive">{formatCurrency(student.balance)}</p>
-                                            </div>
+                            <Card padding={0}>
+                                <div
+                                    className="flex items-center justify-between border-b px-5 py-4"
+                                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Icon
+                                            name="warning"
+                                            size={18}
+                                            color="var(--eduflow-danger-600)"
+                                        />
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{ fontSize: 18, margin: 0 }}
+                                        >
+                                            Alertes impayés
+                                        </h3>
+                                    </div>
+                                    {dashData.overdueStudents.length > 0 ? (
+                                        <Badge variant="danger" size="sm">
+                                            {dashData.overdueStudents.length}
+                                        </Badge>
+                                    ) : null}
+                                </div>
+                                {dashData.overdueStudents.length === 0 ? (
+                                    <EmptyRow
+                                        title="Aucune alerte critique"
+                                        body="Tous les paiements sont à jour."
+                                    />
+                                ) : (
+                                    <div style={{ padding: "8px" }}>
+                                        {dashData.overdueStudents.slice(0, 6).map((s) => (
+                                            <NotifItem
+                                                key={s.studentId}
+                                                type="urgent"
+                                                priority={s.balance > 100000 ? "P0" : "P1"}
+                                                title={s.studentName}
+                                                body={`Solde dû : ${formatCurrency(s.balance)}`}
+                                                time="à relancer"
+                                                actions={["Contacter", "SMS"]}
+                                            />
                                         ))}
                                     </div>
-                                </CardContent>
+                                )}
                             </Card>
                         </div>
 
-                        {/* Payment Plans Table */}
-                        <Card className="dashboard-block border-border bg-card" data-reveal>
-                            <CardHeader>
-                                <CardTitle className="text-sm font-bold uppercase tracking-tight flex items-center gap-2">
-                                    <CalendarClock className="w-4 h-4 text-primary" />
-                                    Gestion des Échéanciers
-                                </CardTitle>
-                                <CardDescription className="text-xs">Plans de paiement actifs et progression des encaissements.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {plansLoading ? (
-                                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-                                ) : (
-                                    <DataTable
-                                        columns={planColumns}
-                                        data={paymentPlans || []}
-                                        searchKey="student"
-                                        searchPlaceholder="Rechercher un élève ou un frais..."
-                                    />
-                                )}
-                            </CardContent>
+                        {/* Payment plans */}
+                        <Card padding={0}>
+                            <div
+                                className="flex items-center justify-between border-b px-5 py-4"
+                                style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Icon name="calendar" size={18} color="var(--brand-700)" />
+                                    <div>
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{ fontSize: 18, margin: 0 }}
+                                        >
+                                            Échéanciers actifs
+                                        </h3>
+                                        <p
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            Plans de paiement et progression des encaissements
+                                        </p>
+                                    </div>
+                                </div>
+                                <Badge variant="brand" size="sm">
+                                    {paymentPlans?.length ?? 0} actifs
+                                </Badge>
+                            </div>
+
+                            {!paymentPlans || paymentPlans.length === 0 ? (
+                                <EmptyRow
+                                    title="Aucun échéancier actif"
+                                    body="Les nouveaux plans de paiement apparaîtront ici."
+                                />
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            borderCollapse: "collapse",
+                                            fontSize: 13,
+                                        }}
+                                    >
+                                        <thead>
+                                            <tr
+                                                style={{
+                                                    background: "var(--eduflow-surface-sunken)",
+                                                    textAlign: "left",
+                                                }}
+                                            >
+                                                {["Élève", "Total", "Payé", "Échéances", "Statut", ""].map(
+                                                    (h) => (
+                                                        <th
+                                                            key={h}
+                                                            style={{
+                                                                padding: "10px 16px",
+                                                                fontSize: 10,
+                                                                fontWeight: 700,
+                                                                letterSpacing: "0.06em",
+                                                                textTransform: "uppercase",
+                                                                color: "var(--eduflow-text-tertiary)",
+                                                            }}
+                                                        >
+                                                            {h}
+                                                        </th>
+                                                    )
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paymentPlans.map((plan) => {
+                                                const paidCount = plan.installmentPayments.filter(
+                                                    (i) => i.status === "PAID"
+                                                ).length;
+                                                const ratio = (paidCount / plan.installments) * 100;
+                                                const next = plan.installmentPayments.find(
+                                                    (i) => i.status === "PENDING"
+                                                );
+                                                return (
+                                                    <tr
+                                                        key={plan.id}
+                                                        style={{
+                                                            borderTop:
+                                                                "1px solid var(--eduflow-border-subtle)",
+                                                        }}
+                                                    >
+                                                        <td
+                                                            style={{
+                                                                padding: "12px 16px",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: 10,
+                                                            }}
+                                                        >
+                                                            <Avatar
+                                                                name={`${plan.student.user.firstName} ${plan.student.user.lastName}`}
+                                                                size="sm"
+                                                            />
+                                                            <div>
+                                                                <div
+                                                                    style={{ fontSize: 13, fontWeight: 600 }}
+                                                                >
+                                                                    {plan.student.user.firstName}{" "}
+                                                                    {plan.student.user.lastName}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        fontSize: 11,
+                                                                        color: "var(--eduflow-text-tertiary)",
+                                                                    }}
+                                                                >
+                                                                    {plan.fee.name}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: "12px 16px",
+                                                                fontSize: 13,
+                                                                fontWeight: 600,
+                                                            }}
+                                                            className="eduflow-tabular"
+                                                        >
+                                                            {formatCurrency(plan.totalAmount)}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: "12px 16px",
+                                                                fontSize: 13,
+                                                                fontWeight: 700,
+                                                                color: "var(--eduflow-success-700)",
+                                                            }}
+                                                            className="eduflow-tabular"
+                                                        >
+                                                            {formatCurrency(plan.paidAmount)}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: "12px 16px",
+                                                                minWidth: 140,
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    style={{
+                                                                        height: 4,
+                                                                        flex: 1,
+                                                                        background:
+                                                                            "var(--eduflow-neutral-200)",
+                                                                        borderRadius: 2,
+                                                                        overflow: "hidden",
+                                                                    }}
+                                                                >
+                                                                    <div
+                                                                        style={{
+                                                                            height: "100%",
+                                                                            width: `${ratio}%`,
+                                                                            background:
+                                                                                ratio === 100
+                                                                                    ? "var(--eduflow-success-500)"
+                                                                                    : "var(--brand-600)",
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <span
+                                                                    className="eduflow-tabular"
+                                                                    style={{
+                                                                        fontSize: 11,
+                                                                        fontWeight: 600,
+                                                                        color: "var(--eduflow-text-secondary)",
+                                                                    }}
+                                                                >
+                                                                    {paidCount}/{plan.installments}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: "12px 16px" }}>
+                                                            {plan.status === "COMPLETED" ? (
+                                                                <Badge variant="success" size="sm" icon="check">
+                                                                    Terminé
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="brand" size="sm" dot>
+                                                                    En cours
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            {next ? (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    icon={
+                                                                        payingInstallment === next.id
+                                                                            ? undefined
+                                                                            : "money"
+                                                                    }
+                                                                    loading={payingInstallment === next.id}
+                                                                    onClick={() =>
+                                                                        handlePayInstallment(plan.id, next.id)
+                                                                    }
+                                                                >
+                                                                    Encaisser
+                                                                </Button>
+                                                            ) : null}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </Card>
                     </>
-                )}
+                ) : null}
             </div>
         </PageGuard>
+    );
+}
+
+function FilterPill({
+    value,
+    onChange,
+    options,
+    label,
+    disabled,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+    label: string;
+    disabled?: boolean;
+}) {
+    return (
+        <label
+            className="flex h-9 items-center gap-2 rounded-md px-3"
+            style={{
+                background: "var(--eduflow-surface-card)",
+                border: "1px solid var(--eduflow-border-default)",
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? "not-allowed" : "pointer",
+            }}
+        >
+            <span
+                style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--eduflow-text-tertiary)",
+                }}
+            >
+                {label}
+            </span>
+            <select
+                value={value}
+                disabled={disabled}
+                onChange={(e) => onChange(e.target.value)}
+                className="bg-transparent outline-none"
+                style={{
+                    border: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-primary)",
+                    fontFamily: "inherit",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                }}
+            >
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function EmptyRow({ title, body }: { title: string; body: string }) {
+    return (
+        <div
+            className="flex items-start gap-3 px-5 py-6"
+            style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", lineHeight: 1.5 }}
+        >
+            <Icon name="info" size={16} color="var(--brand-700)" />
+            <div>
+                <div style={{ fontWeight: 600, color: "var(--eduflow-text-primary)", fontSize: 13 }}>
+                    {title}
+                </div>
+                <div>{body}</div>
+            </div>
+        </div>
+    );
+}
+
+function KpiSkeleton() {
+    return (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 12,
+            }}
+        >
+            {[1, 2, 3, 4].map((i) => (
+                <Card key={i}>
+                    <div
+                        style={{
+                            height: 70,
+                            background: "var(--eduflow-surface-sunken)",
+                            borderRadius: 8,
+                        }}
+                    />
+                </Card>
+            ))}
+        </div>
     );
 }

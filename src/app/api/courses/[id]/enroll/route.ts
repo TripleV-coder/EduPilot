@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 
 // POST /api/courses/[id]/enroll - Enroll student in course
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+export const POST = createApiHandler(
+  async (request: NextRequest, { session, params }) => {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user || session.user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    if (session.user.role !== "STUDENT") {
+      return NextResponse.json({ error: "Seuls les étudiants peuvent s'inscrire à un cours" }, { status: 403 });
     }
 
     const studentProfile = await prisma.studentProfile.findUnique({
@@ -90,27 +88,25 @@ export async function POST(
 
       return NextResponse.json(courseEnrollment, { status: 201 });
     } catch (dbError) {
-      if ((dbError as any).code === "P2002") {
+      if (
+        dbError instanceof Prisma.PrismaClientKnownRequestError &&
+        dbError.code === "P2002"
+      ) {
         return NextResponse.json({ error: "Déjà inscrit à ce cours" }, { status: 400 });
       }
-      throw dbError; // Rethrown to be caught by the outer catch
+      throw dbError;
     }
-  } catch (error) {
-    logger.error(" enrolling in course:", error as Error);
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
+  },
+  { requireAuth: true, requiredPermissions: [Permission.STUDENT_READ_OWN] }
+);
 
 // DELETE /api/courses/[id]/enroll - Unenroll from course
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+export const DELETE = createApiHandler(
+  async (request: NextRequest, { session, params }) => {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user || session.user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    if (session.user.role !== "STUDENT") {
+      return NextResponse.json({ error: "Seuls les étudiants peuvent se désinscrire d'un cours" }, { status: 403 });
     }
 
     const studentProfile = await prisma.studentProfile.findUnique({
@@ -152,8 +148,6 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error(" unenrolling from course:", error as Error);
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
+  },
+  { requireAuth: true, requiredPermissions: [Permission.STUDENT_READ_OWN] }
+);

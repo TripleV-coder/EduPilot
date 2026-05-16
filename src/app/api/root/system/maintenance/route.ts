@@ -1,22 +1,11 @@
-import { Session } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
+import { requireRoot } from "@/lib/security/require-root";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 const MAINTENANCE_KEY = "maintenance_mode";
-
-function requireRoot(session: Session | null, userEmail?: string | null, userId?: string | null) {
-  if (!userId || !userEmail) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
-  if (!isRootUserEmail(userEmail) || !hasValidRootSession(session)) {
-    return NextResponse.json({ error: "Accès root refusé" }, { status: 403 });
-  }
-  return null;
-}
 
 /**
  * GET /api/root/system/maintenance

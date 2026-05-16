@@ -195,6 +195,7 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Classe <span className="text-destructive">*</span></Label>
                                     <select
+                                        aria-label="Sélectionner une classe"
                                         value={selectedClassId}
                                         onChange={(e) => setSelectedClassId(e.target.value)}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -208,6 +209,7 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Matière & Enseignant <span className="text-destructive">*</span></Label>
                                     <select
+                                        aria-label="Sélectionner la matière et l'enseignant"
                                         value={selectedSubjectId}
                                         onChange={(e) => setSelectedSubjectId(e.target.value)}
                                         disabled={!selectedClassId}
@@ -227,8 +229,8 @@ export default function NewSchedulePage() {
 
                             {/* Teacher availability info */}
                             {teacherAvailability.length > 0 && (
-                                <div className="md:col-span-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-1.5 mb-2">
+                                <div className="md:col-span-2 p-3 rounded-lg bg-primary/10 border border-primary/30">
+                                    <p className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-2">
                                         <Clock className="w-3.5 h-3.5" />
                                         Disponibilités de l'enseignant
                                     </p>
@@ -236,7 +238,7 @@ export default function NewSchedulePage() {
                                         {teacherAvailability.filter(a => a.isActive).map((a) => {
                                             const dayLabel = DAYS_OF_WEEK.find(d => d.value === a.dayOfWeek)?.label || `Jour ${a.dayOfWeek}`;
                                             return (
-                                                <span key={a.id} className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-md font-medium">
+                                                <span key={a.id} className="text-xs bg-primary/15 text-primary px-2 py-1 rounded-md font-medium">
                                                     {dayLabel} {a.startTime}-{a.endTime}
                                                 </span>
                                             );
@@ -249,6 +251,7 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Jour de la Semaine <span className="text-destructive">*</span></Label>
                                     <select
+                                        aria-label="Sélectionner le jour de la semaine"
                                         value={dayOfWeek}
                                         onChange={(e) => setDayOfWeek(parseInt(e.target.value))}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -260,6 +263,7 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Heure de Début <span className="text-destructive">*</span></Label>
                                     <Input
+                                        aria-label="Heure de début"
                                         type="time"
                                         value={startTime}
                                         onChange={(e) => setStartTime(e.target.value)}
@@ -269,6 +273,7 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Heure de Fin <span className="text-destructive">*</span></Label>
                                     <Input
+                                        aria-label="Heure de fin"
                                         type="time"
                                         value={endTime}
                                         onChange={(e) => setEndTime(e.target.value)}
@@ -278,7 +283,8 @@ export default function NewSchedulePage() {
                                 <div className="space-y-2">
                                     <Label>Salle (Optionnel)</Label>
                                     <Input
-                                        
+                                        aria-label="Salle de cours"
+                                        placeholder="Ex: B12"
                                         value={room}
                                         onChange={(e) => setRoom(e.target.value)}
                                     />

@@ -87,7 +87,7 @@ export default function FinanceReportsPage() {
                     />
                     <div className="flex items-center gap-3">
                         <Select value={period} onValueChange={setPeriod}>
-                            <SelectTrigger className="w-[180px] bg-background">
+                            <SelectTrigger aria-label="Sélectionner une période de rapport" className="w-[180px] bg-background">
                                 <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
                                 <SelectValue />
                             </SelectTrigger>
@@ -129,13 +129,13 @@ export default function FinanceReportsPage() {
                                             <p className="text-sm font-medium text-muted-foreground">Revenu total perçu</p>
                                             <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.totalRevenue)}</p>
                                         </div>
-                                        <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                                        <div className="p-2 bg-success/10 text-success rounded-lg">
                                             <TrendingUp className="w-5 h-5" />
                                         </div>
                                     </div>
                                     {stats.revenueGrowth != null && (
                                         <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
-                                            <span className={`font-medium ${stats.revenueGrowth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                                            <span className={`font-medium ${stats.revenueGrowth >= 0 ? "text-success" : "text-destructive"}`}>
                                                 {stats.revenueGrowth >= 0 ? "+" : ""}{stats.revenueGrowth.toFixed(1)}%
                                             </span> par rapport à la période précédente
                                         </p>

@@ -66,7 +66,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
         }
 
-        const body = JSON.parse(rawBody);
+        let body: Record<string, unknown>;
+        try {
+          body = JSON.parse(rawBody);
+        } catch {
+          return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+        }
 
         // Simplification: In real world, each provider has different payload structure
         // We assume the provider sends transactionId map-able data
@@ -99,7 +104,8 @@ export async function POST(req: NextRequest) {
 
         if (status === 'successful') {
             // ANTI FRAUD CHECK: Verify amount matches the DB record
-            const amountPaid = body.amount || body.data?.amount;
+            const data = body.data as { amount?: number | string } | undefined;
+            const amountPaid = body.amount || data?.amount;
             if (amountPaid !== undefined && Number(amountPaid) < Number(payment.amount)) {
                 logger.error("Fraud attempt: Webhook amount paid is less than DB amount", {
                     module: "api/payments/webhook",

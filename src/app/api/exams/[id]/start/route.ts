@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
@@ -83,7 +84,10 @@ export async function POST(
 
       return NextResponse.json(session_exam, { status: 201 });
     } catch (error) {
-      if ((error as any).code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
         return NextResponse.json({ error: "Examen déjà commencé" }, { status: 400 });
       }
       throw error;

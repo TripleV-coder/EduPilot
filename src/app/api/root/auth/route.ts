@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual, createHash } from "node:crypto";
 import { auth } from "@/lib/auth";
 import { isRootUserEmail } from "@/lib/security/root-access";
+
+function safeCompare(a: string, b: string): boolean {
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ROOT_SECRET non configuré" }, { status: 500 });
   }
 
-  if (!secret || secret !== rootSecret) {
+  if (!secret || !safeCompare(secret, rootSecret)) {
     return NextResponse.json({ error: "Secret root invalide" }, { status: 403 });
   }
 

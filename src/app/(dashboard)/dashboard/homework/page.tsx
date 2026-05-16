@@ -2,318 +2,493 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Permission } from "@/lib/rbac/permissions";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import useSWR, { useSWRConfig } from "swr";
+
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
-import {
-  FileText, Plus, AlertCircle, Clock, ArrowUpDown, Eye, Trash2,
-  Search, Filter, UploadCloud, Pencil
-} from "lucide-react";
-import { PageCallout } from "@/components/layout/page-callout";
+import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
+import { formatDateShort } from "@/lib/utils/formatters";
+
+import { Avatar, Badge, Button, Card, Icon } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 type HomeworkItem = {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  maxGrade?: number;
-  coefficient?: number;
-  isPublished: boolean;
-  classSubject?: {
-    subject?: { name: string };
-    class?: { name: string };
-  };
-  _count?: { submissions: number };
-  createdBy?: { firstName: string; lastName: string };
+    id: string;
+    title: string;
+    description: string;
+    dueDate: string;
+    maxGrade?: number;
+    coefficient?: number;
+    isPublished: boolean;
+    classSubject?: {
+        subject?: { name: string };
+        class?: { name: string };
+    };
+    _count?: { submissions: number };
+    createdBy?: { firstName: string; lastName: string };
 };
 
+type HomeworkResponse = { homeworks?: HomeworkItem[] };
+
 export default function HomeworkPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
-  const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearch = useDebounce(searchTerm, 500);
+    const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(
+        null
+    );
+    const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
-  const { data: response, error, isLoading: loading } = useSWR<any>(
-    "/api/homework?limit=100",
-    fetcher
-  );
-  const { data: classesData } = useSWR<any>("/api/classes", fetcher);
-  const { mutate } = useSWRConfig();
-  const { toast } = useToast();
+    const { data: response, error } = useSWR<HomeworkResponse | HomeworkItem[]>(
+        "/api/homework?limit=100",
+        fetcher
+    );
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
 
-  const allHomeworks: HomeworkItem[] = response?.homeworks || (Array.isArray(response) ? response : []);
-  const classes = classesData?.data || classesData?.classes || (Array.isArray(classesData) ? classesData : []);
+    const allHomeworks: HomeworkItem[] = Array.isArray(response)
+        ? response
+        : response?.homeworks ?? [];
 
-  // Client-side filtering
-  const homeworks = allHomeworks.filter((hw) => {
-    if (selectedStatus !== "ALL") {
-      if (selectedStatus === "PUBLISHED" && !hw.isPublished) return false;
-      if (selectedStatus === "DRAFT" && hw.isPublished) return false;
-    }
-    if (debouncedSearch) {
-      const s = debouncedSearch.toLowerCase();
-      if (
-        !hw.title.toLowerCase().includes(s) &&
-        !(hw.classSubject?.subject?.name || "").toLowerCase().includes(s) &&
-        !(hw.classSubject?.class?.name || "").toLowerCase().includes(s)
-      ) return false;
-    }
-    return true;
-  });
+    const homeworks = allHomeworks.filter((hw) => {
+        if (selectedStatus === "PUBLISHED" && !hw.isPublished) return false;
+        if (selectedStatus === "DRAFT" && hw.isPublished) return false;
+        if (debouncedSearch) {
+            const s = debouncedSearch.toLowerCase();
+            if (
+                !hw.title.toLowerCase().includes(s) &&
+                !(hw.classSubject?.subject?.name || "").toLowerCase().includes(s) &&
+                !(hw.classSubject?.class?.name || "").toLowerCase().includes(s)
+            )
+                return false;
+        }
+        return true;
+    });
 
-  const handleDelete = (id: string, title: string) => {
-    setDeleteTarget({ id, title });
-    setDeleteDialogOpen(true);
-  };
+    const now = Date.now();
+    const overdue = homeworks.filter(
+        (h) => h.isPublished && new Date(h.dueDate).getTime() < now
+    ).length;
+    const upcoming = homeworks.filter(
+        (h) =>
+            h.isPublished &&
+            new Date(h.dueDate).getTime() >= now &&
+            new Date(h.dueDate).getTime() - now < 7 * 24 * 60 * 60 * 1000
+    ).length;
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleteConfirmLoading(true);
-    try {
-      const res = await fetch(`/api/homework/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur lors de la suppression");
-      toast({ title: "Succès", description: "Le devoir a été supprimé." });
-      mutate("/api/homework?limit=100");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    } finally {
-      setIsDeleteConfirmLoading(false);
-      setDeleteDialogOpen(false);
-      setDeleteTarget(null);
-    }
-  };
+    const handleDelete = (id: string, title: string) => {
+        setDeleteTarget({ id, title });
+        setDeleteDialogOpen(true);
+    };
 
-  const handleExportCSV = () => {
-    if (!homeworks.length) {
-      toast({ title: "Export impossible", description: "Aucune donnée à exporter.", variant: "destructive" });
-      return;
-    }
-    const headers = ["Titre", "Matière", "Classe", "Date limite", "Note max", "Statut", "Soumissions"];
-    const rows = homeworks.map((hw) => [
-      hw.title,
-      hw.classSubject?.subject?.name || "",
-      hw.classSubject?.class?.name || "",
-      new Date(hw.dueDate).toLocaleDateString("fr-FR"),
-      hw.maxGrade?.toString() || "20",
-      hw.isPublished ? "Publié" : "Brouillon",
-      (hw._count?.submissions ?? 0).toString(),
-    ]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `devoirs_export_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setIsDeleteConfirmLoading(true);
+        try {
+            const res = await fetch(`/api/homework/${deleteTarget.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Erreur lors de la suppression");
+            toast({ title: "Succès", description: "Le devoir a été supprimé." });
+            mutate("/api/homework?limit=100");
+            setDeleteDialogOpen(false);
+            setDeleteTarget(null);
+        } catch (err) {
+            toast({
+                title: "Erreur",
+                description: err instanceof Error ? err.message : "Erreur inconnue",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDeleteConfirmLoading(false);
+        }
+    };
 
-  const formatDate = (d: string) =>
-    new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(d));
+    return (
+        <PageGuard
+            permission={Permission.EVALUATION_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Devoirs"
+                        sub={`${homeworks.length} devoirs · ${upcoming} cette semaine · ${overdue} en retard`}
+                        breadcrumb={["Tableau de bord", "Devoirs"]}
+                        actions={
+                            <>
+                                <Button variant="ghost" icon="download">
+                                    {t("common.export")}
+                                </Button>
+                                <Link href="/dashboard/homework/new">
+                                    <Button icon="plus">Nouveau devoir</Button>
+                                </Link>
+                            </>
+                        }
+                    />
+                </div>
 
-  const isDueSoon = (d: string) => {
-    const diff = new Date(d).getTime() - Date.now();
-    return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000;
-  };
+                <Card padding={14}>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <label
+                            className="flex h-[38px] flex-1 items-center gap-2 px-3"
+                            style={{
+                                minWidth: 220,
+                                maxWidth: 320,
+                                borderRadius: "var(--eduflow-radius-input)",
+                                border: "1px solid var(--eduflow-border-default)",
+                                background: "var(--eduflow-surface-card)",
+                            }}
+                        >
+                            <Icon name="search" size={14} color="var(--eduflow-text-tertiary)" />
+                            <input
+                                type="search"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Titre, matière, classe…"
+                                className="flex-1 bg-transparent outline-none"
+                                style={{
+                                    border: 0,
+                                    fontFamily: "inherit",
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-primary)",
+                                }}
+                            />
+                        </label>
+                        <SegmentedToggle
+                            value={selectedStatus}
+                            onChange={setSelectedStatus}
+                            options={[
+                                { value: "ALL", label: "Tous" },
+                                { value: "PUBLISHED", label: "Publiés" },
+                                { value: "DRAFT", label: "Brouillons" },
+                            ]}
+                        />
+                    </div>
+                </Card>
 
-  const columns: ColumnDef<HomeworkItem>[] = [
-    {
-      accessorKey: "title",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Titre <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="font-medium">{row.original.title}</div>
-      ),
-    },
-    {
-      id: "subject",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Matière <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row.classSubject?.subject?.name || "—",
-    },
-    {
-      id: "class",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Classe <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row.classSubject?.class?.name || "—",
-    },
-    {
-      id: "dueDate",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Date limite <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => new Date(row.dueDate).getTime(),
-      cell: ({ row }) => (
-        <span className={`flex items-center gap-1 text-sm ${isDueSoon(row.original.dueDate) ? "text-warning font-medium" : ""}`}>
-          <Clock className="h-3 w-3" /> {formatDate(row.original.dueDate)}
-        </span>
-      ),
-    },
-    {
-      id: "status",
-      header: "Statut",
-      accessorFn: (row) => row.isPublished ? "Publié" : "Brouillon",
-      cell: ({ row }) => (
-        <Badge variant={row.original.isPublished ? "default" : "secondary"}>
-          {row.original.isPublished ? "Publié" : "Brouillon"}
-        </Badge>
-      ),
-    },
-    {
-      id: "submissions",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Soumissions <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row._count?.submissions ?? 0,
-      cell: ({ row }) => (
-        <span className="text-sm">{row.original._count?.submissions ?? 0}</span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Link href={`/dashboard/homework/${row.original.id}`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Eye className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => handleDelete(row.original.id, row.original.title)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+                {error ? <ErrorCard /> : null}
+
+                {homeworks.length === 0 ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="book" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucun devoir trouvé
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    maxWidth: 480,
+                                    lineHeight: 1.55,
+                                    margin: 0,
+                                }}
+                            >
+                                Crée le premier devoir pour démarrer le suivi des soumissions.
+                            </p>
+                        </div>
+                    </Card>
+                ) : (
+                    <Card padding={0}>
+                        <div className="overflow-x-auto">
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr
+                                        style={{
+                                            background: "var(--eduflow-surface-sunken)",
+                                            textAlign: "left",
+                                        }}
+                                    >
+                                        <Th>Devoir</Th>
+                                        <Th>Classe & matière</Th>
+                                        <Th width={140}>Échéance</Th>
+                                        <Th width={120} center>
+                                            Soumissions
+                                        </Th>
+                                        <Th width={120}>Statut</Th>
+                                        <Th width={100} center>
+                                            Actions
+                                        </Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {homeworks.map((hw) => {
+                                        const dueDate = new Date(hw.dueDate);
+                                        const isOverdue =
+                                            hw.isPublished && dueDate.getTime() < now;
+                                        const daysUntil = Math.round(
+                                            (dueDate.getTime() - now) / (1000 * 60 * 60 * 24)
+                                        );
+                                        const dueVariant: "danger" | "warning" | "success" | "neutral" =
+                                            isOverdue
+                                                ? "danger"
+                                                : daysUntil <= 2
+                                                ? "warning"
+                                                : daysUntil <= 7
+                                                ? "success"
+                                                : "neutral";
+                                        return (
+                                            <tr
+                                                key={hw.id}
+                                                style={{
+                                                    borderTop: "1px solid var(--eduflow-border-subtle)",
+                                                }}
+                                            >
+                                                <Td>
+                                                    <div
+                                                        style={{
+                                                            fontSize: 13,
+                                                            fontWeight: 600,
+                                                            color: "var(--eduflow-text-primary)",
+                                                        }}
+                                                    >
+                                                        {hw.title}
+                                                    </div>
+                                                    {hw.createdBy ? (
+                                                        <div
+                                                            style={{
+                                                                fontSize: 11,
+                                                                color:
+                                                                    "var(--eduflow-text-tertiary)",
+                                                                marginTop: 2,
+                                                            }}
+                                                        >
+                                                            Par {hw.createdBy.firstName} {hw.createdBy.lastName}
+                                                        </div>
+                                                    ) : null}
+                                                </Td>
+                                                <Td>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span style={{ fontSize: 13, fontWeight: 500 }}>
+                                                            {hw.classSubject?.subject?.name || "—"}
+                                                        </span>
+                                                        <span
+                                                            style={{
+                                                                fontSize: 11,
+                                                                color: "var(--eduflow-text-tertiary)",
+                                                            }}
+                                                        >
+                                                            {hw.classSubject?.class?.name || "—"}
+                                                        </span>
+                                                    </div>
+                                                </Td>
+                                                <Td>
+                                                    <Badge variant={dueVariant} size="sm" icon="calendar">
+                                                        {formatDateShort(hw.dueDate)}
+                                                    </Badge>
+                                                </Td>
+                                                <Td center>
+                                                    <span
+                                                        className="eduflow-tabular"
+                                                        style={{
+                                                            fontSize: 13,
+                                                            fontWeight: 600,
+                                                            color: "var(--eduflow-text-primary)",
+                                                        }}
+                                                    >
+                                                        {hw._count?.submissions ?? 0}
+                                                    </span>
+                                                </Td>
+                                                <Td>
+                                                    {hw.isPublished ? (
+                                                        <Badge variant="success" size="sm" dot>
+                                                            Publié
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="neutral" size="sm">
+                                                            Brouillon
+                                                        </Badge>
+                                                    )}
+                                                </Td>
+                                                <Td center>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Link
+                                                            href={`/dashboard/homework/${hw.id}`}
+                                                            aria-label="Voir le devoir"
+                                                        >
+                                                            <Button variant="ghost" size="sm" icon="search">
+                                                                {""}
+                                                            </Button>
+                                                        </Link>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            icon="x"
+                                                            onClick={() => handleDelete(hw.id, hw.title)}
+                                                        >
+                                                            {""}
+                                                        </Button>
+                                                    </div>
+                                                </Td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                )}
+            </div>
+
+            <ConfirmActionDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    setDeleteDialogOpen(open);
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={
+                    deleteTarget
+                        ? `Supprimer "${deleteTarget.title}" ?`
+                        : "Supprimer ce devoir ?"
+                }
+                description="Cette action est définitive. Les soumissions liées peuvent être affectées."
+                confirmLabel={t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                isConfirmLoading={isDeleteConfirmLoading}
+                onConfirm={confirmDelete}
+            />
+        </PageGuard>
+    );
+}
+
+function SegmentedToggle({
+    value,
+    onChange,
+    options,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <div
+            className="flex gap-1 rounded-md p-1"
+            style={{
+                background: "var(--eduflow-surface-sunken)",
+                border: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
+            {options.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChange(opt.value)}
+                        className="px-3 py-1.5"
+                        style={{
+                            background: active ? "var(--eduflow-surface-card)" : "transparent",
+                            border: 0,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: active ? 700 : 500,
+                            color: active
+                                ? "var(--brand-700)"
+                                : "var(--eduflow-text-secondary)",
+                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
+                            transition:
+                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                        }}
+                    >
+                        {opt.label}
+                    </button>
+                );
+            })}
         </div>
-      ),
-    },
-  ];
+    );
+}
 
-  return (
-    <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6">
-        <PageHeader
-          title="Devoirs"
-          description="Gestion et suivi des devoirs par classe"
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Devoirs" },
-          ]}
-          actions={
+function ErrorCard() {
+    return (
+        <Card
+            padding={14}
+            style={{
+                borderLeft: "3px solid var(--eduflow-danger-500)",
+                background: "var(--eduflow-danger-50)",
+            }}
+        >
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="gap-2 shadow-sm" onClick={handleExportCSV}>
-                <UploadCloud className="h-4 w-4" />
-                {t("common.exportCsv")}
-              </Button>
-              <Link href="/dashboard/homework/new">
-                <Button className="gap-2 shadow-sm">
-                  <Plus className="h-4 w-4" />
-                  {t("appActions.createHomework")}
-                </Button>
-              </Link>
+                <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                <p
+                    style={{
+                        margin: 0,
+                        fontSize: 13,
+                        color: "var(--eduflow-danger-800)",
+                        fontWeight: 500,
+                    }}
+                >
+                    Impossible de charger les devoirs.
+                </p>
             </div>
-          }
-        />
-
-        <ConfirmActionDialog
-          open={deleteDialogOpen}
-          onOpenChange={(open) => {
-            setDeleteDialogOpen(open);
-            if (!open) setDeleteTarget(null);
-          }}
-          title="Supprimer le devoir"
-          description={deleteTarget ? `Cette action supprimera "${deleteTarget.title}".` : undefined}
-          confirmLabel={t("common.delete")}
-          cancelLabel={t("common.cancel")}
-          variant="destructive"
-          isConfirmLoading={isDeleteConfirmLoading}
-          onConfirm={confirmDelete}
-        />
-
-        {/* Filters */}
-        <Card className="border-border shadow-sm">
-          <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-muted/20">
-            <div className="relative flex-1 w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                
-                className="pl-9 bg-background"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-[150px] bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tous</SelectItem>
-                  <SelectItem value="PUBLISHED">Publiés</SelectItem>
-                  <SelectItem value="DRAFT">Brouillons</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </Card>
+    );
+}
 
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        )}
+function Th({
+    children,
+    width,
+    center,
+}: {
+    children: React.ReactNode;
+    width?: number;
+    center?: boolean;
+}) {
+    return (
+        <th
+            style={{
+                padding: "10px 16px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                textAlign: center ? "center" : "left",
+                width,
+            }}
+        >
+            {children}
+        </th>
+    );
+}
 
-        {error && (
-          <div role="alert" className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>{error.message || "Erreur de chargement"}</p>
-          </div>
-        )}
-
-        {!loading && !error && homeworks.length === 0 && (
-          <PageCallout
-            icon={FileText}
-            title="Aucun devoir"
-            description="Créez un devoir pour une classe et suivez ensuite les soumissions. Vous pouvez aussi exporter la liste au format CSV."
-            actions={[{ label: t("appActions.createHomework"), href: "/dashboard/homework/new" }]}
-          />
-        )}
-
-        {!loading && !error && homeworks.length > 0 && (
-          <DataTable columns={columns} data={homeworks} searchKey="title" searchPlaceholder="Filtrer par titre..." />
-        )}
-      </div>
-    </PageGuard>
-  );
+function Td({
+    children,
+    style,
+    center,
+}: {
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+    center?: boolean;
+}) {
+    return (
+        <td
+            style={{
+                padding: "12px 16px",
+                fontSize: 13,
+                textAlign: center ? "center" : "left",
+                ...style,
+            }}
+        >
+            {children}
+        </td>
+    );
 }

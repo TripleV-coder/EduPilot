@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { roundTo } from "@/lib/analytics/helpers";
 import {
   buildPaymentDateWhere,
@@ -8,8 +7,9 @@ import {
   isUnpaidInstallment,
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { logger } from "@/lib/utils/logger";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 
 /**
  * API Endpoint for Finance Dashboard data
@@ -22,21 +22,14 @@ function isWithinRange(date: Date, range?: FinanceDateRange | null): boolean {
   return true;
 }
 
-export async function GET(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
+export const GET = createApiHandler(
+  async (request, { session }) => {
     const { searchParams } = new URL(request.url);
     const querySchoolId = searchParams.get("schoolId");
     const academicYearId = searchParams.get("academicYearId");
     const periodId = searchParams.get("periodId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, querySchoolId);
-    if (schoolAccess) return schoolAccess;
+    
     const activeSchoolId = getActiveSchoolId(session);
-
     const schoolId = querySchoolId || activeSchoolId;
 
     if (!schoolId) {
@@ -63,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     // Build base where clause
-    const paymentWhere: Record<string, unknown> = {
+    const paymentWhere: any = {
       fee: feeScope,
     };
     Object.assign(paymentWhere, buildPaymentDateWhere(periodRange));
@@ -92,12 +85,19 @@ export async function GET(request: Request) {
         _sum: { amount: true },
       }),
 
-      // Recent payments
+      // Recent payments (optimized select)
       prisma.payment.findMany({
         where: paymentWhere,
-        include: {
+        select: {
+          id: true,
+          amount: true,
+          paidAt: true,
+          createdAt: true,
+          status: true,
+          method: true,
           student: {
-            include: {
+            select: {
+              id: true,
               user: { select: { firstName: true, lastName: true } },
             },
           },
@@ -107,14 +107,20 @@ export async function GET(request: Request) {
         take: 10,
       }),
 
+      // Payment plans (optimized select to reduce memory footprint)
       prisma.paymentPlan.findMany({
         where: {
           fee: feeScope,
           status: { not: "CANCELLED" },
         },
-        include: {
+        select: {
+          id: true,
+          studentId: true,
+          totalAmount: true,
+          paidAmount: true,
+          status: true,
           student: {
-            include: {
+            select: {
               user: { select: { firstName: true, lastName: true } },
             },
           },
@@ -125,7 +131,7 @@ export async function GET(request: Request) {
         },
       }),
 
-      // Payments trend for the last 30 days
+      // Payments trend (only select essential fields)
       prisma.payment.findMany({
         where: {
           fee: feeScope,
@@ -254,11 +260,9 @@ export async function GET(request: Request) {
       overdueStudents: overdueStudentsWithBalance,
       paymentsTrend: paymentsTrendArray,
     });
-  } catch (error) {
-    logger.error("Finance dashboard error:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération du dashboard financier" },
-      { status: 500 }
-    );
+  },
+  {
+    allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],
+    requiredPermissions: [Permission.FINANCE_READ],
   }
-}
+);

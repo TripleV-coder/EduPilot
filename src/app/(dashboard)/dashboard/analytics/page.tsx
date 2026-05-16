@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { t } from "@/lib/i18n";
 import { useSchool } from "@/components/providers/school-provider";
 
 import { AnalyticsProvider, useAnalytics, StudentSegment } from "@/components/analytics/AnalyticsContext";
@@ -34,16 +32,20 @@ import { FinanceAnalyticsTab } from "@/components/analytics/FinanceAnalyticsTab"
 import { AcademicPerformancesTab } from "@/components/analytics/AcademicPerformancesTab";
 import { AnalyticsComparisonsTab } from "@/components/analytics/AnalyticsComparisonsTab";
 import { AnalyticsReportsTab } from "@/components/analytics/AnalyticsReportsTab";
+import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 
 function AnalyticsContent() {
-    const { data: session } = useSession();
+    const { schoolId: activeSchoolId } = useSchool();
     const { 
         academicYearId, periodId, levelIds, classIds, subjectIds, studentSegment 
     } = useAnalytics();
     
     const [isSyncing, setIsSyncing] = useState(false);
 
-    const { data: classesData } = useSWR("/api/classes?limit=100", fetcher);
+    const classesEndpoint = activeSchoolId
+        ? `/api/classes?limit=100&schoolId=${encodeURIComponent(activeSchoolId)}`
+        : "/api/classes?limit=100";
+    const { data: classesData } = useSWR(classesEndpoint, fetcher);
     const classes = classesData?.data ?? classesData ?? [];
 
     const { data: academicYears } = useSWR("/api/academic-years", fetcher);
@@ -60,8 +62,9 @@ function AnalyticsContent() {
         if (classIds.length > 0) params.set("classes", classIds.join(","));
         if (subjectIds.length > 0) params.set("subjects", subjectIds.join(","));
         if (studentSegment !== StudentSegment.ALL) params.set("segment", studentSegment);
+        if (activeSchoolId) params.set("schoolId", activeSchoolId);
         return params.toString();
-    }, [academicYearId, periodId, levelIds, classIds, subjectIds, studentSegment]);
+    }, [academicYearId, periodId, levelIds, classIds, subjectIds, studentSegment, activeSchoolId]);
 
     const handleGlobalSync = async () => {
         setIsSyncing(true);
@@ -93,7 +96,40 @@ function AnalyticsContent() {
 
     const { 
         data: financeStats 
-    } = useSWR(session?.user?.schoolId ? `/api/finance/stats?schoolId=${session.user.schoolId}&period=academic` : null, fetcher);
+    } = useSWR(activeSchoolId ? `/api/finance/stats?schoolId=${encodeURIComponent(activeSchoolId)}&period=academic` : null, fetcher);
+
+    const attendanceRate = useMemo(() => {
+        const stats = overview?.attendanceDistribution;
+        if (!stats) return null;
+        const total = Number(stats.present || 0) + Number(stats.absent || 0) + Number(stats.late || 0) + Number(stats.excused || 0);
+        if (total <= 0) return null;
+        return ((Number(stats.present || 0) + Number(stats.late || 0) + Number(stats.excused || 0)) / total) * 100;
+    }, [overview]);
+
+    const absenteeismPatterns = useMemo(() => {
+        const stats = overview?.attendanceDistribution;
+        if (!stats) {
+            return {
+                excellent: 0,
+                veryGood: 0,
+                good: 0,
+                average: 0,
+                insufficient: 0,
+                weak: 0,
+            };
+        }
+        // Map attendance buckets onto the chart's expected performance keys
+        // so we keep the visual distribution (présents → vert, retards → moyen,
+        // excusés → faible, absents → rouge).
+        return {
+            excellent: Number(stats.present || 0),
+            veryGood: 0,
+            good: Number(stats.late || 0),
+            average: Number(stats.excused || 0),
+            insufficient: Number(stats.absent || 0),
+            weak: 0,
+        };
+    }, [overview]);
 
     return (
         <PageGuard permission={[ Permission.ANALYTICS_VIEW ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
@@ -145,21 +181,30 @@ function AnalyticsContent() {
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6">
+                        {overviewError && (
+                            <Card className="border-destructive/30 bg-destructive/5">
+                                <CardContent className="py-4 text-sm text-destructive">
+                                    Impossible de charger les indicateurs analytiques pour le contexte sélectionné.
+                                </CardContent>
+                            </Card>
+                        )}
+                        {overview?.overview ? (
+                        <>
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                             {[
-                                { label: "Moyenne Générale", value: `${overview?.overview?.averageGrade || "0.00"}/20`, color: "text-primary" },
-                                { label: "Taux de présence", value: `${overview?.overview?.attendanceRate || 0}%`, color: "text-emerald-600" },
-                                { label: "Taux de réussite", value: `${overview?.overview?.successRate || 0}%`, color: "text-blue-600" },
-                                { label: "Élèves à risque", value: overview?.overview?.atRiskCount || 0, color: "text-orange-500" },
-                                { label: "Recouvrement", value: `${overview?.overview?.collectionRate || 0}%`, color: "text-purple-600" },
-                                { label: "Engagement LMS", value: `${overview?.overview?.lmsEngagement || 0}%`, color: "text-amber-600" },
+                                { label: "Moyenne Générale", value: overview ? `${overview?.overview?.averageGrade || "0.00"}/20` : "—", color: "text-primary" },
+                                { label: "Taux de présence", value: attendanceRate != null ? `${attendanceRate.toFixed(1)}%` : "N/D", color: "text-success" },
+                                { label: "Taux de réussite", value: overview ? `${(100 - Number(overview?.overview?.failureRate || 0)).toFixed(1)}%` : "—", color: "text-primary" },
+                                { label: "Élèves à risque", value: overview ? (overview?.overview?.atRiskCount || 0) : "—", color: "text-warning" },
+                                { label: "Recouvrement", value: financeStats ? `${Number(financeStats?.collectionRate || 0).toFixed(1)}%` : "N/D", color: "text-primary" },
+                                { label: "Engagement LMS", value: "N/D", color: "text-warning" },
                             ].map((kpi, i) => (
                                 <Card key={i} className="dashboard-block kpi-card border-border bg-card">
                                     <CardHeader className="pb-2">
                                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{kpi.label}</div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className={cn("text-3xl metric-serif", kpi.color)}>{kpi.value}</div>
+                                        <div className={cn("text-3xl metric-serif", kpi.color, overviewLoading && "opacity-60")}>{kpi.value}</div>
                                     </CardContent>
                                 </Card>
                             ))}
@@ -198,6 +243,19 @@ function AnalyticsContent() {
                                 <TrendLineChart data={overview?.temporalTrend || []} />
                             </CardContent>
                         </Card>
+                        </>
+                        ) : (
+                            !overviewLoading && !overviewError ? (
+                                <AnalyticsEmptyState
+                                    title="Aucune donnée analytique exploitable"
+                                    description="Lancez une synchronisation, vérifiez vos filtres puis revenez sur cette vue pour visualiser les indicateurs."
+                                    primaryLabel="Synchroniser maintenant"
+                                    primaryHref="/dashboard/analytics"
+                                    secondaryLabel="Configurer l'année"
+                                    secondaryHref="/dashboard/settings/academic"
+                                />
+                            ) : null
+                        )}
                     </TabsContent>
 
                     <TabsContent value="performances" className="space-y-6">
@@ -208,7 +266,7 @@ function AnalyticsContent() {
                         <Card className="dashboard-block border-border bg-card">
                             <CardHeader><CardTitle className="text-sm font-medium">Calendrier thermique de présence annuel</CardTitle></CardHeader>
                             <CardContent>
-                                <AttendanceHeatmap data={{}} />
+                                <AttendanceHeatmap data={overview?.attendanceCalendar || {}} />
                             </CardContent>
                         </Card>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -218,7 +276,7 @@ function AnalyticsContent() {
                             </Card>
                             <Card className="dashboard-block border-border bg-card">
                                 <CardHeader><CardTitle className="text-sm font-medium">Patterns d&apos;absentéisme</CardTitle></CardHeader>
-                                <CardContent><PerformanceBarChart data={overview?.absenteeismPatterns || []} /></CardContent>
+                                <CardContent><PerformanceBarChart data={absenteeismPatterns} /></CardContent>
                             </Card>
                         </div>
                     </TabsContent>

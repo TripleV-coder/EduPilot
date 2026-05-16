@@ -14,6 +14,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { formatDateShort } from "@/lib/utils/formatters";
 
 type Period = {
     id: string;
@@ -172,9 +173,6 @@ export default function AcademicPeriodsPage() {
         }
     };
 
-    const formatDate = (d: string) =>
-        new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(d));
-
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <div className="space-y-6 max-w-4xl mx-auto">
@@ -311,7 +309,7 @@ export default function AcademicPeriodsPage() {
                                                 </span>
                                             </div>
                                             <p className="text-sm text-foreground mb-4">
-                                                Du <strong>{formatDate(period.startDate)}</strong> au <strong>{formatDate(period.endDate)}</strong>
+                                                Du <strong>{formatDateShort(period.startDate)}</strong> au <strong>{formatDateShort(period.endDate)}</strong>
                                             </p>
                                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                                 <span className="flex items-center gap-1">

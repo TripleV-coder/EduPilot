@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Link2, AlertCircle, Search, CheckCircle2, Loader2 } from "lucide-react";
+import { Link2, AlertCircle, Search, Loader2, FilterX, Wallet, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,16 +20,31 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
+import { SectionToolbar } from "@/components/ui/section-toolbar";
+import { MetricCardPro } from "@/components/ui/metric-card-pro";
+import { EmptyStateAction } from "@/components/ui/empty-state";
 
 export default function FinanceReconciliationPage() {
     const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
     const { data: paymentsData, isLoading } = useSWR(
         "/api/finance/payments?status=PENDING&limit=50",
         fetcher
     );
 
     const pendingPayments = paymentsData?.payments ?? paymentsData?.data ?? [];
+    const filteredPayments = useMemo(() => {
+        if (!search.trim()) return pendingPayments;
+        const q = search.toLowerCase();
+        return pendingPayments.filter((payment: any) =>
+            String(payment.label ?? payment.description ?? "").toLowerCase().includes(q) ||
+            String(payment.reference ?? "").toLowerCase().includes(q) ||
+            String(payment.amount ?? "").toLowerCase().includes(q)
+        );
+    }, [pendingPayments, search]);
     const pendingCount = pendingPayments.length;
+    const pendingTotalAmount = pendingPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
 
     const handleReconcile = async (paymentId: string) => {
         setReconcilingId(paymentId);
@@ -44,8 +59,9 @@ export default function FinanceReconciliationPage() {
                 throw new Error(d.error || "Erreur de réconciliation");
             }
             await mutate("/api/finance/payments?status=PENDING&limit=50");
+            toast.success("Paiement réconcilié avec succès.");
         } catch (err) {
-            console.error(err);
+            toast.error(err instanceof Error ? err.message : "Erreur de réconciliation");
         } finally {
             setReconcilingId(null);
         }
@@ -64,6 +80,12 @@ export default function FinanceReconciliationPage() {
                     ]}
                 />
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <MetricCardPro label="Paiements en attente" value={pendingCount} hint="Entrées à valider manuellement" icon={Clock3} tone="warning" />
+                    <MetricCardPro label="Montant à traiter" value={`${pendingTotalAmount.toLocaleString("fr-FR")} FCFA`} hint="Somme totale non réconciliée" icon={Wallet} tone="primary" />
+                    <MetricCardPro label="Résultats filtrés" value={filteredPayments.length} hint="Selon la recherche courante" icon={Search} tone="success" />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="md:col-span-1 space-y-4">
                         <Card className="border-border shadow-sm">
@@ -72,7 +94,7 @@ export default function FinanceReconciliationPage() {
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Importez votre relevé bancaire (CSV) pour faire correspondre automatiquement les paiements.
                                 </p>
-                                <Button variant="outline" className="w-full">
+                                <Button type="button" variant="outline" className="w-full">
                                     {t("common.import")} CSV
                                 </Button>
                             </CardContent>
@@ -92,16 +114,44 @@ export default function FinanceReconciliationPage() {
 
                     <div className="md:col-span-3">
                         <Card className="p-4 rounded-xl shadow-sm border border-border">
-                            <div className="flex gap-4 mb-6">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        
-                                        className="pl-9 bg-muted/50 border-border"
-                                    />
-                                </div>
-                            </div>
+                            <SectionToolbar
+                                className="mb-4 p-3 sm:p-4"
+                                title="Filtrage rapide"
+                                description="Recherchez par libellé, référence ou montant pour réconcilier plus vite."
+                                leading={
+                                    <div className="relative flex-1 min-w-[280px]">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            placeholder="Rechercher un libellé, une référence ou un montant..."
+                                            aria-label="Rechercher un paiement en attente"
+                                            className="pl-9 bg-muted/50 border-border"
+                                        />
+                                    </div>
+                                }
+                                actions={
+                                    <Button type="button" variant="outline" onClick={() => setSearch("")} disabled={!search} className="gap-2">
+                                        <FilterX className="w-4 h-4" />
+                                        Réinitialiser
+                                    </Button>
+                                }
+                            />
 
+                            {isLoading ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                                    Chargement des paiements...
+                                </div>
+                            ) : filteredPayments.length === 0 ? (
+                                <EmptyStateAction
+                                    icon={AlertCircle}
+                                    title="Aucun paiement à afficher"
+                                    description={search ? "Aucun paiement ne correspond à votre filtre actuel." : "Il n'y a pas de paiement en attente pour le moment."}
+                                    actionLabel={search ? "Effacer le filtre" : undefined}
+                                    onAction={search ? () => setSearch("") : undefined}
+                                />
+                            ) : (
                             <div className="border border-border rounded-lg overflow-hidden bg-background">
                                 <Table>
                                     <TableHeader className="bg-muted/50">
@@ -114,21 +164,8 @@ export default function FinanceReconciliationPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {isLoading ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-                                                    Chargement des paiements...
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : pendingPayments.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                    Aucun paiement en attente de réconciliation.
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            pendingPayments.map((payment: any) => (
+                                        {(
+                                            filteredPayments.map((payment: any) => (
                                                 <TableRow key={payment.id} className={payment.status === "RECONCILED" ? "bg-muted/10" : "hover:bg-muted/30 transition-colors"}>
                                                     <TableCell className="text-sm text-foreground">
                                                         {new Date(payment.date ?? payment.createdAt).toLocaleDateString("fr-FR")}
@@ -145,7 +182,7 @@ export default function FinanceReconciliationPage() {
                                                         {Number(payment.amount).toLocaleString("fr-FR")} FCFA
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 font-normal">
+                                                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 font-normal">
                                                             Attente Match
                                                         </Badge>
                                                     </TableCell>
@@ -171,6 +208,7 @@ export default function FinanceReconciliationPage() {
                                     </TableBody>
                                 </Table>
                             </div>
+                            )}
                         </Card>
                     </div>
                 </div>

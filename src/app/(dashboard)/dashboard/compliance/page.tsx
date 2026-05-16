@@ -9,8 +9,10 @@ import { ShieldCheck, FileText, Download, Users, AlertTriangle, Loader2, AlertCi
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { formatDateShort } from "@/lib/utils/formatters";
+import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
 
- 
+
 
 type ComplianceDashboard = {
     overallScore: number;
@@ -80,17 +82,8 @@ export default function ComplianceDashboardPage() {
         }
     }, []);
 
-    const formatDate = (d: string) =>
-        new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(d));
-
     const statusBadge = (status: string) => {
-        const map: Record<string, string> = {
-            PENDING: "bg-orange-500/10 text-orange-600",
-            IN_PROGRESS: "bg-blue-500/10 text-blue-600",
-            COMPLETED: "bg-emerald-500/10 text-emerald-600",
-            REJECTED: "bg-destructive/10 text-destructive",
-        };
-        return map[status] || "bg-muted text-muted-foreground";
+        return getComplianceRequestStatusClass(status);
     };
 
     if (loading) {
@@ -123,25 +116,25 @@ export default function ComplianceDashboardPage() {
                 {dashboard && (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Card className="border-border shadow-sm border-t-4 border-t-emerald-500">
+                            <Card className="border-border shadow-sm border-t-4 border-t-success">
                                 <CardContent className="pt-6 text-center">
-                                    <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold text-emerald-600">{dashboard.overallScore ?? 85}%</h3>
-                                    <p className="text-sm font-medium mt-1 text-emerald-600">Score de Conformité</p>
+                                    <ShieldCheck className="w-8 h-8 text-success mx-auto mb-2" />
+                                    <h3 className="text-3xl font-bold text-success">{dashboard.overallScore ?? 85}%</h3>
+                                    <p className="text-sm font-medium mt-1 text-success">Score de Conformité</p>
                                 </CardContent>
                             </Card>
 
                             <Card className="border-border shadow-sm">
                                 <CardContent className="pt-6 text-center">
-                                    <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                                    <Users className="w-8 h-8 text-primary mx-auto mb-2" />
                                     <h3 className="text-3xl font-bold">{dashboard.consentRate ?? 100}%</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Consentements Parents</p>
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-border shadow-sm border-t-4 border-t-orange-500">
+                            <Card className="border-border shadow-sm border-t-4 border-t-warning">
                                 <CardContent className="pt-6 text-center">
-                                    <AlertTriangle className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                                    <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-2" />
                                     <h3 className="text-3xl font-bold">{dashboard.pendingPolicies ?? 0}</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Politiques à revoir</p>
                                 </CardContent>
@@ -175,7 +168,7 @@ export default function ComplianceDashboardPage() {
                                                             {req.user ? `${req.user.firstName} ${req.user.lastName}` : req.id}
                                                         </h4>
                                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                                            {req.type === "ACCESS" ? "Droit d'accès" : req.type === "DELETE" ? "Droit à l'oubli" : req.type === "EXPORT" ? "Portabilité" : req.type} · {formatDate(req.requestedAt)}
+                                                            {req.type === "ACCESS" ? "Droit d'accès" : req.type === "DELETE" ? "Droit à l'oubli" : req.type === "EXPORT" ? "Portabilité" : req.type} · {formatDateShort(req.requestedAt)}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -213,19 +206,19 @@ export default function ComplianceDashboardPage() {
                                     <CardDescription>Statut du respect des politiques de rétention.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-4">
-                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-emerald-500/5 border-emerald-500/20">
+                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-success/10 border-success/30">
                                         <div className="flex items-center gap-3">
-                                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                            <CheckCircle className="w-5 h-5 text-success" />
                                             <span className="text-sm font-medium">Conformes</span>
                                         </div>
-                                        <span className="text-lg font-bold text-emerald-600">{dashboard.retentionStatus?.compliant ?? 0}</span>
+                                        <span className="text-lg font-bold text-success">{dashboard.retentionStatus?.compliant ?? 0}</span>
                                     </div>
-                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-orange-500/5 border-orange-500/20">
+                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-warning/10 border-warning/30">
                                         <div className="flex items-center gap-3">
-                                            <AlertTriangle className="w-5 h-5 text-orange-500" />
+                                            <AlertTriangle className="w-5 h-5 text-warning" />
                                             <span className="text-sm font-medium">En retard</span>
                                         </div>
-                                        <span className="text-lg font-bold text-orange-600">{dashboard.retentionStatus?.overdue ?? 0}</span>
+                                        <span className="text-lg font-bold text-warning">{dashboard.retentionStatus?.overdue ?? 0}</span>
                                     </div>
                                 </CardContent>
                             </Card>

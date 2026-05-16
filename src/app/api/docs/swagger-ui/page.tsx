@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /**
  * Swagger UI Page (Server Component)
  * Serves interactive API documentation. Spec available at /api/docs
@@ -6,16 +8,16 @@ export default function SwaggerUIPage() {
   return (
     <div className="min-h-screen bg-white p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">EduPilot API Documentation</h1>
+        <h1 className="text-3xl font-bold mb-4">{t("apiDocs.title")}</h1>
         <p className="text-gray-600 mb-8">
-          Documentation interactive de l&apos;API EduPilot. Utilisez cette interface pour explorer et tester les endpoints.
+          {t("apiDocs.description")}
         </p>
         
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Accès à la Documentation</h2>
+          <h2 className="text-xl font-semibold mb-4">{t("apiDocs.access.title")}</h2>
           <div className="space-y-2">
             <p>
-              <strong>Spécification OpenAPI JSON:</strong>{" "}
+              <strong>{t("apiDocs.access.spec")}</strong>{" "}
               <a 
                 href="/api/docs" 
                 className="text-blue-600 hover:underline"
@@ -26,10 +28,10 @@ export default function SwaggerUIPage() {
               </a>
             </p>
             <p>
-              <strong>Format:</strong> OpenAPI 3.0.0
+              <strong>{t("apiDocs.access.format")}</strong>
             </p>
             <p>
-              <strong>Outils recommandés:</strong>
+              <strong>{t("apiDocs.access.tools")}</strong>
             </p>
             <ul className="list-disc list-inside ml-4 space-y-1">
               <li>
@@ -39,7 +41,7 @@ export default function SwaggerUIPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Swagger Editor (en ligne)
+                  {t("apiDocs.access.swaggerEditor")}
                 </a>
               </li>
               <li>
@@ -49,7 +51,7 @@ export default function SwaggerUIPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Postman (import depuis /api/docs)
+                  {t("apiDocs.access.postman")}
                 </a>
               </li>
               <li>
@@ -59,7 +61,7 @@ export default function SwaggerUIPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Insomnia (import depuis /api/docs)
+                  {t("apiDocs.access.insomnia")}
                 </a>
               </li>
             </ul>
@@ -67,9 +69,9 @@ export default function SwaggerUIPage() {
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Authentification</h2>
+          <h2 className="text-xl font-semibold mb-4">{t("apiDocs.auth.title")}</h2>
           <p className="mb-4">
-            La plupart des endpoints nécessitent une authentification. Utilisez le cookie de session NextAuth ou un token Bearer JWT.
+            {t("apiDocs.auth.description")}
           </p>
             <div className="bg-white p-4 rounded border">
               <code className="text-sm">
@@ -79,10 +81,10 @@ export default function SwaggerUIPage() {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Endpoints Principaux</h2>
+          <h2 className="text-xl font-semibold mb-4">{t("apiDocs.endpoints.title")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Authentification</h3>
+              <h3 className="font-semibold mb-2">{t("apiDocs.endpoints.auth")}</h3>
               <ul className="text-sm space-y-1">
                 <li><code>GET /api/auth/initial-setup</code></li>
                 <li><code>POST /api/auth/initial-setup</code></li>
@@ -91,7 +93,7 @@ export default function SwaggerUIPage() {
               </ul>
             </div>
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Élèves</h3>
+              <h3 className="font-semibold mb-2">{t("apiDocs.endpoints.students")}</h3>
               <ul className="text-sm space-y-1">
                 <li><code>GET /api/students</code></li>
                 <li><code>POST /api/students</code></li>
@@ -99,14 +101,14 @@ export default function SwaggerUIPage() {
               </ul>
             </div>
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Enseignants</h3>
+              <h3 className="font-semibold mb-2">{t("apiDocs.endpoints.teachers")}</h3>
               <ul className="text-sm space-y-1">
                 <li><code>GET /api/teachers</code></li>
                 <li><code>POST /api/teachers</code></li>
               </ul>
             </div>
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Paiements</h3>
+              <h3 className="font-semibold mb-2">{t("apiDocs.endpoints.payments")}</h3>
               <ul className="text-sm space-y-1">
                 <li><code>GET /api/payments</code></li>
                 <li><code>POST /api/payments</code></li>

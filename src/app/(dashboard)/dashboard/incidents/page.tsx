@@ -27,6 +27,7 @@ import { TrendLineChart } from "@/components/charts/TrendLineChart";
 import { PageCallout } from "@/components/layout/page-callout";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
+import { getIncidentSeverityClass } from "@/lib/ui/status-styles";
 
 type Incident = {
     id: string;
@@ -130,11 +131,11 @@ export default function IncidentsPage() {
 
     const getSeverityDetails = (severity: string) => {
         switch (severity) {
-            case "CRITICAL": return { color: "bg-red-500/10 text-red-600 border-red-500/20", label: "Critique" };
-            case "HIGH": return { color: "bg-orange-500/10 text-orange-600 border-orange-500/20", label: "Majeur" };
-            case "MEDIUM": return { color: "bg-amber-500/10 text-amber-600 border-amber-500/20", label: "Moyen" };
-            case "LOW": return { color: "bg-blue-500/10 text-blue-600 border-blue-500/20", label: "Mineur" };
-            default: return { color: "bg-slate-500/10 text-slate-600", label: severity };
+            case "CRITICAL": return { color: getIncidentSeverityClass(severity), label: "Critique" };
+            case "HIGH": return { color: getIncidentSeverityClass(severity), label: "Majeur" };
+            case "MEDIUM": return { color: getIncidentSeverityClass(severity), label: "Moyen" };
+            case "LOW": return { color: getIncidentSeverityClass(severity), label: "Mineur" };
+            default: return { color: getIncidentSeverityClass(severity), label: severity };
         }
     };
 
@@ -252,11 +253,11 @@ export default function IncidentsPage() {
             cell: ({ row }) => {
                 const i = row.original;
                 return i.isResolved ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Résolu
                     </span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning bg-warning/10 px-2.5 py-1 rounded-full">
                         <AlertTriangle className="w-3.5 h-3.5" /> En attente
                     </span>
                 );
@@ -317,7 +318,7 @@ export default function IncidentsPage() {
                                     </div>
                                 </div>
                                 {statsData?.trend && statsData.trend !== "stable" && (
-                                    <div className={`flex items-center gap-1 mt-2 text-xs ${statsData.trend === "up" ? "text-red-500" : "text-emerald-500"}`}>
+                                    <div className={`flex items-center gap-1 mt-2 text-xs ${statsData.trend === "up" ? "text-destructive" : "text-success"}`}>
                                         {statsData.trend === "up" ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                         {statsData.trend === "up" ? "En hausse" : "En baisse"} vs période précédente
                                     </div>
@@ -329,10 +330,10 @@ export default function IncidentsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Résolus</p>
-                                        <p className="text-2xl font-bold mt-1 text-emerald-600">{stats.resolvedCount}</p>
+                                        <p className="text-2xl font-bold mt-1 text-success">{stats.resolvedCount}</p>
                                     </div>
-                                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                                        <CheckCircle2 className="w-5 h-5 text-success" />
                                     </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
@@ -345,10 +346,10 @@ export default function IncidentsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">En attente</p>
-                                        <p className="text-2xl font-bold mt-1 text-amber-600">{stats.unresolvedCount}</p>
+                                        <p className="text-2xl font-bold mt-1 text-warning">{stats.unresolvedCount}</p>
                                     </div>
-                                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                                        <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                    <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
+                                        <AlertTriangle className="w-5 h-5 text-warning" />
                                     </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
@@ -363,8 +364,8 @@ export default function IncidentsPage() {
                                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Résolution moy.</p>
                                         <p className="text-2xl font-bold mt-1">{stats.averageResolutionTime > 0 ? `${Math.round(stats.averageResolutionTime)}h` : "—"}</p>
                                     </div>
-                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                        <Clock className="w-5 h-5 text-blue-500" />
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Clock className="w-5 h-5 text-primary" />
                                     </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">Temps moyen de résolution</p>
@@ -408,7 +409,8 @@ export default function IncidentsPage() {
                         <div className="relative w-full xl:max-w-xs shrink-0">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                
+                                aria-label="Rechercher un élève"
+                                placeholder="Rechercher un élève..."
                                 className="pl-9 bg-background touch-target"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -421,7 +423,7 @@ export default function IncidentsPage() {
                             </div>
 
                             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-                                <SelectTrigger className="w-[140px] bg-background touch-target">
+                                <SelectTrigger className="w-[140px] bg-background touch-target" aria-label="Filtrer par période">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -433,7 +435,7 @@ export default function IncidentsPage() {
                             </Select>
 
                             <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
-                                <SelectTrigger className="w-[140px] bg-background touch-target">
+                                <SelectTrigger className="w-[140px] bg-background touch-target" aria-label="Filtrer par gravité">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -446,7 +448,7 @@ export default function IncidentsPage() {
                             </Select>
 
                             <Select value={selectedType} onValueChange={setSelectedType}>
-                                <SelectTrigger className="w-[160px] bg-background touch-target">
+                                <SelectTrigger className="w-[160px] bg-background touch-target" aria-label="Filtrer par type d'incident">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -462,7 +464,7 @@ export default function IncidentsPage() {
                             </Select>
 
                             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                                <SelectTrigger className="w-[140px] bg-background touch-target">
+                                <SelectTrigger className="w-[140px] bg-background touch-target" aria-label="Filtrer par statut">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

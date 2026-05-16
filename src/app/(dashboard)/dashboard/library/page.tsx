@@ -2,331 +2,675 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Permission } from "@/lib/rbac/permissions";
-import { fetcher } from "@/lib/fetcher";
-import { BookOpen, AlertCircle, Undo2, Plus, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { 
-  Dialog, DialogContent, DialogDescription, DialogFooter, 
-  DialogHeader, DialogTitle, DialogTrigger 
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { toast } from "sonner";
 
+import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
+import { Permission } from "@/lib/rbac/permissions";
+import { formatDateNumeric } from "@/lib/utils/formatters";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Input,
+    Spinner,
+    type IconName,
+} from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
+
 type Book = {
-  id: string;
-  title: string;
-  author?: string;
-  isbn?: string;
-  available?: boolean;
-  quantity?: number;
+    id: string;
+    title: string;
+    author?: string;
+    isbn?: string;
+    available?: boolean;
+    quantity?: number;
 };
 
 type BorrowingRecord = {
-  id: string;
-  book: {
-    title: string;
-    author?: string;
-  };
-  student: {
-    user: {
-        firstName: string;
-        lastName: string;
-    }
-  };
-  status: "BORROWED" | "RETURNED";
-  dueDate: string;
-  borrowedAt: string;
-  returnedAt?: string | null;
+    id: string;
+    book: { title: string; author?: string };
+    student: { user: { firstName: string; lastName: string } };
+    status: "BORROWED" | "RETURNED";
+    dueDate: string;
+    borrowedAt: string;
+    returnedAt?: string | null;
 };
 
-type Tab = "catalogue" | "borrowings" | "admin";
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+type Tab = "catalogue" | "borrowings";
 
 export default function LibraryPage() {
-  const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<Tab>("catalogue");
+    const { data: session } = useSession();
+    const [activeTab, setActiveTab] = useState<Tab>("catalogue");
 
-  // ---- Catalogue state ----
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loadingBooks, setLoadingBooks] = useState(true);
-  const [errorBooks, setErrorBooks] = useState<string | null>(null);
-  const [borrowingBookId, setBorrowingBookId] = useState<string | null>(null);
-  
-  // Admin form state
-  const [isAddingBook, setIsAddingBook] = useState(false);
-  const [newBook, setNewBook] = useState({ title: "", author: "", isbn: "", quantity: 1 });
+    const [books, setBooks] = useState<Book[]>([]);
+    const [loadingBooks, setLoadingBooks] = useState(true);
+    const [errorBooks, setErrorBooks] = useState<string | null>(null);
+    const [borrowingBookId, setBorrowingBookId] = useState<string | null>(null);
+    const [isAddingBook, setIsAddingBook] = useState(false);
+    const [newBook, setNewBook] = useState({
+        title: "",
+        author: "",
+        isbn: "",
+        quantity: 1,
+    });
 
-  const fetchBooks = async () => {
-    setLoadingBooks(true);
-    try {
-        const r = await fetch("/api/library/books", { credentials: "include" });
-        if (!r.ok) throw new Error("Erreur");
-        const data = await r.json();
-        setBooks(Array.isArray(data) ? data : data.books ?? []);
-    } catch (e) {
-        setErrorBooks("Erreur de chargement");
-    } finally {
-        setLoadingBooks(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBooks();
-  }, []);
-
-  // ---- Borrowings state (useSWR) ----
-  const {
-    data: borrowings,
-    error: errorBorrowings,
-    isLoading: loadingBorrowings,
-    mutate: mutateBorrowings,
-  } = useSWR<BorrowingRecord[]>(
-    (activeTab === "borrowings" || activeTab === "admin") ? "/api/library/borrowings" : null,
-    fetcher
-  );
-
-  const [returningId, setReturningId] = useState<string | null>(null);
-
-  // ---- Actions ----
-  async function handleAddBook(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-        const res = await fetch("/api/library/books", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newBook),
-        });
-        if (res.ok) {
-            toast.success("Livre ajouté au catalogue");
-            setIsAddingBook(false);
-            setNewBook({ title: "", author: "", isbn: "", quantity: 1 });
-            fetchBooks();
+    const fetchBooks = async () => {
+        setLoadingBooks(true);
+        try {
+            const r = await fetch("/api/library/books", { credentials: "include" });
+            if (!r.ok) throw new Error("Erreur");
+            const data = await r.json();
+            setBooks(Array.isArray(data) ? data : data.books ?? []);
+        } catch {
+            setErrorBooks("Erreur de chargement");
+        } finally {
+            setLoadingBooks(false);
         }
-    } catch {
-        toast.error("Échec de l'ajout");
-    }
-  }
+    };
 
-  async function handleBorrow(bookId: string) {
-    setBorrowingBookId(bookId);
-    try {
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 14); // 2 weeks by default
+    useEffect(() => {
+        fetchBooks();
+    }, []);
 
-      const res = await fetch("/api/library/borrowings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ bookId, dueDate: dueDate.toISOString() }),
-      });
+    const {
+        data: borrowings,
+        isLoading: loadingBorrowings,
+        mutate: mutateBorrowings,
+    } = useSWR<BorrowingRecord[]>(
+        activeTab === "borrowings" ? "/api/library/borrowings" : null,
+        fetcher
+    );
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erreur lors de l'emprunt");
-      }
+    const [returningId, setReturningId] = useState<string | null>(null);
 
-      toast.success("Emprunt enregistré");
-      fetchBooks();
-      mutateBorrowings();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'emprunt");
-    } finally {
-      setBorrowingBookId(null);
-    }
-  }
+    const handleAddBook = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await fetch("/api/library/books", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newBook),
+            });
+            if (res.ok) {
+                toast.success("Livre ajouté au catalogue");
+                setIsAddingBook(false);
+                setNewBook({ title: "", author: "", isbn: "", quantity: 1 });
+                fetchBooks();
+            }
+        } catch {
+            toast.error("Échec de l'ajout");
+        }
+    };
 
-  async function handleReturn(recordId: string) {
-    setReturningId(recordId);
-    try {
-      const res = await fetch("/api/library/borrowings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ recordId }),
-      });
+    const handleBorrow = async (bookId: string) => {
+        setBorrowingBookId(bookId);
+        try {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 14);
+            const res = await fetch("/api/library/borrowings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ bookId, dueDate: dueDate.toISOString() }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Erreur lors de l'emprunt");
+            }
+            toast.success("Emprunt enregistré");
+            fetchBooks();
+            mutateBorrowings();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erreur lors de l'emprunt");
+        } finally {
+            setBorrowingBookId(null);
+        }
+    };
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erreur lors du retour");
-      }
+    const handleReturn = async (recordId: string) => {
+        setReturningId(recordId);
+        try {
+            const res = await fetch("/api/library/borrowings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ recordId }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Erreur lors du retour");
+            }
+            toast.success("Livre retourné");
+            mutateBorrowings();
+            fetchBooks();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erreur lors du retour");
+        } finally {
+            setReturningId(null);
+        }
+    };
 
-      toast.success("Livre retourné");
-      mutateBorrowings();
-      fetchBooks();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erreur lors du retour");
-    } finally {
-      setReturningId(null);
-    }
-  }
+    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
+        session?.user?.role || ""
+    );
 
-  const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session?.user?.role || "");
+    const availableCount = books.filter((b) => b.available !== false).length;
 
-  return (
-    <PageGuard permission={Permission.REPORT_VIEW} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6">
-        <PageHeader
-          title="Bibliothèque & Fonds"
-          description="Consultez et empruntez des ouvrages pédagogiques."
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Bibliothèque" },
-          ]}
-          actions={isAdmin && (
-            <Dialog open={isAddingBook} onOpenChange={setIsAddingBook}>
-                <DialogTrigger asChild>
-                    <Button className="gap-2 action-critical"><Plus className="w-4 h-4" /> Ajouter un Livre</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Nouvel Ouvrage</DialogTitle>
-                        <DialogDescription>Ajoutez une ressource au catalogue de l&apos;école.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddBook} className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Titre du livre</Label>
-                            <Input value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
+    return (
+        <PageGuard
+            permission={Permission.REPORT_VIEW}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Bibliothèque & fonds"
+                        sub={`${books.length} ouvrages au catalogue · ${availableCount} disponibles à l'emprunt`}
+                        actions={
+                            isAdmin ? (
+                                <Dialog open={isAddingBook} onOpenChange={setIsAddingBook}>
+                                    <DialogTrigger asChild>
+                                        <Button icon="plus">Ajouter un livre</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Nouvel ouvrage</DialogTitle>
+                                            <DialogDescription>
+                                                Ajoute une ressource au catalogue.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleAddBook} className="flex flex-col gap-3 py-4">
+                                            <Input
+                                                label="Titre du livre"
+                                                value={newBook.title}
+                                                onChange={(e) =>
+                                                    setNewBook({ ...newBook, title: e.target.value })
+                                                }
+                                                placeholder="Ex : Mathématiques 4ᵉ"
+                                                icon="book"
+                                            />
+                                            <Input
+                                                label="Auteur"
+                                                value={newBook.author}
+                                                onChange={(e) =>
+                                                    setNewBook({ ...newBook, author: e.target.value })
+                                                }
+                                                placeholder="Ex : A. Césaire"
+                                                icon="users"
+                                            />
+                                            <div
+                                                className="grid gap-3"
+                                                style={{
+                                                    gridTemplateColumns: "1fr 100px",
+                                                }}
+                                            >
+                                                <Input
+                                                    label="ISBN"
+                                                    value={newBook.isbn}
+                                                    onChange={(e) =>
+                                                        setNewBook({ ...newBook, isbn: e.target.value })
+                                                    }
+                                                    placeholder="978-2-…"
+                                                />
+                                                <Input
+                                                    label="Quantité"
+                                                    type="number"
+                                                    value={String(newBook.quantity)}
+                                                    onChange={(e) =>
+                                                        setNewBook({
+                                                            ...newBook,
+                                                            quantity: parseInt(e.target.value) || 1,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    type="submit"
+                                                    icon="check"
+                                                    disabled={!newBook.title.trim()}
+                                                >
+                                                    Ajouter au catalogue
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            ) : null
+                        }
+                    />
+                </div>
+
+                <SegmentedToggle
+                    value={activeTab}
+                    onChange={setActiveTab}
+                    options={[
+                        { value: "catalogue", label: "Catalogue", icon: "book" },
+                        { value: "borrowings", label: "Emprunts en cours", icon: "users" },
+                    ]}
+                />
+
+                {activeTab === "catalogue" ? (
+                    <div className="flex flex-col gap-4">
+                        {loadingBooks ? (
+                            <Card padding={20}>
+                                <div className="flex items-center gap-3">
+                                    <Spinner size={18} color="var(--brand-600)" />
+                                    <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                        Chargement du catalogue…
+                                    </span>
+                                </div>
+                            </Card>
+                        ) : null}
+                        {errorBooks ? (
+                            <Card
+                                padding={14}
+                                style={{
+                                    borderLeft: "3px solid var(--eduflow-danger-500)",
+                                    background: "var(--eduflow-danger-50)",
+                                }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                                    <p style={{ margin: 0, fontSize: 13, color: "var(--eduflow-danger-800)" }}>
+                                        {errorBooks}
+                                    </p>
+                                </div>
+                            </Card>
+                        ) : null}
+                        {!loadingBooks && !errorBooks && books.length === 0 ? (
+                            <Card padding={36}>
+                                <div className="flex flex-col items-center gap-3 text-center">
+                                    <div
+                                        className="grid place-items-center"
+                                        style={{
+                                            width: 60,
+                                            height: 60,
+                                            borderRadius: 16,
+                                            background: "var(--brand-50)",
+                                        }}
+                                    >
+                                        <Icon name="book" size={26} color="var(--brand-700)" />
+                                    </div>
+                                    <h3
+                                        className="eduflow-display"
+                                        style={{ fontSize: 18, margin: 0 }}
+                                    >
+                                        Catalogue vide
+                                    </h3>
+                                    <p style={{ fontSize: 13, color: "var(--eduflow-text-secondary)", margin: 0 }}>
+                                        Ajoute des ouvrages pour démarrer la bibliothèque.
+                                    </p>
+                                </div>
+                            </Card>
+                        ) : null}
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                                gap: 14,
+                            }}
+                        >
+                            {books.map((book) => {
+                                const available = book.available !== false;
+                                return (
+                                    <Card
+                                        key={book.id}
+                                        padding={16}
+                                        style={{
+                                            transition:
+                                                "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                        }}
+                                        className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div
+                                                className="grid place-items-center"
+                                                style={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: 12,
+                                                    background: "var(--brand-50)",
+                                                    color: "var(--brand-700)",
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <Icon name="book" size={20} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h3
+                                                    style={{
+                                                        margin: 0,
+                                                        fontSize: 14,
+                                                        fontWeight: 700,
+                                                        color: "var(--eduflow-text-primary)",
+                                                        lineHeight: 1.25,
+                                                    }}
+                                                >
+                                                    {book.title}
+                                                </h3>
+                                                {book.author ? (
+                                                    <p
+                                                        style={{
+                                                            margin: "4px 0 0",
+                                                            fontSize: 12,
+                                                            fontStyle: "italic",
+                                                            color: "var(--eduflow-text-secondary)",
+                                                        }}
+                                                    >
+                                                        {book.author}
+                                                    </p>
+                                                ) : null}
+                                                {book.isbn ? (
+                                                    <div
+                                                        className="eduflow-mono"
+                                                        style={{
+                                                            fontSize: 10,
+                                                            color: "var(--eduflow-text-tertiary)",
+                                                            marginTop: 4,
+                                                        }}
+                                                    >
+                                                        {book.isbn}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center justify-between border-t pt-3"
+                                            style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                                        >
+                                            {available ? (
+                                                <Badge variant="success" size="sm" dot>
+                                                    Disponible
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="warning" size="sm">
+                                                    Emprunté
+                                                </Badge>
+                                            )}
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                disabled={!available || borrowingBookId === book.id}
+                                                loading={borrowingBookId === book.id}
+                                                onClick={() => handleBorrow(book.id)}
+                                            >
+                                                Emprunter
+                                            </Button>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
                         </div>
-                        <div className="space-y-2">
-                            <Label>Auteur</Label>
-                            <Input value={newBook.author} onChange={e => setNewBook({...newBook, author: e.target.value})} />
+                    </div>
+                ) : null}
+
+                {activeTab === "borrowings" ? (
+                    <Card padding={0}>
+                        <div
+                            className="flex items-center gap-2 border-b px-5 py-4"
+                            style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                        >
+                            <Icon name="users" size={18} color="var(--brand-700)" />
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Emprunts en cours
+                            </h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>ISBN</Label>
-                                <Input value={newBook.isbn} onChange={e => setNewBook({...newBook, isbn: e.target.value})} />
+                        {loadingBorrowings ? (
+                            <div className="flex items-center gap-3 px-5 py-8">
+                                <Spinner size={18} color="var(--brand-600)" />
+                                <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                    Chargement des emprunts…
+                                </span>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Quantité</Label>
-                                <Input type="number" value={newBook.quantity} onChange={e => setNewBook({...newBook, quantity: parseInt(e.target.value)})} min={1} />
+                        ) : !borrowings || borrowings.length === 0 ? (
+                            <div className="flex flex-col items-center gap-2 px-5 py-12 text-center">
+                                <Icon name="info" size={28} color="var(--eduflow-text-tertiary)" />
+                                <p
+                                    style={{
+                                        margin: 0,
+                                        fontSize: 13,
+                                        color: "var(--eduflow-text-secondary)",
+                                    }}
+                                >
+                                    Aucun emprunt en cours
+                                </p>
                             </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit">Enregistrer</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-          )}
-        />
-
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-border pb-0">
-            <button onClick={() => setActiveTab("catalogue")} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === "catalogue" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                Catalogue
-            </button>
-            <button onClick={() => setActiveTab("borrowings")} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === "borrowings" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                Mes emprunts
-            </button>
-            {isAdmin && (
-                <button onClick={() => setActiveTab("admin")} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === "admin" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                    Gestion & Retours
-                </button>
-            )}
-        </div>
-
-        {/* ========== CATALOGUE TAB ========== */}
-        {activeTab === "catalogue" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {loadingBooks ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div> : books.map((book) => (
-              <Card key={book.id} className="border-border bg-card hover:shadow-md transition-shadow overflow-hidden">
-                <div className="h-1.5 w-full bg-primary/20" />
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-foreground line-clamp-2">{book.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-xs text-muted-foreground">
-                    {book.author && <p className="font-medium text-foreground/80">👤 {book.author}</p>}
-                    {book.isbn && <p className="mt-1">🆔 {book.isbn}</p>}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Badge variant={book.available ? "secondary" : "outline"} className="text-[10px]">
-                        {book.available ? `${book.quantity || 1} dispos` : "Indisponible"}
-                    </Badge>
-                    {book.available && session?.user?.role === "STUDENT" && (
-                        <Button size="sm" variant="ghost" className="h-7 text-[10px] uppercase font-bold" onClick={() => handleBorrow(book.id)}>
-                            Emprunter
-                        </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* ========== BORROWINGS / ADMIN TAB ========== */}
-        {(activeTab === "borrowings" || activeTab === "admin") && (
-          <Card className="border-border overflow-hidden shadow-sm">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="px-6 py-4">Ouvrage</TableHead>
-                    {activeTab === "admin" && <TableHead>Emprunteur</TableHead>}
-                    <TableHead>Date Emprunt</TableHead>
-                    <TableHead>Date Retour Prévue</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right px-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(!borrowings || borrowings.length === 0) ? (
-                    <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">Aucun emprunt enregistré.</TableCell></TableRow>
-                  ) : borrowings.map((record) => (
-                    <TableRow key={record.id} className="group hover:bg-muted/5">
-                      <TableCell className="px-6 font-bold">{record.book.title}</TableCell>
-                      {activeTab === "admin" && (
-                        <TableCell>
-                            <span className="font-medium">{record.student.user.firstName} {record.student.user.lastName}</span>
-                        </TableCell>
-                      )}
-                      <TableCell className="text-xs">{formatDate(record.borrowedAt)}</TableCell>
-                      <TableCell className="text-xs font-medium text-amber-600">{formatDate(record.dueDate)}</TableCell>
-                      <TableCell>
-                        <Badge variant={record.status === "BORROWED" ? "warning" : "success"} className="text-[9px] uppercase font-black">
-                          {record.status === "BORROWED" ? "En cours" : "Retourné"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right px-6">
-                        {record.status === "BORROWED" && (
-                          <Button size="sm" variant="outline" className="h-8 text-[10px] font-bold uppercase" onClick={() => handleReturn(record.id)}>
-                            <Undo2 className="h-3 w-3 mr-1" /> Retourner
-                          </Button>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ background: "var(--eduflow-surface-sunken)", textAlign: "left" }}>
+                                            <Th>Livre</Th>
+                                            <Th>Élève</Th>
+                                            <Th width={140}>Emprunté le</Th>
+                                            <Th width={140}>À rendre</Th>
+                                            <Th width={120}>Statut</Th>
+                                            <Th width={110} center>
+                                                Action
+                                            </Th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {borrowings.map((rec) => {
+                                            const overdue =
+                                                rec.status === "BORROWED" &&
+                                                new Date(rec.dueDate).getTime() < Date.now();
+                                            const studentName = `${rec.student.user.firstName} ${rec.student.user.lastName}`;
+                                            return (
+                                                <tr
+                                                    key={rec.id}
+                                                    style={{
+                                                        borderTop: "1px solid var(--eduflow-border-subtle)",
+                                                    }}
+                                                >
+                                                    <Td>
+                                                        <div
+                                                            style={{
+                                                                fontSize: 13,
+                                                                fontWeight: 600,
+                                                                color: "var(--eduflow-text-primary)",
+                                                            }}
+                                                        >
+                                                            {rec.book.title}
+                                                        </div>
+                                                        {rec.book.author ? (
+                                                            <div
+                                                                style={{
+                                                                    fontSize: 11,
+                                                                    fontStyle: "italic",
+                                                                    color: "var(--eduflow-text-tertiary)",
+                                                                }}
+                                                            >
+                                                                {rec.book.author}
+                                                            </div>
+                                                        ) : null}
+                                                    </Td>
+                                                    <Td>
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar name={studentName} size="xs" />
+                                                            <span style={{ fontSize: 13, fontWeight: 500 }}>
+                                                                {studentName}
+                                                            </span>
+                                                        </div>
+                                                    </Td>
+                                                    <Td>
+                                                        <span
+                                                            className="eduflow-tabular"
+                                                            style={{
+                                                                fontSize: 12,
+                                                                color: "var(--eduflow-text-secondary)",
+                                                            }}
+                                                        >
+                                                            {formatDateNumeric(rec.borrowedAt)}
+                                                        </span>
+                                                    </Td>
+                                                    <Td>
+                                                        <span
+                                                            className="eduflow-tabular"
+                                                            style={{
+                                                                fontSize: 12,
+                                                                color: overdue
+                                                                    ? "var(--eduflow-danger-700)"
+                                                                    : "var(--eduflow-text-secondary)",
+                                                                fontWeight: overdue ? 700 : 500,
+                                                            }}
+                                                        >
+                                                            {formatDateNumeric(rec.dueDate)}
+                                                        </span>
+                                                    </Td>
+                                                    <Td>
+                                                        {rec.status === "RETURNED" ? (
+                                                            <Badge variant="success" size="sm" icon="check">
+                                                                Rendu
+                                                            </Badge>
+                                                        ) : overdue ? (
+                                                            <Badge variant="danger" size="sm" dot>
+                                                                En retard
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="brand" size="sm" dot>
+                                                                En cours
+                                                            </Badge>
+                                                        )}
+                                                    </Td>
+                                                    <Td center>
+                                                        {rec.status === "BORROWED" ? (
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                loading={returningId === rec.id}
+                                                                disabled={returningId === rec.id}
+                                                                onClick={() => handleReturn(rec.id)}
+                                                            >
+                                                                Retourner
+                                                            </Button>
+                                                        ) : null}
+                                                    </Td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </PageGuard>
-  );
+                    </Card>
+                ) : null}
+            </div>
+        </PageGuard>
+    );
+}
+
+function SegmentedToggle<T extends string>({
+    value,
+    onChange,
+    options,
+}: {
+    value: T;
+    onChange: (v: T) => void;
+    options: { value: T; label: string; icon: IconName }[];
+}) {
+    return (
+        <div
+            className="flex w-fit gap-1 rounded-md p-1"
+            style={{
+                background: "var(--eduflow-surface-sunken)",
+                border: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
+            {options.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChange(opt.value)}
+                        className="flex items-center gap-1.5 px-3 py-1.5"
+                        style={{
+                            background: active ? "var(--eduflow-surface-card)" : "transparent",
+                            border: 0,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: active ? 700 : 500,
+                            color: active
+                                ? "var(--brand-700)"
+                                : "var(--eduflow-text-secondary)",
+                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
+                            transition:
+                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                        }}
+                    >
+                        <Icon name={opt.icon} size={13} />
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function Th({
+    children,
+    width,
+    center,
+}: {
+    children: React.ReactNode;
+    width?: number;
+    center?: boolean;
+}) {
+    return (
+        <th
+            style={{
+                padding: "10px 16px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                textAlign: center ? "center" : "left",
+                width,
+            }}
+        >
+            {children}
+        </th>
+    );
+}
+
+function Td({
+    children,
+    style,
+    center,
+}: {
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+    center?: boolean;
+}) {
+    return (
+        <td
+            style={{
+                padding: "12px 16px",
+                fontSize: 13,
+                textAlign: center ? "center" : "left",
+                ...style,
+            }}
+        >
+            {children}
+        </td>
+    );
 }

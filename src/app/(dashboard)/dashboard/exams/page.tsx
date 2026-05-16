@@ -2,214 +2,361 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Permission } from "@/lib/rbac/permissions";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import useSWR, { useSWRConfig } from "swr";
+
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ClipboardList, Plus, AlertCircle, FileText, ArrowUpDown, Eye, Trash2, Clock
-} from "lucide-react";
-
+import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { PageCallout } from "@/components/layout/page-callout";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
 
+import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
+
 type ExamItem = {
-  id: string;
-  title: string;
-  totalPoints: number;
-  duration: number;
-  isPublished: boolean;
-  _count?: { questions: number };
-  classSubject?: {
-    subject?: { name: string };
-    class?: { name: string };
-  };
+    id: string;
+    title: string;
+    totalPoints: number;
+    duration: number;
+    isPublished: boolean;
+    _count?: { questions: number };
+    classSubject?: {
+        subject?: { name: string };
+        class?: { name: string };
+    };
 };
 
+type ExamResponse = { exams?: ExamItem[] };
+
 export default function ExamsPage() {
-  const { data: response, error, isLoading: loading } = useSWR<any>("/api/exams", fetcher);
-  const { mutate } = useSWRConfig();
-  const { toast } = useToast();
+    const { data: response, error, isLoading: loading } = useSWR<ExamResponse | ExamItem[]>(
+        "/api/exams",
+        fetcher
+    );
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
 
-  const exams: ExamItem[] = response?.exams || (Array.isArray(response) ? response : []);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
-  const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
+    const exams: ExamItem[] = Array.isArray(response)
+        ? response
+        : response?.exams ?? [];
 
-  const handleDelete = (id: string, title: string) => {
-    setDeleteTarget({ id, title });
-    setDeleteDialogOpen(true);
-  };
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(
+        null
+    );
+    const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleteConfirmLoading(true);
-    try {
-      const res = await fetch(`/api/exams/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur lors de la suppression");
-      toast({ title: "Succès", description: "L'examen a été supprimé." });
-      mutate("/api/exams");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    } finally {
-      setIsDeleteConfirmLoading(false);
-      setDeleteDialogOpen(false);
-      setDeleteTarget(null);
-    }
-  };
+    const handleDelete = (id: string, title: string) => {
+        setDeleteTarget({ id, title });
+        setDeleteDialogOpen(true);
+    };
 
-  const columns: ColumnDef<ExamItem>[] = [
-    {
-      accessorKey: "title",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Titre <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => <div className="font-medium">{row.original.title}</div>,
-    },
-    {
-      id: "questions",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Questions <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      accessorFn: (row) => row._count?.questions ?? 0,
-      cell: ({ row }) => (
-        <span className="flex items-center gap-1 text-sm">
-          <FileText className="h-3 w-3" /> {row.original._count?.questions ?? 0}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "totalPoints",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Points <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => <span>{row.original.totalPoints} pts</span>,
-    },
-    {
-      accessorKey: "duration",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Durée <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <span className="flex items-center gap-1 text-sm">
-          <Clock className="h-3 w-3" /> {row.original.duration} min
-        </span>
-      ),
-    },
-    {
-      id: "status",
-      header: "Statut",
-      accessorFn: (row) => row.isPublished ? "Publié" : "Brouillon",
-      cell: ({ row }) => (
-        <Badge variant={row.original.isPublished ? "default" : "secondary"}>
-          {row.original.isPublished ? "Publié" : "Brouillon"}
-        </Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Link href={`/dashboard/exams/${row.original.id}`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Eye className="h-4 w-4" />
-            </Button>
-          </Link>
-          <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              onClick={() => handleDelete(row.original.id, row.original.title)}
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setIsDeleteConfirmLoading(true);
+        try {
+            const res = await fetch(`/api/exams/${deleteTarget.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Erreur lors de la suppression");
+            toast({ title: "Succès", description: "L'examen a été supprimé." });
+            mutate("/api/exams");
+        } catch (err) {
+            toast({
+                title: "Erreur",
+                description: err instanceof Error ? err.message : "Erreur inconnue",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDeleteConfirmLoading(false);
+            setDeleteDialogOpen(false);
+            setDeleteTarget(null);
+        }
+    };
+
+    return (
+        <PageGuard
+            permission={Permission.EVALUATION_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Examens en ligne"
+                        sub={`${exams.length} ${
+                            exams.length > 1 ? "examens disponibles" : "examen disponible"
+                        } · QCM, devoirs surveillés, compositions`}
+                        actions={
+                            <RoleActionGuard
+                                allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+                            >
+                                <Link href="/dashboard/exams/new">
+                                    <Button icon="plus">Créer un examen</Button>
+                                </Link>
+                            </RoleActionGuard>
+                        }
+                    />
+                </div>
+
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                }}
+                            >
+                                Impossible de charger les examens.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {loading ? (
+                    <Card padding={20}>
+                        <div className="flex items-center gap-3">
+                            <Spinner size={18} color="var(--brand-600)" />
+                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Chargement des examens…
+                            </span>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {!loading && !error && exams.length === 0 ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="cards" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucun examen disponible
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    margin: 0,
+                                }}
+                            >
+                                Crée un examen avec des questions QCM, ouvertes ou rédactionnelles.
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {!loading && !error && exams.length > 0 ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {exams.map((exam) => (
+                            <Card
+                                key={exam.id}
+                                padding={0}
+                                style={{
+                                    transition:
+                                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                }}
+                                className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
+                            >
+                                <div className="flex items-start gap-3 px-5 py-4">
+                                    <div
+                                        className="grid place-items-center"
+                                        style={{
+                                            width: 44,
+                                            height: 44,
+                                            borderRadius: 12,
+                                            background: "var(--brand-50)",
+                                            color: "var(--brand-700)",
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Icon name="cards" size={20} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{
+                                                margin: 0,
+                                                fontSize: 16,
+                                                fontWeight: 700,
+                                                color: "var(--eduflow-text-primary)",
+                                                lineHeight: 1.25,
+                                            }}
+                                        >
+                                            {exam.title}
+                                        </h3>
+                                        <div
+                                            className="mt-1 flex flex-wrap items-center gap-2"
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                            }}
+                                        >
+                                            <span>
+                                                {exam.classSubject?.subject?.name ?? "—"}
+                                            </span>
+                                            <span>·</span>
+                                            <span>{exam.classSubject?.class?.name ?? "—"}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    className="grid border-t"
+                                    style={{
+                                        gridTemplateColumns: "repeat(3, 1fr)",
+                                        borderColor: "var(--eduflow-border-subtle)",
+                                    }}
+                                >
+                                    <Stat
+                                        label="Questions"
+                                        value={(exam._count?.questions ?? 0).toString()}
+                                    />
+                                    <Stat
+                                        label="Durée"
+                                        value={`${exam.duration}'`}
+                                        accent
+                                    />
+                                    <Stat
+                                        label="Points"
+                                        value={exam.totalPoints.toString()}
+                                    />
+                                </div>
+                                <div
+                                    className="flex items-center justify-between border-t px-5 py-3"
+                                    style={{
+                                        borderColor: "var(--eduflow-border-subtle)",
+                                        background: "var(--eduflow-surface-sunken)",
+                                    }}
+                                >
+                                    {exam.isPublished ? (
+                                        <Badge variant="success" size="sm" dot>
+                                            Publié
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="neutral" size="sm">
+                                            Brouillon
+                                        </Badge>
+                                    )}
+                                    <div className="flex items-center gap-1.5">
+                                        <Link
+                                            href={`/dashboard/exams/${exam.id}/take`}
+                                            aria-label="Prévisualiser"
+                                        >
+                                            <Button variant="ghost" size="sm" icon="search">
+                                                {""}
+                                            </Button>
+                                        </Link>
+                                        <RoleActionGuard
+                                            allowedRoles={[
+                                                "SUPER_ADMIN",
+                                                "SCHOOL_ADMIN",
+                                                "DIRECTOR",
+                                                "TEACHER",
+                                            ]}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                icon="x"
+                                                onClick={() => handleDelete(exam.id, exam.title)}
+                                            >
+                                                {""}
+                                            </Button>
+                                        </RoleActionGuard>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
+
+            <ConfirmActionDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    setDeleteDialogOpen(open);
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={
+                    deleteTarget
+                        ? `Supprimer "${deleteTarget.title}" ?`
+                        : "Supprimer cet examen ?"
+                }
+                description="Cette action est définitive. Les soumissions liées seront affectées."
+                confirmLabel={t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                isConfirmLoading={isDeleteConfirmLoading}
+                onConfirm={confirmDelete}
+            />
+        </PageGuard>
+    );
+}
+
+function Stat({
+    label,
+    value,
+    accent,
+}: {
+    label: string;
+    value: string;
+    accent?: boolean;
+}) {
+    return (
+        <div
+            style={{
+                padding: "12px 16px",
+                borderRight: "1px solid var(--eduflow-border-subtle)",
+                background: accent ? "var(--brand-50)" : "transparent",
+            }}
+        >
+            <div
+                style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--eduflow-text-tertiary)",
+                }}
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </RoleActionGuard>
+                {label}
+            </div>
+            <div
+                className="eduflow-display eduflow-tabular"
+                style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: accent ? "var(--brand-700)" : "var(--eduflow-text-primary)",
+                    marginTop: 2,
+                    lineHeight: 1.05,
+                }}
+            >
+                {value}
+            </div>
         </div>
-      ),
-    },
-  ];
-
-  return (
-    <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6">
-        <PageHeader
-          title="Examens"
-          description="Création et gestion des modèles d'examens"
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Examens" },
-          ]}
-          actions={
-            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-              <Link href="/dashboard/exams/new">
-                <Button className="gap-2 shadow-sm">
-                  <Plus className="h-4 w-4" />
-                  Nouvel examen
-                </Button>
-              </Link>
-            </RoleActionGuard>
-          }
-        />
-
-        <ConfirmActionDialog
-          open={deleteDialogOpen}
-          onOpenChange={(open) => {
-            setDeleteDialogOpen(open);
-            if (!open) setDeleteTarget(null);
-          }}
-          title="Supprimer l'examen"
-          description={deleteTarget ? `Cette action supprimera "${deleteTarget.title}".` : undefined}
-          confirmLabel={t("common.delete")}
-          cancelLabel={t("common.cancel")}
-          variant="destructive"
-          isConfirmLoading={isDeleteConfirmLoading}
-          onConfirm={confirmDelete}
-        />
-
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        )}
-
-        {error && (
-          <div role="alert" className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>{error.message || "Erreur de chargement"}</p>
-          </div>
-        )}
-
-        {!loading && !error && exams.length === 0 && (
-          <PageCallout
-            icon={ClipboardList}
-            title="Aucun examen créé"
-            description="Créez un modèle d’examen, ajoutez des questions puis publiez-le pour permettre une session d’examen."
-            actions={[{ label: "Nouvel examen", href: "/dashboard/exams/new" }]}
-          />
-        )}
-
-        {!loading && !error && exams.length > 0 && (
-          <DataTable columns={columns} data={exams} searchKey="title" searchPlaceholder="Rechercher un examen..." />
-        )}
-      </div>
-    </PageGuard>
-  );
+    );
 }

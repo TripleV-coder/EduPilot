@@ -6,10 +6,8 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { GraduationCap, AlertCircle, ArrowRight, CheckCircle2, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { Button, Icon } from "@/components/edu";
 
 const verifyEmailSchema = z.object({
     email: z.string().email("Email invalide").toLowerCase().trim(),
@@ -48,110 +46,216 @@ export default function VerifyEmailPage() {
             } else {
                 setIsSuccess(true);
             }
-        } catch (err) {
+        } catch {
             setError("Erreur de connexion au serveur.");
         } finally {
             setIsLoading(false);
         }
     };
 
-    return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
-                            <Mail className="w-7 h-7 text-primary" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-foreground mb-2">
-                            Vérification Email
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Renvoyer un lien de vérification à votre adresse
-                        </p>
-                    </div>
-
-                    {isSuccess ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-center space-y-4"
+    if (isSuccess) {
+        return (
+            <AuthShell
+                title="Lien envoyé"
+                subtitle="Vérifiez votre boîte de réception pour finaliser la confirmation."
+            >
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{ display: "flex", flexDirection: "column", gap: 18 }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "14px 16px",
+                            borderRadius: "var(--eduflow-radius-card)",
+                            background: "var(--eduflow-success-50)",
+                            border: "1px solid var(--eduflow-success-200)",
+                        }}
+                    >
+                        <Icon name="check" size={20} color="var(--eduflow-success-700)" />
+                        <div
+                            style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "var(--eduflow-success-800)",
+                            }}
                         >
-                            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] mx-auto mb-2">
-                                <CheckCircle2 className="w-6 h-6" />
-                            </div>
-                            <h2 className="text-xl font-medium">Lien envoyé !</h2>
-                            <p className="text-muted-foreground text-sm">
-                                Veuillez vérifier votre boîte de réception pour le lien de vérification.
-                            </p>
-                            <div className="pt-4">
-                                <Button asChild className="w-full">
-                                    <Link href="/login">Retourner à la connexion</Link>
-                                </Button>
-                            </div>
-                        </motion.div>
-                    ) : (
-                        <>
-                            {error && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    role="alert"
-                                    className="flex items-start gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
-                                >
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                    <div className="text-sm font-medium">{error}</div>
-                                </motion.div>
-                            )}
+                            Un email de vérification vient de partir.
+                        </div>
+                    </div>
+                    <p
+                        style={{
+                            margin: 0,
+                            fontSize: 13,
+                            color: "var(--eduflow-text-secondary)",
+                            lineHeight: 1.55,
+                        }}
+                    >
+                        Si vous ne le voyez pas d'ici quelques minutes, regardez dans le dossier
+                        spam ou indésirables.
+                    </p>
+                    <Link href="/login" style={{ textDecoration: "none" }}>
+                        <Button
+                            iconRight="arrowRight"
+                            style={{ width: "100%", justifyContent: "center", height: 48 }}
+                        >
+                            Retourner à la connexion
+                        </Button>
+                    </Link>
+                </motion.div>
+            </AuthShell>
+        );
+    }
 
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Adresse Email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        
-                                        autoComplete="email"
-                                        {...register("email")}
-                                        aria-invalid={!!errors.email}
-                                    />
-                                    {errors.email && (
-                                        <p className="text-sm text-destructive">{errors.email.message}</p>
-                                    )}
-                                </div>
+    return (
+        <AuthShell
+            title="Vérification email"
+            subtitle="Renvoyez un lien de confirmation à votre adresse pour activer votre compte."
+        >
+            {error ? (
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    role="alert"
+                    style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        padding: "12px 14px",
+                        borderRadius: 10,
+                        background: "var(--eduflow-danger-50)",
+                        border: "1px solid var(--eduflow-danger-200)",
+                        color: "var(--eduflow-danger-800)",
+                        marginBottom: 16,
+                    }}
+                >
+                    <Icon name="warning" size={16} color="var(--eduflow-danger-600)" />
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{error}</div>
+                </motion.div>
+            ) : null}
 
-                                <Button
-                                    type="submit"
-                                    className="w-full mt-6"
-                                    size="lg"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                            Envoi en cours...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Renvoyer le lien
-                                            <ArrowRight className="w-4 h-4 ml-2" />
-                                        </>
-                                    )}
-                                </Button>
-                            </form>
+            <form
+                onSubmit={handleSubmit(onSubmit)}
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+            >
+                <FieldInput
+                    id="email"
+                    label="Adresse email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="vous@ecole.bj"
+                    error={errors.email?.message}
+                    register={register("email")}
+                />
 
-                            <div className="mt-6 text-center">
-                                <Link
-                                    href="/login"
-                                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                                >
-                                    Annuler et retourner à la connexion
-                                </Link>
-                            </div>
-                        </>
-                    )}
+                <Button
+                    type="submit"
+                    iconRight="arrowRight"
+                    disabled={isLoading}
+                    style={{
+                        width: "100%",
+                        justifyContent: "center",
+                        height: 48,
+                        marginTop: 4,
+                    }}
+                >
+                    {isLoading ? "Envoi en cours…" : "Renvoyer le lien"}
+                </Button>
+
+                <div
+                    style={{
+                        textAlign: "center",
+                        marginTop: 12,
+                        fontSize: 13,
+                        color: "var(--eduflow-text-tertiary)",
+                    }}
+                >
+                    <Link
+                        href="/login"
+                        style={{
+                            color: "var(--brand-700)",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                        }}
+                    >
+                        Retourner à la connexion
+                    </Link>
                 </div>
-            </div>
-        </div>
+            </form>
+        </AuthShell>
+    );
+}
+
+function FieldInput({
+    id,
+    label,
+    type,
+    autoComplete,
+    placeholder,
+    error,
+    register,
+}: {
+    id: string;
+    label: string;
+    type: string;
+    autoComplete?: string;
+    placeholder?: string;
+    error?: string;
+    register: ReturnType<ReturnType<typeof useForm>["register"]>;
+}) {
+    return (
+        <label style={{ display: "block" }}>
+            <span
+                style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-secondary)",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </span>
+            <input
+                id={id}
+                type={type}
+                autoComplete={autoComplete}
+                placeholder={placeholder}
+                aria-invalid={!!error}
+                {...register}
+                style={{
+                    width: "100%",
+                    height: 44,
+                    padding: "0 14px",
+                    borderRadius: "var(--eduflow-radius-input)",
+                    border: `1px solid ${
+                        error
+                            ? "var(--eduflow-danger-500)"
+                            : "var(--eduflow-border-default)"
+                    }`,
+                    background: "var(--eduflow-surface-card)",
+                    fontFamily: "inherit",
+                    fontSize: 14,
+                    color: "var(--eduflow-text-primary)",
+                    outline: "none",
+                    transition:
+                        "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                }}
+            />
+            {error ? (
+                <p
+                    style={{
+                        margin: "6px 0 0",
+                        fontSize: 12,
+                        color: "var(--eduflow-danger-700)",
+                    }}
+                >
+                    {error}
+                </p>
+            ) : null}
+        </label>
     );
 }

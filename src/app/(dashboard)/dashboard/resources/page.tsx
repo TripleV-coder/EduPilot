@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageCallout } from "@/components/layout/page-callout";
+import { formatDateShort, formatFileSize } from "@/lib/utils/formatters";
 
 const RESOURCE_TYPES = [
     { value: "", label: "Tous les types" },
@@ -24,38 +25,23 @@ const RESOURCE_TYPES = [
     { value: "OTHER", label: "Autre" },
 ] as const;
 
-function formatFileSize(bytes: number | null): string {
-    if (!bytes) return "--";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-}
-
 function getIcon(type: string) {
     switch (type) {
         case "LESSON":
         case "DOCUMENT":
-            return <FileText className="w-8 h-8 text-blue-500" />;
+            return <FileText className="w-8 h-8 text-primary" />;
         case "VIDEO":
-            return <Video className="w-8 h-8 text-purple-500" />;
+            return <Video className="w-8 h-8 text-primary" />;
         case "EXAM":
-            return <FileText className="w-8 h-8 text-red-500" />;
+            return <FileText className="w-8 h-8 text-destructive" />;
         case "EXERCISE":
-            return <FileText className="w-8 h-8 text-orange-500" />;
+            return <FileText className="w-8 h-8 text-warning" />;
         case "CORRECTION":
-            return <FileText className="w-8 h-8 text-green-500" />;
+            return <FileText className="w-8 h-8 text-success" />;
         case "AUDIO":
-            return <Music className="w-8 h-8 text-teal-500" />;
+            return <Music className="w-8 h-8 text-primary" />;
         default:
-            return <FileText className="w-8 h-8 text-gray-500" />;
+            return <FileText className="w-8 h-8 text-muted-foreground" />;
     }
 }
 
@@ -116,13 +102,15 @@ export default function ResourcesPage() {
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            
+                            aria-label="Rechercher une ressource"
+                            placeholder="Rechercher un titre, une matière ou un niveau..."
                             className="pl-9 bg-muted/50 border-border"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
                     <select
+                        aria-label="Filtrer les ressources par type"
                         className="h-10 rounded-md border border-border bg-muted/50 px-3 text-sm"
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
@@ -154,7 +142,7 @@ export default function ResourcesPage() {
                             {resources.map((res: any) => (
                                 <Card key={res.id} className="border-border shadow-sm hover:shadow-md transition-shadow group">
                                     <CardContent className="p-4 relative">
-                                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Plus d'options">
                                             <MoreVertical className="w-4 h-4" />
                                         </Button>
 
@@ -174,9 +162,9 @@ export default function ResourcesPage() {
                                         </div>
 
                                         <div className="pt-3 border-t border-border flex justify-between items-center text-xs text-muted-foreground">
-                                            <span>{formatDate(res.createdAt)} • {formatFileSize(res.fileSize)}</span>
+                                            <span>{formatDateShort(res.createdAt)} • {formatFileSize(res.fileSize)}</span>
                                             <a href={res.fileUrl} target="_blank" rel="noopener noreferrer" download>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Télécharger">
                                                     <Download className="w-4 h-4" />
                                                 </Button>
                                             </a>

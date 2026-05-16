@@ -1,18 +1,36 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, DM_Serif_Display } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({
+// EduPilot Design System — Inter (display + body) et JetBrains Mono (tabular).
+// On expose Inter à la fois sous --font-body / --font-display (compat avec
+// les composants existants qui utilisent ces variables) et sous
+// --font-eduflow-body (utilisé par les composants edu/*).
+const inter = Inter({
     subsets: ["latin"],
     variable: "--font-body",
+    weight: ["400", "500", "600", "700"],
     display: "swap",
 });
 
-const dmSerifDisplay = DM_Serif_Display({
+const interDisplay = Inter({
     subsets: ["latin"],
     variable: "--font-display",
-    weight: "400",
-    style: ["normal", "italic"],
+    weight: ["500", "600", "700"],
+    display: "swap",
+});
+
+const eduflowBody = Inter({
+    subsets: ["latin"],
+    variable: "--font-eduflow-body",
+    weight: ["400", "500", "600", "700"],
+    display: "swap",
+});
+
+const eduflowMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-eduflow-mono",
+    weight: ["400", "500"],
     display: "swap",
 });
 
@@ -34,6 +52,16 @@ export const metadata: Metadata = {
         template: "%s — EduPilot",
     },
     description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
+    icons: {
+        icon: [
+            { url: "/favicon.svg", type: "image/svg+xml" },
+        ],
+        apple: [
+            { url: "/apple-touch-icon.svg", type: "image/svg+xml", sizes: "180x180" },
+        ],
+        shortcut: "/favicon.svg",
+    },
+    manifest: "/manifest.json",
     openGraph: {
         title: "EduPilot",
         description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
@@ -59,7 +87,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="fr" className={`${geist.variable} ${dmSerifDisplay.variable}`}>
+        <html lang="fr" className={`${inter.variable} ${interDisplay.variable} ${eduflowBody.variable} ${eduflowMono.variable}`}>
             <body className="font-body antialiased">
                 <SessionProvider>
                     <SWRProvider>

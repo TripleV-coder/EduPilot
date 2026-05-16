@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Permission } from "@/lib/rbac/permissions";
 import { cn } from "@/lib/utils";
+import DOMPurify from "dompurify";
 
 type LessonDetail = {
     id: string;
@@ -155,7 +156,7 @@ export default function LessonViewerPage() {
                         {/* Content Body */}
                         <Card className="border-border shadow-sm overflow-hidden">
                             <CardContent className="pt-8 prose prose-slate dark:prose-invert max-w-none">
-                                <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+                                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lesson.content) }} />
                             </CardContent>
                         </Card>
 
@@ -211,7 +212,7 @@ export default function LessonViewerPage() {
                                     </Button>
                                 </Link>
                             ) : (
-                                <div className="bg-emerald-500/10 text-emerald-600 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                                <div className="bg-success/10 text-success px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
                                     <CheckCircle className="h-4 w-4" />
                                     Cours terminé !
                                 </div>

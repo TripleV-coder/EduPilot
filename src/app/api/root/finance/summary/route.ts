@@ -1,19 +1,8 @@
-import { Session } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
+import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
-
-function requireRoot(session: Session | null, userEmail?: string | null, userId?: string | null) {
-  if (!userId || !userEmail) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
-  if (!isRootUserEmail(userEmail) || !hasValidRootSession(session)) {
-    return NextResponse.json({ error: "Accès root refusé" }, { status: 403 });
-  }
-  return null;
-}
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +25,32 @@ export async function GET(request: NextRequest) {
       prisma.subscriptionPlan.findMany(),
     ]);
 
+    const [paymentStats, recentPayments] = await Promise.all([
+      prisma.payment.groupBy({
+        by: ["status"],
+        _count: true,
+      }),
+      prisma.payment.findMany({
+        where: {
+          paidAt: { not: null },
+          status: "VERIFIED",
+        },
+        orderBy: {
+          paidAt: "desc",
+        },
+        take: 8,
+        include: {
+          student: {
+            include: {
+              school: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
     const planMap = new Map(plans.map((p) => [p.id, p]));
 
     let totalMonthlyRevenue = 0;
@@ -51,13 +66,24 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const paidCount = paymentStats.find((row) => row.status === "VERIFIED")?._count ?? 0;
+    const totalPayments = paymentStats.reduce((sum, row) => sum + row._count, 0);
+    const collectionRate = totalPayments > 0 ? (paidCount / totalPayments) * 100 : 0;
+
     return NextResponse.json({
       summary: {
         totalMonthlyRevenue,
         activeTenants: schools.length,
         averageRevenuePerTenant: schools.length > 0 ? totalMonthlyRevenue / schools.length : 0,
+        collectionRate,
       },
       distribution: Object.entries(schoolsByPlan).map(([name, count]) => ({ name, count })),
+      recentPayments: recentPayments.map((payment) => ({
+        id: payment.id,
+        schoolName: payment.student.school?.name || "École non liée",
+        amount: Number(payment.amount),
+        paidAt: payment.paidAt?.toISOString() || null,
+      })),
     });
   } catch (error) {
     logger.error("Error fetching platform finance summary", error as Error);

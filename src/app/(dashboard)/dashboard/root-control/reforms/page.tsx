@@ -33,11 +33,11 @@ const DEFAULT_BAC_SUBJECTS: ExamSubject[] = [
 ];
 
 const DEFAULT_MENTIONS: Mention[] = [
-    { code: "TBIEN", label: "Très Bien", minScore: 16, maxScore: 20, color: "#059669" },
-    { code: "BIEN", label: "Bien", minScore: 14, maxScore: 15.99, color: "#10b981" },
-    { code: "ABIEN", label: "Assez Bien", minScore: 12, maxScore: 13.99, color: "#3b82f6" },
-    { code: "PASSABLE", label: "Passable", minScore: 10, maxScore: 11.99, color: "#94a3b8" },
-    { code: "ELIM", label: "Éliminé", minScore: 0, maxScore: 9.99, color: "#ef4444" },
+    { code: "TBIEN", label: "Très Bien", minScore: 16, maxScore: 20, color: "hsl(var(--success))" },
+    { code: "BIEN", label: "Bien", minScore: 14, maxScore: 15.99, color: "hsl(var(--success))" },
+    { code: "ABIEN", label: "Assez Bien", minScore: 12, maxScore: 13.99, color: "hsl(var(--primary))" },
+    { code: "PASSABLE", label: "Passable", minScore: 10, maxScore: 11.99, color: "hsl(var(--muted-foreground))" },
+    { code: "ELIM", label: "Éliminé", minScore: 0, maxScore: 9.99, color: "hsl(var(--destructive))" },
 ];
 
 type ExamSubject = {
@@ -153,7 +153,7 @@ export default function ReformsPage() {
     };
 
     const addMention = () => {
-        setMentions(prev => [...prev, { code: `M${prev.length + 1}`, label: "Nouvelle Mention", minScore: 10, maxScore: 12, color: "#94a3b8" }]);
+        setMentions(prev => [...prev, { code: `M${prev.length + 1}`, label: "Nouvelle Mention", minScore: 10, maxScore: 12, color: "hsl(var(--muted-foreground))" }]);
     };
 
     return (
@@ -170,7 +170,7 @@ export default function ReformsPage() {
                 />
 
                 {(error || success) && (
-                    <div className={`p-4 rounded-lg flex items-center gap-3 border ${error ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+                    <div className={`p-4 rounded-lg flex items-center gap-3 border ${error ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-success/10 border-success/30 text-success"
                         }`}>
                         {error ? <AlertCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
                         <p className="text-sm font-medium">{error || success}</p>
@@ -213,7 +213,7 @@ export default function ReformsPage() {
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
-                                    <Button onClick={() => handleSave("CEP", { subjects: cepSubjects })} disabled={saving} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                                    <Button onClick={() => handleSave("CEP", { subjects: cepSubjects })} disabled={saving} className="gap-2">
                                         <Save className="h-4 w-4" /> {saving ? "Sauvegarde..." : "Enregistrer les modifications"}
                                     </Button>
                                 </div>
@@ -249,7 +249,7 @@ export default function ReformsPage() {
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
-                                    <Button onClick={() => handleSave("BEPC", { subjects: bepcSubjects })} disabled={saving} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                                    <Button onClick={() => handleSave("BEPC", { subjects: bepcSubjects })} disabled={saving} className="gap-2">
                                         <Save className="h-4 w-4" /> {saving ? "Sauvegarde..." : "Enregistrer les modifications"}
                                     </Button>
                                 </div>
@@ -285,7 +285,7 @@ export default function ReformsPage() {
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
-                                    <Button onClick={() => handleSave("BAC", { subjects: bacSubjects })} disabled={saving} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                                    <Button onClick={() => handleSave("BAC", { subjects: bacSubjects })} disabled={saving} className="gap-2">
                                         <Save className="h-4 w-4" /> {saving ? "Sauvegarde..." : "Enregistrer les modifications"}
                                     </Button>
                                 </div>
@@ -341,7 +341,7 @@ export default function ReformsPage() {
                                     ))}
                                 </div>
                                 <div className="flex justify-end pt-4">
-                                    <Button onClick={() => handleSave("MENTIONS", { mentions })} disabled={saving} className="gap-2 bg-purple-600 hover:bg-purple-700">
+                                    <Button onClick={() => handleSave("MENTIONS", { mentions })} disabled={saving} className="gap-2">
                                         <Save className="h-4 w-4" /> {saving ? "Sauvegarde..." : "Enregistrer les Mentions"}
                                     </Button>
                                 </div>

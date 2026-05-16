@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
-import { Send, Bot, User, Sparkles, AlertCircle, Trash2, Square } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+import { Badge, Button, Card, Icon } from "@/components/edu";
+import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
 type Message = {
     id: string;
@@ -18,6 +16,12 @@ type Message = {
 };
 
 export default function AiAssistantPage() {
+    const { data: session } = useSession();
+    const userInitial =
+        session?.user?.name?.charAt(0)?.toUpperCase() ||
+        session?.user?.email?.charAt(0)?.toUpperCase() ||
+        "U";
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +64,7 @@ export default function AiAssistantPage() {
                     const parts: string[] = [];
                     if (providers.externalConfigured) parts.push("Externe");
                     if (providers.n8nConfigured) parts.push("n8n");
-                    setStatusHint(parts.length ? `Moteurs: ${parts.join(" · ")}` : null);
+                    setStatusHint(parts.length ? `Moteurs · ${parts.join(" · ")}` : null);
                 }
             } catch {
                 // ignore
@@ -94,11 +98,15 @@ export default function AiAssistantPage() {
         setError(null);
 
         try {
-            // Prepare placeholder assistant message for streaming
             const assistantId = (Date.now() + 1).toString();
             setMessages((prev) => [
                 ...prev,
-                { id: assistantId, role: "assistant", content: "", timestamp: new Date() },
+                {
+                    id: assistantId,
+                    role: "assistant",
+                    content: "",
+                    timestamp: new Date(),
+                },
             ]);
 
             const controller = new AbortController();
@@ -129,7 +137,6 @@ export default function AiAssistantPage() {
                 if (done) break;
                 buffer += decoder.decode(value, { stream: true });
 
-                // SSE framing: events lines; we only parse `data: ...`
                 const parts = buffer.split("\n\n");
                 buffer = parts.pop() || "";
 
@@ -142,15 +149,18 @@ export default function AiAssistantPage() {
                         if (payload.type === "token") {
                             setMessages((prev) =>
                                 prev.map((m) =>
-                                    m.id === assistantId ? { ...m, content: m.content + String(payload.content || "") } : m
+                                    m.id === assistantId
+                                        ? { ...m, content: m.content + String(payload.content || "") }
+                                        : m
                                 )
                             );
                         }
                         if (payload.type === "done") {
-                            // Ensure final content is aligned
                             const final = String(payload.content || "");
                             setMessages((prev) =>
-                                prev.map((m) => (m.id === assistantId ? { ...m, content: final || m.content } : m))
+                                prev.map((m) =>
+                                    m.id === assistantId ? { ...m, content: final || m.content } : m
+                                )
                             );
                         }
                         if (payload.type === "error") {
@@ -161,11 +171,11 @@ export default function AiAssistantPage() {
                     }
                 }
             }
-        } catch (err: any) {
-            if (err?.name === "AbortError") {
-                setError(null);
-            } else {
-                setError(err.message);
+        } catch (err) {
+            const isAbort =
+                err instanceof Error && err.name === "AbortError";
+            if (!isAbort) {
+                setError(err instanceof Error ? err.message : "Erreur inconnue");
             }
         } finally {
             abortRef.current = null;
@@ -174,134 +184,451 @@ export default function AiAssistantPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-6 flex flex-col h-[calc(100vh-120px)] max-w-[1000px] mx-auto dashboard-motion animate-fade-in">
-                <div className="flex justify-between items-center">
-                    <PageHeader title="Assistant EduPilot" description="Intelligence Artificielle d'aide à la décision et au suivi pédagogique." />
-                    <div className="flex items-center gap-2">
-                        <div className="hidden md:flex items-center gap-1 rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-                            <Sparkles className="w-3 h-3 text-primary" />
-                            {messages.length} message{messages.length > 1 ? "s" : ""}
-                        </div>
-                        {isLoading ? (
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div
+                className="eduflow-scope mx-auto flex max-w-[1000px] flex-col gap-4 pb-6"
+                style={{ minHeight: "calc(100vh - 120px)" }}
+            >
+                <PageHeader
+                    greeting="Assistant EduPilot"
+                    sub="Intelligence artificielle d'aide à la décision et au suivi pédagogique."
+                    breadcrumb={["Tableau de bord", "Assistant IA"]}
+                    actions={
+                        <>
+                            <Badge variant="neutral" icon="sparkle" size="sm">
+                                {messages.length} message{messages.length > 1 ? "s" : ""}
+                            </Badge>
+                            {isLoading ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon="x"
+                                    onClick={stopGeneration}
+                                >
+                                    Arrêter
+                                </Button>
+                            ) : null}
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive gap-2"
-                                onClick={stopGeneration}
+                                icon="x"
+                                onClick={() => setMessages([])}
+                                disabled={isLoading || messages.length === 0}
                             >
-                                <Square className="w-3.5 h-3.5" />
-                                Stop
+                                Effacer
                             </Button>
-                        ) : null}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive gap-2"
-                            onClick={() => setMessages([])}
-                            disabled={isLoading}
-                        >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Effacer Chat
-                        </Button>
-                    </div>
-                </div>
+                        </>
+                    }
+                />
 
-                <Card className="dashboard-block flex-1 flex flex-col border-none shadow-none bg-muted/20 overflow-hidden rounded-2xl" data-reveal>
-                    <CardContent className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
-                        {messages.length === 0 && (
-                            <div className="dashboard-panel rounded-xl border border-border/60 bg-background/50 p-4 space-y-3" data-reveal>
-                                <p className="text-xs font-semibold tracking-wide text-muted-foreground">Démarrer rapidement</p>
-                                <div className="flex flex-wrap gap-2">
+                <Card
+                    padding={0}
+                    style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                        background: "var(--eduflow-surface-card)",
+                    }}
+                >
+                    <div
+                        className="custom-scrollbar"
+                        style={{
+                            flex: 1,
+                            overflowY: "auto",
+                            padding: "clamp(16px, 3vw, 28px)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 20,
+                            background: "var(--eduflow-surface-sunken)",
+                        }}
+                    >
+                        {messages.length === 0 ? (
+                            <div
+                                style={{
+                                    padding: 20,
+                                    borderRadius: "var(--eduflow-radius-card)",
+                                    background: "var(--eduflow-surface-card)",
+                                    border: "1px solid var(--eduflow-border-subtle)",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 12,
+                                        marginBottom: 14,
+                                    }}
+                                >
+                                    <AvatarGradient />
+                                    <div>
+                                        <div
+                                            style={{
+                                                fontSize: 14,
+                                                fontWeight: 700,
+                                                color: "var(--eduflow-text-primary)",
+                                            }}
+                                        >
+                                            Bonjour {session?.user?.name?.split(" ")[0] || ""} 👋
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--eduflow-text-secondary)",
+                                            }}
+                                        >
+                                            Je peux analyser vos données, rédiger pour vous, et vous suggérer des actions.
+                                        </div>
+                                    </div>
+                                </div>
+                                <SubLabel>Démarrer rapidement</SubLabel>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        gap: 8,
+                                        marginTop: 4,
+                                    }}
+                                >
                                     {starterPrompts.map((prompt) => (
-                                        <Button
+                                        <button
                                             key={prompt}
                                             type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="max-w-full text-left h-auto whitespace-normal py-1.5"
                                             onClick={() => setInput(prompt)}
+                                            style={{
+                                                padding: "10px 14px",
+                                                fontSize: 12,
+                                                fontWeight: 500,
+                                                color: "var(--eduflow-text-primary)",
+                                                background: "var(--brand-50)",
+                                                border: "1px solid var(--brand-100)",
+                                                borderRadius: 999,
+                                                cursor: "pointer",
+                                                fontFamily: "inherit",
+                                                textAlign: "left",
+                                                maxWidth: 320,
+                                                lineHeight: 1.4,
+                                                transition:
+                                                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out), border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background =
+                                                    "var(--brand-100)";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background =
+                                                    "var(--brand-50)";
+                                            }}
                                         >
                                             {prompt}
-                                        </Button>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
-                        )}
+                        ) : null}
 
                         {messages.map((message) => (
-                            <div key={message.id} className={cn("flex gap-4", message.role === "user" ? "flex-row-reverse" : "flex-row")}>
-                                <div className={cn(
-                                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
-                                    message.role === "user" ? "bg-primary text-white border-primary" : "bg-background text-primary border-border/50"
-                                )}>
-                                    {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                                </div>
-
-                                <div className={cn("flex flex-col gap-1.5 max-w-[80%]", message.role === "user" ? "items-end" : "items-start")}>
-                                    <div className={cn(
-                                        "px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm",
-                                        message.role === "user" 
-                                            ? "bg-primary text-white rounded-tr-none font-medium" 
-                                            : "dashboard-panel bg-background border border-border/50 rounded-tl-none text-foreground"
-                                    )}>
-                                        {message.content}
-                                    </div>
-                                    <span className="text-[10px] text-muted-foreground px-1 font-medium opacity-70">
-                                        {message.timestamp.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                    </span>
-                                </div>
-                            </div>
+                            <MessageBubble
+                                key={message.id}
+                                message={message}
+                                userInitial={userInitial}
+                            />
                         ))}
 
-                        {isLoading && (
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 rounded-xl bg-background border border-border/50 flex items-center justify-center shrink-0 shadow-sm">
-                                    <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                                </div>
-                                <div className="px-5 py-4 rounded-2xl bg-background border border-border/50 rounded-tl-none flex items-center gap-1.5 shadow-sm">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:0.2s]" />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:0.4s]" />
+                        {isLoading ? (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    alignItems: "flex-end",
+                                }}
+                            >
+                                <AvatarGradient />
+                                <div
+                                    style={{
+                                        padding: "14px 18px",
+                                        borderRadius: "18px 18px 18px 4px",
+                                        background: "var(--eduflow-surface-card)",
+                                        border: "1px solid var(--eduflow-border-subtle)",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                    }}
+                                >
+                                    <TypingDot delay="0s" />
+                                    <TypingDot delay="0.15s" />
+                                    <TypingDot delay="0.3s" />
                                 </div>
                             </div>
-                        )}
+                        ) : null}
 
-                        {error && (
-                            <div className="mx-auto max-w-md bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-bold">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                <p>{error}</p>
+                        {error ? (
+                            <div
+                                style={{
+                                    margin: "0 auto",
+                                    maxWidth: 460,
+                                    padding: "12px 16px",
+                                    borderRadius: 12,
+                                    background: "var(--eduflow-danger-50)",
+                                    border: "1px solid var(--eduflow-danger-200)",
+                                    color: "var(--eduflow-danger-800)",
+                                    display: "flex",
+                                    gap: 10,
+                                    alignItems: "flex-start",
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                }}
+                            >
+                                <Icon
+                                    name="warning"
+                                    size={16}
+                                    color="var(--eduflow-danger-600)"
+                                />
+                                {error}
                             </div>
-                        )}
+                        ) : null}
                         <div ref={messagesEndRef} />
-                    </CardContent>
+                    </div>
 
-                    {/* Footer Area */}
-                    <div className="p-4 bg-background/40 border-t border-border/50 backdrop-blur-md">
-                        <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto flex items-center">
-                            <Input
+                    {/* Composer */}
+                    <div
+                        style={{
+                            borderTop: "1px solid var(--eduflow-border-subtle)",
+                            padding: 16,
+                            background: "var(--eduflow-surface-card)",
+                        }}
+                    >
+                        <form
+                            onSubmit={handleSubmit}
+                            style={{
+                                position: "relative",
+                                maxWidth: 720,
+                                margin: "0 auto",
+                            }}
+                        >
+                            <input
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                
-                                className="h-12 pr-12 pl-5 bg-background border-none ring-1 ring-border/50 shadow-lg text-sm rounded-xl focus-visible:ring-primary/30"
+                                placeholder="Posez votre question…"
                                 disabled={isLoading}
+                                aria-label="Message"
+                                style={{
+                                    width: "100%",
+                                    height: 48,
+                                    padding: "0 56px 0 18px",
+                                    background: "var(--eduflow-surface-sunken)",
+                                    border: "1px solid var(--eduflow-border-default)",
+                                    borderRadius: 999,
+                                    fontFamily: "inherit",
+                                    fontSize: 14,
+                                    color: "var(--eduflow-text-primary)",
+                                    outline: "none",
+                                    transition:
+                                        "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = "var(--brand-600)";
+                                    e.currentTarget.style.boxShadow =
+                                        "0 0 0 3px var(--brand-100)";
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.borderColor =
+                                        "var(--eduflow-border-default)";
+                                    e.currentTarget.style.boxShadow = "none";
+                                }}
                             />
-                            <Button
+                            <button
                                 type="submit"
-                                size="icon"
                                 disabled={!input.trim() || isLoading}
-                                className="absolute right-1.5 h-9 w-9 rounded-lg bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
+                                aria-label="Envoyer"
+                                style={{
+                                    position: "absolute",
+                                    right: 6,
+                                    top: 6,
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 999,
+                                    border: 0,
+                                    background:
+                                        !input.trim() || isLoading
+                                            ? "var(--eduflow-neutral-200)"
+                                            : "var(--gradient-cta)",
+                                    color: "#fff",
+                                    cursor:
+                                        !input.trim() || isLoading
+                                            ? "not-allowed"
+                                            : "pointer",
+                                    display: "grid",
+                                    placeItems: "center",
+                                    boxShadow:
+                                        !input.trim() || isLoading
+                                            ? "none"
+                                            : "var(--eduflow-shadow-cta)",
+                                    transition:
+                                        "background var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                }}
                             >
-                                <Send className="w-4 h-4" />
-                            </Button>
+                                <Icon name="arrowRight" size={16} color="#fff" />
+                            </button>
                         </form>
-                        <p className="text-[10px] text-center text-muted-foreground mt-3 font-medium flex items-center justify-center gap-1.5 tracking-tight opacity-70">
-                            <Sparkles className="w-3 h-3 text-primary" />
-                            {statusHint ? statusHint : "Assistant IA"}
-                        </p>
+                        <div
+                            style={{
+                                marginTop: 10,
+                                textAlign: "center",
+                                fontSize: 11,
+                                color: "var(--eduflow-text-tertiary)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6,
+                            }}
+                        >
+                            <Icon name="sparkle" size={12} color="var(--brand-600)" />
+                            {statusHint || "Assistant IA · réponses générées en français"}
+                        </div>
                     </div>
                 </Card>
             </div>
         </PageGuard>
+    );
+}
+
+function MessageBubble({
+    message,
+    userInitial,
+}: {
+    message: Message;
+    userInitial: string;
+}) {
+    const isUser = message.role === "user";
+    return (
+        <div
+            style={{
+                display: "flex",
+                gap: 12,
+                flexDirection: isUser ? "row-reverse" : "row",
+                alignItems: "flex-end",
+            }}
+        >
+            {isUser ? (
+                <div
+                    style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: "var(--brand-100)",
+                        color: "var(--brand-700)",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                    }}
+                >
+                    {userInitial}
+                </div>
+            ) : (
+                <AvatarGradient />
+            )}
+
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    maxWidth: "78%",
+                    alignItems: isUser ? "flex-end" : "flex-start",
+                }}
+            >
+                <div
+                    style={{
+                        padding: "12px 16px",
+                        fontSize: 14,
+                        lineHeight: 1.55,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        borderRadius: isUser
+                            ? "18px 18px 4px 18px"
+                            : "18px 18px 18px 4px",
+                        background: isUser
+                            ? "var(--brand-600)"
+                            : "var(--eduflow-surface-card)",
+                        color: isUser ? "#fff" : "var(--eduflow-text-primary)",
+                        border: isUser
+                            ? "1px solid var(--brand-700)"
+                            : "1px solid var(--eduflow-border-subtle)",
+                        boxShadow: isUser
+                            ? "var(--eduflow-shadow-sm)"
+                            : "var(--eduflow-shadow-xs)",
+                        fontWeight: isUser ? 500 : 400,
+                    }}
+                >
+                    {message.content || (
+                        <span
+                            style={{
+                                opacity: 0.55,
+                                fontStyle: "italic",
+                                fontSize: 13,
+                            }}
+                        >
+                            …
+                        </span>
+                    )}
+                </div>
+                <span
+                    style={{
+                        fontSize: 10,
+                        color: "var(--eduflow-text-tertiary)",
+                        padding: "0 6px",
+                        fontWeight: 500,
+                    }}
+                >
+                    {message.timestamp.toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    })}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+function AvatarGradient() {
+    return (
+        <div
+            style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background:
+                    "linear-gradient(135deg, var(--brand-700), var(--brand-accent-600, #4F46E5))",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.28)",
+            }}
+            aria-hidden
+        >
+            <Icon name="sparkle" size={16} color="#fff" />
+        </div>
+    );
+}
+
+function TypingDot({ delay }: { delay: string }) {
+    return (
+        <span
+            className="animate-bounce"
+            style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "var(--brand-400, #60A5FA)",
+                animationDelay: delay,
+                display: "inline-block",
+            }}
+        />
     );
 }

@@ -34,7 +34,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(userAchievement);
     } catch (error) {
         logger.error("Award achievement failed", error);
-        return NextResponse.json({ error: (error as any).message || "Failed to award achievement" }, { status: 500 });
+        return NextResponse.json(
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to award achievement",
+            },
+            { status: 500 }
+        );
     }
 }
 

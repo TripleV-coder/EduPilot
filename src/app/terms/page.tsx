@@ -1,126 +1,148 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LegalLayout } from "@/components/layout/legal-layout";
 
 export const metadata: Metadata = {
     title: "Conditions d'utilisation — EduPilot",
-    description: "Conditions générales d'utilisation de la plateforme EduPilot.",
+    description:
+        "Conditions générales d'utilisation d'EduPilot : règles d'usage, responsabilités, propriété intellectuelle.",
+};
+
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "EduPilot";
+const CONTACT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@edupilot.app";
+
+const sectionTitleStyle: React.CSSProperties = {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "var(--eduflow-text-primary)",
+    marginBottom: 12,
+};
+
+const listStyle: React.CSSProperties = {
+    paddingLeft: 20,
+    margin: "8px 0 0",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+};
+
+const linkStyle: React.CSSProperties = {
+    color: "var(--brand-700)",
+    textDecoration: "underline",
 };
 
 export default function TermsPage() {
-    const lastUpdated = "26 février 2026";
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || "EduPilot";
-    const contactEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@edupilot.app";
-
     return (
-        <main className="min-h-screen bg-gray-50 py-12 px-4">
-            <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-8">
-                <div className="mb-8">
-                    <Link href="/login" className="text-orange-500 hover:text-orange-600 text-sm">
-                        ← Retour à la connexion
+        <LegalLayout
+            title="Conditions d'utilisation"
+            lastUpdated="26 février 2026"
+            otherLink={{ href: "/privacy", label: "Politique de confidentialité" }}
+        >
+            <section>
+                <h2 style={sectionTitleStyle}>1. Objet</h2>
+                <p>
+                    Les présentes conditions générales d'utilisation (« CGU ») régissent l'accès et l'usage
+                    de la plateforme <strong>{APP_NAME}</strong>, service de gestion scolaire en ligne destiné
+                    aux établissements éducatifs, à leur personnel, aux élèves et à leurs représentants
+                    légaux.
+                </p>
+            </section>
+
+            <section>
+                <h2 style={sectionTitleStyle}>2. Acceptation</h2>
+                <p>
+                    L'utilisation de {APP_NAME} implique l'acceptation pleine et entière des présentes CGU.
+                    Tout différend ou question peut être adressé à{" "}
+                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
+                        {CONTACT_EMAIL}
+                    </a>
+                    .
+                </p>
+            </section>
+
+            <section>
+                <h2 style={sectionTitleStyle}>3. Conditions d'accès</h2>
+                <p>Pour utiliser le service, l'utilisateur doit :</p>
+                <ul style={listStyle}>
+                    <li>Être rattaché à un établissement abonné à {APP_NAME}.</li>
+                    <li>Disposer d'identifiants délivrés par son établissement.</li>
+                    <li>Maintenir la confidentialité de son mot de passe.</li>
+                    <li>Notifier immédiatement toute utilisation non autorisée de son compte.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 style={sectionTitleStyle}>4. Protection des données</h2>
+                <p>
+                    Le traitement des données personnelles est régi par notre{" "}
+                    <Link href="/privacy" style={linkStyle}>
+                        Politique de confidentialité
                     </Link>
-                </div>
+                    , conforme au RGPD. L'établissement abonné est le responsable du traitement ;{" "}
+                    {APP_NAME} agit en sous-traitant.
+                </p>
+            </section>
 
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Conditions d&apos;utilisation</h1>
-                <p className="text-gray-500 text-sm mb-8">Dernière mise à jour : {lastUpdated}</p>
+            <section>
+                <h2 style={sectionTitleStyle}>5. Propriété intellectuelle</h2>
+                <p>
+                    L'ensemble des éléments composant {APP_NAME} (logiciel, interface, marques, logos,
+                    contenus éditoriaux) est protégé par le Code de la propriété intellectuelle. Toute
+                    reproduction, représentation ou exploitation, totale ou partielle, sans autorisation
+                    écrite préalable est interdite.
+                </p>
+            </section>
 
-                <div className="prose prose-gray max-w-none space-y-6 text-gray-700">
+            <section>
+                <h2 style={sectionTitleStyle}>6. Disponibilité du service</h2>
+                <p>
+                    {APP_NAME} s'engage à garantir un taux de disponibilité de 99,5% mesuré sur une base
+                    mensuelle (hors maintenances planifiées annoncées au moins 48h à l'avance). En cas
+                    d'incident majeur, un statut public est tenu à jour.
+                </p>
+            </section>
 
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">1. Objet</h2>
-                        <p>
-                            Les présentes conditions régissent l&apos;utilisation de la plateforme <strong>{appName}</strong>,
-                            logiciel de gestion scolaire destiné aux établissements d&apos;enseignement. En accédant à
-                            la plateforme, vous acceptez ces conditions dans leur intégralité.
-                        </p>
-                    </section>
+            <section>
+                <h2 style={sectionTitleStyle}>7. Responsabilités</h2>
+                <p>
+                    {APP_NAME} ne saurait être tenu responsable des dommages indirects résultant d'une
+                    utilisation non conforme du service, d'une saisie erronée par un utilisateur ou d'une
+                    indisponibilité due à un cas de force majeure. La responsabilité globale est plafonnée
+                    aux montants effectivement versés par l'établissement sur les 12 derniers mois.
+                </p>
+            </section>
 
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">2. Accès et comptes</h2>
-                        <p>
-                            L&apos;accès est réservé aux utilisateurs autorisés par l&apos;administrateur de l&apos;établissement.
-                            Chaque utilisateur est responsable de la confidentialité de ses identifiants.
-                            Tout accès non autorisé doit être signalé immédiatement à{" "}
-                            <a href={`mailto:${contactEmail}`} className="text-orange-500">{contactEmail}</a>.
-                        </p>
-                    </section>
+            <section>
+                <h2 style={sectionTitleStyle}>8. Comportements interdits</h2>
+                <p>
+                    Sont strictement interdits : la tentative d'accès non autorisé à des comptes tiers, la
+                    diffusion de contenus illicites, l'usage automatisé du service hors des API publiées,
+                    toute action visant à perturber le fonctionnement du service.
+                </p>
+            </section>
 
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">3. Utilisation acceptable</h2>
-                        <p>Il est interdit de :</p>
-                        <ul className="list-disc list-inside mt-2 space-y-1">
-                            <li>Accéder aux données d&apos;autres établissements ou utilisateurs sans autorisation</li>
-                            <li>Utiliser la plateforme à des fins illégales ou frauduleuses</li>
-                            <li>Tenter de contourner les mécanismes de sécurité</li>
-                            <li>Publier des contenus offensants, discriminatoires ou illicites</li>
-                            <li>Utiliser des robots ou scripts automatisés non autorisés</li>
-                        </ul>
-                    </section>
+            <section>
+                <h2 style={sectionTitleStyle}>9. Résiliation</h2>
+                <p>
+                    {APP_NAME} se réserve le droit de suspendre ou de résilier l'accès d'un utilisateur en
+                    cas de manquement grave aux présentes CGU, après notification préalable lorsque possible.
+                    L'établissement client peut résilier son abonnement selon les modalités du contrat
+                    commercial.
+                </p>
+            </section>
 
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">4. Données et confidentialité</h2>
-                        <p>
-                            Le traitement des données personnelles est décrit dans notre{" "}
-                            <Link href="/privacy" className="text-orange-500">Politique de confidentialité</Link>.
-                            Les données scolaires restent la propriété de l&apos;établissement. {appName} agit en tant
-                            que sous-traitant au sens du RGPD.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">5. Disponibilité du service</h2>
-                        <p>
-                            Nous nous efforçons de maintenir la plateforme disponible 24h/24, 7j/7, mais ne
-                            garantissons pas une disponibilité sans interruption. Des maintenances peuvent être
-                            planifiées avec préavis.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Responsabilité</h2>
-                        <p>
-                            {appName} ne saurait être tenu responsable des dommages indirects résultant de
-                            l&apos;utilisation de la plateforme. La responsabilité de l&apos;exactitude des données
-                            saisies incombe aux utilisateurs et à l&apos;établissement.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">7. Propriété intellectuelle</h2>
-                        <p>
-                            La plateforme {appName}, son code source, ses interfaces et ses contenus sont protégés
-                            par le droit de la propriété intellectuelle. Toute reproduction non autorisée est interdite.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">8. Modification des conditions</h2>
-                        <p>
-                            Nous nous réservons le droit de modifier ces conditions. Les utilisateurs seront notifiés
-                            de tout changement significatif. La poursuite de l&apos;utilisation après notification vaut acceptation.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">9. Droit applicable</h2>
-                        <p>
-                            Ces conditions sont soumises au droit applicable dans le pays d&apos;établissement de l&apos;opérateur.
-                            Tout litige sera soumis aux juridictions compétentes.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-3">10. Contact</h2>
-                        <p>
-                            Pour toute question : <a href={`mailto:${contactEmail}`} className="text-orange-500">{contactEmail}</a>
-                        </p>
-                    </section>
-                </div>
-
-                <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex gap-4">
-                    <Link href="/privacy" className="hover:text-gray-600">Politique de confidentialité</Link>
-                    <Link href="/login" className="hover:text-gray-600">Connexion</Link>
-                </div>
-            </div>
-        </main>
+            <section>
+                <h2 style={sectionTitleStyle}>10. Loi applicable et contact</h2>
+                <p>
+                    Les présentes CGU sont régies par le droit français. Tout litige relatif à leur
+                    interprétation ou exécution relève de la compétence des tribunaux français. Pour toute
+                    question, écrivez à{" "}
+                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
+                        {CONTACT_EMAIL}
+                    </a>
+                    .
+                </p>
+            </section>
+        </LegalLayout>
     );
 }

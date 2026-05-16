@@ -137,9 +137,10 @@ export default function ConfigOptionsSettingsPage() {
 
   const submitOption = async (values: ConfigOptionFormValues) => {
     setIsSubmitting(true);
-    const metadata = values.metadataText && values.metadataText.trim().length > 0
-      ? JSON.parse(values.metadataText)
-      : undefined;
+    let metadata: Record<string, unknown> | undefined;
+    if (values.metadataText && values.metadataText.trim().length > 0) {
+      try { metadata = JSON.parse(values.metadataText); } catch { metadata = undefined; }
+    }
 
     try {
       const response = await fetch(

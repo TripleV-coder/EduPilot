@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +17,8 @@ import {
     ChevronUp,
     Pencil,
     GraduationCap,
+    AlertCircle,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +39,9 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
- 
+const ROOM_CATEGORY = "room";
 
 type Room = {
     id: string;
@@ -58,16 +60,23 @@ type RoomFormData = {
     features: string;
 };
 
-const STORAGE_KEY = "edupilot-rooms";
+type ConfigOption = {
+    id: string;
+    code: string;
+    label: string;
+    description: string | null;
+    category: string;
+    order: number;
+    isActive: boolean;
+    metadata: {
+        capacity?: number;
+        type?: string;
+        building?: string;
+        features?: string[];
+    } | null;
+};
 
 const ROOM_TYPES = ["Standard", "Laboratoire", "Informatique", "Amphithéâtre"] as const;
-
-const DEFAULT_ROOMS: Room[] = [
-    { id: "1", name: "Salle A01", capacity: 45, type: "Standard", building: "Bâtiment A", features: ["Projecteur", "Tableau Blanc"] },
-    { id: "2", name: "Salle A02", capacity: 40, type: "Standard", building: "Bâtiment A", features: ["Tableau Blanc"] },
-    { id: "3", name: "Laboratoire B1", capacity: 25, type: "Laboratoire", building: "Bâtiment B", features: ["Paillasses", "Gaz", "Écran"] },
-    { id: "4", name: "Salle Info 1", capacity: 30, type: "Informatique", building: "Bâtiment C", features: ["30 PCs", "Projecteur", "Climatisation"] },
-];
 
 const EMPTY_FORM: RoomFormData = {
     name: "",
@@ -77,35 +86,26 @@ const EMPTY_FORM: RoomFormData = {
     features: "",
 };
 
-function loadRooms(profilePrefs: any): Room[] {
-    if (profilePrefs?.rooms) {
-        return profilePrefs.rooms;
-    }
-    if (typeof window === "undefined") return DEFAULT_ROOMS;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-        try { return JSON.parse(stored); } catch { /* ignore */ }
-    }
-    return DEFAULT_ROOMS;
+function slugifyCode(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        .slice(0, 50);
 }
 
-async function saveRooms(rooms: Room[], profileData: any, mutate: any) {
-    try {
-        const currentPrefs = profileData?.preferences || {};
-        const updatedPrefs = { ...currentPrefs, rooms };
-
-        await fetch("/api/user/profile", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ preferences: updatedPrefs }),
-        });
-
-        mutate({ ...profileData, preferences: updatedPrefs }, false);
-    } catch (error) {
-        console.error("Failed to save rooms:", error);
-        // Fallback to localStorage
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
-    }
+function configToRoom(opt: ConfigOption): Room {
+    const m = opt.metadata ?? {};
+    return {
+        id: opt.id,
+        name: opt.label,
+        capacity: typeof m.capacity === "number" ? m.capacity : 0,
+        type: typeof m.type === "string" ? m.type : "Standard",
+        building: typeof m.building === "string" ? m.building : "",
+        features: Array.isArray(m.features) ? m.features : [],
+    };
 }
 
 function getRoomIcon(type: string) {
@@ -134,17 +134,16 @@ function getRoomBadgeClass(type: string) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Inline Add Form (collapsible, at the top of the page)
-// ---------------------------------------------------------------------------
 function AddRoomForm({
     open,
     onToggle,
     onAdd,
+    busy,
 }: {
     open: boolean;
     onToggle: () => void;
-    onAdd: (room: Room) => void;
+    onAdd: (form: RoomFormData) => Promise<void>;
+    busy: boolean;
 }) {
     const [form, setForm] = useState<RoomFormData>({ ...EMPTY_FORM });
     const [errors, setErrors] = useState<Partial<Record<keyof RoomFormData, string>>>({});
@@ -165,20 +164,9 @@ function AddRoomForm({
         return Object.keys(next).length === 0;
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validate()) return;
-        const newRoom: Room = {
-            id: crypto.randomUUID(),
-            name: form.name.trim(),
-            capacity: Number(form.capacity),
-            type: form.type,
-            building: form.building.trim(),
-            features: form.features
-                .split(",")
-                .map((f) => f.trim())
-                .filter(Boolean),
-        };
-        onAdd(newRoom);
+        await onAdd(form);
         resetForm();
     };
 
@@ -203,12 +191,10 @@ function AddRoomForm({
             {open && (
                 <CardContent className="px-5 pb-5 pt-0 border-t border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                        {/* Name */}
                         <div className="space-y-1.5">
                             <Label htmlFor="add-name">Nom de la salle *</Label>
                             <Input
                                 id="add-name"
-                                
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 className={errors.name ? "border-destructive" : ""}
@@ -216,14 +202,12 @@ function AddRoomForm({
                             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                         </div>
 
-                        {/* Capacity */}
                         <div className="space-y-1.5">
                             <Label htmlFor="add-capacity">Capacité *</Label>
                             <Input
                                 id="add-capacity"
                                 type="number"
                                 min={1}
-                                
                                 value={form.capacity}
                                 onChange={(e) => setForm({ ...form, capacity: e.target.value })}
                                 className={errors.capacity ? "border-destructive" : ""}
@@ -231,7 +215,6 @@ function AddRoomForm({
                             {errors.capacity && <p className="text-xs text-destructive">{errors.capacity}</p>}
                         </div>
 
-                        {/* Type */}
                         <div className="space-y-1.5">
                             <Label>Type *</Label>
                             <Select
@@ -252,12 +235,10 @@ function AddRoomForm({
                             {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
                         </div>
 
-                        {/* Building */}
                         <div className="space-y-1.5">
                             <Label htmlFor="add-building">Bâtiment *</Label>
                             <Input
                                 id="add-building"
-                                
                                 value={form.building}
                                 onChange={(e) => setForm({ ...form, building: e.target.value })}
                                 className={errors.building ? "border-destructive" : ""}
@@ -265,12 +246,10 @@ function AddRoomForm({
                             {errors.building && <p className="text-xs text-destructive">{errors.building}</p>}
                         </div>
 
-                        {/* Features */}
                         <div className="space-y-1.5 sm:col-span-2">
                             <Label htmlFor="add-features">Équipements (séparés par des virgules)</Label>
                             <Input
                                 id="add-features"
-                                
                                 value={form.features}
                                 onChange={(e) => setForm({ ...form, features: e.target.value })}
                             />
@@ -285,11 +264,21 @@ function AddRoomForm({
                                 resetForm();
                                 onToggle();
                             }}
+                            disabled={busy}
                         >
                             Annuler
                         </Button>
-                        <Button size="sm" onClick={handleSubmit} className="gap-1.5">
-                            <Plus className="w-3.5 h-3.5" />
+                        <Button
+                            size="sm"
+                            onClick={handleSubmit}
+                            className="gap-1.5"
+                            disabled={busy}
+                        >
+                            {busy ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Plus className="w-3.5 h-3.5" />
+                            )}
                             Ajouter
                         </Button>
                     </div>
@@ -299,36 +288,33 @@ function AddRoomForm({
     );
 }
 
-// ---------------------------------------------------------------------------
-// Edit Room Dialog
-// ---------------------------------------------------------------------------
 function EditRoomDialog({
     room,
     open,
     onOpenChange,
     onSave,
+    busy,
 }: {
     room: Room | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (updated: Room) => void;
+    onSave: (room: Room, form: RoomFormData) => Promise<void>;
+    busy: boolean;
 }) {
     const [form, setForm] = useState<RoomFormData>({ ...EMPTY_FORM });
     const [errors, setErrors] = useState<Partial<Record<keyof RoomFormData, string>>>({});
 
-    // Sync form state when the dialog opens with a room
     useEffect(() => {
         if (room && open) {
-            queueMicrotask(() => {
-                setForm({
-                    name: room.name,
-                    capacity: String(room.capacity),
-                    type: room.type,
-                    building: room.building,
-                    features: room.features.join(", "),
-                });
-                setErrors({});
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing form state on dialog open
+            setForm({
+                name: room.name,
+                capacity: String(room.capacity),
+                type: room.type,
+                building: room.building,
+                features: room.features.join(", "),
             });
+            setErrors({});
         }
     }, [room, open]);
 
@@ -343,19 +329,9 @@ function EditRoomDialog({
         return Object.keys(next).length === 0;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!room || !validate()) return;
-        onSave({
-            id: room.id,
-            name: form.name.trim(),
-            capacity: Number(form.capacity),
-            type: form.type,
-            building: form.building.trim(),
-            features: form.features
-                .split(",")
-                .map((f) => f.trim())
-                .filter(Boolean),
-        });
+        await onSave(room, form);
         onOpenChange(false);
     };
 
@@ -375,7 +351,6 @@ function EditRoomDialog({
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-                    {/* Name */}
                     <div className="space-y-1.5">
                         <Label htmlFor="edit-name">Nom *</Label>
                         <Input
@@ -387,7 +362,6 @@ function EditRoomDialog({
                         {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                     </div>
 
-                    {/* Capacity */}
                     <div className="space-y-1.5">
                         <Label htmlFor="edit-capacity">Capacité *</Label>
                         <Input
@@ -401,7 +375,6 @@ function EditRoomDialog({
                         {errors.capacity && <p className="text-xs text-destructive">{errors.capacity}</p>}
                     </div>
 
-                    {/* Type */}
                     <div className="space-y-1.5">
                         <Label>Type *</Label>
                         <Select
@@ -422,7 +395,6 @@ function EditRoomDialog({
                         {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
                     </div>
 
-                    {/* Building */}
                     <div className="space-y-1.5">
                         <Label htmlFor="edit-building">Bâtiment *</Label>
                         <Input
@@ -434,7 +406,6 @@ function EditRoomDialog({
                         {errors.building && <p className="text-xs text-destructive">{errors.building}</p>}
                     </div>
 
-                    {/* Features */}
                     <div className="space-y-1.5 sm:col-span-2">
                         <Label htmlFor="edit-features">Équipements (séparés par des virgules)</Label>
                         <Input
@@ -446,11 +417,19 @@ function EditRoomDialog({
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        disabled={busy}
+                    >
                         Annuler
                     </Button>
-                    <Button onClick={handleSave} className="gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5" />
+                    <Button onClick={handleSave} className="gap-1.5" disabled={busy}>
+                        {busy ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <CheckCircle className="w-3.5 h-3.5" />
+                        )}
                         Enregistrer
                     </Button>
                 </DialogFooter>
@@ -459,58 +438,111 @@ function EditRoomDialog({
     );
 }
 
-// ---------------------------------------------------------------------------
-// Main Page
-// ---------------------------------------------------------------------------
 export default function RoomsPage() {
-    const { data: profileData, mutate } = useSWR("/api/user/profile", fetcher);
+    const { data, error, isLoading, mutate } = useSWR<ConfigOption[]>(
+        `/api/config-options?category=${ROOM_CATEGORY}&activeOnly=false`,
+        fetcher
+    );
 
-    const [rooms, setRooms] = useState<Room[]>(DEFAULT_ROOMS);
+    const rooms: Room[] = useMemo(() => (data ?? []).map(configToRoom), [data]);
+
     const [search, setSearch] = useState("");
     const [saved, setSaved] = useState(false);
     const [addFormOpen, setAddFormOpen] = useState(false);
     const [editRoom, setEditRoom] = useState<Room | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
 
-    useEffect(() => {
-        queueMicrotask(() => setRooms(loadRooms(profileData?.preferences)));
-    }, [profileData]);
-
-    // Show a transient success message
     const flashSaved = useCallback(() => {
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
     }, []);
 
-    // -- CRUD ----------------------------------------------------------------
+    const buildPayload = (form: RoomFormData) => ({
+        category: ROOM_CATEGORY,
+        code: slugifyCode(form.name) || `room-${Date.now()}`,
+        label: form.name.trim(),
+        metadata: {
+            capacity: Number(form.capacity),
+            type: form.type,
+            building: form.building.trim(),
+            features: form.features
+                .split(",")
+                .map((f) => f.trim())
+                .filter(Boolean),
+        },
+    });
 
-    const handleAdd = (room: Room) => {
-        const updated = [...rooms, room];
-        setRooms(updated);
-        saveRooms(updated, profileData, mutate);
-        flashSaved();
+    const handleAdd = async (form: RoomFormData) => {
+        setBusy(true);
+        setApiError(null);
+        try {
+            const res = await fetch("/api/config-options", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(buildPayload(form)),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error || "Erreur lors de la création");
+            }
+            await mutate();
+            flashSaved();
+            setAddFormOpen(false);
+        } catch (err) {
+            setApiError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setBusy(false);
+        }
     };
 
-    const handleEdit = (updated: Room) => {
-        const next = rooms.map((r) => (r.id === updated.id ? updated : r));
-        setRooms(next);
-        saveRooms(next, profileData, mutate);
-        flashSaved();
+    const handleEdit = async (room: Room, form: RoomFormData) => {
+        setBusy(true);
+        setApiError(null);
+        try {
+            const res = await fetch(`/api/config-options/${room.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(buildPayload(form)),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error || "Erreur lors de la mise à jour");
+            }
+            await mutate();
+            flashSaved();
+        } catch (err) {
+            setApiError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setBusy(false);
+        }
     };
 
-    const handleDelete = (id: string) => {
-        const updated = rooms.filter((r) => r.id !== id);
-        setRooms(updated);
-        saveRooms(updated, profileData, mutate);
-        flashSaved();
+    const handleDelete = async (id: string) => {
+        setBusy(true);
+        setApiError(null);
+        try {
+            const res = await fetch(`/api/config-options/${id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error || "Erreur lors de la suppression");
+            }
+            await mutate();
+            flashSaved();
+        } catch (err) {
+            setApiError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setBusy(false);
+        }
     };
 
     const openEditDialog = (room: Room) => {
         setEditRoom(room);
         setEditDialogOpen(true);
     };
-
-    // -- Filter --------------------------------------------------------------
 
     const filteredRooms = rooms.filter(
         (r) =>
@@ -519,16 +551,13 @@ export default function RoomsPage() {
             r.building.toLowerCase().includes(search.toLowerCase())
     );
 
-    // -- Render --------------------------------------------------------------
-
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <div className="space-y-6 max-w-6xl mx-auto">
-                {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Salles de classe"
-                        description="Gestion des salles physiques, de leurs capacités et de leurs équipements"
+                        description="Gestion des salles physiques de l'établissement, partagées par tous les utilisateurs."
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
                             { label: "Paramètres" },
@@ -546,124 +575,139 @@ export default function RoomsPage() {
                     </div>
                 </div>
 
-                {/* Success toast */}
                 {saved && (
                     <div className="p-3 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))] flex items-center gap-2 text-sm">
                         <CheckCircle className="h-4 w-4" /> Modifications enregistrées.
                     </div>
                 )}
 
-                {/* Inline Add Form (collapsible) */}
+                {(error || apiError) && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2 text-sm">
+                        <AlertCircle className="h-4 w-4" />{" "}
+                        {apiError || "Impossible de charger les salles."}
+                    </div>
+                )}
+
                 <AddRoomForm
                     open={addFormOpen}
                     onToggle={() => setAddFormOpen((prev) => !prev)}
                     onAdd={handleAdd}
+                    busy={busy}
                 />
 
-                {/* Search */}
                 <div className="flex gap-4">
                     <Input
-                        
+                        placeholder="Rechercher une salle ou un bâtiment…"
                         className="max-w-xs bg-background"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
 
-                {/* Room Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredRooms.map((room) => (
-                        <Card
-                            key={room.id}
-                            className="border-border shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <CardContent className="p-5">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="p-2 bg-muted rounded-lg">
-                                        {getRoomIcon(room.type)}
-                                    </div>
-                                    <Badge
-                                        variant="outline"
-                                        className={getRoomBadgeClass(room.type)}
-                                    >
-                                        {room.type}
-                                    </Badge>
-                                </div>
-
-                                <h3 className="font-bold text-lg text-foreground">{room.name}</h3>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 mb-4">
-                                    <MapPin className="w-3.5 h-3.5" /> {room.building}
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-muted-foreground">Capacité</span>
-                                        <span className="font-semibold flex items-center gap-1">
-                                            <Users className="w-4 h-4" /> {room.capacity} places
-                                        </span>
-                                    </div>
-
-                                    <div className="pt-3 border-t border-border">
-                                        <p className="text-xs text-muted-foreground mb-2 font-medium">
-                                            Équipements
-                                        </p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {room.features.map((f) => (
-                                                <span
-                                                    key={f}
-                                                    className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground border border-border"
-                                                >
-                                                    {f}
-                                                </span>
-                                            ))}
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredRooms.map((room) => (
+                            <Card
+                                key={room.id}
+                                className="border-border shadow-sm hover:shadow-md transition-shadow"
+                            >
+                                <CardContent className="p-5">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="p-2 bg-muted rounded-lg">
+                                            {getRoomIcon(room.type)}
                                         </div>
+                                        <Badge
+                                            variant="outline"
+                                            className={getRoomBadgeClass(room.type)}
+                                        >
+                                            {room.type}
+                                        </Badge>
                                     </div>
-                                </div>
 
-                                <div className="mt-5 flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        className="w-full h-8 text-xs"
-                                        onClick={() => openEditDialog(room)}
-                                    >
-                                        Modifier
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="h-8 text-xs text-destructive hover:text-destructive shrink-0"
-                                        onClick={() => handleDelete(room.id)}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
+                                    <h3 className="font-bold text-lg text-foreground">
+                                        {room.name}
+                                    </h3>
+                                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 mb-4">
+                                        <MapPin className="w-3.5 h-3.5" /> {room.building}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Capacité</span>
+                                            <span className="font-semibold flex items-center gap-1">
+                                                <Users className="w-4 h-4" /> {room.capacity} places
+                                            </span>
+                                        </div>
+
+                                        {room.features.length > 0 && (
+                                            <div className="pt-3 border-t border-border">
+                                                <p className="text-xs text-muted-foreground mb-2 font-medium">
+                                                    Équipements
+                                                </p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {room.features.map((f) => (
+                                                        <span
+                                                            key={f}
+                                                            className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground border border-border"
+                                                        >
+                                                            {f}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-5 flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-8 text-xs"
+                                            onClick={() => openEditDialog(room)}
+                                            disabled={busy}
+                                        >
+                                            Modifier
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="h-8 text-xs text-destructive hover:text-destructive shrink-0"
+                                            onClick={() => handleDelete(room.id)}
+                                            disabled={busy}
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+
+                        <Card
+                            className="border-border border-dashed shadow-none hover:bg-muted/5 transition-colors cursor-pointer bg-muted/10"
+                            onClick={() => setAddFormOpen(true)}
+                        >
+                            <CardContent className="p-5 flex flex-col items-center justify-center h-full min-h-[250px] text-center">
+                                <div className="p-3 bg-background rounded-full mb-3 shadow-sm border border-border">
+                                    <Plus className="w-6 h-6 text-muted-foreground" />
                                 </div>
+                                <h3 className="font-medium text-foreground">Nouvelle Salle</h3>
+                                <p className="text-sm text-muted-foreground mt-1 px-4">
+                                    Créer un nouvel espace d&apos;apprentissage
+                                </p>
                             </CardContent>
                         </Card>
-                    ))}
-
-                    {/* New Room Card Skeleton */}
-                    <Card
-                        className="border-border border-dashed shadow-none hover:bg-muted/5 transition-colors cursor-pointer bg-muted/10"
-                        onClick={() => setAddFormOpen(true)}
-                    >
-                        <CardContent className="p-5 flex flex-col items-center justify-center h-full min-h-[250px] text-center">
-                            <div className="p-3 bg-background rounded-full mb-3 shadow-sm border border-border">
-                                <Plus className="w-6 h-6 text-muted-foreground" />
-                            </div>
-                            <h3 className="font-medium text-foreground">Nouvelle Salle</h3>
-                            <p className="text-sm text-muted-foreground mt-1 px-4">
-                                Créer un nouvel espace d&apos;apprentissage
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
+                    </div>
+                )}
             </div>
 
-            {/* Edit Dialog */}
             <EditRoomDialog
                 room={editRoom}
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}
                 onSave={handleEdit}
+                busy={busy}
             />
         </PageGuard>
     );

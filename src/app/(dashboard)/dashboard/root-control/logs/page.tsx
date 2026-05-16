@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Activity, Search, Filter, Loader2, AlertCircle, Clock, User, Building2, Globe } from "lucide-react";
+import { Activity, Search, Filter, Loader2, AlertCircle, Clock, Building2, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
 import { fr } from "date-fns/locale/fr";
 import { cn } from "@/lib/utils";
-import { formatAction, translateEntity } from "@/lib/utils/entity-translator";
+import { formatAction } from "@/lib/utils/entity-translator";
+import { getAuditLogActionClass } from "@/lib/ui/status-styles";
 
 type AuditLog = {
     id: string;
@@ -54,17 +55,9 @@ export default function RootLogsPage() {
     }, []);
 
     const getActionBadge = (action: string, entity: string) => {
-        const a = action.toLowerCase();
         const label = formatAction(action, entity);
-        let colorClass = "bg-muted/50 text-foreground border-border";
-        
-        if (a.includes("create")) colorClass = "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-        else if (a.includes("update")) colorClass = "bg-blue-500/10 text-blue-600 border-blue-500/20";
-        else if (a.includes("delete")) colorClass = "bg-destructive/10 text-destructive border-destructive/20";
-        else if (a.includes("login")) {
-            colorClass = a.includes("fail") ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-purple-500/10 text-purple-600 border-purple-500/20";
-        }
-        
+        const colorClass = getAuditLogActionClass(action);
+
         return <Badge className={cn("font-semibold text-[11px] shadow-sm tracking-normal", colorClass)}>{label}</Badge>;
     };
 
@@ -85,7 +78,8 @@ export default function RootLogsPage() {
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input 
-                             
+                            aria-label="Rechercher dans les journaux d'audit"
+                            placeholder="Utilisateur, entité..."
                             className="pl-10"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}

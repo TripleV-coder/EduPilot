@@ -139,7 +139,7 @@ export default function FeesManagementPage() {
                 )}
 
                 {successMsg && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-3">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/30 text-success flex items-center gap-3">
                         <CheckCircle className="h-5 w-5 shrink-0" />
                         <p className="text-sm">{successMsg}</p>
                     </div>
@@ -147,7 +147,7 @@ export default function FeesManagementPage() {
 
                 <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/20 text-orange-600">
+                        <div className="p-3 rounded-xl bg-warning/10 text-warning">
                             <DollarSign className="h-6 w-6" />
                         </div>
                         <div>
@@ -173,22 +173,22 @@ export default function FeesManagementPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div className="space-y-2 lg:col-span-2">
                                         <Label htmlFor="name">Intitulé détaillé <span className="text-destructive">*</span></Label>
-                                        <Input id="name" name="name" required />
+                                        <Input id="name" name="name" aria-label="Intitulé du frais" placeholder="Ex: Frais de scolarité trimestre 1" required />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="amount">Montant (FCFA) <span className="text-destructive">*</span></Label>
-                                        <Input id="amount" name="amount" type="number" min="0" required />
+                                        <Input id="amount" name="amount" aria-label="Montant du frais" placeholder="Ex: 25000" type="number" min="0" required />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="academicYearId">Année Académique</Label>
-                                        <select id="academicYearId" name="academicYearId" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                        <select id="academicYearId" name="academicYearId" aria-label="Année académique" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                             <option value="">(Toutes les années)</option>
                                             {academicYears.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="classLevelCode">Niveau d'Étude Cible</Label>
-                                        <select id="classLevelCode" name="classLevelCode" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                        <select id="classLevelCode" name="classLevelCode" aria-label="Niveau d'étude cible" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                             <option value="">(Général / Tous les niveaux)</option>
                                             {classLevels.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                                         </select>
@@ -199,7 +199,7 @@ export default function FeesManagementPage() {
                                     </div>
                                     <div className="space-y-2 lg:col-span-3">
                                         <Label htmlFor="description">Notes internes (Optionnel)</Label>
-                                        <Input id="description" name="description" />
+                                        <Input id="description" name="description" aria-label="Notes internes" placeholder="Commentaires internes sur ce frais" />
                                     </div>
                                     <div className="space-y-2 flex items-center justify-between p-3 rounded-lg border bg-background/50 lg:col-span-3">
                                         <div className="space-y-0.5">
@@ -246,7 +246,7 @@ export default function FeesManagementPage() {
 
                                             <div className="flex gap-2 flex-wrap mt-3">
                                                 {fee.classLevelCode && (
-                                                    <span className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                                                         Niv: {fee.classLevel?.name || fee.classLevelCode}
                                                     </span>
                                                 )}

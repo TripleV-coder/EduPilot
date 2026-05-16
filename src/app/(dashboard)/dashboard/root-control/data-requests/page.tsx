@@ -16,6 +16,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTimeShort } from "@/lib/utils/formatters";
+import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
 
 type DataRequest = {
     id: string;
@@ -85,10 +87,6 @@ export default function RootDataRequestsPage() {
         }
     };
 
-    const formatDate = (d: string) => {
-        return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(d));
-    };
-
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-6xl mx-auto">
@@ -110,9 +108,9 @@ export default function RootDataRequestsPage() {
                             <p className="text-sm text-muted-foreground">Demandes trouvées</p>
                         </CardContent>
                     </Card>
-                    <Card className="border-border shadow-sm border-t-2 border-t-orange-500">
+                    <Card className="border-border shadow-sm border-t-2 border-t-warning">
                         <CardContent className="pt-6 text-center">
-                            <Clock className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                            <Clock className="w-8 h-8 text-warning mx-auto mb-2" />
                             <h3 className="text-2xl font-bold">{requests.filter(r => r.status === "PENDING").length}</h3>
                             <p className="text-sm text-muted-foreground">Demandes en attente</p>
                         </CardContent>
@@ -178,7 +176,7 @@ export default function RootDataRequestsPage() {
                                                         <UserX className="w-4 h-4" /> Suppression
                                                     </span>
                                                 ) : req.type === "EXPORT" ? (
-                                                    <span className="flex items-center gap-1 text-sm font-medium text-blue-600">
+                                                    <span className="flex items-center gap-1 text-sm font-medium text-primary">
                                                         <Download className="w-4 h-4" /> Exportation
                                                     </span>
                                                 ) : (
@@ -187,21 +185,11 @@ export default function RootDataRequestsPage() {
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">{formatDate(req.requestedAt)}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">{formatDateTimeShort(req.requestedAt)}</TableCell>
                                             <TableCell>
-                                                {req.status === "PENDING" ? (
-                                                    <Badge variant="outline" className="border-orange-500/30 text-orange-600 bg-orange-500/10 font-normal">
-                                                        En attente
-                                                    </Badge>
-                                                ) : req.status === "REJECTED" ? (
-                                                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 font-normal">
-                                                        Rejeté
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))] font-normal">
-                                                        Traité
-                                                    </Badge>
-                                                )}
+                                                <Badge variant="outline" className={`${getComplianceRequestStatusClass(req.status)} font-normal`}>
+                                                    {req.status === "PENDING" ? "En attente" : req.status === "REJECTED" ? "Rejeté" : "Traité"}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {req.status === "PENDING" ? (

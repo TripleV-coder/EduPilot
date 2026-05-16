@@ -108,7 +108,7 @@ export default function SmsNotificationsPage() {
                     </div>
                 )}
                 {successMsg && (
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-3">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/30 text-success flex items-center gap-3">
                         <CheckCircle className="h-5 w-5 shrink-0" />
                         <p className="text-sm font-medium">{successMsg}</p>
                     </div>
@@ -148,7 +148,8 @@ export default function SmsNotificationsPage() {
                                                 type="tel"
                                                 value={recipientPhone}
                                                 onChange={(e) => setRecipientPhone(e.target.value)}
-                                                
+                                                aria-label="Numéro du destinataire"
+                                                placeholder="Ex: +229 01 90 00 00 00"
                                                 className="bg-background"
                                                 required={target === "custom"}
                                             />
@@ -166,14 +167,15 @@ export default function SmsNotificationsPage() {
                                             id="message"
                                             value={message}
                                             onChange={(e) => setMessage(e.target.value)}
-                                            
+                                            aria-label="Contenu du SMS"
+                                            placeholder="Rédigez votre message SMS..."
                                             className="min-h-[150px] resize-y bg-background"
                                             required
                                         />
                                         <div className="flex gap-2 mt-2">
-                                            <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Prenom_Parent} ")}>+ Prénom Parent</Badge>
-                                            <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Nom_Enfant} ")}>+ Nom Enfant</Badge>
-                                            <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Solde_A_Payer} ")}>+ Solde à Payer</Badge>
+                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Prenom_Parent} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Prenom_Parent} ")}>+ Prénom Parent</Badge>
+                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Nom_Enfant} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Nom_Enfant} ")}>+ Nom Enfant</Badge>
+                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Solde_A_Payer} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Solde_A_Payer} ")}>+ Solde à Payer</Badge>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -207,10 +209,10 @@ export default function SmsNotificationsPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-border shadow-sm border-l-4 border-l-orange-500">
+                        <Card className="border-border shadow-sm border-l-4 border-l-warning">
                             <CardContent className="p-4">
                                 <h4 className="font-semibold flex items-center gap-2 mb-2">
-                                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                                    <AlertCircle className="w-4 h-4 text-warning" />
                                     Bonnes pratiques
                                 </h4>
                                 <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-4">

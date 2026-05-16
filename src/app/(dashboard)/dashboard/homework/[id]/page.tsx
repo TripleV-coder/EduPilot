@@ -20,6 +20,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { formatDateTimeLong } from "@/lib/utils/formatters";
 
 type Submission = {
   id: string;
@@ -66,11 +67,6 @@ export default function HomeworkDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
-
-  const formatDate = (d: string) =>
-    new Intl.DateTimeFormat("fr-FR", {
-      day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
-    }).format(new Date(d));
 
   const handleGrade = async (submissionId: string) => {
     setSubmitting(true);
@@ -223,7 +219,7 @@ export default function HomeworkDetailPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Date limite</span>
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {formatDate(homework.dueDate)}
+                  <Clock className="h-3 w-3" /> {formatDateTimeLong(homework.dueDate)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -280,7 +276,7 @@ export default function HomeworkDetailPage() {
                           {sub.student.user.firstName} {sub.student.user.lastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Soumis le {formatDate(sub.submittedAt)}
+                          Soumis le {formatDateTimeLong(sub.submittedAt)}
                         </p>
                       </div>
                     </div>

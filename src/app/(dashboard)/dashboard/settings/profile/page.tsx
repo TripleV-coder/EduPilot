@@ -3,21 +3,30 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
-import { User, Mail, Phone, Upload, Save, UserCircle, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import useSWR from "swr";
+
 import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
+
+import { Avatar, Badge, Button, Card, Icon, Input, Spinner } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
+
+interface ProfileData {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    avatar?: string | null;
+}
 
 export default function ProfileSettingsPage() {
-    const { data: session, status, update: updateSession } = useSession();
-
-    const { data: profileData, error: profileError, isLoading: profileLoading } = useSWR("/api/user/profile", fetcher);
+    const { status, update: updateSession } = useSession();
+    const {
+        data: profileData,
+        error: profileError,
+        isLoading: profileLoading,
+    } = useSWR<ProfileData>("/api/user/profile", fetcher);
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -29,7 +38,6 @@ export default function ProfileSettingsPage() {
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Initialize form fields from profile data
     useEffect(() => {
         if (profileData) {
             setFirstName(profileData.firstName || "");
@@ -40,10 +48,7 @@ export default function ProfileSettingsPage() {
         }
     }, [profileData]);
 
-    // Compute initials from real user name
-    const initials = [firstName, lastName]
-        .map((n) => n.charAt(0).toUpperCase())
-        .join("");
+    const fullName = `${firstName} ${lastName}`.trim() || "Utilisateur";
 
     async function handleSave() {
         setSaving(true);
@@ -54,7 +59,12 @@ export default function ProfileSettingsPage() {
             const res = await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ firstName, lastName, phone: phone || null, avatar }),
+                body: JSON.stringify({
+                    firstName,
+                    lastName,
+                    phone: phone || null,
+                    avatar,
+                }),
             });
 
             if (!res.ok) {
@@ -62,13 +72,12 @@ export default function ProfileSettingsPage() {
                 throw new Error(data?.error || "Erreur lors de la sauvegarde");
             }
 
-            // Update the client-side session so changes reflect immediately everywhere
             await updateSession();
 
-            setSuccessMsg("Profil mis a jour avec succes !");
+            setSuccessMsg("Profil mis à jour avec succès !");
             setTimeout(() => setSuccessMsg(null), 4000);
-        } catch (err: any) {
-            setErrorMsg(err.message || "Erreur lors de la sauvegarde");
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
             setTimeout(() => setErrorMsg(null), 5000);
         } finally {
             setSaving(false);
@@ -78,65 +87,65 @@ export default function ProfileSettingsPage() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         if (file.size > 2 * 1024 * 1024) {
-            setErrorMsg("L'image ne doit pas depasser 2MB.");
+            setErrorMsg("L'image ne doit pas dépasser 2 Mo.");
             setTimeout(() => setErrorMsg(null), 5000);
             return;
         }
-
         const reader = new FileReader();
-        reader.onloadend = () => {
-            setAvatar(reader.result as string);
-        };
+        reader.onloadend = () => setAvatar(reader.result as string);
         reader.readAsDataURL(file);
     };
 
-    const handleRemoveImage = () => {
-        setAvatar(null);
-    };
+    const handleRemoveImage = () => setAvatar(null);
 
-    // Loading state while session and profile are being fetched
     if (status === "loading" || profileLoading) {
         return (
             <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-                <div className="space-y-6 max-w-4xl mx-auto">
+                <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
                     <PageHeader
-                        title="Mon Profil"
-                        description="Gerez vos informations personnelles et vos coordonnees."
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Parametres", href: "/dashboard/settings" },
-                            { label: "Profil" },
-                        ]}
+                        greeting="Mon profil"
+                        sub="Gère tes informations personnelles et tes coordonnées."
                     />
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <span className="ml-3 text-muted-foreground">Chargement du profil...</span>
-                    </div>
+                    <Card padding={28}>
+                        <div className="flex items-center gap-3">
+                            <Spinner size={20} color="var(--brand-600)" />
+                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Chargement du profil…
+                            </span>
+                        </div>
+                    </Card>
                 </div>
             </PageGuard>
         );
     }
 
-    // Error state
     if (profileError) {
         return (
             <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-                <div className="space-y-6 max-w-4xl mx-auto">
-                    <PageHeader
-                        title="Mon Profil"
-                        description="Gerez vos informations personnelles et vos coordonnees."
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Parametres", href: "/dashboard/settings" },
-                            { label: "Profil" },
-                        ]}
-                    />
-                    <div className="flex items-center justify-center py-20">
-                        <AlertCircle className="w-8 h-8 text-destructive" />
-                        <span className="ml-3 text-destructive">Erreur lors du chargement du profil</span>
-                    </div>
+                <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
+                    <PageHeader greeting="Mon profil" />
+                    <Card
+                        padding={20}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                Impossible de charger ton profil. Réessaie plus tard.
+                            </p>
+                        </div>
+                    </Card>
                 </div>
             </PageGuard>
         );
@@ -144,161 +153,231 @@ export default function ProfileSettingsPage() {
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
                 <PageHeader
-                    title="Mon Profil"
-                    description="Gerez vos informations personnelles et vos coordonnees."
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Parametres", href: "/dashboard/settings" },
-                        { label: "Profil" },
-                    ]}
+                    greeting="Mon profil"
+                    sub="Gère tes informations personnelles et tes coordonnées."
                 />
 
-                {/* Success message */}
-                {successMsg && (
-                    <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--success-border))] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] px-4 py-3 text-sm">
-                        <CheckCircle className="h-5 w-5 shrink-0" />
-                        {successMsg}
-                    </div>
-                )}
-
-                {/* Error message */}
-                {errorMsg && (
-                    <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive px-4 py-3 text-sm">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
-                        {errorMsg}
-                    </div>
-                )}
-
-                <div className="grid gap-6">
-                    {/* Profile Picture Card */}
-                    <Card className="border-border shadow-sm">
-                        <CardHeader className="bg-muted/10 border-b border-border">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <UserCircle className="w-5 h-5 text-primary" />
-                                Photo de profil
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 flex flex-col sm:flex-row items-center gap-6">
-                            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-3xl border-4 border-background shadow-sm overflow-hidden relative">
-                                {avatar ? (
-                                    <Image
-                                        src={avatar}
-                                        alt="Profile"
-                                        fill
-                                        unoptimized
-                                        sizes="96px"
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    initials || "??"
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex gap-2">
-                                    <Button variant="outline" className="gap-2 relative overflow-hidden">
-                                        <Upload className="w-4 h-4" /> Changer l&apos;image
-                                        <Input
-                                            type="file"
-                                            accept="image/png, image/jpeg, image/gif"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            onChange={handleImageChange}
-                                        />
-                                    </Button>
-                                    <Button 
-                                        variant="ghost" 
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={handleRemoveImage}
-                                        disabled={!avatar}
-                                    >
-                                        Supprimer
-                                    </Button>
-                                </div>
-                                <p className="text-sm text-muted-foreground">JPG, GIF ou PNG. Taille maximale 2MB.</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Basic Information Card */}
-                    <Card className="border-border shadow-sm">
-                        <CardHeader className="bg-muted/10 border-b border-border">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <User className="w-5 h-5 text-primary" />
-                                Informations de base
-                            </CardTitle>
-                            <CardDescription>Mettez a jour vos informations publiques.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName">Prenom</Label>
-                                    <Input
-                                        id="firstName"
-                                        value={firstName}
-                                        onChange={(e) => setFirstName(e.target.value)}
-                                        className="bg-background"
-                                        
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="lastName">Nom</Label>
-                                    <Input
-                                        id="lastName"
-                                        value={lastName}
-                                        onChange={(e) => setLastName(e.target.value)}
-                                        className="bg-background"
-                                        
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="email" className="flex items-center gap-2">
-                                        <Mail className="w-4 h-4 text-muted-foreground" /> Email de contact
-                                    </Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        value={email}
-                                        disabled
-                                        className="bg-muted/50 cursor-not-allowed"
-                                        title="L'email ne peut pas etre modifie"
-                                    />
-                                    <p className="text-xs text-muted-foreground">L&apos;email ne peut pas etre modifie.</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone" className="flex items-center gap-2">
-                                        <Phone className="w-4 h-4 text-muted-foreground" /> Telephone
-                                    </Label>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        className="bg-background"
-                                        
-                                    />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-muted/10 border-t border-border mt-2 py-4 flex justify-end">
-                            <Button
-                                className="gap-2 shadow-sm"
-                                onClick={handleSave}
-                                disabled={saving || !firstName.trim() || !lastName.trim()}
+                {successMsg ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            background: "var(--eduflow-success-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="success" size={18} color="var(--eduflow-success-700)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-success-800)",
+                                    fontWeight: 500,
+                                }}
                             >
-                                {saving ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Save className="w-4 h-4" />
-                                )}
-                                {saving ? "Enregistrement..." : "Enregistrer les modifications"}
-                            </Button>
-                        </CardFooter>
+                                {successMsg}
+                            </p>
+                        </div>
                     </Card>
-                </div>
+                ) : null}
+
+                {errorMsg ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {errorMsg}
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {/* Photo de profil */}
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="users" size={18} color="var(--brand-700)" />
+                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            Photo de profil
+                        </h3>
+                    </div>
+                    <div className="flex flex-col items-start gap-5 px-5 py-5 sm:flex-row sm:items-center">
+                        <div
+                            className="relative grid place-items-center"
+                            style={{
+                                width: 96,
+                                height: 96,
+                                borderRadius: "50%",
+                                background: "var(--brand-50)",
+                                color: "var(--brand-700)",
+                                overflow: "hidden",
+                                boxShadow: "var(--eduflow-shadow-sm)",
+                            }}
+                        >
+                            {avatar ? (
+                                <Image
+                                    src={avatar}
+                                    alt="Photo de profil"
+                                    fill
+                                    unoptimized
+                                    sizes="96px"
+                                    style={{ objectFit: "cover" }}
+                                />
+                            ) : (
+                                <Avatar name={fullName} size="xl" />
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-2">
+                                <label
+                                    className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold"
+                                    style={{
+                                        borderRadius: 10,
+                                        border: "1px solid var(--eduflow-border-default)",
+                                        background: "var(--eduflow-surface-card)",
+                                        color: "var(--eduflow-text-primary)",
+                                        transition:
+                                            "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                    }}
+                                >
+                                    <Icon name="download" size={14} />
+                                    Changer l&apos;image
+                                    <input
+                                        type="file"
+                                        accept="image/png, image/jpeg, image/gif"
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                    />
+                                </label>
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleRemoveImage}
+                                    disabled={!avatar}
+                                    icon="x"
+                                >
+                                    Supprimer
+                                </Button>
+                            </div>
+                            <p
+                                style={{
+                                    fontSize: 12,
+                                    color: "var(--eduflow-text-tertiary)",
+                                    margin: 0,
+                                }}
+                            >
+                                JPG, GIF ou PNG. Taille maximale 2 Mo.
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Informations de base */}
+                <Card padding={0}>
+                    <div
+                        className="flex items-center gap-2 border-b px-5 py-4"
+                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
+                    >
+                        <Icon name="info" size={18} color="var(--brand-700)" />
+                        <div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Informations de base
+                            </h3>
+                            <p
+                                style={{
+                                    margin: "2px 0 0",
+                                    fontSize: 11,
+                                    color: "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                Mets à jour tes informations publiques.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="px-5 py-5">
+                        <div
+                            className="grid gap-3"
+                            style={{
+                                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                            }}
+                        >
+                            <Input
+                                label="Prénom"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                icon="users"
+                            />
+                            <Input
+                                label="Nom"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                icon="users"
+                            />
+                            <div>
+                                <Input
+                                    label="Email de contact"
+                                    type="email"
+                                    value={email}
+                                    icon="sms"
+                                    disabled
+                                />
+                                <div
+                                    className="mt-1.5 flex items-center gap-1.5"
+                                    style={{
+                                        fontSize: 11,
+                                        color: "var(--eduflow-text-tertiary)",
+                                    }}
+                                >
+                                    <Icon name="info" size={11} />
+                                    L&apos;email ne peut pas être modifié.
+                                </div>
+                            </div>
+                            <Input
+                                label="Téléphone"
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                icon="sms"
+                                placeholder="+229 …"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4"
+                        style={{
+                            borderColor: "var(--eduflow-border-subtle)",
+                            background: "var(--eduflow-surface-sunken)",
+                        }}
+                    >
+                        <Badge variant="neutral" size="sm">
+                            Modifications enregistrées via PATCH /api/user/profile
+                        </Badge>
+                        <Button
+                            icon={saving ? undefined : "check"}
+                            loading={saving}
+                            onClick={handleSave}
+                            disabled={saving || !firstName.trim() || !lastName.trim()}
+                        >
+                            {saving ? "Enregistrement…" : "Enregistrer"}
+                        </Button>
+                    </div>
+                </Card>
             </div>
         </PageGuard>
     );

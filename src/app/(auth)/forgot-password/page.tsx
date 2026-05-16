@@ -6,10 +6,11 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { GraduationCap, AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 const forgotPasswordSchema = z.object({
     email: z.string().email("Email invalide").toLowerCase().trim(),
@@ -56,22 +57,12 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
-                            <GraduationCap className="w-7 h-7 text-primary" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-foreground mb-2">
-                            Mot de passe oublié
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Entrez votre email pour réinitialiser votre mot de passe
-                        </p>
-                    </div>
-
-                    {isSuccess ? (
+        <AuthShell
+            title="Mot de passe oublié ?"
+            subtitle="Indiquez votre email — nous envoyons un lien de réinitialisation valide 1 heure."
+        >
+            <>
+                {isSuccess ? (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -153,8 +144,7 @@ export default function ForgotPasswordPage() {
                             </div>
                         </>
                     )}
-                </div>
-            </div>
-        </div>
+            </>
+        </AuthShell>
     );
 }

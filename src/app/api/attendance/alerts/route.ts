@@ -84,7 +84,7 @@ export async function GET(request: Request) {
         studentId: record.studentId,
         studentName: `${record.student.user.firstName} ${record.student.user.lastName}`,
         matricule: record.student.matricule,
-        parentContact: record.student.user.phone || record.student.user.email || "N/A",
+        parentContact: record.student.user.phone || record.student.user.email || "Indisponible",
         className: `${record.class.classLevel.name} ${record.class.name}`,
         date: record.date.toISOString(),
         status: "PENDING" as const,

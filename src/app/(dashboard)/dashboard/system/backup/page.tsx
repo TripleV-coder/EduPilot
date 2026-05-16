@@ -14,6 +14,7 @@ import {
 import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTimeShort } from "@/lib/utils/formatters";
 
 type Backup = {
     filename: string;
@@ -55,11 +56,6 @@ export default function SystemBackupPage() {
             setIsGenerating(false);
         }
     };
-
-    const formatDate = (d: string) =>
-        new Intl.DateTimeFormat("fr-FR", {
-            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-        }).format(new Date(d));
 
     const lastBackup = backups.length > 0 ? backups[0] : null;
     const lastBackupAgo = lastBackup
@@ -114,12 +110,12 @@ export default function SystemBackupPage() {
                                             <p className="text-sm font-medium text-muted-foreground">Dernière Sauvegarde</p>
                                             <p className="text-xl font-bold text-foreground">{lastBackupAgo}</p>
                                         </div>
-                                        <div className="p-2 bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] rounded-lg">
+                                        <div className="p-2 bg-success/10 text-success rounded-lg">
                                             <CheckCircle2 className="w-5 h-5" />
                                         </div>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-4">
-                                        {lastBackup ? formatDate(lastBackup.createdAt) : "Aucune sauvegarde disponible"}
+                                        {lastBackup ? formatDateTimeShort(lastBackup.createdAt) : "Aucune sauvegarde disponible"}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -150,7 +146,7 @@ export default function SystemBackupPage() {
                                             <Clock className="w-5 h-5" />
                                         </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-4 text-orange-500">Nettoyage automatique activé</p>
+                                    <p className="text-xs text-muted-foreground mt-4 text-warning">Nettoyage automatique activé</p>
                                 </CardContent>
                             </Card>
                         </div>
@@ -181,11 +177,11 @@ export default function SystemBackupPage() {
                                             <TableBody>
                                                 {backups.map((backup) => (
                                                     <TableRow key={backup.filename}>
-                                                        <TableCell className="font-medium">{formatDate(backup.createdAt)}</TableCell>
+                                                        <TableCell className="font-medium">{formatDateTimeShort(backup.createdAt)}</TableCell>
                                                         <TableCell className="text-sm text-muted-foreground font-mono">{backup.filename}</TableCell>
                                                         <TableCell>{backup.sizeFormatted}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))] font-normal">
+                                                            <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-normal">
                                                                 Terminé
                                                             </Badge>
                                                         </TableCell>

@@ -11,6 +11,17 @@ import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant
  */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
+    // RBAC: fees are sensitive financial data — restricted to finance/admin roles.
+    const callerRole = session.user.role;
+    const allowed =
+      callerRole === "SUPER_ADMIN" ||
+      callerRole === "SCHOOL_ADMIN" ||
+      callerRole === "DIRECTOR" ||
+      callerRole === "ACCOUNTANT";
+    if (!allowed) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
     const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
@@ -53,9 +64,9 @@ export const GET = createApiHandler(
  */
 export const POST = createApiHandler(
   async (request, { session }, t) => {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const data = feeSchema.parse(body);
-    const requestedSchoolId = (body as any).schoolId as string | undefined;
+    const requestedSchoolId = body.schoolId as string | undefined;
     const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
     if (schoolAccess) return schoolAccess;
 

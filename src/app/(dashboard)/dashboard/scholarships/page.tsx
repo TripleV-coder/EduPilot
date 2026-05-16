@@ -34,6 +34,7 @@ type Scholarship = {
 export default function ScholarshipsPage() {
     const [scholarships, setScholarships] = useState<Scholarship[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
         fetchScholarships();
@@ -56,11 +57,11 @@ export default function ScholarshipsPage() {
 
     const getTypeIcon = (type: string) => {
         switch (type) {
-            case "MERIT": return <Trophy className="w-5 h-5 text-yellow-500" />;
-            case "NEED_BASED": return <HeartHandshake className="w-5 h-5 text-rose-500" />;
-            case "PARTIAL": return <Percent className="w-5 h-5 text-blue-500" />;
-            case "FULL": return <DollarSign className="w-5 h-5 text-emerald-500" />;
-            default: return <HelpCircle className="w-5 h-5 text-slate-500" />;
+            case "MERIT": return <Trophy className="w-5 h-5 text-warning" />;
+            case "NEED_BASED": return <HeartHandshake className="w-5 h-5 text-primary" />;
+            case "PARTIAL": return <Percent className="w-5 h-5 text-primary" />;
+            case "FULL": return <DollarSign className="w-5 h-5 text-success" />;
+            default: return <HelpCircle className="w-5 h-5 text-muted-foreground" />;
         }
     };
 
@@ -72,6 +73,16 @@ export default function ScholarshipsPage() {
         };
         return types[type] || type;
     };
+
+    const filteredScholarships = scholarships.filter((item) => {
+        if (!searchTerm.trim()) return true;
+        const needle = searchTerm.trim().toLowerCase();
+        return (
+            `${item.student?.user?.firstName || ""} ${item.student?.user?.lastName || ""}`.toLowerCase().includes(needle) ||
+            (item.name || "").toLowerCase().includes(needle) ||
+            getTypeLabel(item.type).toLowerCase().includes(needle)
+        );
+    });
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"]}>
@@ -121,7 +132,13 @@ export default function ScholarshipsPage() {
                         <div className="p-4 border-b bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div className="relative w-full max-w-sm">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9 bg-background" />
+                                <Input
+                                    aria-label="Rechercher une bourse"
+                                    placeholder="Rechercher un élève ou un type..."
+                                    className="pl-9 bg-background"
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                />
                             </div>
                         </div>
 
@@ -145,16 +162,16 @@ export default function ScholarshipsPage() {
                                                 <p className="text-muted-foreground">Chargement des dossiers...</p>
                                             </td>
                                         </tr>
-                                    ) : scholarships.length === 0 ? (
+                                    ) : filteredScholarships.length === 0 ? (
                                         <tr>
                                             <td colSpan={6} className="px-6 py-16 text-center text-muted-foreground">
                                                 <HeartHandshake className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                                <p className="text-lg font-medium text-foreground">Aucune aide recensée</p>
-                                                <p className="text-sm">Il n'y a actuellement aucune bourse ou réduction active pour cette année.</p>
+                                                <p className="text-lg font-medium text-foreground">Aucune aide trouvée</p>
+                                                <p className="text-sm">Aucun résultat ne correspond à votre recherche.</p>
                                             </td>
                                         </tr>
                                     ) : (
-                                        scholarships.map((item) => (
+                                        filteredScholarships.map((item) => (
                                             <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
                                                 <td className="px-6 py-4">
                                                     <div className="font-semibold text-foreground">
@@ -172,11 +189,11 @@ export default function ScholarshipsPage() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {item.percentage ? (
-                                                        <span className="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-500/10 px-2 py-1 rounded">
+                                                        <span className="inline-flex items-center gap-1 font-bold text-primary bg-primary/10 px-2 py-1 rounded">
                                                             {item.percentage}%
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 font-bold text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded">
+                                                        <span className="inline-flex items-center gap-1 font-bold text-success bg-success/10 px-2 py-1 rounded">
                                                             -{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(item.amount)}
                                                         </span>
                                                     )}
@@ -187,11 +204,11 @@ export default function ScholarshipsPage() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {item.isActive ? (
-                                                        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                                                        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/30">
                                                             <CheckCircle2 className="w-3.5 h-3.5" /> Active
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-600 bg-slate-500/10 px-2.5 py-1 rounded-full border border-slate-500/20">
+                                                        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full border border-border">
                                                             <XCircle className="w-3.5 h-3.5" /> Expirée
                                                         </span>
                                                     )}

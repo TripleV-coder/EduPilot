@@ -15,6 +15,7 @@ import { useSession } from "next-auth/react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getAppointmentStatusClass } from "@/lib/ui/status-styles";
 
 type Appointment = {
     id: string;
@@ -32,16 +33,6 @@ type Appointment = {
 
 const getTypeLabel = (type: string) =>
     type === "VIDEO_CALL" ? "Visio" : type === "PHONE_CALL" ? "Appel" : "Présentiel";
-
-const getStatusColor = (status: string) => {
-    switch (status) {
-        case "CONFIRMED": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-        case "PENDING": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-        case "CANCELLED": return "bg-red-500/10 text-red-600 border-red-500/20";
-        case "COMPLETED": return "bg-slate-500/10 text-slate-600 border-slate-500/20";
-        default: return "bg-primary/10 text-primary border-primary/20";
-    }
-};
 
 const getStatusLabel = (status: string) => {
     switch (status) {
@@ -176,7 +167,7 @@ export default function AppointmentsPage() {
             cell: ({ row }) => {
                 const app = row.original;
                 const TypeIcon = app.type === "VIDEO_CALL" ? Video : app.type === "PHONE_CALL" ? Phone : Users;
-                const iconColor = app.type === "VIDEO_CALL" ? "text-blue-500" : app.type === "PHONE_CALL" ? "text-amber-500" : "text-emerald-500";
+                const iconColor = app.type === "VIDEO_CALL" ? "text-primary" : app.type === "PHONE_CALL" ? "text-warning" : "text-success";
                 return (
                     <div>
                         <div className="flex items-center gap-2 font-medium text-foreground/80 mb-1">
@@ -200,7 +191,7 @@ export default function AppointmentsPage() {
             ),
             accessorFn: (row) => row.status,
             cell: ({ row }) => (
-                <span className={`inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(row.original.status)}`}>
+                <span className={`inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold uppercase rounded-full border ${getAppointmentStatusClass(row.original.status)}`}>
                     {getStatusLabel(row.original.status)}
                 </span>
             ),
@@ -213,10 +204,10 @@ export default function AppointmentsPage() {
                 if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(role) || app.status !== "PENDING") return null;
                 return (
                     <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200" onClick={() => handleStatusUpdate(app.id, "CONFIRMED")}>
+                        <Button size="sm" variant="outline" className="text-success hover:text-success hover:bg-success/10 border-success/30" onClick={() => handleStatusUpdate(app.id, "CONFIRMED")}>
                             <CheckCircle className="w-4 h-4 mr-1" /> Valider
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleStatusUpdate(app.id, "CANCELLED")}>
+                        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => handleStatusUpdate(app.id, "CANCELLED")}>
                             <X className="w-4 h-4" />
                         </Button>
                     </div>
@@ -237,7 +228,7 @@ export default function AppointmentsPage() {
                             { label: "Rendez-vous" },
                         ]}
                     />
-                    <Button variant="outline" onClick={exportCSV} className="gap-2 shrink-0">
+                    <Button type="button" variant="outline" onClick={exportCSV} className="gap-2 shrink-0">
                         <Download className="w-4 h-4" /> Export CSV
                     </Button>
                 </div>
@@ -255,6 +246,7 @@ export default function AppointmentsPage() {
                             {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map(s => (
                                 <Button
                                     key={s}
+                                    type="button"
                                     variant={statusFilter === s ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => setStatusFilter(s)}
@@ -266,7 +258,8 @@ export default function AppointmentsPage() {
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                
+                                aria-label="Rechercher un rendez-vous"
+                                placeholder="Parent, professeur, élève..."
                                 className="pl-9 h-9"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}

@@ -24,27 +24,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(result);
     } catch (error) {
         logger.error("Automation Route Error:", error as Error);
-        return NextResponse.json({ 
-            success: false, 
-            error: (error as Error).message 
+        return NextResponse.json({
+            success: false,
+            error: process.env.NODE_ENV === "production" ? "Internal error" : (error as Error).message
         }, { status: 500 });
     }
 }
 
-// Allow GET for simple triggers if configured (optional, POST is preferred)
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const key = searchParams.get("key");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (key !== cronSecret) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    try {
-        const result = await automationService.runDailyMaintenance();
-        return NextResponse.json(result);
-    } catch (error) {
-        return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
-    }
+// GET disabled — use POST with Bearer token only
+export async function GET() {
+    return NextResponse.json(
+        { error: "Method not allowed. Use POST with Authorization: Bearer <CRON_SECRET>" },
+        { status: 405 }
+    );
 }

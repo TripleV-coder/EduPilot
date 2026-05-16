@@ -92,7 +92,7 @@ export const GET = createApiHandler(
         });
 
         if (!parentProfile || parentProfile.parentStudents.length === 0) {
-          return createPaginatedResponse([], 0, { page, limit, skip });
+          return NextResponse.json({ error: "Accès refusé : aucun enfant associé à ce compte parent" }, { status: 403 });
         }
 
         const childrenIds = parentProfile.parentStudents.map((c) => c.studentId);

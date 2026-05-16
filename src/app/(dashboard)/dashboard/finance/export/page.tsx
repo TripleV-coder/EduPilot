@@ -67,7 +67,7 @@ export default function FinanceExportPage() {
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
                             {error && (
-                                <div className="p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-600 text-sm">
+                                <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                                     {error}
                                 </div>
                             )}
@@ -138,7 +138,7 @@ export default function FinanceExportPage() {
                         <Card className="border-border shadow-sm border-dashed bg-muted/20">
                             <CardContent className="pt-6">
                                 <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    <span className="w-2 h-2 rounded-full bg-primary"></span>
                                     Export Comptable Standard
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
@@ -153,7 +153,7 @@ export default function FinanceExportPage() {
                         <Card className="border-border shadow-sm border-dashed bg-muted/20">
                             <CardContent className="pt-6">
                                 <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                    <span className="w-2 h-2 rounded-full bg-warning"></span>
                                     Liste de Relance
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">

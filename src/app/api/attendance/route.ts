@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/attendance
  * List attendance records filtered by studentId, classId, date range.
  */
-export async function GET(request: NextRequest) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
-
+export const GET = createApiHandler(
+    async (request: NextRequest, { session }) => {
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get("studentId");
         const classId = searchParams.get("classId");
@@ -104,8 +99,9 @@ export async function GET(request: NextRequest) {
         }));
 
         return NextResponse.json({ data });
-    } catch (error) {
-        logger.error("Error fetching attendance", error as Error);
-        return NextResponse.json({ error: "Erreur lors du chargement de l'assiduité" }, { status: 500 });
+    },
+    {
+        requireAuth: true,
+        requiredPermissions: [Permission.ATTENDANCE_READ],
     }
-}
+);

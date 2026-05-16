@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
                 results.errors.push({
                     row: index + 1,
                     error: "Database error",
-                    details: (err as any).message,
+                    details: err instanceof Error ? err.message : String(err),
                 });
             }
         }

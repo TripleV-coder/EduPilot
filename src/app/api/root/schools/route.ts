@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { Session } from "next-auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
+import { requireRoot } from "@/lib/security/require-root";
 import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { SchoolType, SchoolLevel } from "@prisma/client";
-import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
 import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 import {
@@ -19,16 +17,6 @@ import {
   createSchoolWithDefaults,
 } from "@/lib/schools/provisioning";
 import { schoolDeploymentSchema, schoolQuotaUpdateSchema } from "@/lib/validations/root";
-
-function requireRoot(session: Session | null, userEmail?: string | null, userId?: string | null) {
-  if (!userId || !userEmail) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
-  if (!isRootUserEmail(userEmail) || !hasValidRootSession(session)) {
-    return NextResponse.json({ error: "Accès root refusé" }, { status: 403 });
-  }
-  return null;
-}
 
 export const dynamic = "force-dynamic";
 
@@ -113,10 +101,29 @@ export async function GET(request: NextRequest) {
 
     const studentCountBySchool = new Map(studentCounts.map((s) => [s.schoolId, s._count]));
     const userCountBySchool = new Map(userCounts.filter(u => u.schoolId !== null).map((u) => [u.schoolId, u._count]));
+
+    // Batch teacher count — single query instead of N+1 loop
+    const schoolIds = schools.map((s) => s.id);
+    const [assignedTeacherCounts, legacyTeacherCounts] = await Promise.all([
+      prisma.teacherSchoolAssignment.groupBy({
+        by: ["schoolId"],
+        where: { schoolId: { in: schoolIds }, status: "ACTIVE" },
+        _count: { _all: true },
+      }),
+      prisma.teacherProfile.groupBy({
+        by: ["schoolId"],
+        where: {
+          schoolId: { in: schoolIds },
+          deletedAt: null,
+          schoolAssignments: { none: {} },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    const assignedMap = new Map(assignedTeacherCounts.map((t) => [t.schoolId, t._count._all]));
+    const legacyMap = new Map(legacyTeacherCounts.map((t) => [t.schoolId, t._count._all]));
     const teacherCountBySchool = new Map(
-      await Promise.all(
-        schools.map(async (school) => [school.id, await countTeachersForSchool(school.id)] as const)
-      )
+      schoolIds.map((id) => [id, (assignedMap.get(id) ?? 0) + (legacyMap.get(id) ?? 0)] as const)
     );
 
     return createPaginatedResponse(
@@ -299,12 +306,20 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "PARENT_SCHOOL_REQUIRES_SHARED_ORGANIZATION") {
       return NextResponse.json({ error: "Une annexe doit partager la même organisation que son site parent." }, { status: 400 });
     }
-    if ((error as any).code === 'P2002') {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       return NextResponse.json({ error: "Cet email administrateur est déjà utilisé" }, { status: 400 });
     }
     logger.error("Error creating school in root", error);
     return NextResponse.json(
-      { error: (error as Error).message || "Erreur lors de la création de l'établissement" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la création de l'établissement",
+      },
       { status: 500 }
     );
   }

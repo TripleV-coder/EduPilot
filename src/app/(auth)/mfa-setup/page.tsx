@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { ShieldCheck, AlertCircle, ArrowRight, CheckCircle2, Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { Button, Icon } from "@/components/edu";
 
-const enableMfaSchema = z.object({
-    token: z.string().length(6, "Le code doit contenir 6 chiffres"),
-});
-
-type EnableMfaFormData = z.infer<typeof enableMfaSchema>;
+const CODE_LENGTH = 6;
 
 export default function MfaSetupPage() {
     const router = useRouter();
@@ -26,14 +17,8 @@ export default function MfaSetupPage() {
     const [secret, setSecret] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
-
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<EnableMfaFormData>({
-        resolver: zodResolver(enableMfaSchema),
-    });
+    const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
+    const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
     useEffect(() => {
         const generateMfa = async () => {
@@ -53,7 +38,7 @@ export default function MfaSetupPage() {
                     }
                     setError(data.message || data.error || "Impossible de générer le code QR.");
                 }
-            } catch (err) {
+            } catch {
                 setError("Erreur de connexion au serveur.");
             } finally {
                 setIsGenerating(false);
@@ -61,208 +46,539 @@ export default function MfaSetupPage() {
         };
 
         generateMfa();
-    }, []);
+    }, [router]);
 
-    const onSubmit = async (data: EnableMfaFormData) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await fetch("/api/auth/mfa/setup?action=enable", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: data.token, secret }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                if (response.status === 401) {
-                    router.replace("/login");
-                    return;
-                }
-                setError(result.message || result.error || "Une erreur est survenue lors de l'activation.");
-            } else {
-                setBackupCodes(result.backupCodes);
-            }
-        } catch (err) {
-            setError("Erreur de connexion au serveur.");
-        } finally {
-            setIsLoading(false);
+    const focusInput = (index: number) => {
+        if (index >= 0 && index < CODE_LENGTH) {
+            inputsRef.current[index]?.focus();
         }
     };
 
+    const handleDigitChange = (index: number, value: string) => {
+        const digit = value.replace(/\D/g, "").slice(-1);
+        setCode((prev) => {
+            const next = [...prev];
+            next[index] = digit;
+            return next;
+        });
+        if (digit && index < CODE_LENGTH - 1) {
+            focusInput(index + 1);
+        }
+    };
+
+    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Backspace") {
+            if (!code[index] && index > 0) {
+                e.preventDefault();
+                focusInput(index - 1);
+                setCode((prev) => {
+                    const next = [...prev];
+                    next[index - 1] = "";
+                    return next;
+                });
+            }
+        } else if (e.key === "ArrowLeft") {
+            focusInput(index - 1);
+        } else if (e.key === "ArrowRight") {
+            focusInput(index + 1);
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, CODE_LENGTH);
+        if (!pasted) return;
+        const next = Array(CODE_LENGTH).fill("");
+        for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
+        setCode(next);
+        focusInput(Math.min(pasted.length, CODE_LENGTH - 1));
+    };
+
+    const submitCode = useCallback(
+        async (token: string) => {
+            if (token.length !== CODE_LENGTH) {
+                setError("Le code doit contenir 6 chiffres.");
+                return;
+            }
+            setIsLoading(true);
+            setError(null);
+            try {
+                const response = await fetch("/api/auth/mfa/setup?action=enable", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token, secret }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    if (response.status === 401) {
+                        router.replace("/login");
+                        return;
+                    }
+                    setError(
+                        result.message ||
+                            result.error ||
+                            "Code incorrect. Réessayez avec un nouveau code de votre application."
+                    );
+                    setCode(Array(CODE_LENGTH).fill(""));
+                    focusInput(0);
+                } else {
+                    setBackupCodes(result.backupCodes);
+                }
+            } catch {
+                setError("Erreur de connexion au serveur.");
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [secret, router]
+    );
+
+    useEffect(() => {
+        const joined = code.join("");
+        if (joined.length === CODE_LENGTH && !isLoading && !backupCodes) {
+            void submitCode(joined);
+        }
+    }, [code, isLoading, backupCodes, submitCode]);
+
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        alert("Copié dans le presse-papiers !");
     };
 
     if (isGenerating) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
-                    <p className="text-muted-foreground">Génération de la configuration MFA...</p>
+            <AuthShell
+                title="Activation 2FA"
+                subtitle="Préparation de votre configuration sécurisée…"
+            >
+                <div className="flex flex-col items-center gap-3 py-10">
+                    <div
+                        className="animate-spin"
+                        style={{
+                            width: 36,
+                            height: 36,
+                            border: "3px solid var(--brand-100)",
+                            borderTopColor: "var(--brand-600)",
+                            borderRadius: "50%",
+                        }}
+                    />
+                    <p style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                        Génération du code QR…
+                    </p>
                 </div>
-            </div>
+            </AuthShell>
+        );
+    }
+
+    if (backupCodes) {
+        return (
+            <AuthShell
+                title="2FA activée"
+                subtitle="Conservez ces codes de secours en lieu sûr — ils ne seront plus affichés."
+            >
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.25 }}
+                    style={{ display: "flex", flexDirection: "column", gap: 20 }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "14px 16px",
+                            borderRadius: "var(--eduflow-radius-card)",
+                            background: "var(--eduflow-success-50)",
+                            border: "1px solid var(--eduflow-success-200)",
+                        }}
+                    >
+                        <Icon name="check" size={20} color="var(--eduflow-success-700)" />
+                        <div>
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: "var(--eduflow-success-800)",
+                                }}
+                            >
+                                Authentification à deux facteurs activée
+                            </div>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    color: "var(--eduflow-success-700)",
+                                    marginTop: 2,
+                                }}
+                            >
+                                Votre compte est désormais protégé.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                color: "var(--eduflow-text-tertiary)",
+                                marginBottom: 8,
+                            }}
+                        >
+                            Codes de secours · Important
+                        </div>
+                        <p
+                            style={{
+                                fontSize: 13,
+                                color: "var(--eduflow-text-secondary)",
+                                margin: "0 0 12px",
+                                lineHeight: 1.55,
+                            }}
+                        >
+                            Copiez ces codes dans un gestionnaire de mots de passe. Chacun ne
+                            peut servir qu'une seule fois pour récupérer l'accès si vous perdez
+                            votre téléphone.
+                        </p>
+                        <div
+                            style={{
+                                padding: 14,
+                                borderRadius: "var(--eduflow-radius-card)",
+                                background: "var(--eduflow-surface-sunken)",
+                                border: "1px solid var(--eduflow-border-subtle)",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(2, 1fr)",
+                                    gap: 8,
+                                    marginBottom: 12,
+                                }}
+                            >
+                                {backupCodes.map((c, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="eduflow-mono eduflow-tabular"
+                                        style={{
+                                            textAlign: "center",
+                                            padding: "8px 10px",
+                                            background: "var(--eduflow-surface-card)",
+                                            border: "1px solid var(--eduflow-border-subtle)",
+                                            borderRadius: 8,
+                                            fontSize: 13,
+                                            letterSpacing: "0.06em",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {c}
+                                    </div>
+                                ))}
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                icon="cards"
+                                onClick={() => copyToClipboard(backupCodes.join("\n"))}
+                                style={{ width: "100%", justifyContent: "center" }}
+                            >
+                                Copier tous les codes
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Button
+                        iconRight="arrowRight"
+                        onClick={() => router.push("/dashboard")}
+                        style={{ width: "100%", justifyContent: "center", height: 48 }}
+                    >
+                        Aller au tableau de bord
+                    </Button>
+                </motion.div>
+            </AuthShell>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 py-12">
-            <div className="w-full max-w-lg">
-                <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
-                            <ShieldCheck className="w-7 h-7 text-primary" />
+        <AuthShell
+            title="Activez la 2FA"
+            subtitle="Ajoutez une seconde barrière de sécurité à votre compte avec votre application d'authentification."
+        >
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {error ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        role="alert"
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 10,
+                            padding: "12px 14px",
+                            borderRadius: 10,
+                            background: "var(--eduflow-danger-50)",
+                            border: "1px solid var(--eduflow-danger-200)",
+                            color: "var(--eduflow-danger-800)",
+                        }}
+                    >
+                        <Icon name="warning" size={16} color="var(--eduflow-danger-600)" />
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{error}</div>
+                    </motion.div>
+                ) : null}
+
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "auto 1fr",
+                        gap: 14,
+                        alignItems: "start",
+                    }}
+                >
+                    <StepBadge n={1} />
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                            Scannez le code QR
                         </div>
-                        <h1 className="text-2xl font-bold text-foreground mb-2">
-                            Authentification à Deux Facteurs (2FA)
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Sécurisez votre compte en activant la vérification en deux étapes.
+                        <p
+                            style={{
+                                fontSize: 12,
+                                color: "var(--eduflow-text-secondary)",
+                                margin: 0,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Ouvrez Google Authenticator, Authy ou 1Password puis scannez le code
+                            ci-dessous.
                         </p>
                     </div>
+                </div>
 
-                    {error && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            role="alert"
-                            className="flex items-start gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
+                {qrCode ? (
+                    <div
+                        style={{
+                            margin: "0 auto",
+                            padding: 14,
+                            background: "#fff",
+                            border: "1px solid var(--eduflow-border-subtle)",
+                            borderRadius: "var(--eduflow-radius-card)",
+                            boxShadow: "var(--eduflow-shadow-sm)",
+                            width: 196,
+                            height: 196,
+                            display: "grid",
+                            placeItems: "center",
+                        }}
+                    >
+                        <Image src={qrCode} alt="QR Code MFA" width={168} height={168} />
+                    </div>
+                ) : null}
+
+                {secret ? (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "8px 12px",
+                            background: "var(--eduflow-surface-sunken)",
+                            border: "1px dashed var(--eduflow-border-default)",
+                            borderRadius: 8,
+                            fontSize: 12,
+                            color: "var(--eduflow-text-secondary)",
+                        }}
+                    >
+                        <span style={{ flexShrink: 0 }}>Clé manuelle :</span>
+                        <code
+                            className="eduflow-mono"
+                            style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--eduflow-text-primary)",
+                                letterSpacing: "0.06em",
+                            }}
                         >
-                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                            <div className="text-sm font-medium">{error}</div>
-                        </motion.div>
-                    )}
-
-                    {backupCodes ? (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="space-y-6"
+                            {secret}
+                        </code>
+                        <button
+                            type="button"
+                            onClick={() => copyToClipboard(secret)}
+                            aria-label="Copier la clé manuelle"
+                            style={{
+                                marginLeft: "auto",
+                                background: "transparent",
+                                border: 0,
+                                cursor: "pointer",
+                                color: "var(--brand-700)",
+                                display: "grid",
+                                placeItems: "center",
+                            }}
                         >
-                            <div className="flex flex-col items-center text-center p-6 bg-[hsl(var(--success-bg))] rounded-xl border border-[hsl(var(--success-border))]">
-                                <CheckCircle2 className="w-12 h-12 text-[hsl(var(--success))] mb-3" />
-                                <h2 className="text-xl font-semibold text-[hsl(var(--success))]">MFA Activé avec Succès</h2>
-                                <p className="text-sm text-[hsl(var(--success))]/80 mt-2">
-                                    Votre compte est maintenant protégé par l'authentification à deux facteurs.
-                                </p>
-                            </div>
+                            <Icon name="cards" size={14} />
+                        </button>
+                    </div>
+                ) : null}
 
-                            <div className="space-y-4">
-                                <h3 className="font-semibold text-lg border-b border-border pb-2">Codes de secours (Très Important)</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Copiez et conservez ces codes en lieu sûr. Ils vous permettront de vous connecter si vous perdez votre appareil d'authentification.
-                                    <strong> Ils ne seront affichés qu'une seule fois.</strong>
-                                </p>
-
-                                <div className="bg-muted p-4 rounded-lg border border-border mt-4">
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        {backupCodes.map((code, idx) => (
-                                            <div key={idx} className="font-mono text-sm tracking-wider text-center py-2 px-3 bg-background rounded border border-border shadow-sm">
-                                                {code}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full flex items-center justify-center gap-2"
-                                        onClick={() => copyToClipboard(backupCodes.join('\n'))}
-                                    >
-                                        <Copy className="w-4 h-4" /> Copier tous les codes
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <Button
-                                className="w-full mt-6"
-                                size="lg"
-                                onClick={() => router.push("/dashboard")}
-                            >
-                                Aller au tableau de bord
-                            </Button>
-                        </motion.div>
-                    ) : (
-                        <div className="space-y-8">
-                            <div className="space-y-4">
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">1</div>
-                                    <div>
-                                        <h3 className="font-medium text-foreground">Scannez le code QR</h3>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Ouvrez votre application d'authentification (Google Authenticator, Authy, etc.) et scannez ce code QR.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {qrCode && (
-                                    <div className="flex justify-center p-4 bg-white rounded-xl border border-border shadow-sm mx-auto max-w-[200px]">
-                                        <Image src={qrCode} alt="QR Code MFA" width={200} height={200} />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">2</div>
-                                    <div>
-                                        <h3 className="font-medium text-foreground">Entrez le code de vérification</h3>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Saisissez le code à 6 chiffres généré par votre application pour confirmer la configuration.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <form onSubmit={handleSubmit(onSubmit)} className="pl-12 space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="token" className="sr-only">Code à 6 chiffres</Label>
-                                        <Input
-                                            id="token"
-                                            type="text"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            maxLength={6}
-                                            
-                                            className="text-center text-2xl tracking-[0.5em] font-mono h-14"
-                                            {...register("token")}
-                                            aria-invalid={!!errors.token}
-                                        />
-                                        {errors.token && (
-                                            <p className="text-sm text-destructive">{errors.token.message}</p>
-                                        )}
-                                    </div>
-
-                                    <Button
-                                        type="submit"
-                                        className="w-full"
-                                        size="lg"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                                Vérification...
-                                            </>
-                                        ) : (
-                                            <>
-                                                Activer la 2FA
-                                                <ArrowRight className="w-4 h-4 ml-2" />
-                                            </>
-                                        )}
-                                    </Button>
-                                </form>
-                            </div>
-
-                            <div className="text-center pt-4 border-t border-border">
-                                <Button variant="ghost" className="text-muted-foreground" onClick={() => router.push('/dashboard')}>
-                                    Plus tard
-                                </Button>
-                            </div>
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "auto 1fr",
+                        gap: 14,
+                        alignItems: "start",
+                        marginTop: 4,
+                    }}
+                >
+                    <StepBadge n={2} />
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                            Saisissez le code à 6 chiffres
                         </div>
-                    )}
+                        <p
+                            style={{
+                                fontSize: 12,
+                                color: "var(--eduflow-text-secondary)",
+                                margin: 0,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            La validation est automatique dès que les 6 chiffres sont entrés.
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 8,
+                        justifyContent: "center",
+                        marginTop: 4,
+                    }}
+                    role="group"
+                    aria-label="Code à 6 chiffres"
+                >
+                    {code.map((digit, i) => (
+                        <input
+                            key={i}
+                            ref={(el) => {
+                                inputsRef.current[i] = el;
+                            }}
+                            inputMode="numeric"
+                            autoComplete={i === 0 ? "one-time-code" : "off"}
+                            pattern="[0-9]*"
+                            maxLength={1}
+                            value={digit}
+                            disabled={isLoading}
+                            onChange={(e) => handleDigitChange(i, e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(i, e)}
+                            onPaste={i === 0 ? handlePaste : undefined}
+                            aria-label={`Chiffre ${i + 1}`}
+                            style={{
+                                width: 48,
+                                height: 56,
+                                textAlign: "center",
+                                fontSize: 22,
+                                fontWeight: 700,
+                                fontFamily: "var(--eduflow-font-mono)",
+                                color: "var(--eduflow-text-primary)",
+                                background: "var(--eduflow-surface-card)",
+                                border: `2px solid ${
+                                    digit
+                                        ? "var(--brand-600)"
+                                        : "var(--eduflow-border-default)"
+                                }`,
+                                borderRadius: 12,
+                                outline: "none",
+                                transition:
+                                    "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                boxShadow: digit
+                                    ? "0 0 0 3px var(--brand-100)"
+                                    : "none",
+                            }}
+                        />
+                    ))}
+                </div>
+
+                {isLoading ? (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            color: "var(--eduflow-text-secondary)",
+                        }}
+                    >
+                        <div
+                            className="animate-spin"
+                            style={{
+                                width: 14,
+                                height: 14,
+                                border: "2px solid var(--brand-100)",
+                                borderTopColor: "var(--brand-600)",
+                                borderRadius: "50%",
+                            }}
+                        />
+                        Vérification…
+                    </div>
+                ) : null}
+
+                <div
+                    style={{
+                        marginTop: 8,
+                        paddingTop: 16,
+                        borderTop: "1px solid var(--eduflow-border-subtle)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 8,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => router.push("/dashboard")}
+                        style={{
+                            background: "transparent",
+                            border: 0,
+                            color: "var(--eduflow-text-tertiary)",
+                            fontSize: 13,
+                            cursor: "pointer",
+                            padding: 0,
+                            fontFamily: "inherit",
+                        }}
+                    >
+                        Configurer plus tard
+                    </button>
+                    <span
+                        style={{
+                            fontSize: 11,
+                            color: "var(--eduflow-text-tertiary)",
+                        }}
+                    >
+                        Besoin d'aide ? Contactez votre administrateur
+                    </span>
                 </div>
             </div>
+        </AuthShell>
+    );
+}
+
+function StepBadge({ n }: { n: number }) {
+    return (
+        <div
+            style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "var(--brand-50)",
+                color: "var(--brand-700)",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 13,
+                fontWeight: 700,
+                border: "1px solid var(--brand-100)",
+            }}
+        >
+            {n}
         </div>
     );
 }

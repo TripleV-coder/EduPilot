@@ -1,5 +1,3 @@
-"use client";
-
 import { PageGuard } from "@/components/guard/page-guard";
 import { DebtRiskBoard } from "@/components/dashboard/risks/debt-risk-board";
 import { Permission } from "@/lib/rbac/permissions";

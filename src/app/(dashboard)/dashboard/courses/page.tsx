@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
+
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Button } from "@/components/ui/button";
-import { BookOpen, AlertCircle, Layers, ChevronDown, ChevronUp, CheckCircle, Loader2, Plus } from "lucide-react";
-import Link from "next/link";
+import { trackUxEvent } from "@/lib/ux/telemetry";
+
+import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
 type CourseProgress = {
     courseId: string;
@@ -31,6 +33,7 @@ type CourseItem = {
 };
 
 export default function CoursesPage() {
+    const { data: session } = useSession();
     const [courses, setCourses] = useState<CourseItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,10 +41,13 @@ export default function CoursesPage() {
     const [modules, setModules] = useState<Record<string, ModuleItem[]>>({});
     const [modulesLoading, setModulesLoading] = useState<string | null>(null);
     const [completingLesson, setCompletingLesson] = useState<string | null>(null);
+    const canCreateCourse = ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"].includes(
+        session?.user?.role || ""
+    );
 
-    // Fetch course progress
     const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: CourseProgress[] }>(
-        "/api/courses/progress", fetcher
+        "/api/courses/progress",
+        fetcher
     );
     const progressMap: Record<string, CourseProgress> = {};
     if (progressData?.progress) {
@@ -49,44 +55,66 @@ export default function CoursesPage() {
     }
 
     const toggleCourse = async (courseId: string) => {
-        if (selectedCourseId === courseId) { setSelectedCourseId(null); return; }
+        if (selectedCourseId === courseId) {
+            setSelectedCourseId(null);
+            return;
+        }
         setSelectedCourseId(courseId);
         if (modules[courseId]) return;
         setModulesLoading(courseId);
         try {
-            const res = await fetch(`/api/modules?courseId=${courseId}`, { credentials: "include" });
+            const res = await fetch(`/api/modules?courseId=${courseId}`, {
+                credentials: "include",
+            });
             if (!res.ok) throw new Error();
             const data = await res.json();
             const mods: ModuleItem[] = Array.isArray(data) ? data : data.modules ?? [];
-            // Fetch lessons for each module
-            const modsWithLessons = await Promise.all(mods.map(async (m) => {
-                try {
-                    const lr = await fetch(`/api/modules/${m.id}/lessons`, { credentials: "include" });
-                    if (!lr.ok) return m;
-                    const ld = await lr.json();
-                    return { ...m, lessons: Array.isArray(ld) ? ld : ld.lessons ?? [] };
-                } catch { return m; }
-            }));
-            setModules(prev => ({ ...prev, [courseId]: modsWithLessons }));
-        } catch { setModules(prev => ({ ...prev, [courseId]: [] })); }
-        finally { setModulesLoading(null); }
+            const modsWithLessons = await Promise.all(
+                mods.map(async (m) => {
+                    try {
+                        const lr = await fetch(`/api/modules/${m.id}/lessons`, {
+                            credentials: "include",
+                        });
+                        if (!lr.ok) return m;
+                        const ld = await lr.json();
+                        return { ...m, lessons: Array.isArray(ld) ? ld : ld.lessons ?? [] };
+                    } catch {
+                        return m;
+                    }
+                })
+            );
+            setModules((prev) => ({ ...prev, [courseId]: modsWithLessons }));
+        } catch {
+            setModules((prev) => ({ ...prev, [courseId]: [] }));
+        } finally {
+            setModulesLoading(null);
+        }
     };
 
     const completeLesson = async (lessonId: string, courseId: string) => {
         setCompletingLesson(lessonId);
         try {
-            const res = await fetch(`/api/lessons/${lessonId}/complete`, { method: "POST", credentials: "include" });
+            const res = await fetch(`/api/lessons/${lessonId}/complete`, {
+                method: "POST",
+                credentials: "include",
+            });
             if (!res.ok) throw new Error();
-            setModules(prev => ({
+            setModules((prev) => ({
                 ...prev,
-                [courseId]: (prev[courseId] ?? []).map(m => ({
+                [courseId]: (prev[courseId] ?? []).map((m) => ({
                     ...m,
-                    lessons: m.lessons?.map(l => l.id === lessonId ? { ...l, isCompleted: true } : l),
+                    lessons: m.lessons?.map((l) =>
+                        l.id === lessonId ? { ...l, isCompleted: true } : l
+                    ),
                 })),
             }));
-            mutateProgress(); // refresh progress
-        } catch { /* silent */ }
-        finally { setCompletingLesson(null); }
+            mutateProgress();
+            trackUxEvent("lesson_completed", { lessonId, courseId });
+        } catch {
+            // silent
+        } finally {
+            setCompletingLesson(null);
+        }
     };
 
     useEffect(() => {
@@ -99,126 +127,418 @@ export default function CoursesPage() {
             .then((data) => {
                 if (!cancelled) setCourses(Array.isArray(data) ? data : data.courses ?? []);
             })
-            .catch((e) => { if (!cancelled) setError(e.message); })
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
+            .catch((e) => {
+                if (!cancelled) setError(e.message);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ, Permission.SUBJECT_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-6">
-                <PageHeader
-                    title="Mes Cours & Apprentissages"
-                    description="Accédez à vos leçons et suivez votre progression"
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Cours" },
-                    ]}
-                    actions={
-                        <RoleActionGuard allowedRoles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                            <Link href="/dashboard/courses/new">
-                                <Button className="gap-2">
-                                    <Plus className="w-4 h-4" /> Créer un cours
-                                </Button>
-                            </Link>
-                        </RoleActionGuard>
-                    }
-                />
+        <PageGuard
+            permission={[
+                Permission.CLASS_READ,
+                Permission.SUBJECT_READ,
+                Permission.SCHEDULE_READ,
+            ]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PageHeader
+                        greeting="Mes cours & apprentissages"
+                        sub={`${courses.length} ${
+                            courses.length > 1 ? "cours actifs" : "cours actif"
+                        } · suis ta progression module par module`}
+                        breadcrumb={["Tableau de bord", "Cours"]}
+                        actions={
+                            <RoleActionGuard
+                                allowedRoles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}
+                            >
+                                <Link href="/dashboard/courses/new">
+                                    <Button icon="plus">Créer un cours</Button>
+                                </Link>
+                            </RoleActionGuard>
+                        }
+                    />
+                </div>
 
-                {loading && (
-                    <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                    </div>
-                )}
-
-                {error && (
-                    <div role="alert" className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <p>{error}</p>
-                    </div>
-                )}
-
-                {!loading && !error && courses.length === 0 && (
-                    <div className="text-center py-16 border border-dashed border-border rounded-xl bg-muted/30">
-                        <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                        <h3 className="text-lg font-medium text-foreground">Aucun cours créé</h3>
-                        <p className="text-sm text-muted-foreground mt-2">Créez votre premier cours pour commencer.</p>
-                    </div>
-                )}
-
-                {!loading && !error && courses.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {courses.map((course) => (
-                            <Card key={course.id} className={`border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer ${selectedCourseId === course.id ? "border-primary ring-1 ring-primary/20 sm:col-span-2 lg:col-span-3" : ""}`} onClick={() => toggleCourse(course.id)}>
-                                <CardHeader className="pb-2">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-sm font-semibold text-foreground">{course.title}</CardTitle>
-                                        {selectedCourseId === course.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        {course.classSubject?.subject?.name ?? "—"} • {course.classSubject?.class?.name ?? "—"}
-                                    </p>
-                                </CardHeader>
-                                <CardContent className="pt-0 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                            <Layers className="h-3 w-3" /> {course._count?.modules ?? 0} modules
-                                        </span>
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${course.isPublished ? "bg-secondary/10 text-secondary" : "bg-muted text-muted-foreground"}`}>
-                                            {course.isPublished ? "Publié" : "Brouillon"}
-                                        </span>
-                                    </div>
-                                    {/* Progress Bar */}
-                                    {progressMap[course.id] && (
-                                        <div className="space-y-1">
-                                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                                                <span>{progressMap[course.id].completedLessons}/{progressMap[course.id].totalLessons} leçons</span>
-                                                <span className="font-semibold text-foreground">{progressMap[course.id].progress}%</span>
-                                            </div>
-                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all duration-500 ${progressMap[course.id].progress === 100 ? 'bg-emerald-500' :
-                                                            progressMap[course.id].progress > 50 ? 'bg-primary' : 'bg-amber-500'
-                                                        }`}
-                                                    style={{ width: `${progressMap[course.id].progress}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedCourseId === course.id && (
-                                        <div className="border-t border-border pt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
-                                            {modulesLoading === course.id && (
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2"><Loader2 className="h-3 w-3 animate-spin" /> Chargement des modules...</div>
-                                            )}
-                                            {modules[course.id]?.length === 0 && !modulesLoading && (
-                                                <p className="text-xs text-muted-foreground py-2">Aucun module pour ce cours.</p>
-                                            )}
-                                            {modules[course.id]?.map((mod) => (
-                                                <div key={mod.id} className="rounded-md border border-border bg-muted/20 p-2 space-y-1">
-                                                    <p className="text-xs font-medium text-foreground">{mod.title}</p>
-                                                    {mod.lessons && mod.lessons.length > 0 ? mod.lessons.map((lesson) => (
-                                                        <div key={lesson.id} className="flex items-center justify-between pl-3 py-1">
-                                                            <span className="text-xs text-muted-foreground">{lesson.title}</span>
-                                                            {lesson.isCompleted ? (
-                                                                <span className="inline-flex items-center gap-1 text-xs text-emerald-600"><CheckCircle className="h-3 w-3" /> Terminé</span>
-                                                            ) : (
-                                                                <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" disabled={completingLesson === lesson.id} onClick={() => completeLesson(lesson.id, course.id)}>
-                                                                    {completingLesson === lesson.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Compléter"}
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    )) : (
-                                                        <p className="text-[10px] text-muted-foreground pl-3">Aucune leçon</p>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
+                {loading ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {Array.from({ length: 6 }).map((_, idx) => (
+                            <Card key={idx} padding={20}>
+                                <div className="flex flex-col gap-3">
+                                    <div
+                                        style={{
+                                            height: 16,
+                                            width: "65%",
+                                            background: "var(--eduflow-surface-sunken)",
+                                            borderRadius: 4,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            height: 10,
+                                            width: "40%",
+                                            background: "var(--eduflow-surface-sunken)",
+                                            borderRadius: 4,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            height: 4,
+                                            width: "100%",
+                                            background: "var(--eduflow-surface-sunken)",
+                                            borderRadius: 2,
+                                            marginTop: 8,
+                                        }}
+                                    />
+                                </div>
                             </Card>
                         ))}
                     </div>
-                )}
+                ) : null}
+
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                }}
+                            >
+                                {error}
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {!loading && !error && courses.length === 0 ? (
+                    <Card padding={36}>
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="book" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucun cours créé
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    margin: 0,
+                                    maxWidth: 480,
+                                }}
+                            >
+                                Crée ton premier cours pour structurer l&apos;apprentissage en
+                                modules et leçons.
+                            </p>
+                            {canCreateCourse ? (
+                                <Link href="/dashboard/courses/new">
+                                    <Button icon="plus">Créer un cours</Button>
+                                </Link>
+                            ) : null}
+                        </div>
+                    </Card>
+                ) : null}
+
+                {!loading && !error && courses.length > 0 ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {courses.map((course) => {
+                            const progress = progressMap[course.id];
+                            const expanded = selectedCourseId === course.id;
+                            return (
+                                <Card
+                                    key={course.id}
+                                    padding={0}
+                                    style={{
+                                        gridColumn: expanded ? "1 / -1" : undefined,
+                                        cursor: "pointer",
+                                        border: expanded
+                                            ? "2px solid var(--brand-500)"
+                                            : undefined,
+                                        transition:
+                                            "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                    }}
+                                    onClick={() => toggleCourse(course.id)}
+                                    className="hover:shadow-eduflow-card-brand"
+                                >
+                                    <div className="px-5 py-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                <h3
+                                                    className="eduflow-display"
+                                                    style={{
+                                                        margin: 0,
+                                                        fontSize: 16,
+                                                        fontWeight: 700,
+                                                        color: "var(--eduflow-text-primary)",
+                                                        lineHeight: 1.25,
+                                                    }}
+                                                >
+                                                    {course.title}
+                                                </h3>
+                                                <p
+                                                    style={{
+                                                        margin: "4px 0 0",
+                                                        fontSize: 11,
+                                                        color: "var(--eduflow-text-tertiary)",
+                                                    }}
+                                                >
+                                                    {course.classSubject?.subject?.name ?? "—"} ·{" "}
+                                                    {course.classSubject?.class?.name ?? "—"}
+                                                </p>
+                                            </div>
+                                            <Icon
+                                                name="chevronDown"
+                                                size={16}
+                                                color="var(--eduflow-text-tertiary)"
+                                                style={{
+                                                    transform: expanded
+                                                        ? "rotate(180deg)"
+                                                        : "rotate(0deg)",
+                                                    transition:
+                                                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="mt-3 flex items-center justify-between">
+                                            <span
+                                                className="flex items-center gap-1.5"
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                }}
+                                            >
+                                                <Icon name="cards" size={12} />
+                                                {course._count?.modules ?? 0} modules
+                                            </span>
+                                            {course.isPublished ? (
+                                                <Badge variant="success" size="sm" dot>
+                                                    Publié
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="neutral" size="sm">
+                                                    Brouillon
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {progress ? (
+                                            <div className="mt-3">
+                                                <div
+                                                    className="flex items-center justify-between"
+                                                    style={{
+                                                        fontSize: 10,
+                                                        color: "var(--eduflow-text-tertiary)",
+                                                    }}
+                                                >
+                                                    <span className="eduflow-tabular">
+                                                        {progress.completedLessons}/
+                                                        {progress.totalLessons} leçons
+                                                    </span>
+                                                    <span
+                                                        className="eduflow-tabular"
+                                                        style={{
+                                                            fontWeight: 700,
+                                                            color: "var(--eduflow-text-primary)",
+                                                        }}
+                                                    >
+                                                        {progress.progress}%
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        height: 6,
+                                                        background:
+                                                            "var(--eduflow-neutral-200)",
+                                                        borderRadius: 3,
+                                                        overflow: "hidden",
+                                                        marginTop: 4,
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            height: "100%",
+                                                            width: `${progress.progress}%`,
+                                                            background:
+                                                                progress.progress === 100
+                                                                    ? "var(--eduflow-success-500)"
+                                                                    : progress.progress > 50
+                                                                    ? "var(--brand-600)"
+                                                                    : "var(--eduflow-warning-500)",
+                                                            transition:
+                                                                "width var(--eduflow-motion-base) var(--eduflow-ease-out)",
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    {expanded ? (
+                                        <div
+                                            className="border-t px-5 py-4"
+                                            style={{
+                                                borderColor: "var(--eduflow-border-subtle)",
+                                                background: "var(--eduflow-surface-sunken)",
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {modulesLoading === course.id ? (
+                                                <div className="flex items-center gap-2 py-2">
+                                                    <Spinner size={14} color="var(--brand-600)" />
+                                                    <span
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: "var(--eduflow-text-secondary)",
+                                                        }}
+                                                    >
+                                                        Chargement des modules…
+                                                    </span>
+                                                </div>
+                                            ) : modules[course.id]?.length === 0 ? (
+                                                <p
+                                                    style={{
+                                                        margin: 0,
+                                                        fontSize: 12,
+                                                        color: "var(--eduflow-text-tertiary)",
+                                                    }}
+                                                >
+                                                    Aucun module pour ce cours.
+                                                </p>
+                                            ) : (
+                                                <div className="flex flex-col gap-2">
+                                                    {modules[course.id]?.map((mod) => (
+                                                        <div
+                                                            key={mod.id}
+                                                            style={{
+                                                                padding: 10,
+                                                                background:
+                                                                    "var(--eduflow-surface-card)",
+                                                                borderRadius:
+                                                                    "var(--eduflow-radius-md)",
+                                                                border:
+                                                                    "1px solid var(--eduflow-border-subtle)",
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    fontSize: 12,
+                                                                    fontWeight: 700,
+                                                                    color:
+                                                                        "var(--eduflow-text-primary)",
+                                                                }}
+                                                            >
+                                                                {mod.title}
+                                                            </div>
+                                                            <div className="mt-1 flex flex-col gap-0.5">
+                                                                {mod.lessons &&
+                                                                mod.lessons.length > 0 ? (
+                                                                    mod.lessons.map((lesson) => (
+                                                                        <div
+                                                                            key={lesson.id}
+                                                                            className="flex items-center justify-between py-1.5"
+                                                                        >
+                                                                            <span
+                                                                                style={{
+                                                                                    fontSize: 12,
+                                                                                    color:
+                                                                                        "var(--eduflow-text-secondary)",
+                                                                                }}
+                                                                            >
+                                                                                {lesson.title}
+                                                                            </span>
+                                                                            {lesson.isCompleted ? (
+                                                                                <Badge
+                                                                                    variant="success"
+                                                                                    size="sm"
+                                                                                    icon="check"
+                                                                                >
+                                                                                    Terminé
+                                                                                </Badge>
+                                                                            ) : (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="sm"
+                                                                                    loading={
+                                                                                        completingLesson ===
+                                                                                        lesson.id
+                                                                                    }
+                                                                                    disabled={
+                                                                                        completingLesson ===
+                                                                                        lesson.id
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        completeLesson(
+                                                                                            lesson.id,
+                                                                                            course.id
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    Compléter
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <p
+                                                                        style={{
+                                                                            margin: "4px 0 0",
+                                                                            fontSize: 11,
+                                                                            color:
+                                                                                "var(--eduflow-text-tertiary)",
+                                                                        }}
+                                                                    >
+                                                                        Aucune leçon
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </Card>
+                            );
+                        })}
+                    </div>
+                ) : null}
             </div>
         </PageGuard>
     );

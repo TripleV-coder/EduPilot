@@ -1,21 +1,21 @@
-import { Session } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
+import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
 
-function requireRoot(session: Session | null, userEmail?: string | null, userId?: string | null) {
-  if (!userId || !userEmail) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
-  if (!isRootUserEmail(userEmail) || !hasValidRootSession(session)) {
-    return NextResponse.json({ error: "Accès root refusé" }, { status: 403 });
-  }
-  return null;
-}
-
 export const dynamic = "force-dynamic";
+
+function getStartDate(period: string): Date {
+  const now = new Date();
+  const ms: Record<string, number> = {
+    "7d": 7 * 86400000,
+    "30d": 30 * 86400000,
+    "90d": 90 * 86400000,
+    "1y": 365 * 86400000,
+  };
+  return new Date(now.getTime() - (ms[period] || ms["30d"]));
+}
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -24,115 +24,64 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = new URL(request.url);
-    const period = url.searchParams.get("period") || "30d"; // 7d, 30d, 90d, 1y
+    const period = url.searchParams.get("period") || "30d";
     const now = new Date();
-    let startDate: Date;
+    const startDate = getStartDate(period);
 
-    switch (period) {
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "90d":
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
+    // All aggregations in parallel using database-level grouping
+    const [usersByDay, paymentsByDay, schoolsByDay, activityByDay] = await Promise.all([
+      prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
+        SELECT DATE("createdAt") as day, COUNT(*) as count
+        FROM users
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY DATE("createdAt")
+        ORDER BY day ASC
+      `,
+      prisma.$queryRaw<Array<{ day: string; count: bigint; revenue: number }>>`
+        SELECT DATE("paidAt") as day, COUNT(*) as count, COALESCE(SUM(amount), 0) as revenue
+        FROM payments
+        WHERE "paidAt" >= ${startDate} AND "paidAt" IS NOT NULL
+        GROUP BY DATE("paidAt")
+        ORDER BY day ASC
+      `,
+      prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
+        SELECT DATE("createdAt") as day, COUNT(*) as count
+        FROM schools
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY DATE("createdAt")
+        ORDER BY day ASC
+      `,
+      prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
+        SELECT DATE("createdAt") as day, COUNT(*) as count
+        FROM audit_logs
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY DATE("createdAt")
+        ORDER BY day ASC
+      `,
+    ]);
 
-    // Évolution des inscriptions d'utilisateurs
-    const userRegistrations = await prisma.user.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
-    });
+    // Merge into timeline
+    const dailyData = new Map<string, { users: number; payments: number; revenue: number; schools: number; activity: number }>();
 
-    // Évolution des paiements
-    const payments = await prisma.payment.findMany({
-      where: {
-        paidAt: { gte: startDate, not: null },
-      },
-      select: {
-        paidAt: true,
-        amount: true,
-      },
-      orderBy: { paidAt: "asc" },
-    });
+    const ensure = (day: string) => {
+      if (!dailyData.has(day)) dailyData.set(day, { users: 0, payments: 0, revenue: 0, schools: 0, activity: 0 });
+      return dailyData.get(day)!;
+    };
 
-    // Évolution des écoles créées
-    const schoolCreations = await prisma.school.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
-    });
+    for (const r of usersByDay) ensure(r.day).users = Number(r.count);
+    for (const r of paymentsByDay) { ensure(r.day).payments = Number(r.count); ensure(r.day).revenue = Number(r.revenue); }
+    for (const r of schoolsByDay) ensure(r.day).schools = Number(r.count);
+    for (const r of activityByDay) ensure(r.day).activity = Number(r.count);
 
-    // Activité par jour (audit logs) - on récupère tous les logs et on groupe manuellement
-    const allActivityLogs = await prisma.auditLog.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-    });
-
-    // Grouper par jour manuellement
-    const dailyActivityMap = new Map<string, number>();
-    allActivityLogs.forEach((log) => {
-      const day = log.createdAt.toISOString().split("T")[0];
-      dailyActivityMap.set(day, (dailyActivityMap.get(day) || 0) + 1);
-    });
-
-    const dailyActivity = Array.from(dailyActivityMap.entries()).map(([date, count]) => ({
-      createdAt: new Date(date),
-      _count: count,
-    }));
-
-    // Agrégation par jour pour les graphiques
-    const dailyData: Record<string, { users: number; payments: number; revenue: number; schools: number; activity: number }> = {};
-
-    userRegistrations.forEach((u) => {
-      const day = u.createdAt.toISOString().split("T")[0];
-      if (!dailyData[day]) dailyData[day] = { users: 0, payments: 0, revenue: 0, schools: 0, activity: 0 };
-      dailyData[day].users++;
-    });
-
-    payments.forEach((p) => {
-      if (p.paidAt) {
-        const day = p.paidAt.toISOString().split("T")[0];
-        if (!dailyData[day]) dailyData[day] = { users: 0, payments: 0, revenue: 0, schools: 0, activity: 0 };
-        dailyData[day].payments++;
-        dailyData[day].revenue += Number(p.amount);
-      }
-    });
-
-    schoolCreations.forEach((s) => {
-      const day = s.createdAt.toISOString().split("T")[0];
-      if (!dailyData[day]) dailyData[day] = { users: 0, payments: 0, revenue: 0, schools: 0, activity: 0 };
-      dailyData[day].schools++;
-    });
-
-    dailyActivity.forEach((a) => {
-      const day = a.createdAt.toISOString().split("T")[0];
-      if (!dailyData[day]) dailyData[day] = { users: 0, payments: 0, revenue: 0, schools: 0, activity: 0 };
-      dailyData[day].activity += a._count;
-    });
-
-    // Convertir en tableau trié
-    const timeline = Object.entries(dailyData)
-      .map(([date, data]) => ({
-        date,
-        ...data,
-      }))
+    const timeline = Array.from(dailyData.entries())
+      .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Statistiques globales pour la période
-    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalPayments = payments.length;
-    const totalUsers = userRegistrations.length;
-    const totalSchools = schoolCreations.length;
-    const totalActivity = dailyActivity.reduce((sum, a) => sum + a._count, 0);
+    const totalUsers = timeline.reduce((s, d) => s + d.users, 0);
+    const totalPayments = timeline.reduce((s, d) => s + d.payments, 0);
+    const totalRevenue = timeline.reduce((s, d) => s + d.revenue, 0);
+    const totalSchools = timeline.reduce((s, d) => s + d.schools, 0);
+    const totalActivity = timeline.reduce((s, d) => s + d.activity, 0);
 
     return NextResponse.json({
       period,

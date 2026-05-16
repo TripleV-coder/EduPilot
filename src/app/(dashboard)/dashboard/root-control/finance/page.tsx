@@ -11,17 +11,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
-
-const fetcher = (url: string) => fetch(url, { credentials: "include", cache: "no-store" }).then((res) => {
-    if (!res.ok) throw new Error("Erreur serveur");
-    return res.json();
-});
+import { fetcher } from "@/lib/fetcher";
 
 export default function RootFinancePage() {
     const { data } = useSWR("/api/root/finance/summary", fetcher);
 
-    const summary = data?.summary || { totalMonthlyRevenue: 0, activeTenants: 0, averageRevenuePerTenant: 0 };
+    const summary = data?.summary || { totalMonthlyRevenue: 0, activeTenants: 0, averageRevenuePerTenant: 0, collectionRate: 0 };
     const distribution = data?.distribution || [];
+    const recentPayments = data?.recentPayments || [];
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
@@ -35,7 +32,7 @@ export default function RootFinancePage() {
                         <Button variant="outline" size="sm" className="h-9 gap-2 text-xs font-bold uppercase">
                             <Download className="w-4 h-4" /> {t("appActions.exportPdf")}
                         </Button>
-                        <Button size="sm" className="h-9 gap-2 text-xs font-bold uppercase bg-emerald-600 hover:bg-emerald-700">
+                        <Button size="sm" className="h-9 gap-2 text-xs font-bold uppercase bg-primary hover:bg-primary/90 text-primary-foreground">
                             <TrendingUp className="w-4 h-4" /> Rapport annuel
                         </Button>
                     </div>
@@ -43,38 +40,38 @@ export default function RootFinancePage() {
 
                 {/* KPIs */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="border-none bg-slate-900 text-white shadow-xl overflow-hidden relative">
+                    <Card className="border border-border/60 bg-foreground text-background shadow-xl overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-6 opacity-10">
                             <DollarSign className="w-24 h-24" />
                         </div>
                         <CardContent className="p-8 space-y-2">
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">MRR (Chiffre mensuel)</p>
+                            <p className="text-background/70 text-xs font-bold uppercase tracking-widest">MRR (Chiffre mensuel)</p>
                             <h3 className="text-4xl font-black">{summary.totalMonthlyRevenue.toLocaleString()} <span className="text-xl">FCFA</span></h3>
-                            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold mt-4">
+                            <div className="flex items-center gap-1.5 text-success text-xs font-bold mt-4">
                                 <ArrowUpRight className="w-4 h-4" />
                                 <span>+12.5% vs mois dernier</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none bg-white shadow-sm border border-border/50">
+                    <Card className="border border-border/50 bg-card shadow-sm">
                         <CardContent className="p-8 space-y-2">
                             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">ARPU (Moyenne/École)</p>
-                            <h3 className="text-4xl font-black text-slate-900">{Math.round(summary.averageRevenuePerTenant).toLocaleString()} <span className="text-xl">FCFA</span></h3>
-                            <div className="flex items-center gap-1.5 text-blue-600 text-xs font-bold mt-4">
+                            <h3 className="text-4xl font-black text-foreground">{Math.round(summary.averageRevenuePerTenant).toLocaleString()} <span className="text-xl">FCFA</span></h3>
+                            <div className="flex items-center gap-1.5 text-primary text-xs font-bold mt-4">
                                 <Building2 className="w-4 h-4" />
                                 <span>Basé sur {summary.activeTenants} établissements</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none bg-white shadow-sm border border-border/50">
+                    <Card className="border border-border/50 bg-card shadow-sm">
                         <CardContent className="p-8 space-y-2">
                             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Taux de Recouvrement</p>
-                            <h3 className="text-4xl font-black text-slate-900">98.2%</h3>
-                            <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold mt-4">
+                            <h3 className="text-4xl font-black text-foreground">{summary.collectionRate.toFixed(1)}%</h3>
+                            <div className="flex items-center gap-1.5 text-success text-xs font-bold mt-4">
                                 <ShieldCheck className="w-4 h-4" />
-                                <span>Zéro litige en cours</span>
+                                <span>Basé sur les paiements validés</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -119,24 +116,26 @@ export default function RootFinancePage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-border/50">
-                                {[
-                                    { school: "Lycée de l'Excellence", plan: "Pack Pro", amount: "150,000", date: "Il y a 2h", status: "Reçu" },
-                                    { school: "École Saint-Michel", plan: "Pack Starter", amount: "45,000", date: "Hier", status: "Reçu" },
-                                    { school: "Groupe Scolaire Lumière", plan: "Pack Enterprise", amount: "450,000", date: "Il y a 3 jours", status: "Reçu" },
-                                ].map((t, i) => (
-                                    <div key={i} className="p-4 flex items-center justify-between hover:bg-background/40 transition-colors">
+                                {recentPayments.length === 0 ? (
+                                    <div className="p-6 text-sm text-muted-foreground">
+                                        Aucune transaction récente disponible.
+                                    </div>
+                                ) : recentPayments.map((payment: any) => (
+                                    <div key={payment.id} className="p-4 flex items-center justify-between hover:bg-background/40 transition-colors">
                                         <div className="flex gap-3 items-center">
-                                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                                            <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center">
                                                 <Wallet className="w-4 h-4" />
                                             </div>
                                             <div>
-                                                <p className="text-xs font-bold">{t.school}</p>
-                                                <p className="text-[10px] text-muted-foreground uppercase">{t.plan}</p>
+                                                <p className="text-xs font-bold">{payment.schoolName}</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase">Paiement validé</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs font-bold text-emerald-600">+{t.amount} F</p>
-                                            <p className="text-[10px] text-muted-foreground">{t.date}</p>
+                                            <p className="text-xs font-bold text-success">+{Number(payment.amount).toLocaleString("fr-FR")} F</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {payment.paidAt ? new Date(payment.paidAt).toLocaleString("fr-FR") : "Date indisponible"}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}

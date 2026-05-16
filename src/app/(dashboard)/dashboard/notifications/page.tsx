@@ -1,20 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Permission } from "@/lib/rbac/permissions";
-import {
-    Bell, CheckCircle2, AlertTriangle, AlertCircle,
-    Info, FileText, GraduationCap, CreditCard,
-    UserPlus, Settings, CheckCheck, Loader2
-} from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+
+import { PageGuard } from "@/components/guard/page-guard";
+import { Permission } from "@/lib/rbac/permissions";
 import { useNotificationStream } from "@/lib/socket";
-import { motion, AnimatePresence } from "framer-motion";
 import {
     NOTIFICATION_FILTERS,
     formatNotificationRelativeTime,
@@ -23,9 +14,28 @@ import {
 } from "@/lib/notifications/ui";
 import { t } from "@/lib/i18n";
 
-type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "GRADE" | "PAYMENT" | "BULLETIN" | "ENROLLMENT" | "SYSTEM";
+import {
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Spinner,
+    type IconName,
+} from "@/components/edu";
+import { PageHeader } from "@/components/edu-homes/_shared";
 
-type NotificationItem = {
+type NotificationType =
+    | "INFO"
+    | "SUCCESS"
+    | "WARNING"
+    | "ERROR"
+    | "GRADE"
+    | "PAYMENT"
+    | "BULLETIN"
+    | "ENROLLMENT"
+    | "SYSTEM";
+
+interface NotificationItem {
     id: string;
     type: NotificationType;
     uiType: NotificationUiType;
@@ -34,16 +44,37 @@ type NotificationItem = {
     link: string | null;
     isRead: boolean;
     createdAt: string;
+}
+
+const TYPE_ICON: Record<NotificationType, IconName> = {
+    SUCCESS: "success",
+    WARNING: "warning",
+    ERROR: "danger",
+    GRADE: "pencil",
+    PAYMENT: "money",
+    BULLETIN: "cards",
+    ENROLLMENT: "users",
+    SYSTEM: "settings",
+    INFO: "info",
 };
 
-const FLOW_TRANSITION = { duration: 0.24, ease: [0.16, 1, 0.3, 1] as const };
+const TYPE_VARIANT: Record<NotificationType, "success" | "warning" | "danger" | "info" | "brand" | "neutral"> = {
+    SUCCESS: "success",
+    WARNING: "warning",
+    ERROR: "danger",
+    GRADE: "info",
+    PAYMENT: "warning",
+    BULLETIN: "brand",
+    ENROLLMENT: "success",
+    SYSTEM: "neutral",
+    INFO: "info",
+};
 
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<"all" | NotificationUiType>("all");
-    const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
     const fetchNotifications = useCallback(async () => {
         setLoading(true);
@@ -52,14 +83,14 @@ export default function NotificationsPage() {
             const res = await fetch("/api/notifications?limit=50");
             if (!res.ok) throw new Error("Erreur de récupération");
             const data = await res.json();
-            const list: NotificationItem[] = (data.notifications || []).map((n: any) => ({
-                ...n,
+            const list: NotificationItem[] = (data.notifications || []).map((n: { type?: string; [k: string]: unknown }) => ({
+                ...(n as Record<string, unknown>),
                 type: String(n.type || "INFO").toUpperCase() as NotificationType,
                 uiType: toNotificationUiType(n.type),
-            }));
+            })) as NotificationItem[];
             setNotifications(list);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
             setLoading(false);
         }
@@ -76,7 +107,7 @@ export default function NotificationsPage() {
             setNotifications((prev) => {
                 const mapped: NotificationItem[] = items.map((n) => ({
                     id: n.id,
-                    type: (String(n.type || "INFO").toUpperCase() as NotificationType),
+                    type: String(n.type || "INFO").toUpperCase() as NotificationType,
                     uiType: toNotificationUiType(n.type),
                     title: n.title,
                     message: n.message,
@@ -100,236 +131,289 @@ export default function NotificationsPage() {
         () => notifications.filter((n) => (filter === "all" ? true : n.uiType === filter)),
         [filter, notifications]
     );
-    const activeFilterCount = filter === "all" ? notifications.length : filteredNotifications.length;
 
     const markAllAsRead = async () => {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
         try {
             const res = await fetch("/api/notifications", { method: "PATCH" });
-            if (!res.ok) {
-                throw new Error("Impossible de marquer toutes les notifications comme lues.");
-            }
-        } catch (err: any) {
-            setError(err.message || "Erreur de mise à jour.");
+            if (!res.ok) throw new Error("Impossible de marquer toutes comme lues.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur de mise à jour");
             fetchNotifications();
         }
     };
 
     const markAsRead = async (id: string) => {
-        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+        setNotifications((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+        );
         try {
             const res = await fetch(`/api/notifications/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
             });
-            if (!res.ok) {
-                throw new Error("Impossible de marquer la notification comme lue.");
-            }
-        } catch (err: any) {
-            setError(err.message || "Erreur de mise à jour.");
+            if (!res.ok) throw new Error("Impossible de marquer comme lue.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur de mise à jour");
             fetchNotifications();
         }
     };
 
-    const getIcon = (type: NotificationType) => {
-        switch (type) {
-            case "SUCCESS": return <CheckCircle2 className="w-5 h-5 text-[hsl(var(--success))]" />;
-            case "WARNING": return <AlertTriangle className="w-5 h-5 text-[hsl(var(--warning))]" />;
-            case "ERROR": return <AlertCircle className="w-5 h-5 text-destructive" />;
-            case "GRADE": return <FileText className="w-5 h-5 text-[hsl(var(--info))]" />;
-            case "BULLETIN": return <GraduationCap className="w-5 h-5 text-primary" />;
-            case "PAYMENT": return <CreditCard className="w-5 h-5 text-[hsl(var(--warning))]" />;
-            case "ENROLLMENT": return <UserPlus className="w-5 h-5 text-[hsl(var(--success))]" />;
-            case "SYSTEM": return <Settings className="w-5 h-5 text-slate-500" />;
-            default: return <Info className="w-5 h-5 text-primary" />;
-        }
-    };
-
-    const getBgColor = (type: NotificationType, isRead: boolean) => {
-        if (isRead) return "bg-background";
-
-        switch (type) {
-            case "SUCCESS": return "bg-emerald-500/5";
-            case "WARNING": return "bg-amber-500/5";
-            case "ERROR": return "bg-red-500/5";
-            case "GRADE": return "bg-blue-500/5";
-            case "BULLETIN": return "bg-indigo-500/5";
-            case "PAYMENT": return "bg-orange-500/5";
-            case "ENROLLMENT": return "bg-teal-500/5";
-            case "SYSTEM": return "bg-slate-500/5";
-            default: return "bg-primary/5";
-        }
-    };
-
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto pb-12 dashboard-motion">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <PageHeader
-                        title="Centre de Notifications"
-                        description={`Vous avez ${unreadCount} notification${unreadCount !== 1 ? 's' : ''} non lue${unreadCount !== 1 ? 's' : ''}.`}
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Notifications" },
-                        ]}
+                        greeting="Notifications"
+                        sub={
+                            unreadCount === 0
+                                ? "Tu es à jour — aucune notification non lue."
+                                : `${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}.`
+                        }
                     />
-                    {unreadCount > 0 && (
-                        <Button variant="outline" onClick={markAllAsRead} className="gap-2 shrink-0 touch-target action-critical">
-                            <CheckCheck className="w-4 h-4" />
+                    {unreadCount > 0 ? (
+                        <Button variant="secondary" icon="check" onClick={markAllAsRead}>
                             Tout marquer comme lu
                         </Button>
-                    )}
+                    ) : null}
                 </div>
 
-                <Card className="dashboard-block border-border bg-card/70" data-reveal>
-                    <CardContent className="p-3">
-                        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar">
-                            {NOTIFICATION_FILTERS.map((f) => (
-                                <motion.button
+                <Card padding={10}>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {NOTIFICATION_FILTERS.map((f) => {
+                            const active = filter === f.id;
+                            return (
+                                <button
                                     key={f.id}
+                                    type="button"
                                     onClick={() => setFilter(f.id)}
-                                    whileTap={{ scale: 0.98 }}
-                                    className={cn(
-                                        "touch-target rounded-full border px-3 py-1 text-[11px] font-medium transition-all whitespace-nowrap",
-                                        filter === f.id
-                                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                            : "bg-background text-muted-foreground border-border hover:border-primary/35"
-                                    )}
+                                    style={{
+                                        padding: "6px 12px",
+                                        background: active
+                                            ? "var(--brand-700)"
+                                            : "var(--eduflow-surface-card)",
+                                        color: active
+                                            ? "var(--eduflow-text-on-brand)"
+                                            : "var(--eduflow-text-secondary)",
+                                        border: active
+                                            ? "1px solid transparent"
+                                            : "1px solid var(--eduflow-border-default)",
+                                        borderRadius: "var(--eduflow-radius-full)",
+                                        fontFamily: "inherit",
+                                        fontSize: 12,
+                                        fontWeight: active ? 700 : 500,
+                                        cursor: "pointer",
+                                        transition:
+                                            "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                    }}
                                 >
                                     {f.label}
-                                </motion.button>
-                            ))}
-                            <span className="ml-auto text-[11px] text-muted-foreground whitespace-nowrap">
-                                {activeFilterCount} element{activeFilterCount > 1 ? "s" : ""}
-                            </span>
-                            {filter !== "all" && (
-                                <Button variant="ghost" size="sm" className="h-9 text-[11px] touch-target" onClick={() => setFilter("all")}>
-                                    {t("common.reset")}
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
+                                </button>
+                            );
+                        })}
+                        {filter !== "all" ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon="x"
+                                onClick={() => setFilter("all")}
+                            >
+                                {t("common.reset")}
+                            </Button>
+                        ) : null}
+                    </div>
                 </Card>
 
-                <AnimatePresence mode="wait">
-                    {selectedNotification && (
-                        <motion.div
-                            key={selectedNotification.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={FLOW_TRANSITION}
-                        >
-                            <Card className="border-border shadow-sm bg-card/80">
-                                <CardContent className="p-4 sm:p-5 space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <h3 className="text-base font-semibold">{selectedNotification.title}</h3>
-                                        <Button variant="ghost" size="sm" className="touch-target" onClick={() => setSelectedNotification(null)}>
-                                            Fermer
-                                        </Button>
-                                    </div>
-                                    <p className="text-sm text-foreground/90">{selectedNotification.message}</p>
-                                    <div className="flex items-center gap-2">
-                                        {!selectedNotification.isRead && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="touch-target"
-                                                onClick={() => {
-                                                    markAsRead(selectedNotification.id);
-                                                    setSelectedNotification((prev) => (prev ? { ...prev, isRead: true } : prev));
-                                                }}
-                                            >
-                                                Marquer comme lue
-                                            </Button>
-                                        )}
-                                        {selectedNotification.link && (
-                                            <Link href={selectedNotification.link}>
-                                                <Button size="sm" className="touch-target action-critical">Ouvrir la page</Button>
-                                            </Link>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {error}
+                            </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                <Card padding={0}>
+                    {loading ? (
+                        <div className="flex items-center gap-3 px-5 py-8">
+                            <Spinner size={18} color="var(--brand-600)" />
+                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Chargement des notifications…
+                            </span>
+                        </div>
+                    ) : filteredNotifications.length === 0 ? (
+                        <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+                            <div
+                                className="grid place-items-center"
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 16,
+                                    background: "var(--brand-50)",
+                                }}
+                            >
+                                <Icon name="bell" size={26} color="var(--brand-700)" />
+                            </div>
+                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                Aucune notification
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: 13,
+                                    color: "var(--eduflow-text-secondary)",
+                                    margin: 0,
+                                }}
+                            >
+                                Tu es à jour !
+                            </p>
+                        </div>
+                    ) : (
+                        filteredNotifications.map((notif, idx) => (
+                            <NotifRow
+                                key={notif.id}
+                                notif={notif}
+                                isFirst={idx === 0}
+                                onMarkRead={() => markAsRead(notif.id)}
+                            />
+                        ))
                     )}
-                </AnimatePresence>
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm">{error}</p>
-                    </div>
-                )}
-
-                <Card className="dashboard-block border-border shadow-sm overflow-hidden min-h-[400px]" data-reveal>
-                    <CardContent className="p-0 flex flex-col h-full">
-                        {loading ? (
-                            <div className="p-4 space-y-3">
-                                {Array.from({ length: 7 }).map((_, idx) => (
-                                    <div key={idx} className="h-16 rounded-lg bg-muted/40 skeleton-shimmer" />
-                                ))}
-                            </div>
-                        ) : filteredNotifications.length === 0 ? (
-                            <div className="flex-1 text-center py-20 flex flex-col justify-center bg-muted/10">
-                                <Bell className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Aucune notification</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Vous êtes à jour !</p>
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-border/50">
-                                {filteredNotifications.map(notif => (
-                                    <motion.div
-                                        key={notif.id}
-                                        layout
-                                        initial={{ opacity: 0, y: 4 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.16 }}
-                                        className={`p-4 sm:p-5 flex gap-4 transition-colors hover:bg-muted/30 ${getBgColor(notif.type, notif.isRead)}`}
-                                        onClick={() => {
-                                            setSelectedNotification(notif);
-                                            if (!notif.isRead) markAsRead(notif.id);
-                                        }}
-                                    >
-                                        <div className="shrink-0 mt-1">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-background border shadow-sm`}>
-                                                {getIcon(notif.type)}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start gap-2 mb-1">
-                                                <h4 className={`text-base font-semibold truncate ${notif.isRead ? 'text-foreground/80' : 'text-foreground'}`}>
-                                                    {notif.title}
-                                                </h4>
-                                                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                                                    {formatNotificationRelativeTime(notif.createdAt)}
-                                                </span>
-                                            </div>
-
-                                            <p className={`text-sm mb-2 ${notif.isRead ? 'text-muted-foreground' : 'text-foreground/90 font-medium'}`}>
-                                                {notif.message}
-                                            </p>
-
-                                            {notif.link && (
-                                                <Link href={notif.link} className="text-sm text-primary font-medium hover:underline inline-flex items-center gap-1">
-                                                    {t("appActions.viewDetails")} &rarr;
-                                                </Link>
-                                            )}
-                                        </div>
-
-                                        {!notif.isRead && (
-                                            <div className="shrink-0 flex items-center justify-center">
-                                                <div className="w-2.5 h-2.5 bg-primary rounded-full shadow-sm" />
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
                 </Card>
             </div>
         </PageGuard>
+    );
+}
+
+function NotifRow({
+    notif,
+    isFirst,
+    onMarkRead,
+}: {
+    notif: NotificationItem;
+    isFirst: boolean;
+    onMarkRead: () => void;
+}) {
+    const variant = TYPE_VARIANT[notif.type] ?? "info";
+    const icon = TYPE_ICON[notif.type] ?? "info";
+    const accentBg =
+        variant === "brand" ? "var(--brand-50)" : `var(--eduflow-${variant}-50)`;
+    const accentFg =
+        variant === "brand" ? "var(--brand-700)" : `var(--eduflow-${variant}-700)`;
+
+    return (
+        <div
+            className="flex gap-3 px-5 py-4"
+            style={{
+                borderTop: isFirst ? "none" : "1px solid var(--eduflow-border-subtle)",
+                background: notif.isRead ? "transparent" : "var(--brand-50)",
+                transition:
+                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+            }}
+        >
+            <div
+                className="grid place-items-center"
+                style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: accentBg,
+                    color: accentFg,
+                    flexShrink: 0,
+                }}
+            >
+                <Icon name={icon} size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h4
+                        style={{
+                            margin: 0,
+                            fontSize: 14,
+                            fontWeight: notif.isRead ? 500 : 700,
+                            color: notif.isRead
+                                ? "var(--eduflow-text-secondary)"
+                                : "var(--eduflow-text-primary)",
+                        }}
+                    >
+                        {notif.title}
+                    </h4>
+                    <span
+                        className="eduflow-mono"
+                        style={{
+                            fontSize: 10,
+                            color: "var(--eduflow-text-tertiary)",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {formatNotificationRelativeTime(notif.createdAt)}
+                    </span>
+                </div>
+                <p
+                    style={{
+                        margin: "4px 0 0",
+                        fontSize: 13,
+                        color: "var(--eduflow-text-secondary)",
+                        lineHeight: 1.5,
+                    }}
+                >
+                    {notif.message}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                    {!notif.isRead ? (
+                        <Badge variant={variant} size="sm" dot>
+                            Non lu
+                        </Badge>
+                    ) : null}
+                    {notif.link ? (
+                        <Link
+                            href={notif.link}
+                            style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--brand-700)",
+                                textDecoration: "none",
+                            }}
+                        >
+                            Voir le détail →
+                        </Link>
+                    ) : null}
+                    {!notif.isRead ? (
+                        <button
+                            type="button"
+                            onClick={onMarkRead}
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "var(--eduflow-text-tertiary)",
+                                background: "transparent",
+                                border: 0,
+                                cursor: "pointer",
+                                padding: 0,
+                                fontFamily: "inherit",
+                            }}
+                        >
+                            Marquer comme lue
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+        </div>
     );
 }

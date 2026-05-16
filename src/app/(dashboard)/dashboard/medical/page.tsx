@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
+import { toast } from "sonner";
 import {
     HeartPulse, Search, Loader2, AlertCircle, Users, Activity,
     Droplet, Pill, AlertTriangle, FileText, FileClock, Edit,
@@ -164,11 +165,13 @@ export default function MedicalRecordsPage() {
                 setMedicalRecord(record);
                 setFormData(record);
                 setEditMode(false);
+                toast.success("Fiche médicale enregistrée.");
             } else {
-                alert("Erreur lors de l'enregistrement du dossier médical");
+                toast.error("Erreur lors de l'enregistrement du dossier médical.");
             }
         } catch (error) {
             console.error(error);
+            toast.error("Impossible de contacter le service médical.");
         } finally {
             setSaving(false);
         }
@@ -204,7 +207,8 @@ export default function MedicalRecordsPage() {
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    
+                                    aria-label="Rechercher un élève"
+                                    placeholder="Rechercher par nom ou matricule"
                                     className="pl-9 bg-muted/30"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
@@ -221,10 +225,12 @@ export default function MedicalRecordsPage() {
                                     <button
                                         key={student.id}
                                         onClick={() => fetchMedicalRecord(student)}
-                                        className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${selectedStudent?.id === student.id
+                                        className={`w-full min-h-11 text-left p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${selectedStudent?.id === student.id
                                             ? "bg-primary/10 text-primary font-medium"
                                             : "hover:bg-muted text-foreground/80"
                                             }`}
+                                        type="button"
+                                        aria-label={`Ouvrir le dossier médical de ${student.user.firstName} ${student.user.lastName}`}
                                     >
                                         <div className="min-w-0">
                                             <div className="truncate">{student.user.firstName} {student.user.lastName}</div>
@@ -256,7 +262,7 @@ export default function MedicalRecordsPage() {
                                     <div className="p-6 border-b bg-muted/10 flex items-start justify-between shrink-0">
                                         <div>
                                             <h2 className="text-2xl font-bold font-display text-foreground flex items-center gap-3">
-                                                <HeartPulse className="w-7 h-7 text-rose-500" />
+                                                <HeartPulse className="w-7 h-7 text-primary" />
                                                 Dossier Médical
                                             </h2>
                                             <p className="text-muted-foreground mt-1 text-sm">
@@ -279,7 +285,7 @@ export default function MedicalRecordsPage() {
                                                 <h3 className="text-lg font-semibold text-foreground/80">Aucun dossier médical</h3>
                                                 <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">Cet élève n'a pas encore de fiche médicale informatisée dans la base de données de l'infirmerie.</p>
                                                 <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                                                    <Button onClick={() => setEditMode(true)}>
+                                                    <Button type="button" onClick={() => setEditMode(true)}>
                                                         Créer la fiche médicale
                                                     </Button>
                                                 </RoleActionGuard>
@@ -292,11 +298,12 @@ export default function MedicalRecordsPage() {
                                                         <div className="grid grid-cols-2 gap-4">
                                                             <div className="space-y-2">
                                                                 <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                                                                    <Droplet className="w-4 h-4 text-rose-500" />
+                                                                    <Droplet className="w-4 h-4 text-primary" />
                                                                     Groupe Sanguin
                                                                 </label>
                                                                 <Input
-                                                                    
+                                                                    aria-label="Groupe sanguin"
+                                                                    placeholder="Ex: A+, O-"
                                                                     value={formData.bloodType || ""}
                                                                     onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
                                                                 />
@@ -305,25 +312,27 @@ export default function MedicalRecordsPage() {
 
                                                         <div className="space-y-2">
                                                             <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                                                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                                <AlertTriangle className="w-4 h-4 text-warning" />
                                                                 Allergies / Conditions Spécifiques
                                                             </label>
                                                             <Input
-                                                                
+                                                                aria-label="Allergies et conditions"
+                                                                placeholder="Ex: Asthme, Arachide, Épilepsie"
                                                                 value={Array.isArray(formData.conditions) ? formData.conditions.join(", ") : formData.conditions || ""}
                                                                 onChange={(e) => setFormData({ ...formData, conditions: e.target.value as any })}
-                                                                className="border-amber-200 focus-visible:ring-amber-500/20"
+                                                                className="border-warning/30 focus-visible:ring-warning/30"
                                                             />
                                                             <p className="text-[11px] text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
                                                         </div>
 
                                                         <div className="space-y-2">
                                                             <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                                                                <Pill className="w-4 h-4 text-blue-500" />
+                                                                <Pill className="w-4 h-4 text-primary" />
                                                                 Traitements Réguliers (Médicaments)
                                                             </label>
                                                             <Input
-                                                                
+                                                                aria-label="Traitements médicaux réguliers"
+                                                                placeholder="Ex: Ventoline, Insuline"
                                                                 value={Array.isArray(formData.medications) ? formData.medications.join(", ") : formData.medications || ""}
                                                                 onChange={(e) => setFormData({ ...formData, medications: e.target.value as any })}
                                                             />
@@ -331,12 +340,13 @@ export default function MedicalRecordsPage() {
 
                                                         <div className="space-y-2">
                                                             <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                                                                <FileClock className="w-4 h-4 text-slate-500" />
+                                                                <FileClock className="w-4 h-4 text-muted-foreground" />
                                                                 Antécédents Médicaux Importants
                                                             </label>
                                                             <textarea
                                                                 className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                                                                
+                                                                aria-label="Antécédents médicaux"
+                                                                placeholder="Préciser les antécédents importants"
                                                                 value={formData.medicalHistory || ""}
                                                                 onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })}
                                                             />
@@ -344,19 +354,20 @@ export default function MedicalRecordsPage() {
 
                                                         <div className="space-y-2">
                                                             <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                                                                <FileText className="w-4 h-4 text-slate-500" />
+                                                                <FileText className="w-4 h-4 text-muted-foreground" />
                                                                 Notes de l'Infirmerie / Consignes Urgentes
                                                             </label>
                                                             <textarea
                                                                 className="flex min-h-[100px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive/30 border-destructive/20 focus-visible:border-destructive/30"
-                                                                
+                                                                aria-label="Notes de l'infirmerie"
+                                                                placeholder="Consignes urgentes, restrictions, observations"
                                                                 value={formData.notes || ""}
                                                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                                             />
                                                         </div>
 
                                                         <div className="pt-4 border-t flex justify-end gap-3 sticky bottom-0 bg-background/80 backdrop-blur-sm py-4">
-                                                            <Button variant="outline" onClick={() => {
+                                                            <Button type="button" variant="outline" onClick={() => {
                                                                 setEditMode(false);
                                                                 setFormData(medicalRecord || {});
                                                             }}>{t("common.cancel")}</Button>
@@ -369,14 +380,14 @@ export default function MedicalRecordsPage() {
                                                     /* View Mode */
                                                     <div className="space-y-8 animate-in fade-in duration-300">
                                                         {medicalRecord?.conditions && medicalRecord.conditions.length > 0 && (
-                                                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
-                                                                <h3 className="text-amber-700 dark:text-amber-400 font-bold flex items-center gap-2 mb-3">
+                                                            <div className="bg-warning/10 border border-warning/30 rounded-xl p-5">
+                                                                <h3 className="text-warning font-bold flex items-center gap-2 mb-3">
                                                                     <AlertTriangle className="w-5 h-5" />
                                                                     Urgences & Allergies
                                                                 </h3>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {medicalRecord.conditions.map((cond, i) => (
-                                                                        <span key={i} className="bg-amber-500 text-white font-semibold px-3 py-1 rounded-full text-sm">
+                                                                        <span key={i} className="bg-warning text-warning-foreground font-semibold px-3 py-1 rounded-full text-sm">
                                                                             {cond}
                                                                         </span>
                                                                     ))}
@@ -387,7 +398,7 @@ export default function MedicalRecordsPage() {
                                                         <div className="grid grid-cols-2 gap-6">
                                                             <div className="bg-muted/10 border rounded-lg p-4">
                                                                 <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 flex items-center gap-2">
-                                                                    <Droplet className="w-4 h-4 text-rose-500" />
+                                                                    <Droplet className="w-4 h-4 text-primary" />
                                                                     Groupe Sanguin
                                                                 </div>
                                                                 <div className="text-2xl font-bold font-display text-foreground">
@@ -396,13 +407,13 @@ export default function MedicalRecordsPage() {
                                                             </div>
                                                             <div className="bg-muted/10 border rounded-lg p-4">
                                                                 <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 flex items-center gap-2">
-                                                                    <Pill className="w-4 h-4 text-blue-500" />
+                                                                    <Pill className="w-4 h-4 text-primary" />
                                                                     Traitements
                                                                 </div>
                                                                 {medicalRecord?.medications && medicalRecord.medications.length > 0 ? (
                                                                     <ul className="text-sm font-medium space-y-1">
                                                                         {medicalRecord.medications.map((med, i) => (
-                                                                            <li key={i} className="flex items-center gap-2 before:w-1.5 before:h-1.5 before:bg-blue-500 before:rounded-full">{med}</li>
+                                                                            <li key={i} className="flex items-center gap-2 before:w-1.5 before:h-1.5 before:bg-primary before:rounded-full">{med}</li>
                                                                         ))}
                                                                     </ul>
                                                                 ) : (
@@ -413,7 +424,7 @@ export default function MedicalRecordsPage() {
 
                                                         <div>
                                                             <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-                                                                <FileClock className="w-4 h-4 text-slate-500" />
+                                                                <FileClock className="w-4 h-4 text-muted-foreground" />
                                                                 Antécédents Majeurs
                                                             </div>
                                                             <p className="text-foreground/80 text-sm whitespace-pre-wrap leading-relaxed bg-muted/5 p-4 rounded-lg border border-border/50">
@@ -423,7 +434,7 @@ export default function MedicalRecordsPage() {
 
                                                         <div>
                                                             <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-                                                                <FileText className="w-4 h-4 text-slate-500" />
+                                                                <FileText className="w-4 h-4 text-muted-foreground" />
                                                                 Notes de l'Infirmerie
                                                             </div>
                                                             <p className="text-foreground/80 text-sm whitespace-pre-wrap leading-relaxed bg-primary/5 p-4 rounded-lg border border-primary/10">
@@ -434,7 +445,7 @@ export default function MedicalRecordsPage() {
                                                         {/* Emergency Contacts */}
                                                         <div>
                                                             <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-                                                                <Phone className="w-4 h-4 text-green-500" />
+                                                                <Phone className="w-4 h-4 text-success" />
                                                                 Contacts d'Urgence
                                                             </div>
                                                             {emergencyContacts.length > 0 ? (
@@ -445,7 +456,7 @@ export default function MedicalRecordsPage() {
                                                                                 <p className="font-medium text-sm text-foreground">
                                                                                     {contact.name}
                                                                                     {contact.isPrimary && (
-                                                                                        <span className="ml-2 text-[10px] uppercase font-bold bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded">Principal</span>
+                                                                                        <span className="ml-2 text-[10px] uppercase font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
                                                                                     )}
                                                                                 </p>
                                                                                 <p className="text-xs text-muted-foreground">{contact.relationship}</p>
@@ -462,7 +473,7 @@ export default function MedicalRecordsPage() {
                                                         {/* Vaccinations */}
                                                         <div>
                                                             <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-                                                                <Syringe className="w-4 h-4 text-indigo-500" />
+                                                                <Syringe className="w-4 h-4 text-primary" />
                                                                 Vaccinations
                                                             </div>
                                                             {vaccinations.length > 0 ? (

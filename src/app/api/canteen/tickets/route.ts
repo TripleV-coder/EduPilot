@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Purchase a new ticket (simulated)
+ * Purchase a new ticket
  */
 export async function POST(req: NextRequest) {
     try {
@@ -70,16 +70,21 @@ export async function POST(req: NextRequest) {
         if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const schoolId = getActiveSchoolId(session);
+        if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
         const { userId, amount } = await req.json();
+        const normalizedAmount = Number(amount ?? 10);
 
-        // In a real app, this would be triggered by a payment webhook
+        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+            return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
+        }
+
         const ticket = await prisma.mealTicket.create({
             data: {
-                schoolId: schoolId!,
+                schoolId,
                 userId: userId || session.user.id,
-                qrCode: `TKT-${Math.random().toString(36).substring(2, 15).toUpperCase()}`,
-                balance: amount || 10, // 10 meals by default
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+                qrCode: `TKT-${crypto.randomUUID().slice(0, 12).toUpperCase()}`,
+                balance: normalizedAmount,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
             }
         });
 

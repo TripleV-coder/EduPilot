@@ -27,6 +27,7 @@ import { StudentAiPrediction } from "@/components/students/student-ai-prediction
 import { StudentEditDialog } from "@/components/students/student-edit-dialog";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { RiskBanner } from "@/components/students/RiskBanner";
+import { getUserAccountStatusClass } from "@/lib/ui/status-styles";
 
 type StudentDetail = {
   id: string;
@@ -228,7 +229,7 @@ export default function StudentDetailPage() {
                         </div>
                         <div>
                           <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Statut Compte</p>
-                          <Badge className={cn("text-[10px] font-bold uppercase", student.user?.isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive")}>
+                          <Badge className={cn("text-[10px] font-bold uppercase", getUserAccountStatusClass(student.user?.isActive))}>
                             {student.user?.isActive ? "Actif" : "Inactif"}
                           </Badge>
                         </div>

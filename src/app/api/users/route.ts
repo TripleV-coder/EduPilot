@@ -23,13 +23,33 @@ export const GET = createApiHandler(
     const schoolId = searchParams.get("schoolId");
     const search = searchParams.get("search");
 
+    // RBAC: only management roles can list users freely.
+    // Teachers + accountants can search (for messaging/recipient pickers) but only with a non-empty search query.
+    // Students/parents cannot enumerate users at all.
+    const callerRole = session.user.role;
+    const isManager =
+      callerRole === "SUPER_ADMIN" ||
+      callerRole === "SCHOOL_ADMIN" ||
+      callerRole === "DIRECTOR";
+    const canSearch = isManager || callerRole === "TEACHER" || callerRole === "ACCOUNTANT";
+
+    if (!canSearch) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+    if (!isManager && (!search || search.trim().length < 2)) {
+      return NextResponse.json(
+        { error: "Une recherche d'au moins 2 caractères est requise." },
+        { status: 400 }
+      );
+    }
+
     // Pagination parameters
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
 
     // Build where clause based on user role with proper typing
     const where: UserWhereFilter = {};
 
-    if (session.user.role === "SUPER_ADMIN") {
+    if (callerRole === "SUPER_ADMIN") {
       if (schoolId) where.schoolId = schoolId;
       if (role) where.role = role as UserRole;
     } else {

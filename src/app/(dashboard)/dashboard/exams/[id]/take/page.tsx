@@ -138,7 +138,7 @@ export default function TakeExamPage() {
                             </div>
                             <div className="p-4 rounded-xl bg-muted/50 text-center">
                                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Résultat</p>
-                                <p className={`text-xl font-bold mt-2 ${result?.isPassed ? "text-emerald-500" : "text-destructive"}`}>
+                                <p className={`text-xl font-bold mt-2 ${result?.isPassed ? "text-success" : "text-destructive"}`}>
                                     {result?.isPassed ? "ADMIS" : "ÉCHEC"}
                                 </p>
                             </div>
@@ -167,7 +167,7 @@ export default function TakeExamPage() {
                 <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border px-2">
                     <div className="flex items-center gap-4">
                         <Link href={`/dashboard/exams/${id}`}>
-                            <Button variant="ghost" size="icon"><ChevronLeft className="h-5 w-5" /></Button>
+                            <Button aria-label="Retour aux détails de l'examen" variant="ghost" size="icon"><ChevronLeft className="h-5 w-5" /></Button>
                         </Link>
                         <div>
                             <h1 className="text-lg font-bold truncate max-w-[200px] sm:max-w-md">{exam.title}</h1>
@@ -245,12 +245,14 @@ export default function TakeExamPage() {
                 <div className="flex flex-wrap gap-2 justify-center">
                     {exam.questions.map((q, idx) => (
                         <button
+                            type="button"
+                            aria-label={`Aller à la question ${idx + 1}`}
                             key={q.id}
                             onClick={() => setCurrentQuestionIndex(idx)}
                             className={cn(
                                 "w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-all border",
                                 currentQuestionIndex === idx ? "bg-primary text-primary-foreground border-primary shadow-md scale-110" : 
-                                answers[q.id] ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-card text-muted-foreground hover:border-primary/50"
+                                answers[q.id] ? "bg-success/10 text-success border-success/30" : "bg-card text-muted-foreground hover:border-primary/50"
                             )}
                         >
                             {idx + 1}

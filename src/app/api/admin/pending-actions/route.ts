@@ -1,33 +1,21 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/pending-actions
- * Get counts of pending administrative actions (Super Admin only)
+ * Get counts of pending administrative actions (requires SYSTEM_READ permission)
  */
-export async function GET() {
-  try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    // Only SUPER_ADMIN can access pending actions
-    if (session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
+export const GET = createApiHandler(
+  async (request: NextRequest, { session }) => {
     // Count schools awaiting approval
     const pendingSchools = await prisma.school.count({
       where: {
         OR: [
           { isActive: false }, // Inactive schools may need approval
-          // Add custom approval status field if exists
         ],
       },
     });
@@ -37,7 +25,6 @@ export async function GET() {
       where: {
         OR: [
           { isActive: false },
-          // Could add email verification status
         ],
       },
     });
@@ -57,18 +44,12 @@ export async function GET() {
     // Count incidents requiring attention
     let pendingIncidents = 0;
     try {
-      // Check if incident model exists
-      if ('incident' in prisma) {
-        pendingIncidents = await (prisma as any).incident.count({
-          where: {
-            status: {
-              in: ["REPORTED", "INVESTIGATING"],
-            },
-          },
-        });
-      }
+      pendingIncidents = await prisma.behaviorIncident.count({
+        where: {
+          isResolved: false,
+        },
+      });
     } catch (_error) {
-      // Model doesn't exist, use 0
       pendingIncidents = 0;
     }
 
@@ -173,14 +154,9 @@ export async function GET() {
       },
       timestamp: new Date().toISOString(),
     });
-  } catch (error: unknown) {
-    logger.error("Error fetching pending actions", error instanceof Error ? error : new Error(String(error)), { module: "api/admin/pending-actions" });
-    return NextResponse.json(
-      {
-        error: "Erreur lors de la récupération des actions en attente",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
+  },
+  {
+    requireAuth: true,
+    requiredPermissions: [Permission.SYSTEM_READ],
   }
-}
+);

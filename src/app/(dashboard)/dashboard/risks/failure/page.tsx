@@ -1,5 +1,3 @@
-"use client";
-
 import { PageGuard } from "@/components/guard/page-guard";
 import { StudentRiskBoard } from "@/components/dashboard/risks/student-risk-board";
 import { Permission } from "@/lib/rbac/permissions";

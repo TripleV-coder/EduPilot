@@ -9,10 +9,11 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -104,19 +105,6 @@ function LoginForm() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
-          <GraduationCap className="w-7 h-7 text-primary" />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">
-          Bon retour !
-        </h1>
-        <p className="text-muted-foreground">
-          Connectez-vous pour accéder à votre espace
-        </p>
-      </div>
-
       {/* Success message */}
       {successMessage && (
         <motion.div
@@ -273,21 +261,22 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8" aria-label="Chargement en cours">
-              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-            </div>
-          }>
-            <LoginForm />
-          </Suspense>
-        </div>
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          EduPilot — Système de Gestion Scolaire Intelligent
-        </p>
-      </div>
-    </div>
+    <AuthShell
+      title="Bon retour 👋"
+      subtitle="Connectez-vous pour accéder à votre espace EduPilot."
+    >
+      <Suspense
+        fallback={
+          <div
+            className="flex items-center justify-center p-8"
+            aria-label="Chargement en cours"
+          >
+            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+        }
+      >
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   );
 }

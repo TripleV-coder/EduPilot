@@ -17,10 +17,11 @@ import {
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { PageCallout } from "@/components/layout/page-callout";
 import { useNotificationStream } from "@/lib/socket";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
+import { EmptyStateAction } from "@/components/ui/empty-state";
+import { trackUxEvent } from "@/lib/ux/telemetry";
 
 type Message = {
   id: string;
@@ -168,6 +169,7 @@ export default function MessagesPage() {
 
         const data = await res.json();
         setError(null);
+        trackUxEvent("message_sent", { mode: "broadcast", classId: selectedClassId });
         // Show success inline
         resetCompose();
         if (activeTab === "sent") {
@@ -191,6 +193,7 @@ export default function MessagesPage() {
         throw new Error(data.error || "Erreur d'envoi");
       }
 
+      trackUxEvent("message_sent", { mode: "individual", recipientRole: recipient.role });
       resetCompose();
       if (activeTab === "sent") {
         fetchMessages("sent");
@@ -255,7 +258,7 @@ export default function MessagesPage() {
             ]}
           />
           {!isComposing && (
-            <Button onClick={() => { setIsComposing(true); setSelectedMessage(null); }} className="gap-2 shadow-sm shrink-0 touch-target">
+            <Button onClick={() => { trackUxEvent("message_compose_open"); setIsComposing(true); setSelectedMessage(null); }} className="gap-2 shadow-sm shrink-0 touch-target">
               <Send className="h-4 w-4" />
               {t("common.newMessage")}
             </Button>
@@ -360,7 +363,8 @@ export default function MessagesPage() {
                         <div className="relative">
                           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                           <Input
-                            
+                            aria-label="Rechercher un destinataire"
+                            placeholder="Tapez un nom, prénom ou e-mail..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             className="pl-9"
@@ -425,7 +429,8 @@ export default function MessagesPage() {
                     <Input
                       value={subject}
                       onChange={e => setSubject(e.target.value)}
-                      
+                      aria-label="Sujet du message"
+                      placeholder="Ex: Suivi pédagogique de la semaine"
                       required
                     />
                   </div>
@@ -435,7 +440,8 @@ export default function MessagesPage() {
                     <Textarea
                       value={content}
                       onChange={e => setContent(e.target.value)}
-                      
+                      aria-label="Contenu du message"
+                      placeholder="Rédigez votre message..."
                       className="flex-1 min-h-[200px] resize-none"
                       required
                     />
@@ -543,7 +549,7 @@ export default function MessagesPage() {
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="p-6">
-                    <PageCallout
+                    <EmptyStateAction
                       icon={MessageSquare}
                       title="Aucun message"
                       description={
@@ -551,7 +557,8 @@ export default function MessagesPage() {
                           ? "Votre boîte de réception est vide. Vous recevrez ici les messages de l’équipe pédagogique et de l’administration."
                           : "Aucun message envoyé pour le moment. Rédigez un message pour contacter un membre du personnel, un parent ou un élève."
                       }
-                      actions={[{ label: "Rédiger un message", href: "/dashboard/messages", variant: "outline" }]}
+                      actionLabel="Rédiger un message"
+                      onAction={() => setIsComposing(true)}
                     />
                   </div>
                 ) : (

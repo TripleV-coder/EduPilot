@@ -35,7 +35,10 @@ export default function RootAnalyticsPage() {
     useEffect(() => {
         let cancelled = false;
         queueMicrotask(() => {
-            if (!cancelled) setLoading(true);
+            if (!cancelled) {
+                setLoading(true);
+                setError(null);
+            }
         });
         fetch(`/api/root/analytics?period=${period}`, { credentials: "include" })
             .then((res) => {
@@ -62,7 +65,7 @@ export default function RootAnalyticsPage() {
             <div className="space-y-6 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="Root Analytics"
+                        title="Pilotage Analytique Root"
                         description="Vue globale (SaaS) des performances et de l'utilisation de la plateforme EduPilot"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
@@ -72,7 +75,7 @@ export default function RootAnalyticsPage() {
                     />
                     <div className="flex items-center gap-3">
                         <Select value={period} onValueChange={setPeriod}>
-                            <SelectTrigger className="w-[150px] bg-background">
+                            <SelectTrigger className="w-[170px] h-11 bg-background" aria-label="Filtrer la période analytique">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -120,7 +123,7 @@ export default function RootAnalyticsPage() {
                                             <p className="text-sm font-medium text-muted-foreground">Utilisateurs Globaux</p>
                                             <p className="text-3xl font-bold text-foreground">{data.summary.users}</p>
                                         </div>
-                                        <div className="p-3 bg-blue-500/10 text-blue-600 rounded-xl">
+                                        <div className="p-3 bg-primary/10 text-primary rounded-xl">
                                             <Users className="w-6 h-6" />
                                         </div>
                                     </div>
@@ -134,7 +137,7 @@ export default function RootAnalyticsPage() {
                                             <p className="text-sm font-medium text-muted-foreground">Revenus Période</p>
                                             <p className="text-3xl font-bold text-foreground">{formatCurrency(data.summary.revenue)}</p>
                                         </div>
-                                        <div className="p-3 bg-green-500/10 text-green-600 rounded-xl">
+                                        <div className="p-3 bg-success/10 text-success rounded-xl">
                                             <CreditCard className="w-6 h-6" />
                                         </div>
                                     </div>
@@ -148,7 +151,7 @@ export default function RootAnalyticsPage() {
                                             <p className="text-sm font-medium text-muted-foreground">Événements Audit Période</p>
                                             <p className="text-3xl font-bold text-foreground">{data.summary.activity}</p>
                                         </div>
-                                        <div className="p-3 bg-orange-500/10 text-orange-600 rounded-xl">
+                                        <div className="p-3 bg-warning/10 text-warning rounded-xl">
                                             <Activity className="w-6 h-6" />
                                         </div>
                                     </div>

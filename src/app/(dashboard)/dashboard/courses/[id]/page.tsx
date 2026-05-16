@@ -141,7 +141,7 @@ export default function CourseDetailPage() {
                                                             </span>
                                                         )}
                                                         {lesson.isCompleted ? (
-                                                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                                            <CheckCircle className="w-5 h-5 text-success" />
                                                         ) : (
                                                             <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
                                                         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -22,6 +23,7 @@ import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme"
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetcher } from "@/lib/fetcher";
 import type {
@@ -70,7 +72,7 @@ function SummaryCard({
   icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <Card className="border-border/60 bg-white shadow-sm">
+    <Card className="border-border/60 bg-card shadow-sm">
       <CardContent className="flex items-start justify-between p-5">
         <div className="space-y-1">
           <p className="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">
@@ -133,14 +135,14 @@ function EmptyState({ label }: { label: string }) {
 function SiteStatusBadge({ site }: { site: OrganizationSiteSummary }) {
   if (site.comparisonNote) {
     return (
-      <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+      <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
         Non comparable
       </Badge>
     );
   }
 
   return (
-    <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+    <Badge variant="outline" className="border-success/40 bg-success/10 text-success">
       Comparable
     </Badge>
   );
@@ -160,7 +162,7 @@ function ComparisonTable({
   emptyLabel: string;
 }) {
   return (
-    <Card className="border-border/60 bg-white shadow-sm">
+    <Card className="border-border/60 bg-card shadow-sm">
       <CardHeader className="border-b border-border/60">
         <CardTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">
           <Icon className="h-4 w-4 text-primary" />
@@ -185,7 +187,7 @@ function ComparisonTable({
               </thead>
               <tbody className="divide-y divide-border/60">
                 {rows.map((row) => (
-                  <tr key={row.key} className="align-top">
+                  <tr key={row.key} className="align-top transition-colors hover:bg-muted/20">
                     <td className="px-4 py-4">
                       <div className="space-y-1">
                         <p className="font-bold text-foreground">{row.label}</p>
@@ -196,7 +198,7 @@ function ComparisonTable({
                       {formatAverage(row.organizationAverage)}
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-foreground">
                         {formatAverage(row.delta)}
                       </span>
                     </td>
@@ -265,9 +267,9 @@ export default function OrganizationDashboardPage() {
   if (!canAccess) {
     return (
       <div className="mx-auto max-w-3xl py-16">
-        <Card className="border-amber-300 bg-amber-50 shadow-sm">
+        <Card className="border-warning/40 bg-warning/10 shadow-sm">
           <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-            <ShieldAlert className="h-10 w-10 text-amber-600" />
+            <ShieldAlert className="h-10 w-10 text-warning" />
             <div className="space-y-2">
               <h1 className="text-xl font-black text-foreground">Accès organisation refusé</h1>
               <p className="text-sm text-muted-foreground">
@@ -287,7 +289,7 @@ export default function OrganizationDashboardPage() {
   if (organizations.length === 0 || !selectedOrganization) {
     return (
       <div className="mx-auto max-w-4xl py-16">
-        <Card className="border-border/60 bg-white shadow-sm">
+        <Card className="border-border/60 bg-card shadow-sm">
           <CardContent className="py-14">
             <EmptyState label="Aucune organisation gérable n'est disponible pour ce compte." />
           </CardContent>
@@ -313,9 +315,14 @@ export default function OrganizationDashboardPage() {
         ]}
         actions={
           <div className="flex items-center gap-3">
+            {session?.user?.role === "SUPER_ADMIN" ? (
+              <Button asChild variant="outline" className="h-11">
+                <Link href="/dashboard/root-control/system-map">Voir cartographie root</Link>
+              </Button>
+            ) : null}
             <div className="w-[280px]">
               <Select value={selectedOrganization.id} onValueChange={handleOrganizationChange}>
-                <SelectTrigger className="h-10 bg-white">
+                <SelectTrigger className="h-11 bg-card" aria-label="Choisir une organisation">
                   <SelectValue placeholder="Choisir une organisation" />
                 </SelectTrigger>
                 <SelectContent>
@@ -338,12 +345,12 @@ export default function OrganizationDashboardPage() {
         <Badge variant="outline">{selectedOrganization._count.schools} sites</Badge>
         <Badge variant="outline">{selectedOrganization._count.memberships} responsables</Badge>
         {selectedOrganization.membership?.isOwner ? (
-          <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+          <Badge variant="outline" className="border-success/40 bg-success/10 text-success">
             Propriétaire organisation
           </Badge>
         ) : null}
         {selectedOrganization.membership?.canManageSites ? (
-          <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-700">
+          <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
             Gestion multisites
           </Badge>
         ) : null}
@@ -359,7 +366,7 @@ export default function OrganizationDashboardPage() {
       ) : null}
 
       {overviewLoading || !overview ? (
-        <Card className="border-border/60 bg-white shadow-sm">
+        <Card className="border-border/60 bg-card shadow-sm">
           <CardContent className="py-14">
             <EmptyState label="Chargement des indicateurs organisation..." />
           </CardContent>
@@ -410,25 +417,25 @@ export default function OrganizationDashboardPage() {
                 <PerformanceComparisonChart sites={overview.sites} />
             </div>
             <div className="lg:col-span-1">
-                <Card className="border-border/60 bg-slate-950 text-slate-100 shadow-sm h-full">
+                <Card className="border-border/60 bg-foreground text-background shadow-sm h-full">
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Périmètre de Comparaison</CardTitle>
+                        <CardTitle className="text-[11px] font-black uppercase tracking-[0.16em] text-background/70">Périmètre de Comparaison</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
                         <div className="space-y-1">
-                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">Année</p>
+                            <p className="text-xs text-background/70 uppercase font-bold tracking-widest">Année</p>
                             <p className="text-xl font-black">{overview.reference.academicYearName}</p>
-                            <p className="text-[10px] text-slate-500 italic">Site de référence: {overview.reference.schoolName}</p>
+                            <p className="text-[10px] text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">Période</p>
+                            <p className="text-xs text-background/70 uppercase font-bold tracking-widest">Période</p>
                             <p className="text-xl font-black">{overview.reference.periodName || "Dernier état annuel"}</p>
                         </div>
-                        <div className="pt-4 border-t border-white/10">
-                            <p className="text-xs text-slate-400 mb-2">Exclusion automatique</p>
+                        <div className="pt-4 border-t border-background/20">
+                            <p className="text-xs text-background/70 mb-2">Exclusion automatique</p>
                             <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-lg font-black border-slate-700">{overview.reference.nonComparableSiteCount}</Badge>
-                                <span className="text-[10px] text-slate-400 font-medium">Sites non comparables</span>
+                                <Badge variant="outline" className="text-lg font-black border-background/30 bg-background/5 text-background">{overview.reference.nonComparableSiteCount}</Badge>
+                                <span className="text-[10px] text-background/70 font-medium">Sites non comparables</span>
                             </div>
                         </div>
                     </CardContent>
@@ -436,7 +443,7 @@ export default function OrganizationDashboardPage() {
             </div>
           </div>
 
-          <Card className="border-border/60 bg-white shadow-sm">
+          <Card className="border-border/60 bg-card shadow-sm">
             <CardHeader className="border-b border-border/60">
               <CardTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">
                 <Building2 className="h-4 w-4 text-primary" />
@@ -463,7 +470,7 @@ export default function OrganizationDashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {overview.sites.map((site) => (
-                      <tr key={site.id} className="align-top">
+                      <tr key={site.id} className="align-top transition-colors hover:bg-muted/20">
                         <td className="px-4 py-4">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -488,7 +495,7 @@ export default function OrganizationDashboardPage() {
                         <td className="px-4 py-4 text-center">{formatPercent(site.attendanceRate)}</td>
                         <td className="px-4 py-4">
                           <span className="text-xs font-medium text-foreground">
-                            {site.topSubject || "N/A"}
+                            {site.topSubject || "Indisponible"}
                           </span>
                         </td>
                         <td className="px-4 py-4">

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { PageCallout } from "@/components/layout/page-callout";
 import { t } from "@/lib/i18n";
+import { toast } from "sonner";
 
 type Student = {
     id: string;
@@ -50,7 +51,7 @@ export default function DocumentGeneratorPage() {
 
     const handleGenerate = async () => {
         if (!selectedStudent) {
-            alert("Veuillez sélectionner un élève");
+            toast.error("Veuillez sélectionner un élève.");
             return;
         }
 
@@ -77,9 +78,9 @@ export default function DocumentGeneratorPage() {
             link.click();
             document.body.removeChild(link);
 
-            alert("Document généré avec succès !");
+            toast.success("Document généré avec succès.");
         } catch (error) {
-            alert("Erreur lors de la génération du document.");
+            toast.error("Erreur lors de la génération du document.");
             console.error(error);
         } finally {
             setLoading(false);
@@ -126,7 +127,7 @@ export default function DocumentGeneratorPage() {
                                     <FileText className="w-4 h-4" /> Type de Document
                                 </label>
                                 <Select value={selectedDoc} onValueChange={setSelectedDoc}>
-                                    <SelectTrigger className="w-full text-left font-medium">
+                                    <SelectTrigger aria-label="Sélectionner le type de document" className="w-full text-left font-medium">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -141,7 +142,7 @@ export default function DocumentGeneratorPage() {
                                     <Users className="w-4 h-4" /> Sélectionner un Élève
                                 </label>
                                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                                    <SelectTrigger className="w-full text-left">
+                                    <SelectTrigger aria-label="Sélectionner un élève" className="w-full text-left">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -174,7 +175,7 @@ export default function DocumentGeneratorPage() {
                         <CardContent className="p-8 h-full flex flex-col justify-center items-center text-center">
                             <div className="w-20 h-20 bg-background rounded-2xl shadow-sm flex items-center justify-center text-primary mb-6 border border-primary/20 relative">
                                 <FileText className="w-10 h-10" />
-                                <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1 rounded-full border-2 border-background">
+                                <div className="absolute -bottom-2 -right-2 bg-success text-white p-1 rounded-full border-2 border-background">
                                     <CheckCircle2 className="w-4 h-4" />
                                 </div>
                             </div>
@@ -193,7 +194,7 @@ export default function DocumentGeneratorPage() {
                                     <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 transform" />
                                 </Button>
                                 <Button variant="secondary" className="w-full justify-start text-left bg-background hover:bg-muted/50 border shadow-sm group">
-                                    <div className="w-8 h-8 rounded shrink-0 bg-emerald-500/10 flex items-center justify-center text-emerald-600 mr-3">
+                                    <div className="w-8 h-8 rounded shrink-0 bg-success/10 flex items-center justify-center text-success mr-3">
                                         <GraduationCap className="w-4 h-4" />
                                     </div>
                                     <span className="flex-1 font-medium text-foreground">Consulter les dossiers d'orientation</span>

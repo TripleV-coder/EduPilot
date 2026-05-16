@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
@@ -39,6 +40,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { fetcher } from "@/lib/fetcher";
+import { getUserActivityClass } from "@/lib/ui/status-styles";
 import { 
     User, 
     Mail, 
@@ -92,11 +95,6 @@ type OrganizationOption = {
         memberships: number;
     };
 };
-
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => {
-    if (!res.ok) throw new Error("Erreur serveur");
-    return res.json();
-});
 
 export default function RootSchoolsPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -287,21 +285,21 @@ export default function RootSchoolsPage() {
                         }}
                     >
                         <DialogTrigger asChild>
-                            <Button className="gap-2 shadow-md bg-orange-600 hover:bg-orange-700 text-white border-0 transition-all active:scale-95">
+                            <Button className="gap-2 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground border-0 transition-all active:scale-95">
                                 <Plus className="w-4 h-4" />
                                 Déployer un Établissement
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[700px] overflow-hidden p-0 gap-0 border-0 shadow-2xl">
                             <form onSubmit={handleCreateSchool} className="flex flex-col max-h-[90vh]">
-                                <DialogHeader className="p-6 bg-gradient-to-r from-orange-50 to-orange-100/50 border-b">
+                                <DialogHeader className="p-6 bg-primary/5 border-b">
                                     <div className="flex items-center gap-3 mb-1">
-                                        <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white">
+                                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
                                             <Building2 className="w-5 h-5" />
                                         </div>
-                                        <DialogTitle className="text-xl font-bold text-orange-950">Déploiement d'Établissement</DialogTitle>
+                                        <DialogTitle className="text-xl font-bold text-foreground">Déploiement d'Établissement</DialogTitle>
                                     </div>
-                                    <DialogDescription className="text-orange-900/70">
+                                    <DialogDescription className="text-muted-foreground">
                                         Configurez le socle technique du nouvel établissement et son administrateur principal.
                                     </DialogDescription>
                                 </DialogHeader>
@@ -309,11 +307,11 @@ export default function RootSchoolsPage() {
                                 <Tabs defaultValue="school" className="w-full" value={activeTab} onValueChange={setActiveTab}>
                                     <div className="px-6 border-b bg-muted/20">
                                         <TabsList className="h-12 bg-transparent gap-6">
-                                            <TabsTrigger value="school" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-orange-600 rounded-none border-b-2 border-transparent px-2 h-12 gap-2">
+                                            <TabsTrigger value="school" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent px-2 h-12 gap-2">
                                                 <SchoolIcon className="w-4 h-4" />
                                                 Établissement
                                             </TabsTrigger>
-                                            <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-orange-600 rounded-none border-b-2 border-transparent px-2 h-12 gap-2">
+                                            <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent px-2 h-12 gap-2">
                                                 <User className="w-4 h-4" />
                                                 Admin Principal
                                             </TabsTrigger>
@@ -325,9 +323,9 @@ export default function RootSchoolsPage() {
                                             <div className="grid gap-4 data-[state=inactive]:hidden" data-state={activeTab === 'school' ? 'active' : 'inactive'}>
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="create-name" className="flex items-center gap-2">
-                                                        <Info className="w-3 h-3 text-orange-600" /> Nom de l'établissement
+                                                        <Info className="w-3 h-3 text-primary" /> Nom de l'établissement
                                                     </Label>
-                                                    <Input id="create-name" name="name" className="h-11 focus-visible:ring-orange-600" required />
+                                                    <Input id="create-name" name="name" className="h-11 focus-visible:ring-primary" required />
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-2 gap-4">
@@ -380,7 +378,7 @@ export default function RootSchoolsPage() {
                                                         Choisis un site principal pour créer une annexe avec ses propres accès.
                                                     </p>
                                                     {selectedParentSchool?.organization ? (
-                                                        <p className="text-[11px] text-orange-700">
+                                                        <p className="text-[11px] text-primary">
                                                             Le site hérite de l&apos;organisation {selectedParentSchool.organization.name}.
                                                         </p>
                                                     ) : selectedParentSchool ? (
@@ -412,7 +410,7 @@ export default function RootSchoolsPage() {
                                                 </div>
 
                                                 {organizationMode === "CREATE" && !selectedParentSchool?.organization ? (
-                                                    <div className="grid gap-4 rounded-xl border border-orange-200 bg-orange-50/40 p-4">
+                                                    <div className="grid gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                                                         <div className="grid gap-2">
                                                             <Label htmlFor="organization-name">Nom de l&apos;organisation</Label>
                                                             <Input id="organization-name" name="organizationName" className="h-11" required={organizationMode === "CREATE"} />
@@ -499,8 +497,8 @@ export default function RootSchoolsPage() {
                                         </TabsContent>
 
                                         <TabsContent value="admin" className="mt-0 space-y-6" forceMount>
-                                            <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-lg flex gap-3 text-sm text-orange-900/80 data-[state=inactive]:hidden" data-state={activeTab === 'admin' ? 'active' : 'inactive'}>
-                                                <ShieldAlert className="w-5 h-5 text-orange-600 shrink-0" />
+                                            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg flex gap-3 text-sm text-foreground/80 data-[state=inactive]:hidden" data-state={activeTab === 'admin' ? 'active' : 'inactive'}>
+                                                <ShieldAlert className="w-5 h-5 text-primary shrink-0" />
                                                 <p>Cet utilisateur sera créé avec le rôle <strong>Admin Établissement</strong> et aura un accès complet au dashboard de cette école.</p>
                                             </div>
 
@@ -508,11 +506,11 @@ export default function RootSchoolsPage() {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="admin-firstname">Prénom</Label>
-                                                        <Input id="admin-firstname" name="adminFirstName" className="h-11 focus-visible:ring-orange-600" required />
+                                                        <Input id="admin-firstname" name="adminFirstName" className="h-11 focus-visible:ring-primary" required />
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="admin-lastname">Nom de famille</Label>
-                                                        <Input id="admin-lastname" name="adminLastName" className="h-11 focus-visible:ring-orange-600" required />
+                                                        <Input id="admin-lastname" name="adminLastName" className="h-11 focus-visible:ring-primary" required />
                                                     </div>
                                                 </div>
 
@@ -520,15 +518,15 @@ export default function RootSchoolsPage() {
                                                     <Label htmlFor="admin-email" className="flex items-center gap-2">
                                                         <Mail className="w-3 h-3 text-muted-foreground" /> Email de connexion
                                                     </Label>
-                                                    <Input id="admin-email" name="adminEmail" type="email" className="h-11 focus-visible:ring-orange-600" required />
+                                                    <Input id="admin-email" name="adminEmail" type="email" className="h-11 focus-visible:ring-primary" required />
                                                 </div>
 
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="admin-password" className="flex items-center gap-2">
                                                         <Lock className="w-3 h-3 text-muted-foreground" /> Mot de passe temporaire
                                                     </Label>
-                                                    <Input id="admin-password" name="adminPassword" type="password" className="h-11 focus-visible:ring-orange-600" required />
-                                                    <p className="text-[10px] text-muted-foreground">8 caractères min, lettres et chiffres recommandés.</p>
+                                                    <Input id="admin-password" name="adminPassword" type="password" defaultValue="00000000" className="h-11 focus-visible:ring-primary" required />
+                                                    <p className="text-[10px] text-muted-foreground">Valeur standard: 00000000 (changement obligatoire au premier login).</p>
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -540,12 +538,12 @@ export default function RootSchoolsPage() {
                                     <div className="flex gap-2">
                                         {activeTab === "school" ? (
                                             <Button type="button" variant="outline" className="gap-2" onClick={() => setActiveTab("admin")}>
-                                                Étape Suivante <Plus className="w-4 h-4 text-orange-600" />
+                                                Étape Suivante <Plus className="w-4 h-4 text-primary" />
                                             </Button>
                                         ) : (
                                             <>
                                             <Button type="button" variant="outline" onClick={() => setActiveTab("school")}>{t("common.back")}</Button>
-                                            <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white" disabled={isSubmitting}>
+                                            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
                                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                                 {t("appActions.finalizeDeployment")}
                                             </Button>
@@ -556,6 +554,9 @@ export default function RootSchoolsPage() {
                             </form>
                         </DialogContent>
                     </Dialog>
+                    <Button asChild variant="outline" className="h-10">
+                        <Link href="/dashboard/root-control/system-map">Voir cartographie</Link>
+                    </Button>
                 </div>
 
                 <Card className="p-4 rounded-xl shadow-sm border border-border">
@@ -563,6 +564,7 @@ export default function RootSchoolsPage() {
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
+                                aria-label="Rechercher un établissement"
                                 placeholder="Rechercher par nom, code, ville ou organisation"
                                 className="pl-9 bg-muted/50 border-border"
                                 value={searchTerm}
@@ -638,7 +640,7 @@ export default function RootSchoolsPage() {
                                             </TableCell>
                                             <TableCell>
                                                 {school.isActive ? (
-                                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-normal">
+                                                    <Badge variant="outline" className={`border-success/30 font-normal ${getUserActivityClass(true)}`}>
                                                         Actif (En règle)
                                                     </Badge>
                                                 ) : (
@@ -737,7 +739,7 @@ export default function RootSchoolsPage() {
 
                                 <DialogFooter>
                                     <Button type="button" variant="ghost" onClick={() => setIsQuotaDialogOpen(false)}>{t("common.cancel")}</Button>
-                                    <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white" disabled={isSubmitting}>
+                                    <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Enregistrer les modifications
                                     </Button>

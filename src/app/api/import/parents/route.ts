@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
                 logger.error("Error creating parent", err, { module: "api/import/parents", row: index + 1 });
                 results.errors.push({
                     row: index + 1,
-                    error: (err as any).message || "Database error",
+                    error: err instanceof Error ? err.message : "Database error",
                     data: item,
                 });
             }

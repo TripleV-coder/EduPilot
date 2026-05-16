@@ -1,155 +1,220 @@
 import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
-import { 
-  getAdminDashboardData, 
-  getGlobalDashboardData,
-  getTeacherDashboardData,
-  getStudentDashboardData,
-  getParentDashboardData,
-  getAccountantDashboardData,
-  getStaffDashboardData,
-} from "@/lib/services/analytics-dashboard";
-import DashboardOverviewContent from "@/components/dashboard/DashboardOverviewContent";
 import { redirect } from "next/navigation";
+import {
+    getAdminDashboardData,
+    getGlobalDashboardData,
+    getTeacherDashboardData,
+    getStudentDashboardData,
+    getParentDashboardData,
+} from "@/lib/services/analytics-dashboard";
 import prisma from "@/lib/prisma";
-import type { UserRole } from "@prisma/client";
-import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import {
+    DirectorHome,
+    TeacherHome,
+    ParentHome,
+    StudentHome,
+    SuperAdminHome,
+} from "@/components/edu-homes";
 
-export default async function DashboardPage(props: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/login");
-  }
+export const dynamic = "force-dynamic";
 
-  const searchParams = await props.searchParams;
-  const cookieStore = await cookies();
-  const role = session.user.role;
-  const schoolId = getActiveSchoolId(session) ?? null;
-  const academicYearId = (searchParams.academicYearId as string) || cookieStore.get("edupilot_year_id")?.value;
-  
-  const isSuperAdminGlobal = role === "SUPER_ADMIN" && !schoolId;
-
-  type DashboardAnalytics = 
-    | Awaited<ReturnType<typeof getGlobalDashboardData>>
-    | Awaited<ReturnType<typeof getAdminDashboardData>>
-    | Awaited<ReturnType<typeof getTeacherDashboardData>>
-    | Awaited<ReturnType<typeof getStudentDashboardData>>
-    | Awaited<ReturnType<typeof getParentDashboardData>>
-    | Awaited<ReturnType<typeof getAccountantDashboardData>>
-    | Awaited<ReturnType<typeof getStaffDashboardData>>;
-
-  let analyticsData: DashboardAnalytics | null = null;
-
-  try {
-    if (isSuperAdminGlobal) {
-      analyticsData = await getGlobalDashboardData(
-        academicYearId,
-        searchParams.classId as string,
-        searchParams.periodId as string,
-        searchParams.subjectId as string
-      );
-    } else {
-      if (!schoolId) {
-        throw new Error("School ID missing for non-global admin");
-      }
-
-      // Resolve Year
-      let yearId = academicYearId;
-      if (!yearId) {
-        const currentYear = await prisma.academicYear.findFirst({
-          where: { schoolId, isCurrent: true },
-          select: { id: true }
-        });
-        yearId = currentYear?.id;
-      }
-
-      if (!yearId) {
-        // Aucun millésime académique actif pour cette école :
-        // on affiche un message clair avec un lien direct vers la configuration.
-        return (
-          <div className="flex min-h-[60vh] items-center justify-center">
-            <div className="max-w-md space-y-3 text-center">
-              <p className="text-sm font-medium text-muted-foreground">
-                Aucune année académique active n&apos;a été trouvée pour cet établissement.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Créez ou activez une année académique dans les paramètres pour afficher le
-                tableau de bord consolidé.
-              </p>
-              <div className="mt-4">
-                <a
-                  href="/dashboard/settings/academic"
-                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
-                >
-                  Ouvrir les paramètres académiques
-                </a>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      if (["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(role)) {
-        const comparisonSchoolIds =
-          Array.isArray(session.user.accessibleSchoolIds) && session.user.accessibleSchoolIds.length > 0
-            ? session.user.accessibleSchoolIds
-            : await getAccessibleSchoolIdsForUser({
-                userId: session.user.id,
-                role: session.user.role,
-                primarySchoolId: session.user.primarySchoolId ?? schoolId,
-              });
-        analyticsData = await getAdminDashboardData(
-          schoolId,
-          yearId,
-          searchParams.classId as string,
-          searchParams.periodId as string,
-          searchParams.subjectId as string,
-          comparisonSchoolIds
-        );
-      } else if (role === "TEACHER") {
-        analyticsData = await getTeacherDashboardData(session.user.id, schoolId, yearId);
-      } else if (role === "STUDENT") {
-        analyticsData = await getStudentDashboardData(session.user.id, yearId);
-      } else if (role === "PARENT") {
-        analyticsData = await getParentDashboardData(session.user.id, yearId);
-      } else if (role === "ACCOUNTANT") {
-        analyticsData = await getAccountantDashboardData(schoolId);
-      } else if (role === "STAFF") {
-        analyticsData = await getStaffDashboardData(schoolId, yearId);
-      } else {
-        throw new Error(`Unsupported dashboard role: ${role}`);
-      }
+export default async function DashboardPage() {
+    const session = await auth();
+    if (!session?.user) {
+        redirect("/login");
     }
-  } catch (error) {
-    console.error("Dashboard data fetch error:", error);
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <div className="max-w-md text-center space-y-3">
-          <p className="text-sm font-semibold">Impossible de charger le tableau de bord</p>
-          <p className="text-xs text-muted-foreground">
-            Vérifie ta connexion et réessaie. Si le problème persiste, contacte l’administrateur.
-          </p>
-          <div className="pt-2">
-            <a
-              href="/dashboard"
-              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
-            >
-              Réessayer
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  return (
-    <DashboardOverviewContent 
-      analytics={analyticsData} 
-      isSuperAdminGlobal={isSuperAdminGlobal}
-      role={role as UserRole}
-    />
-  );
+    const cookieStore = await cookies();
+    const role = session.user.role;
+    const userName = session.user.name ?? session.user.email ?? "Utilisateur";
+    const schoolId = getActiveSchoolId(session) ?? null;
+    const requestedYearId = cookieStore.get("edupilot_year_id")?.value;
+
+    const isSuperAdminGlobal = role === "SUPER_ADMIN" && !schoolId;
+
+    if (isSuperAdminGlobal) {
+        const data = await getGlobalDashboardData();
+        return <SuperAdminHome userName={userName} data={data} />;
+    }
+
+    if (!schoolId) {
+        return <NoSchoolFallback />;
+    }
+
+    const yearId = await resolveYearId(schoolId, requestedYearId);
+    if (!yearId) {
+        return <NoYearFallback />;
+    }
+
+    const now = new Date();
+    const [school, period] = await Promise.all([
+        prisma.school.findUnique({
+            where: { id: schoolId },
+            select: { name: true },
+        }),
+        prisma.period
+            .findFirst({
+                where: {
+                    academicYearId: yearId,
+                    startDate: { lte: now },
+                    endDate: { gte: now },
+                },
+                select: { name: true },
+                orderBy: { sequence: "asc" },
+            })
+            .then(async (p) =>
+                p ??
+                (await prisma.period.findFirst({
+                    where: { academicYearId: yearId },
+                    select: { name: true },
+                    orderBy: { sequence: "desc" },
+                }))
+            ),
+    ]);
+    const schoolName = school?.name ?? null;
+    const periodName = period?.name ?? null;
+
+    let payload:
+        | { kind: "director"; data: Awaited<ReturnType<typeof getAdminDashboardData>> }
+        | { kind: "teacher"; data: Awaited<ReturnType<typeof getTeacherDashboardData>> }
+        | { kind: "student"; data: Awaited<ReturnType<typeof getStudentDashboardData>> }
+        | { kind: "parent"; data: Awaited<ReturnType<typeof getParentDashboardData>> }
+        | null = null;
+
+    try {
+        if (role === "SUPER_ADMIN" || role === "SCHOOL_ADMIN" || role === "DIRECTOR") {
+            payload = { kind: "director", data: await getAdminDashboardData(schoolId, yearId) };
+        } else if (role === "TEACHER") {
+            payload = {
+                kind: "teacher",
+                data: await getTeacherDashboardData(session.user.id, schoolId, yearId),
+            };
+        } else if (role === "STUDENT") {
+            payload = {
+                kind: "student",
+                data: await getStudentDashboardData(session.user.id, yearId),
+            };
+        } else if (role === "PARENT") {
+            payload = {
+                kind: "parent",
+                data: await getParentDashboardData(session.user.id, yearId),
+            };
+        } else {
+            // ACCOUNTANT, STAFF — vue Director par défaut (besoin des KPIs établissement).
+            payload = { kind: "director", data: await getAdminDashboardData(schoolId, yearId) };
+        }
+    } catch (error) {
+        console.error("Dashboard data fetch error:", error);
+        return <DashboardErrorFallback />;
+    }
+
+    const homeProps = { userName, schoolName, periodName };
+    switch (payload.kind) {
+        case "teacher":
+            return <TeacherHome {...homeProps} data={payload.data} />;
+        case "student":
+            return <StudentHome {...homeProps} data={payload.data} />;
+        case "parent":
+            return <ParentHome {...homeProps} data={payload.data} />;
+        case "director":
+        default:
+            return <DirectorHome {...homeProps} data={payload.data} />;
+    }
+}
+
+async function resolveYearId(schoolId: string, requestedYearId: string | undefined): Promise<string | null> {
+    if (requestedYearId) return requestedYearId;
+    const currentYear = await prisma.academicYear.findFirst({
+        where: { schoolId, isCurrent: true },
+        select: { id: true },
+    });
+    return currentYear?.id ?? null;
+}
+
+function NoSchoolFallback() {
+    return (
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+            <div className="max-w-md space-y-3 text-center">
+                <p
+                    style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: "var(--eduflow-text-secondary)",
+                    }}
+                >
+                    Aucun établissement n&apos;est associé à ton compte.
+                </p>
+                <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
+                    Contacte un administrateur pour rattacher ton compte à un établissement.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function NoYearFallback() {
+    return (
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+            <div className="max-w-md space-y-3 text-center">
+                <p
+                    style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: "var(--eduflow-text-secondary)",
+                    }}
+                >
+                    Aucune année académique active n&apos;a été trouvée.
+                </p>
+                <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
+                    Active une année académique dans les paramètres pour afficher le tableau de bord.
+                </p>
+                <a
+                    href="/dashboard/settings/academic"
+                    className="mt-4 inline-flex items-center rounded-md px-4 py-2"
+                    style={{
+                        background: "var(--brand-700)",
+                        color: "var(--eduflow-text-on-brand)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                    }}
+                >
+                    Ouvrir les paramètres académiques
+                </a>
+            </div>
+        </div>
+    );
+}
+
+function DashboardErrorFallback() {
+    return (
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+            <div className="max-w-md space-y-3 text-center">
+                <p style={{ fontSize: 14, fontWeight: 600 }}>
+                    Impossible de charger le tableau de bord.
+                </p>
+                <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
+                    Vérifie ta connexion et réessaie. Si le problème persiste, contacte
+                    l&apos;administrateur.
+                </p>
+                <a
+                    href="/dashboard"
+                    className="mt-4 inline-flex items-center rounded-md px-4 py-2"
+                    style={{
+                        background: "var(--brand-700)",
+                        color: "var(--eduflow-text-on-brand)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                    }}
+                >
+                    Réessayer
+                </a>
+            </div>
+        </div>
+    );
 }
