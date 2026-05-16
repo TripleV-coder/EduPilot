@@ -27,3 +27,26 @@ tsconfig.tsbuildinfo
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
+
+# IDE / AI tooling — local state and downloaded skill packages
+.claude/skills/community/
+.claude/skills/activated/
+.claude/projects/
+.claude/settings.local.json
+.cursor/
+.windsurf/skills/community/
+.windsurf/workflows/
+.agent/skills/community/
+.superpowers/
+
+# Python cache (used by skill scripts)
+**/__pycache__/
+**/*.pyc
+
+# Local archives and standalone tooling drops
+.archive/
+.tools/
+ultra-dev-forge-v3/
+ultra-dev-forge-v3.skill
+test_write.txt
