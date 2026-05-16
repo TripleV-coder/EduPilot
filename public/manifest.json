@@ -1,0 +1,19 @@
+{
+  "name": "EduPilot",
+  "short_name": "EduPilot",
+  "description": "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#2D7A5F",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "32x32 48x48 64x64 96x96 128x128 192x192 256x256 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

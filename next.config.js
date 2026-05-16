@@ -7,6 +7,10 @@
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig = {
+  // TypeScript strict — les erreurs de type bloquent le build
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   // Turbopack config (vide pour accepter config webpack existante)
   turbopack: {},
   // ─────────────────────────────────────────────────────────────
@@ -90,9 +94,12 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               isProd
-                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-                : "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
+                ? "script-src 'self'"
+                : "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob:",
+              "worker-src 'self' blob:",
+              isProd
+                ? "style-src 'self' 'unsafe-inline'"
+                : "style-src 'self' 'unsafe-inline'",
               "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
               "font-src 'self' data:",
               isProd
