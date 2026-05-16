@@ -1,0 +1,79 @@
+name: Bug report
+description: Signaler un bug reproductible dans EduPilot
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Résumé
+      description: Qu'est-ce qui ne marche pas ? Une ou deux phrases.
+      placeholder: "Le bouton 'Enregistrer note' renvoie 500 sur la page Bulletin"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Sévérité
+      options:
+        - P0 - Bloque la production / impacte les paiements ou l'auth
+        - P1 - Empêche un parcours métier critique
+        - P2 - Gêne mais contournement possible
+        - P3 - Cosmétique
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Étapes précises pour reproduire le bug.
+      value: |
+        1. Se connecter en tant que ...
+        2. Aller sur la page ...
+        3. Cliquer sur ...
+        4. Observer ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportement observé
+      description: Inclure le message d'erreur, le code HTTP, le requestId si visible
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environnement
+      placeholder: "Production / Staging / Local — Chrome 122, Linux"
+    validations:
+      required: true
+
+  - type: input
+    id: user-role
+    attributes:
+      label: Rôle utilisateur
+      placeholder: "TEACHER, DIRECTOR, PARENT, ..."
+
+  - type: input
+    id: request-id
+    attributes:
+      label: X-Request-Id (si applicable)
+      description: Visible dans les DevTools réseau ou les logs Sentry
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / captures
+      description: Coller les logs pertinents ou attacher des captures.

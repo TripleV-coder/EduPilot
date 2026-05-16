@@ -1,256 +1,252 @@
-name: CI/CD Pipeline - EduPilot
+name: CD — Build, Image, Deploy
+
+# Délégation : ci.yml fait lint/tests/e2e/security.
+# Ce pipeline construit l'image Docker, scanne l'image, et déploie après merge sur main.
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Cible de déploiement"
+        required: true
+        default: "staging"
+        type: choice
+        options: [staging, production]
+
+concurrency:
+  group: cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '8'
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  # ──────────────────────────────────────────────────────────────
-  # JOB 1: Lint & Type Check
-  # ──────────────────────────────────────────────────────────────
-  lint-and-typecheck:
-    name: 🔍 Lint & Type Check
+  # ─────────────────────────────────────────────────────────────────────────
+  # 1. Wait for CI workflow on the same SHA (fail-fast if CI is red)
+  # ─────────────────────────────────────────────────────────────────────────
+  wait-for-ci:
+    name: Wait for CI
     runs-on: ubuntu-latest
-    
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: lewagon/wait-on-check-action@v1.3.4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          ref: ${{ github.sha }}
+          check-name: "Quality Gate"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 20
+          allowed-conclusions: success
 
-      - name: 📥 Install dependencies
-        run: npm ci --frozen-lockfile
-
-      - name: 🔍 Run ESLint
-        run: npm run lint
-
-      - name: 🔍 Run TypeScript check
-        run: npm run type-check
-
-  # ──────────────────────────────────────────────────────────────
-  # JOB 2: Unit Tests
-  # ──────────────────────────────────────────────────────────────
-  unit-tests:
-    name: 🧪 Unit Tests
+  # ─────────────────────────────────────────────────────────────────────────
+  # 2. Build & push Docker image (GHCR), provenance + SBOM attestation
+  # ─────────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker Build & Push
     runs-on: ubuntu-latest
-    
+    needs: [wait-for-ci]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: 📥 Install dependencies
-        run: npm ci --frozen-lockfile
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: 🧪 Run Vitest
-        run: npm run test:coverage
-
-      - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-
-  # ──────────────────────────────────────────────────────────────
-  # JOB 3: Build
-  # ──────────────────────────────────────────────────────────────
-  build:
-    name: 🏗️ Build Application
-    runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, unit-tests]
-    
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci --frozen-lockfile
-
-      - name: 🔧 Generate Prisma Client
-        run: npx prisma generate
-
-      - name: 🏗️ Build Next.js
-        run: npm run build
-        env:
-          NEXTAUTH_URL: http://localhost:3000
-          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-chars
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-
-      - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-output
-          path: .next
-          retention-days: 1
-
-  # ──────────────────────────────────────────────────────────────
-  # JOB 4: E2E Tests (Playwright)
-  # ──────────────────────────────────────────────────────────────
-  e2e-tests:
-    name: 🎭 E2E Tests
-    runs-on: ubuntu-latest
-    needs: [build]
-    
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: edupilot_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: edupilot_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci --frozen-lockfile
-
-      - name: 🎭 Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: 🔧 Setup Database
-        run: |
-          npx prisma generate
-          npx prisma db push
-        env:
-          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
-
-      - name: 🌱 Seed test data
-        run: npm run db:seed
-        env:
-          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
-          NODE_ENV: test
-
-      - name: 🎭 Run Playwright tests
-        run: npm run test:e2e
-        env:
-          DATABASE_URL: postgresql://edupilot_test:test_password@localhost:5432/edupilot_test
-          NEXTAUTH_URL: http://localhost:3000
-          NEXTAUTH_SECRET: test-secret-for-e2e-tests-min-32-chars
-
-      - name: 📊 Upload Playwright Report
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-
-  # ──────────────────────────────────────────────────────────────
-  # JOB 5: Security Audit
-  # ──────────────────────────────────────────────────────────────
-  security-audit:
-    name: 🔒 Security Audit
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 🔒 Run npm audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: 🔍 Check for vulnerable dependencies
-        run: npx audit-ci --high
-
-  # ──────────────────────────────────────────────────────────────
-  # JOB 6: Docker Build (on main branch only)
-  # ──────────────────────────────────────────────────────────────
-  docker-build:
-    name: 🐳 Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: [build, e2e-tests, security-audit]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🔐 Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏗️ Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/edupilot:latest
-            ${{ secrets.DOCKER_USERNAME }}/edupilot:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/edupilot:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/edupilot:buildcache,mode=max
+          provenance: mode=max
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # ──────────────────────────────────────────────────────────────
-  # JOB 7: Deploy to Production (manual trigger)
-  # ──────────────────────────────────────────────────────────────
-  deploy-production:
-    name: 🚀 Deploy to Production
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 3. Scan published image (Trivy → SARIF)
+  # ─────────────────────────────────────────────────────────────────────────
+  image-scan:
+    name: Trivy Image Scan
     runs-on: ubuntu-latest
-    needs: [docker-build]
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    
+    needs: [docker]
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🚀 Deploy to server
-        run: |
-          echo "🚀 Déploiement en production..."
-          # Ajouter ici les commandes de déploiement spécifiques
-          # Exemples:
-          # - SSH vers serveur et docker-compose pull + restart
-          # - Deployment sur Vercel/Railway/Render
-          # - Kubernetes deployment
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-image.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 4. Lighthouse perf budget on preview / staging
+  # ─────────────────────────────────────────────────────────────────────────
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: ${{ github.event_name == 'push' || github.event.inputs.environment == 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lighthouse CI (existing workflow keeps detailed config)
+        run: npx --yes @lhci/cli autorun --upload.target=temporary-public-storage
         env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
+        continue-on-error: true
 
-      - name: ✅ Deployment Success
+  # ─────────────────────────────────────────────────────────────────────────
+  # 5. Deploy to staging (auto) — production needs manual approval
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: [image-scan]
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run database migrations (deploy)
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: Deploy image (placeholder — customise per target)
         run: |
-          echo "✅ Déploiement réussi!"
-          echo "🌐 Application disponible sur: ${{ secrets.PRODUCTION_URL }}"
+          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} to STAGING"
+          # Examples by target:
+          #   Vercel:    vercel deploy --prod --token=$VERCEL_TOKEN
+          #   Railway:   railway up --service edupilot
+          #   K8s:       kubectl set image deploy/edupilot app=$IMAGE && kubectl rollout status
+          #   Compose:   ssh staging "docker pull $IMAGE && docker compose up -d"
+        env:
+          DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+
+      - name: Smoke test (health endpoint)
+        run: |
+          set -e
+          URL="${{ vars.STAGING_URL }}/api/health"
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "Health OK (200)"
+              exit 0
+            fi
+            echo "Attempt $i: $code — retrying in 10s"
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+
+  deploy-production:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production' }}
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: Deploy image
+        run: |
+          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} to PRODUCTION"
+        env:
+          DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
+
+      - name: Smoke test
+        run: |
+          set -e
+          URL="${{ vars.PRODUCTION_URL }}/api/health"
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "Health OK (200)"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Notify Sentry of release
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://sentry.io/api/0/organizations/${{ vars.SENTRY_ORG }}/releases/" \
+            -d '{"version":"${{ github.sha }}","projects":["${{ vars.SENTRY_PROJECT }}"]}'
+        continue-on-error: true

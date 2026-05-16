@@ -1,0 +1,48 @@
+name: Feature request
+description: Proposer une nouvelle fonctionnalité
+title: "feat: "
+labels: ["enhancement", "needs-product-review"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème utilisateur
+      description: Quel besoin métier ou point de douleur tente-t-on de résoudre ?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposition
+      description: Comment imagines-tu la solution ? (UI, comportement, données)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: persona
+    attributes:
+      label: Persona principal
+      options:
+        - SUPER_ADMIN
+        - SCHOOL_ADMIN
+        - DIRECTOR
+        - TEACHER
+        - STUDENT
+        - PARENT
+        - ACCOUNTANT
+        - STAFF
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives évaluées
+      description: Autres approches considérées et pourquoi écartées
+
+  - type: textarea
+    id: success
+    attributes:
+      label: Critères de succès
+      description: Comment saura-t-on que c'est livré ? (KPI, acceptation)

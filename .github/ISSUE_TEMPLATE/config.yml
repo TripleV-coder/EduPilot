@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sécurité - Vulnérabilité
+    url: https://github.com/triple-v/edupilot/security/advisories/new
+    about: Signaler une faille de sécurité (canal privé)
+  - name: Question / Support
+    url: https://github.com/triple-v/edupilot/discussions
+    about: Pour les questions, utiliser Discussions

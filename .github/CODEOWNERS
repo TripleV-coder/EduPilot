@@ -1,0 +1,15 @@
+# Default reviewers for any change
+*                              @triple-v
+
+# Critical infrastructure (require two reviewers)
+/.github/                      @triple-v
+/prisma/                       @triple-v
+/src/lib/auth/                 @triple-v
+/src/lib/rbac/                 @triple-v
+/src/lib/security/             @triple-v
+/src/lib/api/api-helpers.ts    @triple-v
+/src/middleware.ts             @triple-v
+
+# Documentation
+/docs/                         @triple-v
+/README.md                     @triple-v

@@ -1,0 +1,92 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Conventional commits: enforce title prefix (feat/fix/chore/docs/...)
+  # ─────────────────────────────────────────────────────────────────────────
+  semantic-title:
+    name: Semantic PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+            perf
+            build
+            revert
+            style
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" must start with a lowercase character.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PR size check (warn at >500 LOC, fail at >1500 LOC excluding generated)
+  # ─────────────────────────────────────────────────────────────────────────
+  size-check:
+    name: PR size guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute PR diff size
+        id: size
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          # Exclude lockfiles, generated, and big binary fixtures
+          changed=$(git diff --numstat "$BASE" "$HEAD" -- \
+            ':!package-lock.json' \
+            ':!**/*.snap' \
+            ':!**/__generated__/**' \
+            ':!**/*.pdf' \
+            ':!**/*.svg' \
+            | awk '{ add += $1; del += $2 } END { print (add + del) }')
+          echo "lines=$changed" >> "$GITHUB_OUTPUT"
+          echo "PR changes $changed lines (non-generated)"
+
+      - name: Fail if PR is too large
+        if: ${{ steps.size.outputs.lines > 1500 }}
+        run: |
+          echo "PR exceeds 1500 lines of changes — please split."
+          exit 1
+
+      - name: Warn if PR is large
+        if: ${{ steps.size.outputs.lines > 500 && steps.size.outputs.lines <= 1500 }}
+        run: echo "::warning::PR is large (${{ steps.size.outputs.lines }} lines). Consider splitting."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Secret scanning on PR diff
+  # ─────────────────────────────────────────────────────────────────────────
+  secrets-scan:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

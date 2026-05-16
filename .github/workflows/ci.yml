@@ -1,37 +1,39 @@
-# CI : tests, type-check, lint
 name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION_DEFAULT: "20"
+  NEXT_TELEMETRY_DISABLED: "1"
+  SKIP_ENV_VALIDATION: "true"
 
 jobs:
-  test:
+  # ─────────────────────────────────────────────────────────────────────────
+  # 1. Lint + Type-check (matrix Node 20/22)
+  # ─────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Type-check
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: pass
-          POSTGRES_DB: edupilot
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
           cache: "npm"
 
       - name: Install dependencies
@@ -42,51 +44,187 @@ jobs:
         env:
           DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
 
-      - name: Run unit & integration tests
-        run: npm run test
-        env:
-          NODE_ENV: "test"
-          NEXTAUTH_SECRET: "test-secret-at-least-32-characters-long"
-          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
-          # Clé de test pour le chiffrement TOTP (32 octets hex)
-          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      - name: ESLint
+        run: npm run lint
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests
-        run: npm run test:e2e
-        env:
-          NODE_ENV: "test"
-          NEXTAUTH_SECRET: "test-secret-at-least-32-characters-long"
-          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
-          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-
-      - name: Type check
+      - name: TypeScript strict check
         run: npm run type-check
-        env:
-          SKIP_ENV_VALIDATION: "true"
 
-  lint:
+  # ─────────────────────────────────────────────────────────────────────────
+  # 2. Unit + Integration Tests with coverage
+  # ─────────────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: edupilot
+          POSTGRES_PASSWORD: edupilot
+          POSTGRES_DB: edupilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://edupilot:edupilot@localhost:5432/edupilot_test
+      NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
+      TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      NODE_ENV: test
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-        env:
-          SKIP_ENV_VALIDATION: "true"
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
-  security:
+      - name: Run Vitest with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage/
+          retention-days: 14
+
+      - name: Upload to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 3. Next.js Build
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
+
+      - name: Build Next.js (production)
+        run: npm run build
+        env:
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
+          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build-${{ github.sha }}
+          path: |
+            .next
+            !.next/cache
+          retention-days: 3
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 4. E2E (Playwright)
+  # ─────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: edupilot
+          POSTGRES_PASSWORD: edupilot
+          POSTGRES_DB: edupilot_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://edupilot:edupilot@localhost:5432/edupilot_e2e
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
+      TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare database
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Seed test data
+        run: npm run db:seed
+        continue-on-error: true
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 5. Security: CodeQL, npm audit, Trivy filesystem scan, SBOM
+  # ─────────────────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -95,24 +233,118 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+          queries: security-extended
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
+
+  dependency-audit:
+    name: Dependency Audit (npm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
+      - name: npm audit (production deps, fail on high)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: License check (informational)
+        run: npx --yes license-checker --summary --production
+        continue-on-error: true
+
+  trivy:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-results.sarif
+          skip-dirs: node_modules,.next,playwright-report,test-results
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  sbom:
+    name: SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SBOM (CycloneDX JSON)
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --output-format json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.json
+          retention-days: 90
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 6. Quality gate (aggregates all required checks)
+  # ─────────────────────────────────────────────────────────────────────────
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, build, e2e, codeql, dependency-audit, trivy]
+    if: always()
+    steps:
+      - name: Verify all required checks passed
+        run: |
+          set -e
+          failed=0
+          check() {
+            local name=$1 result=$2
+            if [[ "$result" != "success" ]]; then
+              echo "FAIL: $name ($result)"
+              failed=1
+            else
+              echo "PASS: $name"
+            fi
+          }
+          check lint "${{ needs.lint.result }}"
+          check unit-tests "${{ needs.unit-tests.result }}"
+          check build "${{ needs.build.result }}"
+          check e2e "${{ needs.e2e.result }}"
+          check codeql "${{ needs.codeql.result }}"
+          check dependency-audit "${{ needs.dependency-audit.result }}"
+          check trivy "${{ needs.trivy.result }}"
+          if [[ $failed -eq 1 ]]; then
+            echo "Quality gate did not pass."
+            exit 1
+          fi
+          echo "All quality gates passed."
