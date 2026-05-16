@@ -19,27 +19,27 @@ const config: Config = {
   	extend: {
   		fontFamily: {
   			display: [
-  				'var(--font-display)',
+  				'var(--font-sans)',
   				'system-ui',
   				'sans-serif'
   			],
   			body: [
-  				'var(--font-body)',
+  				'var(--font-sans)',
   				'system-ui',
   				'sans-serif'
   			],
   			ui: [
-  				'var(--font-ui)',
+  				'var(--font-sans)',
   				'system-ui',
   				'sans-serif'
   			],
   			sans: [
-  				'var(--font-body)',
+  				'var(--font-sans)',
   				'system-ui',
   				'sans-serif'
   			],
   			heading: [
-  				'var(--font-display)',
+  				'var(--font-sans)',
   				'system-ui',
   				'sans-serif'
   			],
@@ -49,6 +49,30 @@ const config: Config = {
   			]
   		},
   		colors: {
+  			brand: {
+  				'50':  'var(--brand-50)',
+  				'100': 'var(--brand-100)',
+  				'200': 'var(--brand-200)',
+  				'300': 'var(--brand-300)',
+  				'400': 'var(--brand-400)',
+  				'500': 'var(--brand-500)',
+  				'600': 'var(--brand-600)',
+  				'700': 'var(--brand-700)',
+  				'800': 'var(--brand-800)',
+  				'900': 'var(--brand-900)',
+  				accent: 'var(--brand-accent-600)',
+  				DEFAULT: 'var(--brand-600)',
+  			},
+  			eduflow: {
+  				canvas:   'var(--eduflow-surface-page)',
+  				surface:  'var(--eduflow-surface-card)',
+  				sunken:   'var(--eduflow-surface-sunken)',
+  				ink:      'var(--eduflow-text-primary)',
+  				'ink-soft':  'var(--eduflow-text-secondary)',
+  				'ink-muted': 'var(--eduflow-text-tertiary)',
+  				border:        'var(--eduflow-border-default)',
+  				'border-soft': 'var(--eduflow-border-subtle)',
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -200,7 +224,12 @@ const config: Config = {
   			xl: 'var(--radius-xl)',
   			'2xl': 'var(--radius-2xl)',
   			'3xl': 'var(--radius-3xl)',
-  			full: 'var(--radius-full)'
+  			full: 'var(--radius-full)',
+  			chip:  'var(--eduflow-radius-chip)',
+  			input: 'var(--eduflow-radius-input)',
+  			soft:  'var(--eduflow-radius-soft)',
+  			card:  'var(--eduflow-radius-card)',
+  			pill:  'var(--eduflow-radius-pill)'
   		},
   		boxShadow: {
   			xs: 'var(--shadow-xs)',
@@ -213,7 +242,15 @@ const config: Config = {
   			'glow-secondary': 'var(--shadow-glow-secondary)',
   			'glow-accent': 'var(--shadow-glow-accent)',
   			'glow-sm': 'var(--shadow-glow-primary)',
-  			'glow-md': 'var(--shadow-glow-secondary)'
+  			'glow-md': 'var(--shadow-glow-secondary)',
+  			'eduflow-sm':         'var(--eduflow-shadow-sm)',
+  			'eduflow-card':       'var(--eduflow-shadow-card)',
+  			'eduflow-card-brand': 'var(--eduflow-shadow-card-brand)',
+  			'eduflow-cta':        'var(--eduflow-shadow-cta)',
+  			'eduflow-lg':         'var(--eduflow-shadow-lg)',
+  			'eduflow-overlay':    'var(--eduflow-shadow-overlay)',
+  			cta:                  'var(--eduflow-shadow-cta)',
+  			'card-brand':         'var(--eduflow-shadow-card-brand)'
   		},
   		keyframes: {
   			'accordion-down': {

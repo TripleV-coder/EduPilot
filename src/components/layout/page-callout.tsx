@@ -31,7 +31,7 @@ export function PageCallout({
     info: "bg-primary/5 border-primary/15",
     warning: "bg-amber-500/5 border-amber-500/20",
     danger: "bg-destructive/5 border-destructive/20",
-    success: "bg-emerald-500/5 border-emerald-500/20",
+    success: "bg-blue-500/5 border-blue-500/20",
   };
 
   const iconClasses: Record<typeof tone, string> = {
@@ -39,7 +39,7 @@ export function PageCallout({
     info: "text-primary",
     warning: "text-amber-600",
     danger: "text-destructive",
-    success: "text-emerald-600",
+    success: "text-blue-600",
   };
 
   return (

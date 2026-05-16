@@ -1,1 +1,10 @@
-// Components will be added here later
+export { HeroSection } from "./HeroSection";
+export { ProductScreenshotSection } from "./ProductScreenshotSection";
+export { Navbar } from "./Navbar";
+export { StatsSection } from "./StatsSection";
+export { FeaturesSection } from "./FeaturesSection";
+export { PricingSection } from "./PricingSection";
+export { TestimonialsSection } from "./TestimonialsSection";
+export { FAQSection } from "./FAQSection";
+export { FooterSection } from "./FooterSection";
+export { SectionHeader } from "./SectionHeader";

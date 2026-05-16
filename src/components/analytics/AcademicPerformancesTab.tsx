@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { 
-    GraduationCap, BookOpen, TrendingUp, Users, 
+    GraduationCap, BookOpen, Users, 
     ArrowRight, ScatterChart as ScatterIcon, User
 } from "lucide-react";
 import { 
@@ -71,13 +72,17 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
         }
     ];
 
-    // Mock Value Added Data
     const scatterData = useMemo(() => {
         if (!classData?.studentRanking) return [];
+        const cohortAverage =
+            classData.studentRanking.length > 0
+                ? classData.studentRanking.reduce((sum: number, student: any) => sum + Number(student.average || 0), 0) /
+                  classData.studentRanking.length
+                : 0;
         return classData.studentRanking.map((s: any) => ({
             name: s.name,
-            x: 8 + Math.random() * 8, // Initial level mock
-            y: -2 + Math.random() * 6, // Added value mock
+            x: Number(s.average || 0),
+            y: Number((Number(s.average || 0) - cohortAverage).toFixed(2)),
             average: s.average
         }));
     }, [classData]);
@@ -145,9 +150,12 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="flex items-center gap-2">
                         <div className="h-px flex-1 bg-border" />
-                        <Badge variant="secondary" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border-primary/20">
-                            Focus Matière : {classData?.subjectSummary?.find((s:any) => s.subjectId === selectedSubjectId)?.name}
-                        </Badge>
+                        <Link href={`/dashboard/analytics/class/${selectedClassId}/subject/${selectedSubjectId}`}>
+                            <Badge variant="secondary" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors gap-2">
+                                Focus Matière : {classData?.subjectSummary?.find((s:any) => s.subjectId === selectedSubjectId)?.name}
+                                <ArrowRight className="w-3 h-3" />
+                            </Badge>
+                        </Link>
                         <div className="h-px flex-1 bg-border" />
                     </div>
 
@@ -167,9 +175,9 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                         <Card className="dashboard-block border-border h-[300px]">
                             <CardHeader className="pb-2"><CardTitle className="text-[11px] uppercase font-black text-muted-foreground">Classement vs Établissement</CardTitle></CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[220px] text-center">
-                                <TrendingUp className="w-12 h-12 text-primary/20 mb-4" />
-                                <div className="text-4xl metric-serif italic">#2</div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase mt-2">Sur 8 classes du même niveau</p>
+                                <div className="w-full h-full">
+                                    <TrendLineChart data={classData?.monthlyTrend || []} />
+                                </div>
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
@@ -178,22 +186,25 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 border-2 border-primary/20">
                                     <User className="w-8 h-8 text-primary/40" />
                                 </div>
-                                <div className="font-bold text-sm">M. Jean-Luc DUPONT</div>
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Agrégé en Mathématiques</p>
-                                <Badge variant="outline" className="mt-4 text-[9px] font-bold">Voir profil complet</Badge>
+                                <div className="font-bold text-sm">{subjectData?.teacherName || "Non assigné"}</div>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
+                                    {classData?.subjectSummary?.find((s:any) => s.subjectId === selectedSubjectId)?.name || "Matière"}
+                                </p>
+                                <Badge variant="outline" className="mt-4 text-[9px] font-bold">
+                                    Données backend
+                                </Badge>
                             </CardContent>
                         </Card>
                     </div>
                 </div>
             )}
 
-            {/* Value Added Scatter Plot */}
             <Card className="dashboard-block border-border" data-reveal>
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className="text-sm font-bold uppercase tracking-tight">Analyse de la Valeur Ajoutée</CardTitle>
-                            <CardDescription className="text-[10px]">Niveau initial vs Progression réalisée (Quadrants)</CardDescription>
+                            <CardTitle className="text-sm font-bold uppercase tracking-tight">Positionnement des élèves</CardTitle>
+                            <CardDescription className="text-[10px]">Moyenne individuelle vs écart à la moyenne de classe</CardDescription>
                         </div>
                         <ScatterIcon className="w-4 h-4 text-muted-foreground/50" />
                     </div>
@@ -202,8 +213,8 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                     <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                            <XAxis type="number" dataKey="x" name="Niveau Initial" unit="/20" domain={[0, 20]} tick={{ fontSize: 10 }} />
-                            <YAxis type="number" dataKey="y" name="Valeur Ajoutée" unit="pts" domain={[-5, 5]} tick={{ fontSize: 10 }} />
+                            <XAxis type="number" dataKey="x" name="Moyenne" unit="/20" domain={[0, 20]} tick={{ fontSize: 10 }} />
+                            <YAxis type="number" dataKey="y" name="Écart à la classe" unit="pts" domain={[-5, 5]} tick={{ fontSize: 10 }} />
                             <ZAxis type="number" dataKey="average" range={[50, 400]} />
                             <Tooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Élèves" data={scatterData}>
@@ -211,11 +222,6 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                                     <Cell key={`cell-${index}`} fill={entry.y >= 0 ? "hsl(var(--primary))" : "hsl(var(--destructive))"} />
                                 ))}
                             </Scatter>
-                            {/* Quadrant labels */}
-                            <text x="75%" y="25%" textAnchor="middle" fill="hsl(var(--primary))" fontSize="10" fontWeight="bold" opacity={0.4}>EXCELLENCE</text>
-                            <text x="25%" y="25%" textAnchor="middle" fill="hsl(var(--primary))" fontSize="10" fontWeight="bold" opacity={0.4}>FORTE PROGRESSION</text>
-                            <text x="25%" y="75%" textAnchor="middle" fill="hsl(var(--destructive))" fontSize="10" fontWeight="bold" opacity={0.4}>ALERTE DÉCROCHAGE</text>
-                            <text x="75%" y="75%" textAnchor="middle" fill="hsl(var(--warning))" fontSize="10" fontWeight="bold" opacity={0.4}>SOUS-PERFORMANCE</text>
                         </ScatterChart>
                     </ResponsiveContainer>
                 </CardContent>

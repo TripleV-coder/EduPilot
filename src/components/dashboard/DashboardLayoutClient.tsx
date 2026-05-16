@@ -7,6 +7,8 @@ import useSWR from "swr";
 
 import { usePathname } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 
 type SidebarContextType = {
     isOpen: boolean;
@@ -131,12 +133,10 @@ export function DashboardLayoutClient({
         const savedFocus = localStorage.getItem("edupilot-focus-mode");
 
         if (!savedDensity && (appearance.density === "comfort" || appearance.density === "dense")) {
-            setDensity(appearance.density);
             localStorage.setItem("edupilot-density", appearance.density);
         }
 
         if (!savedFocus && typeof appearance.focusMode === "boolean") {
-            setIsFocusMode(appearance.focusMode);
             localStorage.setItem("edupilot-focus-mode", String(appearance.focusMode));
         }
 
@@ -287,19 +287,6 @@ export function DashboardLayoutClient({
         );
     }, [pathname]);
 
-    useEffect(() => {
-        const main = mainRef.current;
-        if (!main) return;
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-        main.animate(
-            [
-                { opacity: 0.8, transform: "translate3d(0, 10px, 0)" },
-                { opacity: 1, transform: "translate3d(0, 0, 0)" },
-            ],
-            { duration: 260, easing: "cubic-bezier(0.16,1,0.3,1)" }
-        );
-    }, [pathname]);
-
     return (
         <SidebarContext.Provider value={contextValue}>
             <div
@@ -338,6 +325,8 @@ export function DashboardLayoutClient({
                     <main
                         ref={mainRef}
                         id="main-content"
+                        role="main"
+                        aria-label="Contenu principal"
                         className={cn(
                             "dashboard-motion flex-1 overflow-y-auto w-full custom-scrollbar",
                             density === "dense" ? "p-3 md:p-4" : "p-4 md:p-8"
@@ -345,7 +334,9 @@ export function DashboardLayoutClient({
                     >
                         {children}
                     </main>
+                    <DashboardFooter />
                 </div>
+                <OnboardingChecklist />
             </div>
         </SidebarContext.Provider>
     );

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import {
   BarChart,
   Bar,
@@ -39,8 +40,6 @@ interface MultiClassComparisonProps {
   academicYearId: string;
   initialSelectedClasses?: string[];
 }
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function MultiClassComparison({
   classes,
@@ -134,8 +133,8 @@ export function MultiClassComparison({
               <YAxis label={{ value: "Moyennes / Taux (%)", angle: -90, position: "insideLeft" }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="Moyenne" fill="#3b82f6" />
-              <Bar dataKey="Taux réussite" fill="#10b981" />
+              <Bar dataKey="Moyenne" fill="hsl(var(--primary))" />
+              <Bar dataKey="Taux réussite" fill="hsl(var(--success))" />
             </BarChart>
           </ResponsiveContainer>
         )}

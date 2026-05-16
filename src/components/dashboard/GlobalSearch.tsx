@@ -32,6 +32,34 @@ type QuickCommand = {
 const COMMAND_USAGE_KEY = "edupilot_command_usage_v1";
 type CommandUsageMap = Record<string, { count: number; lastUsedAt: number }>;
 
+function CommandGroupList({ 
+  heading, 
+  commands, 
+  onSelect,
+  showSeparator = true
+}: { 
+  heading: string; 
+  commands: QuickCommand[]; 
+  onSelect: (command: QuickCommand) => void;
+  showSeparator?: boolean;
+}) {
+  if (commands.length === 0) return null;
+  return (
+    <>
+      <CommandGroup heading={heading}>
+        {commands.map((command) => (
+          <CommandItem key={command.id} onSelect={() => onSelect(command)}>
+            <command.icon className="mr-2 h-4 w-4" />
+            <span>{command.label}</span>
+            {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
+          </CommandItem>
+        ))}
+      </CommandGroup>
+      {showSeparator && <CommandSeparator />}
+    </>
+  );
+}
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [commandUsage, setCommandUsage] = useState<CommandUsageMap>(() => {
@@ -301,88 +329,41 @@ export function GlobalSearch() {
 
   return (
     <>
-      <div 
+      <div
         className="hidden lg:flex items-center flex-1 max-w-md relative group cursor-pointer"
         onClick={() => setOpen(true)}
       >
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
         <Input
-          
-          className="h-8 pl-9 pr-12 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/30 text-xs transition-all w-full cursor-pointer pointer-events-none"
+          aria-label={t("globalSearch.inputLabel")}
+          placeholder={t("globalSearch.placeholder")}
+          onFocus={() => setOpen(true)}
+          className="h-8 pl-9 pr-12 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/30 text-xs transition-all w-full cursor-pointer"
           readOnly
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border bg-background text-[10px] text-muted-foreground font-mono pointer-events-none">
           <span className="text-[9px]" suppressHydrationWarning>{isMac ? '⌘' : 'Ctrl'}</span>K
         </div>
       </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={t("globalSearch.openLabel")}
+        className="lg:hidden inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Search className="h-4 w-4" />
+      </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput />
         <CommandList className="max-h-[400px]">
           <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
 
-          {historyCommands.length > 0 && (
-            <>
-              <CommandGroup heading={t("globalSearch.groups.recents")}>
-                {historyCommands.map((command) => (
-                  <CommandItem key={command.id} onSelect={() => runCommand(command)}>
-                    <command.icon className="mr-2 h-4 w-4" />
-                    <span>{command.label}</span>
-                    {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-            </>
-          )}
-
-          {contextualCommands.length > 0 && (
-            <>
-              <CommandGroup heading="Contexte">
-                {contextualCommands.map((command) => (
-                  <CommandItem key={command.id} onSelect={() => runCommand(command)}>
-                    <command.icon className="mr-2 h-4 w-4" />
-                    <span>{command.label}</span>
-                    {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-            </>
-          )}
-
-          <CommandGroup heading="Actions Rapides">
-            {filteredCommands.filter((c) => c.group === "actions").map((command) => (
-              <CommandItem key={command.id} onSelect={() => runCommand(command)}>
-                <command.icon className="mr-2 h-4 w-4" />
-                <span>{command.label}</span>
-                {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-
-          <CommandSeparator />
-
-          <CommandGroup heading="Navigation">
-            {filteredCommands.filter((c) => c.group === "navigation").map((command) => (
-              <CommandItem key={command.id} onSelect={() => runCommand(command)}>
-                <command.icon className="mr-2 h-4 w-4" />
-                <span>{command.label}</span>
-                {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-
-          <CommandSeparator />
-
-          <CommandGroup heading={t("globalSearch.groups.settings")}>
-            {filteredCommands.filter((c) => c.group === "settings").map((command) => (
-              <CommandItem key={command.id} onSelect={() => runCommand(command)}>
-                <command.icon className="mr-2 h-4 w-4" />
-                <span>{command.label}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          <CommandGroupList heading={t("globalSearch.groups.recents")} commands={historyCommands} onSelect={runCommand} />
+          <CommandGroupList heading={t("globalSearch.groups.context")} commands={contextualCommands} onSelect={runCommand} />
+          <CommandGroupList heading={t("globalSearch.groups.quickActions")} commands={filteredCommands.filter((c) => c.group === "actions")} onSelect={runCommand} />
+          <CommandGroupList heading={t("globalSearch.groups.navigation")} commands={filteredCommands.filter((c) => c.group === "navigation")} onSelect={runCommand} />
+          <CommandGroupList heading={t("globalSearch.groups.settings")} commands={filteredCommands.filter((c) => c.group === "settings")} onSelect={runCommand} showSeparator={false} />
         </CommandList>
       </CommandDialog>
     </>

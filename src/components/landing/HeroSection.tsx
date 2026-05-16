@@ -1,8 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Canvas } from "@react-three/fiber";
-import { FloatingGeometry, DataOrbs } from "@/components/three";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -37,18 +35,6 @@ export function HeroSection() {
 
     return (
         <section className="relative min-h-screen pt-32 pb-20 overflow-hidden flex items-center bg-background">
-            {/* Background with ThreeJS */}
-            {isMounted && (
-                <div className="absolute inset-0 z-0 opacity-40">
-                    <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
-                        <ambientLight intensity={0.5} />
-                        <directionalLight position={[10, 10, 5]} intensity={1} />
-                        <DataOrbs count={30} />
-                        <FloatingGeometry />
-                    </Canvas>
-                </div>
-            )}
-
             <div className="container mx-auto px-6 relative z-10">
                 <div className="max-w-4xl mx-auto text-center">
                     <motion.div
@@ -101,7 +87,15 @@ export function HeroSection() {
                         transition={{ duration: 0.5, delay: 0.3 }}
                         className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
                     >
-                        <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300 group text-primary-foreground" asChild>
+                        <Button
+                            size="lg"
+                            className="w-full sm:w-auto h-14 px-8 text-base text-white hover:brightness-110 transition-all duration-300 group"
+                            style={{
+                                background: "var(--gradient-cta)",
+                                boxShadow: "var(--eduflow-shadow-cta)",
+                            }}
+                            asChild
+                        >
                             <Link href={isAuthenticated ? "/dashboard" : "/login"}>
                                 {isAuthenticated ? t("landing.hero.dashboardCta") : t("landing.cta.access")}
                                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

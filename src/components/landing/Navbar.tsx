@@ -19,6 +19,9 @@ export function Navbar() {
                     <span className="font-display font-bold text-xl tracking-tight">EduPilot</span>
                 </Link>
                 <div className="hidden md:flex items-center gap-8">
+                    <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
+                    <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
+                    <a href="#faq" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
                     <Link href="/explorer" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Explorer 3D</Link>
                 </div>
                 <div className="flex items-center gap-4">
@@ -26,7 +29,7 @@ export function Navbar() {
                         <div className="h-9 w-[180px] rounded-md bg-muted/40 animate-pulse" />
                     ) : isAuthenticated ? (
                         <Button className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" asChild>
-                            <Link href="/dashboard">Acceder au dashboard</Link>
+                            <Link href="/dashboard">Accéder au dashboard</Link>
                         </Button>
                     ) : (
                         <>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import {
   ComposedChart,
   Bar,
@@ -36,8 +37,6 @@ interface PeriodComparisonProps {
   classId: string;
   periods: Array<{ id: string; name: string }>;
 }
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function PeriodComparison({
   academicYearId,
@@ -117,9 +116,9 @@ export function PeriodComparison({
               <YAxis yAxisId="right" orientation="right" label={{ value: "Effectif", angle: 90, position: "insideRight" }} />
               <Tooltip />
               <Legend />
-              <Bar yAxisId="left" dataKey="Moyenne" fill="#3b82f6" />
-              <Bar yAxisId="left" dataKey="Taux réussite" fill="#10b981" />
-              <Line yAxisId="right" type="monotone" dataKey="Effectif" stroke="#f59e0b" strokeWidth={2} />
+              <Bar yAxisId="left" dataKey="Moyenne" fill="hsl(var(--primary))" />
+              <Bar yAxisId="left" dataKey="Taux réussite" fill="hsl(var(--success))" />
+              <Line yAxisId="right" type="monotone" dataKey="Effectif" stroke="hsl(var(--warning))" strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         )}

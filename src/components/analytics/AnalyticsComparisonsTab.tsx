@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiClassComparison } from "@/components/analytics/MultiClassComparison";
 import { PeriodComparison } from "@/components/analytics/PeriodComparison";
+import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Scale, GitCompare, Calendar } from "lucide-react";
 
@@ -16,6 +17,19 @@ interface AnalyticsComparisonsTabProps {
 
 export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: AnalyticsComparisonsTabProps) {
     const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || "");
+
+    if (!classes?.length) {
+        return (
+            <AnalyticsEmptyState
+                title="Aucune classe disponible pour les comparaisons"
+                description="Créez ou synchronisez des classes pour activer les analyses inter-classes et inter-periodes."
+                primaryLabel="Créer une classe"
+                primaryHref="/dashboard/classes/new"
+                secondaryLabel="Paramètres académiques"
+                secondaryHref="/dashboard/settings/academic"
+            />
+        );
+    }
 
     return (
         <div className="space-y-6">

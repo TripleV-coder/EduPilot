@@ -52,7 +52,7 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
         const gradeCount = ev.grades?.length || 0;
         // Logic for status
         const status = gradeCount === 0 ? "Brouillon" : "Clôturée"; // Simplified for now
-        const statusColor = gradeCount === 0 ? "bg-muted text-muted-foreground" : "bg-emerald-500/10 text-emerald-600";
+        const statusColor = gradeCount === 0 ? "bg-muted text-muted-foreground" : "bg-blue-500/10 text-blue-600";
         const statusIcon = gradeCount === 0 ? Clock : CheckCircle2;
 
         return (

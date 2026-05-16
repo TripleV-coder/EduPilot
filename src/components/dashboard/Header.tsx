@@ -137,8 +137,8 @@ export function Header() {
         <header className={cn(
             "sticky top-0 z-30 h-[52px] w-full border-b flex items-center justify-between px-4 gap-4 shrink-0 transition-all duration-200",
             isElevated
-                ? "bg-white border-[#E8E7E4] shadow-[0_8px_16px_hsl(24_8%_12%_/_0.08)]"
-                : "bg-white border-[#E8E7E4]"
+                ? "bg-[hsl(var(--surface-base))] border-[hsl(var(--border))] shadow-[0_8px_16px_hsl(24_8%_12%_/_0.08)]"
+                : "bg-[hsl(var(--surface-base))] border-[hsl(var(--border))]"
         )}>
             <div className="flex items-center gap-3 flex-1 overflow-hidden">
                 {/* Hamburger / Toggle */}
@@ -158,17 +158,17 @@ export function Header() {
                 </Button>
 
                 {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center gap-1 text-[13px] text-[#9A9A92] overflow-hidden whitespace-nowrap">
-                    <Link href="/dashboard" className="hover:text-[#2A2A28] transition-colors">Tableau de bord</Link>
+                <nav className="hidden sm:flex items-center gap-1 text-[13px] text-text-tertiary overflow-hidden whitespace-nowrap">
+                    <Link href="/dashboard" className="hover:text-text-primary transition-colors">Tableau de bord</Link>
                     {breadcrumbs.map((bc, idx) => {
                         if (!bc) return null;
                         return (
                             <div key={bc.href || idx} className="flex items-center gap-1">
                                 {idx > 0 && <ChevronRight className="w-3.5 h-3.5 mx-1" />}
                                 {bc.isLast ? (
-                                    <span className="text-[#2A2A28] font-medium truncate">{bc.label}</span>
+                                    <span className="text-text-primary font-medium truncate">{bc.label}</span>
                                 ) : (
-                                    <Link href={bc.href || "#"} className="hover:text-[#2A2A28] transition-colors truncate">{bc.label}</Link>
+                                    <Link href={bc.href || "#"} className="hover:text-text-primary transition-colors truncate">{bc.label}</Link>
                                 )}
                             </div>
                         );
@@ -183,7 +183,7 @@ export function Header() {
             <div className="flex items-center gap-1 sm:gap-3 shrink-0">
                 {/* Contexte Période */}
                 {currentPeriodName && (
-                    <div className="hidden md:flex items-center h-7 px-3 rounded-full bg-[#EEF7F3] border border-[#B8DFC8] text-[11px] font-medium text-[#2D6A4F]">
+                    <div className="hidden md:flex items-center h-7 px-3 rounded-full bg-[hsl(var(--primary-50))] border border-[hsl(var(--primary-200))] text-[11px] font-medium text-[hsl(var(--primary-700))]">
                         {currentPeriodName}
                     </div>
                 )}
@@ -197,7 +197,7 @@ export function Header() {
                             }}
                             disabled={isSwitchingSchool}
                         >
-                            <SelectTrigger className="h-8 bg-[#F7F7F5] border-[#E1E0DB] text-xs">
+                            <SelectTrigger className="h-8 bg-[hsl(var(--surface-ground))] border-[hsl(var(--border))] text-xs">
                                 <SelectValue placeholder="Choisir un établissement" />
                             </SelectTrigger>
                             <SelectContent>
@@ -217,8 +217,10 @@ export function Header() {
                 )}
 
                 {/* Messages */}
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <Mail className="w-4 h-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" asChild>
+                    <Link href="/dashboard/messages" aria-label="Ouvrir la messagerie">
+                        <Mail className="w-4 h-4" />
+                    </Link>
                 </Button>
 
                 {/* Densité */}
@@ -247,9 +249,13 @@ export function Header() {
                 <NotificationCenter />
 
                 {/* User Avatar */}
-                <div className="h-7 w-7 rounded-full bg-[#EEF7F3] text-[#1A4535] flex items-center justify-center text-[11px] font-bold border border-[#B8DFC8] shrink-0 cursor-pointer hover:bg-[#E4F2EB] transition-colors ml-1">
+                <Link
+                    href="/dashboard/settings/profile"
+                    aria-label="Ouvrir le profil utilisateur"
+                    className="h-7 w-7 rounded-full bg-[hsl(var(--primary-50))] text-[hsl(var(--primary-700))] flex items-center justify-center text-[11px] font-bold border border-[hsl(var(--primary-200))] shrink-0 cursor-pointer hover:bg-[hsl(var(--primary-100))] transition-colors ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
                     {initials}
-                </div>
+                </Link>
             </div>
         </header>
     );

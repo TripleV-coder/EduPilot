@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyStateAction } from "@/components/ui/empty-state";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -197,12 +198,29 @@ function SectionCard({
 function SummaryTable({
   rows,
   columns,
+  emptyTitle = "Aucune donnée disponible",
+  emptyDescription = "Aucune donnée disponible pour le moment.",
+  emptyHref,
+  emptyLabel,
 }: {
   rows: Array<Record<string, any>>;
   columns: Array<{ key: string; label: string; align?: "left" | "right" | "center" }>;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyHref?: string;
+  emptyLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucune donnée disponible.</p>;
+    return (
+      <EmptyStateAction
+        icon={AlertCircle}
+        title={emptyTitle}
+        description={emptyDescription}
+        actionLabel={emptyHref && emptyLabel ? emptyLabel : undefined}
+        actionHref={emptyHref}
+        telemetryKey="dashboard_summary_table_empty"
+      />
+    );
   }
 
   return (
@@ -324,7 +342,7 @@ function GlobalDashboard({ analytics }: { analytics: GlobalAnalytics }) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <QuickAction label="Établissements" icon={Building2} href="/dashboard/root-control/schools" color="text-blue-500" />
         <QuickAction label="Utilisateurs" icon={Users} href="/dashboard/root-control/users" color="text-purple-500" />
-        <QuickAction label="Monitoring" icon={Activity} href="/dashboard/root-control/monitoring" color="text-emerald-500" />
+        <QuickAction label="Monitoring" icon={Activity} href="/dashboard/root-control/monitoring" color="text-blue-600" />
         <QuickAction label="Journal infra" icon={ShieldAlert} href="/dashboard/root-control/logs" color="text-amber-500" />
       </div>
 
@@ -343,6 +361,10 @@ function GlobalDashboard({ analytics }: { analytics: GlobalAnalytics }) {
               { key: "city", label: "Ville" },
               { key: "action", label: "Action", align: "right" },
             ]}
+            emptyTitle="Aucun établissement récent"
+            emptyDescription="Créez un établissement pour démarrer la gestion multi-tenant."
+            emptyHref="/dashboard/root-control/schools"
+            emptyLabel="Créer / gérer les établissements"
           />
         </SectionCard>
       </div>
@@ -410,7 +432,7 @@ function AdminDashboard({ analytics }: { analytics: AdminAnalytics }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickAction label="Feuille d'appel" icon={UserCheck} href="/dashboard/attendance" color="text-emerald-500" />
+        <QuickAction label="Feuille d'appel" icon={UserCheck} href="/dashboard/attendance" color="text-blue-600" />
         <QuickAction label="Notes" icon={FileText} href="/dashboard/grades/entry" color="text-blue-500" />
         <QuickAction label="Messages" icon={MessageSquare} href="/dashboard/messages" color="text-purple-500" />
         <QuickAction label="Bulletins" icon={GraduationCap} href="/dashboard/grades/bulletins" color="text-amber-500" />
@@ -446,6 +468,10 @@ function AdminDashboard({ analytics }: { analytics: AdminAnalytics }) {
               { key: "studentCount", label: "Effectif", align: "center" },
               { key: "average", label: "Moyenne", align: "right" },
             ]}
+            emptyTitle="Aucune classe à afficher"
+            emptyDescription="Créez des classes et commencez la saisie des notes pour débloquer cette vue."
+            emptyHref="/dashboard/classes/new"
+            emptyLabel="Créer une classe"
           />
         </SectionCard>
         <SectionCard title="Élèves à risque" description="Priorités de suivi du moment">
@@ -461,6 +487,10 @@ function AdminDashboard({ analytics }: { analytics: AdminAnalytics }) {
               { key: "className", label: "Classe" },
               { key: "riskLevel", label: "Risque", align: "right" },
             ]}
+            emptyTitle="Aucun élève à risque détecté"
+            emptyDescription="Excellent signal. Continuez le suivi dans le module d'alertes."
+            emptyHref="/dashboard/alerts/risks"
+            emptyLabel="Ouvrir les alertes"
           />
         </SectionCard>
       </div>
@@ -479,7 +509,7 @@ function TeacherDashboard({ analytics }: { analytics: TeacherAnalytics }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickAction label="Faire l'appel" icon={UserCheck} href="/dashboard/attendance" color="text-emerald-500" />
+        <QuickAction label="Faire l'appel" icon={UserCheck} href="/dashboard/attendance" color="text-blue-600" />
         <QuickAction label="Saisir des notes" icon={FileText} href="/dashboard/grades/entry" color="text-blue-500" />
         <QuickAction label="Cours" icon={BookOpen} href="/dashboard/courses" color="text-amber-500" />
         <QuickAction label="Messages" icon={MessageSquare} href="/dashboard/messages" color="text-purple-500" />
@@ -509,6 +539,10 @@ function TeacherDashboard({ analytics }: { analytics: TeacherAnalytics }) {
             { key: "average", label: "Moyenne", align: "center" },
             { key: "riskLevel", label: "Risque", align: "right" },
           ]}
+          emptyTitle="Aucun élève prioritaire"
+          emptyDescription="Tous vos élèves sont stables actuellement. Continuez la surveillance."
+          emptyHref="/dashboard/alerts/risks"
+          emptyLabel="Consulter les alertes"
         />
       </SectionCard>
     </>
@@ -564,7 +598,7 @@ function ParentDashboard({ analytics }: { analytics: ParentAnalytics }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickAction label="Paiements" icon={DollarSign} href="/dashboard/finance" color="text-emerald-500" />
+        <QuickAction label="Paiements" icon={DollarSign} href="/dashboard/finance" color="text-blue-600" />
         <QuickAction label="Rendez-vous" icon={CalendarClock} href="/dashboard/appointments" color="text-blue-500" />
         <QuickAction label="Annonces" icon={MessageSquare} href="/dashboard/announcements" color="text-amber-500" />
         <QuickAction label="Messages" icon={MessageSquare} href="/dashboard/messages" color="text-purple-500" />
@@ -585,6 +619,8 @@ function ParentDashboard({ analytics }: { analytics: ParentAnalytics }) {
             { key: "myRank", label: "Rang", align: "center" },
             { key: "attendanceRate", label: "Présence", align: "right" },
           ]}
+          emptyTitle="Aucun enfant associé"
+          emptyDescription="Demandez au support ou à l'administration d'associer votre compte parent."
         />
       </SectionCard>
 
@@ -619,7 +655,7 @@ function AccountantDashboard({ analytics }: { analytics: AccountantAnalytics }) 
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickAction label="Frais & paiements" icon={DollarSign} href="/dashboard/finance" color="text-emerald-500" />
+        <QuickAction label="Frais & paiements" icon={DollarSign} href="/dashboard/finance" color="text-blue-600" />
         <QuickAction label="Gérer les frais" icon={CreditCard} href="/dashboard/finance/fees" color="text-blue-500" />
         <QuickAction label="Encaissement" icon={CheckCircle} href="/dashboard/finance/payments/new" color="text-amber-500" />
         <QuickAction label="Exports" icon={FileText} href="/dashboard/finance/export" color="text-purple-500" />
@@ -641,6 +677,10 @@ function AccountantDashboard({ analytics }: { analytics: AccountantAnalytics }) 
               { key: "label", label: "Statut" },
               { key: "value", label: "Volume", align: "right" },
             ]}
+            emptyTitle="Aucun statut disponible"
+            emptyDescription="Commencez à enregistrer les paiements pour obtenir la distribution."
+            emptyHref="/dashboard/finance/payments/new"
+            emptyLabel="Enregistrer un paiement"
           />
         </SectionCard>
       </div>
@@ -659,7 +699,7 @@ function StaffDashboard({ analytics }: { analytics: StaffAnalytics }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickAction label="Appels" icon={UserCheck} href="/dashboard/attendance" color="text-emerald-500" />
+        <QuickAction label="Appels" icon={UserCheck} href="/dashboard/attendance" color="text-blue-600" />
         <QuickAction label="Incidents" icon={ShieldAlert} href="/dashboard/incidents" color="text-red-500" />
         <QuickAction label="Élèves" icon={Users} href="/dashboard/students" color="text-blue-500" />
         <QuickAction label="Calendrier" icon={CalendarClock} href="/dashboard/calendar" color="text-purple-500" />
@@ -678,6 +718,10 @@ function StaffDashboard({ analytics }: { analytics: StaffAnalytics }) {
               { key: "name", label: "Classe" },
               { key: "studentCount", label: "Effectif", align: "right" },
             ]}
+            emptyTitle="Aucune classe disponible"
+            emptyDescription="Créez ou activez des classes pour visualiser les effectifs."
+            emptyHref="/dashboard/classes/new"
+            emptyLabel="Créer une classe"
           />
         </SectionCard>
       </div>

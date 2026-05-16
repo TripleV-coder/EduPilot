@@ -1,36 +1,63 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCcw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/lib/utils/logger";
 
 interface Props {
-    children?: ReactNode;
+    children: ReactNode;
     fallback?: ReactNode;
+    /** Nom du boundary pour les logs (ex: "DashboardLayout") */
     name?: string;
+    /** Lien du bouton "Accueil" (ex: "/" pour marketing, "/dashboard" pour app) */
+    homeHref?: string;
+    /** Libelle du bouton "Accueil" */
+    homeLabel?: string;
 }
 
 interface State {
     hasError: boolean;
-    error?: Error;
+    error: Error | null;
+    errorInfo: ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
     public state: State = {
         hasError: false,
+        error: null,
+        errorInfo: null,
     };
 
     public static getDerivedStateFromError(error: Error): State {
-        return { hasError: true, error };
+        return { hasError: true, error, errorInfo: null };
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error(`Uncaught error in ${this.props.name || "ErrorBoundary"}:`, error, errorInfo);
+        const boundaryName = this.props.name || "ErrorBoundary";
+
+        try {
+            if (typeof window !== "undefined") {
+                logger.error(`Erreur capturee dans ${boundaryName}`, error, {
+                    module: boundaryName,
+                    componentStack: errorInfo.componentStack,
+                });
+            }
+        } catch {
+            // Le logger ne doit pas casser le boundary
+            console.error(`Erreur non geree dans ${boundaryName}:`, error, errorInfo);
+        }
+
+        this.setState({ errorInfo });
     }
 
-    private handleRetry = () => {
-        this.setState({ hasError: false, error: undefined });
-        window.location.reload();
+    private handleReset = () => {
+        this.setState({ hasError: false, error: null, errorInfo: null });
+    };
+
+    private handleGoHome = () => {
+        window.location.href = this.props.homeHref ?? "/dashboard";
     };
 
     public render() {
@@ -40,33 +67,53 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-card/50 backdrop-blur-sm rounded-3xl border border-destructive/20 shadow-xl overflow-hidden relative">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-destructive/50" />
-                    <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-6">
-                        <AlertCircle className="w-8 h-8 text-destructive" />
-                    </div>
-                    <h2 className="text-xl font-bold text-foreground mb-3">
-                        Une erreur inattendue est survenue
-                    </h2>
-                    <p className="text-sm text-muted-foreground max-w-sm mb-8 leading-relaxed">
-                        Nous sommes désolés, une erreur technique s&apos;est produite lors du chargement de cette section. Notre équipe a été notifiée.
-                    </p>
-                    <Button
-                        onClick={this.handleRetry}
-                        className="h-12 px-8 rounded-full bg-primary hover:shadow-lg transition-all gap-2"
-                    >
-                        <RefreshCcw className="w-4 h-4" />
-                        Réessayer maintenant
-                    </Button>
-
-                    {process.env.NODE_ENV === "development" && (
-                        <div className="mt-8 p-6 bg-muted/50 rounded-2xl text-left border border-border/50 max-w-full">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Détails techniques (Dev Only)</p>
-                            <p className="text-sm font-medium text-destructive leading-relaxed font-sans">
-                                {this.state.error?.message}
-                            </p>
-                        </div>
-                    )}
+                <div className="min-h-[400px] flex items-center justify-center p-6">
+                    <Card className="max-w-lg w-full border-destructive/50 bg-destructive/5">
+                        <CardHeader className="text-center">
+                            <div className="mx-auto mb-4 p-3 rounded-full bg-destructive/10">
+                                <AlertTriangle className="h-8 w-8 text-destructive" />
+                            </div>
+                            <CardTitle className="text-destructive">
+                                Une erreur inattendue est survenue
+                            </CardTitle>
+                            <CardDescription>
+                                Nous nous excusons pour la gêne occasionnée.
+                                L&apos;erreur a été enregistrée automatiquement.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {process.env.NODE_ENV === "development" && this.state.error && (
+                                <div className="p-3 rounded-lg bg-muted text-xs font-mono overflow-auto max-h-32">
+                                    <p className="font-bold text-destructive">
+                                        {this.state.error.name}: {this.state.error.message}
+                                    </p>
+                                    {this.state.errorInfo && (
+                                        <pre className="mt-2 text-muted-foreground whitespace-pre-wrap">
+                                            {this.state.errorInfo.componentStack}
+                                        </pre>
+                                    )}
+                                </div>
+                            )}
+                            <div className="flex gap-3 justify-center">
+                                <Button
+                                    variant="outline"
+                                    onClick={this.handleReset}
+                                    className="gap-2"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Réessayer
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    onClick={this.handleGoHome}
+                                    className="gap-2"
+                                >
+                                    <Home className="h-4 w-4" />
+                                    {this.props.homeLabel ?? "Tableau de bord"}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             );
         }
@@ -74,3 +121,5 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
     }
 }
+
+export default ErrorBoundary;

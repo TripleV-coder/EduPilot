@@ -5,7 +5,7 @@ import { useAnalytics, StudentSegment } from "./AnalyticsContext";
 import { useSchool } from "@/components/providers/school-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, RotateCcw } from "lucide-react";
+import { Filter, RotateCcw, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,17 +41,44 @@ export function AnalyticsContextBar() {
         else setter([...current, id]);
     };
 
+    const selectedFiltersCount =
+        levelIds.length +
+        classIds.length +
+        subjectIds.length +
+        (academicYearId !== "ALL" ? 1 : 0) +
+        (periodId !== "ALL" ? 1 : 0) +
+        (studentSegment !== StudentSegment.ALL ? 1 : 0);
+
     return (
-        <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-xl shadow-sm mb-6">
-            <div className="flex items-center gap-2 mr-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
+        <div className="mb-6 rounded-xl border border-border bg-card/95 p-4 shadow-sm">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Filter className="h-4 w-4" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Contexte analytique</p>
+                        <p className="text-[11px] text-text-tertiary">Filtres transversaux appliques a toutes les visualisations</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="h-7 gap-1.5 px-2 text-[11px]">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {selectedFiltersCount} filtre{selectedFiltersCount > 1 ? "s" : ""} actif{selectedFiltersCount > 1 ? "s" : ""}
+                    </Badge>
+                    <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 px-3 gap-2 text-muted-foreground hover:text-primary">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span className="text-xs">Reinitialiser</span>
+                    </Button>
+                </div>
             </div>
+
+            <div className="flex flex-wrap items-center gap-3">
 
             {/* Establishment (Super Admin) */}
             {accessibleSchools.length > 1 && (
                 <Select value={schoolId || "ALL"} onValueChange={(v) => setActiveSchoolId(v === "ALL" ? null : v)}>
-                    <SelectTrigger className="w-[180px] h-9 text-xs">
+                    <SelectTrigger className="h-10 w-[200px] text-xs">
                         <SelectValue placeholder="Établissement" />
                     </SelectTrigger>
                     <SelectContent>
@@ -65,7 +92,7 @@ export function AnalyticsContextBar() {
 
             {/* Academic Year */}
             <Select value={academicYearId} onValueChange={setAcademicYearId}>
-                <SelectTrigger className="w-[140px] h-9 text-xs">
+                <SelectTrigger className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Année" />
                 </SelectTrigger>
                 <SelectContent>
@@ -78,7 +105,7 @@ export function AnalyticsContextBar() {
 
             {/* Period */}
             <Select value={periodId} onValueChange={setPeriodId}>
-                <SelectTrigger className="w-[140px] h-9 text-xs">
+                <SelectTrigger className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Période" />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,7 +142,7 @@ export function AnalyticsContextBar() {
 
             {/* Student Segment */}
             <Select value={studentSegment} onValueChange={(v) => setStudentSegment(v as StudentSegment)}>
-                <SelectTrigger className="w-[160px] h-9 text-xs">
+                <SelectTrigger className="h-10 w-[190px] text-xs">
                     <SelectValue placeholder="Segment" />
                 </SelectTrigger>
                 <SelectContent>
@@ -127,10 +154,7 @@ export function AnalyticsContextBar() {
                 </SelectContent>
             </Select>
 
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 px-3 gap-2 text-muted-foreground hover:text-primary">
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="text-xs">Reset</span>
-            </Button>
+            </div>
         </div>
     );
 }
@@ -139,7 +163,7 @@ function MultiSelectPopover({ label, options, selected, onToggle }: { label: str
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 text-xs gap-2 min-w-[100px] justify-between border-dashed">
+                <Button variant="outline" size="sm" className="h-10 text-xs gap-2 min-w-[120px] justify-between border-dashed">
                     {label}
                     {selected.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{selected.length}</Badge>}
                 </Button>

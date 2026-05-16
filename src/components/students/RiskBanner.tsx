@@ -17,7 +17,7 @@ export function RiskBanner({ score, label, responsibleName }: RiskBannerProps) {
     ? { icon: ShieldAlert, bg: "bg-destructive/10", border: "border-destructive/20", text: "text-destructive" }
     : isMedium 
     ? { icon: AlertCircle, bg: "bg-orange-500/10", border: "border-orange-500/20", text: "text-orange-600" }
-    : { icon: CheckCircle2, bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-600" };
+    : { icon: CheckCircle2, bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-600" };
 
   return (
     <div className={cn(

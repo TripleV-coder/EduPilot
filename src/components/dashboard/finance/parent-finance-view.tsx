@@ -5,8 +5,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DollarSign, AlertCircle, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 
 export function ParentFinanceView() {
@@ -20,7 +18,9 @@ export function ParentFinanceView() {
         }).format(amount);
     };
 
-    const generateReceipt = (payment: any) => {
+    const generateReceipt = async (payment: any) => {
+        const { jsPDF } = await import("jspdf");
+        await import("jspdf-autotable");
         const doc = new jsPDF();
         
         // Header
