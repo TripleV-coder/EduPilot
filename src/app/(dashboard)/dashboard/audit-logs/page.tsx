@@ -1,343 +1,353 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
-import {
-    Shield, Search, Loader2, History, AlertTriangle,
-    User, Calendar, FileText, ChevronRight, CheckCircle2, ShieldAlert, ArrowUpDown, Download
-} from "lucide-react";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
+import { Download, Search, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { t } from "@/lib/i18n";
-import { formatAction, translateEntity } from "@/lib/utils/entity-translator";
-import { formatUserRoleLabel } from "@/lib/utils/role-label";
-import { getAuditLogActionClass } from "@/lib/ui/status-styles";
+import {
+    type AuditCategory,
+    type AuditSeverity,
+    categoryLabel,
+    classifyAudit,
+    severityFor,
+    summarizeDetail,
+} from "@/lib/audit/classify";
 
-type AuditLog = {
+type AuditLogRow = {
     id: string;
     action: string;
     entity: string;
-    entityId: string;
+    entityId: string | null;
     createdAt: string;
+    ipAddress: string | null;
+    oldValues: unknown;
+    newValues: unknown;
     user: {
-        firstName: string;
-        lastName: string;
-        email: string;
-        role: string;
-    };
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        role: string | null;
+    } | null;
 };
 
-const FLOW_TRANSITION = { duration: 0.24, ease: [0.16, 1, 0.3, 1] as const };
+const SEVERITY_STYLES: Record<AuditSeverity, { bg: string; fg: string }> = {
+    info:    { bg: "var(--eduflow-info-50)",    fg: "var(--eduflow-info-800)" },
+    success: { bg: "var(--eduflow-success-50)", fg: "var(--eduflow-success-800)" },
+    warning: { bg: "var(--eduflow-warning-50)", fg: "var(--eduflow-warning-800)" },
+    danger:  { bg: "var(--eduflow-danger-50)",  fg: "var(--eduflow-danger-800)" },
+};
+
+const CATEGORY_ORDER: AuditCategory[] = ["notes", "finance", "permissions", "auth"];
+
+function initials(first: string | null, last: string | null): string {
+    const f = (first ?? "?").slice(0, 1).toUpperCase();
+    const l = (last ?? "?").slice(0, 1).toUpperCase();
+    return `${f}${l}`;
+}
+
+function formatTimestamp(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 
 export default function AuditLogsPage() {
-    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [logs, setLogs] = useState<AuditLogRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const debouncedSearch = useDebounce(searchTerm, 300);
-    const [actionFilter, setActionFilter] = useState("ALL");
-    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const debouncedSearch = useDebounce(searchTerm, 250);
+    const [category, setCategory] = useState<AuditCategory | "all">("all");
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
-        fetchLogs();
+        let cancelled = false;
+        async function load() {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch("/api/audit-logs?limit=500");
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (!cancelled) setLogs(Array.isArray(data.logs) ? data.logs : []);
+            } catch (err) {
+                if (!cancelled) setError((err as Error).message);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+        load();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
-    const fetchLogs = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch("/api/audit-logs?limit=500");
-            if (res.ok) {
-                const data = await res.json();
-                setLogs(data.logs || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch logs", error);
-        } finally {
-            setLoading(false);
+    const categoryCounts = useMemo(() => {
+        const counts: Record<AuditCategory, number> = {
+            notes: 0, finance: 0, permissions: 0, auth: 0, other: 0,
+        };
+        for (const log of logs) {
+            counts[classifyAudit(log.action, log.entity)]++;
         }
-    };
+        return counts;
+    }, [logs]);
+
+    const filtered = useMemo(() => {
+        const needle = debouncedSearch.trim().toLowerCase();
+        return logs.filter((log) => {
+            if (category !== "all" && classifyAudit(log.action, log.entity) !== category) return false;
+            if (!needle) return true;
+            const haystack = [
+                log.user?.firstName, log.user?.lastName, log.user?.email,
+                log.action, log.entity, log.entityId, log.ipAddress,
+            ].filter(Boolean).join(" ").toLowerCase();
+            return haystack.includes(needle);
+        });
+    }, [logs, debouncedSearch, category]);
 
     const exportCSV = async () => {
+        setExporting(true);
         try {
             const res = await fetch("/api/audit-logs/export");
             if (!res.ok) throw new Error();
             const csv = await res.text();
-            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
             a.download = `audit_logs_${new Date().toISOString().split("T")[0]}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch { console.error("Export failed"); }
+        } catch {
+            // Silent — page header already shows the count, error state is rare here.
+        } finally {
+            setExporting(false);
+        }
     };
-
-    // Client-side filtering
-    const filteredLogs = logs.filter(log => {
-        const matchesSearch = !debouncedSearch || [
-            log.user?.firstName, log.user?.lastName, log.user?.email,
-            log.action, log.entity, log.entityId
-        ].some(field => field?.toLowerCase().includes(debouncedSearch.toLowerCase()));
-
-        const matchesAction = actionFilter === "ALL" ||
-            (actionFilter === "CREATE" && log.action.toLowerCase().includes("create")) ||
-            (actionFilter === "UPDATE" && log.action.toLowerCase().includes("update")) ||
-            (actionFilter === "DELETE" && log.action.toLowerCase().includes("delete")) ||
-            (actionFilter === "OTHER" && !["create", "update", "delete"].some(a => log.action.toLowerCase().includes(a)));
-
-        return matchesSearch && matchesAction;
-    });
-
-    const getActionDetails = (action: string) => {
-        const actionLower = action.toLowerCase();
-        if (actionLower.includes("delete") || actionLower.includes("remove")) {
-            return { color: getAuditLogActionClass(action), icon: <ShieldAlert className="w-3.5 h-3.5" /> };
-        }
-        if (actionLower.includes("update") || actionLower.includes("edit")) {
-            return { color: getAuditLogActionClass(action), icon: <AlertTriangle className="w-3.5 h-3.5" /> };
-        }
-        if (actionLower.includes("create") || actionLower.includes("add")) {
-            return { color: getAuditLogActionClass(action), icon: <CheckCircle2 className="w-3.5 h-3.5" /> };
-        }
-        return { color: getAuditLogActionClass(action), icon: <History className="w-3.5 h-3.5" /> };
-    };
-
-    // Compute chart data
-    const actionsByRole = Object.entries(
-        logs.reduce((acc, log) => {
-            const role = log.user?.role || "SYSTEM";
-            acc[role] = (acc[role] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>)
-    ).map(([name, value]) => ({ name: formatUserRoleLabel(name), value })).sort((a, b) => b.value - a.value);
-
-    const actionsByDay = Object.entries(
-        logs.reduce((acc, log) => {
-            const date = new Date(log.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-            acc[date] = (acc[date] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>)
-    ).slice(-14).map(([name, value]) => ({ name, value }));
-
-    const columns: ColumnDef<AuditLog>[] = [
-        {
-            id: "user",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Utilisateur <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => `${row.user?.firstName || "System"} ${row.user?.lastName || ""}`,
-            cell: ({ row }) => {
-                const log = row.original;
-                return (
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                            {log.user?.firstName?.[0] || "?"}{log.user?.lastName?.[0] || "?"}
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="font-semibold text-foreground text-sm">
-                                {log.user?.firstName || "System"} {log.user?.lastName || ""}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
-                                {log.user?.email || "internal-system"}
-                            </span>
-                        </div>
-                    </div>
-                );
-            },
-        },
-        {
-            id: "action",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Action <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => row.action,
-            cell: ({ row }) => {
-                const log = row.original;
-                const action = getActionDetails(log.action);
-                return (
-                    <div className="flex flex-col gap-1.5 items-start">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border shadow-sm ${action.color}`}>
-                            {action.icon} {formatAction(log.action, log.entity)}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-muted-foreground text-[11px] mt-1">
-                            <FileText className="w-3.5 h-3.5" />
-                            <span className="font-semibold text-foreground/80 capitalize">{translateEntity(log.entity)}</span>
-                            <code className="bg-muted px-1 py-0.5 rounded text-[10px] ml-1">{log.entityId.slice(0, 8)}...</code>
-                        </div>
-                    </div>
-                );
-            },
-        },
-        {
-            id: "date",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Horodatage <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => new Date(row.createdAt).getTime(),
-            cell: ({ row }) => (
-                <span className="text-muted-foreground text-sm font-mono">
-                    {new Date(row.original.createdAt).toLocaleString("fr-FR", {
-                        day: "2-digit", month: "2-digit", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", second: "2-digit"
-                    })}
-                </span>
-            ),
-        },
-    ];
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
                 <PageHeader
-                    title="Console d'Audit & Sécurité"
-                    description="Visualisez l'historique complet des actions effectuées par les utilisateurs sur la plateforme EduPilot."
+                    title="Journal d'audit"
+                    description="Toutes les actions critiques · conforme MEMP · 90 jours en accès direct"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Administration" },
-                        { label: "Audit Logs" },
+                        { label: "Paramètres" },
+                        { label: "Conformité" },
+                        { label: "Audit" },
                     ]}
+                    actions={
+                        <Button
+                            variant="outline"
+                            onClick={exportCSV}
+                            disabled={exporting}
+                            className="gap-2"
+                        >
+                            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            Export CSV
+                        </Button>
+                    }
                 />
 
-                <div className="flex justify-end">
-                    <Button variant="outline" onClick={exportCSV} className="gap-2 touch-target">
-                        <Download className="w-4 h-4" /> Export CSV
-                    </Button>
+                {/* Filter bar */}
+                <div
+                    className="flex flex-wrap items-center gap-2 px-4 py-3 rounded-xl"
+                    style={{
+                        background: "var(--eduflow-surface-card)",
+                        border: "1px solid var(--eduflow-border-subtle)",
+                    }}
+                >
+                    <CategoryChip
+                        label="Tous"
+                        count={logs.length}
+                        active={category === "all"}
+                        onClick={() => setCategory("all")}
+                    />
+                    {CATEGORY_ORDER.map((cat) => (
+                        <CategoryChip
+                            key={cat}
+                            label={categoryLabel(cat)}
+                            count={categoryCounts[cat]}
+                            active={category === cat}
+                            onClick={() => setCategory(cat)}
+                        />
+                    ))}
+                    <div className="flex-1" />
+                    <div className="relative w-full sm:w-[260px]">
+                        <Search
+                            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                        />
+                        <Input
+                            aria-label="Rechercher dans les logs d'audit"
+                            placeholder="Acteur, ressource…"
+                            className="pl-9 h-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                {/* Charts Row */}
-                {logs.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <Card className="shadow-sm">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold">Actions par rôle</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <CategoryPieChart data={actionsByRole} />
-                            </CardContent>
-                        </Card>
-                        <Card className="shadow-sm">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold">Activité journalière</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <TrendLineChart data={actionsByDay} label="Actions" domain={[0, Math.max(10, ...actionsByDay.map(d => d.value))]} />
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                <Card className="shadow-sm border-border overflow-hidden">
-                    <div className="p-4 border-b bg-muted/20 flex flex-col sm:flex-row items-center gap-4">
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                aria-label="Rechercher dans les logs d'audit"
-                                placeholder="Rechercher un utilisateur, une action ou une entité..."
-                                className="pl-9 bg-background"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <Select value={actionFilter} onValueChange={setActionFilter}>
-                            <SelectTrigger aria-label="Filtrer par type d'action" className="w-[160px] bg-background">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Toutes les actions</SelectItem>
-                                <SelectItem value="CREATE">Création</SelectItem>
-                                <SelectItem value="UPDATE">Modification</SelectItem>
-                                <SelectItem value="DELETE">Suppression</SelectItem>
-                                <SelectItem value="OTHER">Autre</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {actionFilter !== "ALL" && (
-                            <Button variant="ghost" size="sm" className="h-9 text-xs touch-target" onClick={() => setActionFilter("ALL")}>
-                                {t("common.reset")}
-                            </Button>
-                        )}
-                    </div>
-
+                {/* Table card */}
+                <div
+                    className="rounded-xl overflow-hidden"
+                    style={{
+                        background: "var(--eduflow-surface-card)",
+                        border: "1px solid var(--eduflow-border-subtle)",
+                    }}
+                >
                     {loading ? (
-                        <div className="p-4 space-y-3">
+                        <div className="p-3 space-y-2">
                             {Array.from({ length: 8 }).map((_, idx) => (
-                                <div key={idx} className="h-14 rounded-lg bg-muted/40 skeleton-shimmer" />
+                                <div
+                                    key={idx}
+                                    className="h-12 rounded-lg animate-pulse"
+                                    style={{ background: "var(--eduflow-surface-sunken)" }}
+                                />
                             ))}
                         </div>
-                    ) : filteredLogs.length === 0 ? (
-                        <div className="px-6 py-16 text-center text-muted-foreground">
-                            <Shield className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                            <p className="text-lg font-medium text-foreground">Aucun historique d&apos;audit</p>
-                            <p className="text-sm">Le journal système est actuellement vide.</p>
+                    ) : error ? (
+                        <div
+                            className="px-6 py-16 text-center"
+                            style={{ color: "var(--eduflow-danger-700)" }}
+                        >
+                            <p className="text-sm">Impossible de charger les logs ({error}).</p>
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div
+                            className="px-6 py-16 text-center"
+                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                        >
+                            <p className="text-sm">Aucun événement pour ce filtre.</p>
                         </div>
                     ) : (
-                        <div className="space-y-3 p-3">
-                            <DataTable columns={columns} data={filteredLogs} searchKey="user" searchPlaceholder="Filtrer..." />
-                            <div className="rounded-lg border border-border/60 overflow-hidden">
-                                <div className="max-h-[260px] overflow-y-auto">
-                                    {filteredLogs.slice(0, 10).map((log) => (
-                                        <button
-                                            key={log.id}
-                                            className="touch-target w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-muted/40 transition-colors"
-                                            onClick={() => setSelectedLog(log)}
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="text-xs font-semibold text-foreground capitalize">
-                                                    {log.user?.firstName || "System"} {log.user?.lastName || ""} · {translateEntity(log.entity)}
-                                                </span>
-                                                <span className="text-[11px] text-muted-foreground">
-                                                    {new Date(log.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                                                </span>
-                                            </div>
-                                            <p className="text-[11px] text-muted-foreground mt-1">{formatAction(log.action, log.entity)}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse text-[12px]">
+                                <thead>
+                                    <tr style={{ background: "var(--eduflow-surface-sunken)" }}>
+                                        {["Horodatage", "Acteur", "Action", "Ressource", "IP", "Détail"].map((h) => (
+                                            <th
+                                                key={h}
+                                                className="px-4 py-2.5 text-left font-bold uppercase"
+                                                style={{
+                                                    fontSize: 10,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                    letterSpacing: "0.06em",
+                                                }}
+                                            >
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((log) => {
+                                        const sev = severityFor(log.action);
+                                        const palette = SEVERITY_STYLES[sev];
+                                        const actor = log.user
+                                            ? `${log.user.firstName ?? ""} ${log.user.lastName ?? ""}`.trim() || (log.user.email ?? "—")
+                                            : "Système";
+                                        return (
+                                            <tr key={log.id} style={{ borderTop: "1px solid var(--eduflow-border-subtle)" }}>
+                                                <td
+                                                    className="px-4 py-3 font-mono"
+                                                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                                >
+                                                    {formatTimestamp(log.createdAt)}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span
+                                                            className="w-6 h-6 rounded-full grid place-items-center font-bold"
+                                                            style={{
+                                                                background: "var(--eduflow-brand-100)",
+                                                                color: "var(--eduflow-brand-800)",
+                                                                fontSize: 10,
+                                                            }}
+                                                        >
+                                                            {log.user ? initials(log.user.firstName, log.user.lastName) : "SY"}
+                                                        </span>
+                                                        <span className="font-semibold">{actor}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span
+                                                        className="font-mono inline-block px-2 py-0.5 rounded-md"
+                                                        style={{
+                                                            fontSize: 11,
+                                                            background: palette.bg,
+                                                            color: palette.fg,
+                                                        }}
+                                                    >
+                                                        {log.action}
+                                                    </span>
+                                                </td>
+                                                <td
+                                                    className="px-4 py-3 font-mono"
+                                                    style={{ color: "var(--eduflow-text-secondary)" }}
+                                                >
+                                                    {log.entity}
+                                                    {log.entityId ? `/${log.entityId.slice(0, 16)}` : ""}
+                                                </td>
+                                                <td
+                                                    className="px-4 py-3 font-mono"
+                                                    style={{ color: "var(--eduflow-text-tertiary)" }}
+                                                >
+                                                    {log.ipAddress ?? "—"}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {summarizeDetail(log.oldValues, log.newValues)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     )}
-                </Card>
-
-                {selectedLog && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={FLOW_TRANSITION}
-                    >
-                        <Card className="border-border shadow-sm bg-card/85">
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-sm">Détail de l'action</CardTitle>
-                                    <Button variant="ghost" size="sm" onClick={() => setSelectedLog(null)}>
-                                        Fermer
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="text-sm space-y-2">
-                                <p><span className="text-muted-foreground">Utilisateur:</span> {selectedLog.user?.firstName || "System"} {selectedLog.user?.lastName || ""}</p>
-                                <p><span className="text-muted-foreground">Action:</span> {formatAction(selectedLog.action, selectedLog.entity)}</p>
-                                <p><span className="text-muted-foreground flex items-center gap-2">Entité: <span className="capitalize">{translateEntity(selectedLog.entity)}</span></span></p>
-                                <p><span className="text-muted-foreground">ID:</span> <code className="bg-muted px-1 py-0.5 rounded text-xs select-all text-primary">{selectedLog.entityId}</code></p>
-                                <p><span className="text-muted-foreground">Date:</span> {new Date(selectedLog.createdAt).toLocaleString("fr-FR")}</p>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
+                </div>
             </div>
         </PageGuard>
+    );
+}
+
+function CategoryChip({
+    label,
+    count,
+    active,
+    onClick,
+}: {
+    label: string;
+    count: number;
+    active: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 h-8 text-[12px] font-semibold transition-colors"
+            style={{
+                background: active ? "var(--eduflow-brand-100)" : "var(--eduflow-surface-sunken)",
+                color: active ? "var(--eduflow-brand-800)" : "var(--eduflow-text-secondary)",
+                border: `1px solid ${active ? "var(--eduflow-brand-200)" : "transparent"}`,
+            }}
+        >
+            <span>{label}</span>
+            <span
+                className="font-mono"
+                style={{
+                    fontSize: 10,
+                    color: active ? "var(--eduflow-brand-700)" : "var(--eduflow-text-tertiary)",
+                }}
+            >
+                {count}
+            </span>
+        </button>
     );
 }

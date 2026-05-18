@@ -75,7 +75,15 @@ export const GET = createApiHandler(
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          action: true,
+          entity: true,
+          entityId: true,
+          createdAt: true,
+          ipAddress: true,
+          oldValues: true,
+          newValues: true,
           user: {
             select: {
               id: true,
