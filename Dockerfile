@@ -6,7 +6,7 @@
 # -----------------------------------------------
 # Étape 1 : deps — installer les dépendances npm
 # -----------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN npm ci --frozen-lockfile
 # -----------------------------------------------
 # Étape 2 : builder — compiler l'application
 # -----------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 RUN apk add --no-cache openssl
 
 WORKDIR /app
@@ -37,7 +37,7 @@ RUN npm run build
 # -----------------------------------------------
 # Étape 3 : runner — image de production minimale
 # -----------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 
 RUN apk add --no-cache openssl curl
 
