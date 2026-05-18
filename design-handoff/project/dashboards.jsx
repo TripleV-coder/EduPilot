@@ -1,34 +1,144 @@
 // EduPilot — 5 role dashboards (desktop)
 
-const SidebarNav = ({ role, items, school }) => (
-  <aside style={{
-    width: 220, background: 'var(--surface-card)', borderRight: '1px solid var(--border-subtle)',
-    display: 'flex', flexDirection: 'column', padding: 16, gap: 4, flexShrink: 0,
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px 16px' }}>
-      <Logo size={28}/>
-      <div>
-        <div className="display" style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>EduPilot</div>
-        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: -1 }}>{role}</div>
-      </div>
-    </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {items.map((it, i) => <NavItem key={i} {...it}/>)}
-    </div>
-    <div style={{ flex: 1 }}/>
-    <div style={{
-      borderTop: '1px solid var(--border-subtle)', paddingTop: 12, marginTop: 8,
-      display: 'flex', alignItems: 'center', gap: 10,
-    }}>
-      <Avatar name={school || 'École Pilote'} size="sm"/>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{school || 'Cours Bénin Excellence'}</div>
-        <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Cotonou · Année 2025-26</div>
-      </div>
-      <Icon name="chevronDown" size={14} color="var(--text-tertiary)"/>
-    </div>
-  </aside>
+const SidebarContext = React.createContext({ collapsed: false, toggle: () => {} });
+
+const NavGroup = ({ label, children, collapsed }) => (
+  <div style={{ marginBottom: 6 }}>
+    {!collapsed && label && (
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)', padding: '10px 12px 6px' }}>{label}</div>
+    )}
+    {collapsed && label && (
+      <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 12px' }}/>
+    )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{children}</div>
+  </div>
 );
+
+const RailNavItem = ({ icon, label, count, active, onClick }) => {
+  const { collapsed } = React.useContext(SidebarContext);
+  if (collapsed) {
+    return (
+      <button onClick={onClick} title={label} style={{
+        position: 'relative', width: 40, height: 40, margin: '0 auto',
+        display: 'grid', placeItems: 'center', borderRadius: 'var(--radius-md)',
+        background: active ? 'var(--brand-700)' : 'transparent',
+        color: active ? 'var(--neutral-0)' : 'var(--text-secondary)',
+        border: 0, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out)',
+      }}>
+        <Icon name={icon} size={18}/>
+        {count != null && count !== 0 && (
+          <span style={{
+            position: 'absolute', top: 2, right: 2,
+            minWidth: 14, height: 14, padding: '0 3px', borderRadius: 7,
+            background: active ? 'rgba(255,255,255,0.95)' : 'var(--danger-500)',
+            color: active ? 'var(--brand-800)' : '#fff',
+            fontSize: 8, fontWeight: 700, display: 'grid', placeItems: 'center',
+          }}>{typeof count === 'number' && count > 99 ? '99+' : count}</span>
+        )}
+      </button>
+    );
+  }
+  return <NavItem icon={icon} label={label} count={count} active={active} onClick={onClick}/>;
+};
+
+const SidebarNav = ({ role, items, school, groups }) => {
+  const { collapsed, toggle } = React.useContext(SidebarContext);
+  const railed = collapsed;
+  return (
+    <aside style={{
+      width: railed ? 64 : 232,
+      background: 'var(--surface-card)',
+      borderRight: '1px solid var(--border-subtle)',
+      display: 'flex', flexDirection: 'column',
+      padding: railed ? '12px 8px' : '14px 12px',
+      flexShrink: 0,
+      transition: 'width var(--motion-base) var(--ease-out)',
+      position: 'relative',
+    }}>
+      {/* Logo + collapse toggle */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: railed ? '4px 0' : '4px 8px',
+        marginBottom: 10,
+        justifyContent: railed ? 'center' : 'space-between',
+      }}>
+        {railed ? (
+          <Logo size={32}/>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <Logo size={28}/>
+              <div style={{ minWidth: 0 }}>
+                <div className="display" style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>EduPilot</div>
+                <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>{role}</div>
+              </div>
+            </div>
+          </>
+        )}
+        <button onClick={toggle} title={railed ? 'Étendre' : 'Réduire'} style={{
+          position: railed ? 'absolute' : 'static',
+          right: railed ? -12 : 'auto', top: railed ? 24 : 'auto',
+          width: 22, height: 22, borderRadius: 11,
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border-default)',
+          boxShadow: railed ? 'var(--shadow-sm)' : 'none',
+          color: 'var(--text-secondary)',
+          display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 2,
+        }}>
+          <Icon name="chevron" size={11} style={{ transform: railed ? 'none' : 'rotate(180deg)' }}/>
+        </button>
+      </div>
+
+      {/* Search shortcut (rail mode shows icon only) */}
+      {!railed && (
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '7px 10px', marginBottom: 12,
+          background: 'var(--surface-sunken)', border: 0, borderRadius: 'var(--radius-md)',
+          color: 'var(--text-tertiary)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+          width: '100%', textAlign: 'left',
+        }}>
+          <Icon name="search" size={14}/>
+          <span style={{ flex: 1 }}>Rechercher…</span>
+          <span className="mono" style={{ fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 4, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>⌘K</span>
+        </button>
+      )}
+
+      {/* Nav */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {groups ? (
+          groups.map((g, gi) => (
+            <NavGroup key={gi} label={g.label} collapsed={railed}>
+              {g.items.map((it, i) => <RailNavItem key={i} {...it}/>)}
+            </NavGroup>
+          ))
+        ) : (
+          <NavGroup collapsed={railed}>
+            {items.map((it, i) => <RailNavItem key={i} {...it}/>)}
+          </NavGroup>
+        )}
+      </div>
+
+      {/* Footer: school switcher */}
+      <div style={{
+        borderTop: '1px solid var(--border-subtle)', paddingTop: 10, marginTop: 6,
+        display: 'flex', alignItems: 'center', gap: 10,
+        justifyContent: railed ? 'center' : 'flex-start',
+      }}>
+        <Avatar name={school || 'École Pilote'} size="sm"/>
+        {!railed && (
+          <>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{school || 'Cours Bénin Excellence'}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>Cotonou · 2025-26</div>
+            </div>
+            <Icon name="chevronDown" size={14} color="var(--text-tertiary)"/>
+          </>
+        )}
+      </div>
+    </aside>
+  );
+};
 
 const TopBar = ({ user, role, search, notifs = 3 }) => (
   <header style={{
@@ -73,8 +183,42 @@ const PageHeader = ({ greeting, sub, children }) => (
 );
 
 // ─── 1 · DIRECTOR DASHBOARD ─────────────────────────────────
+const directorGroups = [
+  { label: 'Pilotage', items: [
+    { icon: 'home', label: "Vue d'ensemble" },
+    { icon: 'chart', label: 'Analytics' },
+    { icon: 'sparkle', label: 'Assistant IA' },
+  ]},
+  { label: 'Pédagogie', items: [
+    { icon: 'users', label: 'Élèves', count: 1248 },
+    { icon: 'book', label: 'Classes & matières' },
+    { icon: 'pencil', label: 'Notes & bulletins' },
+    { icon: 'calendar', label: 'Emploi du temps' },
+    { icon: 'cards', label: 'Examens' },
+    { icon: 'tag', label: 'Orientation', count: 3 },
+  ]},
+  { label: 'Vie scolaire', items: [
+    { icon: 'check', label: 'Présences' },
+    { icon: 'warning', label: 'Discipline' },
+    { icon: 'danger', label: 'Santé & incidents', count: 2 },
+    { icon: 'cards', label: 'Cantine' },
+    { icon: 'school', label: 'Transport' },
+    { icon: 'book', label: 'Bibliothèque' },
+  ]},
+  { label: 'Administration', items: [
+    { icon: 'money', label: 'Finance', count: 14 },
+    { icon: 'bell', label: 'Communication' },
+    { icon: 'sms', label: 'Messagerie', count: 5 },
+    { icon: 'settings', label: 'Paramètres' },
+  ]},
+];
+
 const DirectorDash = () => (
   <DashShell role="DIRECTRICE" user="Mme Akpovi"
+    groups={directorGroups.map((g, gi) => ({
+      ...g,
+      items: g.items.map((it, ii) => ({ ...it, active: gi === 0 && ii === 0 })),
+    }))}
     nav={[
       { icon: 'home', label: "Vue d'ensemble", active: true },
       { icon: 'school', label: 'Établissement' },
@@ -707,20 +851,25 @@ const SuperAdminDash = () => (
 );
 
 // ─── Shared shell ─────────────────────────────────────────
-const DashShell = ({ role, user, school, nav, children }) => (
-  <div style={{
-    width: 1280, height: 820, background: 'var(--surface-page)',
-    display: 'flex', overflow: 'hidden',
-    borderRadius: 0,
-    color: 'var(--text-primary)',
-  }}>
-    <SidebarNav role={role} items={nav} school={school}/>
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      <TopBar user={user} role={role}/>
-      <main style={{ flex: 1, padding: '24px 28px', overflow: 'hidden' }}>{children}</main>
-    </div>
-  </div>
-);
+const DashShell = ({ role, user, school, nav, groups, defaultCollapsed, children }) => {
+  const [collapsed, setCollapsed] = React.useState(!!defaultCollapsed);
+  return (
+    <SidebarContext.Provider value={{ collapsed, toggle: () => setCollapsed(c => !c) }}>
+      <div style={{
+        width: 1280, height: 820, background: 'var(--surface-page)',
+        display: 'flex', overflow: 'hidden',
+        borderRadius: 0,
+        color: 'var(--text-primary)',
+      }}>
+        <SidebarNav role={role} items={nav} school={school} groups={groups}/>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <TopBar user={user} role={role}/>
+          <main style={{ flex: 1, padding: '24px 28px', overflow: 'hidden' }}>{children}</main>
+        </div>
+      </div>
+    </SidebarContext.Provider>
+  );
+};
 
 // ─── Bar chart (decorative for director) ──────────────────
 const BarChart = () => {
@@ -752,4 +901,4 @@ const BarChart = () => {
   );
 };
 
-Object.assign(window, { DirectorDash, TeacherDash, ParentDash, StudentDash, SuperAdminDash, Section, SubLabel });
+Object.assign(window, { DirectorDash, TeacherDash, ParentDash, StudentDash, SuperAdminDash, Section, SubLabel, SidebarContext, directorGroups });
