@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,11 +11,42 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { toast } from "sonner";
+import { fetcher } from "@/lib/fetcher";
+
+type ConsentKey = "analytics" | "imageRights";
+
+interface UserProfile {
+    preferences?: {
+        consents?: Partial<Record<ConsentKey, boolean>>;
+        [key: string]: unknown;
+    } | null;
+}
+
+const CONSENT_ROWS: { key: ConsentKey; title: string; desc: string }[] = [
+    {
+        key: "analytics",
+        title: "Utilisation des données pour analyse (Anonymisé)",
+        desc: "Nous permet d'améliorer l'application sans vous identifier.",
+    },
+    {
+        key: "imageRights",
+        title: "Droit à l'image",
+        desc: "Consentement pour la parution d'images de l'élève (Parents uniquement).",
+    },
+];
 
 export default function MyDataSettingsPage() {
     const [exporting, setExporting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [pendingConsent, setPendingConsent] = useState<ConsentKey | null>(null);
+
+    const { data: profile, mutate: refreshProfile } = useSWR<UserProfile>(
+        "/api/user/profile",
+        fetcher,
+    );
+    const consents = profile?.preferences?.consents ?? {};
 
     const handleExportData = async () => {
         setExporting(true);
@@ -29,8 +61,8 @@ export default function MyDataSettingsPage() {
             a.download = `mes-donnees-edupilot-${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch (error) {
-            alert("Impossible d'exporter vos données. Veuillez réessayer.");
+        } catch (_error) {
+            toast.error("Impossible d'exporter vos données. Veuillez réessayer.");
         } finally {
             setExporting(false);
         }
@@ -45,14 +77,39 @@ export default function MyDataSettingsPage() {
         try {
             const res = await fetch("/api/user/data", { method: "DELETE" });
             if (!res.ok) throw new Error("Erreur lors de la suppression");
-            alert("Votre demande de suppression a été enregistrée.");
-        } catch (error) {
-            alert("Impossible de traiter votre demande. Veuillez réessayer.");
+            toast.success("Votre demande de suppression a été enregistrée.");
+        } catch (_error) {
+            toast.error("Impossible de traiter votre demande. Veuillez réessayer.");
         } finally {
             setDeleting(false);
             setDeleteDialogOpen(false);
         }
     };
+
+    const toggleConsent = async (key: ConsentKey) => {
+        setPendingConsent(key);
+        const nextValue = !consents[key];
+        try {
+            const res = await fetch("/api/user/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    preferences: {
+                        ...(profile?.preferences ?? {}),
+                        consents: { ...consents, [key]: nextValue },
+                    },
+                }),
+            });
+            if (!res.ok) throw new Error("update failed");
+            await refreshProfile();
+            toast.success(nextValue ? "Consentement accordé." : "Consentement retiré.");
+        } catch {
+            toast.error("Impossible de mettre à jour ce consentement.");
+        } finally {
+            setPendingConsent(null);
+        }
+    };
+
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
             <div className="space-y-6 max-w-4xl mx-auto">
@@ -141,20 +198,44 @@ export default function MyDataSettingsPage() {
                         </CardHeader>
                         <CardContent className="pt-6">
                             <div className="space-y-4">
-                                <div className="flex justify-between items-center border-b border-border pb-4">
-                                    <div>
-                                        <h4 className="font-medium text-foreground text-sm">Utilisation des données pour analyse (Anonymisé)</h4>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Nous permet d'améliorer l'application sans vous identifier.</p>
-                                    </div>
-                                    <Button variant="ghost" size="sm" className="text-primary">Gérer</Button>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <div>
-                                        <h4 className="font-medium text-foreground text-sm">Droit à l'image</h4>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Consentement pour la parution d'images de l'élève (Parents uniquement).</p>
-                                    </div>
-                                    <Badge variant="outline" className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))]">Accordé</Badge>
-                                </div>
+                                {CONSENT_ROWS.map((row, idx) => {
+                                    const accorded = !!consents[row.key];
+                                    const isLast = idx === CONSENT_ROWS.length - 1;
+                                    return (
+                                        <div
+                                            key={row.key}
+                                            className={`flex justify-between items-center ${!isLast ? "border-b border-border pb-4" : ""}`}
+                                        >
+                                            <div>
+                                                <h4 className="font-medium text-foreground text-sm">{row.title}</h4>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{row.desc}</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={
+                                                        accorded
+                                                            ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))]"
+                                                            : "bg-muted text-muted-foreground border-border"
+                                                    }
+                                                >
+                                                    {accorded ? "Accordé" : "Refusé"}
+                                                </Badge>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-primary"
+                                                    onClick={() => toggleConsent(row.key)}
+                                                    disabled={pendingConsent === row.key}
+                                                >
+                                                    {pendingConsent === row.key
+                                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                                        : accorded ? "Retirer" : "Accorder"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>
