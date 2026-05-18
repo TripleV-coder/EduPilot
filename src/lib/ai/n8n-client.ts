@@ -23,7 +23,7 @@ export interface AIPredictionResult {
 /**
  * Sends student data to n8n for comprehensive cloud LLM analysis.
  */
-export async function analyzeStudentPerformance(data: any): Promise<AIAnalysisResult> {
+export async function analyzeStudentPerformance(data: Record<string, unknown>): Promise<AIAnalysisResult> {
     const result = await fetchJsonWithPolicy<AIAnalysisResult>(`${N8N_HOST}/webhook/analyze-performance`, {
         method: "POST",
         headers: {
@@ -46,7 +46,7 @@ export async function analyzeStudentPerformance(data: any): Promise<AIAnalysisRe
 /**
  * Sends data to n8n for failure prediction.
  */
-export async function predictFailureRisk(data: any): Promise<AIPredictionResult> {
+export async function predictFailureRisk(data: Record<string, unknown>): Promise<AIPredictionResult> {
     const result = await fetchJsonWithPolicy<AIPredictionResult>(`${N8N_HOST}/webhook/predict-risk`, {
         method: "POST",
         headers: {
@@ -69,7 +69,7 @@ export async function predictFailureRisk(data: any): Promise<AIPredictionResult>
 /**
  * Sends chat message to n8n.
  */
-export async function chatWithAI(message: string, context: any): Promise<{ response: string }> {
+export async function chatWithAI(message: string, context: Record<string, unknown>): Promise<{ response: string }> {
     const result = await fetchJsonWithPolicy<{ response: string }>(`${N8N_HOST}/webhook/chat`, {
         method: "POST",
         headers: {

@@ -97,17 +97,20 @@ import { t as defaultT, type TranslationFn } from "@/lib/i18n";
 export { type TranslationFn };
 export const t = defaultT;
 
-export function translateError(error: any, t?: TranslationFn): { error: string; code?: string } {
+type PrismaErrorShape = { code?: string; name?: string; message?: string; meta?: { target?: string[] } };
+
+export function translateError(error: unknown, t?: TranslationFn): { error: string; code?: string } {
     const translate = t || defaultT;
     if (typeof error === "string") return { error: translate(error) };
-    if (error?.code === "P2002") {
-        const fields = error.meta?.target?.join(", ") || "champ";
+    const e = (error ?? {}) as PrismaErrorShape;
+    if (e.code === "P2002") {
+        const fields = e.meta?.target?.join(", ") || "champ";
         return { error: translate(`Un enregistrement avec ce ${fields} existe déjà.`) };
     }
-    if (error?.code === "P2025") return { error: translate("Enregistrement non trouvé.") };
-    if (error?.code === "P2003") return { error: translate("Référence invalide : un enregistrement lié n'existe pas.") };
-    if (error?.name === "ZodError") return { error: translate("Données invalides.") };
-    if (error?.message) return { error: translate(error.message), code: error.code };
+    if (e.code === "P2025") return { error: translate("Enregistrement non trouvé.") };
+    if (e.code === "P2003") return { error: translate("Référence invalide : un enregistrement lié n'existe pas.") };
+    if (e.name === "ZodError") return { error: translate("Données invalides.") };
+    if (e.message) return { error: translate(e.message), code: e.code };
     return { error: translate("Erreur inattendue.") };
 }
 
@@ -236,7 +239,21 @@ export function authorizePermissions(
     return { authorized: false, response: NextResponse.json({ error: "Accès refusé" }, { status: 403 }) };
 }
 
-interface HandlerContext { session: any; params?: any; }
+import type { Session } from "next-auth";
+
+/**
+ * Session is typed as `Session` (non-null) because `createApiHandler` enforces
+ * authentication before invoking the handler when `requireAuth !== false`.
+ * Routes that explicitly opt out via `requireAuth: false` should still be
+ * defensive — see individual handlers.
+ *
+ * `params` follows the Next 15+ convention: it's a Promise that resolves to
+ * the dynamic segment values for the route.
+ */
+interface HandlerContext {
+    session: Session;
+    params: Promise<Record<string, string>>;
+}
 interface HandlerOptions {
     requireAuth?: boolean;
     requiredPermissions?: Permission[];
@@ -248,11 +265,13 @@ interface HandlerOptions {
 type RouteHandler = (
     request: NextRequest,
     context: HandlerContext,
-    t: TranslationFn
+    t: TranslationFn,
 ) => Promise<NextResponse | Response>;
 
+type RouteContext = { params?: Promise<Record<string, string>> };
+
 export function createApiHandler(handler: RouteHandler, options: HandlerOptions = {}) {
-    return async (request: NextRequest, routeContext?: any) => {
+    return async (request: NextRequest, routeContext?: RouteContext) => {
         const t = defaultT;
         try {
             // ── RATE LIMITING ──
@@ -320,7 +339,14 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
-            return await handler(request, { session, params: routeContext?.params }, t);
+            return await handler(
+                request,
+                {
+                    session: session as Session,
+                    params: routeContext?.params ?? Promise.resolve({}),
+                },
+                t,
+            );
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             console.error("[API Error]", { path: request.url, error: message });

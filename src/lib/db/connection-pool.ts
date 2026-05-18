@@ -39,18 +39,28 @@ export function getPrismaClient(): PrismaClient {
 
 /**
  * Optimized query helper with select optimization
- * Only fetches required fields to reduce data transfer
+ * Only fetches required fields to reduce data transfer.
+ *
+ * `model` is typed as the minimal shape Prisma delegates share: a `findMany`
+ * method. This keeps the helper generic over every Prisma model while still
+ * preventing arbitrary objects from being passed in.
  */
+interface PrismaFindManyDelegate<T> {
+  findMany: (args?: unknown) => Promise<T[]>;
+}
+
+export interface OptimizedFindManyOptions {
+  where?: Record<string, unknown>;
+  select?: Record<string, unknown>;
+  include?: Record<string, unknown>;
+  orderBy?: Record<string, unknown> | Record<string, unknown>[];
+  take?: number;
+  skip?: number;
+}
+
 export async function optimizedFindMany<T>(
-  model: any,
-  options: {
-    where?: any;
-    select?: any;
-    include?: any;
-    orderBy?: any;
-    take?: number;
-    skip?: number;
-  }
+  model: PrismaFindManyDelegate<T>,
+  options: OptimizedFindManyOptions,
 ): Promise<T[]> {
   // Prefer select over include when possible (more efficient)
   if (options.select && !options.include) {

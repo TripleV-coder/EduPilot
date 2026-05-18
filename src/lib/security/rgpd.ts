@@ -157,13 +157,13 @@ export async function exportUserData(userId: string) {
             teacher: user.teacherProfile,
             parent: user.parentProfile,
         },
-        grades: user.studentProfile?.grades?.map((g: any) => ({
+        grades: user.studentProfile?.grades?.map((g) => ({
             value: g.value,
             maxGrade: g.evaluation?.maxGrade,
             evaluation: g.evaluation?.title,
             date: g.evaluation?.date ?? g.createdAt,
         })) ?? [],
-        payments: user.studentProfile?.payments?.map((p: any) => ({
+        payments: user.studentProfile?.payments?.map((p) => ({
             amount: p.amount,
             method: p.method,
             status: p.status,
@@ -174,7 +174,7 @@ export async function exportUserData(userId: string) {
             sent: user.messagesSent,
             received: user.messagesReceived,
         },
-        achievements: user.userAchievements.map((ua: any) => ({
+        achievements: user.userAchievements.map((ua) => ({
             name: ua.achievement.name,
             description: ua.achievement.description,
             unlockedAt: ua.unlockedAt,

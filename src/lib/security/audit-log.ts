@@ -1,31 +1,42 @@
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { logger } from "@/lib/utils/logger";
+
+export type AuditValue = Record<string, unknown> | unknown[] | null | undefined;
 
 export interface AuditLogData {
     userId?: string;
     action: string;
     entity: string;
     entityId?: string;
-    oldValues?: any;
-    newValues?: any;
+    oldValues?: AuditValue;
+    newValues?: AuditValue;
     severity?: "INFO" | "WARNING" | "CRITICAL";
 }
 
 /**
  * Expulse les champs sensibles des objets logs
  */
-function sanitizeAuditData(data: any): any {
-    if (!data || typeof data !== "object") return data;
+function sanitizeAuditData(data: AuditValue): AuditValue {
+    if (data === null || data === undefined) return data;
+    if (typeof data !== "object") return data;
 
     const SENSITIVE_FIELDS = ["password", "token", "secret", "twoFactorSecret", "twoFactorBackupCodes", "tempPassword"];
-    const sanitized = { ...data };
+
+    if (Array.isArray(data)) {
+        return data.map((item) =>
+            sanitizeAuditData(item as AuditValue),
+        ) as unknown[];
+    }
+
+    const sanitized: Record<string, unknown> = { ...(data as Record<string, unknown>) };
 
     for (const key of Object.keys(sanitized)) {
-        if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+        if (SENSITIVE_FIELDS.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
             sanitized[key] = "[PROTECTED]";
-        } else if (typeof sanitized[key] === "object") {
-            sanitized[key] = sanitizeAuditData(sanitized[key]);
+        } else if (sanitized[key] !== null && typeof sanitized[key] === "object") {
+            sanitized[key] = sanitizeAuditData(sanitized[key] as AuditValue);
         }
     }
 
@@ -40,14 +51,23 @@ export async function createAuditLog(data: AuditLogData) {
     const userAgent = headersList.get("user-agent") || "unknown";
 
     try {
+        const sanitizedOld = sanitizeAuditData(data.oldValues);
+        const sanitizedNewBase = sanitizeAuditData(data.newValues);
+        const newValuesWithSeverity =
+            sanitizedNewBase &&
+            typeof sanitizedNewBase === "object" &&
+            !Array.isArray(sanitizedNewBase)
+                ? { ...(sanitizedNewBase as Record<string, unknown>), severity: data.severity || "INFO" }
+                : { severity: data.severity || "INFO" };
+
         await prisma.auditLog.create({
             data: {
                 userId: data.userId || "SYSTEM",
                 action: data.action,
                 entity: data.entity,
                 entityId: data.entityId,
-                oldValues: sanitizeAuditData(data.oldValues),
-                newValues: { ...sanitizeAuditData(data.newValues), severity: data.severity || "INFO" },
+                oldValues: (sanitizedOld ?? undefined) as Prisma.InputJsonValue | undefined,
+                newValues: newValuesWithSeverity as Prisma.InputJsonValue,
                 ipAddress: ip,
                 userAgent: userAgent,
             },
@@ -79,8 +99,8 @@ export const auditLog = {
         userId: string,
         entity: string,
         entityId: string,
-        oldValues: any,
-        newValues: any
+        oldValues: AuditValue,
+        newValues: AuditValue,
     ) =>
         createAuditLog({
             userId,
@@ -101,7 +121,11 @@ export const auditLog = {
             severity: "CRITICAL",
         }),
 
-    securityEvent: (userId: string | undefined, event: string, details: any) =>
+    securityEvent: (
+        userId: string | undefined,
+        event: string,
+        details: Record<string, unknown>,
+    ) =>
         createAuditLog({
             userId,
             action: "SECURITY_EVENT",

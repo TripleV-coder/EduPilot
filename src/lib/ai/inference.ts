@@ -433,8 +433,8 @@ What would you like to know more about?`;
    */
   async analyze(
     dataType: string,
-    data: Record<string, any>
-  ): Promise<Record<string, any>> {
+    data: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const isReady = await this.loadModel();
     if (!isReady) {
       throw new Error("Local AI engine is disabled in production.");
@@ -452,18 +452,18 @@ What would you like to know more about?`;
     }
   }
 
-  private analyzeStudent(data: Record<string, any>): Record<string, any> {
-    const grades = data.grades || [];
-    const attendance = data.attendance || [];
+  private analyzeStudent(data: Record<string, unknown>): Record<string, unknown> {
+    const grades = ((data.grades as { value: number }[] | undefined) ?? []);
+    const attendance = ((data.attendance as { present: boolean }[] | undefined) ?? []);
 
     const avgGrade =
       grades.length > 0
-        ? grades.reduce((sum: number, g: any) => sum + g.value, 0) / grades.length
+        ? grades.reduce((sum, g) => sum + g.value, 0) / grades.length
         : 0;
 
     const attendanceRate =
       attendance.length > 0
-        ? (attendance.filter((a: any) => a.present).length / attendance.length) *
+        ? (attendance.filter((a) => a.present).length / attendance.length) *
         100
         : 100;
 
@@ -493,20 +493,19 @@ What would you like to know more about?`;
     };
   }
 
-  private analyzeClass(data: Record<string, any>): Record<string, any> {
-    const students = data.students || [];
+  private analyzeClass(data: Record<string, unknown>): Record<string, unknown> {
+    const students = ((data.students as { averageGrade?: number; riskLevel?: string }[] | undefined) ?? []);
 
     const avgGrade =
       students.length > 0
         ? students.reduce(
-          (sum: number,
-            s: any) => sum + (s.averageGrade || 0),
-          0
+          (sum, s) => sum + (s.averageGrade || 0),
+          0,
         ) / students.length
         : 0;
 
     const atRiskCount = students.filter(
-      (s: any) => s.riskLevel === "high"
+      (s) => s.riskLevel === "high",
     ).length;
 
     return {
@@ -521,14 +520,14 @@ What would you like to know more about?`;
     };
   }
 
-  private analyzeFinancial(data: Record<string, any>): Record<string, any> {
-    const payments = data.payments || [];
-    const fees = data.fees || [];
+  private analyzeFinancial(data: Record<string, unknown>): Record<string, unknown> {
+    const payments = ((data.payments as { amount: number; status: string }[] | undefined) ?? []);
+    const fees = ((data.fees as { amount: number }[] | undefined) ?? []);
 
-    const totalFees = fees.reduce((sum: number, f: any) => sum + f.amount, 0);
+    const totalFees = fees.reduce((sum, f) => sum + f.amount, 0);
     const collected = payments
-      .filter((p: any) => p.status === "PAID")
-      .reduce((sum: number, p: any) => sum + p.amount, 0);
+      .filter((p) => p.status === "PAID")
+      .reduce((sum, p) => sum + p.amount, 0);
 
     const collectionRate =
       totalFees > 0 ? (collected / totalFees) * 100 : 100;
