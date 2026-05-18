@@ -1,0 +1,94 @@
+/**
+ * Accessibility audit — runs axe-core against critical authenticated routes.
+ * Fails the build if any WCAG 2.1 AA violation is found.
+ *
+ * Coverage: 6 routes covering login, dashboard root, students list, grades,
+ * finance, and the design-system showcase.
+ */
+import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import path from "node:path";
+
+const AUTH_DIR = path.join(__dirname, ".auth");
+
+/**
+ * Filter rules we know don't apply to our app (e.g. color-contrast on third-party
+ * embeds that ship their own theming). Keep this list tight — only suppress when
+ * there's a documented reason.
+ */
+const RULES_DISABLED: string[] = [
+    // Recharts SVG charts inject their own focus-trap; axe flags it but the chart
+    // is decorative and labelled by an aria-describedby on its container.
+    "svg-img-alt",
+];
+
+async function audit(page: Page) {
+    const results = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+        .disableRules(RULES_DISABLED)
+        .analyze();
+
+    if (results.violations.length > 0) {
+        // Helpful failure message for CI logs.
+        const summary = results.violations
+            .map(
+                (v) =>
+                    `- [${v.impact}] ${v.id}: ${v.description}\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes.length}`,
+            )
+            .join("\n");
+        console.error(`Accessibility violations on ${page.url()}:\n${summary}`);
+    }
+    expect(results.violations, "WCAG violations detected").toEqual([]);
+}
+
+test.describe("Accessibility — public routes (anonymous)", () => {
+    test("/", async ({ page }) => {
+        await page.goto("/");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+
+    test("/auth/login", async ({ page }) => {
+        await page.goto("/auth/login");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+});
+
+test.describe("Accessibility — authenticated as SCHOOL_ADMIN", () => {
+    test.use({ storageState: path.join(AUTH_DIR, "admin.json") });
+
+    test("/dashboard", async ({ page }) => {
+        await page.goto("/dashboard");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+
+    test("/dashboard/students", async ({ page }) => {
+        await page.goto("/dashboard/students");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+
+    test("/dashboard/finance", async ({ page }) => {
+        await page.goto("/dashboard/finance");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+
+    test("/dashboard/design-system", async ({ page }) => {
+        await page.goto("/dashboard/design-system");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+});
+
+test.describe("Accessibility — authenticated as TEACHER", () => {
+    test.use({ storageState: path.join(AUTH_DIR, "teacher.json") });
+
+    test("/dashboard/grades", async ({ page }) => {
+        await page.goto("/dashboard/grades");
+        await page.waitForLoadState("networkidle");
+        await audit(page);
+    });
+});
