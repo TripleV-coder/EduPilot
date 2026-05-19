@@ -1,614 +1,874 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Permission } from "@/lib/rbac/permissions";
-import {
-  MessageSquare, Send, Inbox, Search,
-  Loader2, AlertCircle, ChevronLeft, Reply, Users
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
-import { useNotificationStream } from "@/lib/socket";
-import { formatUserRoleLabel } from "@/lib/utils/role-label";
-import { t } from "@/lib/i18n";
-import { EmptyStateAction } from "@/components/ui/empty-state";
-import { trackUxEvent } from "@/lib/ux/telemetry";
 
-type Message = {
-  id: string;
-  subject: string;
-  content: string;
-  isRead: boolean;
-  createdAt: string;
-  sender: { id: string; firstName: string; lastName: string; role: string };
-  recipient: { id: string; firstName: string; lastName: string; role: string };
+import { PageGuard } from "@/components/guard/page-guard";
+import { Permission } from "@/lib/rbac/permissions";
+
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Input,
+    Spinner,
+} from "@/components/edu";
+import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+
+type UserStub = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
 };
 
-type UserSearchResult = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  role: string;
+type RawMessage = {
+    id: string;
+    subject: string;
+    content: string;
+    isRead: boolean;
+    isArchived: boolean;
+    createdAt: string;
+    sender: UserStub;
+    recipient: UserStub;
+    parent: { id: string; subject: string } | null;
 };
 
-type ClassOption = {
-  id: string;
-  name: string;
-  classLevel?: { name: string };
+type Conversation = {
+    otherUserId: string;
+    otherUser: UserStub;
+    messages: RawMessage[];
+    lastMessage: RawMessage;
+    unreadCount: number;
 };
 
-const FLOW_TRANSITION = { duration: 0.24, ease: [0.16, 1, 0.3, 1] as const };
+const ROLE_LABEL: Record<string, string> = {
+    SUPER_ADMIN: "Super Admin",
+    SCHOOL_ADMIN: "Direction",
+    DIRECTOR: "Direction",
+    TEACHER: "Enseignant",
+    STUDENT: "Élève",
+    PARENT: "Parent",
+    ACCOUNTANT: "Comptabilité",
+    STAFF: "Vie scolaire",
+};
+
+function fmtRelative(iso: string): string {
+    try {
+        const d = new Date(iso);
+        const ms = Date.now() - d.getTime();
+        const m = Math.floor(ms / 60000);
+        if (m < 1) return "à l'instant";
+        if (m < 60) return `${m} min`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h} h`;
+        const days = Math.floor(h / 24);
+        if (days < 2) return "hier";
+        if (days < 7) return `${days} j`;
+        return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    } catch {
+        return iso;
+    }
+}
+
+function fmtTime(iso: string): string {
+    try {
+        return new Date(iso).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    } catch {
+        return iso;
+    }
+}
+
+function fmtDayLabel(iso: string): string {
+    try {
+        const d = new Date(iso);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return "Aujourd'hui";
+        if (d.toDateString() === yesterday.toDateString()) return "Hier";
+        return d.toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+        });
+    } catch {
+        return iso;
+    }
+}
 
 export default function MessagesPage() {
-  const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"inbox" | "sent">("inbox");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const refreshLockRef = useRef<number>(0);
+    const { data: session } = useSession();
+    const myId = session?.user?.id;
 
-  // Read View State
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+    const [messages, setMessages] = useState<RawMessage[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
+    const [activeOtherId, setActiveOtherId] = useState<string | null>(null);
+    const [draft, setDraft] = useState("");
+    const [sending, setSending] = useState(false);
+    const threadRef = useRef<HTMLDivElement>(null);
 
-  // Compose View State
-  const [isComposing, setIsComposing] = useState(false);
-  const [composeMode, setComposeMode] = useState<"individual" | "broadcast">("individual");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [recipient, setRecipient] = useState<UserSearchResult | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState("");
-  const [subject, setSubject] = useState("");
-  const [content, setContent] = useState("");
-  const [sending, setSending] = useState(false);
-
-  // Fetch classes for broadcast
-  const { data: classesData } = useSWR<any>(
-    isComposing && composeMode === "broadcast" ? "/api/classes?limit=200" : null,
-    fetcher
-  );
-  const classes: ClassOption[] = classesData?.data || classesData?.classes || (Array.isArray(classesData) ? classesData : []);
-
-  const canBroadcast = session?.user?.role && ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role);
-
-  const fetchMessages = async (tab: "inbox" | "sent") => {
-    setLoading(true);
-    setError(null);
-    setSelectedMessage(null);
-    try {
-      const res = await fetch(`/api/messages?type=${tab}&limit=50`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
-      } else {
-        throw new Error("Impossible de charger les messages");
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMessages(activeTab);
-  }, [activeTab]);
-
-  // Instantané : refresh quand une notification MESSAGE arrive
-  useNotificationStream({
-    enabled: !!session?.user?.id,
-    onNotification: (items) => {
-      const hasMessage = items.some((n) => n.type === "MESSAGE");
-      if (!hasMessage) return;
-
-      const now = Date.now();
-      // anti-spam refresh (max 1 refresh / 2s)
-      if (now - refreshLockRef.current < 2000) return;
-      refreshLockRef.current = now;
-
-      // Rafraîchit uniquement l'inbox (les notifications sont pour le destinataire)
-      if (activeTab === "inbox" && !isComposing) {
-        fetchMessages("inbox");
-      }
-    },
-  });
-
-  // Handle user search debounce
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.length >= 2 && !recipient) {
-        setIsSearching(true);
+    const refresh = async () => {
         try {
-          const res = await fetch(`/api/users?search=${encodeURIComponent(searchQuery)}`);
-          if (res.ok) {
-            const data = await res.json();
-            setSearchResults(data.data || []);
-          }
-        } catch {
-          // Search failed silently
+            const [inboxRes, sentRes] = await Promise.all([
+                fetch("/api/messages?type=inbox&limit=100"),
+                fetch("/api/messages?type=sent&limit=100"),
+            ]);
+            const [inbox, sent] = await Promise.all([
+                inboxRes.json().catch(() => ({})),
+                sentRes.json().catch(() => ({})),
+            ]);
+            const all: RawMessage[] = [
+                ...(inbox.messages ?? inbox.data ?? []),
+                ...(sent.messages ?? sent.data ?? []),
+            ];
+            // Dedup by id (a sent message could appear in both via threading)
+            const map = new Map<string, RawMessage>();
+            for (const m of all) map.set(m.id, m);
+            setMessages(Array.from(map.values()));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
-          setIsSearching(false);
+            setLoading(false);
         }
-      } else {
-        setSearchResults([]);
-      }
-    }, 500);
+    };
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, recipient]);
+    useEffect(() => {
+        refresh();
+    }, []);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!subject.trim() || !content.trim()) return;
+    const conversations = useMemo<Conversation[]>(() => {
+        if (!myId) return [];
+        const buckets = new Map<string, Conversation>();
+        for (const m of messages) {
+            const otherUser = m.sender.id === myId ? m.recipient : m.sender;
+            const key = otherUser.id;
+            let bucket = buckets.get(key);
+            if (!bucket) {
+                bucket = {
+                    otherUserId: key,
+                    otherUser,
+                    messages: [],
+                    lastMessage: m,
+                    unreadCount: 0,
+                };
+                buckets.set(key, bucket);
+            }
+            bucket.messages.push(m);
+            if (
+                new Date(m.createdAt).getTime() >
+                new Date(bucket.lastMessage.createdAt).getTime()
+            ) {
+                bucket.lastMessage = m;
+            }
+            if (!m.isRead && m.recipient.id === myId) {
+                bucket.unreadCount += 1;
+            }
+        }
+        for (const c of buckets.values()) {
+            c.messages.sort(
+                (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime()
+            );
+        }
+        return Array.from(buckets.values()).sort(
+            (a, b) =>
+                new Date(b.lastMessage.createdAt).getTime() -
+                new Date(a.lastMessage.createdAt).getTime()
+        );
+    }, [messages, myId]);
 
-    setSending(true);
-    setError(null);
-
-    try {
-      if (composeMode === "broadcast") {
-        if (!selectedClassId) return;
-        const res = await fetch("/api/messages/broadcast", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId: selectedClassId, subject, content }),
+    const filteredConversations = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return conversations;
+        return conversations.filter((c) => {
+            const name = `${c.otherUser.firstName} ${c.otherUser.lastName}`.toLowerCase();
+            return (
+                name.includes(q) ||
+                c.lastMessage.subject.toLowerCase().includes(q) ||
+                c.lastMessage.content.toLowerCase().includes(q)
+            );
         });
+    }, [conversations, search]);
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Erreur d'envoi groupé");
+    // Pick a default active conversation
+    useEffect(() => {
+        if (activeOtherId) return;
+        if (conversations.length > 0) {
+            setActiveOtherId(conversations[0].otherUserId);
         }
+    }, [activeOtherId, conversations]);
 
-        const data = await res.json();
-        setError(null);
-        trackUxEvent("message_sent", { mode: "broadcast", classId: selectedClassId });
-        // Show success inline
-        resetCompose();
-        if (activeTab === "sent") {
-          fetchMessages("sent");
-        } else {
-          setActiveTab("sent");
+    const active = useMemo(
+        () => conversations.find((c) => c.otherUserId === activeOtherId) ?? null,
+        [conversations, activeOtherId]
+    );
+
+    const totalUnread = useMemo(
+        () => conversations.reduce((sum, c) => sum + c.unreadCount, 0),
+        [conversations]
+    );
+
+    // Mark active conversation's inbound messages as read
+    useEffect(() => {
+        if (!active || !myId) return;
+        const unreadIds = active.messages
+            .filter((m) => !m.isRead && m.recipient.id === myId)
+            .map((m) => m.id);
+        if (unreadIds.length === 0) return;
+        Promise.all(
+            unreadIds.map((id) =>
+                fetch(`/api/messages/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ isRead: true }),
+                }).catch(() => null)
+            )
+        ).then(() => {
+            setMessages((prev) =>
+                prev.map((m) =>
+                    unreadIds.includes(m.id) ? { ...m, isRead: true } : m
+                )
+            );
+        });
+    }, [active, myId]);
+
+    // Auto-scroll thread to bottom on switch / new message
+    useEffect(() => {
+        if (threadRef.current) {
+            threadRef.current.scrollTop = threadRef.current.scrollHeight;
         }
-        return;
-      }
+    }, [active?.otherUserId, active?.messages.length]);
 
-      // Individual send
-      if (!recipient) return;
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId: recipient.id, subject, content }),
-      });
+    const handleSend = async () => {
+        if (!active || !draft.trim() || sending) return;
+        setSending(true);
+        try {
+            const lastInThread = active.messages[active.messages.length - 1];
+            const subject =
+                lastInThread?.subject?.startsWith("Re:")
+                    ? lastInThread.subject
+                    : `Re: ${lastInThread?.subject ?? "Conversation"}`;
+            const res = await fetch("/api/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    recipientId: active.otherUser.id,
+                    subject,
+                    content: draft.trim(),
+                    parentId: lastInThread?.id,
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Échec de l'envoi");
+            }
+            setDraft("");
+            await refresh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setSending(false);
+        }
+    };
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Erreur d'envoi");
-      }
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
 
-      trackUxEvent("message_sent", { mode: "individual", recipientRole: recipient.role });
-      resetCompose();
-      if (activeTab === "sent") {
-        fetchMessages("sent");
-      } else {
-        setActiveTab("sent");
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSending(false);
-    }
-  };
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+                <PageHeader
+                    greeting="Messagerie"
+                    sub={`Conversations internes · parents · enseignants · ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
+                    breadcrumb={["Communication", "Messagerie"]}
+                    actions={
+                        <Button
+                            icon="plus"
+                            onClick={() => {
+                                // Best-effort: focus the composer if a conversation is active.
+                                const el = document.getElementById(
+                                    "message-composer"
+                                ) as HTMLInputElement | null;
+                                el?.focus();
+                            }}
+                        >
+                            Répondre
+                        </Button>
+                    }
+                />
 
-  const resetCompose = () => {
-    setIsComposing(false);
-    setComposeMode("individual");
-    setRecipient(null);
-    setSearchQuery("");
-    setSelectedClassId("");
-    setSubject("");
-    setContent("");
-  };
-
-  const handleMarkAsRead = async (id: string) => {
-    try {
-      const res = await fetch(`/api/messages/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isRead: true }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Impossible de marquer le message comme lu");
-      }
-
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === id ? { ...message, isRead: true } : message
-        )
-      );
-      setSelectedMessage((current) =>
-        current && current.id === id ? { ...current, isRead: true } : current
-      );
-    } catch (err: any) {
-      setError(err.message || "Erreur lors de la mise à jour du message");
-    }
-  };
-
-  const displayRole = (role: string) => formatUserRoleLabel(role);
-
-  return (
-    <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6 max-w-6xl mx-auto pb-12 dashboard-motion">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <PageHeader
-            title="Messagerie"
-            description="Échangez directement avec le personnel, les élèves et les parents."
-            breadcrumbs={[
-              { label: "Tableau de bord", href: "/dashboard" },
-              { label: "Messages" },
-            ]}
-          />
-          {!isComposing && (
-            <Button onClick={() => { trackUxEvent("message_compose_open"); setIsComposing(true); setSelectedMessage(null); }} className="gap-2 shadow-sm shrink-0 touch-target">
-              <Send className="h-4 w-4" />
-              {t("common.newMessage")}
-            </Button>
-          )}
-        </div>
-
-        {error && (
-          <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6" data-reveal>
-          {/* Sidebar / Folders */}
-          <div className="space-y-2 md:col-span-1">
-            <button
-              onClick={() => { setActiveTab("inbox"); setIsComposing(false); setSelectedMessage(null); }}
-              className={`touch-target w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === 'inbox' && !isComposing ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-card/85 text-foreground hover:bg-muted/70 border border-border/60'}`}
-            >
-              <Inbox className="w-5 h-5" />
-              Boîte de réception
-            </button>
-            <button
-              onClick={() => { setActiveTab("sent"); setIsComposing(false); setSelectedMessage(null); }}
-              className={`touch-target w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === 'sent' && !isComposing ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-card/85 text-foreground hover:bg-muted/70 border border-border/60'}`}
-            >
-              <Send className="w-5 h-5" />
-              Messages Envoyés
-            </button>
-          </div>
-
-          {/* Main Content Area */}
-          <Card className="dashboard-block md:col-span-3 border-border shadow-sm min-h-[500px]" data-reveal>
-            <AnimatePresence mode="wait">
-            {isComposing ? (
-              <motion.div
-                key="compose"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={FLOW_TRANSITION}
-                className="p-6 flex flex-col h-full"
-              >
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Button variant="ghost" size="icon" onClick={resetCompose}>
-                    <ChevronLeft className="w-5 h-5" />
-                  </Button>
-                  <h3 className="text-lg font-semibold">{t("common.newMessage")}</h3>
-                </div>
-
-                {/* Mode toggle: Individual vs Broadcast */}
-                {canBroadcast && (
-                  <div className="dashboard-panel flex items-center gap-2 mb-5 w-fit rounded-full border border-border/70 bg-muted/35 p-1">
-                    <button
-                      type="button"
-                      onClick={() => { setComposeMode("individual"); setSelectedClassId(""); }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        composeMode === "individual"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-transparent text-muted-foreground hover:bg-card/80 border border-transparent"
-                      }`}
-                    >
-                      <Send className="h-3 w-3 inline mr-1.5" />
-                      Individuel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setComposeMode("broadcast"); setRecipient(null); setSearchQuery(""); }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        composeMode === "broadcast"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-transparent text-muted-foreground hover:bg-card/80 border border-transparent"
-                      }`}
-                    >
-                      <Users className="h-3 w-3 inline mr-1.5" />
-                      Envoyer à une classe
-                    </button>
-                  </div>
-                )}
-
-                <form onSubmit={handleSend} className="space-y-5 flex-1 flex flex-col">
-                  {composeMode === "individual" ? (
-                    <div className="space-y-2 relative">
-                      <Label>Destinataire</Label>
-                      {recipient ? (
-                        <div className="flex items-center justify-between p-2 rounded-md border bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                              {recipient.firstName[0]}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{recipient.firstName} {recipient.lastName}</p>
-                              <p className="text-xs text-muted-foreground">{displayRole(recipient.role)}</p>
-                            </div>
-                          </div>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => { setRecipient(null); setSearchQuery(""); }}>
-                            Changer
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            aria-label="Rechercher un destinataire"
-                            placeholder="Tapez un nom, prénom ou e-mail..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                            disabled={isSearching}
-                          />
-                          {isSearching && (
-                            <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
-
-                      {/* Dropdown Results */}
-                      {searchResults.length > 0 && !recipient && (
-                        <div className="absolute z-10 w-full mt-1 bg-card/95 border border-border/70 rounded-md shadow-lg max-h-60 overflow-y-auto backdrop-blur-sm">
-                          {searchResults.map(user => (
-                            <button
-                              key={user.id}
-                              type="button"
-                              className="w-full text-left px-4 py-3 hover:bg-muted/70 border-b border-border/60 last:border-0 flex justify-between items-center transition-colors"
-                              onClick={() => {
-                                setRecipient(user);
-                                setSearchResults([]);
-                                setSearchQuery(`${user.firstName} ${user.lastName}`);
-                              }}
-                            >
-                              <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
-                              <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">{displayRole(user.role)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && !recipient && (
-                        <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg p-4 text-sm text-center text-muted-foreground">
-                          Aucun utilisateur trouvé.
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label>Classe destinataire</Label>
-                      <select
-                        value={selectedClassId}
-                        onChange={(e) => setSelectedClassId(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        required
-                      >
-                        <option value="">Sélectionner une classe...</option>
-                        {classes.map(cls => (
-                          <option key={cls.id} value={cls.id}>
-                            {cls.classLevel?.name ? `${cls.classLevel.name} - ` : ""}{cls.name}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-muted-foreground">
-                        Le message sera envoyé à tous les parents des élèves inscrits dans cette classe.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label>Sujet</Label>
-                    <Input
-                      value={subject}
-                      onChange={e => setSubject(e.target.value)}
-                      aria-label="Sujet du message"
-                      placeholder="Ex: Suivi pédagogique de la semaine"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2 flex-1 flex flex-col">
-                    <Label>Message</Label>
-                    <Textarea
-                      value={content}
-                      onChange={e => setContent(e.target.value)}
-                      aria-label="Contenu du message"
-                      placeholder="Rédigez votre message..."
-                      className="flex-1 min-h-[200px] resize-none"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      type="submit"
-                      disabled={
-                        sending ||
-                        !subject ||
-                        !content ||
-                        (composeMode === "individual" && !recipient) ||
-                        (composeMode === "broadcast" && !selectedClassId)
-                      }
-                      className="gap-2 action-critical touch-target"
-                    >
-                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : composeMode === "broadcast" ? <Users className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                      {composeMode === "broadcast" ? "Envoyer à la classe" : "Envoyer"}
-                    </Button>
-                  </div>
-                </form>
-              </motion.div>
-            ) : selectedMessage ? (
-              <motion.div
-                key={`detail-${selectedMessage.id}`}
-                initial={{ opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={FLOW_TRANSITION}
-                className="p-0 flex flex-col h-full"
-              >
-                {/* Message Header */}
-                <div className="p-6 border-b bg-muted/10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedMessage(null)} className="h-8 w-8 -ml-2">
-                      <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                    <span className="text-sm font-medium text-muted-foreground">Retour à la liste</span>
-                  </div>
-
-                  <h2 className="text-2xl font-bold text-foreground mb-4">{selectedMessage.subject}</h2>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex justify-center items-center font-bold text-lg">
-                        {activeTab === 'inbox' ? selectedMessage.sender.firstName[0] : selectedMessage.recipient.firstName[0]}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">
-                          {activeTab === 'inbox'
-                            ? `${selectedMessage.sender.firstName} ${selectedMessage.sender.lastName}`
-                            : `À: ${selectedMessage.recipient.firstName} ${selectedMessage.recipient.lastName}`
-                          }
-                        </p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          {activeTab === 'inbox' ? displayRole(selectedMessage.sender.role) : displayRole(selectedMessage.recipient.role)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(selectedMessage.createdAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Message Body */}
-                <div className="p-6 flex-1 text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                  {selectedMessage.content}
-                </div>
-
-                {/* Message Actions */}
-                {activeTab === "inbox" && (
-                  <div className="p-6 border-t bg-muted/5">
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => {
-                        setIsComposing(true);
-                        setComposeMode("individual");
-                        setRecipient(selectedMessage.sender as UserSearchResult);
-                        setSubject(`Re: ${selectedMessage.subject}`);
-                        setContent("");
-                      }}
-                    >
-                      <Reply className="w-4 h-4" /> Répondre
-                    </Button>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key={`list-${activeTab}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                className="p-0"
-              >
-                {loading ? (
-                  <div className="p-6 space-y-3">
-                    {Array.from({ length: 6 }).map((_, idx) => (
-                      <div key={idx} className="h-14 rounded-lg bg-muted/40 skeleton-shimmer" />
-                    ))}
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="p-6">
-                    <EmptyStateAction
-                      icon={MessageSquare}
-                      title="Aucun message"
-                      description={
-                        activeTab === "inbox"
-                          ? "Votre boîte de réception est vide. Vous recevrez ici les messages de l’équipe pédagogique et de l’administration."
-                          : "Aucun message envoyé pour le moment. Rédigez un message pour contacter un membre du personnel, un parent ou un élève."
-                      }
-                      actionLabel="Rédiger un message"
-                      onAction={() => setIsComposing(true)}
-                    />
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border/60">
-                    {messages.map((msg) => (
-                      <motion.div
-                        key={msg.id}
-                        layout
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.16 }}
-                        onClick={() => {
-                          setSelectedMessage(msg);
-                          if (!msg.isRead && activeTab === "inbox") {
-                            handleMarkAsRead(msg.id);
-                          }
+                {error ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            background: "var(--eduflow-danger-50)",
                         }}
-                        className={`p-4 hover:bg-muted/45 cursor-pointer transition-all duration-200 flex items-center gap-4 ${!msg.isRead && activeTab === 'inbox' ? 'bg-primary/5' : ''}`}
-                      >
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${!msg.isRead && activeTab === 'inbox' ? 'bg-primary' : 'bg-transparent'}`} />
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline mb-1">
-                            <span className={`text-sm truncate pr-4 ${!msg.isRead && activeTab === 'inbox' ? 'font-bold text-foreground' : 'font-semibold text-foreground/80'}`}>
-                              {activeTab === 'inbox'
-                                ? `${msg.sender.firstName} ${msg.sender.lastName}`
-                                : `À: ${msg.recipient.firstName} ${msg.recipient.lastName}`
-                              }
-                            </span>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {new Date(msg.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                            </span>
-                          </div>
-                          <p className={`text-sm truncate mb-1 ${!msg.isRead && activeTab === 'inbox' ? 'font-semibold text-foreground' : 'text-foreground/80'}`}>
-                            {msg.subject}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate line-clamp-1">
-                            {msg.content}
-                          </p>
+                    >
+                        <div className="flex items-center gap-3">
+                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "var(--eduflow-danger-800)",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {error}
+                            </p>
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </Card>
-        </div>
-      </div>
-    </PageGuard>
-  );
+                    </Card>
+                ) : null}
+
+                {loading ? (
+                    <div className="flex flex-col items-center gap-3 py-12">
+                        <Spinner size={28} color="var(--brand-600)" />
+                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                            Chargement des conversations…
+                        </span>
+                    </div>
+                ) : null}
+
+                {!loading ? (
+                    <Card
+                        padding={0}
+                        style={{
+                            height: 620,
+                            display: "grid",
+                            gridTemplateColumns: "280px 1fr 280px",
+                        }}
+                        className="msg-grid"
+                    >
+                        {/* Conversation list */}
+                        <div
+                            style={{
+                                borderRight: "1px solid var(--eduflow-border-subtle)",
+                                overflow: "auto",
+                                display: "flex",
+                                flexDirection: "column",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    padding: 14,
+                                    borderBottom: "1px solid var(--eduflow-border-subtle)",
+                                    background: "var(--eduflow-surface-card)",
+                                    position: "sticky",
+                                    top: 0,
+                                    zIndex: 1,
+                                }}
+                            >
+                                <Input
+                                    icon="search"
+                                    placeholder="Rechercher…"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                            </div>
+                            {filteredConversations.length === 0 ? (
+                                <div
+                                    style={{
+                                        padding: "32px 18px",
+                                        textAlign: "center",
+                                        fontSize: 12,
+                                        color: "var(--eduflow-text-tertiary)",
+                                    }}
+                                >
+                                    {conversations.length === 0
+                                        ? "Aucune conversation pour l'instant."
+                                        : "Aucun résultat."}
+                                </div>
+                            ) : (
+                                filteredConversations.map((c) => {
+                                    const isActive = c.otherUserId === activeOtherId;
+                                    const name = `${c.otherUser.firstName} ${c.otherUser.lastName}`;
+                                    return (
+                                        <button
+                                            key={c.otherUserId}
+                                            type="button"
+                                            onClick={() => setActiveOtherId(c.otherUserId)}
+                                            style={{
+                                                padding: 14,
+                                                borderBottom:
+                                                    "1px solid var(--eduflow-border-subtle)",
+                                                background: isActive
+                                                    ? "var(--brand-50)"
+                                                    : "transparent",
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                gap: 12,
+                                                border: 0,
+                                                borderRight: 0,
+                                                borderTop: 0,
+                                                borderLeft: 0,
+                                                width: "100%",
+                                                textAlign: "left",
+                                                fontFamily: "inherit",
+                                            }}
+                                        >
+                                            <Avatar name={name} size="md" />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        justifyContent: "space-between",
+                                                        alignItems: "baseline",
+                                                    }}
+                                                >
+                                                    <span
+                                                        style={{
+                                                            fontSize: 13,
+                                                            fontWeight: c.unreadCount > 0 ? 700 : 500,
+                                                            color: "var(--eduflow-text-primary)",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                    >
+                                                        {name}
+                                                    </span>
+                                                    <span
+                                                        style={{
+                                                            fontSize: 10,
+                                                            color:
+                                                                "var(--eduflow-text-tertiary)",
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                    >
+                                                        {fmtRelative(c.lastMessage.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        fontSize: 11,
+                                                        color: c.unreadCount > 0
+                                                            ? "var(--eduflow-text-primary)"
+                                                            : "var(--eduflow-text-tertiary)",
+                                                        fontWeight: c.unreadCount > 0 ? 600 : 400,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        marginTop: 2,
+                                                    }}
+                                                >
+                                                    {c.lastMessage.content}
+                                                </div>
+                                            </div>
+                                            {c.unreadCount > 0 ? (
+                                                <span
+                                                    style={{
+                                                        width: 18,
+                                                        height: 18,
+                                                        borderRadius: 9,
+                                                        background: "var(--brand-600)",
+                                                        color: "#fff",
+                                                        fontSize: 10,
+                                                        fontWeight: 700,
+                                                        display: "grid",
+                                                        placeItems: "center",
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    {c.unreadCount}
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Active thread */}
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                overflow: "hidden",
+                            }}
+                        >
+                            {active ? (
+                                <>
+                                    <div
+                                        style={{
+                                            padding: "14px 20px",
+                                            borderBottom:
+                                                "1px solid var(--eduflow-border-subtle)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 12,
+                                        }}
+                                    >
+                                        <Avatar
+                                            name={`${active.otherUser.firstName} ${active.otherUser.lastName}`}
+                                            size="sm"
+                                        />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div
+                                                style={{
+                                                    fontSize: 14,
+                                                    fontWeight: 700,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                {active.otherUser.firstName} {active.otherUser.lastName}
+                                            </div>
+                                            <div
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                }}
+                                            >
+                                                {ROLE_LABEL[active.otherUser.role] ?? active.otherUser.role}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div
+                                        ref={threadRef}
+                                        style={{
+                                            flex: 1,
+                                            padding: 20,
+                                            overflow: "auto",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: 12,
+                                            background:
+                                                "var(--eduflow-surface-page, #f6f7fb)",
+                                        }}
+                                    >
+                                        {renderThread(active.messages, myId)}
+                                    </div>
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            handleSend();
+                                        }}
+                                        style={{
+                                            padding: 14,
+                                            borderTop:
+                                                "1px solid var(--eduflow-border-subtle)",
+                                            display: "flex",
+                                            gap: 8,
+                                            alignItems: "center",
+                                            background: "var(--eduflow-surface-card)",
+                                        }}
+                                    >
+                                        <input
+                                            id="message-composer"
+                                            placeholder="Écrire un message…"
+                                            value={draft}
+                                            onChange={(e) => setDraft(e.target.value)}
+                                            onKeyDown={handleKeyDown}
+                                            style={{
+                                                flex: 1,
+                                                height: 38,
+                                                padding: "0 12px",
+                                                borderRadius:
+                                                    "var(--eduflow-radius-input)",
+                                                border:
+                                                    "1px solid var(--eduflow-border-default)",
+                                                background:
+                                                    "var(--eduflow-surface-card)",
+                                                fontFamily: "inherit",
+                                                fontSize: 13,
+                                                color: "var(--eduflow-text-primary)",
+                                                outline: "none",
+                                            }}
+                                        />
+                                        <Button
+                                            size="md"
+                                            icon={sending ? undefined : "chevron"}
+                                            loading={sending}
+                                            onClick={handleSend}
+                                            disabled={!draft.trim() || sending}
+                                        >
+                                            Envoyer
+                                        </Button>
+                                    </form>
+                                </>
+                            ) : (
+                                <div
+                                    style={{
+                                        flex: 1,
+                                        display: "grid",
+                                        placeItems: "center",
+                                        textAlign: "center",
+                                        padding: 24,
+                                        color: "var(--eduflow-text-tertiary)",
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    Sélectionne une conversation pour démarrer.
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right context */}
+                        <div
+                            style={{
+                                borderLeft: "1px solid var(--eduflow-border-subtle)",
+                                padding: 16,
+                                overflow: "auto",
+                                background: "var(--eduflow-surface-card)",
+                            }}
+                        >
+                            {active ? (
+                                <>
+                                    <div style={{ textAlign: "center" }}>
+                                        <div
+                                            style={{
+                                                display: "inline-block",
+                                                margin: "0 auto",
+                                            }}
+                                        >
+                                            <Avatar
+                                                name={`${active.otherUser.firstName} ${active.otherUser.lastName}`}
+                                                size="xl"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: "center", marginTop: 10 }}>
+                                        <div
+                                            className="eduflow-display"
+                                            style={{ fontSize: 16, fontWeight: 700 }}
+                                        >
+                                            {active.otherUser.firstName} {active.otherUser.lastName}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                            }}
+                                        >
+                                            {ROLE_LABEL[active.otherUser.role] ?? active.otherUser.role}
+                                        </div>
+                                    </div>
+                                    <div
+                                        style={{
+                                            marginTop: 18,
+                                            paddingTop: 18,
+                                            borderTop:
+                                                "1px solid var(--eduflow-border-subtle)",
+                                        }}
+                                    >
+                                        <SubLabel>Contact</SubLabel>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--eduflow-text-secondary)",
+                                                marginTop: 6,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: 6,
+                                            }}
+                                        >
+                                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                                <Icon
+                                                    name="sms"
+                                                    size={12}
+                                                    color="var(--brand-700)"
+                                                />
+                                                <a
+                                                    href={`mailto:${active.otherUser.email}`}
+                                                    style={{
+                                                        color: "var(--eduflow-text-secondary)",
+                                                        textDecoration: "none",
+                                                    }}
+                                                >
+                                                    {active.otherUser.email}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ marginTop: 18 }}>
+                                        <SubLabel>
+                                            Conversation · {active.messages.length} message{active.messages.length > 1 ? "s" : ""}
+                                        </SubLabel>
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                marginTop: 6,
+                                                lineHeight: 1.6,
+                                            }}
+                                        >
+                                            Démarrée le{" "}
+                                            {new Date(active.messages[0].createdAt).toLocaleDateString("fr-FR", {
+                                                day: "numeric",
+                                                month: "long",
+                                                year: "numeric",
+                                            })}
+                                            <br />
+                                            {active.unreadCount > 0 ? (
+                                                <Badge variant="warning" size="sm">
+                                                    {active.unreadCount} non lu{active.unreadCount > 1 ? "s" : ""}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="success" size="sm" icon="check">
+                                                    À jour
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        color: "var(--eduflow-text-tertiary)",
+                                        textAlign: "center",
+                                        padding: "32px 8px",
+                                    }}
+                                >
+                                    Sélectionne une conversation pour voir le contact.
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                ) : null}
+            </div>
+
+            <style jsx global>{`
+                @media (max-width: 1100px) {
+                    .msg-grid {
+                        grid-template-columns: 260px 1fr !important;
+                    }
+                    .msg-grid > div:last-child {
+                        display: none !important;
+                    }
+                }
+                @media (max-width: 760px) {
+                    .msg-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                    .msg-grid > div:first-child {
+                        height: 280px;
+                    }
+                }
+            `}</style>
+        </PageGuard>
+    );
+}
+
+function renderThread(messages: RawMessage[], myId: string | undefined): React.ReactNode {
+    if (messages.length === 0) {
+        return (
+            <div
+                style={{
+                    margin: "auto",
+                    fontSize: 12,
+                    color: "var(--eduflow-text-tertiary)",
+                }}
+            >
+                Aucun message dans cette conversation.
+            </div>
+        );
+    }
+    const out: React.ReactNode[] = [];
+    let lastDay: string | null = null;
+    for (const m of messages) {
+        const dayKey = new Date(m.createdAt).toDateString();
+        if (dayKey !== lastDay) {
+            out.push(
+                <div
+                    key={`day-${dayKey}`}
+                    style={{
+                        alignSelf: "center",
+                        padding: "4px 12px",
+                        borderRadius: 12,
+                        background: "var(--eduflow-surface-card)",
+                        fontSize: 10,
+                        color: "var(--eduflow-text-tertiary)",
+                        border: "1px solid var(--eduflow-border-subtle)",
+                    }}
+                >
+                    {fmtDayLabel(m.createdAt)}
+                </div>
+            );
+            lastDay = dayKey;
+        }
+        const fromMe = m.sender.id === myId;
+        out.push(
+            <div
+                key={m.id}
+                style={{
+                    alignSelf: fromMe ? "flex-end" : "flex-start",
+                    display: "flex",
+                    gap: 8,
+                    maxWidth: "70%",
+                }}
+            >
+                {!fromMe ? (
+                    <Avatar
+                        name={`${m.sender.firstName} ${m.sender.lastName}`}
+                        size="xs"
+                    />
+                ) : null}
+                <div>
+                    {m.subject && !m.subject.startsWith("Re:") ? (
+                        <div
+                            style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: "var(--eduflow-text-tertiary)",
+                                marginBottom: 4,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                textAlign: fromMe ? "right" : "left",
+                            }}
+                        >
+                            {m.subject}
+                        </div>
+                    ) : null}
+                    <div
+                        style={{
+                            padding: "10px 14px",
+                            background: fromMe
+                                ? "var(--brand-600)"
+                                : "var(--eduflow-surface-card)",
+                            color: fromMe ? "#fff" : "var(--eduflow-text-primary)",
+                            borderRadius: 14,
+                            borderBottomRightRadius: fromMe ? 4 : 14,
+                            borderBottomLeftRadius: !fromMe ? 4 : 14,
+                            fontSize: 13,
+                            lineHeight: 1.5,
+                            boxShadow: !fromMe ? "var(--shadow-sm)" : "none",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                        }}
+                    >
+                        {m.content}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: 9,
+                            color: "var(--eduflow-text-tertiary)",
+                            marginTop: 4,
+                            textAlign: fromMe ? "right" : "left",
+                        }}
+                    >
+                        {fmtTime(m.createdAt)}
+                        {fromMe ? (m.isRead ? " · lu" : " · envoyé") : ""}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return out;
 }
