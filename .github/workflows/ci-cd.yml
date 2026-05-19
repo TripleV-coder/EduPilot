@@ -2,11 +2,18 @@ name: CD — Build, Image, Deploy
 
 # Délégation : ci.yml fait lint/tests/e2e/security.
 # Ce pipeline construit l'image Docker, scanne l'image, et déploie après merge sur main.
+#
+# Trigger model:
+#   - Auto: run après que le workflow "CI" se termine en succès (filtre branche main).
+#     Plus de course condition: GitHub garantit que CI est terminé avant que CD démarre.
+#   - Manuel: workflow_dispatch (staging ou production), utile pour rejouer un déploiement
+#     ou cibler explicitement la production sur un tag.
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
       environment:
@@ -17,7 +24,7 @@ on:
         options: [staging, production]
 
 concurrency:
-  group: cd-${{ github.workflow }}-${{ github.ref }}
+  group: cd-${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -25,30 +32,24 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   NEXT_TELEMETRY_DISABLED: "1"
+  # SHA à déployer: head_sha du run CI déclencheur (workflow_run) ou github.sha (workflow_dispatch)
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
-  # 1. Wait for CI workflow on the same SHA (fail-fast if CI is red)
-  # ─────────────────────────────────────────────────────────────────────────
-  wait-for-ci:
-    name: Wait for CI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: "Quality Gate"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 20
-          allowed-conclusions: success
-
-  # ─────────────────────────────────────────────────────────────────────────
-  # 2. Build & push Docker image (GHCR), provenance + SBOM attestation
+  # 1. Build & push Docker image (GHCR), provenance + SBOM attestation
+  #    Conditions de démarrage:
+  #      - workflow_run: CI conclu en "success"
+  #      - workflow_dispatch: toujours
   # ─────────────────────────────────────────────────────────────────────────
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [wait-for-ci]
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      }}
     permissions:
       contents: read
       packages: write
@@ -57,6 +58,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # En workflow_run, github.sha pointe sur le HEAD de la branche du workflow CD,
+          # pas le commit déclencheur du CI. On force le SHA déployé.
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -81,7 +86,7 @@ jobs:
             type=ref,event=tag
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,value=${{ env.DEPLOY_SHA }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -105,7 +110,7 @@ jobs:
           push-to-registry: true
 
   # ─────────────────────────────────────────────────────────────────────────
-  # 3. Scan published image (Trivy → SARIF)
+  # 2. Scan published image (Trivy → SARIF)
   # ─────────────────────────────────────────────────────────────────────────
   image-scan:
     name: Trivy Image Scan
@@ -116,11 +121,13 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}
           format: sarif
           output: trivy-image.sarif
           ignore-unfixed: true
@@ -135,15 +142,21 @@ jobs:
           category: trivy-image
 
   # ─────────────────────────────────────────────────────────────────────────
-  # 4. Lighthouse perf budget on preview / staging
+  # 3. Lighthouse perf budget on preview / staging
   # ─────────────────────────────────────────────────────────────────────────
   lighthouse:
     name: Lighthouse CI
     runs-on: ubuntu-latest
     needs: [docker]
-    if: ${{ github.event_name == 'push' || github.event.inputs.environment == 'staging' }}
+    if: >-
+      ${{
+        github.event_name == 'workflow_run' ||
+        github.event.inputs.environment == 'staging'
+      }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -157,22 +170,28 @@ jobs:
       - name: Run Lighthouse CI (existing workflow keeps detailed config)
         run: npx --yes @lhci/cli autorun --upload.target=temporary-public-storage
         env:
-          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
         continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────
-  # 5. Deploy to staging (auto) — production needs manual approval
+  # 4. Deploy to staging (auto) — production needs manual approval
   # ─────────────────────────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy → Staging
     runs-on: ubuntu-latest
     needs: [image-scan]
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: >-
+      ${{
+        (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main') ||
+        github.event.inputs.environment == 'staging'
+      }}
     environment:
       name: staging
       url: ${{ vars.STAGING_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Run database migrations (deploy)
         run: npx prisma migrate deploy
@@ -181,7 +200,7 @@ jobs:
 
       - name: Deploy image (placeholder — customise per target)
         run: |
-          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} to STAGING"
+          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }} to STAGING"
           # Examples by target:
           #   Vercel:    vercel deploy --prod --token=$VERCEL_TOKEN
           #   Railway:   railway up --service edupilot
@@ -210,12 +229,17 @@ jobs:
     name: Deploy → Production
     runs-on: ubuntu-latest
     needs: [deploy-staging]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production' }}
+    # Production: déclenchement manuel uniquement (workflow_dispatch + environment=production).
+    # Le push sur tag passe par CI puis CD via workflow_run; pour pousser en prod, lancer
+    # ce workflow manuellement après vérification du staging.
+    if: ${{ github.event.inputs.environment == 'production' }}
     environment:
       name: production
       url: ${{ vars.PRODUCTION_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Run database migrations
         run: npx prisma migrate deploy
@@ -224,7 +248,7 @@ jobs:
 
       - name: Deploy image
         run: |
-          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} to PRODUCTION"
+          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }} to PRODUCTION"
         env:
           DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
 
@@ -248,5 +272,5 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
             -H "Content-Type: application/json" \
             "https://sentry.io/api/0/organizations/${{ vars.SENTRY_ORG }}/releases/" \
-            -d '{"version":"${{ github.sha }}","projects":["${{ vars.SENTRY_PROJECT }}"]}'
+            -d '{"version":"${{ env.DEPLOY_SHA }}","projects":["${{ vars.SENTRY_PROJECT }}"]}'
         continue-on-error: true
