@@ -1,522 +1,747 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Upload, CheckCircle2, AlertTriangle, 
-  ArrowRight, Loader2, ListChecks, Database, 
-  UserPlus, GraduationCap, BookOpen, FileText, ChevronRight
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
+import {
+    Upload, CheckCircle2, AlertTriangle, ArrowRight, Loader2, Database,
+    UserPlus, GraduationCap, BookOpen, FileText, ChevronRight, FileSpreadsheet,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "@/hooks/use-toast";
-import { Progress } from "@/components/ui/progress";
-import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+import { fetcher } from "@/lib/fetcher";
 import {
-  applyMapping,
-  suggestMapping,
-  STUDENT_FIELDS,
-  TEACHER_FIELDS,
-  CLASS_FIELDS,
-  PARENT_FIELDS,
-  type FieldDefinition,
+    applyMapping, suggestMapping,
+    STUDENT_FIELDS, TEACHER_FIELDS, CLASS_FIELDS, PARENT_FIELDS,
+    type FieldDefinition,
 } from "@/lib/import/mapping-utils";
+import { runValidations, readyCount, type ValidationCheck } from "@/lib/import/validators";
+import {
+    IMPORT_TYPE_LABELS,
+    type SupportedImportType,
+} from "@/lib/import/types";
 
-type ImportStep = "SELECT_TYPE" | "UPLOAD" | "MAPPING" | "VALIDATE" | "PROCESS";
-
-type SupportedImportType = "STUDENTS" | "TEACHERS" | "CLASSES" | "PARENTS";
+type ImportStep = "SELECT_UPLOAD" | "REVIEW" | "SUCCESS";
 
 const IMPORT_TYPES: Array<{
-  id: SupportedImportType;
-  previewType: "students" | "teachers" | "classes" | "parents";
-  endpoint: string;
-  label: string;
-  description: string;
-  icon: typeof UserPlus;
-  color: string;
-  bg: string;
+    id: SupportedImportType;
+    previewType: "students" | "teachers" | "classes" | "parents";
+    endpoint: string;
+    label: string;
+    description: string;
+    icon: typeof UserPlus;
 }> = [
-  {
-    id: "STUDENTS",
-    previewType: "students",
-    endpoint: "/api/import/students",
-    label: "Élèves",
-    description: "Importez votre base d'élèves, matricules et contacts parents.",
-    icon: UserPlus,
-    color: "text-primary",
-    bg: "bg-primary/10",
-  },
-  {
-    id: "TEACHERS",
-    previewType: "teachers",
-    endpoint: "/api/import/teachers",
-    label: "Enseignants",
-    description: "Annuaires des professeurs et spécialités.",
-    icon: GraduationCap,
-    color: "text-success",
-    bg: "bg-success/10",
-  },
-  {
-    id: "CLASSES",
-    previewType: "classes",
-    endpoint: "/api/import/classes",
-    label: "Classes",
-    description: "Créez vos classes avec niveau, capacité et professeur principal.",
-    icon: BookOpen,
-    color: "text-primary",
-    bg: "bg-primary/10",
-  },
-  {
-    id: "PARENTS",
-    previewType: "parents",
-    endpoint: "/api/import/parents",
-    label: "Parents",
-    description: "Importez les contacts tuteurs et liez-les aux élèves existants.",
-    icon: FileText,
-    color: "text-warning",
-    bg: "bg-warning/10",
-  },
+    {
+        id: "STUDENTS",
+        previewType: "students",
+        endpoint: "/api/import/students",
+        label: "Élèves",
+        description: "Importez votre base d'élèves, matricules et contacts parents.",
+        icon: UserPlus,
+    },
+    {
+        id: "TEACHERS",
+        previewType: "teachers",
+        endpoint: "/api/import/teachers",
+        label: "Enseignants",
+        description: "Annuaires des professeurs et spécialités.",
+        icon: GraduationCap,
+    },
+    {
+        id: "CLASSES",
+        previewType: "classes",
+        endpoint: "/api/import/classes",
+        label: "Classes",
+        description: "Créez vos classes avec niveau, capacité et professeur principal.",
+        icon: BookOpen,
+    },
+    {
+        id: "PARENTS",
+        previewType: "parents",
+        endpoint: "/api/import/parents",
+        label: "Parents",
+        description: "Importez les contacts tuteurs et liez-les aux élèves existants.",
+        icon: FileText,
+    },
 ];
 
+const FIELDS_BY_TYPE: Record<SupportedImportType, FieldDefinition[]> = {
+    STUDENTS: STUDENT_FIELDS,
+    TEACHERS: TEACHER_FIELDS,
+    CLASSES: CLASS_FIELDS,
+    PARENTS: PARENT_FIELDS,
+};
+
+const SEVERITY_COLORS = {
+    success: "var(--eduflow-success-700)",
+    warning: "var(--eduflow-warning-700)",
+    danger: "var(--eduflow-danger-700)",
+    neutral: "var(--eduflow-neutral-700)",
+} as const;
+
+function fmtInt(n: number): string {
+    return new Intl.NumberFormat("fr-FR").format(n);
+}
+
 export default function ImportWizardPage() {
-  const [step, setStep] = useState<ImportStep>("SELECT_TYPE");
-  const [selectedType, setSelectedType] = useState<SupportedImportType | null>(null);
-  const [fileData, setFileData] = useState<Record<string, unknown>[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [previewSummary, setPreviewSummary] = useState<{ total: number; valid: number; invalid: number; percentage: number } | null>(null);
-  const [previewErrors, setPreviewErrors] = useState<Array<{ row: number; errors?: Array<{ message: string }>; message?: string }>>([]);
-  const [isValidating, setIsValidating] = useState(false);
-  const [importedCount, setImportedCount] = useState(0);
-  const [importErrors, setImportErrors] = useState<Array<{ row?: number; error?: string; details?: string }>>([]);
-  const [progress, setProgress] = useState(0);
-  const [isProcessing, setIsSubmitting] = useState(false);
+    const [step, setStep] = useState<ImportStep>("SELECT_UPLOAD");
+    const [selectedType, setSelectedType] = useState<SupportedImportType | null>(null);
+    const [fileName, setFileName] = useState<string>("");
+    const [fileData, setFileData] = useState<Record<string, unknown>[]>([]);
+    const [headers, setHeaders] = useState<string[]>([]);
+    const [mapping, setMapping] = useState<Record<string, string>>({});
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [importedCount, setImportedCount] = useState(0);
+    const [importErrors, setImportErrors] = useState<Array<{ row?: number; error?: string; details?: string }>>([]);
 
-  const selectedConfig = selectedType ? IMPORT_TYPES.find((it) => it.id === selectedType) ?? null : null;
+    const selectedConfig = selectedType ? IMPORT_TYPES.find((it) => it.id === selectedType) ?? null : null;
+    const targetFields = selectedType ? FIELDS_BY_TYPE[selectedType] : [];
+    const targetFieldsByKey = useMemo(() => new Map(targetFields.map((f) => [f.key, f])), [targetFields]);
 
-  const getTargetFields = (type: SupportedImportType | null): FieldDefinition[] => {
-    if (type === "STUDENTS") return STUDENT_FIELDS;
-    if (type === "TEACHERS") return TEACHER_FIELDS;
-    if (type === "CLASSES") return CLASS_FIELDS;
-    if (type === "PARENTS") return PARENT_FIELDS;
-    return [];
-  };
+    const { data: classesData } = useSWR<{ classes?: Array<{ name: string }> }>(
+        selectedType === "STUDENTS" || selectedType === "CLASSES" ? "/api/classes" : null,
+        fetcher,
+    );
+    const knownClassNames = useMemo(
+        () => (classesData?.classes ?? []).map((c) => c.name),
+        [classesData],
+    );
 
-  const resetFlow = () => {
-    setStep("SELECT_TYPE");
-    setSelectedType(null);
-    setFileData([]);
-    setHeaders([]);
-    setMapping({});
-    setPreviewSummary(null);
-    setPreviewErrors([]);
-    setImportedCount(0);
-    setImportErrors([]);
-    setProgress(0);
-  };
+    const mappedRows = useMemo(
+        () => (selectedType ? applyMapping(fileData, mapping) : []),
+        [selectedType, fileData, mapping],
+    );
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const validations: ValidationCheck[] = useMemo(() => {
+        if (!selectedType || mappedRows.length === 0) return [];
+        return runValidations({
+            rows: mappedRows,
+            type: selectedType,
+            knownClassNames: knownClassNames.length ? knownClassNames : undefined,
+        });
+    }, [selectedType, mappedRows, knownClassNames]);
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      
-      if (data.length > 0) {
-        const parsedHeaders = (data[0] as string[]).map((h) => String(h || "").trim()).filter(Boolean);
-        const rows = (data.slice(1) as unknown[][])
-          .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? "").trim() !== ""))
-          .map((row) => {
-            const obj: Record<string, unknown> = {};
-            parsedHeaders.forEach((header, i) => {
-              obj[header] = row[i];
+    const ready = readyCount(validations, fileData.length);
+    const toReview = Math.max(0, fileData.length - ready);
+    const mappedColCount = headers.filter((h) => Boolean(mapping[h])).length;
+    const warningCount = validations.filter((v) => v.severity === "warning" || v.severity === "danger").length;
+
+    function resetFlow() {
+        setStep("SELECT_UPLOAD");
+        setSelectedType(null);
+        setFileName("");
+        setFileData([]);
+        setHeaders([]);
+        setMapping({});
+        setProgress(0);
+        setImportedCount(0);
+        setImportErrors([]);
+    }
+
+    function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file || !selectedType) return;
+        setFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: "binary" });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const raw = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+            if (raw.length === 0) return;
+            const parsedHeaders = (raw[0] as string[]).map((h) => String(h ?? "").trim()).filter(Boolean);
+            const rows = raw.slice(1)
+                .filter((r) => Array.isArray(r) && r.some((cell) => String(cell ?? "").trim() !== ""))
+                .map((r) => {
+                    const obj: Record<string, unknown> = {};
+                    parsedHeaders.forEach((h, idx) => { obj[h] = r[idx]; });
+                    return obj;
+                });
+            setHeaders(parsedHeaders);
+            setFileData(rows);
+            setMapping(suggestMapping(parsedHeaders, FIELDS_BY_TYPE[selectedType]));
+            setStep("REVIEW");
+        };
+        reader.readAsBinaryString(file);
+    }
+
+    async function startImport() {
+        if (!selectedConfig) return;
+        setIsProcessing(true);
+        setProgress(20);
+        try {
+            const res = await fetch(selectedConfig.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ data: mappedRows }),
             });
-            return obj;
-          });
-
-        setHeaders(parsedHeaders);
-        setFileData(rows);
-        setPreviewSummary(null);
-        setPreviewErrors([]);
-
-        const targetFields = getTargetFields(selectedType);
-        setMapping(suggestMapping(parsedHeaders, targetFields));
-        setStep("MAPPING");
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const runPreview = async () => {
-    if (!selectedConfig) return;
-    setIsValidating(true);
-    try {
-      const mappedData = applyMapping(fileData, mapping);
-      const res = await fetch("/api/import/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: selectedConfig.previewType,
-          data: mappedData,
-          limit: 20,
-        }),
-      });
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) {
-        throw new Error(payload?.error || payload?.message || "Échec de la prévalidation");
-      }
-      setPreviewSummary(payload.summary);
-      setPreviewErrors(payload.errors || []);
-      setStep("VALIDATE");
-    } catch (err: any) {
-      toast({ title: "Prévalidation échouée", description: err.message, variant: "destructive" });
-    } finally {
-      setIsValidating(false);
+            const result = await res.json();
+            if (!res.ok) throw new Error(result?.error || "Erreur lors de l'injection");
+            setProgress(100);
+            setImportedCount(Number(result?.created ?? result?.count ?? 0));
+            setImportErrors(Array.isArray(result?.errors) ? result.errors : []);
+            setStep("SUCCESS");
+            toast({ title: "Importation réussie", description: `${result?.created ?? 0} enregistrements ajoutés.` });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Erreur inconnue";
+            toast({ title: "Erreur d'importation", description: msg, variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
     }
-  };
 
-  const startImport = async () => {
-    if (!selectedConfig) return;
-    setIsSubmitting(true);
-    setProgress(10);
-    
-    try {
-      const mappedData = applyMapping(fileData, mapping);
-      setProgress(35);
-      const res = await fetch(selectedConfig.endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: mappedData }),
-      });
+    const stepNumber = step === "SELECT_UPLOAD" ? 1 : step === "REVIEW" ? 2 : 3;
+    const subtitle = step === "REVIEW"
+        ? `Étape 2 / 3 · vérification & mapping des colonnes`
+        : step === "SUCCESS"
+            ? `Étape 3 / 3 · données injectées`
+            : `Étape 1 / 3 · sélection du type de données`;
 
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result?.error || "Erreur lors de l'injection");
-      }
+    const titleByType = selectedType
+        ? `Importer des ${IMPORT_TYPE_LABELS[selectedType]} · CSV`
+        : "Importer des données · CSV";
 
-      const count = Number(result?.created ?? result?.count ?? 0);
-      const errors = Array.isArray(result?.errors) ? result.errors : [];
-      setImportedCount(count);
-      setImportErrors(errors);
-      setProgress(100);
-      setStep("PROCESS");
-      if (errors.length > 0) {
-        toast({
-          title: "Importation partielle",
-          description: `${count} enregistrements importés, ${errors.length} lignes en erreur.`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Importation Réussie",
-          description: `${count} enregistrements ont été ajoutés à la base.`,
-        });
-      }
-    } catch (err: any) {
-      toast({ title: "Erreur d'importation", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    return (
+        <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+            <PageHeader
+                title={titleByType}
+                description={subtitle}
+                breadcrumbs={[
+                    { label: "Tableau de bord", href: "/dashboard" },
+                    { label: "Élèves", href: "/dashboard/students" },
+                    { label: "Import" },
+                ]}
+            />
 
-  const targetFields = getTargetFields(selectedType);
-  const targetFieldsByKey = new Map(targetFields.map((f) => [f.key, f]));
-  const mappedCount = headers.filter((header) => Boolean(mapping[header])).length;
-  const hasBlockingErrors = (previewSummary?.invalid || 0) > 0;
-  const successRedirect =
-    selectedType === "TEACHERS"
-      ? "/dashboard/teachers"
-      : selectedType === "CLASSES"
-        ? "/dashboard/classes"
-        : selectedType === "PARENTS"
-          ? "/dashboard/parents"
-          : "/dashboard/students";
-
-  return (
-    <div className="space-y-8 max-w-[1200px] mx-auto animate-in fade-in duration-500 pb-20">
-      <PageHeader 
-        title="Assistant d'Importation" 
-        description="Migrez vos données historiques Excel ou CSV vers la plateforme EduPilot en quelques minutes."
-      />
-
-      {/* Stepper Visual */}
-      <div className="flex items-center justify-between max-w-2xl mx-auto mb-12">
-        {["Type", "Fichier", "Mapping", "Validation"].map((s, i) => {
-          const stepIndex = ["SELECT_TYPE", "UPLOAD", "MAPPING", "VALIDATE", "PROCESS"].indexOf(step);
-          const isActive = i <= stepIndex;
-          return (
-            <div key={s} className="flex items-center gap-3">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all",
-                isActive ? "bg-primary text-white scale-110 shadow-lg" : "bg-muted text-muted-foreground"
-              )}>{i + 1}</div>
-              <span className={cn("text-xs font-bold uppercase tracking-tighter hidden sm:inline", isActive ? "text-foreground" : "text-muted-foreground")}>{s}</span>
-              {i < 3 && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
+            {/* Mini stepper */}
+            <div className="flex items-center gap-3" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                {["Type & fichier", "Mapping & validation", "Injection"].map((label, idx) => {
+                    const number = idx + 1;
+                    const active = stepNumber >= number;
+                    return (
+                        <div key={label} className="flex items-center gap-2">
+                            <span
+                                className="grid place-items-center rounded-full font-bold"
+                                style={{
+                                    width: 24, height: 24, fontSize: 11,
+                                    background: active ? "var(--eduflow-brand-700)" : "var(--eduflow-surface-sunken)",
+                                    color: active ? "#fff" : "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                {number}
+                            </span>
+                            <span
+                                className="hidden sm:inline"
+                                style={{
+                                    fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                    color: active ? "var(--eduflow-text-primary)" : "var(--eduflow-text-tertiary)",
+                                }}
+                            >
+                                {label}
+                            </span>
+                            {idx < 2 && <ChevronRight className="w-3.5 h-3.5 opacity-40" />}
+                        </div>
+                    );
+                })}
             </div>
-          );
-        })}
-      </div>
 
-      {/* Step 1: Select Type */}
-      {step === "SELECT_TYPE" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {IMPORT_TYPES.map((type) => (
-            <Card 
-              key={type.id} 
-              className={cn(
-                "cursor-pointer hover:border-primary/50 transition-all group relative overflow-hidden",
-                selectedType === type.id ? "border-primary ring-1 ring-primary/20 shadow-xl" : "border-border/50"
-              )}
-              onClick={() => setSelectedType(type.id)}
-            >
-              <CardContent className="p-6 flex gap-5">
-                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner", type.bg)}>
-                  <type.icon className={cn("w-7 h-7", type.color)} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg">{type.label}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{type.description}</p>
-                </div>
-                <div className={cn(
-                  "absolute bottom-0 right-0 p-2 transition-transform duration-300",
-                  selectedType === type.id ? "translate-x-0" : "translate-x-full"
-                )}>
-                  <div className="bg-primary text-white rounded-tl-xl p-1.5 shadow-lg">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          <div className="md:col-span-2 flex justify-end mt-4">
-            <Button 
-              disabled={!selectedType} 
-              onClick={() => setStep("UPLOAD")}
-              className="h-12 px-8 rounded-xl font-bold uppercase tracking-widest shadow-xl hover:shadow-primary/20 transition-all gap-3"
-            >
-              Étape Suivante
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Upload */}
-      {step === "UPLOAD" && (
-        <Card className="border-none shadow-none bg-muted/20">
-          <CardContent className="p-12">
-            <div className="max-w-xl mx-auto text-center space-y-8">
-              <div className="w-24 h-24 bg-background rounded-3xl flex items-center justify-center mx-auto shadow-sm border border-border/50">
-                <Upload className="w-10 h-10 text-primary animate-bounce" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-black">Téléversez votre fichier Excel</h3>
-                <p className="text-sm text-muted-foreground">Format supportés : .xlsx, .xls, .csv. Taille max : 10 Mo.</p>
-              </div>
-              
-              <div className="relative group">
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls, .csv" 
-                  onChange={handleFile}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            {step === "SELECT_UPLOAD" && (
+                <SelectAndUpload
+                    selectedType={selectedType}
+                    setSelectedType={setSelectedType}
+                    handleFile={handleFile}
                 />
-                <div className="p-10 border-2 border-dashed border-border group-hover:border-primary/50 rounded-2xl bg-background/50 transition-colors">
-                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Cliquez ou glissez-déposez ici</p>
-                </div>
-              </div>
+            )}
 
-              <Button variant="ghost" className="text-xs font-bold uppercase" onClick={() => setStep("SELECT_TYPE")}>
-                Changer le type de données
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 3: Mapping */}
-      {step === "MAPPING" && (
-        <div className="space-y-6">
-          <Card className="border-none shadow-none bg-muted/20">
-            <CardHeader className="border-b border-border/50">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <ListChecks className="w-4 h-4 text-primary" />
-                Mapping des Colonnes
-              </CardTitle>
-              <CardDescription className="text-xs">Faites correspondre les colonnes de votre fichier aux champs EduPilot.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-background/50 text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b border-border/50">
-                  <tr>
-                    <th className="px-6 py-4 text-left">Champ EduPilot</th>
-                    <th className="px-6 py-4 text-left">Colonne dans votre fichier</th>
-                    <th className="px-6 py-4 text-left">Aperçu donnée</th>
-                    <th className="px-6 py-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {headers.map((header, i) => (
-                    <tr key={i} className="hover:bg-background/30 transition-colors">
-                      <td className="px-6 py-4 font-bold text-primary">
-                        {mapping[header]
-                          ? targetFieldsByKey.get(mapping[header])?.label || mapping[header]
-                          : "Non mappé"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <select
-                          value={mapping[header] || ""}
-                          onChange={(event) =>
-                            setMapping((current) => ({
-                              ...current,
-                              [header]: event.target.value,
-                            }))
-                          }
-                          className="bg-background border border-border/50 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary w-full max-w-[260px]"
+            {step === "REVIEW" && selectedType && (
+                <div className="grid gap-3.5" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
+                    {/* Mapping table card */}
+                    <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                            background: "var(--eduflow-surface-card)",
+                            border: "1px solid var(--eduflow-border-subtle)",
+                        }}
+                    >
+                        <div
+                            className="flex items-center justify-between px-5 py-3.5 gap-3"
+                            style={{ borderBottom: "1px solid var(--eduflow-border-subtle)" }}
                         >
-                          <option value="">Ignorer cette colonne</option>
-                          {targetFields.map((field) => (
-                            <option key={field.key} value={field.key}>
-                              {field.label} {field.required ? "(requis)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 text-muted-foreground font-mono text-xs">
-                        {String(fileData[0]?.[header] ?? "—")}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {mapping[header] ? (
-                          <CheckCircle2 className="w-4 h-4 text-success mx-auto" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-warning mx-auto" />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-          <div className="flex justify-between items-center">
-            <Button variant="outline" onClick={() => setStep("UPLOAD")} className="font-bold uppercase text-[11px] h-10 px-6 rounded-xl">Retour</Button>
-            <Button
-              onClick={runPreview}
-              disabled={isValidating || mappedCount === 0}
-              className="font-bold uppercase text-[11px] h-10 px-8 rounded-xl shadow-lg"
+                            <div>
+                                <h3 className="m-0 flex items-center gap-2" style={{ fontSize: 16, fontWeight: 700 }}>
+                                    <FileSpreadsheet className="w-4 h-4" style={{ color: "var(--eduflow-brand-700)" }} />
+                                    {fileName || "Fichier importé"}
+                                </h3>
+                                <p className="m-0" style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                    {fmtInt(fileData.length)} lignes détectées · {headers.length} colonnes
+                                </p>
+                            </div>
+                            <div className="flex gap-1.5">
+                                <CountBadge severity="success" icon="check">
+                                    {mappedColCount} mappées
+                                </CountBadge>
+                                {warningCount > 0 && (
+                                    <CountBadge severity="warning" icon="warning">
+                                        {warningCount} à vérifier
+                                    </CountBadge>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse" style={{ fontSize: 12 }}>
+                                <thead>
+                                    <tr style={{ background: "var(--eduflow-surface-sunken)" }}>
+                                        {["Colonne Excel", "→", "Champ EduPilot", "Aperçu (3 premières)", "Statut"].map((h) => (
+                                            <th
+                                                key={h}
+                                                className="text-left font-bold uppercase"
+                                                style={{
+                                                    padding: "10px 14px",
+                                                    fontSize: 10,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                    letterSpacing: "0.06em",
+                                                }}
+                                            >
+                                                {h === "→" ? "" : h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {headers.map((header) => {
+                                        const fieldKey = mapping[header];
+                                        const field = fieldKey ? targetFieldsByKey.get(fieldKey) : undefined;
+                                        const preview = fileData
+                                            .slice(0, 3)
+                                            .map((r) => String(r[header] ?? "(vide)"))
+                                            .join(" · ");
+                                        const fillRate = fileData.length === 0
+                                            ? 0
+                                            : fileData.filter((r) => String(r[header] ?? "").trim() !== "").length / fileData.length;
+                                        const isWarn = !!fieldKey && fillRate < 0.5;
+                                        const isSkip = !fieldKey;
+                                        return (
+                                            <tr key={header} style={{ borderTop: "1px solid var(--eduflow-border-subtle)" }}>
+                                                <td className="font-mono" style={{ padding: "11px 14px" }}>{header}</td>
+                                                <td style={{ padding: "11px 14px", color: "var(--eduflow-text-tertiary)" }}>→</td>
+                                                <td style={{ padding: "11px 14px" }}>
+                                                    <select
+                                                        value={fieldKey ?? ""}
+                                                        onChange={(e) => setMapping((m) => ({ ...m, [header]: e.target.value }))}
+                                                        className="bg-transparent border-0 outline-none"
+                                                        style={{
+                                                            fontFamily: "inherit",
+                                                            fontSize: 12,
+                                                            fontWeight: field ? 600 : 400,
+                                                            color: field ? "var(--eduflow-text-primary)" : "var(--eduflow-text-tertiary)",
+                                                            cursor: "pointer",
+                                                        }}
+                                                    >
+                                                        <option value="">— ignorée —</option>
+                                                        {targetFields.map((f) => (
+                                                            <option key={f.key} value={f.key}>
+                                                                {f.label}{f.required ? " *" : ""} · {selectedType.toLowerCase()}.{f.key}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td
+                                                    style={{
+                                                        padding: "11px 14px",
+                                                        fontSize: 11,
+                                                        color: "var(--eduflow-text-secondary)",
+                                                        maxWidth: 280,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    {preview}
+                                                </td>
+                                                <td style={{ padding: "11px 14px" }}>
+                                                    {isSkip
+                                                        ? <StatusBadge severity="neutral">Ignorée</StatusBadge>
+                                                        : isWarn
+                                                            ? <StatusBadge severity="warning">{Math.round((1 - fillRate) * 100)}% vides</StatusBadge>
+                                                            : <StatusBadge severity="success" icon="check">OK</StatusBadge>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Side panel */}
+                    <div className="flex flex-col gap-3.5">
+                        <div
+                            className="rounded-xl p-4"
+                            style={{
+                                background: "var(--eduflow-surface-card)",
+                                border: "1px solid var(--eduflow-border-subtle)",
+                            }}
+                        >
+                            <SubLabel>Validations automatiques</SubLabel>
+                            <div className="mt-2.5">
+                                {validations.length === 0 ? (
+                                    <p style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                        Aucune ligne à valider pour le moment.
+                                    </p>
+                                ) : validations.map((v, i) => (
+                                    <div
+                                        key={v.label}
+                                        className="flex items-center justify-between"
+                                        style={{
+                                            padding: "10px 0",
+                                            borderBottom: i < validations.length - 1
+                                                ? "1px solid var(--eduflow-border-subtle)"
+                                                : "none",
+                                            fontSize: 12,
+                                        }}
+                                    >
+                                        <span>{v.label}</span>
+                                        <span
+                                            className="font-mono font-bold"
+                                            style={{ color: SEVERITY_COLORS[v.severity] }}
+                                        >
+                                            {v.passed === v.total
+                                                ? `${fmtInt(v.passed)} / ${fmtInt(v.total)}`
+                                                : `${fmtInt(v.passed)} / ${fmtInt(v.total)}`}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div
+                            className="rounded-xl p-4"
+                            style={{
+                                background: "var(--eduflow-brand-50)",
+                                border: "1px solid var(--eduflow-brand-200)",
+                            }}
+                        >
+                            <SubLabel style={{ color: "var(--eduflow-brand-800)" }}>Prêt à importer</SubLabel>
+                            <div
+                                className="font-mono"
+                                style={{
+                                    fontSize: 32,
+                                    fontWeight: 700,
+                                    color: "var(--eduflow-brand-800)",
+                                    marginTop: 6,
+                                    letterSpacing: "-0.02em",
+                                }}
+                            >
+                                {fmtInt(ready)}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--eduflow-brand-800)" }}>
+                                {IMPORT_TYPE_LABELS[selectedType]} prêts
+                                {toReview > 0 && ` · ${fmtInt(toReview)} nécessitent une vérification manuelle`}
+                            </div>
+                            <Button
+                                onClick={startImport}
+                                disabled={isProcessing || ready === 0}
+                                className="w-full mt-3.5 h-12 gap-3 font-bold uppercase tracking-tighter shadow-md"
+                                style={{ background: "var(--eduflow-gradient-cta)", color: "#fff", border: 0 }}
+                            >
+                                {isProcessing
+                                    ? <Loader2 className="w-5 h-5 animate-spin" />
+                                    : <Database className="w-5 h-5" />}
+                                Lancer l&apos;import
+                                {!isProcessing && <ArrowRight className="w-4 h-4" />}
+                            </Button>
+                            {isProcessing && (
+                                <div className="mt-3">
+                                    <Progress value={progress} className="h-1.5" />
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={resetFlow}
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                color: "var(--eduflow-text-tertiary)",
+                                background: "transparent",
+                                border: 0,
+                                cursor: "pointer",
+                                padding: "8px 0",
+                                textAlign: "left",
+                            }}
+                        >
+                            ← Recharger un autre fichier
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {step === "SUCCESS" && (
+                <SuccessCard
+                    importedCount={importedCount}
+                    importErrors={importErrors}
+                    onReset={resetFlow}
+                    typeLabel={selectedType ? IMPORT_TYPE_LABELS[selectedType] : "enregistrements"}
+                />
+            )}
+        </div>
+    );
+}
+
+function SelectAndUpload({
+    selectedType,
+    setSelectedType,
+    handleFile,
+}: {
+    selectedType: SupportedImportType | null;
+    setSelectedType: (t: SupportedImportType) => void;
+    handleFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+    return (
+        <div className="grid gap-3.5" style={{ gridTemplateColumns: "1fr 320px" }}>
+            <div
+                className="rounded-xl p-4"
+                style={{
+                    background: "var(--eduflow-surface-card)",
+                    border: "1px solid var(--eduflow-border-subtle)",
+                }}
             >
-              {isValidating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Lancer la Validation
-            </Button>
-          </div>
+                <SubLabel>Choisir le type de données à importer</SubLabel>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-2.5">
+                    {IMPORT_TYPES.map((type) => {
+                        const active = selectedType === type.id;
+                        return (
+                            <button
+                                key={type.id}
+                                type="button"
+                                onClick={() => setSelectedType(type.id)}
+                                className={cn(
+                                    "text-left rounded-xl p-3.5 transition-colors flex items-start gap-3",
+                                )}
+                                style={{
+                                    background: active ? "var(--eduflow-brand-50)" : "var(--eduflow-surface-sunken)",
+                                    border: `1px solid ${active ? "var(--eduflow-brand-300)" : "transparent"}`,
+                                }}
+                            >
+                                <div
+                                    className="grid place-items-center rounded-lg shrink-0"
+                                    style={{
+                                        width: 36, height: 36,
+                                        background: active ? "var(--eduflow-brand-100)" : "var(--eduflow-surface-card)",
+                                        color: active ? "var(--eduflow-brand-700)" : "var(--eduflow-text-secondary)",
+                                    }}
+                                >
+                                    <type.icon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>{type.label}</h4>
+                                    <p className="m-0" style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                        {type.description}
+                                    </p>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div
+                className="rounded-xl p-4 flex flex-col gap-3"
+                style={{
+                    background: "var(--eduflow-surface-card)",
+                    border: "1px solid var(--eduflow-border-subtle)",
+                }}
+            >
+                <SubLabel>Déposer un fichier</SubLabel>
+                <div
+                    className="relative rounded-xl flex-1 grid place-items-center"
+                    style={{
+                        border: "2px dashed var(--eduflow-border-default)",
+                        background: "var(--eduflow-surface-sunken)",
+                        minHeight: 160,
+                    }}
+                >
+                    <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={handleFile}
+                        disabled={!selectedType}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <div className="text-center px-4">
+                        <Upload
+                            className="w-7 h-7 mx-auto"
+                            style={{ color: selectedType ? "var(--eduflow-brand-700)" : "var(--eduflow-text-tertiary)" }}
+                        />
+                        <p
+                            className="mt-2"
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                                color: "var(--eduflow-text-secondary)",
+                            }}
+                        >
+                            {selectedType
+                                ? "Cliquer ou glisser-déposer"
+                                : "Choisis un type d'abord"}
+                        </p>
+                        <p
+                            className="mt-1"
+                            style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                        >
+                            .xlsx / .xls / .csv · max 10 Mo
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
-      )}
+    );
+}
 
-      {/* Step 4: Validate */}
-      {step === "VALIDATE" && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-none shadow-none bg-success/10 border border-success/30 p-6 text-center space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-success mx-auto" />
-              <h4 className="text-xl font-black text-success">{previewSummary?.valid ?? 0}</h4>
-              <p className="text-xs font-bold text-success/80 uppercase">Lignes Prêtes</p>
-            </Card>
-            <Card className="border-none shadow-none bg-warning/10 border border-warning/30 p-6 text-center space-y-2">
-              <AlertTriangle className="w-8 h-8 text-warning mx-auto" />
-              <h4 className="text-xl font-black text-warning">{previewSummary ? previewSummary.total - previewSummary.valid : 0}</h4>
-              <p className="text-xs font-bold text-warning/80 uppercase">Avertissements</p>
-            </Card>
-            <Card className="border-none shadow-none bg-destructive/5 border border-destructive/20 p-6 text-center space-y-2">
-              <Database className="w-8 h-8 text-destructive mx-auto" />
-              <h4 className="text-xl font-black text-destructive">{previewSummary?.invalid ?? 0}</h4>
-              <p className="text-xs font-bold text-destructive/70 uppercase">Erreurs Bloquantes</p>
-            </Card>
-          </div>
-
-          <Card className="border-none shadow-none bg-muted/20 p-12 text-center space-y-6">
-            <div className="max-w-md mx-auto space-y-4">
-              <h3 className="text-xl font-black">Prêt pour l&apos;injection ?</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Les données ont été analysées. L&apos;importation va traiter {previewSummary?.total ?? fileData.length} lignes. Corrige les erreurs bloquantes avant de confirmer.
-              </p>
-              {previewErrors.length > 0 ? (
-                <div className="max-h-36 overflow-y-auto rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-left text-xs text-destructive space-y-1">
-                  {previewErrors.slice(0, 6).map((err, index) => (
-                    <p key={`${err.row}-${index}`}>
-                      Ligne {err.row}: {err.errors?.[0]?.message || err.message || "Erreur de validation"}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-              {isProcessing && (
-                <div className="space-y-3 pt-4">
-                  <Progress value={progress} className="h-2" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse">Injection des données en cours... {progress}%</p>
-                </div>
-              )}
-              <Button 
-                disabled={isProcessing || hasBlockingErrors} 
-                onClick={startImport}
-                className="w-full h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-lg shadow-2xl hover:shadow-primary/30 transition-all mt-4"
-              >
-                {isProcessing ? <Loader2 className="w-6 h-6 animate-spin mr-3" /> : <Database className="w-6 h-6 mr-3" />}
-                Confirmer l&apos;Importation
-              </Button>
+function SuccessCard({
+    importedCount,
+    importErrors,
+    onReset,
+    typeLabel,
+}: {
+    importedCount: number;
+    importErrors: Array<{ row?: number; error?: string; details?: string }>;
+    onReset: () => void;
+    typeLabel: string;
+}) {
+    return (
+        <div
+            className="rounded-xl p-8 text-center"
+            style={{
+                background: "var(--eduflow-gradient-cta)",
+                color: "#fff",
+            }}
+        >
+            <div
+                className="w-16 h-16 grid place-items-center mx-auto rounded-2xl"
+                style={{ background: "rgba(255,255,255,0.18)" }}
+            >
+                <CheckCircle2 className="w-8 h-8" />
             </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Final Step: Success */}
-      {step === "PROCESS" && (
-        <Card className="border-none shadow-2xl bg-primary text-white overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-12 opacity-10">
-            <CheckCircle2 className="w-64 h-64" />
-          </div>
-          <CardContent className="p-12 text-center space-y-8 relative z-10">
-            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto scale-125">
-              <CheckCircle2 className="w-12 h-12 text-white" />
-            </div>
-            <div className="space-y-3">
-              <h2 className="text-4xl font-black tracking-tighter">Félicitations !</h2>
-              <p className="text-lg font-medium opacity-90 max-w-lg mx-auto">
-                Votre base de données a été mise à jour avec succès. {importedCount} enregistrements ont été importés.
-              </p>
-              {importErrors.length > 0 ? (
-                <div className="max-w-2xl mx-auto rounded-lg border border-white/30 bg-white/10 p-3 text-left text-xs space-y-1">
-                  <p className="font-bold">Lignes en erreur: {importErrors.length}</p>
-                  {importErrors.slice(0, 6).map((err, idx) => (
-                    <p key={`${err.row ?? idx}-${idx}`}>
-                      {err.row ? `Ligne ${err.row}` : "Ligne"}: {err.error || err.details || "Erreur"}
-                    </p>
-                  ))}
+            <h2 className="mt-4" style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.025em" }}>
+                {fmtInt(importedCount)} {typeLabel} importés
+            </h2>
+            <p style={{ fontSize: 14, opacity: 0.9 }}>
+                La base de données a été mise à jour.
+            </p>
+            {importErrors.length > 0 && (
+                <div
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                >
+                    <p className="font-bold">Lignes en erreur · {importErrors.length}</p>
+                    {importErrors.slice(0, 6).map((err, idx) => (
+                        <p key={idx} className="mt-1">
+                            {err.row ? `Ligne ${err.row} · ` : ""}{err.error || err.details || "—"}
+                        </p>
+                    ))}
                 </div>
-              ) : null}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button variant="secondary" className="h-12 px-8 rounded-xl font-bold uppercase" onClick={() => window.location.href = successRedirect}>
-                {selectedType === "TEACHERS"
-                  ? "Voir les enseignants"
-                  : selectedType === "CLASSES"
-                    ? "Voir les classes"
-                    : selectedType === "PARENTS"
-                      ? "Voir les parents"
-                      : t("appActions.viewStudents")}
-              </Button>
-              <Button variant="outline" className="h-12 px-8 rounded-xl font-bold uppercase bg-transparent text-white border-white/30 hover:bg-white/10" onClick={resetFlow}>
+            )}
+            <Button
+                variant="secondary"
+                onClick={onReset}
+                className="mt-6"
+                style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
+            >
                 Nouvel import
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+            </Button>
+        </div>
+    );
+}
+
+function SubLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+    return (
+        <div
+            style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                ...style,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function CountBadge({
+    severity,
+    children,
+    icon,
+}: {
+    severity: "success" | "warning";
+    icon: "check" | "warning";
+    children: React.ReactNode;
+}) {
+    return (
+        <span
+            className="inline-flex items-center gap-1 rounded-md font-bold"
+            style={{
+                fontSize: 10,
+                padding: "3px 8px",
+                background: severity === "success" ? "var(--eduflow-success-50)" : "var(--eduflow-warning-50)",
+                color: severity === "success" ? "var(--eduflow-success-800)" : "var(--eduflow-warning-800)",
+            }}
+        >
+            {icon === "check"
+                ? <CheckCircle2 className="w-3 h-3" />
+                : <AlertTriangle className="w-3 h-3" />}
+            {children}
+        </span>
+    );
+}
+
+function StatusBadge({
+    severity,
+    icon,
+    children,
+}: {
+    severity: "success" | "warning" | "neutral";
+    icon?: "check";
+    children: React.ReactNode;
+}) {
+    const bg = severity === "success"
+        ? "var(--eduflow-success-50)"
+        : severity === "warning"
+            ? "var(--eduflow-warning-50)"
+            : "var(--eduflow-neutral-100)";
+    const fg = severity === "success"
+        ? "var(--eduflow-success-800)"
+        : severity === "warning"
+            ? "var(--eduflow-warning-800)"
+            : "var(--eduflow-text-tertiary)";
+    return (
+        <span
+            className="inline-flex items-center gap-1 rounded-md font-bold"
+            style={{
+                fontSize: 10,
+                padding: "3px 7px",
+                background: bg,
+                color: fg,
+            }}
+        >
+            {icon === "check" && <CheckCircle2 className="w-3 h-3" />}
+            {children}
+        </span>
+    );
 }
