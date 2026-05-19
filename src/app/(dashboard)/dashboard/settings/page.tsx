@@ -117,6 +117,13 @@ const ADMIN_SETTINGS: SettingItem[] = [
         href: "/dashboard/settings/rooms",
         accent: "neutral",
     },
+    {
+        icon: "users",
+        title: "Rôles & permissions",
+        desc: "Matrice d'accès des 8 rôles",
+        href: "/dashboard/settings/roles",
+        accent: "brand",
+    },
 ];
 
 export default function SettingsPage() {
