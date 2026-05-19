@@ -326,18 +326,17 @@ function PaymentMixCard({
     totalCollected: number;
     style?: React.CSSProperties;
 }) {
-    // Build pie segments: each method gets `share`% of the 88-unit dasharray total
+    // Build pie segments: each method gets `share`% of the 88-unit dasharray total.
+    // Offset for segment N is the cumulative length of segments 0..N-1.
     const segments = useMemo(() => {
-        let offset = 0;
-        return paymentMix.map((m, idx) => {
-            const length = (m.share / 100) * 88;
-            const segment = {
+        const lengths = paymentMix.map((m) => (m.share / 100) * 88);
+        return paymentMix.map((_, idx) => {
+            const offset = lengths.slice(0, idx).reduce((sum, l) => sum + l, 0);
+            return {
                 color: PIE_COLORS[idx % PIE_COLORS.length],
-                dash: `${length} 88`,
+                dash: `${lengths[idx]} 88`,
                 offset: -offset,
             };
-            offset += length;
-            return segment;
         });
     }, [paymentMix]);
 
