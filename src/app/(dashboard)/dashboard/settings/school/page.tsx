@@ -1,253 +1,440 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSchool } from "@/components/providers/school-provider";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Building2, Image as ImageIcon, Loader2, Mail, MapPin, Phone, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Check, Building2 } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { SettingsSidebar } from "@/components/settings/settings-sidebar";
+
+type PrimaryColor = "brand" | "success" | "warning" | "danger" | "accent";
 
 type SchoolProfile = {
-  id: string;
-  name: string;
-  logo?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
+    id: string;
+    name: string;
+    code: string | null;
+    motto: string | null;
+    mempCode: string | null;
+    emailDomain: string | null;
+    email: string | null;
+    logo: string | null;
+    primaryColor: PrimaryColor | null;
 };
 
-const EMPTY_FORM: SchoolProfile = {
-  id: "",
-  name: "",
-  logo: "",
-  email: "",
-  phone: "",
-  address: "",
-  city: "",
+const COLOR_SWATCHES: Array<{ key: PrimaryColor; label: string; swatch: string }> = [
+    { key: "brand",   label: "Bleu",   swatch: "var(--eduflow-brand-700)" },
+    { key: "success", label: "Vert",   swatch: "var(--eduflow-success-700)" },
+    { key: "warning", label: "Ambre",  swatch: "var(--eduflow-warning-600)" },
+    { key: "danger",  label: "Rouge",  swatch: "var(--eduflow-danger-700)" },
+    { key: "accent",  label: "Indigo", swatch: "var(--eduflow-accent-600)" },
+];
+
+const EMPTY: SchoolProfile = {
+    id: "", name: "", code: null, motto: null, mempCode: null,
+    emailDomain: null, email: null, logo: null, primaryColor: "brand",
 };
 
-export default function SchoolProfilePage() {
-  const { schoolId } = useSchool();
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState<SchoolProfile>(EMPTY_FORM);
-  const { data: cities } = useSWR("/api/reference/cities", fetcher);
-  const { data: school, error, isLoading, mutate } = useSWR<SchoolProfile>(
-    schoolId ? `/api/schools/${schoolId}` : null,
-    fetcher
-  );
+export default function SchoolIdentityPage() {
+    const { schoolId } = useSchool();
+    const { data: school, isLoading, mutate } = useSWR<SchoolProfile>(
+        schoolId ? `/api/schools/${schoolId}` : null,
+        fetcher,
+    );
 
-  useEffect(() => {
-    if (!school) return;
-    setForm({
-      id: school.id,
-      name: school.name || "",
-      logo: school.logo || "",
-      email: school.email || "",
-      phone: school.phone || "",
-      address: school.address || "",
-      city: school.city || "",
-    });
-  }, [school]);
+    const [form, setForm] = useState<SchoolProfile>(EMPTY);
+    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-  const handleFieldChange = (field: keyof SchoolProfile, value: string) => {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
+    useEffect(() => {
+        if (!school) return;
+        setForm({
+            id: school.id,
+            name: school.name ?? "",
+            code: school.code ?? "",
+            motto: school.motto ?? "",
+            mempCode: school.mempCode ?? "",
+            emailDomain: school.emailDomain ?? "",
+            email: school.email ?? "",
+            logo: school.logo ?? "",
+            primaryColor: (school.primaryColor as PrimaryColor) ?? "brand",
+        });
+    }, [school]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!schoolId) return;
+    const dirty = !!school && (
+        form.name !== (school.name ?? "") ||
+        form.code !== (school.code ?? "") ||
+        form.motto !== (school.motto ?? "") ||
+        form.mempCode !== (school.mempCode ?? "") ||
+        form.emailDomain !== (school.emailDomain ?? "") ||
+        form.logo !== (school.logo ?? "") ||
+        form.primaryColor !== ((school.primaryColor as PrimaryColor) ?? "brand")
+    );
 
-    setIsSaving(true);
-    try {
-      const response = await fetch(`/api/schools/${schoolId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          logo: form.logo || null,
-          email: form.email || null,
-          phone: form.phone || null,
-          address: form.address || null,
-          city: form.city || null,
-        }),
-      });
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!schoolId) return;
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/schools/${schoolId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: form.name,
+                    motto: form.motto || null,
+                    mempCode: form.mempCode || null,
+                    emailDomain: form.emailDomain || null,
+                    logo: form.logo || null,
+                    primaryColor: form.primaryColor,
+                }),
+            });
+            if (!res.ok) throw new Error("Échec de l'enregistrement");
+            await mutate();
+            toast.success("Identité enregistrée.");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setSaving(false);
+        }
+    };
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error || "Erreur lors de la mise à jour de l'établissement");
-      }
+    const handleCancel = () => {
+        if (school) {
+            setForm({
+                id: school.id,
+                name: school.name ?? "",
+                code: school.code ?? "",
+                motto: school.motto ?? "",
+                mempCode: school.mempCode ?? "",
+                emailDomain: school.emailDomain ?? "",
+                email: school.email ?? "",
+                logo: school.logo ?? "",
+                primaryColor: (school.primaryColor as PrimaryColor) ?? "brand",
+            });
+        }
+    };
 
-      await mutate();
-      toast({
-        title: "Profil mis à jour",
-        description: "Les informations de l'établissement ont été enregistrées.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Mise à jour impossible",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("type", "school-logo");
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            if (!res.ok) throw new Error("Upload refusé");
+            const data = await res.json();
+            const url = data?.url ?? data?.data?.url;
+            if (!url) throw new Error("URL absente de la réponse");
+            setForm((f) => ({ ...f, logo: url }));
+            toast.success("Logo téléversé. N'oublie pas d'enregistrer.");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur d'upload");
+        } finally {
+            setUploading(false);
+        }
+    };
 
-  return (
-    <PageGuard permission={[Permission.SCHOOL_UPDATE]}>
-      <div className="space-y-6 max-w-4xl mx-auto">
-        <PageHeader
-          title="Profil de l'Établissement"
-          description="Gérez l'identité de l'école active et ses coordonnées officielles."
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Paramètres", href: "/dashboard/settings" },
-            { label: "Profil École" },
-          ]}
-        />
+    return (
+        <PageGuard
+            permission={Permission.SCHOOL_UPDATE}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+        >
+            <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+                <PageHeader
+                    title="Paramètres"
+                    description="Configuration de l'établissement, branding, conformité"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Paramètres" },
+                    ]}
+                />
 
-        {!schoolId ? (
-          <Card className="border-border shadow-sm">
-            <CardContent className="py-10 text-sm text-muted-foreground">
-              Aucun établissement actif n'est sélectionné.
-            </CardContent>
-          </Card>
-        ) : error ? (
-          <Card className="border-border shadow-sm">
-            <CardContent className="py-10 text-sm text-destructive">
-              Impossible de charger les informations de l'établissement.
-            </CardContent>
-          </Card>
-        ) : isLoading ? (
-          <Card className="border-border shadow-sm">
-            <CardContent className="py-16 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : (
-          <form className="grid gap-6" onSubmit={handleSubmit}>
-            <Card className="border-border shadow-sm">
-              <CardHeader className="bg-muted/10 border-b border-border">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-primary" />
-                  Identité visuelle
-                </CardTitle>
-                <CardDescription>URL du logo et nom officiel affichés dans les documents.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="schoolName" className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                    Nom officiel
-                  </Label>
-                  <Input
-                    id="schoolName"
-                    value={form.name}
-                    onChange={(event) => handleFieldChange("name", event.target.value)}
-                    className="font-semibold bg-background"
-                    required
-                  />
+                <div className="grid gap-3.5" style={{ gridTemplateColumns: "240px 1fr" }}>
+                    <SettingsSidebar />
+
+                    <form
+                        onSubmit={handleSubmit}
+                        className="rounded-xl"
+                        style={{
+                            background: "var(--eduflow-surface-card)",
+                            border: "1px solid var(--eduflow-border-subtle)",
+                            padding: 28,
+                        }}
+                    >
+                        <h2
+                            className="m-0"
+                            style={{
+                                fontSize: 20,
+                                fontWeight: 700,
+                                letterSpacing: "-0.02em",
+                                marginBottom: 22,
+                            }}
+                        >
+                            Identité & branding
+                        </h2>
+
+                        {isLoading ? (
+                            <div className="py-16 text-center" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid gap-8" style={{ gridTemplateColumns: "1fr 320px", marginBottom: 24 }}>
+                                    <div className="flex flex-col gap-3.5">
+                                        <Field label="Nom officiel" required>
+                                            <Input
+                                                type="text"
+                                                value={form.name}
+                                                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                                                required
+                                                minLength={3}
+                                            />
+                                        </Field>
+                                        <Field label="Sigle" hint="Code court unique · non modifiable ici">
+                                            <Input
+                                                type="text"
+                                                value={form.code ?? ""}
+                                                readOnly
+                                                className="opacity-70 cursor-not-allowed"
+                                            />
+                                        </Field>
+                                        <Field label="Devise / slogan">
+                                            <Input
+                                                type="text"
+                                                value={form.motto ?? ""}
+                                                onChange={(e) => setForm((f) => ({ ...f, motto: e.target.value }))}
+                                                maxLength={140}
+                                                placeholder="Ex : L'excellence éducative au cœur du Bénin"
+                                            />
+                                        </Field>
+                                        <Field label="Code MEMP">
+                                            <Input
+                                                type="text"
+                                                value={form.mempCode ?? ""}
+                                                onChange={(e) => setForm((f) => ({ ...f, mempCode: e.target.value }))}
+                                                maxLength={32}
+                                                placeholder="Ex : BJ-COT-0142"
+                                            />
+                                        </Field>
+                                        <Field label="Domaine email">
+                                            <Input
+                                                type="text"
+                                                value={form.emailDomain ?? ""}
+                                                onChange={(e) => setForm((f) => ({ ...f, emailDomain: e.target.value }))}
+                                                pattern="[a-z0-9.\-]+\.[a-z]{2,}"
+                                                placeholder="Ex : cbe.bj"
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div>
+                                        <SubLabel>Logo · 256 × 256 minimum</SubLabel>
+                                        <div
+                                            className="rounded-xl text-center"
+                                            style={{
+                                                marginTop: 8,
+                                                padding: 24,
+                                                border: "2px dashed var(--eduflow-border-default)",
+                                                background: "var(--eduflow-surface-sunken)",
+                                            }}
+                                        >
+                                            <div className="grid place-items-center" style={{ width: 80, height: 80, margin: "0 auto" }}>
+                                                {form.logo ? (
+                                                    <Image
+                                                        src={form.logo}
+                                                        alt="Logo établissement"
+                                                        width={80}
+                                                        height={80}
+                                                        className="rounded-xl object-contain"
+                                                        style={{ background: "#fff", padding: 4 }}
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className="rounded-xl grid place-items-center"
+                                                        style={{
+                                                            width: 80,
+                                                            height: 80,
+                                                            background: "var(--eduflow-brand-100)",
+                                                            color: "var(--eduflow-brand-800)",
+                                                        }}
+                                                    >
+                                                        <Building2 className="w-9 h-9" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                    marginTop: 12,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                {form.logo ? form.logo.split("/").pop() : "Aucun logo téléversé"}
+                                            </div>
+                                            <div className="flex gap-1.5 justify-center mt-3">
+                                                <label
+                                                    className="inline-flex items-center gap-1 rounded-md cursor-pointer transition-colors"
+                                                    style={{
+                                                        fontSize: 11,
+                                                        fontWeight: 600,
+                                                        padding: "6px 10px",
+                                                        background: "var(--eduflow-surface-card)",
+                                                        border: "1px solid var(--eduflow-border-default)",
+                                                        color: "var(--eduflow-text-primary)",
+                                                    }}
+                                                >
+                                                    {uploading
+                                                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                        : "Remplacer"}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp"
+                                                        className="sr-only"
+                                                        onChange={handleLogoFile}
+                                                        disabled={uploading}
+                                                    />
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setForm((f) => ({ ...f, logo: "" }))}
+                                                    disabled={!form.logo}
+                                                    className="rounded-md transition-colors"
+                                                    style={{
+                                                        fontSize: 11,
+                                                        fontWeight: 600,
+                                                        padding: "6px 10px",
+                                                        background: "transparent",
+                                                        border: "1px solid transparent",
+                                                        color: "var(--eduflow-text-tertiary)",
+                                                        cursor: form.logo ? "pointer" : "not-allowed",
+                                                    }}
+                                                >
+                                                    Supprimer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <SubLabel>Couleur primaire · parents et élèves verront cette couleur</SubLabel>
+                                <div className="flex gap-2.5 mt-2">
+                                    {COLOR_SWATCHES.map((c) => {
+                                        const active = form.primaryColor === c.key;
+                                        return (
+                                            <button
+                                                key={c.key}
+                                                type="button"
+                                                onClick={() => setForm((f) => ({ ...f, primaryColor: c.key }))}
+                                                aria-label={`Choisir la couleur ${c.label}`}
+                                                aria-pressed={active}
+                                                title={c.label}
+                                                className="relative grid place-items-center"
+                                                style={{
+                                                    width: 48,
+                                                    height: 48,
+                                                    borderRadius: 12,
+                                                    background: c.swatch,
+                                                    border: active
+                                                        ? "3px solid var(--eduflow-text-primary)"
+                                                        : "1px solid var(--eduflow-border-default)",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {active && <Check className="w-4 h-4" style={{ color: "#fff" }} />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div
+                                    className="flex justify-end gap-2"
+                                    style={{
+                                        marginTop: 24,
+                                        paddingTop: 20,
+                                        borderTop: "1px solid var(--eduflow-border-subtle)",
+                                    }}
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={handleCancel}
+                                        disabled={!dirty || saving}
+                                    >
+                                        Annuler
+                                    </Button>
+                                    <Button type="submit" disabled={!dirty || saving}>
+                                        {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                                        Enregistrer
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </form>
                 </div>
+            </div>
+        </PageGuard>
+    );
+}
 
-                <div className="grid gap-2">
-                  <Label htmlFor="logo">Logo (URL)</Label>
-                  <Input
-                    id="logo"
-                    type="url"
-                    value={form.logo || ""}
-                    onChange={(event) => handleFieldChange("logo", event.target.value)}
-                    className="bg-background"
-                    placeholder="https://..."
-                  />
-                </div>
-              </CardContent>
-            </Card>
+function SubLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+            }}
+        >
+            {children}
+        </div>
+    );
+}
 
-            <Card className="border-border shadow-sm">
-              <CardHeader className="bg-muted/10 border-b border-border">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Coordonnées
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      Email institutionnel
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={form.email || ""}
-                      onChange={(event) => handleFieldChange("email", event.target.value)}
-                      className="bg-background"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      Téléphone principal
-                    </Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={form.phone || ""}
-                      onChange={(event) => handleFieldChange("phone", event.target.value)}
-                      className="bg-background"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adresse physique</Label>
-                  <Textarea
-                    id="address"
-                    value={form.address || ""}
-                    onChange={(event) => handleFieldChange("address", event.target.value)}
-                    className="bg-background min-h-[80px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="city">Ville</Label>
-                  <Input
-                    id="city"
-                    value={form.city || ""}
-                    onChange={(event) => handleFieldChange("city", event.target.value)}
-                    list="cities-list"
-                    className="bg-background"
-                  />
-                  <datalist id="cities-list">
-                    {Array.isArray(cities) && cities.map((city: string) => (
-                      <option key={city} value={city} />
-                    ))}
-                  </datalist>
-                </div>
-              </CardContent>
-              <CardFooter className="bg-muted/10 border-t border-border mt-2 py-4 flex justify-end">
-                <Button type="submit" className="gap-2 shadow-sm" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Enregistrer le profil
-                </Button>
-              </CardFooter>
-            </Card>
-          </form>
-        )}
-      </div>
-    </PageGuard>
-  );
+function Field({
+    label,
+    hint,
+    required,
+    children,
+}: {
+    label: string;
+    hint?: string;
+    required?: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <label className="block">
+            <div className="flex items-center justify-between">
+                <span
+                    style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: "var(--eduflow-text-secondary)",
+                    }}
+                >
+                    {label}{required && <span style={{ color: "var(--eduflow-danger-600)" }}> *</span>}
+                </span>
+                {hint && (
+                    <span style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                        {hint}
+                    </span>
+                )}
+            </div>
+            <div className="mt-1.5">{children}</div>
+        </label>
+    );
 }

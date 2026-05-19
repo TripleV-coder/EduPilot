@@ -74,7 +74,11 @@ model School {
   city                   String?
   phone                  String?
   email                  String?
+  emailDomain            String?
   logo                   String?
+  motto                  String?
+  mempCode               String?
+  primaryColor           String?
   isActive               Boolean                   @default(true)
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
