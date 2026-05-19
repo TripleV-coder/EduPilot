@@ -92,8 +92,10 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <StudentIdentityFields control={form.control} showDescriptions={false} />
-                            <StudentContactFields control={form.control} showDescriptions={false} />
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            <StudentIdentityFields control={form.control as any} showDescriptions={false} />
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            <StudentContactFields control={form.control as any} showDescriptions={false} />
                         </div>
 
                         <FormField

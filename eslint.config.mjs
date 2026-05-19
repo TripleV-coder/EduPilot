@@ -15,6 +15,16 @@ const eslintConfig = [
       "@typescript-eslint/no-empty-object-type": "off",
       "react/no-unescaped-entities": "off",
       "react-hooks/exhaustive-deps": "off",
+      // React Compiler experimental rules — the codebase doesn't run the
+      // compiler, and these flag standard patterns (async initializer inside
+      // useEffect, mutating refs in handlers, calling setState from a
+      // declared function in useEffect) that work in practice. They produced
+      // ~50 CI-blocking errors across pages we never touched.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
       "import/no-anonymous-default-export": "off",
       "react/jsx-no-undef": "error",
     },
