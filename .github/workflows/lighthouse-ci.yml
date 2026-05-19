@@ -28,7 +28,14 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          # validateEnvironment() in src/lib/prisma.ts throws unless these are set;
+          # mirror the placeholders used by the CI "build" job in ci.yml.
           SKIP_ENV_VALIDATION: "true"
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
+          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
