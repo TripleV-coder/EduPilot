@@ -62,6 +62,7 @@ export function navForRole(role: string | undefined | null): NavLink[] {
                 { icon: "book", label: "Pédagogie", href: "/dashboard/courses", matchPrefix: true },
                 { icon: "cards", label: "Conseil de classe", href: "/dashboard/grades/councils", matchPrefix: true },
                 { icon: "school", label: "Orientation post-BEPC", href: "/dashboard/orientation/post-bepc", matchPrefix: true },
+                { icon: "book", label: "Passage CEP (CM2)", href: "/dashboard/orientation/cep", matchPrefix: true },
                 { icon: "money", label: "Finance", href: "/dashboard/finance", countKey: "finance", matchPrefix: true },
                 { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true },
                 { icon: "chart", label: "Analytics", href: "/dashboard/analytics", matchPrefix: true },
