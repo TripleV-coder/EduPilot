@@ -78,10 +78,15 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────────
   # Secret scanning on PR diff
+  # NOTE: gitleaks-action@v2 ne supporte pas l'événement pull_request_target.
+  # Le workflow déclare les deux events au niveau global; on filtre ici pour
+  # n'exécuter ce job que sur le bon trigger, sinon l'action sort en erreur
+  # ("The [pull_request_target] event is not yet supported").
   # ─────────────────────────────────────────────────────────────────────────
   secrets-scan:
     name: Secret scan (Gitleaks)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
