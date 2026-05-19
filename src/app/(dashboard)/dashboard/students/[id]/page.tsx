@@ -7,7 +7,6 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,13 +20,11 @@ import {
 } from "lucide-react";
 import { StudentGradesTab } from "@/components/students/student-grades-tab";
 import { StudentAttendanceTab } from "@/components/students/student-attendance-tab";
-import { StudentParentsTab } from "@/components/students/student-parents-tab";
 import { StudentPerformanceDashboard } from "@/components/students/student-performance-dashboard";
 import { StudentAiPrediction } from "@/components/students/student-ai-prediction";
 import { StudentEditDialog } from "@/components/students/student-edit-dialog";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { RiskBanner } from "@/components/students/RiskBanner";
-import { getUserAccountStatusClass } from "@/lib/ui/status-styles";
+import { StudentProfile360 } from "@/components/students/student-profile-360";
 
 type StudentDetail = {
   id: string;
@@ -166,13 +163,11 @@ export default function StudentDetailPage() {
 
         {!loading && !error && student && (
           <>
-            <RiskBanner score={82} label="Risque Élevé" responsibleName="Mme. Diane Soglo" />
-
             <Tabs defaultValue="profil" className="w-full space-y-6">
               <TabsList className="bg-muted/30 p-1 gap-1 h-auto flex-wrap justify-start border border-border/50">
                 <TabsTrigger value="profil" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <UserCircle className="h-3.5 w-3.5" />
-                  Profil
+                  Vue 360°
                 </TabsTrigger>
                 <TabsTrigger value="scolarite" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <GraduationCap className="h-3.5 w-3.5" />
@@ -200,63 +195,27 @@ export default function StudentDetailPage() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Profil tab */}
-              <TabsContent value="profil" className="mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <Card className="lg:col-span-2 border-none shadow-none bg-muted/20">
-                    <CardHeader className="p-4 border-b border-border/50">
-                      <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                        Informations Personnelles
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="grid gap-6 sm:grid-cols-2">
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Identité</p>
-                          <p className="font-bold text-sm">{student.user?.firstName} {student.user?.lastName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Matricule</p>
-                          <p className="font-mono text-sm font-bold text-primary">{student.studentNumber ?? student.matricule ?? "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Email</p>
-                          <p className="text-sm">{student.user?.email ?? "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Téléphone</p>
-                          <p className="text-sm">{student.user?.phone ?? "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Statut Compte</p>
-                          <Badge className={cn("text-[10px] font-bold uppercase", getUserAccountStatusClass(student.user?.isActive))}>
-                            {student.user?.isActive ? "Actif" : "Inactif"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+              {/* Vue 360° tab */}
+              <TabsContent value="profil" className="mt-0 space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                <StudentProfile360 studentId={id} />
 
-                  <Card className="border-none shadow-none bg-muted/20">
-                    <CardHeader className="p-4 border-b border-border/50">
-                      <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                        Documents & Certificats
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 space-y-4">
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Gérez les documents officiels et générez les certificats de scolarité pour cet élève.
-                      </p>
-                      {certError && <p className="text-[10px] text-destructive font-bold">{certError}</p>}
-                      <Button variant="outline" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-tight" onClick={downloadCertificate} disabled={certLoading}>
-                        {certLoading ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Download className="h-3 w-3 mr-2" />}
-                        Certificat de Scolarité
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <StudentParentsTab parents={student.parentStudents ?? []} />
+                <Card className="border-none shadow-none bg-muted/20">
+                  <CardHeader className="p-4 border-b border-border/50">
+                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      Documents & Certificats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Gérez les documents officiels et générez les certificats de scolarité pour cet élève.
+                    </p>
+                    {certError && <p className="text-[10px] text-destructive font-bold">{certError}</p>}
+                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-tight" onClick={downloadCertificate} disabled={certLoading}>
+                      {certLoading ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Download className="h-3 w-3 mr-2" />}
+                      Certificat de Scolarité
+                    </Button>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Scolarité tab */}
