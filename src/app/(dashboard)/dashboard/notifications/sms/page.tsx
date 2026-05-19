@@ -1,230 +1,578 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { MessageSquare, Send, Users, AlertCircle, Phone, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { t } from "@/lib/i18n";
+import { Permission } from "@/lib/rbac/permissions";
 
-export default function SmsNotificationsPage() {
-    const [message, setMessage] = useState("");
-    const [isSending, setIsSending] = useState(false);
-    const [target, setTarget] = useState("parents_all");
-    const [recipientPhone, setRecipientPhone] = useState("");
-    const [successMsg, setSuccessMsg] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+import {
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Input,
+} from "@/components/edu";
+import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
-    const charCount = message.length;
-    const maxSmsChars = 160;
-    const smsCount = Math.ceil((charCount > 0 ? charCount : 1) / maxSmsChars);
+type Template = {
+    id: string;
+    name: string;
+    category: string;
+    body: string;
+    isActive: boolean;
+    autoTrigger?: string;
+    history?: { sent: number; readRate: number; conversionRate: number };
+};
 
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSending(true);
-        setSuccessMsg(null);
-        setError(null);
+const TEMPLATES: Template[] = [
+    {
+        id: "bulletin-ready",
+        name: "Bulletin disponible",
+        category: "Pédagogie",
+        body: "Bonjour {parent.prenom}, le bulletin de {eleve.prenom} ({eleve.classe}) pour {periode} est disponible sur EduPilot : {lien.bulletin} — {ecole.nom}.",
+        isActive: true,
+        autoTrigger: "Auto-déclenché à la clôture du conseil",
+        history: { sent: 312, readRate: 96, conversionRate: 78 },
+    },
+    {
+        id: "council-invite",
+        name: "Conseil de classe",
+        category: "Pédagogie",
+        body: "Conseil de classe de {eleve.classe} prévu le {conseil.date} à {conseil.heure}. Présence souhaitée — {ecole.nom}.",
+        isActive: true,
+        history: { sent: 84, readRate: 91, conversionRate: 52 },
+    },
+    {
+        id: "brevet-convocation",
+        name: "Convocation Brevet",
+        category: "Pédagogie",
+        body: "Convocation BEPC {bepc.session} : {eleve.prenom} {eleve.nom} · centre {bepc.centre} · {bepc.date}. Pièce d'identité obligatoire.",
+        isActive: true,
+        history: { sent: 26, readRate: 100, conversionRate: 100 },
+    },
+    {
+        id: "school-trip",
+        name: "Sortie pédagogique",
+        category: "Pédagogie",
+        body: "Sortie pédagogique {sortie.lieu} le {sortie.date}. Autorisation parentale à signer avant {sortie.deadline}.",
+        isActive: true,
+        history: { sent: 142, readRate: 88, conversionRate: 71 },
+    },
+    {
+        id: "absence-unjustified",
+        name: "Absence non justifiée",
+        category: "Vie scolaire",
+        body: "Bonjour {parent.prenom}, {eleve.prenom} était absent(e) le {absence.date}. Merci de justifier sous 48h — {ecole.nom}.",
+        isActive: true,
+        autoTrigger: "Auto-déclenché 24h après une absence non justifiée",
+        history: { sent: 410, readRate: 93, conversionRate: 84 },
+    },
+    {
+        id: "late-repeat",
+        name: "Retards répétés",
+        category: "Vie scolaire",
+        body: "Bonjour {parent.prenom}, {eleve.prenom} cumule {retards.count} retards ce trimestre. Un entretien est conseillé — {ecole.nom}.",
+        isActive: true,
+        history: { sent: 67, readRate: 90, conversionRate: 41 },
+    },
+    {
+        id: "medical-incident",
+        name: "Incident médical",
+        category: "Vie scolaire",
+        body: "Bonjour {parent.prenom}, {eleve.prenom} a été pris(e) en charge à l'infirmerie ({incident.motif}). Aucun antidouleur administré sans votre accord. — {ecole.nom}.",
+        isActive: true,
+        history: { sent: 38, readRate: 99, conversionRate: 95 },
+    },
+    {
+        id: "fee-reminder-t2",
+        name: "Rappel échéance T2",
+        category: "Finance",
+        body: "Bonjour {parent.prenom}, le paiement de scolarité de {eleve.prenom} arrive à échéance le {echeance.date} ({montant} FCFA). Payez en ligne : {lien.paiement} — {ecole.nom}.",
+        isActive: true,
+        autoTrigger: "Auto-déclenché 7j avant échéance",
+        history: { sent: 287, readRate: 94, conversionRate: 38 },
+    },
+    {
+        id: "fee-confirm",
+        name: "Confirmation paiement",
+        category: "Finance",
+        body: "Paiement reçu pour {eleve.prenom} : {montant} FCFA. Reçu n° {paiement.recu}. Merci ! — {ecole.nom}.",
+        isActive: true,
+        autoTrigger: "Auto-déclenché à la réception d'un paiement",
+        history: { sent: 421, readRate: 98, conversionRate: 100 },
+    },
+    {
+        id: "fee-plan",
+        name: "Échéancier proposé",
+        category: "Finance",
+        body: "Bonjour {parent.prenom}, un échéancier en {plan.tranches} tranches est proposé pour {eleve.prenom}. Détail : {lien.echeancier} — {ecole.nom}.",
+        isActive: false,
+        history: { sent: 12, readRate: 100, conversionRate: 67 },
+    },
+    {
+        id: "enrollment-confirmed",
+        name: "Inscription validée",
+        category: "Administration",
+        body: "Bonjour {parent.prenom}, l'inscription de {eleve.prenom} en {eleve.classe} pour {annee.scolaire} est validée. Bienvenue à {ecole.nom} !",
+        isActive: true,
+        history: { sent: 95, readRate: 99, conversionRate: 100 },
+    },
+    {
+        id: "missing-documents",
+        name: "Documents manquants",
+        category: "Administration",
+        body: "Bonjour {parent.prenom}, des pièces sont manquantes au dossier de {eleve.prenom} : {documents.liste}. Merci de les fournir avant {deadline}.",
+        isActive: true,
+        history: { sent: 41, readRate: 90, conversionRate: 73 },
+    },
+];
 
-        try {
-            if (target === "custom") {
-                // Single SMS mode
-                if (!recipientPhone.trim()) {
-                    setError("Veuillez saisir un numéro de téléphone.");
-                    return;
-                }
+const VARIABLES = [
+    "{parent.prenom}",
+    "{eleve.prenom}",
+    "{eleve.nom}",
+    "{eleve.classe}",
+    "{montant}",
+    "{echeance.date}",
+    "{periode}",
+    "{conseil.date}",
+    "{absence.date}",
+    "{ecole.nom}",
+    "{lien.paiement}",
+    "{lien.bulletin}",
+];
 
-                const res = await fetch("/api/notifications/sms", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        type: "CUSTOM",
-                        phoneNumber: recipientPhone.trim(),
-                        message,
-                    }),
-                });
+const CATEGORIES = ["Pédagogie", "Vie scolaire", "Finance", "Administration"];
 
-                if (!res.ok) {
-                    const data = await res.json().catch(() => null);
-                    throw new Error(data?.error || `Erreur serveur (${res.status})`);
-                }
+function interpolatePreview(body: string): string {
+    return body
+        .replaceAll("{parent.prenom}", "Patrick")
+        .replaceAll("{eleve.prenom}", "Aïcha")
+        .replaceAll("{eleve.nom}", "Hounsou")
+        .replaceAll("{eleve.classe}", "3ᵉ A")
+        .replaceAll("{montant}", "125 000")
+        .replaceAll("{echeance.date}", "11 mai")
+        .replaceAll("{periode}", "T2 2025-2026")
+        .replaceAll("{conseil.date}", "jeudi 14h")
+        .replaceAll("{conseil.heure}", "16h00")
+        .replaceAll("{absence.date}", "lundi matin")
+        .replaceAll("{ecole.nom}", "CBE")
+        .replaceAll("{lien.paiement}", "edupilot.bj/p/A0142")
+        .replaceAll("{lien.bulletin}", "edupilot.bj/b/A0142-T2")
+        .replaceAll("{lien.echeancier}", "edupilot.bj/e/A0142")
+        .replaceAll("{paiement.recu}", "FLW-882104")
+        .replaceAll("{bepc.session}", "juin 2026")
+        .replaceAll("{bepc.centre}", "LycéeC")
+        .replaceAll("{bepc.date}", "12 juin")
+        .replaceAll("{sortie.lieu}", "Ouidah")
+        .replaceAll("{sortie.date}", "16 mai")
+        .replaceAll("{sortie.deadline}", "14 mai")
+        .replaceAll("{retards.count}", "4")
+        .replaceAll("{incident.motif}", "mal de tête")
+        .replaceAll("{annee.scolaire}", "2026-2027")
+        .replaceAll("{plan.tranches}", "3")
+        .replaceAll("{documents.liste}", "acte de naissance, photo")
+        .replaceAll("{deadline}", "vendredi");
+}
 
-                setSuccessMsg("SMS envoyé avec succès.");
-                setMessage("");
-                setRecipientPhone("");
-            } else {
-                // Bulk SMS mode
-                const res = await fetch("/api/notifications/sms?bulk=true", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        type: "CUSTOM",
-                        target,
-                        message,
-                    }),
-                });
+export default function TemplatesPage() {
+    const [activeId, setActiveId] = useState<string>(TEMPLATES[0].id);
+    const [search, setSearch] = useState("");
+    const [draft, setDraft] = useState<string | null>(null);
 
-                if (!res.ok) {
-                    const data = await res.json().catch(() => null);
-                    throw new Error(data?.error || `Erreur serveur (${res.status})`);
-                }
+    const active = useMemo(
+        () => TEMPLATES.find((t) => t.id === activeId) ?? TEMPLATES[0],
+        [activeId]
+    );
 
-                const data = await res.json();
-                setSuccessMsg(`Campagne SMS terminée : ${data.sent ?? 0} envoyé(s), ${data.failed ?? 0} échoué(s).`);
-                setMessage("");
-            }
+    const currentBody = draft ?? active.body;
+    const charCount = currentBody.length;
+    const segCount = Math.ceil(charCount / 160);
+    const preview = useMemo(
+        () => interpolatePreview(currentBody),
+        [currentBody]
+    );
 
-            setTimeout(() => setSuccessMsg(null), 5000);
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : "Une erreur est survenue lors de l'envoi.";
-            setError(msg);
-        } finally {
-            setIsSending(false);
-        }
+    const grouped = useMemo(() => {
+        const filteredItems = TEMPLATES.filter((t) =>
+            t.name.toLowerCase().includes(search.toLowerCase())
+        );
+        return CATEGORIES.map((cat) => ({
+            category: cat,
+            items: filteredItems.filter((t) => t.category === cat),
+        }));
+    }, [search]);
+
+    const switchTemplate = (id: string) => {
+        setActiveId(id);
+        setDraft(null);
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
+        >
+            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
                 <PageHeader
-                    title="Campagnes SMS"
-                    description="Envoyez des notifications groupées par SMS aux parents ou au personnel"
-                    breadcrumbs={[
-                        { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Notifications" },
-                        { label: "Envoi SMS" },
-                    ]}
+                    greeting="Modèles de communication"
+                    sub="Email · SMS · WhatsApp — pré-écrits, personnalisés par l'IA"
+                    breadcrumb={["Communication", "Modèles"]}
+                    actions={
+                        <Button icon="plus" disabled>
+                            Nouveau modèle
+                        </Button>
+                    }
                 />
 
-                {error && (
-                    <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm">{error}</p>
+                <Card padding={14} style={{ background: "var(--brand-50)", border: "1px solid var(--brand-200)" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <Icon name="info" size={16} color="var(--brand-700)" style={{ marginTop: 2 }} />
+                        <div style={{ fontSize: 12, color: "var(--brand-800)", lineHeight: 1.55 }}>
+                            Catalogue prêt à l'emploi · 12 modèles couvrant Pédagogie / Vie scolaire / Finance / Administration. La persistance des modifications arrivera avec le modèle <code>NotificationTemplate</code> côté Prisma.
+                        </div>
                     </div>
-                )}
-                {successMsg && (
-                    <div className="p-4 rounded-lg bg-success/10 border border-success/30 text-success flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">{successMsg}</p>
-                    </div>
-                )}
+                </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2">
-                        <Card className="border-border shadow-sm">
-                            <CardHeader className="bg-muted/30 border-b border-border">
-                                <CardTitle className="flex items-center gap-2">
-                                    <MessageSquare className="w-5 h-5 text-primary" />
-                                    {t("common.newMessage")}
-                                </CardTitle>
-                            </CardHeader>
-                            <form onSubmit={handleSend}>
-                                <CardContent className="pt-6 space-y-5">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="target">Destinataires</Label>
-                                        <Select value={target} onValueChange={setTarget}>
-                                            <SelectTrigger id="target" className="bg-background">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="parents_all">Tous les parents d'élèves</SelectItem>
-                                                <SelectItem value="parents_debt">Parents avec frais impayés</SelectItem>
-                                                <SelectItem value="teachers_all">Tous les enseignants</SelectItem>
-                                                <SelectItem value="custom">Numéro manuel</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "320px 1fr",
+                        gap: 14,
+                        minHeight: 600,
+                    }}
+                    className="tpl-grid"
+                >
+                    {/* Catalog */}
+                    <Card padding={0} style={{ display: "flex", flexDirection: "column" }}>
+                        <div
+                            style={{
+                                padding: 14,
+                                borderBottom: "1px solid var(--eduflow-border-subtle)",
+                            }}
+                        >
+                            <Input
+                                icon="search"
+                                placeholder="Rechercher un modèle…"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div style={{ overflowY: "auto" }}>
+                            {grouped.map((cat) => (
+                                <div key={cat.category}>
+                                    <div
+                                        style={{
+                                            padding: "10px 14px",
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            letterSpacing: "0.08em",
+                                            textTransform: "uppercase",
+                                            color: "var(--eduflow-text-tertiary)",
+                                            background: "var(--eduflow-surface-sunken)",
+                                        }}
+                                    >
+                                        {cat.category}
                                     </div>
-
-                                    {target === "custom" && (
-                                        <div className="space-y-2">
-                                            <Label htmlFor="recipientPhone">Numéro de téléphone</Label>
-                                            <Input
-                                                id="recipientPhone"
-                                                type="tel"
-                                                value={recipientPhone}
-                                                onChange={(e) => setRecipientPhone(e.target.value)}
-                                                aria-label="Numéro du destinataire"
-                                                placeholder="Ex: +229 01 90 00 00 00"
-                                                className="bg-background"
-                                                required={target === "custom"}
-                                            />
+                                    {cat.items.length === 0 ? (
+                                        <div
+                                            style={{
+                                                padding: "10px 14px",
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                            }}
+                                        >
+                                            Aucun modèle.
                                         </div>
+                                    ) : (
+                                        cat.items.map((it) => {
+                                            const isActive = it.id === activeId;
+                                            return (
+                                                <button
+                                                    key={it.id}
+                                                    type="button"
+                                                    onClick={() => switchTemplate(it.id)}
+                                                    style={{
+                                                        padding: "10px 14px",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: 8,
+                                                        width: "100%",
+                                                        background: isActive
+                                                            ? "var(--brand-50)"
+                                                            : "transparent",
+                                                        borderLeft: isActive
+                                                            ? "3px solid var(--brand-700)"
+                                                            : "3px solid transparent",
+                                                        border: 0,
+                                                        borderRight: 0,
+                                                        borderTop: 0,
+                                                        borderBottom: 0,
+                                                        cursor: "pointer",
+                                                        fontFamily: "inherit",
+                                                        textAlign: "left",
+                                                    }}
+                                                >
+                                                    <Icon
+                                                        name="sms"
+                                                        size={14}
+                                                        color={
+                                                            isActive
+                                                                ? "var(--brand-700)"
+                                                                : "var(--eduflow-text-tertiary)"
+                                                        }
+                                                    />
+                                                    <span
+                                                        style={{
+                                                            fontSize: 13,
+                                                            fontWeight: isActive ? 700 : 500,
+                                                            color: isActive
+                                                                ? "var(--brand-800)"
+                                                                : "var(--eduflow-text-primary)",
+                                                            flex: 1,
+                                                            minWidth: 0,
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                    >
+                                                        {it.name}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })
                                     )}
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
 
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-end">
-                                            <Label htmlFor="message">Contenu du message</Label>
-                                            <span className={`text-xs ${charCount > maxSmsChars * 3 ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
-                                                {charCount} caractères • {smsCount} SMS par contact
-                                            </span>
-                                        </div>
-                                        <Textarea
-                                            id="message"
-                                            value={message}
-                                            onChange={(e) => setMessage(e.target.value)}
-                                            aria-label="Contenu du SMS"
-                                            placeholder="Rédigez votre message SMS..."
-                                            className="min-h-[150px] resize-y bg-background"
-                                            required
-                                        />
-                                        <div className="flex gap-2 mt-2">
-                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Prenom_Parent} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Prenom_Parent} ")}>+ Prénom Parent</Badge>
-                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Nom_Enfant} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Nom_Enfant} ")}>+ Nom Enfant</Badge>
-                                            <Badge role="button" tabIndex={0} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => setMessage(prev => prev + "{Solde_A_Payer} ")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setMessage(prev => prev + "{Solde_A_Payer} ")}>+ Solde à Payer</Badge>
-                                        </div>
+                    {/* Editor */}
+                    <Card
+                        padding={0}
+                        style={{ display: "flex", flexDirection: "column" }}
+                    >
+                        <div
+                            style={{
+                                padding: "14px 20px",
+                                borderBottom: "1px solid var(--eduflow-border-subtle)",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 8,
+                            }}
+                        >
+                            <div>
+                                <h3
+                                    className="eduflow-display"
+                                    style={{ fontSize: 16, margin: 0 }}
+                                >
+                                    {active.name}
+                                </h3>
+                                <div
+                                    style={{
+                                        fontSize: 11,
+                                        color: "var(--eduflow-text-tertiary)",
+                                        marginTop: 2,
+                                    }}
+                                >
+                                    Multi-canaux ·{" "}
+                                    {active.autoTrigger ??
+                                        "Déclenché manuellement"}
+                                </div>
+                            </div>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 6,
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <Badge
+                                    variant={active.isActive ? "success" : "neutral"}
+                                    size="sm"
+                                    dot
+                                >
+                                    {active.isActive ? "Actif" : "Inactif"}
+                                </Badge>
+                                <Button variant="ghost" size="sm" icon="sparkle" disabled>
+                                    Reformuler (IA)
+                                </Button>
+                                <Button size="sm" icon="check" disabled>
+                                    Enregistrer
+                                </Button>
+                            </div>
+                        </div>
+                        <div
+                            style={{
+                                padding: 20,
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: 16,
+                                flex: 1,
+                            }}
+                            className="tpl-edit"
+                        >
+                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                <div>
+                                    <SubLabel>SMS · 160 caractères par segment</SubLabel>
+                                    <textarea
+                                        value={currentBody}
+                                        onChange={(e) => setDraft(e.target.value)}
+                                        rows={6}
+                                        style={{
+                                            width: "100%",
+                                            padding: 14,
+                                            background:
+                                                "var(--eduflow-surface-sunken)",
+                                            borderRadius: 12,
+                                            fontSize: 13,
+                                            lineHeight: 1.55,
+                                            marginTop: 8,
+                                            fontFamily:
+                                                "var(--font-body, Inter), system-ui, sans-serif",
+                                            color: "var(--eduflow-text-primary)",
+                                            border: "1px solid var(--eduflow-border-subtle)",
+                                            resize: "vertical",
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            marginTop: 10,
+                                            fontSize: 11,
+                                            color: "var(--eduflow-text-tertiary)",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <span>
+                                            {charCount} caractères · {segCount} SMS
+                                        </span>
+                                        {draft !== null ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDraft(null)}
+                                                style={{
+                                                    border: 0,
+                                                    background: "transparent",
+                                                    color: "var(--brand-700)",
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                Restaurer l'original
+                                            </button>
+                                        ) : null}
                                     </div>
-                                </CardContent>
-                                <CardFooter className="bg-muted/10 border-t border-border mt-4 py-4 flex justify-between">
-                                    <Button type="button" variant="outline">Sauvegarder Brouillon</Button>
-                                    <Button type="submit" disabled={isSending || charCount === 0} className="gap-2">
-                                        {isSending ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <Send className="w-4 h-4" />
-                                        )}
-                                        Envoyer
-                                    </Button>
-                                </CardFooter>
-                            </form>
-                        </Card>
-                    </div>
-
-                    <div className="space-y-6">
-                        <Card className="border-border shadow-sm border-dashed bg-muted/20">
-                            <CardContent className="pt-6 text-center space-y-4">
-                                <div className="p-4 bg-primary/10 rounded-full inline-block">
-                                    <Phone className="w-8 h-8 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium text-foreground">Crédits SMS</h3>
-                                    <p className="text-3xl font-bold mt-2">1 450</p>
-                                    <p className="text-sm text-muted-foreground mt-1">SMS restants sur votre compte</p>
+                                    <SubLabel>Variables disponibles</SubLabel>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            gap: 6,
+                                            marginTop: 6,
+                                        }}
+                                    >
+                                        {VARIABLES.map((v) => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                onClick={() => {
+                                                    setDraft(
+                                                        (currentBody || "") + " " + v
+                                                    );
+                                                }}
+                                                style={{
+                                                    fontSize: 10,
+                                                    padding: "3px 8px",
+                                                    borderRadius: 6,
+                                                    background: "var(--brand-50)",
+                                                    color: "var(--brand-800)",
+                                                    border:
+                                                        "1px solid var(--brand-200)",
+                                                    fontFamily:
+                                                        "var(--font-mono, ui-monospace, monospace)",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <Button variant="outline" className="w-full mt-2">Recharger</Button>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-border shadow-sm border-l-4 border-l-warning">
-                            <CardContent className="p-4">
-                                <h4 className="font-semibold flex items-center gap-2 mb-2">
-                                    <AlertCircle className="w-4 h-4 text-warning" />
-                                    Bonnes pratiques
-                                </h4>
-                                <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-4">
-                                    <li>Évitez les caractères spéciaux complexes qui peuvent doubler le coût du SMS.</li>
-                                    <li>Inscrivez toujours le nom de l'école (ex: "Info EduPilot: ...").</li>
-                                    <li>Privilégiez les envois entre 8h00 et 19h00.</li>
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    </div>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                <div>
+                                    <SubLabel>Aperçu · téléphone parent</SubLabel>
+                                    <div
+                                        style={{
+                                            marginTop: 8,
+                                            padding: 16,
+                                            background: "var(--eduflow-neutral-900, #0F172A)",
+                                            borderRadius: 22,
+                                            position: "relative",
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                background: "#fff",
+                                                borderRadius: 14,
+                                                padding: 14,
+                                                fontSize: 13,
+                                                lineHeight: 1.55,
+                                                color: "#0F172A",
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    fontSize: 10,
+                                                    color: "var(--eduflow-text-tertiary)",
+                                                    marginBottom: 6,
+                                                }}
+                                            >
+                                                CBE · à l'instant
+                                            </div>
+                                            {preview}
+                                        </div>
+                                    </div>
+                                </div>
+                                {active.history ? (
+                                    <div
+                                        style={{
+                                            padding: 14,
+                                            background: "var(--eduflow-success-50)",
+                                            borderRadius: 10,
+                                            fontSize: 12,
+                                            color: "var(--eduflow-success-800)",
+                                            lineHeight: 1.55,
+                                        }}
+                                    >
+                                        <strong>Performance historique</strong>
+                                        <br />
+                                        Envoyé {active.history.sent} fois · {active.history.readRate}% lus, {active.history.conversionRate}% de conversion dans les 48h.
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    </Card>
                 </div>
             </div>
+
+            <style jsx global>{`
+                @media (max-width: 960px) {
+                    .tpl-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                    .tpl-edit {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+            `}</style>
         </PageGuard>
     );
 }
