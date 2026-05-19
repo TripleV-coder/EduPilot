@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Permission } from "@/lib/rbac/permissions";
-import { 
-    BarChart3, AlertCircle, Users, GraduationCap, TrendingUp, 
-    RefreshCcw, Wallet, FileText, CalendarDays, Scale 
+import {
+    BarChart3, AlertCircle, Users, GraduationCap, TrendingUp,
+    RefreshCcw, Wallet, FileText, CalendarDays, Scale, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ import { AcademicPerformancesTab } from "@/components/analytics/AcademicPerforma
 import { AnalyticsComparisonsTab } from "@/components/analytics/AnalyticsComparisonsTab";
 import { AnalyticsReportsTab } from "@/components/analytics/AnalyticsReportsTab";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
+import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";
 
 function AnalyticsContent() {
     const { schoolId: activeSchoolId } = useSchool();
@@ -151,8 +152,12 @@ function AnalyticsContent() {
 
                 <AnalyticsContextBar />
 
-                <Tabs defaultValue="overview" className="space-y-6">
+                <Tabs defaultValue="bi" className="space-y-6">
                     <TabsList className="dashboard-panel bg-muted/50 p-1 flex-wrap h-auto">
+                        <TabsTrigger value="bi" className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            BI
+                        </TabsTrigger>
                         <TabsTrigger value="overview">Vue Globale</TabsTrigger>
                         <TabsTrigger value="performances" className="flex items-center gap-2">
                             <GraduationCap className="h-4 w-4" />
@@ -179,6 +184,13 @@ function AnalyticsContent() {
                             Rapports
                         </TabsTrigger>
                     </TabsList>
+
+                    <TabsContent value="bi" className="space-y-6">
+                        <AnalyticsBIBoard
+                            schoolId={activeSchoolId ?? undefined}
+                            academicYearId={academicYearId}
+                        />
+                    </TabsContent>
 
                     <TabsContent value="overview" className="space-y-6">
                         {overviewError && (
