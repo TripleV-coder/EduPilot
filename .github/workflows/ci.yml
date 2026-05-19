@@ -305,7 +305,11 @@ jobs:
         run: npm ci
 
       - name: Generate SBOM (CycloneDX JSON)
-        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --output-format json
+        # --ignore-npm-errors tolerates ELSPROBLEMS from `npm ls` caused by
+        # transitive peer/version mismatches we cannot fix (e.g. magicast pinned
+        # by c12, webpack peer of @sentry/webpack-plugin under Turbopack,
+        # @emnapi/* extraneous from native binaries). Direct deps are clean.
+        run: npx --yes @cyclonedx/cyclonedx-npm --ignore-npm-errors --output-file sbom.json --output-format json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
