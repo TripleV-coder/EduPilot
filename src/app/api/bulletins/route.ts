@@ -99,12 +99,120 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Inscription non trouvée" }, { status: 404 });
     }
 
-    // Get period info
+    // Get period info + previous period (same year, sequence - 1)
     const period = await prisma.period.findUnique({
       where: { id: periodId },
     });
+    const previousPeriod = period
+      ? await prisma.period.findFirst({
+          where: {
+            academicYearId: period.academicYearId,
+            sequence: { lt: period.sequence },
+          },
+          orderBy: { sequence: "desc" },
+        })
+      : null;
 
-    // Calculate averages for each subject
+    // School identity (used on the printed bulletin header)
+    const school = await prisma.school.findUnique({
+      where: { id: student.schoolId },
+      select: {
+        name: true,
+        address: true,
+        city: true,
+        phone: true,
+        email: true,
+        logo: true,
+        motto: true,
+        mempCode: true,
+        code: true,
+      },
+    });
+
+    // ── Class-wide grades for this period (needed for class min/max/avg per subject)
+    const classStudents = await prisma.enrollment.findMany({
+      where: {
+        classId: enrollment.classId,
+        academicYearId: enrollment.academicYearId,
+        status: "ACTIVE",
+      },
+      include: {
+        student: {
+          include: {
+            grades: {
+              where: {
+                evaluation: { periodId },
+              },
+              include: {
+                evaluation: {
+                  include: { classSubject: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Per-class-subject stats (avg/min/max across the class)
+    const classStatsBySubject = new Map<
+      string,
+      { sum: number; n: number; min: number; max: number }
+    >();
+    for (const cs of enrollment.class.classSubjects) {
+      let sum = 0;
+      let n = 0;
+      let min = Infinity;
+      let max = -Infinity;
+      for (const e of classStudents) {
+        const grades = e.student.grades
+          .filter((g) => g.evaluation.classSubjectId === cs.id)
+          .map((g) => ({
+            value: g.value,
+            coefficient: g.evaluation.coefficient,
+            isAbsent: g.isAbsent,
+            isExcused: g.isExcused,
+          }));
+        const avg = calculateWeightedAverage(grades);
+        if (avg !== null) {
+          sum += avg;
+          n += 1;
+          if (avg < min) min = avg;
+          if (avg > max) max = avg;
+        }
+      }
+      classStatsBySubject.set(cs.id, {
+        sum,
+        n,
+        min: n > 0 ? min : 0,
+        max: n > 0 ? max : 0,
+      });
+    }
+
+    // Previous-period averages for THIS student (one per class-subject)
+    const prevGrades = previousPeriod
+      ? await prisma.grade.findMany({
+          where: {
+            studentId,
+            evaluation: { periodId: previousPeriod.id },
+          },
+          include: { evaluation: { include: { classSubject: true } } },
+        })
+      : [];
+    const prevBySubjectId = new Map<string, number | null>();
+    for (const cs of enrollment.class.classSubjects) {
+      const gs = prevGrades
+        .filter((g) => g.evaluation.classSubjectId === cs.id)
+        .map((g) => ({
+          value: g.value,
+          coefficient: g.evaluation.coefficient,
+          isAbsent: g.isAbsent,
+          isExcused: g.isExcused,
+        }));
+      prevBySubjectId.set(cs.subject.id, calculateWeightedAverage(gs));
+    }
+
+    // Calculate averages for each subject (current period)
     const subjectResults = enrollment.class.classSubjects.map((cs) => {
       const grades = cs.evaluations.flatMap((eval_) =>
         eval_.grades.map((g) => ({
@@ -116,12 +224,17 @@ export async function GET(request: Request) {
       );
 
       const average = calculateWeightedAverage(grades);
+      const stats = classStatsBySubject.get(cs.id) ?? { sum: 0, n: 0, min: 0, max: 0 };
 
       return {
         subjectId: cs.subject.id,
         subjectName: cs.subject.name,
         coefficient: Number(cs.coefficient),
         average,
+        previousAverage: prevBySubjectId.get(cs.subject.id) ?? null,
+        classAverage: stats.n > 0 ? stats.sum / stats.n : null,
+        classMin: stats.n > 0 ? stats.min : null,
+        classMax: stats.n > 0 ? stats.max : null,
         appreciation: getAppreciation(average),
         evaluationsCount: cs.evaluations.length,
         grades: cs.evaluations.map((eval_) => ({
@@ -142,34 +255,20 @@ export async function GET(request: Request) {
           validSubjects.reduce((sum, s) => sum + s.coefficient, 0)
         : null;
 
-    // Get class rankings (all students in the same class for this period)
-    const classStudents = await prisma.enrollment.findMany({
-      where: {
-        classId: enrollment.classId,
-        academicYearId: enrollment.academicYearId,
-        status: "ACTIVE",
-      },
-      include: {
-        student: {
-          include: {
-            grades: {
-              where: {
-                evaluation: { periodId },
-              },
-              include: {
-                evaluation: {
-                  include: {
-                    classSubject: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    // Previous-period general average (same weighting, computed on prevBySubjectId)
+    const prevValidSubjects = enrollment.class.classSubjects
+      .map((cs) => ({
+        coefficient: Number(cs.coefficient),
+        average: prevBySubjectId.get(cs.subject.id) ?? null,
+      }))
+      .filter((s) => s.average !== null);
+    const previousGeneralAverage =
+      prevValidSubjects.length > 0
+        ? prevValidSubjects.reduce((sum, s) => sum + s.average! * s.coefficient, 0) /
+          prevValidSubjects.reduce((sum, s) => sum + s.coefficient, 0)
+        : null;
 
-    // Calculate all students' averages for ranking
+    // Class-wide general averages for ranking
     const allAverages = classStudents.map((e) => {
       const studentGrades = e.student.grades;
       const subjectAverages: { average: number | null; coefficient: number }[] = [];
@@ -200,12 +299,77 @@ export async function GET(request: Request) {
     const rank = getRank(generalAverage, allAverages);
     const classSize = classStudents.length;
 
+    // Class general average (sum of valid student averages / count)
+    const classValidAverages = allAverages.filter((a): a is number => a !== null);
+    const classGeneralAverage =
+      classValidAverages.length > 0
+        ? classValidAverages.reduce((sum, a) => sum + a, 0) / classValidAverages.length
+        : null;
+
+    // ── Vie scolaire: attendance + incidents during the period
+    const periodRange =
+      period && {
+        gte: period.startDate,
+        lte: period.endDate,
+      };
+
+    const [absences, lates, excused, incidents] = periodRange
+      ? await Promise.all([
+          prisma.attendance.count({
+            where: {
+              studentId,
+              date: periodRange,
+              status: "ABSENT",
+            },
+          }),
+          prisma.attendance.count({
+            where: {
+              studentId,
+              date: periodRange,
+              status: "LATE",
+            },
+          }),
+          prisma.attendance.count({
+            where: {
+              studentId,
+              date: periodRange,
+              status: "EXCUSED",
+            },
+          }),
+          prisma.behaviorIncident.count({
+            where: {
+              studentId,
+              date: periodRange,
+            },
+          }),
+        ])
+      : [0, 0, 0, 0];
+
+    // Reference number: BJ-{year}-T{seq}-{matricule-suffix}
+    const yearLabel = enrollment.academicYear.name.split("-")[0]?.trim() || "2026";
+    const matriculeSuffix = student.matricule.slice(-5).toUpperCase();
+    const referenceNumber = period
+      ? `BJ-${yearLabel}-T${period.sequence}-${matriculeSuffix}`
+      : `BJ-${yearLabel}-${matriculeSuffix}`;
+
     const bulletin = {
+      school: school
+        ? {
+            name: school.name,
+            address: [school.address, school.city].filter(Boolean).join(" · "),
+            phone: school.phone,
+            email: school.email,
+            mempCode: school.mempCode || school.code,
+            motto: school.motto,
+            logo: school.logo,
+          }
+        : null,
       student: {
         id: student.id,
         matricule: student.matricule,
         firstName: student.user.firstName,
         lastName: student.user.lastName,
+        dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString() : null,
       },
       class: {
         id: enrollment.class.id,
@@ -214,11 +378,25 @@ export async function GET(request: Request) {
       },
       academicYear: enrollment.academicYear.name,
       period: period?.name || "Période",
+      periodSequence: period?.sequence ?? null,
+      previousPeriod: previousPeriod
+        ? { id: previousPeriod.id, name: previousPeriod.name }
+        : null,
       subjects: subjectResults,
       generalAverage,
+      previousGeneralAverage,
+      classGeneralAverage,
       rank,
       classSize,
       appreciation: getAppreciation(generalAverage),
+      vieScolaire: {
+        absences,
+        lates,
+        excused,
+        incidents,
+      },
+      referenceNumber,
+      generatedAt: new Date().toISOString(),
     };
 
     return NextResponse.json(bulletin);

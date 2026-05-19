@@ -7,41 +7,85 @@ import { useReactToPrint } from "react-to-print";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
-import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
+import { Badge, Button, Card, Icon, Logo, Spinner } from "@/components/edu";
 import { PageHeader } from "@/components/edu-homes/_shared";
 
 type BulletinSubject = {
     subjectId: string;
     subjectName: string;
     coefficient: number;
-    average: number;
+    average: number | null;
+    previousAverage: number | null;
+    classAverage: number | null;
+    classMin: number | null;
+    classMax: number | null;
     appreciation: string;
     evaluationsCount: number;
 };
 
 type BulletinData = {
-    student: { id: string; matricule: string; firstName: string; lastName: string };
+    school: {
+        name: string;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        mempCode: string | null;
+        motto: string | null;
+        logo: string | null;
+    } | null;
+    student: {
+        id: string;
+        matricule: string;
+        firstName: string;
+        lastName: string;
+        dateOfBirth: string | null;
+    };
     class: { id: string; name: string; level: string };
     academicYear: string;
     period: string;
+    periodSequence: number | null;
+    previousPeriod: { id: string; name: string } | null;
     subjects: BulletinSubject[];
     generalAverage: number | null;
+    previousGeneralAverage: number | null;
+    classGeneralAverage: number | null;
     rank: string | null;
     classSize: number;
     appreciation: string;
+    vieScolaire: {
+        absences: number;
+        lates: number;
+        excused: number;
+        incidents: number;
+    };
+    referenceNumber: string;
+    generatedAt: string;
 };
 
 type ClassOption = { id: string; name: string };
 type PeriodOption = { id: string; name: string };
 type StudentOption = { id: string; user?: { firstName: string; lastName: string } };
 
-function getScoreColorClass(score: number | null): string {
-    if (score === null) return "text-gray-400";
-    if (score >= 16) return "text-green-700 font-bold";
-    if (score >= 14) return "text-blue-700 font-semibold";
-    if (score >= 10) return "text-amber-700 font-medium";
-    return "text-red-700 font-bold";
-}
+const FR_NUM = (v: number, digits = 2) =>
+    v.toFixed(digits).replace(".", ",");
+
+const FR_DATE_SHORT = (iso: string) => {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch {
+        return iso;
+    }
+};
+
+const FR_DATE_LONG = (iso: string) => {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    } catch {
+        return iso;
+    }
+};
 
 export default function BulletinsPage() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -329,7 +373,6 @@ export default function BulletinsPage() {
                     </Card>
                 ) : null}
 
-                {/* BULLETIN PREVIEW */}
                 {bulletin ? (
                     <div className="flex flex-col gap-4">
                         {/* Action bar (above the printable area) */}
@@ -363,8 +406,7 @@ export default function BulletinsPage() {
                                             variant={pickAverageVariant(bulletin.generalAverage)}
                                             size="sm"
                                         >
-                                            Moyenne{" "}
-                                            {bulletin.generalAverage.toFixed(2).replace(".", ",")}/20
+                                            Moyenne {FR_NUM(bulletin.generalAverage)}/20
                                         </Badge>
                                     ) : null}
                                     {bulletin.rank ? (
@@ -393,174 +435,23 @@ export default function BulletinsPage() {
                             </div>
                         </Card>
 
-                        {/* Printable Area — intentionally formal black/white for paper output. */}
+                        {/* Printable A4 — pixel-perfect per student-suite.jsx Bulletin */}
                         <div className="w-full overflow-x-auto">
                             <div
                                 ref={printRef}
-                                className="mx-auto min-w-[800px] w-full max-w-[900px] bg-white p-10 text-black shadow-lg print:p-0 print:shadow-none"
+                                className="bulletin-a4 mx-auto"
                                 style={{
-                                    border: "1px solid var(--eduflow-border-subtle)",
-                                    borderRadius: "var(--eduflow-radius-card)",
+                                    width: 794,
+                                    minHeight: 1123,
+                                    padding: 48,
+                                    background: "#fff",
+                                    color: "#0F172A",
                                     fontFamily: "Inter, system-ui, sans-serif",
+                                    position: "relative",
+                                    boxShadow: "var(--shadow-lg)",
                                 }}
                             >
-                                {/* Header */}
-                                <div className="mb-8 border-b-2 border-black pb-4 text-center">
-                                    <h1 className="mb-1 text-3xl font-black uppercase tracking-wider">
-                                        EduPilot Academy
-                                    </h1>
-                                    <h2 className="text-xl font-bold uppercase text-gray-700">
-                                        Bulletin de notes — {bulletin.period}
-                                    </h2>
-                                    <p className="text-sm text-gray-500">
-                                        Année scolaire : {bulletin.academicYear}
-                                    </p>
-                                </div>
-
-                                {/* Student Info */}
-                                <div className="mb-8 flex justify-between rounded-lg border border-gray-300 bg-gray-50 p-5 text-sm font-medium">
-                                    <div className="space-y-2">
-                                        <p>
-                                            <span className="text-gray-500">Nom :</span>{" "}
-                                            <span className="text-lg font-bold uppercase">
-                                                {bulletin.student.lastName}
-                                            </span>
-                                        </p>
-                                        <p>
-                                            <span className="text-gray-500">Prénoms :</span>{" "}
-                                            <span className="text-lg font-semibold">
-                                                {bulletin.student.firstName}
-                                            </span>
-                                        </p>
-                                        <p>
-                                            <span className="text-gray-500">Matricule :</span>{" "}
-                                            <span className="font-mono">
-                                                {bulletin.student.matricule}
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <div className="space-y-2 text-right">
-                                        <p>
-                                            <span className="text-gray-500">Classe :</span>{" "}
-                                            <span className="font-bold">{bulletin.class.name}</span>
-                                        </p>
-                                        <p>
-                                            <span className="text-gray-500">Niveau :</span>{" "}
-                                            {bulletin.class.level}
-                                        </p>
-                                        <p>
-                                            <span className="text-gray-500">Effectif :</span>{" "}
-                                            {bulletin.classSize} élèves
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Grades Table */}
-                                <table className="mb-8 w-full border-collapse border border-gray-400 text-sm">
-                                    <thead className="bg-gray-100">
-                                        <tr>
-                                            <th className="w-1/3 border border-gray-400 p-3 text-left">
-                                                Matière
-                                            </th>
-                                            <th className="w-16 border border-gray-400 p-3 text-center">
-                                                Coef
-                                            </th>
-                                            <th className="w-24 border border-gray-400 p-3 text-center">
-                                                Moyenne (/20)
-                                            </th>
-                                            <th className="border border-gray-400 p-3 text-left">
-                                                Appréciation
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {bulletin.subjects.map((sub, idx) => (
-                                            <tr key={idx} className="border-b border-gray-300">
-                                                <td className="border border-gray-400 p-3 font-semibold text-gray-800">
-                                                    {sub.subjectName}
-                                                </td>
-                                                <td className="border border-gray-400 p-3 text-center text-gray-600">
-                                                    {sub.coefficient}
-                                                </td>
-                                                <td
-                                                    className={`border border-gray-400 p-3 text-center text-base ${getScoreColorClass(
-                                                        sub.average
-                                                    )}`}
-                                                    style={{ fontVariantNumeric: "tabular-nums" }}
-                                                >
-                                                    {sub.average !== null
-                                                        ? sub.average.toFixed(2).replace(".", ",")
-                                                        : "—"}
-                                                </td>
-                                                <td className="border border-gray-400 p-3 text-sm italic text-gray-700">
-                                                    {sub.appreciation || "—"}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-
-                                {/* Summary */}
-                                <div className="mb-12 grid grid-cols-2 gap-8">
-                                    <div className="rounded-lg border border-gray-400 p-5">
-                                        <h3 className="mb-3 border-b border-gray-300 pb-2 font-bold uppercase text-gray-700">
-                                            Synthèse pédagogique
-                                        </h3>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between text-lg">
-                                                <span className="text-gray-600">
-                                                    Moyenne générale :
-                                                </span>
-                                                <span
-                                                    className={`text-2xl font-black ${getScoreColorClass(
-                                                        bulletin.generalAverage
-                                                    )}`}
-                                                    style={{ fontVariantNumeric: "tabular-nums" }}
-                                                >
-                                                    {bulletin.generalAverage !== null
-                                                        ? bulletin.generalAverage
-                                                              .toFixed(2)
-                                                              .replace(".", ",")
-                                                        : "Indisponible"}
-                                                    <span className="text-sm font-normal text-gray-500">
-                                                        {" "}
-                                                        / 20
-                                                    </span>
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between text-base">
-                                                <span className="text-gray-600">Rang :</span>
-                                                <span className="font-bold">
-                                                    {bulletin.rank || "—"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="rounded-lg border border-gray-400 p-5">
-                                        <h3 className="mb-3 border-b border-gray-300 pb-2 font-bold uppercase text-gray-700">
-                                            Décision du conseil
-                                        </h3>
-                                        <p className="text-lg font-medium italic text-gray-800">
-                                            {bulletin.appreciation || "____________________________"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Signatures */}
-                                <div className="mt-16 flex justify-between pt-8 text-sm font-semibold text-gray-600">
-                                    <div className="w-48 text-center">
-                                        <p>Le Professeur Principal</p>
-                                        <div className="mt-8 border-t border-dotted border-gray-400 pt-2">
-                                            Date et signature
-                                        </div>
-                                    </div>
-                                    <div className="w-48 text-center">
-                                        <p>Le Directeur / La Directrice</p>
-                                        <div className="mt-8 border-t border-dotted border-gray-400 pt-2">
-                                            Date, cachet et signature
-                                        </div>
-                                    </div>
-                                </div>
+                                <BulletinDocument bulletin={bulletin} />
                             </div>
                         </div>
                     </div>
@@ -575,8 +466,504 @@ export default function BulletinsPage() {
                     </div>
                 ) : null}
             </div>
+
+            <style jsx global>{`
+                @media print {
+                    .bulletin-a4 {
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                    }
+                }
+            `}</style>
         </PageGuard>
     );
+}
+
+function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
+    const schoolName = bulletin.school?.name || "EduPilot Academy";
+    const schoolAddr = bulletin.school?.address || "—";
+    const schoolMemp = bulletin.school?.mempCode
+        ? `Code MEMP ${bulletin.school.mempCode}`
+        : "";
+    const schoolPhone = bulletin.school?.phone || "";
+    const schoolEmail = bulletin.school?.email || "";
+    const periodLabel = bulletin.period;
+    const periodSubtitle = bulletin.periodSequence
+        ? `Bulletin du ${ordinalFr(bulletin.periodSequence)} trimestre`
+        : `Bulletin · ${periodLabel}`;
+    const generatedLabel = `Année ${bulletin.academicYear} · édité le ${FR_DATE_LONG(bulletin.generatedAt)}`;
+    const honorsLabel = computeHonorsLabel(bulletin.generalAverage);
+    const sanctionsCount = bulletin.vieScolaire.incidents;
+
+    return (
+        <>
+            {/* Header */}
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    paddingBottom: 18,
+                    borderBottom: "2px solid var(--brand-700)",
+                    marginBottom: 24,
+                }}
+            >
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                    <Logo size={56} />
+                    <div>
+                        <div
+                            className="eduflow-display"
+                            style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}
+                        >
+                            {schoolName}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            {[schoolAddr, schoolMemp].filter(Boolean).join(" · ")}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            {[schoolPhone && `Tél ${schoolPhone}`, schoolEmail]
+                                .filter(Boolean)
+                                .join(" · ") || " "}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                    <div
+                        className="eduflow-display"
+                        style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                        }}
+                    >
+                        {periodSubtitle}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        {generatedLabel}
+                    </div>
+                    <div
+                        className="eduflow-mono"
+                        style={{
+                            fontSize: 9,
+                            color: "var(--eduflow-text-tertiary)",
+                            marginTop: 4,
+                            fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        Réf. {bulletin.referenceNumber}
+                    </div>
+                </div>
+            </div>
+
+            {/* Student card */}
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    padding: 14,
+                    background: "var(--brand-50)",
+                    borderRadius: 10,
+                    marginBottom: 20,
+                    gap: 16,
+                }}
+            >
+                <CardCell label="Élève">
+                    <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
+                        {bulletin.student.lastName.toUpperCase()} {bulletin.student.firstName}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                        {bulletin.student.dateOfBirth
+                            ? `née/né le ${FR_DATE_SHORT(bulletin.student.dateOfBirth)}`
+                            : " "}
+                    </div>
+                </CardCell>
+                <CardCell label="Classe">
+                    <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
+                        {bulletin.class.name} · {bulletin.classSize} élèves
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                        {bulletin.class.level}
+                    </div>
+                </CardCell>
+                <CardCell label="Matricule">
+                    <div
+                        className="eduflow-mono"
+                        style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            marginTop: 4,
+                            fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        {bulletin.student.matricule}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                        Année {bulletin.academicYear}
+                    </div>
+                </CardCell>
+            </div>
+
+            {/* Grades table */}
+            <table
+                style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 11,
+                    marginBottom: 20,
+                }}
+            >
+                <thead>
+                    <tr style={{ background: "var(--neutral-900, #0F172A)", color: "#fff" }}>
+                        {[
+                            "Matière",
+                            "Coef.",
+                            bulletin.previousPeriod ? `Moy. ${bulletin.previousPeriod.name}` : "Moy. préc.",
+                            `Moy. ${bulletin.period}`,
+                            "Moy. classe",
+                            "Min · Max",
+                            "Appréciation",
+                        ].map((h) => (
+                            <th
+                                key={h}
+                                style={{
+                                    padding: "8px 10px",
+                                    textAlign: "left",
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: "0.06em",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                {h}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {bulletin.subjects.map((s) => {
+                        const cur = s.average;
+                        const cellColor =
+                            cur === null
+                                ? "var(--eduflow-text-tertiary)"
+                                : cur >= 14
+                                ? "var(--eduflow-success-700, #047857)"
+                                : cur < 10
+                                ? "var(--eduflow-danger-700, #B91C1C)"
+                                : "var(--eduflow-text-primary)";
+                        return (
+                            <tr
+                                key={s.subjectId}
+                                style={{
+                                    borderBottom:
+                                        "1px solid var(--eduflow-border-subtle, #E2E8F0)",
+                                }}
+                            >
+                                <td style={{ padding: "9px 10px", fontWeight: 600 }}>
+                                    {s.subjectName}
+                                </td>
+                                <td
+                                    style={{ padding: "9px 10px" }}
+                                    className="tabular"
+                                >
+                                    {s.coefficient}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        color: "var(--eduflow-text-secondary)",
+                                    }}
+                                    className="tabular"
+                                >
+                                    {s.previousAverage !== null
+                                        ? FR_NUM(s.previousAverage)
+                                        : "—"}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        fontWeight: 700,
+                                        color: cellColor,
+                                    }}
+                                    className="tabular"
+                                >
+                                    {cur !== null ? FR_NUM(cur) : "—"}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        color: "var(--eduflow-text-secondary)",
+                                    }}
+                                    className="tabular"
+                                >
+                                    {s.classAverage !== null
+                                        ? FR_NUM(s.classAverage)
+                                        : "—"}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        color: "var(--eduflow-text-tertiary)",
+                                        fontSize: 10,
+                                    }}
+                                    className="tabular"
+                                >
+                                    {s.classMin !== null && s.classMax !== null
+                                        ? `${FR_NUM(s.classMin, 0)}—${FR_NUM(s.classMax, 0)}`
+                                        : "—"}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        fontSize: 10,
+                                        color: "var(--eduflow-text-secondary)",
+                                        fontStyle: "italic",
+                                    }}
+                                >
+                                    {s.appreciation || "—"}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+                <tfoot>
+                    <tr style={{ background: "var(--brand-50)" }}>
+                        <td style={{ padding: "12px 10px", fontWeight: 800 }}>
+                            MOYENNE GÉNÉRALE
+                        </td>
+                        <td style={{ padding: "12px 10px" }} className="tabular">
+                            <strong>
+                                {bulletin.subjects.reduce((sum, s) => sum + s.coefficient, 0)}
+                            </strong>
+                        </td>
+                        <td style={{ padding: "12px 10px" }} className="tabular">
+                            <strong>
+                                {bulletin.previousGeneralAverage !== null
+                                    ? FR_NUM(bulletin.previousGeneralAverage)
+                                    : "—"}
+                            </strong>
+                        </td>
+                        <td
+                            style={{
+                                padding: "12px 10px",
+                                fontSize: 16,
+                                color: "var(--brand-800)",
+                            }}
+                            className="tabular"
+                        >
+                            <strong>
+                                {bulletin.generalAverage !== null
+                                    ? FR_NUM(bulletin.generalAverage)
+                                    : "—"}
+                            </strong>
+                        </td>
+                        <td style={{ padding: "12px 10px" }} className="tabular">
+                            <strong>
+                                {bulletin.classGeneralAverage !== null
+                                    ? FR_NUM(bulletin.classGeneralAverage)
+                                    : "—"}
+                            </strong>
+                        </td>
+                        <td
+                            colSpan={2}
+                            style={{ padding: "12px 10px", textAlign: "right" }}
+                        >
+                            Rang :{" "}
+                            <strong style={{ fontSize: 14 }}>
+                                {bulletin.rank ? `${bulletin.rank} / ${bulletin.classSize}` : "—"}
+                            </strong>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            {/* Discipline + appreciation */}
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 2fr",
+                    gap: 14,
+                    marginBottom: 20,
+                }}
+            >
+                <div
+                    style={{
+                        padding: 14,
+                        border: "1px solid var(--eduflow-border-subtle, #E2E8F0)",
+                        borderRadius: 10,
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "var(--eduflow-text-tertiary)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                        }}
+                    >
+                        Vie scolaire
+                    </div>
+                    <div
+                        style={{
+                            marginTop: 8,
+                            fontSize: 11,
+                            color: "var(--eduflow-text-secondary)",
+                            lineHeight: 1.7,
+                        }}
+                    >
+                        Absences :{" "}
+                        <strong>
+                            {bulletin.vieScolaire.absences + bulletin.vieScolaire.excused} demi-journées
+                        </strong>{" "}
+                        ({bulletin.vieScolaire.excused} justifiées)
+                        <br />
+                        Retards : <strong>{bulletin.vieScolaire.lates}</strong>
+                        <br />
+                        Sanctions :{" "}
+                        <strong>{sanctionsCount === 0 ? "aucune" : sanctionsCount}</strong>
+                        <br />
+                        Encouragements :{" "}
+                        <strong
+                            style={{
+                                color: honorsLabel
+                                    ? "var(--eduflow-success-700, #047857)"
+                                    : undefined,
+                            }}
+                        >
+                            {honorsLabel || "—"}
+                        </strong>
+                    </div>
+                </div>
+                <div
+                    style={{
+                        padding: 14,
+                        border: "1px solid var(--eduflow-border-subtle, #E2E8F0)",
+                        borderRadius: 10,
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "var(--eduflow-text-tertiary)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                        }}
+                    >
+                        Appréciation du conseil de classe
+                    </div>
+                    <div
+                        style={{
+                            marginTop: 8,
+                            fontSize: 12,
+                            color: "var(--eduflow-text-primary)",
+                            lineHeight: 1.65,
+                            fontStyle: "italic",
+                        }}
+                    >
+                        {bulletin.appreciation ||
+                            "Le conseil de classe se réunira pour statuer sur les résultats."}
+                    </div>
+                </div>
+            </div>
+
+            {/* Signatures */}
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 16,
+                    marginTop: 32,
+                }}
+            >
+                {[
+                    { l: "Le professeur principal", n: " " },
+                    { l: "La Direction", n: " " },
+                    { l: "Le parent / tuteur", n: " " },
+                ].map((s) => (
+                    <div
+                        key={s.l}
+                        style={{
+                            paddingTop: 24,
+                            borderTop: "1px solid var(--eduflow-border-strong, #CBD5E1)",
+                        }}
+                    >
+                        <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                            {s.l}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                            {s.n}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Footer */}
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: 20,
+                    left: 48,
+                    right: 48,
+                    paddingTop: 12,
+                    borderTop: "1px solid var(--eduflow-border-subtle, #E2E8F0)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 9,
+                    color: "var(--eduflow-text-tertiary)",
+                }}
+            >
+                <span>
+                    EduPilot · document authentique · vérifiable sur
+                    {" "}edupilot.bj/v/{bulletin.referenceNumber}
+                </span>
+                <span
+                    className="eduflow-mono"
+                    style={{
+                        fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                        fontVariantNumeric: "tabular-nums",
+                    }}
+                >
+                    #{bulletin.referenceNumber.split("-").slice(-2).join("-")}
+                </span>
+            </div>
+        </>
+    );
+}
+
+function CardCell({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <div
+                style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: "var(--eduflow-text-tertiary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                }}
+            >
+                {label}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function ordinalFr(n: number): string {
+    if (n === 1) return "1er";
+    return `${n}ᵉ`;
+}
+
+function computeHonorsLabel(avg: number | null): string | null {
+    if (avg === null) return null;
+    if (avg >= 16) return "Tableau d'honneur";
+    if (avg >= 14) return "Encouragements";
+    if (avg >= 12) return "Satisfaisant";
+    return null;
 }
 
 function pickAverageVariant(
