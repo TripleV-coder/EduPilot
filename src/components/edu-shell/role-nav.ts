@@ -100,6 +100,7 @@ export function navForRole(role: string | undefined | null): NavLink[] {
                 { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true },
                 { icon: "pencil", label: "Mes notes", href: "/dashboard/grades", matchPrefix: true },
                 { icon: "book", label: "Devoirs", href: "/dashboard/homework", countKey: "homework", matchPrefix: true },
+                { icon: "sparkle", label: "Mon orientation", href: "/dashboard/orientation/me", matchPrefix: true },
                 { icon: "trophy", label: "Mes badges", href: "/dashboard/gamification", countKey: "badges", matchPrefix: true },
                 { icon: "users", label: "Ma classe", href: "/dashboard/classes", matchPrefix: true },
                 { icon: "sms", label: "Messagerie", href: "/dashboard/messages", matchPrefix: true },
