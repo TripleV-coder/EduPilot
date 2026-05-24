@@ -99,6 +99,81 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
     let scenarioIndex = 0;
     let currentScenarioCount = 0;
 
+    // ── E2E fixture family (deterministic) ─────────────────────────────────
+    // e2e/global-setup.ts references these specific emails so Playwright can
+    // log in with stable credentials. The random family loop below depends on
+    // randomElement(firstNames*/lastNames) so we can't rely on coincidence.
+    // Pinning index 0 to "Agbossou" keeps email format identical to the
+    // random pattern (`<first>.<last><index>@…`).
+    if (ctx.collegeClasses.length > 0) {
+        const fixtureClass = ctx.collegeClasses[0];
+        const fixtureFather = await createUser(
+            "fabrice.agbossou0@gmail.com",
+            "Fabrice",
+            "Agbossou",
+            "PARENT",
+            ctx.school1.id,
+        );
+        const fixtureFatherProfile = await prisma.parentProfile.create({
+            data: { userId: fixtureFather.id, profession: randomElement(professions) },
+        });
+        ctx.parents.push({
+            user: fixtureFather,
+            profile: fixtureFatherProfile,
+            relationship: "Père",
+        });
+
+        const fixtureStudent = await createUser(
+            "kate.agbossou0@eleve.saintmichel.bj",
+            "Kate",
+            "Agbossou",
+            "STUDENT",
+            ctx.school1.id,
+        );
+        const fixtureLevelSeq = fixtureClass.level.sequence || 1;
+        const fixtureBirthYear = 2024 - (11 + fixtureLevelSeq);
+        const fixtureStudentProfile = await prisma.studentProfile.create({
+            data: {
+                userId: fixtureStudent.id,
+                schoolId: ctx.school1.id,
+                matricule: generateMatricule("ELV", studentIndex),
+                dateOfBirth: randomDate(
+                    new Date(fixtureBirthYear, 0, 1),
+                    new Date(fixtureBirthYear, 11, 31),
+                ),
+                gender: "FEMALE",
+                birthPlace: randomElement(cities),
+                nationality: randomElement(nationalities),
+                address: "Quartier Cadjèhoun, Cotonou",
+            },
+        });
+        await prisma.enrollment.create({
+            data: {
+                studentId: fixtureStudentProfile.id,
+                classId: fixtureClass.id,
+                academicYearId: ctx.academicYear1.id,
+                status: "ACTIVE",
+            },
+        });
+        await prisma.parentStudent.create({
+            data: {
+                parentId: fixtureFatherProfile.id,
+                studentId: fixtureStudentProfile.id,
+                relationship: "Père",
+                isPrimary: true,
+            },
+        });
+        ctx.students.push({
+            user: fixtureStudent,
+            profile: fixtureStudentProfile,
+            class: fixtureClass,
+            scenario: studentScenarios[0],
+            parents: [fixtureFatherProfile],
+        });
+        studentIndex++;
+    }
+    // ── End E2E fixture ────────────────────────────────────────────────────
+
     for (const assignedClass of ctx.collegeClasses) {
         const studentCountForClass = randomInt(30, 40);
 
