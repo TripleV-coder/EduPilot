@@ -400,6 +400,1204 @@ function TweaksPanel({
     );
 }
 
+// ─── State previews ─────────────────────────────────────────────────────────
+
+function EmptyStateCard() {
+    return (
+        <Card
+            padding={40}
+            style={{
+                textAlign: "center",
+                minHeight: 380,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+            }}
+        >
+            <div
+                style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 24,
+                    background: "var(--brand-50)",
+                    display: "grid",
+                    placeItems: "center",
+                    marginBottom: 20,
+                }}
+            >
+                <Icon name="users" size={36} color="var(--brand-700)" />
+            </div>
+            <h3
+                className="eduflow-display"
+                style={{ fontSize: 18, margin: "0 0 8px", color: "var(--eduflow-text-primary)" }}
+            >
+                Aucun élève pour le moment
+            </h3>
+            <p
+                style={{
+                    fontSize: 13,
+                    color: "var(--eduflow-text-secondary)",
+                    maxWidth: 280,
+                    margin: "0 0 20px",
+                    lineHeight: 1.55,
+                }}
+            >
+                L&apos;année scolaire n&apos;a pas démarré. Importez votre liste pour préparer la rentrée.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                <Button icon="plus">Importer Excel</Button>
+                <Button variant="secondary">Voir modèle</Button>
+            </div>
+        </Card>
+    );
+}
+
+function LoadingStateCard() {
+    return (
+        <Card padding={20} style={{ minHeight: 380 }}>
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 18,
+                }}
+            >
+                <span
+                    aria-hidden
+                    className="animate-spin"
+                    style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        border: "2px solid var(--eduflow-neutral-200)",
+                        borderTopColor: "var(--brand-600)",
+                        display: "inline-block",
+                    }}
+                />
+                <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
+                    Chargement des données…
+                </span>
+            </div>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                    key={i}
+                    style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "10px 0",
+                    }}
+                >
+                    <div
+                        className="animate-pulse"
+                        style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            background: "var(--eduflow-neutral-200)",
+                            flexShrink: 0,
+                        }}
+                    />
+                    <div style={{ flex: 1 }}>
+                        <div
+                            className="animate-pulse"
+                            style={{
+                                height: 10,
+                                width: "60%",
+                                background: "var(--eduflow-neutral-200)",
+                                borderRadius: 5,
+                            }}
+                        />
+                        <div
+                            className="animate-pulse"
+                            style={{
+                                height: 8,
+                                width: "40%",
+                                background: "var(--eduflow-neutral-200)",
+                                borderRadius: 4,
+                                marginTop: 6,
+                            }}
+                        />
+                    </div>
+                    <div
+                        className="animate-pulse"
+                        style={{
+                            width: 40,
+                            height: 18,
+                            background: "var(--eduflow-neutral-200)",
+                            borderRadius: 9,
+                            flexShrink: 0,
+                        }}
+                    />
+                </div>
+            ))}
+        </Card>
+    );
+}
+
+function ErrorStateCard() {
+    return (
+        <Card
+            padding={40}
+            style={{
+                textAlign: "center",
+                minHeight: 380,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "var(--eduflow-danger-50)",
+                border: "1px solid var(--eduflow-danger-200)",
+            }}
+        >
+            <div
+                style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 24,
+                    background: "var(--eduflow-danger-100)",
+                    display: "grid",
+                    placeItems: "center",
+                    marginBottom: 20,
+                }}
+            >
+                <Icon name="warning" size={36} color="var(--eduflow-danger-700)" />
+            </div>
+            <h3
+                className="eduflow-display"
+                style={{
+                    fontSize: 18,
+                    margin: "0 0 8px",
+                    color: "var(--eduflow-danger-900, var(--eduflow-danger-800))",
+                }}
+            >
+                Connexion perdue
+            </h3>
+            <p
+                style={{
+                    fontSize: 13,
+                    color: "var(--eduflow-danger-800)",
+                    maxWidth: 280,
+                    margin: "0 0 18px",
+                    lineHeight: 1.55,
+                }}
+            >
+                Vos modifications sont sauvegardées localement. Synchronisation dès que le réseau revient.
+            </p>
+            <Badge variant="warning" size="sm" icon="clock">
+                Réessai dans 8 s
+            </Badge>
+            <div
+                className="eduflow-mono"
+                style={{
+                    marginTop: 16,
+                    fontSize: 11,
+                    color: "var(--eduflow-danger-800)",
+                    letterSpacing: "0.04em",
+                }}
+            >
+                err.network · 0x504
+            </div>
+        </Card>
+    );
+}
+
+function ConfirmModalPreview() {
+    return (
+        <div
+            style={{
+                position: "relative",
+                minHeight: 380,
+                borderRadius: "var(--eduflow-radius-card, 16px)",
+                overflow: "hidden",
+                background: "var(--eduflow-neutral-300, #cbd5e1)",
+                display: "grid",
+                placeItems: "center",
+                padding: 24,
+            }}
+        >
+            <div
+                aria-hidden
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(15,23,42,0.5)",
+                    backdropFilter: "blur(2px)",
+                }}
+            />
+            <div
+                style={{
+                    position: "relative",
+                    background: "var(--eduflow-surface-card)",
+                    borderRadius: "var(--eduflow-radius-card, 16px)",
+                    padding: 28,
+                    width: "min(380px, 100%)",
+                    boxShadow: "0 24px 64px rgba(15,23,42,0.32)",
+                }}
+            >
+                <div
+                    style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        background: "var(--eduflow-danger-50)",
+                        display: "grid",
+                        placeItems: "center",
+                        marginBottom: 14,
+                    }}
+                >
+                    <Icon name="warning" size={22} color="var(--eduflow-danger-700)" />
+                </div>
+                <h3
+                    className="eduflow-display"
+                    style={{ fontSize: 18, margin: "0 0 6px", color: "var(--eduflow-text-primary)" }}
+                >
+                    Supprimer l&apos;élève ?
+                </h3>
+                <p
+                    style={{
+                        fontSize: 13,
+                        color: "var(--eduflow-text-secondary)",
+                        margin: "0 0 20px",
+                        lineHeight: 1.55,
+                    }}
+                >
+                    Aïcha Hounsou sera retirée définitivement. Notes, présences et finance restent archivés 10 ans (MEMP).
+                </p>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <Button variant="secondary" size="sm">Annuler</Button>
+                    <Button variant="danger" size="sm" icon="x">Supprimer</Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CommandPalettePreview() {
+    const results = [
+        { label: "Aïcha Hounsou · 3ᵉ A · matricule A0142", active: true },
+        { label: "Aïssa Coffi · 5ᵉ B · matricule C0871", active: false },
+    ];
+    const quickActions: { icon: IconNameLike; label: string }[] = [
+        { icon: "pencil", label: "Saisir une note pour Aïcha" },
+        { icon: "sms", label: "Envoyer un SMS aux parents Hounsou" },
+        { icon: "download", label: "Télécharger bulletin T2 d'Aïcha" },
+    ];
+
+    return (
+        <div
+            style={{
+                position: "relative",
+                minHeight: 380,
+                borderRadius: "var(--eduflow-radius-card, 16px)",
+                overflow: "hidden",
+                background: "var(--eduflow-neutral-300, #cbd5e1)",
+                display: "grid",
+                placeItems: "start center",
+                paddingTop: 50,
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingBottom: 16,
+            }}
+        >
+            <div
+                aria-hidden
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(15,23,42,0.45)",
+                    backdropFilter: "blur(3px)",
+                }}
+            />
+            <div
+                style={{
+                    position: "relative",
+                    background: "var(--eduflow-surface-card)",
+                    borderRadius: "var(--eduflow-radius-card, 16px)",
+                    width: "min(460px, 100%)",
+                    boxShadow: "0 24px 64px rgba(15,23,42,0.32)",
+                    overflow: "hidden",
+                }}
+            >
+                <div
+                    style={{
+                        padding: "14px 18px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        borderBottom: "1px solid var(--eduflow-border-subtle)",
+                    }}
+                >
+                    <Icon name="search" size={16} color="var(--eduflow-text-tertiary)" />
+                    <input
+                        readOnly
+                        aria-label="Aperçu de la palette ⌘K"
+                        defaultValue="aïcha"
+                        style={{
+                            flex: 1,
+                            border: 0,
+                            outline: 0,
+                            background: "transparent",
+                            fontSize: 14,
+                            fontFamily: "inherit",
+                            color: "var(--eduflow-text-primary)",
+                        }}
+                    />
+                    <span
+                        className="eduflow-mono"
+                        style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: "var(--eduflow-surface-sunken)",
+                            color: "var(--eduflow-text-tertiary)",
+                        }}
+                    >
+                        ESC
+                    </span>
+                </div>
+                <PaletteGroup label="Élèves">
+                    {results.map((r, i) => (
+                        <PaletteRow
+                            key={i}
+                            icon="users"
+                            label={r.label}
+                            kbd={r.active ? "↵" : undefined}
+                            active={r.active}
+                        />
+                    ))}
+                </PaletteGroup>
+                <PaletteGroup label="Actions rapides">
+                    {quickActions.map((a, i) => (
+                        <PaletteRow key={i} icon={a.icon} label={a.label} />
+                    ))}
+                </PaletteGroup>
+                <div
+                    className="eduflow-mono"
+                    style={{
+                        padding: "10px 18px",
+                        borderTop: "1px solid var(--eduflow-border-subtle)",
+                        display: "flex",
+                        gap: 14,
+                        fontSize: 10,
+                        color: "var(--eduflow-text-tertiary)",
+                    }}
+                >
+                    <span>↑↓ naviguer</span>
+                    <span>⏎ ouvrir</span>
+                    <span>⌘K basculer</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Local alias keeps the showcase decoupled from the icon module's exported union type.
+type IconNameLike = React.ComponentProps<typeof Icon>["name"];
+
+function PaletteGroup({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <div
+                style={{
+                    padding: "10px 18px 4px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "var(--eduflow-text-tertiary)",
+                }}
+            >
+                {label}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function PaletteRow({
+    icon,
+    label,
+    kbd,
+    active,
+}: {
+    icon: IconNameLike;
+    label: string;
+    kbd?: string;
+    active?: boolean;
+}) {
+    return (
+        <div
+            style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 18px",
+                background: active ? "var(--brand-50)" : "transparent",
+                borderLeft: active ? "3px solid var(--brand-600)" : "3px solid transparent",
+            }}
+        >
+            <Icon
+                name={icon}
+                size={14}
+                color={active ? "var(--brand-700)" : "var(--eduflow-text-tertiary)"}
+            />
+            <span
+                style={{
+                    flex: 1,
+                    fontSize: 13,
+                    fontWeight: active ? 700 : 500,
+                    color: active ? "var(--brand-900, var(--brand-800))" : "var(--eduflow-text-primary)",
+                }}
+            >
+                {label}
+            </span>
+            {kbd ? (
+                <span
+                    className="eduflow-mono"
+                    style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                >
+                    {kbd}
+                </span>
+            ) : null}
+        </div>
+    );
+}
+
+// ─── Mobile previews ────────────────────────────────────────────────────────
+
+type PhoneNavItem = {
+    icon: IconNameLike;
+    label: string;
+    active?: boolean;
+    count?: number;
+};
+
+function Phone({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                width: 375,
+                height: 760,
+                background: "var(--eduflow-surface-page, #fff)",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                borderRadius: 32,
+                boxShadow:
+                    "0 0 0 9px var(--eduflow-neutral-900, #0F172A), 0 0 0 10px var(--eduflow-neutral-800, #1F2937), 0 22px 60px rgba(15,23,42,0.25)",
+                flexShrink: 0,
+            }}
+        >
+            {/* iOS-style status bar */}
+            <div
+                style={{
+                    height: 38,
+                    padding: "12px 24px 0",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--eduflow-text-primary)",
+                    flexShrink: 0,
+                }}
+            >
+                <span className="eduflow-mono">9:41</span>
+                <span
+                    aria-hidden
+                    style={{
+                        width: 80,
+                        height: 22,
+                        background: "var(--eduflow-neutral-900, #0F172A)",
+                        borderRadius: 12,
+                    }}
+                />
+                <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <span style={{ fontSize: 11 }}>5G</span>
+                    <span
+                        aria-hidden
+                        style={{
+                            width: 24,
+                            height: 11,
+                            border: "1.2px solid currentColor",
+                            borderRadius: 3,
+                            padding: 1,
+                            display: "inline-block",
+                        }}
+                    >
+                        <span
+                            style={{
+                                display: "block",
+                                height: "100%",
+                                width: "85%",
+                                background: "currentColor",
+                                borderRadius: 1,
+                            }}
+                        />
+                    </span>
+                </span>
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function PhoneBottomNav({ items }: { items: PhoneNavItem[] }) {
+    return (
+        <nav
+            aria-label="Navigation onglets mobile"
+            style={{
+                height: 72,
+                padding: "8px 12px 16px",
+                background: "var(--eduflow-surface-card)",
+                borderTop: "1px solid var(--eduflow-border-subtle)",
+                display: "grid",
+                gridTemplateColumns: `repeat(${items.length}, 1fr)`,
+                flexShrink: 0,
+            }}
+        >
+            {items.map((it, i) => {
+                const color = it.active ? "var(--brand-700)" : "var(--eduflow-text-tertiary)";
+                return (
+                    <button
+                        key={i}
+                        type="button"
+                        style={{
+                            background: "transparent",
+                            border: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 4,
+                            cursor: "pointer",
+                            position: "relative",
+                            color,
+                            fontFamily: "inherit",
+                        }}
+                    >
+                        <div style={{ position: "relative" }}>
+                            <Icon name={it.icon} size={22} color={color} />
+                            {it.count != null ? (
+                                <span
+                                    style={{
+                                        position: "absolute",
+                                        top: -4,
+                                        right: -8,
+                                        minWidth: 16,
+                                        height: 16,
+                                        padding: "0 4px",
+                                        borderRadius: 8,
+                                        background: "var(--eduflow-danger-500)",
+                                        color: "#fff",
+                                        fontSize: 9,
+                                        fontWeight: 700,
+                                        display: "grid",
+                                        placeItems: "center",
+                                    }}
+                                >
+                                    {it.count}
+                                </span>
+                            ) : null}
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: it.active ? 700 : 600 }}>
+                            {it.label}
+                        </span>
+                    </button>
+                );
+            })}
+        </nav>
+    );
+}
+
+function MobileEyebrow({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--eduflow-text-tertiary)",
+                marginBottom: 8,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function ParentMobilePreview() {
+    return (
+        <Phone>
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 18px 0" }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 0 16px",
+                    }}
+                >
+                    <Avatar name="M. Hounsou" size="md" />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            Bonjour
+                        </div>
+                        <div
+                            className="eduflow-display"
+                            style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.1 }}
+                        >
+                            M. Hounsou
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Notifications"
+                        style={{
+                            width: 38,
+                            height: 38,
+                            border: 0,
+                            borderRadius: 12,
+                            background: "var(--eduflow-surface-card)",
+                            boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+                            display: "grid",
+                            placeItems: "center",
+                            position: "relative",
+                            cursor: "pointer",
+                        }}
+                    >
+                        <Icon name="bell" size={18} />
+                        <span
+                            aria-hidden
+                            style={{
+                                position: "absolute",
+                                top: 8,
+                                right: 9,
+                                width: 7,
+                                height: 7,
+                                borderRadius: 4,
+                                background: "var(--eduflow-danger-500)",
+                            }}
+                        />
+                    </button>
+                </div>
+
+                <Card
+                    padding={14}
+                    style={{
+                        background: "var(--eduflow-warning-50)",
+                        border: "1px solid var(--eduflow-warning-200)",
+                        marginBottom: 14,
+                        display: "flex",
+                        gap: 12,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 12,
+                            background: "var(--eduflow-warning-600)",
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Icon name="warning" size={18} color="#fff" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div
+                            style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: "var(--eduflow-warning-900, var(--eduflow-warning-800))",
+                            }}
+                        >
+                            Paiement T2 dans 6 jours
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 11,
+                                color: "var(--eduflow-warning-800)",
+                                marginTop: 2,
+                            }}
+                        >
+                            220 000 FCFA · Aïcha + Mathieu
+                        </div>
+                    </div>
+                </Card>
+
+                <MobileEyebrow>Mes enfants</MobileEyebrow>
+                <div
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                        marginBottom: 14,
+                    }}
+                >
+                    {[
+                        { n: "Aïcha", c: "3ᵉ A", avg: "14,8", t: 0.6, color: "success" as const },
+                        { n: "Mathieu", c: "CM1", avg: "12,2", t: -0.8, color: "warning" as const },
+                    ].map((k) => (
+                        <Card
+                            key={k.n}
+                            padding={12}
+                            style={{ display: "flex", alignItems: "center", gap: 12 }}
+                        >
+                            <Avatar name={`${k.n} Hounsou`} size="md" />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700 }}>{k.n}</div>
+                                <div
+                                    style={{
+                                        fontSize: 11,
+                                        color: "var(--eduflow-text-tertiary)",
+                                    }}
+                                >
+                                    {k.c} · moyenne {k.avg}
+                                </div>
+                            </div>
+                            <Badge variant={k.color} size="sm">
+                                {k.t > 0 ? "+" : ""}
+                                {k.t.toFixed(1).replace(".", ",")} pts
+                            </Badge>
+                            <Icon
+                                name="chevron"
+                                size={16}
+                                color="var(--eduflow-text-tertiary)"
+                            />
+                        </Card>
+                    ))}
+                </div>
+
+                <MobileEyebrow>Récent</MobileEyebrow>
+                <Card padding={4} style={{ marginBottom: 8 }}>
+                    <NotifItem
+                        type="success"
+                        title="DST Math 16,5/20"
+                        body="Aïcha · meilleure note de la classe"
+                        time="2 h"
+                    />
+                    <NotifItem
+                        type="warning"
+                        title="Mathieu absent — mardi"
+                        body="Aucun justificatif"
+                        time="ce matin"
+                        actions={["Justifier"]}
+                    />
+                    <NotifItem type="sms" title="SMS · Rappel paiement" time="lundi" />
+                </Card>
+            </div>
+            <PhoneBottomNav
+                items={[
+                    { icon: "home", label: "Accueil", active: true },
+                    { icon: "users", label: "Enfants" },
+                    { icon: "money", label: "Payer", count: 1 },
+                    { icon: "sms", label: "École" },
+                    { icon: "settings", label: "Profil" },
+                ]}
+            />
+        </Phone>
+    );
+}
+
+function StudentMobilePreview() {
+    return (
+        <Phone>
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 18px 0" }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 0 16px",
+                    }}
+                >
+                    <Avatar name="Aïcha Hounsou" size="md" />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            Salut
+                        </div>
+                        <div
+                            className="eduflow-display"
+                            style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.1 }}
+                        >
+                            Aïcha
+                        </div>
+                    </div>
+                    <Badge variant="warning" icon="flame">
+                        14 j
+                    </Badge>
+                </div>
+
+                <Card
+                    padding={20}
+                    style={{
+                        background:
+                            "linear-gradient(135deg, var(--brand-800), var(--brand-600))",
+                        color: "#fff",
+                        border: 0,
+                        marginBottom: 12,
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            opacity: 0.85,
+                        }}
+                    >
+                        Ma moyenne T2
+                    </div>
+                    <div
+                        className="eduflow-mono"
+                        style={{
+                            fontSize: 64,
+                            fontWeight: 700,
+                            lineHeight: 0.95,
+                            letterSpacing: "-0.04em",
+                            marginTop: 4,
+                        }}
+                    >
+                        14,8
+                    </div>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginTop: 6,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 12,
+                            }}
+                        >
+                            <Icon name="arrowUp" size={12} color="#fff" />
+                            +0,6 pts · 4ᵉ / 26
+                        </div>
+                        <Icon name="trophy" size={20} color="#fff" />
+                    </div>
+                </Card>
+
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, 1fr)",
+                        gap: 10,
+                        marginBottom: 14,
+                    }}
+                >
+                    <Card
+                        padding={14}
+                        style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                        <div
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 12,
+                                background: "var(--eduflow-warning-50)",
+                                display: "grid",
+                                placeItems: "center",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Icon name="book" size={18} color="var(--eduflow-warning-700)" />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>4 devoirs</div>
+                            <div
+                                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                            >
+                                2 cette semaine
+                            </div>
+                        </div>
+                    </Card>
+                    <Card
+                        padding={14}
+                        style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                        <div
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 12,
+                                background: "var(--eduflow-info-50)",
+                                display: "grid",
+                                placeItems: "center",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Icon name="calendar" size={18} color="var(--eduflow-info-700)" />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>Math 14h</div>
+                            <div
+                                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                            >
+                                Salle 207
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                <MobileEyebrow>Dernières notes</MobileEyebrow>
+                <Card padding={0}>
+                    {[
+                        { sub: "Maths", e: "DST Thalès", n: "16,5", c: "success" },
+                        { sub: "Français", e: "Camara Laye", n: "13,0", c: "warning" },
+                        { sub: "SVT", e: "Génétique", n: "17,0", c: "success" },
+                    ].map((g, i) => (
+                        <div
+                            key={g.sub}
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr auto",
+                                gap: 12,
+                                alignItems: "center",
+                                padding: "12px 16px",
+                                borderTop: i ? "1px solid var(--eduflow-border-subtle)" : 0,
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>{g.sub}</div>
+                                <div
+                                    style={{
+                                        fontSize: 10,
+                                        color: "var(--eduflow-text-tertiary)",
+                                    }}
+                                >
+                                    {g.e}
+                                </div>
+                            </div>
+                            <span
+                                className="eduflow-mono"
+                                style={{
+                                    fontSize: 22,
+                                    fontWeight: 700,
+                                    color: `var(--eduflow-${g.c}-700)`,
+                                }}
+                            >
+                                {g.n}
+                            </span>
+                        </div>
+                    ))}
+                </Card>
+            </div>
+            <PhoneBottomNav
+                items={[
+                    { icon: "home", label: "Accueil", active: true },
+                    { icon: "pencil", label: "Notes" },
+                    { icon: "book", label: "Devoirs", count: 4 },
+                    { icon: "calendar", label: "EDT" },
+                    { icon: "trophy", label: "Badges" },
+                ]}
+            />
+        </Phone>
+    );
+}
+
+function TeacherMobilePreview() {
+    type RollState = "present" | "late" | "absent";
+    const initialRoll: { name: string; state: RollState }[] = [
+        { name: "Aïcha Hounsou", state: "present" },
+        { name: "Mathieu Sossou", state: "present" },
+        { name: "Fatou Adjavon", state: "late" },
+        { name: "Koffi Dossou", state: "absent" },
+        { name: "Marie Bossou", state: "present" },
+        { name: "Jean-Paul Bio", state: "present" },
+    ];
+    const [roll, setRoll] = React.useState(initialRoll);
+
+    const counts = React.useMemo(() => {
+        const c = { present: 0, late: 0, absent: 0 };
+        for (const r of roll) c[r.state]++;
+        return c;
+    }, [roll]);
+
+    return (
+        <Phone>
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 18px 0" }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 0 14px",
+                    }}
+                >
+                    <button
+                        type="button"
+                        aria-label="Retour"
+                        style={{
+                            width: 36,
+                            height: 36,
+                            border: 0,
+                            background: "transparent",
+                            display: "grid",
+                            placeItems: "center",
+                            cursor: "pointer",
+                        }}
+                    >
+                        <Icon
+                            name="chevronDown"
+                            size={18}
+                            style={{ transform: "rotate(90deg)" }}
+                        />
+                    </button>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            Appel · 10h15
+                        </div>
+                        <div
+                            className="eduflow-display"
+                            style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.1 }}
+                        >
+                            3ᵉ A — DST Maths
+                        </div>
+                    </div>
+                    <Badge variant="brand">
+                        {counts.present + counts.late}/{roll.length}
+                    </Badge>
+                </div>
+
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        gap: 6,
+                        marginBottom: 12,
+                    }}
+                >
+                    {([
+                        { v: counts.present, l: "Présents", c: "success" },
+                        { v: counts.late, l: "Retards", c: "warning" },
+                        { v: counts.absent, l: "Absents", c: "danger" },
+                    ] as const).map((s) => (
+                        <Card
+                            key={s.l}
+                            padding={10}
+                            style={{
+                                background: `var(--eduflow-${s.c}-50)`,
+                                border: 0,
+                                textAlign: "center",
+                            }}
+                        >
+                            <div
+                                className="eduflow-mono"
+                                style={{
+                                    fontSize: 22,
+                                    fontWeight: 700,
+                                    color: `var(--eduflow-${s.c}-800)`,
+                                }}
+                            >
+                                {s.v}
+                            </div>
+                            <div
+                                style={{
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: `var(--eduflow-${s.c}-800)`,
+                                }}
+                            >
+                                {s.l}
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+
+                <Card padding={0} style={{ overflow: "hidden" }}>
+                    {roll.map((r, i) => (
+                        <div
+                            key={r.name}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "10px 14px",
+                                borderTop: i ? "1px solid var(--eduflow-border-subtle)" : 0,
+                            }}
+                        >
+                            <Avatar name={r.name} size="sm" />
+                            <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>
+                                {r.name}
+                            </span>
+                            <div style={{ display: "flex", gap: 4 }}>
+                                {([
+                                    { k: "present" as RollState, l: "P", c: "success" },
+                                    { k: "late" as RollState, l: "R", c: "warning" },
+                                    { k: "absent" as RollState, l: "A", c: "danger" },
+                                ]).map((b) => {
+                                    const active = r.state === b.k;
+                                    return (
+                                        <button
+                                            key={b.k}
+                                            type="button"
+                                            aria-pressed={active}
+                                            aria-label={`${b.l === "P" ? "Présent" : b.l === "R" ? "Retard" : "Absent"} pour ${r.name}`}
+                                            onClick={() => {
+                                                setRoll((prev) =>
+                                                    prev.map((entry) =>
+                                                        entry.name === r.name
+                                                            ? { ...entry, state: b.k }
+                                                            : entry,
+                                                    ),
+                                                );
+                                            }}
+                                            style={{
+                                                width: 36,
+                                                height: 36,
+                                                borderRadius: 10,
+                                                border: active
+                                                    ? 0
+                                                    : "1.5px solid var(--eduflow-border-default)",
+                                                background: active
+                                                    ? `var(--eduflow-${b.c}-600)`
+                                                    : "transparent",
+                                                color: active
+                                                    ? "#fff"
+                                                    : "var(--eduflow-text-tertiary)",
+                                                fontWeight: 700,
+                                                fontSize: 13,
+                                                cursor: "pointer",
+                                                fontFamily: "inherit",
+                                            }}
+                                        >
+                                            {b.l}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </Card>
+            </div>
+            <div
+                style={{
+                    padding: 16,
+                    borderTop: "1px solid var(--eduflow-border-subtle)",
+                    background: "var(--eduflow-surface-card)",
+                    flexShrink: 0,
+                }}
+            >
+                <Button full size="lg" icon="check">
+                    Valider l&apos;appel · {roll.length} élèves
+                </Button>
+            </div>
+        </Phone>
+    );
+}
+
 // ─── Showcase ────────────────────────────────────────────────────────────────
 
 export function DesignSystemShowcase() {
@@ -967,6 +2165,50 @@ export function DesignSystemShowcase() {
                             sender="Système"
                         />
                     </Card>
+                </Section>
+
+                {/* States */}
+                <Section eyebrow="Étape 4 / Patterns" title="États · empty / loading / error">
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                            gap: 16,
+                        }}
+                    >
+                        <EmptyStateCard />
+                        <LoadingStateCard />
+                        <ErrorStateCard />
+                    </div>
+                </Section>
+
+                <Section eyebrow="Étape 4 / Patterns" title="Overlays & micro-interactions">
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                            gap: 16,
+                        }}
+                    >
+                        <ConfirmModalPreview />
+                        <CommandPalettePreview />
+                    </div>
+                </Section>
+
+                <Section eyebrow="Étape 5 / Mobile" title="Compagnons mobiles · 375 × 760">
+                    <div
+                        style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 24,
+                            justifyContent: "center",
+                            padding: "12px 0",
+                        }}
+                    >
+                        <ParentMobilePreview />
+                        <StudentMobilePreview />
+                        <TeacherMobilePreview />
+                    </div>
                 </Section>
 
                 {/* Footer */}
