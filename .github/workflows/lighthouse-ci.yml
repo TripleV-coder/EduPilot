@@ -59,12 +59,23 @@ jobs:
           cat /tmp/next.log
           exit 1
         env:
+          # SKIP_ENV_VALIDATION is build-time only — at runtime, the Next.js
+          # instrumentation hook calls src/lib/env.ts::validateEnv() and
+          # throws on missing prod vars (EMAIL_*, UPSTASH_*). We feed
+          # non-placeholder dummies so validation passes and the server
+          # boots. The values are NOT real and nothing in the audited
+          # surface (/, /login) actually hits these systems.
           SKIP_ENV_VALIDATION: "true"
           NEXTAUTH_URL: http://localhost:3000
           NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
           DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
           TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
           NEXT_TELEMETRY_DISABLED: "1"
+          EMAIL_PROVIDER: resend
+          EMAIL_API_KEY: re_ci_dummy_key_not_used_in_lighthouse_audit
+          EMAIL_FROM: noreply@edupilot.bj
+          UPSTASH_REDIS_REST_URL: https://ci-dummy.upstash.io
+          UPSTASH_REDIS_REST_TOKEN: ci_dummy_token_not_used
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
