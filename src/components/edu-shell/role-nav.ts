@@ -48,6 +48,7 @@ export function navForRole(role: string | undefined | null): NavLink[] {
                 { icon: "users", label: "Utilisateurs", href: "/dashboard/users", countKey: "networkUsers", matchPrefix: true },
                 { icon: "money", label: "Finance consolidée", href: "/dashboard/finance", matchPrefix: true },
                 { icon: "chart", label: "Analytics BI", href: "/dashboard/analytics", matchPrefix: true },
+                { icon: "trophy", label: "Benchmark MEMP", href: "/dashboard/benchmark", matchPrefix: true },
                 { icon: "bell", label: "Alertes", href: "/dashboard/alerts", countKey: "networkAlerts", matchPrefix: true },
                 { icon: "settings", label: "Configuration", href: "/dashboard/settings", matchPrefix: true },
             ];
@@ -65,10 +66,15 @@ export function navForRole(role: string | undefined | null): NavLink[] {
                 { icon: "book", label: "Passage CEP (CM2)", href: "/dashboard/orientation/cep", matchPrefix: true },
                 { icon: "grid", label: "Compétences MEMP", href: "/dashboard/competences", matchPrefix: true },
                 { icon: "money", label: "Finance", href: "/dashboard/finance", countKey: "finance", matchPrefix: true },
+                { icon: "money", label: "Wallet & banques", href: "/dashboard/wallet", matchPrefix: true },
+                { icon: "cards", label: "Comptabilité OHADA", href: "/dashboard/accounting", matchPrefix: true },
                 { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true },
+                { icon: "sparkle", label: "Bien-être & écoute", href: "/dashboard/wellbeing", matchPrefix: true },
                 { icon: "school", label: "Transport scolaire", href: "/dashboard/transport", matchPrefix: true },
                 { icon: "chart", label: "Analytics", href: "/dashboard/analytics", matchPrefix: true },
+                { icon: "trophy", label: "Benchmark MEMP", href: "/dashboard/benchmark", matchPrefix: true },
                 { icon: "bell", label: "Communication", href: "/dashboard/announcements", countKey: "notifications", matchPrefix: true },
+                { icon: "sms", label: "Vocal multilingue", href: "/dashboard/voice-notifs", matchPrefix: true },
                 { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
             ];
 
@@ -92,6 +98,7 @@ export function navForRole(role: string | undefined | null): NavLink[] {
                 { icon: "users", label: "Mes enfants", href: "/dashboard/students", countKey: "children", matchPrefix: true },
                 { icon: "book", label: "Cahier de liaison", href: "/dashboard/liaison", matchPrefix: true },
                 { icon: "money", label: "Paiements", href: "/dashboard/finance", countKey: "pendingPayments", matchPrefix: true },
+                { icon: "sparkle", label: "Cagnottes & pots communs", href: "/dashboard/cagnotte", matchPrefix: true },
                 { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true },
                 { icon: "bell", label: "Notifications", href: "/dashboard/notifications", countKey: "notifications", matchPrefix: true },
                 { icon: "sms", label: "Messagerie école", href: "/dashboard/messages", matchPrefix: true },
@@ -114,6 +121,8 @@ export function navForRole(role: string | undefined | null): NavLink[] {
             return [
                 { icon: "home", label: "Vue d'ensemble", href: "/dashboard" },
                 { icon: "money", label: "Finance", href: "/dashboard/finance", matchPrefix: true },
+                { icon: "money", label: "Wallet & banques", href: "/dashboard/wallet", matchPrefix: true },
+                { icon: "cards", label: "Comptabilité OHADA", href: "/dashboard/accounting", matchPrefix: true },
                 { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true },
                 { icon: "chart", label: "Reporting", href: "/dashboard/analytics", matchPrefix: true },
                 { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
