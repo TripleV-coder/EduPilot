@@ -117,6 +117,18 @@ model School {
   teacherAssignments     TeacherSchoolAssignment[]
   teacherProfiles        TeacherProfile[]
   users                  User[]
+  walletAccounts         WalletAccount[]
+  walletTransactions     WalletTransaction[]
+  scheduledDisbursements ScheduledDisbursement[]
+  cagnottes              Cagnotte[]
+  wellbeingReports       WellbeingReport[]
+  psyAppointments        PsyAppointment[]
+  climatePulseWeeks      ClimatePulseWeek[]
+  fiscalYears            FiscalYear[]
+  ohadaAccounts          OhadaAccount[]
+  journalEntries         JournalEntry[]
+  voiceCampaigns         VoiceCampaign[]
+  benchmarkSnapshots     BenchmarkSnapshot[]
 
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
@@ -242,6 +254,14 @@ model User {
   teacherSchoolAssignments  TeacherSchoolAssignment[]
   userAchievements          UserAchievement[]
   organizationMemberships   OrganizationMembership[]
+  cagnottesHosted           Cagnotte[]                  @relation("CagnotteHost")
+  cagnotteContributions     CagnotteContribution[]      @relation("CagnotteContributions")
+  cagnotteJournalActions    CagnotteJournalEntry[]      @relation("CagnotteJournalActor")
+  wellbeingReportsFiled     WellbeingReport[]           @relation("WellbeingReporter")
+  wellbeingReportsAbout     WellbeingReport[]           @relation("WellbeingReportedAbout")
+  psyAppointmentsAsPsy      PsyAppointment[]            @relation("PsyAppointmentPsy")
+  psyAppointmentsAsStudent  PsyAppointment[]            @relation("PsyAppointmentStudent")
+  voiceCampaignsAuthored    VoiceCampaign[]             @relation("VoiceCampaignAuthor")
   school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
@@ -487,6 +507,7 @@ model Class {
   school        School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   enrollments   Enrollment[]
   schedules     Schedule[]
+  cagnottes     Cagnotte[]
 
   @@unique([schoolId, classLevelId, name])
   @@index([schoolId, classLevelId])
@@ -2225,4 +2246,481 @@ model CommunicationTemplate {
   @@index([schoolId])
   @@index([name, language])
   @@map("communication_templates")
+}
+
+// ─── Wallet · Mobile Money & banques ──────────────────────────────────────
+// Models supporting /dashboard/wallet: tracks MTN/Moov/Celtiis MoMo accounts +
+// Ecobank/BoA bank balances + scheduled disbursements. Balances are stored in
+// minor units of FCFA (no decimals), so plain Int / BigInt are fine.
+
+enum WalletAccountKind {
+  BANK
+  MTN
+  MOOV
+  CELTIIS
+  CASH
+  OTHER
+}
+
+enum WalletTxDirection {
+  INFLOW
+  OUTFLOW
+}
+
+enum WalletTxMatchStatus {
+  AUTO_MATCHED // rapprochement automatique via référence
+  MANUAL_MATCHED // rapproché à la main
+  UNMATCHED // à rapprocher
+  DISBURSEMENT // décaissement validé (sortie planifiée)
+}
+
+enum DisbursementMode {
+  AUTO
+  MANUAL
+}
+
+enum DisbursementStatus {
+  PENDING
+  VALIDATED
+  EXECUTED
+  CANCELLED
+}
+
+model WalletAccount {
+  id          String            @id @default(cuid())
+  schoolId    String
+  name        String // ex. "Ecobank", "MTN MoMo"
+  kind        WalletAccountKind
+  accountRef  String? // numéro de compte ou MSISDN
+  balanceFcfa BigInt            @default(0)
+  colorHex    String? // pour l'UI (optionnel)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  school        School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  transactions  WalletTransaction[]
+  disbursements ScheduledDisbursement[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive])
+  @@map("wallet_accounts")
+}
+
+model WalletTransaction {
+  id          String              @id @default(cuid())
+  schoolId    String
+  accountId   String
+  direction   WalletTxDirection
+  amountFcfa  BigInt // toujours positif, le sens est dans `direction`
+  reference   String? // ex. TRX-MTN-882104
+  partyName   String? // ex. Famille Hounsou
+  detail      String? // ex. Aïcha · trim. 2
+  matchStatus WalletTxMatchStatus @default(UNMATCHED)
+  matchLabel  String? // libellé court affiché (optionnel)
+  occurredAt  DateTime            @default(now())
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  school  School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  account WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, occurredAt])
+  @@index([accountId, occurredAt])
+  @@map("wallet_transactions")
+}
+
+model ScheduledDisbursement {
+  id          String             @id @default(cuid())
+  schoolId    String
+  accountId   String? // peut être assigné plus tard
+  label       String
+  amountFcfa  BigInt
+  mode        DisbursementMode   @default(AUTO)
+  status      DisbursementStatus @default(PENDING)
+  scheduledAt DateTime
+  executedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  school  School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  account WalletAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, scheduledAt])
+  @@index([status])
+  @@map("scheduled_disbursements")
+}
+
+// ─── Cagnottes & pots communs ──────────────────────────────────────────────
+// Pots communs transparents pour sorties scolaires, cadeaux profs, équipement
+// classe. Tout est tracé dans CagnotteJournalEntry (audit public). Le `raised`
+// se calcule dynamiquement depuis CagnotteContribution — on ne le stocke pas.
+
+enum CagnotteStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum CagnotteJournalKind {
+  CREATED
+  CONTRIBUTION_PAID
+  CONTRIBUTION_REFUNDED
+  CLOSED
+  DISBURSED
+  NOTE
+}
+
+model Cagnotte {
+  id                   String         @id @default(cuid())
+  schoolId             String
+  classId              String?
+  hostUserId           String?
+  title                String
+  description          String?
+  targetFcfa           BigInt
+  deadline             DateTime
+  status               CagnotteStatus @default(OPEN)
+  expectedParticipants Int? // ex. 28 familles attendues
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  school        School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class         Class?                 @relation(fields: [classId], references: [id], onDelete: SetNull)
+  host          User?                  @relation("CagnotteHost", fields: [hostUserId], references: [id], onDelete: SetNull)
+  contributions CagnotteContribution[]
+  journal       CagnotteJournalEntry[]
+
+  @@index([schoolId, status])
+  @@index([deadline])
+  @@map("cagnottes")
+}
+
+model CagnotteContribution {
+  id           String   @id @default(cuid())
+  cagnotteId   String
+  parentUserId String
+  amountFcfa   BigInt
+  paymentRef   String?
+  paidAt       DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  cagnotte Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
+  parent   User     @relation("CagnotteContributions", fields: [parentUserId], references: [id], onDelete: Cascade)
+
+  @@index([cagnotteId, paidAt])
+  @@index([parentUserId])
+  @@map("cagnotte_contributions")
+}
+
+model CagnotteJournalEntry {
+  id          String              @id @default(cuid())
+  cagnotteId  String
+  kind        CagnotteJournalKind
+  actorUserId String?
+  amountFcfa  BigInt?
+  message     String?
+  createdAt   DateTime            @default(now())
+
+  cagnotte Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("CagnotteJournalActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([cagnotteId, createdAt])
+  @@map("cagnotte_journal_entries")
+}
+
+// ─── Bien-être & cellule d'écoute ─────────────────────────────────────────
+// Signalements (anonymes/nominatifs), agenda psy, pulse climat hebdo.
+
+enum WellbeingReportTag {
+  ANONYME
+  PARENT
+  ENSEIGNANT
+  AUTO_IA
+  NOMINATIF
+}
+
+enum WellbeingReportSeverity {
+  P0
+  P1
+  P2
+}
+
+enum WellbeingReportStatus {
+  OPEN
+  IN_REVIEW
+  IN_FOLLOWUP
+  CLOSED
+}
+
+model WellbeingReport {
+  id             String                  @id @default(cuid())
+  schoolId       String
+  reporterUserId String? // null si totalement anonyme
+  reportedUserId String? // élève concerné (optionnel)
+  tag            WellbeingReportTag
+  category       String
+  excerpt        String // courte description
+  severity       WellbeingReportSeverity
+  severityLabel  String? // ex. "P0 · CPS prévenu"
+  status         WellbeingReportStatus   @default(OPEN)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  school        School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  reporter      User?  @relation("WellbeingReporter", fields: [reporterUserId], references: [id], onDelete: SetNull)
+  reportedAbout User?  @relation("WellbeingReportedAbout", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, severity])
+  @@index([createdAt])
+  @@map("wellbeing_reports")
+}
+
+model PsyAppointment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  psyUserId       String?
+  studentUserId   String? // null si session anonyme
+  anonymousLabel  String? // ex. "Anonyme · 3ᵉ A"
+  startAt         DateTime
+  durationMinutes Int      @default(30)
+  kind            String // ex. "Suivi régulier", "Première écoute"
+  variantHint     String? // tone hint pour l'UI (brand/info/warning/success/danger)
+  isUrgent        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  psy     User?  @relation("PsyAppointmentPsy", fields: [psyUserId], references: [id], onDelete: SetNull)
+  student User?  @relation("PsyAppointmentStudent", fields: [studentUserId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, startAt])
+  @@map("psy_appointments")
+}
+
+model ClimatePulseWeek {
+  id               String   @id @default(cuid())
+  schoolId         String
+  weekLabel        String // S1, S2, etc
+  weekStart        DateTime
+  averageScore     Float // 0..10
+  responses        Int      @default(0)
+  pctSafety        Float? // % "je me sens en sécurité"
+  pctFriend        Float? // % "j'ai un ami proche"
+  pctAdultListens  Float? // % "un adulte m'écoute"
+  pctHarassWitness Float? // % "témoin harcèlement"
+  createdAt        DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, weekLabel])
+  @@index([schoolId, weekStart])
+  @@map("climate_pulse_weeks")
+}
+
+// ─── Comptabilité OHADA / SYSCOHADA révisé ────────────────────────────────
+// Plan SYSCOHADA simplifié + journal débit/crédit + exercices fiscaux.
+// `Account` étant déjà pris par NextAuth, on nomme OhadaAccount.
+
+enum OhadaAccountType {
+  ASSET // classes 1-3 (immo, stocks)
+  LIABILITY // classe 1, 4, 5 (capitaux, dettes)
+  INCOME // classe 7
+  EXPENSE // classe 6
+  EQUITY // classe 1 (capitaux propres)
+}
+
+enum FiscalYearStatus {
+  OPEN
+  CLOSED
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model FiscalYear {
+  id        String           @id @default(cuid())
+  schoolId  String
+  label     String // "2025-2026"
+  startDate DateTime
+  endDate   DateTime
+  status    FiscalYearStatus @default(OPEN)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  school         School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  journalEntries JournalEntry[]
+
+  @@unique([schoolId, label])
+  @@index([schoolId, status])
+  @@map("fiscal_years")
+}
+
+model OhadaAccount {
+  id            String           @id @default(cuid())
+  schoolId      String
+  syscohadaCode String // ex. "411", "70", "6041"
+  label         String
+  type          OhadaAccountType
+  balanceFcfa   BigInt           @default(0)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  school      School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  debitLines  JournalEntryLine[] @relation("DebitAccount")
+  creditLines JournalEntryLine[] @relation("CreditAccount")
+
+  @@unique([schoolId, syscohadaCode])
+  @@index([schoolId, type])
+  @@map("ohada_accounts")
+}
+
+model JournalEntry {
+  id           String             @id @default(cuid())
+  schoolId     String
+  fiscalYearId String
+  pieceRef     String // ex. "PIECE-2026-04-0123"
+  entryDate    DateTime
+  label        String
+  status       JournalEntryStatus @default(POSTED)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  fiscalYear FiscalYear         @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  lines      JournalEntryLine[]
+
+  @@unique([schoolId, pieceRef])
+  @@index([schoolId, entryDate])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id              String  @id @default(cuid())
+  journalEntryId  String
+  debitAccountId  String?
+  creditAccountId String?
+  amountFcfa      BigInt
+  label           String?
+
+  journalEntry  JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  debitAccount  OhadaAccount? @relation("DebitAccount", fields: [debitAccountId], references: [id], onDelete: SetNull)
+  creditAccount OhadaAccount? @relation("CreditAccount", fields: [creditAccountId], references: [id], onDelete: SetNull)
+
+  @@index([journalEntryId])
+  @@map("journal_entry_lines")
+}
+
+// ─── Notifications vocales multilingues ───────────────────────────────────
+// Stocke les campagnes vocales (texte FR + traductions Fon/Yor/Bariba/Dendi
+// + URLs audio générées). Dépend d'un provider TTS externe pour
+// effectivement produire les fichiers audio (partenariat UAC requis).
+
+enum VoiceLang {
+  FR
+  FON
+  YOR
+  BAR
+  DIN
+}
+
+enum VoiceCampaignStatus {
+  DRAFT
+  SYNTHESIZED
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+enum VoiceTemplateKind {
+  RAPPEL_SCOLARITE
+  ABSENCE
+  CONVOCATION
+  BULLETIN
+  LIBRE
+}
+
+model VoiceCampaign {
+  id            String              @id @default(cuid())
+  schoolId      String
+  authorUserId  String?
+  templateKind  VoiceTemplateKind   @default(LIBRE)
+  textFr        String
+  status        VoiceCampaignStatus @default(DRAFT)
+  audienceSize  Int                 @default(0)
+  reachedCount  Int                 @default(0)
+  listenedCount Int                 @default(0)
+  costFcfa      Int                 @default(0)
+  dispatchedAt  DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  school       School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  author       User?                      @relation("VoiceCampaignAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  translations VoiceCampaignTranslation[]
+
+  @@index([schoolId, status])
+  @@index([dispatchedAt])
+  @@map("voice_campaigns")
+}
+
+model VoiceCampaignTranslation {
+  id          String    @id @default(cuid())
+  campaignId  String
+  lang        VoiceLang
+  text        String
+  audioUrl    String?
+  narratorRef String?
+  createdAt   DateTime  @default(now())
+
+  campaign VoiceCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, lang])
+  @@map("voice_campaign_translations")
+}
+
+// ─── Benchmark national MEMP ──────────────────────────────────────────────
+// Snapshot des indicateurs d'une école comparés au national / département /
+// groupe pair. Dépend d'un scraper / partenariat MEMP pour alimenter
+// `BenchmarkSnapshotIndicator.nationalValue` etc.
+
+model BenchmarkSnapshot {
+  id            String   @id @default(cuid())
+  schoolId      String
+  capturedAt    DateTime @default(now())
+  periodLabel   String // ex. "T2 2025-2026"
+  rankNational  Int?
+  rankDept      Int?
+  rankPeerGroup Int?
+  totalNational Int?
+  totalDept     Int?
+  totalPeer     Int?
+  scoreOverall  Float? // 0..100
+  createdAt     DateTime @default(now())
+
+  school     School                       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  indicators BenchmarkSnapshotIndicator[]
+
+  @@index([schoolId, capturedAt])
+  @@map("benchmark_snapshots")
+}
+
+model BenchmarkSnapshotIndicator {
+  id              String  @id @default(cuid())
+  snapshotId      String
+  label           String // ex. "Réussite BEPC"
+  schoolValue     Float
+  nationalValue   Float?
+  departmentValue Float?
+  peerValue       Float?
+  unit            String? // "%", "/20", etc.
+  tone            String? // hint UI: "success", "warning", "danger"
+
+  snapshot BenchmarkSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
+  @@map("benchmark_snapshot_indicators")
 }
