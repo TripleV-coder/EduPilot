@@ -40,17 +40,28 @@ jobs:
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
         with:
+          # Audit only public pages — dashboard routes require auth and would
+          # redirect to /login, yielding flaky scores. /login is the heaviest
+          # public page so it's a good proxy for auth-flow perf.
           urls: |
             http://localhost:3000
-            http://localhost:3000/dashboard
-            http://localhost:3000/dashboard/students
-            http://localhost:3000/dashboard/teachers
+            http://localhost:3000/login
           uploadArtifacts: true
           temporaryPublicStorage: true
           configPath: .lighthouserc.js
           runs: 3
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          # `npm run start` is spawned by lighthouse-ci-action via
+          # startServerCommand in .lighthouserc.js — it inherits THIS step's
+          # env, not the Build step's. Without these vars the Next server
+          # crashes on first request (HTTP 500, ERRORED_DOCUMENT_REQUEST).
+          SKIP_ENV_VALIDATION: "true"
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
+          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          NEXT_TELEMETRY_DISABLED: "1"
 
   # Rapport optionnel : décommenter si vous avez LHCI server
   # report:
