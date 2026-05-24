@@ -2,20 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 
 import { Avatar, Button, Icon } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
+import { useCommandPalette } from "@/components/edu-shell/CommandPaletteProvider";
 import { fetcher } from "@/lib/fetcher";
 import { ROLE_LABELS } from "./role-nav";
 
 export function EduTopBar() {
-    const router = useRouter();
     const { data: session } = useSession();
     const { setIsMobileOpen } = useSidebar();
-    const [search, setSearch] = React.useState("");
+    const { open: openPalette } = useCommandPalette();
+    const isMac =
+        typeof navigator !== "undefined" &&
+        /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform);
 
     const role = session?.user?.role ?? "STAFF";
     const userName = session?.user?.name || "Utilisateur";
@@ -26,13 +28,6 @@ export function EduTopBar() {
         { revalidateOnFocus: false, dedupingInterval: 60000, shouldRetryOnError: false }
     );
     const unreadCount = notifs?.unreadCount ?? 0;
-
-    const onSubmitSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        const q = search.trim();
-        if (!q) return;
-        router.push(`/dashboard/students?search=${encodeURIComponent(q)}`);
-    };
 
     return (
         <header
@@ -54,35 +49,53 @@ export function EduTopBar() {
                 <Icon name="grid" size={18} color="var(--eduflow-text-secondary)" />
             </button>
 
-            <form
-                onSubmit={onSubmitSearch}
-                className="hidden flex-1 md:block"
-                style={{ maxWidth: 380 }}
+            <button
+                type="button"
+                onClick={openPalette}
+                aria-label="Ouvrir la palette de commandes (Ctrl+K)"
+                className="hidden flex-1 md:flex"
+                style={{
+                    maxWidth: 380,
+                    height: 40,
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "0 12px",
+                    borderRadius: 8,
+                    background: "var(--eduflow-surface-sunken)",
+                    border: "1px solid transparent",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition:
+                        "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                }}
             >
-                <label
-                    className="flex h-10 items-center gap-2 rounded-md px-3"
+                <Icon name="search" size={16} color="var(--eduflow-text-tertiary)" />
+                <span
                     style={{
-                        background: "var(--eduflow-surface-sunken)",
-                        border: "1px solid transparent",
-                        transition: "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                        flex: 1,
+                        textAlign: "left",
+                        fontSize: 13,
+                        color: "var(--eduflow-text-tertiary)",
                     }}
                 >
-                    <Icon name="search" size={16} color="var(--eduflow-text-tertiary)" />
-                    <input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Rechercher élève, classe, matière…"
-                        className="flex-1 bg-transparent outline-none"
-                        style={{
-                            fontFamily: "inherit",
-                            fontSize: 13,
-                            color: "var(--eduflow-text-primary)",
-                            border: 0,
-                        }}
-                    />
-                </label>
-            </form>
+                    Rechercher une page, un élève, une action…
+                </span>
+                <kbd
+                    aria-hidden
+                    style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        background: "var(--eduflow-surface-card)",
+                        color: "var(--eduflow-text-secondary)",
+                        border: "1px solid var(--eduflow-border-subtle)",
+                        fontFamily: "var(--eduflow-font-mono, monospace)",
+                    }}
+                >
+                    {isMac ? "⌘K" : "Ctrl+K"}
+                </kbd>
+            </button>
 
             <div className="flex-1 md:hidden" />
 
