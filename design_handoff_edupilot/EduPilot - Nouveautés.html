@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light" data-palette="deepblue" data-density="regular" data-period="trimestre">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EduPilot — Nouveautés · rendu final</title>
+  <link rel="stylesheet" href="tokens.css"/>
+  <style>
+    body { margin: 0; background: var(--surface-canvas, #F5F5F4); font-family: 'Inter', system-ui, sans-serif; }
+    .preview-shell { max-width: 1340px; margin: 0 auto; padding: 32px 24px 80px; }
+    .preview-hero {
+      background: linear-gradient(135deg, #0F172A, #1E40AF);
+      color: #fff; border-radius: 22px; padding: 36px 40px; margin-bottom: 32px;
+      box-shadow: 0 10px 40px rgba(15,23,42,0.15);
+    }
+    .preview-hero h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1.05; }
+    .preview-hero p { font-size: 15px; opacity: 0.85; margin: 12px 0 0; line-height: 1.6; max-width: 720px; }
+    .toc {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      margin-top: 28px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.15);
+    }
+    .toc a {
+      padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.08);
+      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; transition: background 0.15s;
+    }
+    .toc a:hover { background: rgba(255,255,255,0.18); }
+    .toc-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.18); display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+    .feature-block { margin-bottom: 44px; }
+    .feature-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 0 4px;
+    }
+    .feature-num {
+      width: 36px; height: 36px; border-radius: 10px; background: var(--brand-600);
+      color: #fff; font-weight: 800; font-size: 16px; display: grid; place-items: center;
+    }
+    .feature-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--text-primary); }
+    .feature-header .tag { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; font-weight: 500; }
+    .feature-frame {
+      background: #fff; border-radius: 16px; border: 1px solid var(--border-default);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .period-bar {
+      position: sticky; top: 16px; z-index: 50;
+      background: #fff; border: 1px solid var(--border-default); border-radius: 999px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      padding: 6px; display: flex; align-items: center; gap: 4px;
+      width: fit-content; margin: 0 auto 24px;
+    }
+    .period-bar .label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); padding: 0 12px; }
+    .period-bar button {
+      border: 0; background: transparent; padding: 8px 16px; border-radius: 999px;
+      cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
+      color: var(--text-secondary); transition: all 0.15s;
+    }
+    .period-bar button[data-active="true"] {
+      background: var(--brand-600); color: #fff;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="preview-shell">
+    <div class="preview-hero">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+        <div style="width: 38px; height: 38px; border-radius: 11px; background: #fff; display: grid; place-items: center; color: #1E40AF; font-weight: 800;">E</div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.7;">EduPilot · sprint final</div>
+          <div style="font-size: 11px; opacity: 0.6; margin-top: 2px;">Rendu complet · bascule trim/sem + 6 nouvelles fonctionnalités</div>
+        </div>
+      </div>
+      <h1>Rendu final de l'application</h1>
+      <p>Le système de découpage de l'année (trimestres / semestres) est désormais une bascule globale. 6 nouvelles fonctionnalités ont été ajoutées pour ancrer EduPilot dans la réalité béninoise : signalement anonyme, vocal en langues locales, comptabilité OHADA, classement national, wallet Mobile Money, et cagnottes parents.</p>
+
+      <div class="toc">
+        <a href="#period"><span class="toc-num">0</span> Bascule Trim/Sem</a>
+        <a href="#wellbeing"><span class="toc-num">1</span> Bien-être & écoute</a>
+        <a href="#voice"><span class="toc-num">2</span> Vocal multilingue</a>
+        <a href="#ohada"><span class="toc-num">3</span> Comptabilité OHADA</a>
+        <a href="#bench"><span class="toc-num">4</span> Benchmark MEMP</a>
+        <a href="#wallet"><span class="toc-num">5</span> Wallet école</a>
+        <a href="#cagnotte"><span class="toc-num">6</span> Cagnottes parents</a>
+      </div>
+    </div>
+
+    <div class="period-bar" id="period">
+      <span class="label">Système académique</span>
+      <button id="btn-trim" data-active="true" onclick="setPeriod('trimestre')">3 trimestres</button>
+      <button id="btn-sem" data-active="false" onclick="setPeriod('semestre')">2 semestres</button>
+    </div>
+
+    <!-- Bascule live demo -->
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: var(--text-primary)">0</div>
+        <div>
+          <h2>Bascule trimestres ↔ semestres · démonstration live</h2>
+          <div class="tag">Cliquez sur le toggle ci-dessus · le dashboard directrice s'adapte en temps réel</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="mount-director" style="height: 820px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: var(--danger-600)">1</div>
+        <div>
+          <h2>Cellule d'écoute & bien-être</h2>
+          <div class="tag">Signalement anonyme · bouton SOS élève · pulse climat scolaire · agenda psy · détection IA des signaux faibles</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="wellbeing" style="height: 1080px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: var(--success-600)">2</div>
+        <div>
+          <h2>Notifications vocales multilingues</h2>
+          <div class="tag">Fɔngbè · Yorùbá · Bariba · Dendi · Français — +24 pts de portée vs SMS pour les parents non-alphabétisés</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="voice" style="height: 1080px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: var(--warning-600)">3</div>
+        <div>
+          <h2>Comptabilité OHADA & caisse</h2>
+          <div class="tag">Plan SYSCOHADA · journal des opérations auto-équilibré · soldes caisse / banque / MoMo · export DGI</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="ohada" style="height: 1060px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: #6D28D9">4</div>
+        <div>
+          <h2>Benchmark national MEMP</h2>
+          <div class="tag">Rang sur 4 280 collèges du Bénin · comparatifs anonymisés vs commune / département / groupe pair</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="bench" style="height: 1080px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: #0F172A">5</div>
+        <div>
+          <h2>Wallet école · Mobile Money & banques</h2>
+          <div class="tag">MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="wallet" style="height: 1080px;"></div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feature-header">
+        <div class="feature-num" style="background: var(--brand-600)">6</div>
+        <div>
+          <h2>Cagnottes & pots communs · vue parent</h2>
+          <div class="tag">Sorties scolaires · cadeaux profs · fournitures partagées — 100% transparent, 100% reversé</div>
+        </div>
+      </div>
+      <div class="feature-frame" id="cagnotte" style="height: 1020px;"></div>
+    </div>
+
+    <div style="background: #fff; border: 1px solid var(--border-default); border-radius: 16px; padding: 24px; margin-top: 40px; display: flex; gap: 20px; align-items: center;">
+      <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--brand-50); display: grid; place-items: center; color: var(--brand-700); font-size: 24px; flex-shrink: 0;">📂</div>
+      <div style="flex: 1;">
+        <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Voir l'application complète</div>
+        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.55;">
+          Cette page de preview ne montre que les nouveautés. L'app complète (75+ écrans : marketing, auth, onboarding, 5 dashboards, modules métier, mobile…) est dans <strong>EduPilot Design System.html</strong> — canvas pan/zoom à explorer librement.
+        </div>
+      </div>
+      <a href="EduPilot Design System.html" style="padding: 10px 18px; background: var(--brand-600); color: #fff; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 700; white-space: nowrap;">Ouvrir le canvas →</a>
+    </div>
+  </div>
+
+  <script>
+    function setPeriod(p) {
+      document.documentElement.setAttribute('data-period', p);
+      document.getElementById('btn-trim').dataset.active = (p === 'trimestre');
+      document.getElementById('btn-sem').dataset.active = (p === 'semestre');
+    }
+  </script>
+
+  <!-- Inject Google Fonts -->
+  <script>
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+    document.head.appendChild(fontLink);
+  </script>
+
+  <!-- Charge tous les composants nécessaires aux pages -->
+  <script type="text/babel" src="tweaks-panel.jsx" data-presets="react"></script>
+  <script type="text/babel" src="components.jsx" data-presets="react"></script>
+  <script type="text/babel" src="showcase.jsx" data-presets="react"></script>
+  <script type="text/babel" src="dashboards.jsx" data-presets="react"></script>
+  <script type="text/babel" src="pages.jsx" data-presets="react"></script>
+  <script type="text/babel" src="value-add.jsx" data-presets="react"></script>
+  <script type="text/babel" src="value-add-v2.jsx" data-presets="react"></script>
+
+  <!-- Monte chaque page dans son conteneur (poll jusqu'à ce que les babel scripts externes soient chargés) -->
+  <script type="text/babel" data-presets="react">
+    function mount(id, Comp) {
+      const el = document.getElementById(id);
+      if (el && Comp && !el.dataset.mounted) {
+        el.dataset.mounted = '1';
+        ReactDOM.createRoot(el).render(<Comp/>);
+      }
+    }
+    function tryMountAll() {
+      const all = [
+        ['mount-director', window.DirectorDash],
+        ['wellbeing',      window.WellbeingPage],
+        ['voice',          window.VoiceNotifsPage],
+        ['ohada',          window.AccountingPage],
+        ['bench',          window.BenchmarkPage],
+        ['wallet',         window.WalletPage],
+        ['cagnotte',       window.CagnottePage],
+      ];
+      all.forEach(([id, Comp]) => mount(id, Comp));
+      return all.every(([, Comp]) => !!Comp);
+    }
+    let tries = 0;
+    const interval = setInterval(() => {
+      tries += 1;
+      if (tryMountAll() || tries > 60) clearInterval(interval);
+    }, 200);
+  </script>
+</body>
+</html>
