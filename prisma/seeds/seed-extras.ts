@@ -76,7 +76,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
             const participants = ctx.students.sort(() => Math.random() - 0.5).slice(0, Math.min(event.maxParticipants, randomInt(20, 50)));
             for (const student of participants) {
                 await prisma.eventParticipation.create({
-                    data: { eventId: event.id, studentId: student.profile.id, status: randomElement(["REGISTERED", "CONFIRMED"]) as any, permissionGiven: event.requiresPermission ? Math.random() < 0.8 : true, permissionBy: student.parents[0].id, paymentStatus: event.fee ? (Math.random() < 0.7 ? "PAID" : "PENDING") : null },
+                    data: { eventId: event.id, studentId: student.profile.id, status: randomElement(["REGISTERED", "CONFIRMED"]) as any, permissionGiven: event.requiresPermission ? Math.random() < 0.8 : true, permissionBy: student.parents[0].id, paymentStatus: event.fee ? (Math.random() < 0.7 ? "VERIFIED" : "PENDING") : null },
                 });
             }
         }

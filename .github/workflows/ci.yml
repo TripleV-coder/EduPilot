@@ -178,7 +178,12 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://edupilot:edupilot@localhost:5432/edupilot_e2e
-      NEXTAUTH_URL: http://localhost:3000
+      # Playwright starts the dev server on E2E_PORT=3093 (see
+      # playwright.config.ts). NEXTAUTH_URL must match — otherwise NextAuth
+      # generates callback URLs for :3000 while the browser is on :3093,
+      # triggering ClientFetchError on every /api/auth/* request and login
+      # never redirects to /dashboard (timeout in setup tests).
+      NEXTAUTH_URL: http://localhost:3093
       NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
       TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       NODE_ENV: test
