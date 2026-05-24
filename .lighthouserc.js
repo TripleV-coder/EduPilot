@@ -14,12 +14,10 @@ module.exports = {
     collect: {
       // The action passes urls + numberOfRuns via the workflow inputs.
       // We keep collect{} minimal to defer to those.
-      // Without startServerCommand the previous run failed with
-      // CHROME_INTERSTITIAL_ERROR because nothing was listening on
-      // localhost:3000 — the workflow built Next but never started it.
-      startServerCommand: "npm run start -- -p 3000",
-      startServerReadyPattern: "Ready in|started server on|Local:.*localhost",
-      startServerReadyTimeout: 60_000,
+      // The server is started + healthchecked by the workflow itself
+      // (see .github/workflows/lighthouse-ci.yml). startServerCommand
+      // here would race on port 3000 and would also swallow stdout so a
+      // runtime crash would be invisible.
       settings: {
         // Avoid storage-quota errors on slim CI runners.
         chromeFlags: "--no-sandbox --disable-dev-shm-usage --headless=new",

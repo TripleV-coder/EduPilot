@@ -37,6 +37,35 @@ jobs:
           TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
           NEXT_TELEMETRY_DISABLED: "1"
 
+      # Starting the server inside lighthouse-ci-action's startServerCommand
+      # swallows stdout/stderr, so a runtime crash shows up only as an opaque
+      # HTTP 500 / ERRORED_DOCUMENT_REQUEST. We start it explicitly here so
+      # the actual error lands in the workflow log if it crashes, and we wait
+      # for /api/health (or /) to return 2xx before handing off to Lighthouse.
+      - name: Start Next server (background) + wait for ready
+        run: |
+          npm run start -- -p 3000 > /tmp/next.log 2>&1 &
+          echo $! > /tmp/next.pid
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:3000/ || true)
+            if [[ "$code" =~ ^(200|301|302|307|308)$ ]]; then
+              echo "Server ready after ${i}s (HTTP $code)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server failed to become ready in 60s"
+          echo "===== /tmp/next.log ====="
+          cat /tmp/next.log
+          exit 1
+        env:
+          SKIP_ENV_VALIDATION: "true"
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
+          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          NEXT_TELEMETRY_DISABLED: "1"
+
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
         with:
@@ -52,16 +81,19 @@ jobs:
           runs: 3
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
-          # `npm run start` is spawned by lighthouse-ci-action via
-          # startServerCommand in .lighthouserc.js — it inherits THIS step's
-          # env, not the Build step's. Without these vars the Next server
-          # crashes on first request (HTTP 500, ERRORED_DOCUMENT_REQUEST).
-          SKIP_ENV_VALIDATION: "true"
-          NEXTAUTH_URL: http://localhost:3000
-          NEXTAUTH_SECRET: test-secret-for-build-only-min-32-characters
-          DATABASE_URL: "postgresql://user:pass@localhost:5432/edupilot"
-          TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Print Next server log on failure
+        if: failure()
+        run: |
+          echo "===== /tmp/next.log ====="
+          cat /tmp/next.log || echo "(no log file)"
+
+      - name: Stop Next server
+        if: always()
+        run: |
+          if [ -f /tmp/next.pid ]; then
+            kill "$(cat /tmp/next.pid)" 2>/dev/null || true
+          fi
 
   # Rapport optionnel : décommenter si vous avez LHCI server
   # report:
