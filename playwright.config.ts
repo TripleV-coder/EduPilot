@@ -37,10 +37,19 @@ export default defineConfig({
     webServer: process.env.E2E_NO_SERVER
         ? undefined
         : {
-              command: `PORT=${PORT} npm run dev`,
+              // CI uses a prod build (`next start`) instead of `next dev` so
+              // routes are pre-compiled. On slower runners, `next dev`'s JIT
+              // compilation of /login on first request was taking >30s, the
+              // browser RSC fetch timed out with "TypeError: Failed to fetch"
+              // → NextAuth's client polled /api/auth/session, also failed
+              // → ClientFetchError → login never redirected → setup timeout.
+              // Local devs keep `next dev` for HMR.
+              command: process.env.CI
+                  ? `npm run build && PORT=${PORT} npm run start -- -p ${PORT}`
+                  : `PORT=${PORT} npm run dev`,
               url: BASE_URL,
               reuseExistingServer: true,
-              timeout: 120_000,
+              timeout: process.env.CI ? 300_000 : 120_000,
               stdout: "ignore",
               stderr: "pipe",
           },
