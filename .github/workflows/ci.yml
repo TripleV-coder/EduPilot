@@ -186,15 +186,12 @@ jobs:
       NEXTAUTH_URL: http://localhost:3093
       NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
       TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-      # Prod env vars are required when CI runs `next start` (instead of
-      # `next dev`) — the instrumentation hook validates these at boot
-      # in production mode. See same dummies in lighthouse-ci.yml.
+      # next start forces NODE_ENV=production at runtime, which would
+      # normally trip the instrumentation hook validateEnv(). SKIP_ENV_VALIDATION
+      # honors a runtime escape (src/lib/env.ts), so we omit Upstash Redis
+      # entirely — the rate-limiter and cache fall back to in-memory, instead
+      # of timing out on every request against an unreachable dummy URL.
       SKIP_ENV_VALIDATION: "true"
-      EMAIL_PROVIDER: resend
-      EMAIL_API_KEY: re_ci_dummy_key_not_used_in_e2e_audit
-      EMAIL_FROM: noreply@edupilot.bj
-      UPSTASH_REDIS_REST_URL: https://ci-dummy.upstash.io
-      UPSTASH_REDIS_REST_TOKEN: ci_dummy_token_not_used
       NODE_ENV: test
 
     steps:
