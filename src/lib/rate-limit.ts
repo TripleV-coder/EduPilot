@@ -110,19 +110,7 @@ const createLimiter = hasUpstash
 // Assouplir les limites en développement pour éviter les ralentissements
 const isDev = process.env.NODE_ENV === "development";
 
-/** API générale : 100 req / minute par IP (500 en dev) */
-export const apiLimiter = createLimiter?.(1, "m", isDev ? 500 : 100, "@edupilot/api") ?? null;
-
-/** Auth (login, forgot-password) : 5 essais / 15 minutes (20 en dev) */
-export const authLimiter = createLimiter?.(15, "m", isDev ? 20 : 5, "@edupilot/auth") ?? null;
-
-/** Opérations sensibles (paiements, notes, users) : 20 req / minute (100 en dev) */
-export const strictLimiter = createLimiter?.(1, "m", isDev ? 100 : 20, "@edupilot/strict") ?? null;
-
-/** Upload : 10 fichiers / minute (50 en dev) */
-export const uploadLimiter = createLimiter?.(1, "m", isDev ? 50 : 10, "@edupilot/upload") ?? null;
-
-// ─── Fallback configs (must match the Upstash configs above) ──────────────────
+// ─── Fallback configs (must match the Upstash configs below) ──────────────────
 
 const FALLBACK_CONFIGS: Record<string, FallbackConfig> = {
   auth:   { limit: isDev ? 20 : 5,    windowMs: 15 * 60 * 1000 },
@@ -131,32 +119,66 @@ const FALLBACK_CONFIGS: Record<string, FallbackConfig> = {
   api:    { limit: isDev ? 500 : 100, windowMs: 60 * 1000 },
 };
 
-function getFallbackConfig(limiter: Ratelimit | null): FallbackConfig {
-  if (limiter === authLimiter)   return FALLBACK_CONFIGS.auth;
-  if (limiter === strictLimiter) return FALLBACK_CONFIGS.strict;
-  if (limiter === uploadLimiter) return FALLBACK_CONFIGS.upload;
-  return FALLBACK_CONFIGS.api;
+/**
+ * Chaque limiter exporté embarque son nom et sa config de fallback.
+ * Indispensable : quand Upstash n'est pas configuré, toutes les instances
+ * Ratelimit valent null — l'ancienne résolution par identité
+ * (`limiter === authLimiter`) faisait alors matcher TOUTES les requêtes
+ * sur la config auth (5 req / 15 min) avec une clé partagée, bloquant
+ * l'application entière en ~5 requêtes.
+ */
+export interface LimiterHandle {
+  limiter: Ratelimit | null;
+  fallback: FallbackConfig;
+  name: string;
 }
+
+/** API générale : 100 req / minute par IP (500 en dev) */
+export const apiLimiter: LimiterHandle = {
+  limiter: createLimiter?.(1, "m", isDev ? 500 : 100, "@edupilot/api") ?? null,
+  fallback: FALLBACK_CONFIGS.api,
+  name: "api",
+};
+
+/** Auth (login, forgot-password) : 5 essais / 15 minutes (20 en dev) */
+export const authLimiter: LimiterHandle = {
+  limiter: createLimiter?.(15, "m", isDev ? 20 : 5, "@edupilot/auth") ?? null,
+  fallback: FALLBACK_CONFIGS.auth,
+  name: "auth",
+};
+
+/** Opérations sensibles (paiements, notes, users) : 20 req / minute (100 en dev) */
+export const strictLimiter: LimiterHandle = {
+  limiter: createLimiter?.(1, "m", isDev ? 100 : 20, "@edupilot/strict") ?? null,
+  fallback: FALLBACK_CONFIGS.strict,
+  name: "strict",
+};
+
+/** Upload : 10 fichiers / minute (50 en dev) */
+export const uploadLimiter: LimiterHandle = {
+  limiter: createLimiter?.(1, "m", isDev ? 50 : 10, "@edupilot/upload") ?? null,
+  fallback: FALLBACK_CONFIGS.upload,
+  name: "upload",
+};
 
 // ─── Main helper ──────────────────────────────────────────────────────────────
 
 export async function checkRateLimit(
-  limiter: Ratelimit | null,
+  handle: LimiterHandle,
   identifier: string
 ): Promise<{ success: boolean; remaining: number; reset: Date }> {
-  // If Upstash is not configured, use in-memory fallback directly
-  if (!limiter) {
-    const config = getFallbackConfig(limiter);
-    return checkFallbackRateLimit(config, `fallback:${identifier}`);
+  // If Upstash is not configured, use in-memory fallback directly.
+  // La clé inclut le nom du limiter : chaque type garde son propre bucket.
+  if (!handle.limiter) {
+    return checkFallbackRateLimit(handle.fallback, `fallback:${handle.name}:${identifier}`);
   }
 
   try {
-    const { success, remaining, reset } = await limiter.limit(identifier);
+    const { success, remaining, reset } = await handle.limiter.limit(identifier);
     return { success, remaining, reset: new Date(reset) };
   } catch (error) {
     // Redis failure — fall back to in-memory to avoid leaving the app unprotected
     logRedisFailureOncePerWindow(error as Error);
-    const config = getFallbackConfig(limiter);
-    return checkFallbackRateLimit(config, `fallback:${identifier}`);
+    return checkFallbackRateLimit(handle.fallback, `fallback:${handle.name}:${identifier}`);
   }
 }
