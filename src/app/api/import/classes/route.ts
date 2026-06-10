@@ -108,10 +108,8 @@ export async function POST(request: NextRequest) {
                             await isTeacherAssignedToSchool(teacherUser.teacherProfile.id, schoolId)
                         ) {
                             mainTeacherId = teacherUser.teacherProfile.id;
-                        } else {
-                            // Warning: Teacher not found, but we create class anyway
-                            // Could add warning to results
                         }
+                        // Enseignant introuvable : la classe est créée sans titulaire
                     }
 
                     // 3. Create Class
@@ -135,7 +133,6 @@ export async function POST(request: NextRequest) {
                             classLevelId: level.id,
                             mainTeacherId,
                             capacity: classData.capacity,
-                            // programId: TODO if we had programs
                         }
                     });
                 });

@@ -50,9 +50,6 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
     },
   });
 
-  const selectedClassId = form.watch("classSubjectId"); // This is actually cs id in payload but we might need class id to filter subjects
-  // Wait, the API needs classSubjectId. We should have a way to pick Class then Subject.
-  
   const [pickedClassId, setPickedClassId] = useState<string>("");
   const { data: classSubjects } = useSWR(pickedClassId ? `/api/class-subjects?classId=${pickedClassId}` : null, fetcher);
 

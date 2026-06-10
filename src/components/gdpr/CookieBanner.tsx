@@ -19,12 +19,12 @@ const CONSENT_VERSION = "1"; // Incrémenter pour forcer un nouveau consentement
 export function CookieBanner() {
     const [visible, setVisible] = useState(false);
 
-    /* eslint-disable react-hooks/set-state-in-effect -- must read localStorage in effect */
+     
     useEffect(() => {
         const stored = localStorage.getItem(CONSENT_KEY);
         if (stored !== CONSENT_VERSION) { setVisible(true); }
     }, []);
-    /* eslint-enable react-hooks/set-state-in-effect */
+     
 
     function accept() {
         localStorage.setItem(CONSENT_KEY, CONSENT_VERSION);
@@ -46,7 +46,7 @@ export function CookieBanner() {
                     <span className="font-medium text-gray-800">Cookies &amp; confidentialité —</span>{" "}
                     EduPilot utilise uniquement des cookies de session strictement nécessaires au fonctionnement
                     de l&apos;authentification. Aucun cookie publicitaire ou de tracking.{" "}
-                    <Link href="/privacy" className="text-orange-500 hover:underline">
+                    <Link href="/privacy" className="text-orange-700 underline hover:text-orange-800">
                         En savoir plus
                     </Link>
                 </div>
@@ -61,7 +61,7 @@ export function CookieBanner() {
                     </Link>
                     <button
                         onClick={accept}
-                        className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2 rounded-md transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2"
+                        className="bg-orange-700 hover:bg-orange-800 text-white text-sm font-medium px-5 py-2 rounded-md transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2"
                     >
                         J&apos;accepte
                     </button>

@@ -33,6 +33,7 @@ import { AcademicPerformancesTab } from "@/components/analytics/AcademicPerforma
 import { AnalyticsComparisonsTab } from "@/components/analytics/AnalyticsComparisonsTab";
 import { AnalyticsReportsTab } from "@/components/analytics/AnalyticsReportsTab";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
+import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";
 
 function AnalyticsContent() {
@@ -105,6 +106,21 @@ function AnalyticsContent() {
         const total = Number(stats.present || 0) + Number(stats.absent || 0) + Number(stats.late || 0) + Number(stats.excused || 0);
         if (total <= 0) return null;
         return ((Number(stats.present || 0) + Number(stats.late || 0) + Number(stats.excused || 0)) / total) * 100;
+    }, [overview]);
+
+    const [riskFilter, setRiskFilter] = useState<string>("");
+
+    // L'API renvoie riskDistribution sous forme d'objet { low, medium, high, critical } ;
+    // le pie chart attend un tableau [{ name, value, color }].
+    const riskChartData = useMemo(() => {
+        const dist = overview?.riskDistribution;
+        if (!dist) return [];
+        return [
+            { name: "LOW", value: Number(dist.low || 0), color: "#10b981" },
+            { name: "MEDIUM", value: Number(dist.medium || 0), color: "#f59e0b" },
+            { name: "HIGH", value: Number(dist.high || 0), color: "#ef4444" },
+            { name: "CRITICAL", value: Number(dist.critical || 0), color: "#7f1d1d" },
+        ];
     }, [overview]);
 
     const absenteeismPatterns = useMemo(() => {
@@ -224,18 +240,31 @@ function AnalyticsContent() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
                             <Card className="lg:col-span-6 dashboard-block border-border bg-card">
-                                <CardHeader><CardTitle className="text-sm font-medium">Distribution des performances</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-sm font-medium">Performance par matière</CardTitle></CardHeader>
                                 <CardContent>
-                                    <InteractivePerformanceBarChart data={overview?.performanceDistribution || []} />
+                                    <InteractivePerformanceBarChart data={overview?.subjectSummary || []} />
                                 </CardContent>
                             </Card>
                             <Card className="lg:col-span-4 dashboard-block border-border bg-card">
                                 <CardHeader><CardTitle className="text-sm font-medium">Niveaux de risque</CardTitle></CardHeader>
                                 <CardContent>
-                                    <InteractiveRiskPieChart data={overview?.riskDistribution || {}} />
+                                    <InteractiveRiskPieChart
+                                        data={riskChartData}
+                                        description="Cliquez sur un segment pour lister les élèves concernés"
+                                        onRiskClick={(level) => setRiskFilter(level === riskFilter ? "" : level)}
+                                        filterRiskLevel={riskFilter || undefined}
+                                    />
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {riskFilter ? (
+                            <RiskStudentsDrillDown
+                                riskLevel={riskFilter}
+                                academicYearId={academicYearId || undefined}
+                                periodId={periodId || undefined}
+                            />
+                        ) : null}
 
                         <Card className="dashboard-block border-border bg-card">
                             <CardHeader>

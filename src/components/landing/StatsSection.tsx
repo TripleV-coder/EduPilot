@@ -103,7 +103,7 @@ export function StatsSection() {
                                     <AnimatedCounter target={stat.target} suffix={stat.suffix} />
                                 )}
                             </div>
-                            <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">
+                            <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">
                                 {t(`landing.stats.${stat.key}`)}
                             </p>
                         </motion.div>

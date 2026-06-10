@@ -22,7 +22,19 @@ const RULES_DISABLED: string[] = [
     "svg-img-alt",
 ];
 
+async function settle(page: Page) {
+    // La connexion SSE du centre de notifications (/api/notifications/stream)
+    // reste ouverte sur les pages dashboard : "networkidle" peut ne jamais
+    // être atteint. Best effort, puis audit() laisse finir les animations.
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+}
+
 async function audit(page: Page) {
+    // Les animations d'entrée (GSAP / Framer Motion) laissent des opacités
+    // intermédiaires sur les runners CI lents : axe calcule alors un
+    // contraste faussé (texte en cours de fade-in). On laisse les
+    // entrances se terminer avant d'analyser.
+    await page.waitForTimeout(1500);
     const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
         .disableRules(RULES_DISABLED)
@@ -44,13 +56,14 @@ async function audit(page: Page) {
 test.describe("Accessibility — public routes (anonymous)", () => {
     test("/", async ({ page }) => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 
-    test("/auth/login", async ({ page }) => {
-        await page.goto("/auth/login");
-        await page.waitForLoadState("networkidle");
+    test("/login", async ({ page }) => {
+        // NB : la route de connexion est /login (pas /auth/login, qui rend la 404).
+        await page.goto("/login");
+        await settle(page);
         await audit(page);
     });
 });
@@ -60,25 +73,25 @@ test.describe("Accessibility — authenticated as SCHOOL_ADMIN", () => {
 
     test("/dashboard", async ({ page }) => {
         await page.goto("/dashboard");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 
     test("/dashboard/students", async ({ page }) => {
         await page.goto("/dashboard/students");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 
     test("/dashboard/finance", async ({ page }) => {
         await page.goto("/dashboard/finance");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 
     test("/dashboard/design-system", async ({ page }) => {
         await page.goto("/dashboard/design-system");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 });
@@ -88,7 +101,7 @@ test.describe("Accessibility — authenticated as TEACHER", () => {
 
     test("/dashboard/grades", async ({ page }) => {
         await page.goto("/dashboard/grades");
-        await page.waitForLoadState("networkidle");
+        await settle(page);
         await audit(page);
     });
 });

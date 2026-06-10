@@ -128,9 +128,9 @@ export function DirectorHome({ userName, schoolName, periodName, data }: Directo
                 <Card padding={20}>
                     <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Recouvrement scolarité
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 12,
@@ -183,9 +183,9 @@ export function DirectorHome({ userName, schoolName, periodName, data }: Directo
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Élèves à risque
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 11,

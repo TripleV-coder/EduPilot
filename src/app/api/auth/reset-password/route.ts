@@ -64,6 +64,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Le token doit appartenir au compte actuel : si l'email a été
+    // ré-attribué à un autre compte (autre école) depuis l'émission,
+    // le token est invalide.
+    if (resetToken.userId && resetToken.userId !== user.id) {
+      await prisma.passwordResetToken.delete({
+        where: { id: resetToken.id },
+      });
+      return NextResponse.json(
+        { error: "Token invalide ou expiré" },
+        { status: 400 }
+      );
+    }
+
     // Hash new password
     const hashedPassword = await bcrypt.hash(password, 12);
 

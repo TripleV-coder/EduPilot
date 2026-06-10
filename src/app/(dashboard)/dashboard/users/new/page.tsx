@@ -12,7 +12,7 @@ import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { Permission } from "@/lib/rbac/permissions";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { useRBAC } from "@/lib/hooks/use-rbac";
 import {
@@ -88,6 +88,8 @@ export default function NewUserPage() {
             parentSchoolId: undefined,
         },
     });
+
+    const watchedRole = useWatch({ control: form.control, name: "role" });
 
     const onSubmit = async (values: UserFormValues) => {
         setLoading(true);
@@ -329,7 +331,7 @@ export default function NewUserPage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        {isSuperAdmin && form.watch("role") !== "SCHOOL_ADMIN" && (
+                                        {isSuperAdmin && watchedRole !== "SCHOOL_ADMIN" && (
                                             <FormField
                                                 control={form.control}
                                                 name="schoolId"
@@ -373,7 +375,7 @@ export default function NewUserPage() {
                                         </div>
                                     </div>
 
-                                    {isSuperAdmin && form.watch("role") === "SCHOOL_ADMIN" && (
+                                    {isSuperAdmin && watchedRole === "SCHOOL_ADMIN" && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <FormField
                                                 control={form.control}

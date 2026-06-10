@@ -306,7 +306,7 @@ function EditRoomDialog({
 
     useEffect(() => {
         if (room && open) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing form state on dialog open
+             
             setForm({
                 name: room.name,
                 capacity: String(room.capacity),

@@ -14,7 +14,7 @@ export function HeroSection() {
     const { status } = useSession();
     const isAuthenticated = status === "authenticated";
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
+     
     useEffect(() => { setIsMounted(true); }, []);
 
     useEffect(() => {
