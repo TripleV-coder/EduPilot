@@ -196,6 +196,10 @@ jobs:
       # every /api/auth/* request on localhost:3093 fails with UntrustedHost
       # and login redirects to /login?error=Configuration (setup timeout).
       AUTH_TRUST_HOST: "true"
+      # The whole Playwright suite shares one IP; prod limits (strict 20/min)
+      # would 429 the security specs. Dev-level limits still exercise the
+      # limiter code path. Never set in real production.
+      RATE_LIMIT_RELAXED: "true"
       NODE_ENV: test
 
     steps:

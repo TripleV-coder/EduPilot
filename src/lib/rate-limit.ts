@@ -107,8 +107,14 @@ const createLimiter = hasUpstash
       })
   : null;
 
-// Assouplir les limites en développement pour éviter les ralentissements
-const isDev = process.env.NODE_ENV === "development";
+// Assouplir les limites en développement pour éviter les ralentissements.
+// RATE_LIMIT_RELAXED=true : réservé au CI e2e, où `next start` force
+// NODE_ENV=production alors que toute la suite Playwright partage une seule
+// IP — les limites prod (ex. strict 20/min) la bloqueraient en quelques
+// secondes. Ne jamais définir cette variable en production réelle.
+const isDev =
+  process.env.NODE_ENV === "development" ||
+  process.env.RATE_LIMIT_RELAXED === "true";
 
 // ─── Fallback configs (must match the Upstash configs below) ──────────────────
 
