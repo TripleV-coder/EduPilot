@@ -39,9 +39,10 @@ export function Avatar({
         .join("")
         .toUpperCase();
 
-    // Hash name → hue for fallback bg.
+    // Hash name → hue for fallback bg. L=0.48 maintient ≥ 4.5:1 (WCAG AA)
+    // pour les initiales blanches sur toutes les teintes générées.
     const hue = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-    const bg = color || `oklch(0.62 0.13 ${hue})`;
+    const bg = color || `oklch(0.48 0.13 ${hue})`;
 
     return (
         <div

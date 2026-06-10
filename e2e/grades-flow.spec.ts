@@ -38,12 +38,21 @@ test.describe("Grades flow (TEACHER)", () => {
 
     test("a teacher cannot reach the finance admin pages", async ({ page }) => {
         const response = await page.goto("/dashboard/finance/fees", { waitUntil: "domcontentloaded" });
-        // Either RBAC redirects (302/3xx → final 200 on a guard page) or 403.
-        const finalUrl = page.url();
-        const denied =
-            finalUrl.includes("/dashboard") && !finalUrl.includes("/finance/fees")
-                ? true
-                : response?.status() === 403 || response?.status() === 404;
-        expect(denied).toBe(true);
+        if (response?.status() === 403 || response?.status() === 404) return;
+        // Otherwise the client-side PageGuard resolves the session
+        // asynchronously, then redirects away or renders "Accès refusé".
+        await expect
+            .poll(
+                async () => {
+                    if (!page.url().includes("/finance/fees")) return true;
+                    const text = await page
+                        .locator("body")
+                        .innerText()
+                        .catch(() => "");
+                    return /accès refusé|forbidden|non autorisé/i.test(text);
+                },
+                { timeout: 15_000 },
+            )
+            .toBe(true);
     });
 });

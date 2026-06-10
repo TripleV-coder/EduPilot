@@ -71,7 +71,7 @@ export function FeaturesSection() {
                 <div className="mb-20">
                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-4">Fonctionnalités</p>
                     <h2 className="text-4xl md:text-5xl font-sans font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-[0.9]">
-                        Une architecture logicielle <br /> <span className="text-zinc-400">sans compromis</span>
+                        Une architecture logicielle <br /> <span className="text-zinc-500">sans compromis</span>
                     </h2>
                 </div>
 
