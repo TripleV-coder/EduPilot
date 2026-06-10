@@ -1,16 +1,19 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { fetcher } from "@/lib/fetcher";
 
 interface ScatterDataPoint {
+  studentId: string;
   studentName: string;
   attendance: number;  // 0-100 %
   averageGrade: number; // 0-20
   risk: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  fill: string;
 }
 
 const riskColors = {
@@ -21,29 +24,38 @@ const riskColors = {
   CRITICAL: "#7c2d12",
 };
 
+const riskLabels: Record<keyof typeof riskColors, string> = {
+  NONE: "Aucun",
+  LOW: "Faible",
+  MEDIUM: "Moyen",
+  HIGH: "Élevé",
+  CRITICAL: "Critique",
+};
+
 export function AttendanceGradesScatter() {
-  // Fetch student analytics data
+  const router = useRouter();
   const { data: analyticsData = [], isLoading } = useSWR(
     "/api/analytics/students?limit=100",
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  const chartData = useMemo(() => {
+  const chartData = useMemo<ScatterDataPoint[]>(() => {
     if (!Array.isArray(analyticsData)) return [];
-    
+
     return analyticsData
       .filter(item => item.averageGrade !== null && typeof item.attendanceRate === "number")
-      .map((item) => ({
-        studentName: item.studentName || "Unknown",
-        attendance: item.attendanceRate,
-        averageGrade: Number(item.averageGrade || 0),
-        risk: item.riskLevel || "LOW",
-      }))
-      .map((item) => ({
-        ...item,
-        fill: riskColors[item.risk as keyof typeof riskColors],
-      }));
+      .map((item) => {
+        const risk = (item.riskLevel || "LOW") as keyof typeof riskColors;
+        return {
+          studentId: item.studentId,
+          studentName: item.studentName || "Inconnu",
+          attendance: item.attendanceRate,
+          averageGrade: Number(item.averageGrade || 0),
+          risk,
+          fill: riskColors[risk] ?? riskColors.LOW,
+        };
+      });
   }, [analyticsData]);
 
   if (isLoading) {
@@ -80,6 +92,7 @@ export function AttendanceGradesScatter() {
     <Card>
       <CardHeader>
         <CardTitle>Corrélation Assiduité vs Notes</CardTitle>
+        <CardDescription>Cliquez sur un élève pour ouvrir sa fiche détaillée</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
@@ -89,26 +102,36 @@ export function AttendanceGradesScatter() {
             <YAxis dataKey="averageGrade" type="number" name="Moyenne (sur 20)" />
             <Tooltip cursor={{ strokeDasharray: "3 3" }} content={(props: any) => {
               if (props.active && props.payload?.[0]) {
-                const data = props.payload[0].payload;
+                const data = props.payload[0].payload as ScatterDataPoint;
                 return (
                   <div className="bg-background border border-border rounded p-2 text-sm shadow-lg">
                     <p className="font-semibold">{data.studentName}</p>
-                    <p className="text-muted-foreground">Assiduité: {data.attendance}%</p>
-                    <p className="text-muted-foreground">Moyenne: {data.averageGrade}/20</p>
-                    <p className="text-muted-foreground">Risque: {data.risk}</p>
+                    <p className="text-muted-foreground">Assiduité : {data.attendance}%</p>
+                    <p className="text-muted-foreground">Moyenne : {data.averageGrade}/20</p>
+                    <p className="text-muted-foreground">Risque : {riskLabels[data.risk] ?? data.risk}</p>
+                    <p className="text-xs text-primary mt-1">Cliquer pour voir la fiche élève</p>
                   </div>
                 );
               }
               return null;
             }} />
-            <Scatter dataKey="averageGrade" />
+            <Scatter
+              dataKey="averageGrade"
+              cursor="pointer"
+              onClick={(point: any) => {
+                const studentId = point?.payload?.studentId ?? point?.studentId;
+                if (studentId) {
+                  router.push(`/dashboard/students/${studentId}`);
+                }
+              }}
+            />
           </ScatterChart>
         </ResponsiveContainer>
         <div className="mt-4 flex gap-4 flex-wrap justify-center text-sm">
-          {Object.entries(riskColors).map(([risk, color]) => (
+          {(Object.keys(riskColors) as Array<keyof typeof riskColors>).map((risk) => (
             <div key={risk} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span>{risk}</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: riskColors[risk] }} />
+              <span>{riskLabels[risk]}</span>
             </div>
           ))}
         </div>
