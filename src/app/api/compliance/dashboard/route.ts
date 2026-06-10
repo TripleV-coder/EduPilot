@@ -20,6 +20,10 @@ export async function GET(_request: NextRequest) {
     // SUPER_ADMIN can see all data (no schoolId filter)
     const schoolId = session.user.role === "SUPER_ADMIN" ? null : getActiveSchoolId(session);
 
+    // Audit logs carry a relation to their author; scope them to the admin's
+    // school so a SCHOOL_ADMIN never sees cross-tenant activity counts.
+    const auditSchoolFilter = schoolId ? { user: { schoolId } } : {};
+
     // Get counts for various compliance metrics
     const [
       totalUsers,
@@ -53,23 +57,26 @@ export async function GET(_request: NextRequest) {
       // Recent audit logs (last 7 days)
       prisma.auditLog.count({
         where: {
+          ...auditSchoolFilter,
           createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
         },
       }),
 
-      // Pending data access requests
+      // Pending data access requests (scoped to the admin's school)
       prisma.dataAccessRequest.count({
         where: {
           status: "PENDING",
+          ...(schoolId ? { user: { schoolId } } : {}),
         },
       }),
 
-      // Data consents summary
+      // Data consents summary (scoped to the admin's school)
       prisma.dataConsent.groupBy({
         by: ["consentType", "isGranted"],
         _count: true,
+        ...(schoolId ? { where: { user: { schoolId } } } : {}),
       }),
 
       // Retention policies
@@ -80,6 +87,7 @@ export async function GET(_request: NextRequest) {
       // Deleted accounts (last 30 days)
       prisma.auditLog.count({
         where: {
+          ...auditSchoolFilter,
           action: {
             contains: "DELETE",
           },
@@ -93,6 +101,7 @@ export async function GET(_request: NextRequest) {
       // Recent logins (last 24h)
       prisma.auditLog.count({
         where: {
+          ...auditSchoolFilter,
           action: "LOGIN",
           createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -101,8 +110,9 @@ export async function GET(_request: NextRequest) {
       }),
     ]);
 
-    // Get recent data access requests
+    // Get recent data access requests (scoped to the admin's school)
     const recentDataRequests = await prisma.dataAccessRequest.findMany({
+      where: schoolId ? { user: { schoolId } } : {},
       take: 10,
       orderBy: { requestedAt: "desc" },
       include: {
@@ -122,6 +132,7 @@ export async function GET(_request: NextRequest) {
       by: ["action"],
       _count: true,
       where: {
+        ...auditSchoolFilter,
         createdAt: {
           gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
         },

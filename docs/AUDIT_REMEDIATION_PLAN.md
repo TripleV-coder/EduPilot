@@ -1,0 +1,174 @@
+# Plan de correction EduPilot — Dette technique & manques fonctionnels
+
+> **But de ce fichier** : plan de remédiation reprenable dans n'importe quelle session.
+> Coche les cases au fur et à mesure. Chaque tâche a : fichiers concernés, action,
+> critère de validation (« Done quand »), et commande de vérif.
+>
+> **Source** : audit du 2026-06-10 (746 fichiers TS, 246 routes API, 105 modèles Prisma).
+> **Convention** : `[ ]` à faire · `[~]` en cours · `[x]` fait (mets la date + commit court).
+>
+> **Avant de commencer une session** : lis ce fichier en entier, puis `git log --oneline -10`
+> pour voir ce qui a déjà été fait. Mets ce fichier à jour AVANT de committer.
+
+---
+
+## Comment vérifier une tâche (commandes de référence)
+
+```bash
+npm run type-check     # tsc --noEmit
+npm run lint           # eslint src
+npm run test           # vitest run
+npm run test:e2e       # playwright
+npm run build          # next build
+```
+
+---
+
+## P0 — Sécurité & intégrité (à faire en premier, rapide & risqué)
+
+### [x] P0.1 — Fuite cross-tenant RGPD dans `/api/compliance/dashboard` (fait 2026-06-10)
+- **Constat révisé après lecture du code** : PAS besoin d'ajouter de colonne `schoolId`.
+  La convention du codebase filtre via la **relation** `user: { schoolId }`. Les routes
+  `data-requests` (liste + `[id]`) filtraient DÉJÀ correctement. La seule vraie fuite était
+  `compliance/dashboard/route.ts` (6 requêtes sans filtre).
+- **Fait** : scopé par `schoolId` (null pour SUPER_ADMIN) dans `compliance/dashboard/route.ts` :
+  - `dataAccessRequest.count` (pending) + `findMany` (recent) → `user: { schoolId }`
+  - `dataConsent.groupBy` → `where: { user: { schoolId } }`
+  - 4 requêtes `auditLog` (count x3 + groupBy) → filtre `auditSchoolFilter = { user: { schoolId } }`
+- **Vérifié hors périmètre** : `/api/admin/pending-actions` et `/api/root/*` sont gardés par
+  `SYSTEM_READ` (SUPER_ADMIN uniquement) → vue système globale intentionnelle, pas une fuite.
+- **Vérif faite** : `npx tsc --noEmit` → exit 0.
+- **Reste** : test e2e d'isolation à ajouter (cf P1.1).
+
+### [ ] P0.2 — `/api/grades` n'utilise pas `createApiHandler` (RBAC absent)
+- **Problème (CONFIRMÉ)** : `src/app/api/grades/route.ts` GET utilise `auth()` manuel,
+  pas de contrôle de permission formel (isolation école présente, mais pas de `Permission.GRADE_READ`).
+- **Fichier** : `src/app/api/grades/route.ts`
+- **Action** : migrer GET (et POST si présent) vers `createApiHandler` avec
+  `allowedRoles`/permission, en conservant le filtre `schoolId` existant.
+- **Done quand** : la route passe par le helper ; un rôle non autorisé reçoit 403 ;
+  comportement inchangé pour rôles légitimes.
+- **Vérif** : `npm run test:e2e -- security-rbac` (ajouter grades si absent).
+
+### [ ] P0.3 — IDOR `/api/payments/[id]`
+- **Problème** : `findUnique({where:{id}})` puis check parent **après** fetch.
+- **Fichier** : `src/app/api/payments/[id]/route.ts` (~ligne 64-78)
+- **Action** : déplacer le contrôle dans le `where` :
+  `where: { id, student: { id: { in: childrenIds } } }` pour le rôle PARENT.
+- **Done quand** : un parent qui demande un paiement d'un enfant non lié reçoit 404/403
+  sans que l'objet soit lu.
+- **Vérif** : test d'intégration ciblé (cf P1.1).
+
+### [ ] P0.4 — Empty catch blocks (perte silencieuse)
+- **Fichiers** :
+  - `src/app/api/upload/route.ts:77,85`
+  - `src/app/api/uploads/[type]/[filename]/route.ts:38,46`
+- **Action** : remplacer `catch {}` par un `catch (e) { logger.warn(...) }` + fallback explicite.
+- **Done quand** : aucune erreur FS/JSON n'est avalée sans trace.
+- **Vérif** : `grep -rn "catch {" src/app/api` → 0 résultat injustifié.
+
+### [ ] P0.5 — Rate limiting manquant sur endpoints sensibles
+- **Fichiers** : `src/app/api/setup/route.ts`, `src/app/api/auth/initial-setup/route.ts`
+- **Action** : appliquer le rate limiter existant (`src/lib/auth/rate-limiter.ts`).
+- **Done quand** : N tentatives rapides → 429.
+
+### [ ] P0.6 — Token reset password non isolé par école
+- **Fichier** : `src/app/api/auth/forgot-password/route.ts` (~48-64) + `PasswordResetToken` model
+- **Action** : associer `schoolId` au token et le valider à la consommation.
+- **Done quand** : un token émis pour l'école A ne fonctionne pas pour le même email en école B.
+
+---
+
+## P1 — Filet de sécurité métier (tests d'intégration)
+
+> Aujourd'hui : **2 routes testées / 246**, couverture CI à 17 %. Domaines financiers = 0 test.
+
+### [ ] P1.1 — Suite de tests d'intégration API financiers
+- **Cibles prioritaires** :
+  - Paiements : `src/app/api/payments/*` (8 routes) — méthodes cash/mobile/chèque, IDOR (P0.3)
+  - Plans de paiement : `src/app/api/payment-plans/*` (échéances, statuts)
+  - Comptabilité OHADA : `src/app/api/accounting/*` — cohérence débit/crédit, balance
+  - Grades : `src/app/api/grades/{batch,report-cards,stats}` — bulletins
+  - Examens : `src/app/api/exams/{start,submit}` — scoring
+- **Action** : créer `tests/api/*.test.ts` avec fixtures DB reproductibles.
+- **Done quand** : chaque domaine a au moins les cas nominal + refus d'accès + cross-tenant.
+
+### [ ] P1.2 — Remonter le seuil de couverture CI
+- **Fichier** : config Vitest coverage + `.github/workflows/ci.yml`
+- **Action** : passer le seuil statements de 17 % → 40 % progressivement.
+- **Done quand** : CI verte avec nouveau seuil.
+
+### [ ] P1.3 — Validation Zod des inputs date
+- **Fichier** : `src/app/api/audit-logs/route.ts` (~48-55) et routes similaires
+- **Action** : valider `startDate/endDate` via `z.string().datetime()`.
+
+### [ ] P1.4 — Détection MIME indépendante sur upload
+- **Fichier** : `src/app/api/upload/route.ts`
+- **Action** : détecter le type réel depuis les magic bytes (lib `file-type`) au lieu du type déclaré.
+
+---
+
+## P2 — Décisions produit (À ARBITRER avec le propriétaire avant dev)
+
+> Ces features sont volontairement désactivées en UI (`disabled` + title « à venir »).
+> Ne PAS coder sans décision business. Cocher quand la décision est prise.
+
+### [ ] P2.1 — Intégration paiement MTN MoMo (débloque Wallet + Cagnotte)
+- **Débloque** :
+  - Wallet : décaissement (`src/app/(dashboard)/dashboard/wallet/page.tsx:282,517`), relevé multibanque (`:279`)
+  - Cagnotte : création parent (`cagnotte/page.tsx:177`), paiement contribution (`:550`), détail (`:575`), messagerie groupe (`:565`)
+- **Bloqueur** : webhook MoMo signé (config + endpoint).
+
+### [ ] P2.2 — WhatsApp Business API
+- **Fichier** : `src/app/(dashboard)/dashboard/whatsapp/page.tsx:99` (état « disconnected » honnête)
+
+### [ ] P2.3 — Export comptable DGI iTAS (Bénin)
+- **Fichier** : `src/app/(dashboard)/dashboard/accounting/page.tsx:188` + échéances `:808`, écriture manuelle `:191`
+- **Bloqueur** : spécification format DGI.
+
+### [ ] P2.4 — Modèles Prisma manquants
+- **Transport** : `src/app/api/transport/lines/route.ts` → créer `TransportLine/Bus/BusRoute/StudentTransport`
+- **Performance** : `src/app/api/performance/dashboard/route.ts` (Web Vitals à 0) → modèle `PerformanceMetric` ou source réelle
+- **Télémétrie UX** : `src/app/api/ux/events/route.ts` (events jetés) → table `TelemetryEvent` ou queue
+
+### [ ] P2.5 — Modules sans dépendance externe (dev pur, à prioriser)
+- **Wellbeing** : PDF rapport climat + dossiers (`wellbeing/page.tsx:209,212,522`)
+- **BEPC-prep** : annales offline + IA chronométrée (`bepc-prep/page.tsx:288,359`)
+- **Orientation** : recommandations perso (`orientation/me/page.tsx:284`)
+- **Onboarding** : parcours détaillé par rôle (`onboarding/page.tsx:1279`)
+
+---
+
+## P3 — Hygiène de code (non bloquant)
+
+### [ ] P3.1 — Découper les fichiers > 1200 lignes
+- `src/lib/ai/ai-service.ts` (1609) → split par provider
+- `src/app/(dashboard)/dashboard/onboarding/page.tsx` (1441) → steps en sous-composants
+- `src/app/(dashboard)/dashboard/students/inscription/page.tsx` (1421)
+- `src/app/(dashboard)/dashboard/grades/cahier/page.tsx` (1349)
+- `src/app/(dashboard)/dashboard/grades/entry/page.tsx` (1218)
+- `src/lib/services/analytics-dashboard.ts` (1205)
+
+### [ ] P3.2 — Factoriser duplication
+- Formulaires `*/new/page.tsx` (students/teachers/users/incidents/classes) → `<FormPageTemplate>`
+- Variantes PieChart (`BasePieChart` + 3 dérivés) → composant base + props
+
+### [ ] P3.3 — Éradiquer les `any` de formulaires
+- ~10 pages avec `zodResolver(schema) as any` et `useSWR<any>` → typer correctement.
+- Critique d'abord : `compliance/data-requests/[id]/route.ts:194` (`updateData as any` sur audit RGPD).
+
+### [ ] P3.4 — `console.log` en prod
+- `src/lib/email.ts` logue destinataire + HTML → passer par le logger / garder en dev only.
+- Error boundaries (`**/error.tsx`) → logger centralisé.
+
+### [ ] P3.5 — Sécuriser le fallback config Bénin
+- `src/lib/services/config-service.ts` retombe sur la config hardcodée si DB non seedée.
+- **Action** : garantir le seed au déploiement + log d'alerte si fallback emprunté.
+
+---
+
+## Journal d'avancement (à remplir)
+
+| Date | Tâche | Commit | Notes |
+|------|-------|--------|-------|
+| 2026-06-10 | P0.1 | (pending) | Isolation tenant `compliance/dashboard`. Pas de migration : filtre via relation `user.schoolId` (convention existante). |
