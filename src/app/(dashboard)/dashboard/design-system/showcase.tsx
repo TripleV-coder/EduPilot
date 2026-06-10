@@ -119,23 +119,31 @@ function ColorRamp({
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 4 }}>
                 {tints.map((t) => (
-                    <div
-                        key={t}
-                        style={{
-                            aspectRatio: "1",
-                            borderRadius: 8,
-                            background: `var(--${isBrandRamp ? "brand" : `eduflow-${varName}`}-${t})`,
-                            border: "1px solid var(--eduflow-border-subtle)",
-                            display: "flex",
-                            alignItems: "flex-end",
-                            padding: 6,
-                            fontSize: 9,
-                            fontWeight: 600,
-                            color: t >= 500 ? "rgba(255,255,255,0.9)" : "var(--eduflow-neutral-700)",
-                            fontVariantNumeric: "tabular-nums",
-                        }}
-                    >
-                        {t}
+                    <div key={t}>
+                        {/* Étiquette sous le swatch : un texte posé sur les
+                            teintes intermédiaires (400-600) ne peut pas tenir
+                            le ratio WCAG AA, quel que soit sa couleur. */}
+                        <div
+                            aria-hidden="true"
+                            style={{
+                                aspectRatio: "1",
+                                borderRadius: 8,
+                                background: `var(--${isBrandRamp ? "brand" : `eduflow-${varName}`}-${t})`,
+                                border: "1px solid var(--eduflow-border-subtle)",
+                            }}
+                        />
+                        <div
+                            style={{
+                                marginTop: 3,
+                                textAlign: "center",
+                                fontSize: 9,
+                                fontWeight: 600,
+                                color: "var(--eduflow-text-secondary)",
+                                fontVariantNumeric: "tabular-nums",
+                            }}
+                        >
+                            {t}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -945,10 +953,10 @@ function Phone({ children }: { children: React.ReactNode }) {
     );
 }
 
-function PhoneBottomNav({ items }: { items: PhoneNavItem[] }) {
+function PhoneBottomNav({ items, label = "Navigation onglets mobile" }: { items: PhoneNavItem[]; label?: string }) {
     return (
         <nav
-            aria-label="Navigation onglets mobile"
+            aria-label={label}
             style={{
                 height: 72,
                 padding: "8px 12px 16px",
@@ -1192,6 +1200,7 @@ function ParentMobilePreview() {
                 </Card>
             </div>
             <PhoneBottomNav
+                label="Navigation mobile parent"
                 items={[
                     { icon: "home", label: "Accueil", active: true },
                     { icon: "users", label: "Enfants" },
@@ -1395,6 +1404,7 @@ function StudentMobilePreview() {
                 </Card>
             </div>
             <PhoneBottomNav
+                label="Navigation mobile enseignant"
                 items={[
                     { icon: "home", label: "Accueil", active: true },
                     { icon: "pencil", label: "Notes" },

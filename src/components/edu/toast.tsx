@@ -5,11 +5,13 @@ import { Icon, type IconName } from "./icon";
 
 type Variant = "success" | "warning" | "danger" | "info";
 
+// Teintes 700 : l'accent sert aussi de couleur de texte (bouton d'action)
+// sur fond carte blanc — les teintes 600 success/warning ratent le 4.5:1.
 const VARIANT_TOKENS: Record<Variant, { icon: IconName; accent: string; bg: string }> = {
-    success: { icon: "success", accent: "var(--eduflow-success-600)", bg: "var(--eduflow-success-50)" },
-    warning: { icon: "warning", accent: "var(--eduflow-warning-600)", bg: "var(--eduflow-warning-50)" },
-    danger:  { icon: "danger",  accent: "var(--eduflow-danger-600)",  bg: "var(--eduflow-danger-50)"  },
-    info:    { icon: "info",    accent: "var(--eduflow-info-600)",    bg: "var(--eduflow-info-50)"    },
+    success: { icon: "success", accent: "var(--eduflow-success-700)", bg: "var(--eduflow-success-50)" },
+    warning: { icon: "warning", accent: "var(--eduflow-warning-700)", bg: "var(--eduflow-warning-50)" },
+    danger:  { icon: "danger",  accent: "var(--eduflow-danger-700)",  bg: "var(--eduflow-danger-50)"  },
+    info:    { icon: "info",    accent: "var(--eduflow-info-700)",    bg: "var(--eduflow-info-50)"    },
 };
 
 export interface ToastProps {

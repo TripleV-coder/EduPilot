@@ -7,12 +7,14 @@ import { Icon, type IconName } from "./icon";
 type NotifType = "urgent" | "warning" | "success" | "info" | "reminder" | "sms";
 type Priority = "P0" | "P1" | "P2";
 
+// Teintes 700 : la couleur sert aussi de texte (boutons d'action) — les
+// teintes 600 success/warning ne tiennent pas le ratio WCAG AA 4.5:1.
 const TYPE_TOKENS: Record<NotifType, { icon: IconName; color: string; bg: string }> = {
-    urgent:   { icon: "danger",  color: "var(--eduflow-danger-600)",  bg: "var(--eduflow-danger-50)"  },
-    warning:  { icon: "warning", color: "var(--eduflow-warning-600)", bg: "var(--eduflow-warning-50)" },
-    success:  { icon: "success", color: "var(--eduflow-success-600)", bg: "var(--eduflow-success-50)" },
-    info:     { icon: "info",    color: "var(--eduflow-info-600)",    bg: "var(--eduflow-info-50)"    },
-    reminder: { icon: "clock",   color: "var(--brand-600)",            bg: "var(--brand-50)"            },
+    urgent:   { icon: "danger",  color: "var(--eduflow-danger-700)",  bg: "var(--eduflow-danger-50)"  },
+    warning:  { icon: "warning", color: "var(--eduflow-warning-700)", bg: "var(--eduflow-warning-50)" },
+    success:  { icon: "success", color: "var(--eduflow-success-700)", bg: "var(--eduflow-success-50)" },
+    info:     { icon: "info",    color: "var(--eduflow-info-700)",    bg: "var(--eduflow-info-50)"    },
+    reminder: { icon: "clock",   color: "var(--brand-700)",            bg: "var(--brand-50)"            },
     sms:      { icon: "sms",     color: "var(--eduflow-neutral-700)", bg: "var(--eduflow-neutral-100)" },
 };
 

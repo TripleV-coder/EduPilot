@@ -37,12 +37,14 @@ export function MetricCard({
     size = "md",
 }: MetricCardProps) {
     const a = ACCENTS[variant];
+    // Teintes 700 : le texte de tendance sur fond carte blanc exige 4.5:1
+    // (WCAG AA) — success/danger-600 plafonnent à ~3.8:1.
     const trendColor =
         trend == null
             ? null
             : trend >= 0
-            ? "var(--eduflow-success-600)"
-            : "var(--eduflow-danger-600)";
+            ? "var(--eduflow-success-700)"
+            : "var(--eduflow-danger-700)";
 
     return (
         <Card padding={size === "sm" ? 14 : 18} style={{ background: a.bg }}>

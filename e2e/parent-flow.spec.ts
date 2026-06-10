@@ -30,27 +30,39 @@ test.describe("Parent flow (PARENT)", () => {
 
     test("a parent cannot access the audit logs page", async ({ page }) => {
         await page.goto("/dashboard/audit-logs", { waitUntil: "domcontentloaded" });
-        // Parents lack the AUDIT_LOG_READ permission → expect redirect away
-        // from the route OR a 403/forbidden state.
-        const finalUrl = page.url();
-        const deniedByUrl = !finalUrl.endsWith("/audit-logs");
-        const deniedByContent = await page
-            .locator("body")
-            .innerText()
-            .then((t) => /accès refusé|forbidden|non autorisé/i.test(t))
-            .catch(() => false);
-        expect(deniedByUrl || deniedByContent).toBe(true);
+        // Parents lack the AUDIT_LOG_READ permission → the client-side
+        // PageGuard resolves the session asynchronously, then either
+        // redirects away or renders the "Accès refusé" state. Poll until
+        // one of the two outcomes appears.
+        await expect
+            .poll(
+                async () => {
+                    if (!page.url().includes("/audit-logs")) return true;
+                    const text = await page
+                        .locator("body")
+                        .innerText()
+                        .catch(() => "");
+                    return /accès refusé|forbidden|non autorisé/i.test(text);
+                },
+                { timeout: 15_000 },
+            )
+            .toBe(true);
     });
 
     test("a parent cannot create a new class", async ({ page }) => {
         await page.goto("/dashboard/classes/new", { waitUntil: "domcontentloaded" });
-        const finalUrl = page.url();
-        const deniedByUrl = !finalUrl.endsWith("/classes/new");
-        const deniedByContent = await page
-            .locator("body")
-            .innerText()
-            .then((t) => /accès refusé|forbidden|non autorisé/i.test(t))
-            .catch(() => false);
-        expect(deniedByUrl || deniedByContent).toBe(true);
+        await expect
+            .poll(
+                async () => {
+                    if (!page.url().includes("/classes/new")) return true;
+                    const text = await page
+                        .locator("body")
+                        .innerText()
+                        .catch(() => "");
+                    return /accès refusé|forbidden|non autorisé/i.test(text);
+                },
+                { timeout: 15_000 },
+            )
+            .toBe(true);
     });
 });

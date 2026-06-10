@@ -319,12 +319,12 @@ export default function FinanceDashboardPage() {
                             <Card padding={20}>
                                 <div className="mb-4 flex items-start justify-between">
                                     <div>
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: 0 }}
                                         >
                                             Évolution des encaissements
-                                        </h3>
+                                        </h2>
                                         <p
                                             style={{
                                                 fontSize: 12,
@@ -378,12 +378,12 @@ export default function FinanceDashboardPage() {
                                     style={{ borderColor: "var(--eduflow-border-subtle)" }}
                                 >
                                     <div>
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: 0 }}
                                         >
                                             Derniers paiements
-                                        </h3>
+                                        </h2>
                                         <p
                                             style={{
                                                 fontSize: 11,
@@ -479,12 +479,12 @@ export default function FinanceDashboardPage() {
                                             size={18}
                                             color="var(--eduflow-danger-600)"
                                         />
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: 0 }}
                                         >
                                             Alertes impayés
-                                        </h3>
+                                        </h2>
                                     </div>
                                     {dashData.overdueStudents.length > 0 ? (
                                         <Badge variant="danger" size="sm">
@@ -524,12 +524,12 @@ export default function FinanceDashboardPage() {
                                 <div className="flex items-center gap-2">
                                     <Icon name="calendar" size={18} color="var(--brand-700)" />
                                     <div>
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: 0 }}
                                         >
                                             Échéanciers actifs
-                                        </h3>
+                                        </h2>
                                         <p
                                             style={{
                                                 fontSize: 11,

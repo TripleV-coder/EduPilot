@@ -173,7 +173,8 @@ export function OnboardingChecklist() {
 
     return (
         <AnimatePresence>
-            <motion.div
+            <motion.aside
+                aria-label="Démarrage rapide"
                 className="fixed bottom-6 right-6 z-50 w-[320px]"
                 initial={{ opacity: 0, y: 40, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -271,7 +272,7 @@ export function OnboardingChecklist() {
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
+            </motion.aside>
         </AnimatePresence>
     );
 }

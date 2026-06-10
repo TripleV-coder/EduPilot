@@ -88,7 +88,10 @@
 
   --eduflow-text-primary:   var(--eduflow-neutral-900);
   --eduflow-text-secondary: var(--eduflow-neutral-600);
-  --eduflow-text-tertiary:  var(--eduflow-neutral-400);
+  /* #5B6776 (entre neutral-500 et 600) : seule valeur qui tient ≥ 4.5:1
+     (WCAG AA) sur tous les fonds où le texte tertiaire apparaît — blanc,
+     surface-sunken (#F1F5F9) et tonals 50 (ex. danger-50 #FEF2F2). */
+  --eduflow-text-tertiary:  #5B6776;
   --eduflow-text-on-brand:  var(--eduflow-neutral-0);
 
   --eduflow-border-subtle:  var(--eduflow-neutral-200);

@@ -20,6 +20,7 @@ export function Logo({ size = 32, mono = false }: LogoProps) {
                 position: "relative",
                 overflow: "hidden",
             }}
+            role="img"
             aria-label="EduPilot"
         >
             <svg

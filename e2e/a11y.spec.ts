@@ -48,8 +48,9 @@ test.describe("Accessibility — public routes (anonymous)", () => {
         await audit(page);
     });
 
-    test("/auth/login", async ({ page }) => {
-        await page.goto("/auth/login");
+    test("/login", async ({ page }) => {
+        // NB : la route de connexion est /login (pas /auth/login, qui rend la 404).
+        await page.goto("/login");
         await page.waitForLoadState("networkidle");
         await audit(page);
     });
