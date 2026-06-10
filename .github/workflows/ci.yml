@@ -192,6 +192,10 @@ jobs:
       # entirely — the rate-limiter and cache fall back to in-memory, instead
       # of timing out on every request against an unreachable dummy URL.
       SKIP_ENV_VALIDATION: "true"
+      # next start also makes NextAuth v5 enforce host trust: without this,
+      # every /api/auth/* request on localhost:3093 fails with UntrustedHost
+      # and login redirects to /login?error=Configuration (setup timeout).
+      AUTH_TRUST_HOST: "true"
       NODE_ENV: test
 
     steps:
