@@ -19,12 +19,12 @@ const CONSENT_VERSION = "1"; // Incrémenter pour forcer un nouveau consentement
 export function CookieBanner() {
     const [visible, setVisible] = useState(false);
 
-    /* eslint-disable react-hooks/set-state-in-effect -- must read localStorage in effect */
+     
     useEffect(() => {
         const stored = localStorage.getItem(CONSENT_KEY);
         if (stored !== CONSENT_VERSION) { setVisible(true); }
     }, []);
-    /* eslint-enable react-hooks/set-state-in-effect */
+     
 
     function accept() {
         localStorage.setItem(CONSENT_KEY, CONSENT_VERSION);

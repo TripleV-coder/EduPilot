@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR, { useSWRConfig } from "swr";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
 import {
@@ -115,8 +115,8 @@ export default function TeacherDetailPage() {
     },
   });
 
-  const watchedPrimarySchoolId = form.watch("primarySchoolId");
-  const watchedAdditionalSchoolIds = form.watch("additionalSchoolIds") || [];
+  const watchedPrimarySchoolId = useWatch({ control: form.control, name: "primarySchoolId" });
+  const watchedAdditionalSchoolIds = useWatch({ control: form.control, name: "additionalSchoolIds" }) || [];
 
   useEffect(() => {
     if (!teacher) return;
