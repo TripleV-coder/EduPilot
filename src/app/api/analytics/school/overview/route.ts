@@ -152,16 +152,19 @@ export async function GET(request: NextRequest) {
       period: a.period,
     }));
 
-    const subjectStats: Record<string, { name: string; totalAverage: number; count: number }> = {};
+    const subjectStats: Record<string, { name: string; totalAverage: number; count: number; passCount: number }> = {};
     for (const analyticsItem of currentAnalytics) {
       for (const perf of analyticsItem.subjectPerformances) {
         if (perf.average === null) continue;
         const key = perf.subjectId;
         if (!subjectStats[key]) {
-          subjectStats[key] = { name: perf.subject.name, totalAverage: 0, count: 0 };
+          subjectStats[key] = { name: perf.subject.name, totalAverage: 0, count: 0, passCount: 0 };
         }
         subjectStats[key].totalAverage += Number(perf.average || 0);
         subjectStats[key].count += 1;
+        if (Number(perf.average || 0) >= 10) {
+          subjectStats[key].passCount += 1;
+        }
       }
     }
 
@@ -171,6 +174,7 @@ export async function GET(request: NextRequest) {
       name: s.name, // compatibility
       grade: s.count > 0 ? roundTo(s.totalAverage / s.count) : 0,
       average: s.count > 0 ? roundTo(s.totalAverage / s.count) : 0, // compatibility
+      passRate: s.count > 0 ? roundTo((s.passCount / s.count) * 100) : 0,
       studentsCount: s.count,
     })).sort((a, b) => b.grade - a.grade);
 

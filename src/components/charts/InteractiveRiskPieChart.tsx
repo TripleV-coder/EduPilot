@@ -24,6 +24,13 @@ const RISK_COLORS = {
   CRITICAL: "#7f1d1d",
 };
 
+const RISK_LABELS: Record<string, string> = {
+  LOW: "Faible",
+  MEDIUM: "Moyen",
+  HIGH: "Élevé",
+  CRITICAL: "Critique",
+};
+
 export function InteractiveRiskPieChart({
   data,
   title = "Distribution du risque",
@@ -72,7 +79,7 @@ export function InteractiveRiskPieChart({
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, value }: any) => `${name}: ${value}`}
+            label={({ name, value }: any) => `${RISK_LABELS[name] ?? name}: ${value}`}
             outerRadius={100}
             onClick={handlePieClick}
             activeIndex={activeIndex}
@@ -99,7 +106,7 @@ export function InteractiveRiskPieChart({
                 className="w-3 h-3 rounded"
                 style={{ backgroundColor: item.fill }}
               />
-              <span>{item.name}: {item.value}</span>
+              <span>{RISK_LABELS[item.name] ?? item.name}: {item.value}</span>
             </div>
           ))}
         </div>
