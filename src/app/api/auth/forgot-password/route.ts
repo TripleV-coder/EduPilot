@@ -53,10 +53,11 @@ export async function POST(request: NextRequest) {
     const token = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Store the token
+    // Store the token, bound to the exact account that requested it
     await prisma.passwordResetToken.create({
       data: {
         email,
+        userId: user.id,
         token,
         expires,
       },

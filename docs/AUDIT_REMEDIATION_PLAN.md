@@ -40,7 +40,7 @@ npm run build          # next build
 - **Vérif faite** : `npx tsc --noEmit` → exit 0.
 - **Reste** : test e2e d'isolation à ajouter (cf P1.1).
 
-### [ ] P0.2 — `/api/grades` n'utilise pas `createApiHandler` (RBAC absent)
+### [x] P0.2 — `/api/grades` n'utilise pas `createApiHandler` (RBAC absent) (fait 2026-06-10)
 - **Problème (CONFIRMÉ)** : `src/app/api/grades/route.ts` GET utilise `auth()` manuel,
   pas de contrôle de permission formel (isolation école présente, mais pas de `Permission.GRADE_READ`).
 - **Fichier** : `src/app/api/grades/route.ts`
@@ -50,7 +50,7 @@ npm run build          # next build
   comportement inchangé pour rôles légitimes.
 - **Vérif** : `npm run test:e2e -- security-rbac` (ajouter grades si absent).
 
-### [ ] P0.3 — IDOR `/api/payments/[id]`
+### [x] P0.3 — IDOR `/api/payments/[id]` (fait 2026-06-10)
 - **Problème** : `findUnique({where:{id}})` puis check parent **après** fetch.
 - **Fichier** : `src/app/api/payments/[id]/route.ts` (~ligne 64-78)
 - **Action** : déplacer le contrôle dans le `where` :
@@ -59,7 +59,7 @@ npm run build          # next build
   sans que l'objet soit lu.
 - **Vérif** : test d'intégration ciblé (cf P1.1).
 
-### [ ] P0.4 — Empty catch blocks (perte silencieuse)
+### [x] P0.4 — Empty catch blocks (perte silencieuse) (fait 2026-06-10)
 - **Fichiers** :
   - `src/app/api/upload/route.ts:77,85`
   - `src/app/api/uploads/[type]/[filename]/route.ts:38,46`
@@ -67,12 +67,12 @@ npm run build          # next build
 - **Done quand** : aucune erreur FS/JSON n'est avalée sans trace.
 - **Vérif** : `grep -rn "catch {" src/app/api` → 0 résultat injustifié.
 
-### [ ] P0.5 — Rate limiting manquant sur endpoints sensibles
+### [x] P0.5 — Rate limiting manquant sur endpoints sensibles (fait 2026-06-10)
 - **Fichiers** : `src/app/api/setup/route.ts`, `src/app/api/auth/initial-setup/route.ts`
 - **Action** : appliquer le rate limiter existant (`src/lib/auth/rate-limiter.ts`).
 - **Done quand** : N tentatives rapides → 429.
 
-### [ ] P0.6 — Token reset password non isolé par école
+### [x] P0.6 — Token reset password non isolé par école (fait 2026-06-10 — lié à userId plutôt que schoolId : email globalement unique, le risque réel était la ré-attribution d'email après suppression de compte)
 - **Fichier** : `src/app/api/auth/forgot-password/route.ts` (~48-64) + `PasswordResetToken` model
 - **Action** : associer `schoolId` au token et le valider à la consommation.
 - **Done quand** : un token émis pour l'école A ne fonctionne pas pour le même email en école B.
@@ -171,4 +171,10 @@ npm run build          # next build
 
 | Date | Tâche | Commit | Notes |
 |------|-------|--------|-------|
-| 2026-06-10 | P0.1 | (pending) | Isolation tenant `compliance/dashboard`. Pas de migration : filtre via relation `user.schoolId` (convention existante). |
+| 2026-06-10 | P0.1 | e1a7c19 | Isolation tenant `compliance/dashboard`. Pas de migration : filtre via relation `user.schoolId` (convention existante). |
+| 2026-06-10 | P0.2 | (cette branche) | `/api/grades` GET migré vers `createApiHandler` + `Permission.GRADE_READ` (tous rôles scolaires l'ont, restrictions enfants/école conservées). |
+| 2026-06-10 | P0.3 | (cette branche) | IDOR payments : contrainte de propriété dans le `where` (`findFirst`), 404 indistinguable, plus aucun fetch avant contrôle. |
+| 2026-06-10 | P0.4 | (cette branche) | Catches vides upload/uploads → `logger.warn` + commentaire de fallback. |
+| 2026-06-10 | P0.5 | (cette branche) | `initial-setup` (et `/api/setup` qui le ré-exporte) : rate limit IP 5/15min + Retry-After. |
+| 2026-06-10 | P0.6 | (cette branche) | `PasswordResetToken.userId` (nullable, db push) renseigné à l'émission, vérifié à la consommation. |
+| 2026-06-10 | a11y | 36aa103 | Suite axe 13/13 verte (contraste tokens, Avatar, NotifItem/Toast/MetricCard, landmarks, heading-order). e2e 77/77. |
