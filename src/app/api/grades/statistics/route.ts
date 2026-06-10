@@ -173,8 +173,10 @@ export async function GET(request: NextRequest) {
 
     if (normalizedValues.length > 0) {
       stats.average = averageNumbers(normalizedValues) ?? 0;
-      stats.highest = Math.max(...normalizedValues);
-      stats.lowest = Math.min(...normalizedValues);
+      // reduce plutôt que Math.max(...arr) : le spread d'un grand tableau
+      // (dizaines de milliers de notes) dépasse la taille de pile d'appels.
+      stats.highest = normalizedValues.reduce((max, v) => (v > max ? v : max), -Infinity);
+      stats.lowest = normalizedValues.reduce((min, v) => (v < min ? v : min), Infinity);
       stats.passRate =
         (normalizedValues.filter((value) => value >= 10).length /
           normalizedValues.length) *

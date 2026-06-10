@@ -23,6 +23,11 @@ const RULES_DISABLED: string[] = [
 ];
 
 async function audit(page: Page) {
+    // Les animations d'entrée (GSAP / Framer Motion) laissent des opacités
+    // intermédiaires sur les runners CI lents : axe calcule alors un
+    // contraste faussé (texte en cours de fade-in). On laisse les
+    // entrances se terminer avant d'analyser.
+    await page.waitForTimeout(1500);
     const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
         .disableRules(RULES_DISABLED)
