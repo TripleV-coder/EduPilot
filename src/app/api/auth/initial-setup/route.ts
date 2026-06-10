@@ -5,6 +5,12 @@ import { isZodError } from "@/lib/is-zod-error";
 import { logger } from "@/lib/utils/logger";
 import { Prisma } from "@prisma/client";
 import * as z from "zod";
+import {
+  checkRateLimit,
+  createRateLimitKey,
+  getClientIp,
+  LOGIN_RATE_LIMIT,
+} from "@/lib/auth/rate-limiter";
 
 const initialSetupSchema = z.object({
   // Informations administrateur - validations renforcées
@@ -45,6 +51,19 @@ const initialSetupSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // Endpoint non authentifié : limiter les tentatives par IP
+    // (même fenêtre que le login : 5 essais / 15 min).
+    const rl = await checkRateLimit(
+      createRateLimitKey("initial-setup", getClientIp(req)),
+      LOGIN_RATE_LIMIT,
+    );
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Trop de tentatives. Veuillez réessayer plus tard." },
+        { status: 429, headers: { "Retry-After": "900" } },
+      );
+    }
+
     // Limite de taille du body pour éviter les attaques
     const body = await req.json();
 

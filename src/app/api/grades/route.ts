@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/grades
  * List grades filtered by studentId, classId, periodId, etc.
+ * RBAC : Permission.GRADE_READ (tous les rôles scolaires l'ont, y compris
+ * PARENT/STUDENT — la restriction enfants/école est appliquée plus bas).
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, { session }) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get("studentId");
         const classId = searchParams.get("classId");
@@ -143,4 +141,4 @@ export async function GET(request: NextRequest) {
         logger.error("Error fetching grades", error as Error);
         return NextResponse.json({ error: "Erreur lors du chargement des notes" }, { status: 500 });
     }
-}
+}, { requiredPermissions: [Permission.GRADE_READ] });

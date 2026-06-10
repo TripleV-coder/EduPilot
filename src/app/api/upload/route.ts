@@ -74,7 +74,15 @@ async function readUploadManifest(): Promise<UploadManifestEntry[]> {
     try {
       const content = await readFile(UPLOAD_MANIFEST_PATH, "utf8");
       entries = JSON.parse(content) as UploadManifestEntry[];
-    } catch { }
+    } catch (error) {
+      // Manifeste illisible/corrompu : on continue avec la liste vide,
+      // mais jamais silencieusement.
+      logger.warn("Upload manifest JSON illisible — ignoré", {
+        module: "api/upload",
+        path: UPLOAD_MANIFEST_PATH,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   if (existsSync(UPLOAD_MANIFEST_PATH_JSONL)) {
@@ -82,7 +90,13 @@ async function readUploadManifest(): Promise<UploadManifestEntry[]> {
       const content = await readFile(UPLOAD_MANIFEST_PATH_JSONL, "utf8");
       const lines = content.split('\n').filter(line => line.trim() !== '');
       entries = entries.concat(lines.map(line => JSON.parse(line)));
-    } catch { }
+    } catch (error) {
+      logger.warn("Upload manifest JSONL illisible — ignoré", {
+        module: "api/upload",
+        path: UPLOAD_MANIFEST_PATH_JSONL,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   return entries;

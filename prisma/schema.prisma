@@ -316,6 +316,10 @@ model VerificationToken {
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String
+  // Lie le token au compte précis qui l'a demandé : un token émis avant
+  // suppression/re-création d'un compte portant le même email (autre école)
+  // ne doit pas pouvoir réinitialiser le nouveau compte.
+  userId    String?
   token     String   @unique
   expires   DateTime
   createdAt DateTime @default(now())

@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
-import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const paymentUpdateSchema = z.object({
@@ -30,8 +30,31 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
-    const payment = await prisma.payment.findUnique({
-      where: { id },
+    // Anti-IDOR : la contrainte de propriété fait partie du `where` — un
+    // paiement hors périmètre n'est jamais lu, la réponse est un 404
+    // indistinguable d'un id inexistant.
+    const ownershipFilter: Record<string, unknown> = {};
+    if (session.user.role === "PARENT") {
+      const parentProfile = await prisma.parentProfile.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          parentStudents: {
+            select: { studentId: true },
+          },
+        },
+      });
+      const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
+      ownershipFilter.studentId = { in: childrenIds };
+    } else if (session.user.role === "STUDENT") {
+      ownershipFilter.student = { userId: session.user.id };
+    } else if (session.user.role !== "SUPER_ADMIN") {
+      ownershipFilter.student = {
+        user: { schoolId: { in: getAccessibleSchoolIds(session) } },
+      };
+    }
+
+    const payment = await prisma.payment.findFirst({
+      where: { id, ...ownershipFilter },
       include: {
         student: {
           select: {
@@ -52,33 +75,6 @@ export async function GET(_request: Request, context: RouteContext) {
 
     if (!payment) {
       return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
-    }
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      !canAccessSchool(session, payment.student.user.schoolId)
-    ) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    if (session.user.role === "PARENT") {
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-        select: {
-          parentStudents: {
-            select: { studentId: true },
-          },
-        },
-      });
-
-      const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
-      if (!childrenIds.includes(payment.student.id)) {
-        return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-      }
-    }
-
-    if (session.user.role === "STUDENT" && payment.student.userId !== session.user.id) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
     return NextResponse.json(payment);
