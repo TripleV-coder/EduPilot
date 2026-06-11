@@ -59,6 +59,13 @@ export async function withCache<T>(
 
     // Execute handler and cache result
     const response = await handler();
+
+    // Ne jamais mettre en cache (ni réécrire) les erreurs et redirections :
+    // re-wrapper sans `status` transformerait un 403/404 en 200.
+    if (response.status < 200 || response.status >= 300) {
+      return response;
+    }
+
     const body = await response.json();
 
     await cache.set(
@@ -71,6 +78,7 @@ export async function withCache<T>(
     );
 
     return NextResponse.json(body, {
+      status: response.status,
       headers: {
         ...Object.fromEntries(response.headers.entries()),
         "X-Cache": "MISS",
