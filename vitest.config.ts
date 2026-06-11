@@ -18,13 +18,14 @@ export default defineConfig({
         'src/lib/swagger.ts',
       ],
       // Thresholds reflect the measured baseline for src/lib/** as of
-      // 2026-05-18 (statements 18.76, branches 13.81, functions 18.51).
-      // Set just under measured so CI is not flaky on small dips. Ratchet
-      // up these numbers as new modules get covered. Target: 60/50/60.
+      // 2026-06-11 (statements 24.09, branches 19.99, functions 24.00),
+      // after the P1 financial/business integration suites. Set just under
+      // measured so CI is not flaky on small dips. Ratchet up these numbers
+      // as new modules get covered. Next milestone: 40 — target: 60/50/60.
       thresholds: {
-        statements: 17,
-        branches: 12,
-        functions: 17,
+        statements: 23,
+        branches: 19,
+        functions: 23,
       },
     },
     testTimeout: 10000,

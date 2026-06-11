@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -25,8 +26,9 @@ export async function GET(request: Request) {
       ? requestedSchoolId
       : requestedSchoolId || activeSchoolId;
     const academicYearId = searchParams.get("academicYearId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const dateRange = parseDateRangeParams(searchParams);
+    if (!dateRange.success) return dateRange.response;
+    const { startDate, endDate } = dateRange;
     const format = searchParams.get("format") || "csv";
 
     if (!schoolId) {
@@ -38,8 +40,8 @@ export async function GET(request: Request) {
 
     // Build date filter
     const dateFilter: Record<string, unknown> = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
+    if (startDate) dateFilter.gte = startDate;
+    if (endDate) dateFilter.lte = endDate;
 
     // Build where clause
     const where: Record<string, unknown> = {
