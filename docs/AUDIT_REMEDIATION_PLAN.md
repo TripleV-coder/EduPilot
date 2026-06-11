@@ -169,9 +169,12 @@ npm run build          # next build
 - `src/app/(dashboard)/dashboard/grades/entry/page.tsx` (1218)
 - `src/lib/services/analytics-dashboard.ts` (1205)
 
-### [ ] P3.2 — Factoriser duplication
-- Formulaires `*/new/page.tsx` (students/teachers/users/incidents/classes) → `<FormPageTemplate>`
-- Variantes PieChart (`BasePieChart` + 3 dérivés) → composant base + props
+### [x] P3.2 — Factoriser duplication (fait 2026-06-11)
+- [x] `<FormPageTemplate>` créé (`src/components/layout/form-page-template.tsx` : PageGuard +
+  conteneur + bouton retour + PageHeader) et appliqué à students/teachers/users/classes `*/new`.
+  incidents/new garde son en-tête à breadcrumbs (structure différente, pas de duplication).
+- [x] Variantes PieChart : constat à la vérification — DÉJÀ factorisé (`BasePieChart` + 
+  RiskPieChart/CategoryPieChart/InteractiveRiskPieChart en dérivés props).
 
 ### [~] P3.3 — Éradiquer les `any` de formulaires (critique + 6 pages faits 2026-06-11)
 - [x] Critique : `compliance/data-requests/[id]/route.ts` — `updateData as any` remplacé par un

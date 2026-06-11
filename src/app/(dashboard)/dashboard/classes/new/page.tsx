@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
-import { AlertCircle, Save, ArrowLeft, CheckCircle, BookOpen } from "lucide-react";
+import { AlertCircle, Save, CheckCircle, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -104,19 +103,14 @@ export default function NewClassPage() {
     };
 
     return (
-        <PageGuard permission={Permission.CLASS_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <div className="space-y-6 max-w-2xl mx-auto">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/classes">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <PageHeader
-                        title="Créer une classe"
-                        description="Ajouter une nouvelle classe à l'établissement"
-                    />
-                </div>
+        <FormPageTemplate
+            permission={Permission.CLASS_CREATE}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+            backHref="/dashboard/classes"
+            title="Créer une classe"
+            description="Ajouter une nouvelle classe à l'établissement"
+            maxWidth="max-w-2xl"
+        >
 
                 <Card className="border-border shadow-sm">
                     <CardHeader className="border-b bg-muted/30">
@@ -248,7 +242,6 @@ export default function NewClassPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }

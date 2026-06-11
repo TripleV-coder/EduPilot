@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, UserPlus, ArrowLeft, CheckCircle, Info } from "lucide-react";
+import { AlertCircle, UserPlus, CheckCircle, Info } from "lucide-react";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { Permission } from "@/lib/rbac/permissions";
@@ -183,19 +182,14 @@ export default function NewUserPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.USER_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-3xl mx-auto">
-                <div className="flex items-center gap-4 mb-2">
-                    <Button variant="ghost" size="icon" asChild className="rounded-full shrink-0">
-                        <Link href="/dashboard/users">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Link>
-                    </Button>
-                    <PageHeader
-                        title="Nouvel Utilisateur"
-                        description="Créer un compte pour un membre du personnel"
-                    />
-                </div>
+        <FormPageTemplate
+            permission={[Permission.USER_CREATE]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+            backHref="/dashboard/users"
+            title="Nouvel Utilisateur"
+            description="Créer un compte pour un membre du personnel"
+            maxWidth="max-w-3xl"
+        >
 
                 <Card className="border-border shadow-sm">
                     <CardHeader className="bg-muted/30 border-b border-border pb-6">
@@ -532,7 +526,6 @@ export default function NewUserPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }

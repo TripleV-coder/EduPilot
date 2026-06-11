@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,7 @@ import {
 import { Permission } from "@/lib/rbac/permissions";
 import { StudentIdentityFields, StudentContactFields } from "@/components/students/student-basic-fields";
 import { studentCreateSchema } from "@/lib/validations/user";
-import { AlertCircle, Save, ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Save, UserPlus, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -121,19 +120,14 @@ export default function NewStudentPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.STUDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto pb-10">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/students">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <PageHeader
-                        title="Inscrire un(e) Élève"
-                        description="Veuillez remplir les informations pour créer le compte de l'élève."
-                    />
-                </div>
+        <FormPageTemplate
+            permission={[Permission.STUDENT_CREATE]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}
+            backHref="/dashboard/students"
+            title="Inscrire un(e) Élève"
+            description="Veuillez remplir les informations pour créer le compte de l'élève."
+            className="pb-10"
+        >
 
                 <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6 text-sm text-muted-foreground">
                     <AlertCircle className="w-5 h-5 inline-block mr-2 text-primary" />
@@ -301,7 +295,6 @@ export default function NewStudentPage() {
                         </div>
                     </form>
                 </Form>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }
