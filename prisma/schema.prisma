@@ -129,6 +129,8 @@ model School {
   journalEntries         JournalEntry[]
   voiceCampaigns         VoiceCampaign[]
   benchmarkSnapshots     BenchmarkSnapshot[]
+  transportLines         TransportLine[]
+  transportBuses         Bus[]
 
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
@@ -442,6 +444,7 @@ model StudentProfile {
   studentOrientations StudentOrientation[]
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transports          StudentTransport[]
 
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
@@ -2740,4 +2743,127 @@ model BenchmarkSnapshotIndicator {
 
   @@index([snapshotId])
   @@map("benchmark_snapshot_indicators")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Transport scolaire (P2.4 — 2026-06-12)
+// ─────────────────────────────────────────────────────────────
+
+enum TransportLineStatus {
+  ON_TIME
+  DELAYED
+  INCIDENT
+  INACTIVE
+}
+
+enum TransportDirection {
+  OUTBOUND
+  RETURN
+  BOTH
+}
+
+model TransportLine {
+  id        String              @id @default(cuid())
+  schoolId  String
+  number    String // ex. "L1"
+  label     String // ex. "Ganhi → Campus"
+  direction TransportDirection  @default(BOTH)
+  status    TransportLineStatus @default(ON_TIME)
+  note      String?
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  school   School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  buses    Bus[]
+  stops    BusRoute[]
+  students StudentTransport[]
+
+  @@unique([schoolId, number])
+  @@index([schoolId, isActive])
+  @@map("transport_lines")
+}
+
+model Bus {
+  id          String   @id @default(cuid())
+  schoolId    String
+  lineId      String?
+  plateNumber String
+  capacity    Int      @default(30)
+  driverName  String?
+  driverPhone String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  line   TransportLine? @relation(fields: [lineId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, plateNumber])
+  @@index([schoolId, isActive])
+  @@map("buses")
+}
+
+model BusRoute {
+  id            String  @id @default(cuid())
+  lineId        String
+  name          String // ex. "Carrefour Ganhi"
+  order         Int // position de l'arrêt sur la ligne
+  scheduledTime String? // "07:15"
+  latitude      Float?
+  longitude     Float?
+
+  line     TransportLine      @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  students StudentTransport[]
+
+  @@unique([lineId, order])
+  @@map("bus_routes")
+}
+
+model StudentTransport {
+  id        String             @id @default(cuid())
+  studentId String
+  lineId    String
+  stopId    String?
+  direction TransportDirection @default(BOTH)
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  line    TransportLine  @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stop    BusRoute?      @relation(fields: [stopId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, lineId])
+  @@index([lineId, isActive])
+  @@map("student_transports")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Observabilité produit (P2.4 — 2026-06-12)
+// ─────────────────────────────────────────────────────────────
+
+model PerformanceMetric {
+  id        String   @id @default(cuid())
+  metric    String // "LCP" | "CLS" | "INP" | "FCP" | "TTFB"
+  value     Float
+  rating    String? // good | needs-improvement | poor
+  pathname  String?
+  createdAt DateTime @default(now())
+
+  @@index([metric, createdAt])
+  @@index([createdAt])
+  @@map("performance_metrics")
+}
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  event     String
+  pathname  String?
+  userId    String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([createdAt])
+  @@map("telemetry_events")
 }

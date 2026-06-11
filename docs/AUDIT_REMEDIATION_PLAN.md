@@ -146,10 +146,21 @@ npm run build          # next build
 - **Fichier** : `src/app/(dashboard)/dashboard/accounting/page.tsx:188` + échéances `:808`, écriture manuelle `:191`
 - **Bloqueur** : spécification format DGI.
 
-### [ ] P2.4 — Modèles Prisma manquants
-- **Transport** : `src/app/api/transport/lines/route.ts` → créer `TransportLine/Bus/BusRoute/StudentTransport`
-- **Performance** : `src/app/api/performance/dashboard/route.ts` (Web Vitals à 0) → modèle `PerformanceMetric` ou source réelle
-- **Télémétrie UX** : `src/app/api/ux/events/route.ts` (events jetés) → table `TelemetryEvent` ou queue
+### [x] P2.4 — Modèles Prisma manquants (fait 2026-06-12, décision propriétaire « fais tout »)
+- [x] **Transport** : modèles `TransportLine/Bus/BusRoute/StudentTransport` + route
+  `/api/transport/lines` branchée (lignes, statuts FR, chauffeurs, effectifs, notifications,
+  `configured=false` si école sans flotte) + `prisma/seed-transport.ts` (idempotent).
+  `morningLatencyAvg` reste null assumé : pas de source GPS réelle.
+- [x] **Performance** : modèle `PerformanceMetric` + NOUVELLE route POST
+  `/api/analytics/web-vitals` (le client web-vitals.ts postait dans le vide : 404) ;
+  `/api/performance/dashboard` agrège désormais le p75 réel 24 h avec les seuils web.dev.
+  Flag `NEXT_PUBLIC_ANALYTICS_ENABLED` documenté dans .env.example.
+- [x] **Télémétrie UX** : modèle `TelemetryEvent` ; `/api/ux/events` persiste (userId de
+  session si présent, anonyme sinon, rate-limit IP).
+- **Migration** `20260611231803_add_transport_telemetry_and_reset_token_user` : capture aussi
+  le drift `PasswordResetToken.userId` (P0.6 appliqué en db push sans migration — la prod en
+  `migrate deploy` ne l'aurait jamais reçu). DB dev reset + re-seed avec accord propriétaire.
+- Tests : `tests/api/observability.test.ts` (12).
 
 ### [ ] P2.5 — Modules sans dépendance externe (dev pur, à prioriser)
 - **Wellbeing** : PDF rapport climat + dossiers (`wellbeing/page.tsx:209,212,522`)
