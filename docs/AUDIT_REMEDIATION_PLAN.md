@@ -173,11 +173,19 @@ npm run build          # next build
 - Formulaires `*/new/page.tsx` (students/teachers/users/incidents/classes) → `<FormPageTemplate>`
 - Variantes PieChart (`BasePieChart` + 3 dérivés) → composant base + props
 
-### [~] P3.3 — Éradiquer les `any` de formulaires (critique fait 2026-06-11)
+### [~] P3.3 — Éradiquer les `any` de formulaires (critique + 6 pages faits 2026-06-11)
 - [x] Critique : `compliance/data-requests/[id]/route.ts` — `updateData as any` remplacé par un
   snapshot JSON explicite typé `Prisma.InputJsonValue` (le connect Prisma et la Date n'étaient
   pas sérialisables tels quels dans la colonne Json de l'audit RGPD).
-- [ ] Reste : ~10 pages avec `zodResolver(schema) as any` et `useSWR<any>` (non bloquant).
+- [x] 6 fichiers décastés (users/new, courses/new, classes/new, teachers/new,
+  teachers/[teacherId], EvaluationSheet). **Recette** : zod 4 type l'entrée de `z.coerce.*`
+  en `unknown` → déclarer l'entrée (`z.coerce.date<string | Date>()`,
+  `z.coerce.number<string | number>()` dans validations/user.ts et school.ts) puis
+  `useForm<z.input<typeof schema>, unknown, FormValues>` au lieu de `resolver as any`.
+- [ ] Reste (dette structurelle, non bloquant) : students/new, student-edit-dialog,
+  incidents/new — RHF 7.76 rend `Control<T>` invariant, les composants partagés
+  `Control<any>` (student-basic-fields) n'acceptent plus un control typé → refactor
+  `useFormContext` requis. parent-finance-view : typage jspdf-autotable.
 
 ### [x] P3.4 — `console.log` en prod (fait 2026-06-11)
 - [x] `src/lib/email.ts` : dump console (destinataire + HTML complet) remplacé par
@@ -212,3 +220,4 @@ npm run build          # next build
 | 2026-06-11 | P1.2 | (branche B) | Couverture 18.76→24.09 statements ; seuils CI ratchetés 17/12/17 → 23/19/23. Cible 40 au prochain lot. |
 | 2026-06-11 | P1.1 fin + P1.2 fin | chore/p1-p3-completion | report-cards testé (8) ; +141 tests lib (algorithmes, services, validations, parsers, email) ; couverture 24→41.4 statements, seuils 40/32/38. **P1 complet.** |
 | 2026-06-11 | P3.3 critique + P3.4 + P3.5 | chore/p1-p3-completion | Audit RGPD : snapshot JSON typé au lieu de `as any` ; email : logger + maskEmail ; 7 error boundaries → logger centralisé ; config-service : warn sur fallback Bénin. |
+| 2026-06-11 | P3.3 (6 pages) | chore/p1-p3-completion | Resolvers décastés via entrées coerce typées (zod 4) + `useForm<z.input, unknown, Output>`. Reste : 3 pages bloquées par l'invariance `Control<T>` de RHF 7.76 (refactor useFormContext) + jspdf. |

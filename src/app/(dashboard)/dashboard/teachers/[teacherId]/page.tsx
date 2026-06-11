@@ -66,7 +66,7 @@ type SchoolOption = {
   code: string;
 };
 
-function toDateInputValue(value?: string | null) {
+function toDateInputValue(value?: string | Date | null) {
   if (!value) return "";
   return new Date(value).toISOString().split("T")[0];
 }
@@ -99,8 +99,10 @@ export default function TeacherDetailPage() {
       ? schoolsResponse
       : [];
 
-  const form = useForm<TeacherFormValues>({
-    resolver: zodResolver(teacherUpdateSchema) as any,
+  // hireDate (coerce) rend le type d'entrée ≠ type de sortie : trois
+  // génériques au lieu d'un cast.
+  const form = useForm<z.input<typeof teacherUpdateSchema>, unknown, TeacherFormValues>({
+    resolver: zodResolver(teacherUpdateSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -131,7 +133,7 @@ export default function TeacherDetailPage() {
       phone: teacher.user.phone || "",
       matricule: teacher.matricule || "",
       specialization: teacher.specialization || "",
-      hireDate: teacher.hireDate ? (new Date(teacher.hireDate) as any) : undefined,
+      hireDate: teacher.hireDate ? new Date(teacher.hireDate) : undefined,
       isActive: teacher.user.isActive,
       primarySchoolId,
       additionalSchoolIds: teacherSchoolIds.filter((schoolId) => schoolId !== primarySchoolId),
@@ -386,7 +388,7 @@ export default function TeacherDetailPage() {
                               <FormControl>
                                 <Input
                                   type="date"
-                                  value={field.value ? toDateInputValue(field.value as any) : ""}
+                                  value={field.value ? toDateInputValue(field.value) : ""}
                                   onChange={(event) => field.onChange(event.target.value ? new Date(event.target.value) : undefined)}
                                 />
                               </FormControl>

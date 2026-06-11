@@ -81,8 +81,10 @@ export default function NewCoursePage() {
     const [mySubjects, setMySubjects] = useState<any[]>([]);
     const [expandedModule, setExpandedModule] = useState<number | null>(0);
 
-    const form = useForm<CourseFormValues>({
-        resolver: zodResolver(courseSchema) as any,
+    // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
+    // remplacent le cast du resolver.
+    const form = useForm<z.input<typeof courseSchema>, unknown, CourseFormValues>({
+        resolver: zodResolver(courseSchema),
         defaultValues: {
             title: "",
             description: "",

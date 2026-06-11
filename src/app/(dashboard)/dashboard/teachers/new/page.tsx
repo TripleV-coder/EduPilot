@@ -35,8 +35,10 @@ export default function NewTeacherPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const form = useForm<TeacherFormValues>({
-        resolver: zodResolver(teacherCreateSchema) as any,
+    // additionalSchoolIds (.default) et hireDate (coerce) rendent le type
+    // d'entrée ≠ type de sortie : trois génériques au lieu d'un cast.
+    const form = useForm<z.input<typeof teacherCreateSchema>, unknown, TeacherFormValues>({
+        resolver: zodResolver(teacherCreateSchema),
         defaultValues: {
             firstName: "",
             lastName: "",
@@ -45,7 +47,7 @@ export default function NewTeacherPage() {
             password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
-            hireDate: undefined as any,
+            hireDate: undefined,
         },
     });
 
@@ -100,7 +102,7 @@ export default function NewTeacherPage() {
             password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
-            hireDate: undefined as any,
+            hireDate: undefined,
         });
     };
 

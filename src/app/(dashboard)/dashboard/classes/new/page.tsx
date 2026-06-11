@@ -45,8 +45,10 @@ export default function NewClassPage() {
     const classLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
     const teachers = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.teachers || teachersResponse?.data || [];
 
-    const form = useForm<ClassFormValues>({
-        resolver: zodResolver(classSchema) as any,
+    // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
+    // remplacent le cast du resolver.
+    const form = useForm<z.input<typeof classSchema>, unknown, ClassFormValues>({
+        resolver: zodResolver(classSchema),
         defaultValues: {
             name: "",
             classLevelId: "",

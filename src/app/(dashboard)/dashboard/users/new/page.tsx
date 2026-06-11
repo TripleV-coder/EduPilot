@@ -43,10 +43,10 @@ const formSchema = z.object({
     schoolAddress: z.string().optional(),
     schoolCity: z.string().optional(),
     schoolPhone: z.string().optional(),
-    schoolEmail: z.preprocess(
-        (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-        z.string().email("Email invalide").optional()
-    ),
+    // Champ facultatif : la chaîne vide du formulaire est acceptée telle
+    // quelle (convertie en undefined au moment du payload), ce qui garde
+    // input = output et évite tout cast du resolver.
+    schoolEmail: z.union([z.literal(""), z.string().email("Email invalide")]).optional(),
     schoolType: z.enum(["PUBLIC", "PRIVATE", "RELIGIOUS", "INTERNATIONAL"]).optional(),
     schoolLevel: z.enum(["PRIMARY", "SECONDARY_COLLEGE", "SECONDARY_LYCEE", "MIXED"]).optional(),
     parentSchoolId: z.string().optional(),
@@ -69,7 +69,7 @@ export default function NewUserPage() {
         : schoolsData?.data || schoolsData?.schools || [];
 
     const form = useForm<UserFormValues>({
-        resolver: zodResolver(formSchema) as any,
+        resolver: zodResolver(formSchema),
         defaultValues: {
             firstName: "",
             lastName: "",
