@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 /**
  * GET /api/audit-logs
@@ -15,8 +16,9 @@ export const GET = createApiHandler(
     const action = searchParams.get("action");
     const entity = searchParams.get("entity");
     const entityId = searchParams.get("entityId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const dateRange = parseDateRangeParams(searchParams);
+    if (!dateRange.success) return dateRange.response;
+    const { startDate, endDate } = dateRange;
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -48,10 +50,10 @@ export const GET = createApiHandler(
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        where.createdAt.gte = new Date(startDate);
+        where.createdAt.gte = startDate;
       }
       if (endDate) {
-        where.createdAt.lte = new Date(endDate);
+        where.createdAt.lte = endDate;
       }
     }
 

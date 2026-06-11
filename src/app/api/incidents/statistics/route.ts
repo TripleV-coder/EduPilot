@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 // GET /api/incidents/statistics - Get incident statistics
 export async function GET(request: NextRequest) {
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = url;
     const classId = searchParams.get("classId");
     const studentId = searchParams.get("studentId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const dateRange = parseDateRangeParams(searchParams);
+    if (!dateRange.success) return dateRange.response;
+    const { startDate, endDate } = dateRange;
     const period = searchParams.get("period"); // "week", "month", "year"
 
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
@@ -38,11 +40,11 @@ export async function GET(request: NextRequest) {
       monthStart.setMonth(now.getMonth() - 1);
       dateFilter.gte = monthStart;
     } else if (startDate) {
-      dateFilter.gte = new Date(startDate);
+      dateFilter.gte = startDate;
     }
 
     if (endDate) {
-      dateFilter.lte = new Date(endDate);
+      dateFilter.lte = endDate;
     }
 
     // Build where clause

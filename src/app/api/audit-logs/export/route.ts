@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { translateEntity } from "@/lib/utils/entity-translator";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 /**
  * GET /api/audit-logs/export
@@ -24,8 +25,9 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const action = searchParams.get("action");
     const entity = searchParams.get("entity");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const dateRange = parseDateRangeParams(searchParams);
+    if (!dateRange.success) return dateRange.response;
+    const { startDate, endDate } = dateRange;
 
     const where: Prisma.AuditLogWhereInput = {};
 
@@ -60,8 +62,8 @@ export async function GET(request: NextRequest) {
 
     if (startDate || endDate) {
       where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
     }
 
     const logs = await prisma.auditLog.findMany({

@@ -9,6 +9,7 @@ import {
     syncPaymentPlanLedger,
 } from "@/lib/finance/helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 
 export const GET = createApiHandler(
@@ -18,8 +19,9 @@ export const GET = createApiHandler(
         const feeId = searchParams.get("feeId");
         const method = searchParams.get("method");
         const status = searchParams.get("status");
-        const startDate = searchParams.get("startDate");
-        const endDate = searchParams.get("endDate");
+        const dateRange = parseDateRangeParams(searchParams);
+        if (!dateRange.success) return dateRange.response;
+        const { startDate, endDate } = dateRange;
         const page = parseInt(searchParams.get("page") || "1");
         const pageSize = parseInt(searchParams.get("pageSize") || "20");
 
@@ -30,10 +32,7 @@ export const GET = createApiHandler(
         if (method) where.method = method as any; // Cast to enum
         if (status) where.status = status as any; // Cast to enum
 
-        Object.assign(where, buildPaymentDateWhere({
-            startDate: startDate ? new Date(startDate) : undefined,
-            endDate: endDate ? new Date(endDate) : undefined,
-        }));
+        Object.assign(where, buildPaymentDateWhere({ startDate, endDate }));
 
         // Improve: Filter by school (via Student or Fee)
         // Account for accountant only seeing their school's payments

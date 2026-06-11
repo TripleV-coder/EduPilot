@@ -83,28 +83,41 @@ npm run build          # next build
 
 > Aujourd'hui : **2 routes testées / 246**, couverture CI à 17 %. Domaines financiers = 0 test.
 
-### [ ] P1.1 — Suite de tests d'intégration API financiers
+### [x] P1.1 — Suite de tests d'intégration API financiers (fait 2026-06-11)
 - **Cibles prioritaires** :
-  - Paiements : `src/app/api/payments/*` (8 routes) — méthodes cash/mobile/chèque, IDOR (P0.3)
-  - Plans de paiement : `src/app/api/payment-plans/*` (échéances, statuts)
-  - Comptabilité OHADA : `src/app/api/accounting/*` — cohérence débit/crédit, balance
-  - Grades : `src/app/api/grades/{batch,report-cards,stats}` — bulletins
-  - Examens : `src/app/api/exams/{start,submit}` — scoring
-- **Action** : créer `tests/api/*.test.ts` avec fixtures DB reproductibles.
-- **Done quand** : chaque domaine a au moins les cas nominal + refus d'accès + cross-tenant.
+  - [x] Paiements : `tests/api/payments.test.ts` (22 tests) — liste/POST/IDOR P0.3/cash/plafond solde
+  - [x] Plans de paiement : `tests/api/payment-plans.test.ts` (15) — création, bourses, pay échéance
+  - [x] Comptabilité OHADA : `tests/api/accounting.test.ts` (6) — soldes 57x/52x/53x, résultat, partie double
+  - [x] Grades : `tests/api/grades.test.ts` (15) — batch (anti-fraude, barème, période close), statistics (+ régression 50k notes)
+  - [x] Examens : `tests/api/exams.test.ts` (12) — start (publication, inscription, P2002), submit (scoring, isPassed)
+  - [x] Moteur ledger : `tests/lib/finance-helpers.test.ts` (20) — `syncPaymentPlanLedger`, allocation, statuts
+- **Convention retenue** : handlers de route testés avec `@/lib/prisma`/`@/lib/auth` mockés
+  (pattern homework.test.ts) ; helpers communs dans `tests/api/test-helpers.ts`.
+- **Bug réel trouvé et corrigé** : `withCache` (cache-helpers) ré-encapsulait les réponses sans
+  `status` (403→200) et cachait les erreurs. `report-cards` reste à couvrir (génération PDF).
+- **Done** : chaque domaine a nominal + refus d'accès + cross-tenant. 705 tests verts.
 
-### [ ] P1.2 — Remonter le seuil de couverture CI
+### [~] P1.2 — Remonter le seuil de couverture CI (17 → 23 fait 2026-06-11, cible 40)
 - **Fichier** : config Vitest coverage + `.github/workflows/ci.yml`
 - **Action** : passer le seuil statements de 17 % → 40 % progressivement.
-- **Done quand** : CI verte avec nouveau seuil.
+- **Fait** : mesuré 24.09/19.99/24.00 après P1.1 → seuils ratchetés à 23/19/23.
+- **Reste** : couvrir les gros modules lib non testés (ai-service, analytics-dashboard,
+  services/*) pour atteindre 40. Prochain palier au prochain lot de tests.
 
-### [ ] P1.3 — Validation Zod des inputs date
+### [x] P1.3 — Validation Zod des inputs date (fait 2026-06-11)
 - **Fichier** : `src/app/api/audit-logs/route.ts` (~48-55) et routes similaires
-- **Action** : valider `startDate/endDate` via `z.string().datetime()`.
+- **Fait** : helper partagé `src/lib/validations/date-range.ts` (`parseDateRangeParams`,
+  z.coerce.date + contrôle start ≤ end, 400 explicite) appliqué aux 6 routes qui faisaient
+  `new Date(searchParams)` sans validation : audit-logs, audit-logs/export, attendance/stats,
+  incidents/statistics, finance/payments, finance/export. Tests : validations-date-range (7)
+  + audit-logs (6).
 
-### [ ] P1.4 — Détection MIME indépendante sur upload
+### [x] P1.4 — Détection MIME indépendante sur upload (vérifié 2026-06-11 : déjà implémenté)
 - **Fichier** : `src/app/api/upload/route.ts`
-- **Action** : détecter le type réel depuis les magic bytes (lib `file-type`) au lieu du type déclaré.
+- **Constat** : la route avait déjà une validation magic bytes maison (`MAGIC_BYTES` +
+  `validateMagicBytes`, lignes 27-66) appliquée au buffer avant écriture — équivalent de la
+  lib `file-type` pour les types autorisés. Verrouillé par `tests/api/upload.test.ts` (9 tests :
+  ELF déguisé en PNG, PDF déclaré JPEG, avatar non-image, path traversal du paramètre type).
 
 ---
 
@@ -178,3 +191,7 @@ npm run build          # next build
 | 2026-06-10 | P0.5 | (cette branche) | `initial-setup` (et `/api/setup` qui le ré-exporte) : rate limit IP 5/15min + Retry-After. |
 | 2026-06-10 | P0.6 | (cette branche) | `PasswordResetToken.userId` (nullable, db push) renseigné à l'émission, vérifié à la consommation. |
 | 2026-06-10 | a11y | 36aa103 | Suite axe 13/13 verte (contraste tokens, Avatar, NotifItem/Toast/MetricCard, landmarks, heading-order). e2e 77/77. |
+| 2026-06-11 | P1.1 | 8a84674 + (branche B) | 90 tests d'intégration (payments, payment-plans, accounting, grades, exams, upload, audit-logs) + 20 tests ledger. Bug réel corrigé : withCache transformait les 403 en 200 et cachait les erreurs. |
+| 2026-06-11 | P1.3 | (branche B) | Helper date-range Zod partagé, 6 routes patchées, 400 explicite sur dates invalides. |
+| 2026-06-11 | P1.4 | (branche B) | Déjà implémenté (magic bytes maison) — verrouillé par 9 tests anti-spoofing. |
+| 2026-06-11 | P1.2 | (branche B) | Couverture 18.76→24.09 statements ; seuils CI ratchetés 17/12/17 → 23/19/23. Cible 40 au prochain lot. |

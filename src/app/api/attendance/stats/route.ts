@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 /**
  * GET /api/attendance/stats
@@ -22,8 +23,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = url;
     const studentId = searchParams.get("studentId");
     const classId = searchParams.get("classId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const dateRange = parseDateRangeParams(searchParams);
+    if (!dateRange.success) return dateRange.response;
+    const { startDate, endDate } = dateRange;
     const activeSchoolId = getActiveSchoolId(session);
 
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
@@ -35,8 +37,8 @@ export async function GET(request: NextRequest) {
 
       if (startDate || endDate) {
         where.date = {};
-        if (startDate) (where.date as Prisma.DateTimeFilter).gte = new Date(startDate);
-        if (endDate) (where.date as Prisma.DateTimeFilter).lte = new Date(endDate);
+        if (startDate) (where.date as Prisma.DateTimeFilter).gte = startDate;
+        if (endDate) (where.date as Prisma.DateTimeFilter).lte = endDate;
       }
 
       // Role-based filtering
