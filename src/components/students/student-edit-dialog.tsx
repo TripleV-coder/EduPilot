@@ -40,8 +40,14 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const form = useForm<z.infer<typeof studentUpdateSchema>>({
-        resolver: zodResolver(studentUpdateSchema) as any,
+    // dateOfBirth (coerce) rend le type d'entrée ≠ type de sortie : trois
+    // génériques au lieu d'un cast du resolver.
+    const form = useForm<
+        z.input<typeof studentUpdateSchema>,
+        unknown,
+        z.infer<typeof studentUpdateSchema>
+    >({
+        resolver: zodResolver(studentUpdateSchema),
         defaultValues: {
             firstName: student?.user?.firstName || "",
             lastName: student?.user?.lastName || "",
@@ -92,8 +98,8 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <StudentIdentityFields control={form.control as any} showDescriptions={false} />
-                            <StudentContactFields control={form.control as any} showDescriptions={false} />
+                            <StudentIdentityFields showDescriptions={false} />
+                            <StudentContactFields showDescriptions={false} />
                         </div>
 
                         <FormField

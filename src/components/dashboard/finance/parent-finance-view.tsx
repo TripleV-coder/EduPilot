@@ -20,7 +20,8 @@ export function ParentFinanceView() {
 
     const generateReceipt = async (payment: any) => {
         const { jsPDF } = await import("jspdf");
-        await import("jspdf-autotable");
+        // API fonctionnelle d'autotable v5 : typée, sans patch du prototype jsPDF
+        const { default: autoTable } = await import("jspdf-autotable");
         const doc = new jsPDF();
         
         // Header
@@ -51,16 +52,17 @@ export function ParentFinanceView() {
             ["Statut", "Validé / Payé"]
         ];
         
-        (doc as any).autoTable({
+        autoTable(doc, {
             startY: 85,
             head: [["Description", "Informations"]],
             body: tableData,
             theme: "striped",
             headStyles: { fillColor: [79, 70, 229] }
         });
-        
-        // Footer
-        const finalY = (doc as any).lastAutoTable.finalY || 150;
+
+        // Footer — lastAutoTable est posé par autotable sur l'instance jsPDF
+        const finalY =
+            (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 150;
         doc.setFontSize(10);
         doc.setFont("helvetica", "italic");
         doc.text("Ce document tient lieu de preuve de paiement officielle.", 105, finalY + 20, { align: "center" });

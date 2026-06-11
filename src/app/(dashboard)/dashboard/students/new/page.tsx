@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 
 type StudentFormValues = z.infer<typeof studentCreateSchema>;
 
-const formatDateInput = (value?: Date) => {
+const formatDateInput = (value?: string | Date) => {
     if (!value) return "";
     const date = new Date(value);
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -59,9 +59,11 @@ export default function NewStudentPage() {
     const academicYears = Array.isArray(yearsData) ? yearsData : yearsData?.data || [];
     const currentYear = academicYears.find((y: any) => y.isCurrent)?.id || academicYears[0]?.id;
 
-    // React Hook Form
-    const form = useForm<StudentFormValues>({
-        resolver: zodResolver(studentCreateSchema) as any,
+    // React Hook Form — dateOfBirth (coerce) et nationality (.default)
+    // rendent le type d'entrée ≠ type de sortie : trois génériques au lieu
+    // d'un cast du resolver.
+    const form = useForm<z.input<typeof studentCreateSchema>, unknown, StudentFormValues>({
+        resolver: zodResolver(studentCreateSchema),
         defaultValues: {
             email: "",
             firstName: "",
@@ -149,8 +151,8 @@ export default function NewStudentPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <StudentIdentityFields control={form.control as any} showDescriptions={true} />
-                                <FormField control={form.control as any} name="dateOfBirth" render={({ field }) => (
+                                <StudentIdentityFields showDescriptions={true} />
+                                <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Date de naissance</FormLabel>
                                         <FormControl>
@@ -170,7 +172,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="birthPlace" render={({ field }) => (
+                                <FormField control={form.control} name="birthPlace" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Lieu de naissance</FormLabel>
                                         <FormControl><Input {...field} /></FormControl>
@@ -180,7 +182,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="nationality" render={({ field }) => (
+                                <FormField control={form.control} name="nationality" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Nationalité</FormLabel>
                                         <FormControl>
@@ -205,7 +207,7 @@ export default function NewStudentPage() {
                                 <CardTitle className="text-lg">Scolarité Actuelle</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormField control={form.control as any} name="classId" render={({ field }) => (
+                                <FormField control={form.control} name="classId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Classe d'affectation <span className="text-destructive">*</span></FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -226,7 +228,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="academicYearId" render={({ field }) => (
+                                <FormField control={form.control} name="academicYearId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Année Académique <span className="text-destructive">*</span></FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -255,8 +257,8 @@ export default function NewStudentPage() {
                                 <CardTitle className="text-lg">Compte & Contacts</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <StudentContactFields control={form.control as any} showDescriptions={true} />
-                                <FormField control={form.control as any} name="password" render={({ field }) => (
+                                <StudentContactFields showDescriptions={true} />
+                                <FormField control={form.control} name="password" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Mot de passe provisoire <span className="text-destructive">*</span></FormLabel>
                                         <FormControl>

@@ -10,14 +10,22 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Control } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 
+/**
+ * Champs partagés des formulaires élève (création + édition).
+ *
+ * Le formulaire parent doit être enveloppé dans `<Form {...form}>`
+ * (FormProvider) : les champs récupèrent le control via useFormContext,
+ * ce qui évite de passer un `Control<T>` typé (invariant depuis RHF 7.76)
+ * à travers les props.
+ */
 interface StudentBasicFieldsProps {
-    control: Control<any>;
     showDescriptions?: boolean;
 }
 
-export function StudentIdentityFields({ control, showDescriptions = false }: StudentBasicFieldsProps) {
+export function StudentIdentityFields({ showDescriptions = false }: StudentBasicFieldsProps) {
+    const { control } = useFormContext();
     return (
         <>
             <FormField
@@ -93,7 +101,8 @@ export function StudentIdentityFields({ control, showDescriptions = false }: Stu
     );
 }
 
-export function StudentContactFields({ control, showDescriptions = false }: StudentBasicFieldsProps) {
+export function StudentContactFields({ showDescriptions = false }: StudentBasicFieldsProps) {
+    const { control } = useFormContext();
     return (
         <>
             <FormField

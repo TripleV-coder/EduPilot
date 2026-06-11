@@ -69,8 +69,10 @@ export default function NewIncidentPage() {
     const { data: studentsData, isLoading: isLoadingStudents } = useSWR("/api/students?limit=200", fetcher);
     const students = studentsData?.students || [];
 
-    const form = useForm<IncidentFormValues>({
-        resolver: zodResolver(incidentCreateSchema) as any,
+    // severity (.default) rend le type d'entrée ≠ type de sortie : trois
+    // génériques au lieu d'un cast du resolver.
+    const form = useForm<z.input<typeof incidentCreateSchema>, unknown, IncidentFormValues>({
+        resolver: zodResolver(incidentCreateSchema),
         defaultValues: {
             studentId: "",
             incidentType: "OTHER",
@@ -138,17 +140,17 @@ export default function NewIncidentPage() {
                 <Card className="border-border shadow-sm">
                     <CardContent className="pt-6">
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-8">
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                                 <div className="space-y-4">
                                     <h3 className="text-lg font-medium">Détails de l'élève</h3>
 
                                     <FormField
-                                        control={form.control as any}
+                                        control={form.control}
                                         name="studentId"
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Élève concerné *</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value as string}>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder={isLoadingStudents ? "Chargement des élèves..." : "Sélectionner un élève"} />
@@ -173,12 +175,12 @@ export default function NewIncidentPage() {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField
-                                            control={form.control as any}
+                                            control={form.control}
                                             name="incidentType"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Type d'incident *</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value as string}>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue />
@@ -198,12 +200,12 @@ export default function NewIncidentPage() {
                                         />
 
                                         <FormField
-                                            control={form.control as any}
+                                            control={form.control}
                                             name="severity"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Gravité *</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value as string}>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue />
@@ -223,13 +225,13 @@ export default function NewIncidentPage() {
                                         />
 
                                         <FormField
-                                            control={form.control as any}
+                                            control={form.control}
                                             name="date"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Date et heure *</FormLabel>
                                                     <FormControl>
-                                                        <Input type="datetime-local" {...field as any} />
+                                                        <Input type="datetime-local" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -237,13 +239,13 @@ export default function NewIncidentPage() {
                                         />
 
                                         <FormField
-                                            control={form.control as any}
+                                            control={form.control}
                                             name="location"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Lieu de l'incident</FormLabel>
                                                     <FormControl>
-                                                        <Input {...field as any} />
+                                                        <Input {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -252,7 +254,7 @@ export default function NewIncidentPage() {
                                     </div>
 
                                     <FormField
-                                        control={form.control as any}
+                                        control={form.control}
                                         name="description"
                                         render={({ field }) => (
                                             <FormItem>
@@ -261,7 +263,7 @@ export default function NewIncidentPage() {
                                                     <Textarea
                                                         
                                                         className="min-h-[120px]"
-                                                        {...field as any}
+                                                        {...field}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -270,7 +272,7 @@ export default function NewIncidentPage() {
                                     />
 
                                     <FormField
-                                        control={form.control as any}
+                                        control={form.control}
                                         name="actionTaken"
                                         render={({ field }) => (
                                             <FormItem>
@@ -279,7 +281,7 @@ export default function NewIncidentPage() {
                                                     <Textarea
                                                         
                                                         className="min-h-[80px]"
-                                                        {...field as any}
+                                                        {...field}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
