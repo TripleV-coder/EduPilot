@@ -380,6 +380,7 @@ model TeacherProfile {
 
   @@unique([schoolId, matricule])
   @@index([schoolId])
+  @@index([deletedAt])
   @@map("teacher_profiles")
 }
 
@@ -446,6 +447,7 @@ model StudentProfile {
   @@index([schoolId])
   @@index([matricule])
   @@index([schoolId, createdAt])
+  @@index([deletedAt])
   @@map("student_profiles")
 }
 
@@ -515,6 +517,7 @@ model Class {
 
   @@unique([schoolId, classLevelId, name])
   @@index([schoolId, classLevelId])
+  @@index([deletedAt])
   @@map("classes")
 }
 
@@ -536,6 +539,7 @@ model Subject {
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, code])
+  @@index([deletedAt])
   @@map("subjects")
 }
 
@@ -580,6 +584,7 @@ model Enrollment {
 
   @@index([studentId, academicYearId]) // Fixed Edge Case: Removed unique to allow multiple enrollments (e.g., transfers) per year
   @@index([classId, academicYearId])
+  @@index([deletedAt])
   @@map("enrollments")
 }
 
@@ -641,6 +646,7 @@ model Grade {
   @@unique([evaluationId, studentId])
   @@index([evaluationId])
   @@index([studentId, evaluationId])
+  @@index([deletedAt])
   @@map("grades")
 }
 
@@ -682,6 +688,7 @@ model Fee {
   payments       Payment[]
 
   @@index([schoolId])
+  @@index([deletedAt])
   @@map("fees")
 }
 
@@ -710,6 +717,7 @@ model Payment {
   @@index([studentId, feeId])
   @@index([reference])
   @@index([status])
+  @@index([deletedAt])
   @@map("payments")
 }
 
@@ -810,6 +818,7 @@ model Homework {
 
   @@index([classSubjectId, dueDate])
   @@index([dueDate])
+  @@index([deletedAt])
   @@map("homeworks")
 }
 
@@ -859,6 +868,7 @@ model Message {
   @@index([senderId, deletedBySender])
   @@index([recipientId, deletedByRecipient, isRead])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("messages")
 }
 
@@ -927,6 +937,7 @@ model Resource {
   @@index([schoolId, type, isPublic])
   @@index([subjectId])
   @@index([classLevelId])
+  @@index([deletedAt])
   @@map("resources")
 }
 
@@ -951,6 +962,7 @@ model Announcement {
 
   @@index([schoolId, isPublished, publishedAt])
   @@index([expiresAt])
+  @@index([deletedAt])
   @@map("announcements")
 }
 
@@ -1725,6 +1737,7 @@ model MealTicket {
 
   @@index([schoolId, userId])
   @@index([qrCode])
+  @@index([deletedAt])
   @@map("meal_tickets")
 }
 

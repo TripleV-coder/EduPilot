@@ -161,13 +161,16 @@ npm run build          # next build
 
 ## P3 — Hygiène de code (non bloquant)
 
-### [ ] P3.1 — Découper les fichiers > 1200 lignes
-- `src/lib/ai/ai-service.ts` (1609) → split par provider
-- `src/app/(dashboard)/dashboard/onboarding/page.tsx` (1441) → steps en sous-composants
-- `src/app/(dashboard)/dashboard/students/inscription/page.tsx` (1421)
-- `src/app/(dashboard)/dashboard/grades/cahier/page.tsx` (1349)
-- `src/app/(dashboard)/dashboard/grades/entry/page.tsx` (1218)
-- `src/lib/services/analytics-dashboard.ts` (1205)
+### [x] P3.1 — Découper les fichiers > 1200 lignes (fait 2026-06-11)
+- [x] `src/lib/ai/ai-service.ts` — déjà splitté à la vérification (283 l. ; inference/
+  external-client/llm-client séparés dans src/lib/ai/)
+- [x] `onboarding/page.tsx` 1441 → 46 + `src/components/onboarding/` (shell + 1 fichier/rôle)
+- [x] `students/inscription/page.tsx` 1421 → 465 + `src/components/students/inscription/`
+  (types, fields, 5 steps)
+- [x] `grades/cahier/page.tsx` 1349 → 851 + `src/components/grades/cahier/` (types, components)
+- [x] `grades/entry/page.tsx` 1218 → 847 + `src/components/grades/entry/` (types, components)
+- [x] `analytics-dashboard.ts` 1205 → découpe par rôle dans `src/lib/services/analytics-dashboard/`
+  (types, builders, admin, teacher, family, staff) + shim de ré-export : aucun import à changer.
 
 ### [x] P3.2 — Factoriser duplication (fait 2026-06-11)
 - [x] `<FormPageTemplate>` créé (`src/components/layout/form-page-template.tsx` : PageGuard +
