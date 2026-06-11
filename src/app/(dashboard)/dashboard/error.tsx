@@ -14,12 +14,10 @@ export default function DashboardError({
     reset: () => void;
 }) {
     useEffect(() => {
-        // Log the error to an error reporting service or local logger
-        console.error("Dashboard caught error:", error);
-        
-        if (logger && typeof logger.error === "function") {
-            logger.error("Client error in dashboard", error);
-        }
+        logger.error("Erreur de rendu interceptée", error, {
+            module: "error-boundary/dashboard",
+            digest: error.digest,
+        });
     }, [error]);
 
     return (

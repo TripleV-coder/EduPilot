@@ -19,6 +19,13 @@ interface EmailOptions {
   text?: string;
 }
 
+/** Masque l'adresse pour les logs : "awa.dossou@ecole.bj" → "aw***@ecole.bj" */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
 interface PasswordResetEmailParams {
   email: string;
   firstName: string;
@@ -51,21 +58,19 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
     if (isDev) {
-      console.log("=".repeat(60));
-      console.log("EMAIL SERVICE - Development Mode");
-      console.log("=".repeat(60));
-      console.log(`To: ${to}`);
-      console.log(`From: ${emailFrom}`);
-      console.log(`Subject: ${subject}`);
-      console.log("-".repeat(60));
-      console.log("HTML Content:");
-      console.log(html);
-      console.log("-".repeat(60));
-      if (text) {
-        console.log("Text Content:");
-        console.log(text);
-      }
-      console.log("=".repeat(60));
+      // Dev sans provider : tracer via le logger, sans dumper destinataire ni
+      // contenu complet (le HTML porte des liens de reset et mots de passe
+      // temporaires). Le contenu reste accessible en niveau debug.
+      logger.info("Email simulé (mode développement, provider non configuré)", {
+        module: "email",
+        to: maskEmail(to),
+        from: emailFrom,
+        subject,
+        htmlLength: html.length,
+      });
+      logger.debug(`Contenu de l'email simulé:\n${html}${text ? `\n---\n${text}` : ""}`, {
+        module: "email",
+      });
       return true;
     }
 
@@ -74,7 +79,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     logger.error(
       "Service email non configuré en production. Définir EMAIL_PROVIDER, EMAIL_API_KEY et EMAIL_FROM.",
       undefined,
-      { module: "email", to, subject }
+      { module: "email", to: maskEmail(to), subject }
     );
     return false;
   }

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { cepSubjects, bepcSubjects, gradeMentions } from "@/lib/benin/config";
+import { logger } from "@/lib/utils/logger";
 
 export interface ExamSubjectConfig {
     code: string;
@@ -28,7 +29,13 @@ export class ConfigService {
             }
         }
 
-        // Fallback sur les constantes si non configuré en DB
+        // Fallback sur les constantes si non configuré en DB.
+        // Alerte : en production cela signifie que le seed ConfigOption
+        // (category NATIONAL_EXAMS) n'a pas été exécuté au déploiement.
+        logger.warn(
+            "ConfigOption NATIONAL_EXAMS absente ou invalide — fallback sur la configuration Bénin embarquée",
+            { module: "config-service", examType }
+        );
         const { cepSubjects, bepcSubjects, bacSubjects } = await import("@/lib/benin/config");
         let fallback;
         if (examType === "CEP") fallback = cepSubjects;
@@ -62,6 +69,10 @@ export class ConfigService {
             }
         }
 
+        logger.warn(
+            "ConfigOption GRADE_SETTINGS/MENTIONS absente — fallback sur les mentions Bénin embarquées",
+            { module: "config-service" }
+        );
         return gradeMentions;
     }
 }

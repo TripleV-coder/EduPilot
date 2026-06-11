@@ -191,7 +191,15 @@ export async function PATCH(
         entity: "DataAccessRequest",
         entityId: id,
         oldValues: { status: existingRequest.status } as Prisma.InputJsonValue,
-        newValues: updateData as any,
+        // Snapshot JSON explicite (updateData contient un connect Prisma et une
+        // Date, non sérialisables tels quels dans une colonne Json)
+        newValues: {
+          status: validatedData.status,
+          notes: validatedData.notes ?? null,
+          downloadUrl: validatedData.downloadUrl ?? null,
+          completedAt: validatedData.status === "COMPLETED" ? new Date().toISOString() : null,
+          processedBy: session.user.id,
+        } as Prisma.InputJsonValue,
       },
     });
 

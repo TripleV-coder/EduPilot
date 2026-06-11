@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 import Link from "next/link";
+import { logger } from "@/lib/utils/logger";
 
 export default function AnalyticsError({
     error,
@@ -13,7 +14,7 @@ export default function AnalyticsError({
     reset: () => void;
 }) {
     useEffect(() => {
-        console.error("Analytics error:", error);
+        logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/analytics", digest: error.digest });
     }, [error]);
 
     return (

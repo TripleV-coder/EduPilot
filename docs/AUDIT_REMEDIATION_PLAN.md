@@ -94,15 +94,22 @@ npm run build          # next build
 - **Convention retenue** : handlers de route testés avec `@/lib/prisma`/`@/lib/auth` mockés
   (pattern homework.test.ts) ; helpers communs dans `tests/api/test-helpers.ts`.
 - **Bug réel trouvé et corrigé** : `withCache` (cache-helpers) ré-encapsulait les réponses sans
-  `status` (403→200) et cachait les erreurs. `report-cards` reste à couvrir (génération PDF).
-- **Done** : chaque domaine a nominal + refus d'accès + cross-tenant. 705 tests verts.
+  `status` (403→200) et cachait les erreurs.
+- **Complété 2026-06-11 (2e lot)** : `tests/api/report-cards.test.ts` (8) — moyennes pondérées
+  par coefficients matière/évaluation, rang de classe, assiduité, accès STUDENT/PARENT/cross-tenant.
+- **Done** : chaque domaine a nominal + refus d'accès + cross-tenant. 846 tests verts.
 
-### [~] P1.2 — Remonter le seuil de couverture CI (17 → 23 fait 2026-06-11, cible 40)
+### [x] P1.2 — Remonter le seuil de couverture CI (17 → 40 fait 2026-06-11)
 - **Fichier** : config Vitest coverage + `.github/workflows/ci.yml`
 - **Action** : passer le seuil statements de 17 % → 40 % progressivement.
-- **Fait** : mesuré 24.09/19.99/24.00 après P1.1 → seuils ratchetés à 23/19/23.
-- **Reste** : couvrir les gros modules lib non testés (ai-service, analytics-dashboard,
-  services/*) pour atteindre 40. Prochain palier au prochain lot de tests.
+- **Fait en 2 paliers le 2026-06-11** : 17→23 (lot P1.1), puis 23→**40** (mesuré
+  41.40/33.07/39.66, seuils 40/32/38). Nouveaux tests : algorithmes ai-predictive
+  (statistics, regression, predict-grade/failure/student), services (student-analytics,
+  analytics-dashboard builders, analytics-sync), validations (business-rules), parsers
+  (csv-parser, mapping-utils), sanitize, status-styles, rate-limit (régression buckets
+  fallback), email.
+- **Reste (cible long terme 60/50/60)** : ai-service.ts (406 l.), auth/config.ts,
+  organization-dashboard, inference.ts, orientation.ts.
 
 ### [x] P1.3 — Validation Zod des inputs date (fait 2026-06-11)
 - **Fichier** : `src/app/api/audit-logs/route.ts` (~48-55) et routes similaires
@@ -166,17 +173,25 @@ npm run build          # next build
 - Formulaires `*/new/page.tsx` (students/teachers/users/incidents/classes) → `<FormPageTemplate>`
 - Variantes PieChart (`BasePieChart` + 3 dérivés) → composant base + props
 
-### [ ] P3.3 — Éradiquer les `any` de formulaires
-- ~10 pages avec `zodResolver(schema) as any` et `useSWR<any>` → typer correctement.
-- Critique d'abord : `compliance/data-requests/[id]/route.ts:194` (`updateData as any` sur audit RGPD).
+### [~] P3.3 — Éradiquer les `any` de formulaires (critique fait 2026-06-11)
+- [x] Critique : `compliance/data-requests/[id]/route.ts` — `updateData as any` remplacé par un
+  snapshot JSON explicite typé `Prisma.InputJsonValue` (le connect Prisma et la Date n'étaient
+  pas sérialisables tels quels dans la colonne Json de l'audit RGPD).
+- [ ] Reste : ~10 pages avec `zodResolver(schema) as any` et `useSWR<any>` (non bloquant).
 
-### [ ] P3.4 — `console.log` en prod
-- `src/lib/email.ts` logue destinataire + HTML → passer par le logger / garder en dev only.
-- Error boundaries (`**/error.tsx`) → logger centralisé.
+### [x] P3.4 — `console.log` en prod (fait 2026-06-11)
+- [x] `src/lib/email.ts` : dump console (destinataire + HTML complet) remplacé par
+  `logger.info` avec destinataire masqué (`maskEmail`) + contenu relégué en `logger.debug`.
+  L'erreur prod « provider non configuré » masque aussi l'adresse. Verrouillé par
+  `tests/lib/email.test.ts` (8 tests dont « jamais l'adresse en clair »).
+- [x] 7 error boundaries (`**/error.tsx`) : `console.error` → `logger.error` centralisé
+  (module `error-boundary/*`, digest inclus).
 
-### [ ] P3.5 — Sécuriser le fallback config Bénin
+### [x] P3.5 — Sécuriser le fallback config Bénin (fait 2026-06-11)
 - `src/lib/services/config-service.ts` retombe sur la config hardcodée si DB non seedée.
-- **Action** : garantir le seed au déploiement + log d'alerte si fallback emprunté.
+- **Fait** : `logger.warn` explicite sur les deux fallbacks (NATIONAL_EXAMS et
+  GRADE_SETTINGS/MENTIONS) pointant vers le seed manquant. Le fallback embarqué reste le
+  secours voulu (l'app ne casse pas), mais l'emprunt est désormais visible en logs.
 
 ---
 
@@ -195,3 +210,5 @@ npm run build          # next build
 | 2026-06-11 | P1.3 | (branche B) | Helper date-range Zod partagé, 6 routes patchées, 400 explicite sur dates invalides. |
 | 2026-06-11 | P1.4 | (branche B) | Déjà implémenté (magic bytes maison) — verrouillé par 9 tests anti-spoofing. |
 | 2026-06-11 | P1.2 | (branche B) | Couverture 18.76→24.09 statements ; seuils CI ratchetés 17/12/17 → 23/19/23. Cible 40 au prochain lot. |
+| 2026-06-11 | P1.1 fin + P1.2 fin | chore/p1-p3-completion | report-cards testé (8) ; +141 tests lib (algorithmes, services, validations, parsers, email) ; couverture 24→41.4 statements, seuils 40/32/38. **P1 complet.** |
+| 2026-06-11 | P3.3 critique + P3.4 + P3.5 | chore/p1-p3-completion | Audit RGPD : snapshot JSON typé au lieu de `as any` ; email : logger + maskEmail ; 7 error boundaries → logger centralisé ; config-service : warn sur fallback Bénin. |
