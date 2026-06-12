@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import useSWR from "swr";
 
+import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
@@ -68,6 +70,11 @@ export default function CagnottePage() {
 }
 
 function CagnottePageContent() {
+    const { data: session } = useSession();
+    // Création réservée direction/enseignants — le bouton est masqué aux parents
+    const canCreate = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(
+        session?.user?.role ?? "",
+    );
     const { data, error, isLoading } = useSWR<CagnotteResponse>(
         "/api/cagnottes?status=OPEN",
         fetcher,
@@ -174,9 +181,11 @@ function CagnottePageContent() {
                         <Badge variant="success" icon="check">
                             {openCount} cagnotte{openCount > 1 ? "s" : ""} en cours
                         </Badge>
-                        <Button icon="plus" disabled title="Création parent à venir">
-                            Créer une cagnotte
-                        </Button>
+                        {canCreate ? (
+                            <Link href="/dashboard/cagnotte/new">
+                                <Button icon="plus">Créer une cagnotte</Button>
+                            </Link>
+                        ) : null}
                     </>
                 }
             />
@@ -543,14 +552,11 @@ function CagnotteCard({ cagnotte: c }: { cagnotte: CagnotteRow }) {
                                 Payé · {lastPaidLabel}
                             </Badge>
                         ) : (
-                            <Button
-                                size="sm"
-                                icon="money"
-                                disabled
-                                title="Paiement parent à venir (MoMo webhook requis)"
-                            >
-                                Payer
-                            </Button>
+                            <Link href={`/dashboard/cagnotte/${c.id}`}>
+                                <Button size="sm" icon="money">
+                                    Payer
+                                </Button>
+                            </Link>
                         )}
                     </div>
                 </div>
@@ -566,16 +572,11 @@ function CagnotteCard({ cagnotte: c }: { cagnotte: CagnotteRow }) {
                     >
                         Messagerie groupe
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        full
-                        iconRight="arrowRight"
-                        disabled
-                        title="Page détails à venir"
-                    >
-                        Détails
-                    </Button>
+                    <Link href={`/dashboard/cagnotte/${c.id}`} style={{ flex: 1, textDecoration: "none" }}>
+                        <Button variant="ghost" size="sm" full iconRight="arrowRight">
+                            Détails
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </Card>

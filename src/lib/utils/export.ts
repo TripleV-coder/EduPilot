@@ -5,6 +5,19 @@ export interface ExportData {
   timestamp?: Date;
 }
 
+/**
+ * Échappe une cellule CSV : double les guillemets internes et neutralise les
+ * préfixes de formule (= + - @) qu'Excel/LibreOffice exécuteraient à
+ * l'ouverture (CSV formula injection via un nom d'élève piégé).
+ */
+export function escapeCsvCell(cell: string | number): string {
+  let value = String(cell).replace(/"/g, '""');
+  if (/^[=+\-@\t\r]/.test(value)) {
+    value = `'${value}`;
+  }
+  return `"${value}"`;
+}
+
 export function exportToCSV(data: ExportData): void {
   const { title, headers, rows, timestamp } = data;
   const date = (timestamp || new Date()).toISOString().split("T")[0];
@@ -16,7 +29,7 @@ export function exportToCSV(data: ExportData): void {
     headers,
     ...rows,
   ]
-    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .map((row) => row.map(escapeCsvCell).join(","))
     .join("\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

@@ -9,6 +9,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { generateImportPassword } from "@/lib/import/initial-password";
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,6 +27,14 @@ export async function POST(request: NextRequest) {
 
         if (!Array.isArray(data)) {
             return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
+
+        }
+
+        if (data.length > 500) {
+            return NextResponse.json(
+                { error: "Maximum 500 lignes par import. Découpez votre fichier." },
+                { status: 400 }
+            );
         }
 
         const results = {
@@ -33,7 +42,8 @@ export async function POST(request: NextRequest) {
             errors: [] as any[],
         };
 
-        const DEFAULT_IMPORT_PASSWORD = "00000000";
+        // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
+        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
         // Get School ID
         let schoolId = getActiveSchoolId(session) || null;

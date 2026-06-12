@@ -66,6 +66,12 @@ export const GET = createApiHandler(
             orderBy: { entryDate: "asc" },
         });
 
+        // Neutralise séparateur et préfixes de formule Excel (CSV injection)
+        const csvSafe = (value: string) => {
+            const cleaned = value.replace(/;/g, ",");
+            return /^[=+\-@\t\r]/.test(cleaned) ? `'${cleaned}` : cleaned;
+        };
+
         // Build CSV rows — one row per JournalEntryLine
         const csvRows: string[] = [
             "DATE;JOURNAL;PIECE;LIBELLE;COMPTE_DEBIT;LIBELLE_DEBIT;COMPTE_CREDIT;LIBELLE_CREDIT;MONTANT_FCFA",
@@ -77,11 +83,11 @@ export const GET = createApiHandler(
 
             for (const line of entry.lines) {
                 const debitCode = line.debitAccount?.syscohadaCode ?? "";
-                const debitLabel = (line.debitAccount?.label ?? "").replace(/;/g, ",");
+                const debitLabel = csvSafe(line.debitAccount?.label ?? "");
                 const creditCode = line.creditAccount?.syscohadaCode ?? "";
-                const creditLabel = (line.creditAccount?.label ?? "").replace(/;/g, ",");
-                const label = entry.label.replace(/;/g, ",");
-                const piece = entry.pieceRef.replace(/;/g, ",");
+                const creditLabel = csvSafe(line.creditAccount?.label ?? "");
+                const label = csvSafe(entry.label);
+                const piece = csvSafe(entry.pieceRef);
                 const amount = line.amountFcfa.toString();
 
                 csvRows.push(

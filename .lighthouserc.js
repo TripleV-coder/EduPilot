@@ -1,11 +1,10 @@
 /**
  * Lighthouse CI configuration.
  *
- * Voluntarily permissive: every category assertion is set to "warn" so the
- * audit produces a report (and a temporary-public-storage URL we can click)
- * without failing the workflow on numeric thresholds that haven't been
- * negotiated yet. When perf/a11y budgets are agreed, swap "warn" -> "error"
- * and set explicit minScore values.
+ * Budgets actés (2026-06-12) : accessibility / best-practices / seo bloquent
+ * le workflow en dessous des minScore. Performance reste en "warn" car les
+ * runners GitHub partagés varient de ±15 pts d'un run à l'autre — le p75 réel
+ * est suivi en production via /api/performance/dashboard (PerformanceMetric).
  *
  * docs: https://github.com/GoogleChrome/lighthouse-ci/blob/main/docs/configuration.md
  */
@@ -26,10 +25,10 @@ module.exports = {
     },
     assert: {
       assertions: {
-        "categories:performance": ["warn", { minScore: 0.5 }],
-        "categories:accessibility": ["warn", { minScore: 0.8 }],
-        "categories:best-practices": ["warn", { minScore: 0.8 }],
-        "categories:seo": ["warn", { minScore: 0.8 }],
+        "categories:performance": ["warn", { minScore: 0.6 }],
+        "categories:accessibility": ["error", { minScore: 0.9 }],
+        "categories:best-practices": ["error", { minScore: 0.85 }],
+        "categories:seo": ["error", { minScore: 0.85 }],
         // Common noisy audits that don't matter in CI:
         "uses-http2": "off",
         "is-on-https": "off",

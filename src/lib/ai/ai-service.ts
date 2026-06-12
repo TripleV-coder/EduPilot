@@ -15,6 +15,7 @@ import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/config/env";
 import { analyticsService } from "@/lib/analytics/service";
 import { governanceService, hasExternalAIConfigured } from "./governance-service";
+import { chatWithAI } from "./n8n-client";
 
 export interface ChatRequest {
   message: string;
@@ -224,9 +225,6 @@ class AIService {
   }
 
   private async callN8n(request: ChatRequest): Promise<string | null> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     let contextData = {};
     if (request.schoolId) {
       try {
@@ -239,26 +237,15 @@ class AIService {
       }
     }
 
-    const n8nResponse = await fetch(`${process.env.N8N_HOST}/webhook/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: request.message,
-        userRole: request.userRole,
-        userId: request.userId,
-        schoolId: request.schoolId,
-        context: contextData,
-      }),
-      signal: controller.signal,
+    // chatWithAI applique la politique réseau partagée : header API-key +
+    // signature HMAC, timeout 25 s, 1 retry sur 408/429/5xx
+    const data = await chatWithAI(request.message, {
+      userRole: request.userRole,
+      userId: request.userId,
+      schoolId: request.schoolId,
+      context: contextData,
     });
 
-    clearTimeout(timeoutId);
-
-    if (!n8nResponse.ok) {
-      return null;
-    }
-
-    const data = await n8nResponse.json();
     return typeof data.response === "string" ? data.response : null;
   }
 

@@ -3,10 +3,73 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
+
+/**
+ * GET /api/wellbeing/reports — liste des dossiers de signalement.
+ * Filtres : ?status=OPEN|IN_REVIEW|IN_FOLLOWUP|CLOSED, ?severity=P0|P1|P2.
+ */
+export async function GET(request: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+
+        const url = new URL(request.url);
+        const requestedSchoolId = url.searchParams.get("schoolId");
+        const accessError = ensureRequestedSchoolAccess(session, requestedSchoolId);
+        if (accessError) return accessError;
+
+        const schoolId = requestedSchoolId ?? getActiveSchoolId(session);
+        if (!schoolId) {
+            return NextResponse.json(
+                { error: "Aucun établissement actif associé au compte." },
+                { status: 400 }
+            );
+        }
+
+        const status = url.searchParams.get("status");
+        const severity = url.searchParams.get("severity");
+
+        const where: Record<string, unknown> = { schoolId };
+        if (status && ["OPEN", "IN_REVIEW", "IN_FOLLOWUP", "CLOSED"].includes(status)) {
+            where.status = status;
+        }
+        if (severity && ["P0", "P1", "P2"].includes(severity)) {
+            where.severity = severity;
+        }
+
+        const reports = await prisma.wellbeingReport.findMany({
+            where,
+            orderBy: [{ severity: "asc" }, { createdAt: "desc" }],
+            take: 100,
+        });
+
+        return NextResponse.json({
+            schoolId,
+            reports: reports.map((r) => ({
+                id: r.id,
+                tag: r.tag,
+                category: r.category,
+                excerpt: r.excerpt,
+                severity: r.severity,
+                severityLabel: r.severityLabel,
+                status: r.status,
+                createdAt: r.createdAt.toISOString(),
+            })),
+        });
+    } catch (error) {
+        logger.error("Error listing wellbeing reports", error as Error);
+        return NextResponse.json({ error: "Erreur lors de la lecture des dossiers" }, { status: 500 });
+    }
+}
 
 const SEVERITY_LABELS: Record<string, string> = {
     P0: "P0 · CPS prévenu",

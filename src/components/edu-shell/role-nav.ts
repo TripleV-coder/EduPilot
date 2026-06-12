@@ -1,6 +1,7 @@
 // EduPilot — role-based primary navigation for the EduSidebar.
 // Maps each role to the design's primary nav. Hrefs target real existing routes;
-// counts are placeholders that will be wired with live numbers progressively.
+// counts come live from /api/dashboard/nav-counts (badges élève : pas de
+// modèle Prisma, le lien s'affiche sans compteur).
 
 import type { IconName } from "@/components/edu";
 

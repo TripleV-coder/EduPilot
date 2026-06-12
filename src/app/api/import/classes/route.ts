@@ -23,6 +23,14 @@ export async function POST(request: NextRequest) {
 
         if (!Array.isArray(data)) {
             return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
+
+        }
+
+        if (data.length > 500) {
+            return NextResponse.json(
+                { error: "Maximum 500 lignes par import. Découpez votre fichier." },
+                { status: 400 }
+            );
         }
 
         const results = {

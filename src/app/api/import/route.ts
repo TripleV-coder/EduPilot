@@ -7,6 +7,7 @@ import { hash } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { generateImportPassword } from "@/lib/import/initial-password";
 
 export const POST = createApiHandler(
   async (request, { session }) => {
@@ -32,7 +33,8 @@ export const POST = createApiHandler(
       );
     }
 
-    const DEFAULT_IMPORT_PASSWORD = "00000000";
+    // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
+        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
     try {
       const results = await prisma.$transaction(async (tx) => {

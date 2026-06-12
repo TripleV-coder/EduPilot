@@ -7,8 +7,9 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
+import Link from "next/link";
+
 import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
-import { NewReportButton, ReportDossierButton } from "@/components/wellbeing/report-dialogs";
 import { downloadClimateReport } from "@/lib/wellbeing/climate-report";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -132,7 +133,7 @@ export default function WellbeingPage() {
 }
 
 function WellbeingPageContent() {
-    const { data, error, isLoading, mutate } = useSWR<WellbeingOverview>(
+    const { data, error, isLoading } = useSWR<WellbeingOverview>(
         "/api/wellbeing/overview",
         fetcher,
         { revalidateOnFocus: false },
@@ -236,7 +237,9 @@ function WellbeingPageContent() {
                         >
                             {generatingPdf ? "Génération…" : "Rapport climat"}
                         </Button>
-                        <NewReportButton onCreated={() => mutate()} />
+                        <Link href="/dashboard/wellbeing/new">
+                            <Button icon="plus">Nouveau dossier</Button>
+                        </Link>
                     </>
                 }
             />
@@ -289,7 +292,7 @@ function WellbeingPageContent() {
                         className="wb-grid"
                     >
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            <ReportsCard reports={data.reports} onChanged={() => mutate()} />
+                            <ReportsCard reports={data.reports} />
                             <ClimatePulseCard
                                 weeks={data.pulseWeeks}
                                 stats={data.pulseStats}
@@ -439,7 +442,7 @@ function Kpi({
     );
 }
 
-function ReportsCard({ reports, onChanged }: { reports: ReportRow[]; onChanged: () => void }) {
+function ReportsCard({ reports }: { reports: ReportRow[] }) {
     return (
         <Card padding={0}>
             <div
@@ -539,7 +542,11 @@ function ReportsCard({ reports, onChanged }: { reports: ReportRow[]; onChanged: 
                                 <Badge variant={tone} size="sm" dot={r.severity === "P0"}>
                                     {r.severityLabel ?? r.severity}
                                 </Badge>
-                                <ReportDossierButton report={r} onUpdated={onChanged} />
+                                <Link href={`/dashboard/wellbeing/${r.id}`}>
+                                    <Button variant="ghost" size="sm" iconRight="arrowRight">
+                                        Dossier
+                                    </Button>
+                                </Link>
                             </div>
                         </div>
                     );

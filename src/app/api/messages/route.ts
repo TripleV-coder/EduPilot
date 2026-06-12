@@ -9,7 +9,9 @@ import { withHttpCache } from "@/lib/api/cache-http";
 import { getPaginationParams } from "@/lib/api/api-helpers";
 
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
-import Redis from "ioredis";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
+import { createNotification } from "@/lib/services/notification.service";
 
 const createMessageSchema = z.object({
   recipientId: z.string().cuid(),
@@ -206,8 +208,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
+    // Anti-spam : 20 messages / minute par utilisateur
+    const rate = await checkRateLimit(strictLimiter, `messages:${session.user.id}`);
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: "Trop de messages envoyés. Réessayez dans une minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = createMessageSchema.parse(body);
+
+    if (validatedData.recipientId === session.user.id) {
+      return NextResponse.json(
+        { error: "Impossible de s'envoyer un message à soi-même" },
+        { status: 400 }
+      );
+    }
 
     // If this is a reply, verify parent message access
     if (validatedData.parentId) {
@@ -243,13 +261,18 @@ export async function POST(request: NextRequest) {
       return accessError;
     }
 
+    // Neutralise tout HTML embarqué (le contenu est rendu en texte,
+    // mais on ne stocke jamais de payload script en base)
+    const subject = sanitizePlainText(validatedData.subject);
+    const content = sanitizePlainText(validatedData.content);
+
     // Create message
     const message = await prisma.message.create({
       data: {
         senderId: session.user.id,
         recipientId: validatedData.recipientId,
-        subject: validatedData.subject,
-        content: validatedData.content,
+        subject,
+        content,
         parentId: validatedData.parentId,
       },
       include: {
@@ -272,28 +295,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create notification for recipient
-    const notification = await prisma.notification.create({
-      data: {
-        userId: validatedData.recipientId,
-        type: "MESSAGE",
-        title: "Nouveau message",
-        message: `${session.user.firstName} ${session.user.lastName} vous a envoyé un message: "${validatedData.subject}"`,
-        link: `/messages/${message.id}`,
-      },
+    // Notification destinataire — createNotification publie aussi sur Redis
+    // (publisher singleton, livraison SSE immédiate si REDIS_URL configuré)
+    await createNotification({
+      userId: validatedData.recipientId,
+      type: "MESSAGE",
+      title: "Nouveau message",
+      message: `${session.user.firstName} ${session.user.lastName} vous a envoyé un message: "${subject}"`,
+      link: "/dashboard/messages",
     });
-
-    // Best-effort realtime push (if REDIS_URL is configured, SSE will deliver immediately)
-    const redisUrl = process.env.REDIS_URL;
-    if (redisUrl) {
-      try {
-        const redis = new Redis(redisUrl);
-        await redis.publish(`notifications:${validatedData.recipientId}`, JSON.stringify(notification));
-        await redis.quit();
-      } catch {
-        // ignore; SSE DB polling fallback will still catch it
-      }
-    }
 
     await invalidateByPath(CACHE_PATHS.messages);
 
@@ -312,7 +322,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.error(" creating message:", error as Error);
+    logger.error("Error creating message", error as Error, { module: "api/messages" });
     return NextResponse.json(
       { error: "Erreur lors de l'envoi du message" },
       { status: 500 }

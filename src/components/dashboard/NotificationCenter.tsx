@@ -15,6 +15,7 @@ import {
   toNotificationUiType,
   type NotificationUiType,
 } from "@/lib/notifications/ui";
+import { normalizeNotificationLink } from "@/lib/utils/notification-links";
 
 interface Notification {
   id: string;
@@ -54,7 +55,7 @@ const mapApiToNotification = (n: ApiNotification): Notification => ({
   title: n.title,
   description: n.message,
   entityName: n.link ? "Ouvrir" : undefined,
-  entityLink: n.link || undefined,
+  entityLink: normalizeNotificationLink(n.link),
   timestamp: formatNotificationRelativeTime(n.createdAt),
   isRead: !!n.isRead,
   isGlobal: n.isGlobal,

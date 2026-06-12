@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { aiService } from '@/lib/ai/ai-service';
+import { checkN8nHealth } from '@/lib/ai/n8n-client';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
 export async function GET(_request: NextRequest) {
   try {
     const status = aiService.getStatus();
+    const n8nHealth = await checkN8nHealth();
 
     return NextResponse.json({
       success: true,
@@ -141,6 +143,8 @@ export async function GET(_request: NextRequest) {
         providers: {
           externalConfigured: status.externalConfigured,
           n8nConfigured: status.n8nConfigured,
+          n8nReachable: n8nHealth.reachable,
+          n8nLatencyMs: n8nHealth.latencyMs,
           runtimeMode: status.runtimeMode,
         },
       },

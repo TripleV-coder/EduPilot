@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import useSWR from "swr";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -199,9 +200,9 @@ function AccountingPageContent() {
                         >
                             Export DGI · iTAS
                         </Button>
-                        <Button icon="plus" disabled title="Création écriture — module expert à venir">
-                            Nouvelle écriture
-                        </Button>
+                        <Link href="/dashboard/accounting/entries/new">
+                            <Button icon="plus">Nouvelle écriture</Button>
+                        </Link>
                     </>
                 }
             />
