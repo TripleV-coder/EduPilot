@@ -8,6 +8,10 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
+import { NewReportButton, ReportDossierButton } from "@/components/wellbeing/report-dialogs";
+import { downloadClimateReport } from "@/lib/wellbeing/climate-report";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
 type ReportTag = "ANONYME" | "PARENT" | "ENSEIGNANT" | "AUTO_IA" | "NOMINATIF";
@@ -128,11 +132,29 @@ export default function WellbeingPage() {
 }
 
 function WellbeingPageContent() {
-    const { data, error, isLoading } = useSWR<WellbeingOverview>(
+    const { data, error, isLoading, mutate } = useSWR<WellbeingOverview>(
         "/api/wellbeing/overview",
         fetcher,
         { revalidateOnFocus: false },
     );
+    const { toast } = useToast();
+    const [generatingPdf, setGeneratingPdf] = useState(false);
+
+    const handleClimateReport = async () => {
+        if (!data) return;
+        setGeneratingPdf(true);
+        try {
+            await downloadClimateReport(data);
+        } catch {
+            toast({
+                title: "Erreur",
+                description: "La génération du rapport PDF a échoué.",
+                variant: "destructive",
+            });
+        } finally {
+            setGeneratingPdf(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -206,12 +228,15 @@ function WellbeingPageContent() {
                         <Badge variant="success" icon="check">
                             Conforme protocole MEMP 2024
                         </Badge>
-                        <Button variant="secondary" icon="download" disabled title="Génération PDF à venir">
-                            Rapport climat
+                        <Button
+                            variant="secondary"
+                            icon="download"
+                            disabled={generatingPdf}
+                            onClick={handleClimateReport}
+                        >
+                            {generatingPdf ? "Génération…" : "Rapport climat"}
                         </Button>
-                        <Button icon="plus" disabled title="Création dossier à venir">
-                            Nouveau dossier
-                        </Button>
+                        <NewReportButton onCreated={() => mutate()} />
                     </>
                 }
             />
@@ -264,7 +289,7 @@ function WellbeingPageContent() {
                         className="wb-grid"
                     >
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            <ReportsCard reports={data.reports} />
+                            <ReportsCard reports={data.reports} onChanged={() => mutate()} />
                             <ClimatePulseCard
                                 weeks={data.pulseWeeks}
                                 stats={data.pulseStats}
@@ -414,7 +439,7 @@ function Kpi({
     );
 }
 
-function ReportsCard({ reports }: { reports: ReportRow[] }) {
+function ReportsCard({ reports, onChanged }: { reports: ReportRow[]; onChanged: () => void }) {
     return (
         <Card padding={0}>
             <div
@@ -514,15 +539,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                                 <Badge variant={tone} size="sm" dot={r.severity === "P0"}>
                                     {r.severityLabel ?? r.severity}
                                 </Badge>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    iconRight="arrowRight"
-                                    disabled
-                                    title="Page dossier à venir"
-                                >
-                                    Dossier
-                                </Button>
+                                <ReportDossierButton report={r} onUpdated={onChanged} />
                             </div>
                         </div>
                     );

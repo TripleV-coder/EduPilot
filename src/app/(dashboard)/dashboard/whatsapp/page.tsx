@@ -95,21 +95,21 @@ export default function WhatsAppPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // No WhatsApp Business API wiring yet — return an honest disconnected
-        // state. When the integration lands, swap the body for a real fetch.
-        const timer = setTimeout(() => {
-            setStatus({
-                connected: false,
-                verifiedAt: null,
-                phoneNumber: null,
-                subscribers: null,
-                weeklyMessages: null,
-                readRate: null,
-                costPerMessage: null,
-            });
-            setLoading(false);
-        }, 200);
-        return () => clearTimeout(timer);
+        fetch("/api/integrations/whatsapp")
+            .then((res) => (res.ok ? res.json() : Promise.reject()))
+            .then((data: ChannelStatus) => setStatus(data))
+            .catch(() =>
+                setStatus({
+                    connected: false,
+                    verifiedAt: null,
+                    phoneNumber: null,
+                    subscribers: null,
+                    weeklyMessages: null,
+                    readRate: null,
+                    costPerMessage: null,
+                })
+            )
+            .finally(() => setLoading(false));
     }, []);
 
     return (

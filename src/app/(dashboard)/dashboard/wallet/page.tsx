@@ -175,6 +175,12 @@ function WalletPageContent() {
         fetcher,
         { revalidateOnFocus: false, refreshInterval: 60_000 },
     );
+    const { data: momoStatus } = useSWR<{ configured: boolean; requiredEnvVars: string[] }>(
+        "/api/integrations/momo",
+        fetcher,
+        { revalidateOnFocus: false },
+    );
+    const momoConfigured = momoStatus?.configured ?? false;
 
     const transactions = data?.transactions ?? [];
     const scheduledDisbursements = data?.scheduledDisbursements ?? [];
@@ -279,12 +285,43 @@ function WalletPageContent() {
                         <Button variant="secondary" icon="download" disabled title="Génération PDF multibanque — à activer">
                             Relevé multibanque
                         </Button>
-                        <Button icon="plus" disabled title="Nécessite webhook MoMo signé">
+                        <Button
+                            icon="plus"
+                            disabled={!momoConfigured}
+                            title={
+                                momoConfigured
+                                    ? "Créer un décaissement Mobile Money"
+                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
+                            }
+                        >
                             Décaissement
                         </Button>
                     </>
                 }
             />
+
+            {!momoConfigured && (
+                <Card
+                    padding={14}
+                    style={{
+                        borderLeft: "3px solid var(--brand-500)",
+                        background: "var(--brand-50)",
+                    }}
+                >
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <Icon name="sparkle" size={18} color="var(--brand-700)" style={{ flexShrink: 0 }} />
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--brand-800)", lineHeight: 1.5 }}>
+                            <strong>Mobile Money non configuré</strong> — Pour activer les décaissements et la
+                            réconciliation MoMo, définir{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_WEBHOOK_SECRET</code> et{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_SUBSCRIPTION_KEY</code> dans
+                            les variables d&apos;environnement, puis enregistrer{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>/api/payments/momo/webhook</code>{" "}
+                            sur le portail MTN MoMo Developer.
+                        </p>
+                    </div>
+                </Card>
+            )}
 
             {!hasAccounts ? (
                 <EmptyWalletState />
@@ -295,6 +332,7 @@ function WalletPageContent() {
                         availableBalance={availableBalance}
                         pendingDisbursementsAmount={pendingDisbursementsAmount}
                         inflows24h={inflows24h}
+                        momoConfigured={momoConfigured}
                         accounts={data.accounts}
                     />
 
@@ -393,12 +431,14 @@ function WalletHero({
     pendingDisbursementsAmount,
     inflows24h,
     accounts,
+    momoConfigured,
 }: {
     totalBalanceN: number;
     availableBalance: number;
     pendingDisbursementsAmount: number;
     inflows24h: number;
     accounts: AccountRow[];
+    momoConfigured: boolean;
 }) {
     return (
         <Card
@@ -513,8 +553,12 @@ function WalletHero({
                                 color: "var(--brand-800)",
                             }}
                             icon="money"
-                            disabled
-                            title="Décaissement signé — requiert le webhook MoMo configuré"
+                            disabled={!momoConfigured}
+                            title={
+                                momoConfigured
+                                    ? "Créer un décaissement Mobile Money"
+                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
+                            }
                         >
                             Décaisser
                         </Button>

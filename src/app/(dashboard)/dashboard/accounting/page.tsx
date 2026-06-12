@@ -185,10 +185,21 @@ function AccountingPageContent() {
                         <Badge variant="success" icon="check">
                             Conforme SYSCOHADA
                         </Badge>
-                        <Button variant="secondary" icon="download" disabled title="Export DGI iTAS à venir">
+                        <Button
+                            variant="secondary"
+                            icon="download"
+                            onClick={() => {
+                                const url = data?.fiscalYear?.id
+                                    ? `/api/accounting/export?fiscalYearId=${data.fiscalYear.id}&format=itas`
+                                    : "/api/accounting/export?format=itas";
+                                window.open(url, "_blank");
+                            }}
+                            disabled={!hasFiscalYear}
+                            title={hasFiscalYear ? "Télécharger l'export DGI iTAS (CSV SYSCOHADA)" : "Aucun exercice fiscal actif"}
+                        >
                             Export DGI · iTAS
                         </Button>
-                        <Button icon="plus" disabled title="Création écriture à venir">
+                        <Button icon="plus" disabled title="Création écriture — module expert à venir">
                             Nouvelle écriture
                         </Button>
                     </>

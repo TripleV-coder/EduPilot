@@ -21,24 +21,48 @@ type StatsResponse = {
     statistics?: { average?: number; bySubject?: Record<string, { average: number }> };
 };
 
-type BulletinResp = {
-    subjectAverages?: { name: string; average: number }[];
-    student?: { firstName: string; lastName: string };
+type ExamItem = {
+    id: string;
+    title: string;
+    isPublished: boolean;
+    duration: number;
+    totalPoints: number;
+    _count: { questions: number };
+    classSubject: {
+        subject: { name: string };
+        class: { name: string };
+    };
 };
+
+type ReadinessResponse = {
+    overallReadiness: number;
+    predictedSuccess: number;
+    weakAreas: string[];
+    strongAreas: string[];
+};
+
+const BEPC_SUBJECT_NAMES = [
+    "Mathématiques", "Français", "Anglais", "SVT",
+    "Sciences de la Vie et de la Terre",
+    "Physique-Chimie", "Physique-Chimie-Technologie",
+    "Histoire-Géographie", "Éducation Physique et Sportive",
+];
+
+function isBepcSubject(name: string): boolean {
+    return BEPC_SUBJECT_NAMES.some((s) => name.toLowerCase().includes(s.toLowerCase().split(" ")[0]));
+}
 
 const FR_NUM = (v: number | null, digits = 1): string =>
     v === null || Number.isNaN(v) ? "—" : v.toFixed(digits).replace(".", ",");
 
-// Default BEPC date — end-of-academic-year exam window (June 27, current year).
 function defaultBepcDate(): Date {
     const now = new Date();
     const year = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
-    return new Date(year, 5, 27); // June 27
+    return new Date(year, 5, 27);
 }
 
 function daysBetween(a: Date, b: Date): number {
-    const ms = b.getTime() - a.getTime();
-    return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+    return Math.max(0, Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 function mentionFromAvg(avg: number | null): {
@@ -66,6 +90,8 @@ export default function BepcPrepPage() {
     const [error, setError] = useState<string | null>(null);
     const [generalAvg, setGeneralAvg] = useState<number | null>(null);
     const [subjectAverages, setSubjectAverages] = useState<SubjectAvg[]>([]);
+    const [exams, setExams] = useState<ExamItem[]>([]);
+    const [readiness, setReadiness] = useState<ReadinessResponse | null>(null);
     const [now, setNow] = useState(() => new Date());
 
     const bepcDate = useMemo(() => defaultBepcDate(), []);
@@ -79,8 +105,14 @@ export default function BepcPrepPage() {
     useEffect(() => {
         const load = async () => {
             try {
-                // Try the bulletin endpoint for current period
-                const periodsRes = await fetch("/api/periods");
+                // 1. Fetch periods + grades stats + exams + profile in parallel
+                const [periodsRes, examsRes, profileRes] = await Promise.all([
+                    fetch("/api/periods"),
+                    fetch("/api/exams"),
+                    fetch("/api/user/profile"),
+                ]);
+
+                // Grades stats
                 const periodsBody = await periodsRes.json().catch(() => []);
                 const periodsList: { id: string; name: string }[] = Array.isArray(periodsBody)
                     ? periodsBody
@@ -91,7 +123,6 @@ export default function BepcPrepPage() {
                 let general: number | null = null;
 
                 if (lastPeriod) {
-                    // Try /api/grades/statistics?type=student
                     const statsRes = await fetch(
                         `/api/grades/statistics?type=student&periodId=${lastPeriod.id}`
                     );
@@ -108,16 +139,33 @@ export default function BepcPrepPage() {
                     }
                 }
 
-                // Fallback: try /api/bulletins with own student id
-                if (avgs.length === 0) {
-                    const meRes = await fetch("/api/user/profile");
-                    if (meRes.ok && lastPeriod) {
-                        // No direct studentId here; rely on stats only — skip fallback to avoid noisy errors.
-                    }
-                }
-
                 setGeneralAvg(general);
                 setSubjectAverages(avgs.sort((a, b) => a.average - b.average));
+
+                // Exams
+                if (examsRes.ok) {
+                    const examsBody = await examsRes.json();
+                    const all: ExamItem[] = examsBody.exams ?? [];
+                    setExams(
+                        all
+                            .filter((e) => isBepcSubject(e.classSubject.subject.name))
+                            .sort((a, b) => (b.isPublished ? 1 : 0) - (a.isPublished ? 1 : 0))
+                    );
+                }
+
+                // AI readiness (only if student profile)
+                if (profileRes.ok) {
+                    const profile = await profileRes.json();
+                    const studentProfileId: string | null = profile.studentProfile?.id ?? null;
+                    if (studentProfileId) {
+                        const prepRes = await fetch(
+                            `/api/exams/prep?exam=BEPC&studentId=${studentProfileId}`
+                        );
+                        if (prepRes.ok) {
+                            setReadiness(await prepRes.json());
+                        }
+                    }
+                }
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Erreur inconnue");
             } finally {
@@ -209,7 +257,7 @@ export default function BepcPrepPage() {
                         />
                         <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                             <HeroStat label="jours" value={String(daysLeft)} />
-                            <HeroStat label="épreuves" value="6" />
+                            <HeroStat label="épreuves" value="7" />
                             <HeroStat
                                 label="moy. estimée"
                                 value={FR_NUM(generalAvg)}
@@ -224,13 +272,15 @@ export default function BepcPrepPage() {
                             />
                         </div>
                         <div style={{ marginLeft: "auto" }}>
-                            <Button
-                                size="lg"
-                                style={{ background: "#fff", color: "var(--brand-800, var(--brand-700))" }}
-                                iconRight="chevron"
-                            >
-                                Plan de révision IA
-                            </Button>
+                            <Link href="/dashboard/grades">
+                                <Button
+                                    size="lg"
+                                    style={{ background: "#fff", color: "var(--brand-800, var(--brand-700))" }}
+                                    iconRight="chevron"
+                                >
+                                    Mes notes détaillées
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </Card>
@@ -265,50 +315,79 @@ export default function BepcPrepPage() {
                     className="bepc-grid"
                 >
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {/* Annales section — real exams from DB */}
                         <Card padding={0}>
                             <div
                                 style={{
                                     padding: "14px 18px",
                                     borderBottom: "1px solid var(--eduflow-border-subtle)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 8,
                                 }}
                             >
-                                <h3
-                                    className="eduflow-display"
-                                    style={{ fontSize: 16, margin: 0 }}
-                                >
-                                    Annales BEPC · corrigées par l'IA
-                                </h3>
-                                <p
+                                <div>
+                                    <h3
+                                        className="eduflow-display"
+                                        style={{ fontSize: 16, margin: 0 }}
+                                    >
+                                        Annales BEPC · examens disponibles
+                                    </h3>
+                                    <p
+                                        style={{
+                                            fontSize: 11,
+                                            color: "var(--eduflow-text-tertiary)",
+                                            margin: "2px 0 0",
+                                        }}
+                                    >
+                                        Examens publiés par vos enseignants pour les matières BEPC
+                                    </p>
+                                </div>
+                                <Link href="/dashboard/exams">
+                                    <Button size="sm" variant="ghost" iconRight="chevron">
+                                        Tous les examens
+                                    </Button>
+                                </Link>
+                            </div>
+
+                            {loading ? (
+                                <div style={{ padding: 32, textAlign: "center" }}>
+                                    <Spinner size={22} color="var(--brand-600)" />
+                                </div>
+                            ) : exams.length === 0 ? (
+                                <div
                                     style={{
-                                        fontSize: 11,
+                                        padding: "32px 18px",
+                                        textAlign: "center",
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
-                                        margin: "2px 0 0",
+                                        lineHeight: 1.7,
                                     }}
                                 >
-                                    Module à venir · les annales {bepcDate.getFullYear() - 2}–
-                                    {bepcDate.getFullYear() - 1} seront disponibles offline avec
-                                    correction IA chronométrée.
-                                </p>
-                            </div>
-                            <div
-                                style={{
-                                    padding: "48px 18px",
-                                    textAlign: "center",
-                                    fontSize: 12,
-                                    color: "var(--eduflow-text-tertiary)",
-                                    lineHeight: 1.7,
-                                }}
-                            >
-                                Aucune annale chargée pour l'instant.
-                                <br />
-                                Une fois activé, ce module proposera Math · Français · SVT ·
-                                Histoire-Géo · Anglais · Physique-Chimie, scoring automatique et
-                                analyse temps moyen par question.
-                            </div>
+                                    Aucun examen BEPC disponible pour l&apos;instant.
+                                    <br />
+                                    Vos enseignants peuvent en créer dans le module{" "}
+                                    <Link
+                                        href="/dashboard/exams"
+                                        style={{ color: "var(--brand-600)" }}
+                                    >
+                                        Évaluations
+                                    </Link>
+                                    .
+                                </div>
+                            ) : (
+                                <div>
+                                    {exams.map((exam, i) => (
+                                        <ExamRow exam={exam} key={exam.id} hasBorder={i > 0} />
+                                    ))}
+                                </div>
+                            )}
                         </Card>
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {/* AI readiness card */}
                         <Card
                             style={{
                                 background: "var(--brand-50)",
@@ -322,7 +401,7 @@ export default function BepcPrepPage() {
                                     color="var(--brand-700)"
                                     style={{ marginTop: 2, flexShrink: 0 }}
                                 />
-                                <div>
+                                <div style={{ flex: 1 }}>
                                     <div
                                         className="eduflow-display"
                                         style={{
@@ -331,34 +410,66 @@ export default function BepcPrepPage() {
                                             color: "var(--brand-900, var(--brand-800))",
                                         }}
                                     >
-                                        Plan de révision IA · semaine
+                                        Analyse IA · préparation BEPC
                                     </div>
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            color: "var(--brand-800)",
-                                            marginTop: 8,
-                                            lineHeight: 1.7,
-                                        }}
-                                    >
-                                        {REVISION_PLAN.map((r) => (
-                                            <div key={r.day}>
-                                                <strong>{r.day}</strong> · {r.activity}
-                                                {r.duration !== "—" ? ` (${r.duration})` : ""}
+
+                                    {loading ? (
+                                        <div style={{ marginTop: 10 }}>
+                                            <Spinner size={16} color="var(--brand-600)" />
+                                        </div>
+                                    ) : readiness ? (
+                                        <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.7, color: "var(--brand-800)" }}>
+                                            <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
+                                                <ReadinessStat
+                                                    label="Préparation"
+                                                    value={`${Math.round(readiness.overallReadiness)}%`}
+                                                />
+                                                <ReadinessStat
+                                                    label="Succès prédit"
+                                                    value={`${Math.round(readiness.predictedSuccess)}%`}
+                                                />
                                             </div>
-                                        ))}
-                                    </div>
-                                    <p
-                                        style={{
-                                            fontSize: 11,
-                                            color: "var(--brand-700)",
-                                            marginTop: 10,
-                                            lineHeight: 1.55,
-                                        }}
-                                    >
-                                        Personnalisation IA à venir : ajustera la priorité par
-                                        matière selon tes derniers résultats.
-                                    </p>
+                                            {readiness.strongAreas.length > 0 ? (
+                                                <div>
+                                                    <span style={{ fontWeight: 600 }}>Points forts :</span>{" "}
+                                                    {readiness.strongAreas.join(", ")}
+                                                </div>
+                                            ) : null}
+                                            {readiness.weakAreas.length > 0 ? (
+                                                <div>
+                                                    <span style={{ fontWeight: 600 }}>À renforcer :</span>{" "}
+                                                    {readiness.weakAreas.join(", ")}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                marginTop: 8,
+                                                fontSize: 12,
+                                                color: "var(--brand-700)",
+                                                lineHeight: 1.7,
+                                            }}
+                                        >
+                                            Plan de révision · semaine
+                                            {REVISION_PLAN.map((r) => (
+                                                <div key={r.day}>
+                                                    <strong>{r.day}</strong> · {r.activity}
+                                                    {r.duration !== "—" ? ` (${r.duration})` : ""}
+                                                </div>
+                                            ))}
+                                            <p
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "var(--brand-700)",
+                                                    marginTop: 10,
+                                                    lineHeight: 1.55,
+                                                }}
+                                            >
+                                                Connectez-vous en tant qu&apos;élève pour obtenir un plan personnalisé par matière selon vos résultats.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </Card>
@@ -413,7 +524,7 @@ export default function BepcPrepPage() {
                                             lineHeight: 1.55,
                                         }}
                                     >
-                                        Basé sur ta moyenne actuelle · les écarts simulation/BEPC réel sont typiquement de −0,8 pts. À affiner avec plus d'annales.
+                                        Basé sur votre moyenne actuelle · les écarts simulation/BEPC réel sont typiquement de −0,8 pts.
                                     </p>
                                 </>
                             )}
@@ -434,7 +545,9 @@ export default function BepcPrepPage() {
                                         lineHeight: 1.5,
                                     }}
                                 >
-                                    Tu n'as pas de matière sous 14/20 — continue comme ça !
+                                    {subjectAverages.length === 0
+                                        ? "Aucune note disponible pour cette période."
+                                        : "Aucune matière sous 14/20 — continuez comme ça !"}
                                 </p>
                             ) : (
                                 <div style={{ marginTop: 8 }}>
@@ -472,8 +585,7 @@ export default function BepcPrepPage() {
                                                     <div
                                                         style={{
                                                             fontSize: 10,
-                                                            color:
-                                                                "var(--eduflow-text-tertiary)",
+                                                            color: "var(--eduflow-text-tertiary)",
                                                         }}
                                                     >
                                                         Cible : porter à 14/20
@@ -496,12 +608,6 @@ export default function BepcPrepPage() {
                                 </div>
                             )}
                         </Card>
-
-                        <Link href="/dashboard/grades" style={{ textDecoration: "none" }}>
-                            <Button variant="secondary" style={{ width: "100%" }} iconRight="chevron">
-                                Voir mes notes détaillées
-                            </Button>
-                        </Link>
                     </div>
                 </div>
             </div>
@@ -514,6 +620,40 @@ export default function BepcPrepPage() {
                 }
             `}</style>
         </PageGuard>
+    );
+}
+
+function ExamRow({ exam, hasBorder }: { exam: ExamItem; hasBorder: boolean }) {
+    return (
+        <div
+            style={{
+                padding: "10px 18px",
+                borderTop: hasBorder ? "1px solid var(--eduflow-border-subtle)" : undefined,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+            }}
+        >
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{exam.title}</div>
+                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 1 }}>
+                    {exam.classSubject.subject.name} · {exam.classSubject.class.name} ·{" "}
+                    {exam._count.questions} question{exam._count.questions !== 1 ? "s" : ""} ·{" "}
+                    {exam.duration} min
+                </div>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                <Badge variant={exam.isPublished ? "success" : "neutral"}>
+                    {exam.isPublished ? "Publié" : "Brouillon"}
+                </Badge>
+                <Link href={`/dashboard/exams/${exam.id}`}>
+                    <Button size="sm" variant="ghost" iconRight="chevron">
+                        Ouvrir
+                    </Button>
+                </Link>
+            </div>
+        </div>
     );
 }
 
@@ -538,6 +678,22 @@ function HeroStat({ label, value }: { label: string; value: string }) {
                     letterSpacing: "0.08em",
                 }}
             >
+                {label}
+            </div>
+        </div>
+    );
+}
+
+function ReadinessStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <div
+                className="eduflow-display tabular"
+                style={{ fontSize: 22, fontWeight: 700, color: "var(--brand-700)", fontVariantNumeric: "tabular-nums" }}
+            >
+                {value}
+            </div>
+            <div style={{ fontSize: 10, opacity: 0.75, textTransform: "uppercase", letterSpacing: "0.07em" }}>
                 {label}
             </div>
         </div>

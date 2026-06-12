@@ -246,6 +246,88 @@ function calculateSeriesScore(
 }
 
 // ============================================
+// RECOMMANDATIONS INDICATIVES (sans dossier)
+// ============================================
+
+export interface IndicativeRecommendation {
+  series: RecommendedSeries;
+  name: string;
+  description: string;
+  score: number;
+  strengths: string[];
+  warnings: string[];
+}
+
+/**
+ * Calcule des recommandations indicatives à partir des notes réelles de
+ * l'élève sur l'année, SANS créer de dossier d'orientation : utilisé pour
+ * donner un aperçu personnel à l'élève en attendant l'avis du conseil
+ * (P2.5 — orientation/me).
+ */
+export async function computeIndicativeRecommendations(
+  studentId: string,
+  academicYearId: string
+): Promise<{ recommendations: IndicativeRecommendation[]; generalAverage: number | null }> {
+  const grades = await prisma.grade.findMany({
+    where: {
+      studentId,
+      deletedAt: null,
+      value: { not: null },
+      isAbsent: false,
+      evaluation: { period: { academicYearId } },
+    },
+    select: {
+      value: true,
+      evaluation: {
+        select: {
+          maxGrade: true,
+          classSubject: { select: { subject: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+
+  const groupGrades = new Map<SubjectGroup, number[]>();
+  for (const grade of grades) {
+    const group = classifySubject(grade.evaluation.classSubject.subject.name);
+    if (!group) continue;
+    const maxGrade = Number(grade.evaluation.maxGrade) || 20;
+    const normalized = (Number(grade.value) / maxGrade) * 20;
+    if (!Number.isFinite(normalized)) continue;
+    if (!groupGrades.has(group)) groupGrades.set(group, []);
+    groupGrades.get(group)!.push(normalized);
+  }
+
+  const groupAverages = new Map<SubjectGroup, number>();
+  for (const [group, values] of groupGrades) {
+    groupAverages.set(group, values.reduce((sum, v) => sum + v, 0) / values.length);
+  }
+
+  const allValues = Array.from(groupGrades.values()).flat();
+  if (allValues.length === 0) {
+    return { recommendations: [], generalAverage: null };
+  }
+  const generalAverage = allValues.reduce((sum, v) => sum + v, 0) / allValues.length;
+
+  const scored = SERIES_REQUIREMENTS.map((req) => {
+    const { score, strengths, warnings } = calculateSeriesScore(req, groupAverages, generalAverage);
+    return {
+      series: req.series,
+      name: req.name,
+      description: req.description,
+      score,
+      strengths,
+      warnings,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  return {
+    recommendations: scored.slice(0, 3),
+    generalAverage: Math.round(generalAverage * 100) / 100,
+  };
+}
+
+// ============================================
 // GÉNÉRATION DES RECOMMANDATIONS
 // ============================================
 

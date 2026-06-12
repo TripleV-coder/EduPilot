@@ -133,18 +133,24 @@ npm run build          # next build
 > Ces features sont volontairement désactivées en UI (`disabled` + title « à venir »).
 > Ne PAS coder sans décision business. Cocher quand la décision est prise.
 
-### [ ] P2.1 — Intégration paiement MTN MoMo (débloque Wallet + Cagnotte)
-- **Débloque** :
-  - Wallet : décaissement (`src/app/(dashboard)/dashboard/wallet/page.tsx:282,517`), relevé multibanque (`:279`)
-  - Cagnotte : création parent (`cagnotte/page.tsx:177`), paiement contribution (`:550`), détail (`:575`), messagerie groupe (`:565`)
-- **Bloqueur** : webhook MoMo signé (config + endpoint).
+### [x] P2.1 — Intégration paiement MTN MoMo (fait 2026-06-12)
+- [x] **Webhook** : `src/app/api/payments/momo/webhook/route.ts` — HMAC-SHA256, rapprochement
+  PENDING→VERIFIED sur `MOBILE_MONEY_MTN/MOOV`, 503 si `MOMO_WEBHOOK_SECRET` absent.
+- [x] **Config-gate** : `src/app/api/integrations/momo/route.ts` — retourne `{ configured, requiredEnvVars }`.
+  Le Wallet consomme cette route (useSWR) et affiche une bannière de configuration + active les boutons décaissement quand `configured=true`.
+- **Reste** (nécessite credentials réels) : initiation de paiement MoMo côté serveur, QR code, Cagnotte.
+- Variables : `MOMO_WEBHOOK_SECRET`, `MOMO_SUBSCRIPTION_KEY`, `MOMO_API_USER`, `MOMO_API_KEY`, `MOMO_BASE_URL` — documentées dans `.env.example`.
 
-### [ ] P2.2 — WhatsApp Business API
-- **Fichier** : `src/app/(dashboard)/dashboard/whatsapp/page.tsx:99` (état « disconnected » honnête)
+### [x] P2.2 — WhatsApp Business API (fait 2026-06-12)
+- [x] `src/app/api/integrations/whatsapp/route.ts` — retourne statut réel basé sur `WHATSAPP_PHONE_ID` + `WHATSAPP_ACCESS_TOKEN` (env); lit `ConfigOption(category="whatsapp")` pour phone_number/verified_at; compte les parents actifs comme subscribers.
+- [x] `whatsapp/page.tsx` — passe de setTimeout hardcodé à `fetch("/api/integrations/whatsapp")` réel.
+- **Reste** (nécessite Meta BSP) : envoi de messages, templates, webhook entrant.
+- Variables : `WHATSAPP_PHONE_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN` — documentées dans `.env.example`.
 
-### [ ] P2.3 — Export comptable DGI iTAS (Bénin)
-- **Fichier** : `src/app/(dashboard)/dashboard/accounting/page.tsx:188` + échéances `:808`, écriture manuelle `:191`
-- **Bloqueur** : spécification format DGI.
+### [x] P2.3 — Export comptable DGI iTAS (fait 2026-06-12)
+- [x] `src/app/api/accounting/export/route.ts` — CSV SYSCOHADA format DGI (`DATE;JOURNAL;PIECE;LIBELLE;COMPTE_DEBIT;…;MONTANT_FCFA`), filtres fiscalYearId + startDate/endDate, extensions `.csv` et `.itas`.
+- [x] Bouton « Export DGI · iTAS » activé dans `accounting/page.tsx` — `window.open()` avec `fiscalYearId` courant.
+- **Reste** (nécessite spec officielle iTAS) : connecteur API iTAS DGI pour soumission électronique directe.
 
 ### [x] P2.4 — Modèles Prisma manquants (fait 2026-06-12, décision propriétaire « fais tout »)
 - [x] **Transport** : modèles `TransportLine/Bus/BusRoute/StudentTransport` + route
@@ -162,11 +168,11 @@ npm run build          # next build
   `migrate deploy` ne l'aurait jamais reçu). DB dev reset + re-seed avec accord propriétaire.
 - Tests : `tests/api/observability.test.ts` (12).
 
-### [ ] P2.5 — Modules sans dépendance externe (dev pur, à prioriser)
-- **Wellbeing** : PDF rapport climat + dossiers (`wellbeing/page.tsx:209,212,522`)
-- **BEPC-prep** : annales offline + IA chronométrée (`bepc-prep/page.tsx:288,359`)
-- **Orientation** : recommandations perso (`orientation/me/page.tsx:284`)
-- **Onboarding** : parcours détaillé par rôle (`onboarding/page.tsx:1279`)
+### [x] P2.5 — Modules sans dépendance externe (fait 2026-06-11/12)
+- [x] **Wellbeing** : `src/lib/wellbeing/climate-report.ts` (PDF MEMP, jspdf-autotable v5) + `api/wellbeing/reports` POST/GET/PATCH (audit, anti-IDOR, statut OPEN→CLOSED) + `NewReportButton`/`ReportDossierButton` dialogs dans `wellbeing/page.tsx`.
+- [x] **BEPC-prep** : `bepc-prep/page.tsx` branché — annales depuis `/api/exams` (filtre BEPC subjects), readiness depuis `/api/exams/prep?exam=BEPC&studentId=` (nécessite studentProfile), plan de révision fallback si pas d'élève. Profil API étendu avec `studentProfile.id`.
+- [x] **Orientation** : `computeIndicativeRecommendations` dans `src/lib/services/orientation.ts` + `api/orientation/me` retourne `indicative.recommendations[]` quand pas de dossier conseil ; `orientation/me/page.tsx` affiche les recommandations indicatives.
+- [x] **Onboarding** : découpé en `src/components/onboarding/` (5 sous-composants par rôle : teacher, parent, student, super-admin, fallback). Parcours complets dans chaque composant.
 
 ---
 
