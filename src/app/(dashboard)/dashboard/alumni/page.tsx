@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -13,97 +14,36 @@ import {
     Chip,
     Icon,
     MetricCard,
+    Spinner,
 } from "@/components/edu";
 import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { AlumniCreateDialog } from "@/components/alumni/alumni-create-dialog";
 
-type AlumniSeed = {
+type AlumniField = "Médecine" | "Tech" | "Droit" | "Business" | "Énergie" | "Autre";
+
+type Alumni = {
     id: string;
-    name: string;
-    promo: string;
-    series: string;
-    job: string;
-    mentorTopic: string;
-    field: "Médecine" | "Tech" | "Droit" | "Business" | "Énergie" | "Autre";
+    firstName: string;
+    lastName: string;
+    graduationYear: number;
+    series: string | null;
+    field: AlumniField;
+    currentRole: string | null;
+    company: string | null;
+    isMentor: boolean;
+    mentorTopic: string | null;
 };
 
-type PromotionSeed = {
-    label: string;
-    members: number;
-    donations: string;
+type Promotion = { year: number; members: number };
+
+type AlumniResponse = {
+    alumni: Alumni[];
+    promotions: Promotion[];
+    mentorCount: number;
+    total: number;
 };
 
-type EventSeed = {
-    name: string;
-    date: string;
-    location: string;
-    confirmed: number;
-    goal: string;
-};
-
-const ALUMNI_SAMPLE: AlumniSeed[] = [
-    {
-        id: "bocco",
-        name: "Dr. Aïssatou Bocco",
-        promo: "BAC 2008",
-        series: "Série D",
-        job: "Chirurgienne · CNHU-HKM Cotonou",
-        mentorTopic: "Étudiants Série D",
-        field: "Médecine",
-    },
-    {
-        id: "tossou",
-        name: "Ing. Patrick Tossou",
-        promo: "BAC 2010",
-        series: "Série C",
-        job: "Tech Lead · Orange Bénin",
-        mentorTopic: "Sciences & info",
-        field: "Tech",
-    },
-    {
-        id: "houngbedji",
-        name: "Me Léa Houngbedji",
-        promo: "BAC 2005",
-        series: "Série A1",
-        job: "Avocate au barreau",
-        mentorTopic: "Filière A · droit",
-        field: "Droit",
-    },
-    {
-        id: "bio",
-        name: "Mme Fatou Bio",
-        promo: "BAC 2012",
-        series: "Série G2",
-        job: "Directrice Marketing · MTN",
-        mentorTopic: "Filière G · marketing",
-        field: "Business",
-    },
-    {
-        id: "coffi",
-        name: "M. Olivier Coffi",
-        promo: "BAC 2003",
-        series: "Série F3",
-        job: "Entrepreneur · énergie solaire",
-        mentorTopic: "F1-F4 industrie",
-        field: "Énergie",
-    },
-];
-
-const PROMOTIONS_SAMPLE: PromotionSeed[] = [
-    { label: "Promo 2010", members: 42, donations: "6,2M FCFA" },
-    { label: "Promo 2015", members: 38, donations: "4,8M FCFA" },
-    { label: "Promo 2008", members: 31, donations: "8,1M FCFA" },
-    { label: "Promo 2018", members: 28, donations: "2,4M FCFA" },
-];
-
-const EVENT_SAMPLE: EventSeed = {
-    name: "Gala des 30 ans",
-    date: "Samedi 14 juin · 19h",
-    location: "Hôtel du Lac · Cotonou",
-    confirmed: 248,
-    goal: "5M FCFA pour la bibliothèque",
-};
-
-const FIELD_VARIANT: Record<AlumniSeed["field"], "brand" | "info" | "warning" | "success" | "danger" | "neutral"> = {
+const FIELD_VARIANT: Record<AlumniField, "brand" | "info" | "warning" | "success" | "danger" | "neutral"> = {
     Médecine: "danger",
     Tech: "info",
     Droit: "brand",
@@ -112,120 +52,89 @@ const FIELD_VARIANT: Record<AlumniSeed["field"], "brand" | "info" | "warning" | 
     Autre: "neutral",
 };
 
-type Filter = "all" | AlumniSeed["field"];
+type Filter = "all" | AlumniField;
 
 export default function AlumniPage() {
     const [filter, setFilter] = useState<Filter>("all");
+    const [data, setData] = useState<AlumniResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const filtered = useMemo(() => {
-        if (filter === "all") return ALUMNI_SAMPLE;
-        return ALUMNI_SAMPLE.filter((a) => a.field === filter);
-    }, [filter]);
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/alumni", { credentials: "include", cache: "no-store" });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Impossible de charger l'annuaire");
+            }
+            setData(await res.json());
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const alumni = data?.alumni ?? [];
 
     const fields = useMemo(() => {
-        const counts = new Map<AlumniSeed["field"], number>();
-        for (const a of ALUMNI_SAMPLE) {
-            counts.set(a.field, (counts.get(a.field) ?? 0) + 1);
-        }
+        const counts = new Map<AlumniField, number>();
+        for (const a of alumni) counts.set(a.field, (counts.get(a.field) ?? 0) + 1);
         return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-    }, []);
+    }, [alumni]);
+
+    const filtered = useMemo(
+        () => (filter === "all" ? alumni : alumni.filter((a) => a.field === filter)),
+        [alumni, filter]
+    );
+
+    const topPromo = data?.promotions?.[0];
+    const jobLine = (a: Alumni) =>
+        [a.currentRole, a.company].filter(Boolean).join(" · ") || "Profil à compléter";
 
     return (
         <PageGuard
             permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
                 <PageHeader
                     greeting="Réseau Alumni"
-                    sub={`${ALUMNI_SAMPLE.length} mentors en démonstration · catalogue à activer avec le modèle Prisma`}
+                    sub={
+                        loading
+                            ? "Chargement de l'annuaire…"
+                            : `${data?.total ?? 0} anciens élèves · ${data?.mentorCount ?? 0} mentors disponibles`
+                    }
                     breadcrumb={["Communauté", "Alumni"]}
                     actions={
-                        <>
-                            <Button variant="secondary" icon="sms" disabled>
-                                Newsletter trimestrielle
-                            </Button>
-                            <Button icon="plus" disabled>
-                                Nouvel événement
-                            </Button>
-                        </>
+                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                            <AlumniCreateDialog onCreated={load} />
+                        </RoleActionGuard>
                     }
                 />
 
-                <Card
-                    padding={14}
-                    style={{
-                        background: "var(--brand-50)",
-                        border: "1px solid var(--brand-200)",
-                    }}
-                >
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <Icon
-                            name="info"
-                            size={16}
-                            color="var(--brand-700)"
-                            style={{ marginTop: 2 }}
-                        />
-                        <div
-                            style={{
-                                fontSize: 12,
-                                color: "var(--brand-800)",
-                                lineHeight: 1.55,
-                            }}
-                        >
-                            Vue de démonstration · les modèles <code>Alumni</code>,{" "}
-                            <code>AlumniMentorship</code>, <code>AlumniEvent</code>,{" "}
-                            <code>Donation</code> ne sont pas encore en place côté Prisma.
-                            Les profils ci-dessous illustrent le rendu final ; les actions
-                            (Mentor, Connecter, Donner) seront branchées dès que le réseau
-                            sera ouvert.
+                {error ? (
+                    <Card padding={16} style={{ border: "1px solid var(--eduflow-danger-200)", background: "var(--eduflow-danger-50)" }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <Icon name="info" size={16} color="var(--eduflow-danger-700)" />
+                            <span style={{ fontSize: 13, color: "var(--eduflow-danger-800)" }}>{error}</span>
+                            <Button variant="secondary" size="sm" onClick={load} style={{ marginLeft: "auto" }}>Réessayer</Button>
                         </div>
-                    </div>
-                </Card>
+                    </Card>
+                ) : null}
 
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(4, 1fr)",
-                        gap: 12,
-                    }}
-                    className="kpi-grid"
-                >
-                    <MetricCard
-                        label="Anciens élèves"
-                        value="—"
-                        icon="users"
-                        variant="neutral"
-                    />
-                    <MetricCard
-                        label="Dons cumulés"
-                        value="—"
-                        unit="M FCFA"
-                        icon="money"
-                        variant="neutral"
-                    />
-                    <MetricCard
-                        label="Mentors actifs"
-                        value={String(ALUMNI_SAMPLE.length)}
-                        icon="sparkle"
-                        variant="info"
-                    />
-                    <MetricCard
-                        label="Événements / an"
-                        value="—"
-                        icon="calendar"
-                        variant="neutral"
-                    />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }} className="kpi-grid">
+                    <MetricCard label="Anciens élèves" value={loading ? "…" : String(data?.total ?? 0)} icon="users" variant="neutral" />
+                    <MetricCard label="Mentors actifs" value={loading ? "…" : String(data?.mentorCount ?? 0)} icon="sparkle" variant="info" />
+                    <MetricCard label="Promotions" value={loading ? "…" : String(data?.promotions.length ?? 0)} icon="calendar" variant="neutral" />
+                    <MetricCard label="Top promo" value={topPromo ? `BAC ${topPromo.year}` : "—"} icon="trophy" variant="success" />
                 </div>
 
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "1.4fr 1fr",
-                        gap: 14,
-                    }}
-                    className="alumni-grid"
-                >
+                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 }} className="alumni-grid">
                     <Card padding={0}>
                         <div
                             style={{
@@ -238,235 +147,99 @@ export default function AlumniPage() {
                                 gap: 8,
                             }}
                         >
-                            <h3
-                                className="eduflow-display"
-                                style={{ fontSize: 16, margin: 0 }}
-                            >
-                                Mentors disponibles
-                            </h3>
+                            <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>Annuaire des anciens</h3>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                <Chip
-                                    active={filter === "all"}
-                                    onClick={() => setFilter("all")}
-                                >
-                                    Tous
-                                </Chip>
+                                <Chip active={filter === "all"} onClick={() => setFilter("all")}>Tous</Chip>
                                 {fields.map(([f, c]) => (
-                                    <Chip
-                                        key={f}
-                                        active={filter === f}
-                                        count={c}
-                                        onClick={() => setFilter(f)}
-                                    >
-                                        {f}
-                                    </Chip>
+                                    <Chip key={f} active={filter === f} count={c} onClick={() => setFilter(f)}>{f}</Chip>
                                 ))}
                             </div>
                         </div>
-                        {filtered.map((a, i) => (
-                            <div
-                                key={a.id}
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "48px 1fr auto",
-                                    gap: 14,
-                                    padding: "14px 18px",
-                                    borderTop:
-                                        i > 0
-                                            ? "1px solid var(--eduflow-border-subtle)"
-                                            : 0,
-                                    alignItems: "center",
-                                }}
-                            >
-                                <Avatar name={a.name} size="md" />
-                                <div>
-                                    <div style={{ fontSize: 14, fontWeight: 700 }}>
-                                        {a.name}
-                                    </div>
-                                    <div
-                                        style={{
-                                            fontSize: 11,
-                                            color: "var(--brand-700)",
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        {a.promo} · {a.series}
-                                    </div>
-                                    <div
-                                        style={{
-                                            fontSize: 11,
-                                            color: "var(--eduflow-text-secondary)",
-                                        }}
-                                    >
-                                        {a.job}
-                                    </div>
-                                    <div
-                                        style={{
-                                            fontSize: 10,
-                                            color: "var(--eduflow-text-tertiary)",
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        Mentor · {a.mentorTopic}
-                                    </div>
-                                </div>
+
+                        {loading ? (
+                            <div style={{ display: "flex", justifyContent: "center", padding: 40 }}><Spinner /></div>
+                        ) : filtered.length === 0 ? (
+                            <div style={{ padding: 40, textAlign: "center", color: "var(--eduflow-text-secondary)" }}>
+                                <Icon name="users" size={28} color="var(--eduflow-text-tertiary)" />
+                                <p style={{ fontSize: 13, marginTop: 10 }}>
+                                    {alumni.length === 0
+                                        ? "Aucun ancien élève dans l'annuaire. Ajoute le premier profil."
+                                        : "Aucun ancien élève pour ce domaine."}
+                                </p>
+                            </div>
+                        ) : (
+                            filtered.map((a, i) => (
                                 <div
+                                    key={a.id}
                                     style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "flex-end",
-                                        gap: 6,
+                                        display: "grid",
+                                        gridTemplateColumns: "48px 1fr auto",
+                                        gap: 14,
+                                        padding: "14px 18px",
+                                        borderTop: i > 0 ? "1px solid var(--eduflow-border-subtle)" : 0,
+                                        alignItems: "center",
                                     }}
                                 >
-                                    <Badge
-                                        variant={FIELD_VARIANT[a.field]}
-                                        size="sm"
-                                        icon="sparkle"
-                                    >
-                                        {a.field}
-                                    </Badge>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        iconRight="chevron"
-                                        disabled
-                                    >
-                                        Connecter
-                                    </Button>
+                                    <Avatar name={`${a.firstName} ${a.lastName}`} size="md" />
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700 }}>{a.firstName} {a.lastName}</div>
+                                        <div style={{ fontSize: 11, color: "var(--brand-700)", fontWeight: 600 }}>
+                                            BAC {a.graduationYear}{a.series ? ` · Série ${a.series}` : ""}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>{jobLine(a)}</div>
+                                        {a.isMentor ? (
+                                            <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                                Mentor{a.mentorTopic ? ` · ${a.mentorTopic}` : ""}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                                        <Badge variant={FIELD_VARIANT[a.field]} size="sm" icon="sparkle">{a.field}</Badge>
+                                        {a.isMentor ? <Badge variant="success" size="sm">Mentor</Badge> : null}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </Card>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                        <Card
-                            style={{
-                                background:
-                                    "linear-gradient(135deg, var(--brand-700), var(--accent-600, var(--brand-800)))",
-                                color: "#fff",
-                                border: 0,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    letterSpacing: "0.12em",
-                                    textTransform: "uppercase",
-                                    opacity: 0.85,
-                                }}
-                            >
-                                Prochain événement · exemple
-                            </div>
-                            <div
-                                className="eduflow-display"
-                                style={{
-                                    fontSize: 22,
-                                    fontWeight: 700,
-                                    marginTop: 8,
-                                    lineHeight: 1.2,
-                                }}
-                            >
-                                {EVENT_SAMPLE.name}
-                            </div>
-                            <div style={{ fontSize: 13, opacity: 0.9, marginTop: 6 }}>
-                                {EVENT_SAMPLE.date} · {EVENT_SAMPLE.location}
-                            </div>
-                            <div
-                                style={{
-                                    marginTop: 14,
-                                    fontSize: 12,
-                                    opacity: 0.88,
-                                }}
-                            >
-                                {EVENT_SAMPLE.confirmed} confirmés · objectif {EVENT_SAMPLE.goal}
-                            </div>
-                            <Button
-                                size="sm"
-                                style={{
-                                    background: "#fff",
-                                    color: "var(--brand-700)",
-                                    marginTop: 14,
-                                }}
-                                disabled
-                            >
-                                Voir le programme
-                            </Button>
-                        </Card>
-
                         <Card>
-                            <SubLabel>Top promotions actives</SubLabel>
+                            <SubLabel>Membres par promotion</SubLabel>
                             <div style={{ marginTop: 8 }}>
-                                {PROMOTIONS_SAMPLE.map((p, i) => (
-                                    <div
-                                        key={p.label}
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            padding: "8px 0",
-                                            borderTop:
-                                                i > 0
-                                                    ? "1px solid var(--eduflow-border-subtle)"
-                                                    : 0,
-                                        }}
-                                    >
-                                        <span
+                                {!loading && (data?.promotions.length ?? 0) === 0 ? (
+                                    <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", padding: "8px 0" }}>
+                                        Les promotions apparaîtront ici dès les premiers profils.
+                                    </p>
+                                ) : (
+                                    (data?.promotions ?? []).map((p, i) => (
+                                        <div
+                                            key={p.year}
                                             style={{
-                                                flex: 1,
-                                                fontSize: 13,
-                                                fontWeight: 600,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                padding: "8px 0",
+                                                borderTop: i > 0 ? "1px solid var(--eduflow-border-subtle)" : 0,
                                             }}
                                         >
-                                            {p.label}
-                                        </span>
-                                        <span
-                                            style={{
-                                                fontSize: 11,
-                                                color: "var(--eduflow-text-tertiary)",
-                                                marginRight: 12,
-                                            }}
-                                        >
-                                            {p.members} membres
-                                        </span>
-                                        <span
-                                            className="eduflow-display tabular"
-                                            style={{
-                                                fontSize: 13,
-                                                fontWeight: 700,
-                                                color: "var(--eduflow-success-700)",
-                                                fontVariantNumeric: "tabular-nums",
-                                            }}
-                                        >
-                                            {p.donations}
-                                        </span>
-                                    </div>
-                                ))}
+                                            <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>Promo {p.year}</span>
+                                            <span
+                                                className="eduflow-display tabular"
+                                                style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
+                                            >
+                                                {p.members} membre{p.members > 1 ? "s" : ""}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </Card>
 
                         <Card>
-                            <SubLabel>Faire un don à l'école</SubLabel>
-                            <p
-                                style={{
-                                    fontSize: 12,
-                                    color: "var(--eduflow-text-secondary)",
-                                    lineHeight: 1.55,
-                                    margin: "6px 0 10px",
-                                }}
-                            >
-                                Financez bourses, infrastructure, livres. 100% reversé · reçu
-                                fiscal automatique à brancher.
+                            <SubLabel>Mentorat</SubLabel>
+                            <p style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", lineHeight: 1.55, margin: "6px 0 0" }}>
+                                Marque un ancien élève comme « mentor » lors de l'ajout pour le proposer aux élèves
+                                en orientation. Les mentors disponibles sont comptés ci-dessus.
                             </p>
-                            <Button
-                                icon="money"
-                                style={{
-                                    width: "100%",
-                                    background: "var(--gradient-cta, var(--brand-700))",
-                                }}
-                                disabled
-                            >
-                                Faire un don
-                            </Button>
                         </Card>
                     </div>
                 </div>
@@ -474,12 +247,8 @@ export default function AlumniPage() {
 
             <style jsx global>{`
                 @media (max-width: 960px) {
-                    .kpi-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                    .alumni-grid {
-                        grid-template-columns: 1fr !important;
-                    }
+                    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+                    .alumni-grid { grid-template-columns: 1fr !important; }
                 }
             `}</style>
         </PageGuard>
