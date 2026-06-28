@@ -25,6 +25,7 @@ import { StudentAiPrediction } from "@/components/students/student-ai-prediction
 import { StudentEditDialog } from "@/components/students/student-edit-dialog";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { StudentProfile360 } from "@/components/students/student-profile-360";
+import { ParentLinkCodeDialog } from "@/components/students/parent-link-code-dialog";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 type StudentDetail = {
@@ -137,6 +138,9 @@ export default function StudentDetailPage() {
             description={student?.studentNumber ?? student?.matricule ?? "—"}
           />
           <div className="flex items-center gap-3">
+            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+              {student?.id ? <ParentLinkCodeDialog studentId={student.id} /> : null}
+            </RoleActionGuard>
             <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
               <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">
                 <Edit className="h-3.5 w-3.5" />

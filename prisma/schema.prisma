@@ -437,6 +437,7 @@ model StudentProfile {
   homeworkSubmissions HomeworkSubmission[]
   lessonCompletions   LessonCompletion[]
   medicalRecord       MedicalRecord?
+  linkCodes           StudentLinkCode[]
   parentStudents      ParentStudent[]
   paymentPlans        PaymentPlan[]
   payments            Payment[]
@@ -480,6 +481,26 @@ model ParentStudent {
 
   @@unique([parentId, studentId])
   @@map("parent_students")
+}
+
+/// Code de liaison parent-enfant à usage unique, émis par l'école et requis
+/// pour qu'un parent puisse rattacher un élève à son compte. Le code est stocké
+/// haché (bcrypt) ; un seul code actif par élève à la fois.
+model StudentLinkCode {
+  id           String         @id @default(cuid())
+  studentId    String
+  schoolId     String
+  codeHash     String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  createdById  String?
+  createdAt    DateTime       @default(now())
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([schoolId])
+  @@map("student_link_codes")
 }
 
 model ClassLevel {

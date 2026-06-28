@@ -43,6 +43,10 @@ export function ParentOnboarding({ user }: { user: string }) {
             setError("Saisis le matricule de ton enfant.");
             return;
         }
+        if (!code.trim()) {
+            setError("Saisis le code de liaison remis par l'école.");
+            return;
+        }
         setLinking(true);
         setError(null);
         try {
@@ -51,7 +55,7 @@ export function ParentOnboarding({ user }: { user: string }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     matricule: matricule.trim(),
-                    verificationCode: code.trim() || undefined,
+                    verificationCode: code.trim(),
                 }),
             });
             const body = await res.json();
@@ -124,11 +128,11 @@ export function ParentOnboarding({ user }: { user: string }) {
                             placeholder="BJ-2026-A0142"
                         />
                         <LabelledInput
-                            label="Code de vérification (6 chiffres)"
+                            label="Code de liaison (8 caractères)"
                             icon="settings"
                             value={code}
                             onChange={setCode}
-                            placeholder="724 891"
+                            placeholder="K7M2QPRX"
                         />
                     </div>
                     {error ? (
@@ -184,7 +188,7 @@ export function ParentOnboarding({ user }: { user: string }) {
                             icon={linking ? undefined : "check"}
                             loading={linking}
                             onClick={handleLink}
-                            disabled={!matricule.trim() || linking}
+                            disabled={!matricule.trim() || !code.trim() || linking}
                             style={{ marginTop: 14 }}
                         >
                             Lier cet enfant
