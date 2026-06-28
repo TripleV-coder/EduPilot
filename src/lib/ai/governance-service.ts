@@ -5,6 +5,7 @@ import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { predictFailureRisk as predictStudentFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
 import { predictNextPeriodGrade } from "@/lib/services/ai-predictive/predict-grade";
 import { logger } from "@/lib/utils/logger";
+import { studentAlias } from "./pii";
 import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/config/env";
 import {
@@ -181,7 +182,7 @@ class GovernanceService {
     let planData;
     if (hasExternalAIConfigured() && analytics) {
         try {
-            const prompt = `Crée un plan d'action de remédiation personnalisé pour ${formatStudentName(student)} en classe de ${student.enrollments[0]?.class.name}. Moyenne actuelle: ${analytics.generalAverage}. Risque: ${analytics.riskLevel}. Faiblesses: ${analytics.subjectPerformances.filter(s => s.isWeakness).map(s => s.subject.name).join(', ')}. Renvoie un JSON strict: { "title": "...", "description": "...", "priority": "HIGH", "steps": ["étape 1", "étape 2"], "suggestedBy": "Gemini AI" }`;
+            const prompt = `Crée un plan d'action de remédiation personnalisé pour ${studentAlias(student.user?.firstName, student.user?.lastName)} en classe de ${student.enrollments[0]?.class.name}. Moyenne actuelle: ${analytics.generalAverage}. Risque: ${analytics.riskLevel}. Faiblesses: ${analytics.subjectPerformances.filter(s => s.isWeakness).map(s => s.subject.name).join(', ')}. Renvoie un JSON strict: { "title": "...", "description": "...", "priority": "HIGH", "steps": ["étape 1", "étape 2"], "suggestedBy": "Gemini AI" }`;
             const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
             if (externalResponse.success) {
                 const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
@@ -231,7 +232,7 @@ class GovernanceService {
     let comment = "";
     if (hasExternalAIConfigured()) {
         try {
-            const prompt = `Rédige une appréciation de bulletin bienveillante et constructive (max 2 phrases) pour ${formatStudentName(student)}. Moyenne générale: ${average.toFixed(2)}/20. Tendance: ${analytics?.progressionRate && Number(analytics.progressionRate) > 0 ? 'En progrès' : 'En baisse'}. Renvoie UNIQUEMENT le texte de l'appréciation.`;
+            const prompt = `Rédige une appréciation de bulletin bienveillante et constructive (max 2 phrases) pour ${studentAlias(student.user?.firstName, student.user?.lastName)}. Moyenne générale: ${average.toFixed(2)}/20. Tendance: ${analytics?.progressionRate && Number(analytics.progressionRate) > 0 ? 'En progrès' : 'En baisse'}. Renvoie UNIQUEMENT le texte de l'appréciation.`;
             const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
             if (externalResponse.success) {
                 comment = externalResponse.response.replace(/^["']|["']$/g, '').trim();
@@ -1151,7 +1152,8 @@ class GovernanceService {
     }
 
     const context = {
-      studentName: formatStudentName(student),
+      // Pseudonyme : ce contexte part vers le LLM externe (prompt + studentData)
+      studentName: studentAlias(student.user?.firstName, student.user?.lastName),
       currentClass: student.enrollments[0]?.class.name,
       generalAverage: Number(analytics.generalAverage || 0),
       subjects: analytics.subjectPerformances.map((p) => ({
@@ -1254,7 +1256,8 @@ class GovernanceService {
     const localRisk = await predictFailureRisk(student.id);
 
     const context = {
-      studentName: formatStudentName(student),
+      // Pseudonyme : ce contexte part vers le LLM externe (prompt + studentData)
+      studentName: studentAlias(student.user?.firstName, student.user?.lastName),
       currentClass: student.enrollments[0]?.class.name,
       riskLevel: localRisk.level,
       riskProbability: localRisk.probability,

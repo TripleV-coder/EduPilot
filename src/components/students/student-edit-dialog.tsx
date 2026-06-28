@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 interface StudentEditDialogProps {
     student: any;
@@ -78,8 +79,8 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
             toast({ title: "Succès", description: "Le profil de l'élève a été mis à jour." });
             onSuccess();
             onOpenChange(false);
-        } catch (error: any) {
-            toast({ title: "Erreur", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

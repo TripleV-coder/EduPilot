@@ -2,6 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { checkRateLimit, authLimiter, apiLimiter, strictLimiter } from "@/lib/rate-limit";
 
+const IS_PROD = process.env.NODE_ENV === "production";
+
+/**
+ * Content-Security-Policy avec nonce par requête (version stricte, sans
+ * 'unsafe-inline'). Next.js App Router livre son payload RSC + l'amorçage
+ * d'hydratation via des <script> inline : ils sont autorisés via le nonce que
+ * Next applique automatiquement à ses scripts dès qu'il le lit dans l'en-tête
+ * CSP de la requête. 'strict-dynamic' propage la confiance aux chunks chargés
+ * par un script déjà noncé. REQUIERT un rendu dynamique (cf. force-dynamic du
+ * layout racine) — un nonce par requête ne peut pas s'appliquer à du HTML
+ * prérendu statiquement.
+ */
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    IS_PROD
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
+      : "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob:",
+    "worker-src 'self' blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
+    "font-src 'self' data:",
+    IS_PROD
+      ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com"
+      : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+/**
+ * Réponse de page (document HTML) avec CSP noncée. Le nonce est transmis via
+ * l'en-tête de requête (lu par Next pour ses scripts) et l'en-tête de réponse
+ * (appliqué par le navigateur).
+ */
+function pageResponse(request: NextRequest): NextResponse {
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+  const csp = buildCsp(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  res.headers.set("Content-Security-Policy", csp);
+  return res;
+}
+
 const PUBLIC_ROUTES = new Set([
   "/",
   // Auth & onboarding
@@ -42,6 +91,8 @@ const PUBLIC_PREFIXES = [
   "/api/docs",
   "/api/system/health",
   "/api/payments/webhook",
+  "/api/payments/fedapay/webhook",
+  "/api/payments/momo/webhook",
   "/api/ai/v2/chat",
   "/.well-known",
   "/_next",
@@ -114,7 +165,7 @@ export default async function proxy(request: NextRequest) {
   }
 
   if (isPublic && !isGuestOnly) {
-    return NextResponse.next();
+    return pageResponse(request);
   }
 
   if (isGuestOnly) {
@@ -122,7 +173,7 @@ export default async function proxy(request: NextRequest) {
     if (session?.user?.id) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
-    return NextResponse.next();
+    return pageResponse(request);
   }
 
   const session = await auth();
@@ -166,7 +217,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  return pageResponse(request);
 }
 
 export const config = {

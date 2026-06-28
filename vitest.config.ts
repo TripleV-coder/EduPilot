@@ -6,26 +6,26 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     exclude: ['node_modules', '.next', 'prisma'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['src/lib/**/*.ts'],
+      include: ['src/lib/**/*.ts', 'src/components/edu/**/*.tsx', 'src/components/messaging/**/*.tsx'],
       exclude: [
         'src/lib/types/**',
         '**/*.d.ts',
         'src/lib/swagger.ts',
       ],
-      // Thresholds reflect the measured baseline for src/lib/** as of
-      // 2026-06-11 (statements 41.40, branches 33.07, functions 39.66),
-      // after the P1.2 coverage push (algorithms, services, validations,
-      // parsers). Set just under measured so CI is not flaky on small dips.
-      // Ratchet up these numbers as new modules get covered. Target: 60/50/60.
+      // Seuils par périmètre (glob), à monter au fil des nouveaux tests :
+      //  - src/lib/**        : cœur métier testé (baseline 2026-06-11 : 41/33/40)
+      //  - src/components/** : primitives edu + messaging (baseline 2026-06-13 :
+      //    edu 55/46/37.5 — Button/Card/Input/Badge/MetricCard/Spinner/Progress/
+      //    Toast/ComposeDialog couverts ; charts/icônes encore à couvrir).
+      // Cibles long terme : lib 60/50/60, components 70/60/60.
       thresholds: {
-        statements: 40,
-        branches: 32,
-        functions: 38,
+        'src/lib/**': { statements: 40, branches: 32, functions: 38 },
+        'src/components/**': { statements: 50, branches: 40, functions: 35 },
       },
     },
     testTimeout: 10000,

@@ -26,6 +26,7 @@ export function Toast({ variant = "info", title, body, action, onAction }: Toast
     const v = VARIANT_TOKENS[variant];
     return (
         <div
+            className="animate-in fade-in slide-in-from-bottom-2 duration-300"
             style={{
                 display: "flex",
                 gap: 12,
@@ -33,7 +34,9 @@ export function Toast({ variant = "info", title, body, action, onAction }: Toast
                 background: "var(--eduflow-surface-card)",
                 borderRadius: "var(--eduflow-radius-lg)",
                 boxShadow: "var(--eduflow-shadow-lg)",
-                borderLeft: `3px solid ${v.accent}`,
+                // Pas de side-stripe (border-left épais = anti-pattern) : l'accent
+                // de variante est porté par le chip d'icône. Hairline neutre ici.
+                border: "1px solid var(--eduflow-border-subtle)",
                 minWidth: 320,
                 maxWidth: 380,
             }}

@@ -11,6 +11,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { CreditCard, Save, AlertCircle, CheckCircle, ArrowLeft, Search, User, DollarSign, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function NewPaymentPage() {
     const [students, setStudents] = useState<any[]>([]);
@@ -164,8 +165,8 @@ export default function NewPaymentPage() {
             setStudents([]);
 
             window.scrollTo(0, 0);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

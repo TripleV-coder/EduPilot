@@ -20,6 +20,7 @@ import {
     RefreshCw
 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const DEFAULT_BAC_SUBJECTS: ExamSubject[] = [
     { code: "MATH", name: "Mathématiques", coefficient: 4 },
@@ -97,8 +98,8 @@ export default function ReformsPage() {
             setBepcSubjects(bepc);
             setBacSubjects(bac.length > 0 ? bac : DEFAULT_BAC_SUBJECTS);
             setMentions(m.length > 0 ? m : DEFAULT_MENTIONS);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -121,8 +122,8 @@ export default function ReformsPage() {
             setSuccess(`Configuration ${code} mise à jour`);
             setTimeout(() => setSuccess(null), 3000);
             loadConfigs();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Permission } from "@/lib/rbac/permissions";
 import { BookOpen, Plus, Save, AlertCircle, CheckCircle, Edit2, Bookmark, FileText } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Subject = {
     id: string;
@@ -64,8 +65,8 @@ export default function SubjectsSettingsPage() {
                 const data = await categoriesRes.json();
                 setSubjectCategories(Array.isArray(data) ? data : data.data || []);
             }
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -106,8 +107,8 @@ export default function SubjectsSettingsPage() {
             setIsAddingSubject(false);
             showSuccess("Matière créée avec succès");
             fetchData();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -138,8 +139,8 @@ export default function SubjectsSettingsPage() {
             setIsAddingEvalType(false);
             showSuccess("Type d'évaluation créé avec succès");
             fetchData();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

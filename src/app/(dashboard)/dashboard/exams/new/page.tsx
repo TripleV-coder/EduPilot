@@ -17,6 +17,7 @@ import { ArrowLeft, Save, ClipboardList } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function NewExamPage() {
   const router = useRouter();
@@ -54,8 +55,8 @@ export default function NewExamPage() {
 
       toast({ title: "Succès", description: "L'examen a été créé." });
       router.push("/dashboard/exams");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

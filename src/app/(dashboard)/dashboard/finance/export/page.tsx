@@ -9,6 +9,7 @@ import { FileUp, FileSpreadsheet, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function FinanceExportPage() {
     const [format, setFormat] = useState("excel");
@@ -34,8 +35,8 @@ export default function FinanceExportPage() {
             a.download = `export-finance.${contentType.includes("csv") ? "csv" : format}`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch (err: any) {
-            setError(err.message || "Une erreur est survenue lors de l'export");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Une erreur est survenue lors de l'export");
         } finally {
             setIsExporting(false);
         }

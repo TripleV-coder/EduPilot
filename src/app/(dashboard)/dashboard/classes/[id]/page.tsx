@@ -19,6 +19,7 @@ import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
 import { TrendLineChart } from "@/components/charts/TrendLineChart";
 import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type ClassData = {
     id: string;
@@ -91,8 +92,8 @@ export default function ClassDetailsPage() {
                     setAvailableSubjects(Array.isArray(s) ? s : s.data || []);
                 }
 
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                setError(getErrorMessage(err));
             } finally {
                 setLoading(false);
             }
@@ -142,8 +143,8 @@ export default function ClassDetailsPage() {
             setClassSubjects(prev => [...prev, newAssignment]);
             setIsAssigning(false);
             showSuccess("Matière assignée avec succès");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setAssigningLoading(false);
         }

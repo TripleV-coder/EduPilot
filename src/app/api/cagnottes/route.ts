@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
             id: c.id,
             title: c.title,
             description: c.description,
+            classId: c.class?.id ?? null,
             classLabel,
             hostLabel,
             targetFcfa: c.targetFcfa.toString(),

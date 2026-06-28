@@ -40,6 +40,12 @@ import { SWRProvider } from "@/components/providers/swr-provider";
 import { CookieBanner } from "@/components/gdpr/CookieBanner";
 import { Toaster as SonnerToaster } from "sonner";
 
+// Rendu dynamique forcé : indispensable pour la CSP à nonce par requête
+// (cf. src/proxy.ts). Un nonce ne peut pas s'appliquer à du HTML prérendu
+// statiquement. L'app étant authentifiée (pages majoritairement dynamiques),
+// le coût de cache est marginal.
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
     width: "device-width",
     initialScale: 1,

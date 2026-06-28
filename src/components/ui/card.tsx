@@ -13,18 +13,20 @@ import { motion, type HTMLMotionProps } from "framer-motion";
 
 type CardVariant = "default" | "glass" | "elevated";
 
+// Réconcilié sur le design system eduflow (edu/) : ombres eduflow douces,
+// rayon de carte 22px (rounded-card appliqué au rendu) — une seule langue visuelle.
 const variantStyles: Record<CardVariant, string> = {
-  default: "border bg-card text-card-foreground shadow",
+  default: "border bg-card text-card-foreground shadow-eduflow-sm",
   glass: [
     "border border-border/30 dark:border-white/[0.08]",
     "bg-card/70 dark:bg-card/50",
     "backdrop-blur-[var(--glass-blur)]",
-    "text-card-foreground shadow-sm",
+    "text-card-foreground shadow-eduflow-sm",
   ].join(" "),
   elevated: [
     "border border-border/40 dark:border-white/[0.06]",
     "bg-card text-card-foreground",
-    "shadow-md hover:shadow-xl",
+    "shadow-eduflow-card hover:shadow-eduflow-card-brand",
     "dark:shadow-black/20 dark:hover:shadow-black/30",
   ].join(" "),
 };
@@ -39,7 +41,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = "default", ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("rounded-xl", variantStyles[variant], className)}
+      className={cn("rounded-card", variantStyles[variant], className)}
       {...props}
     />
   )
@@ -60,7 +62,7 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
     <motion.div
       ref={ref}
       className={cn(
-        "rounded-xl transition-colors duration-300",
+        "rounded-card transition-colors duration-300",
         variantStyles[variant],
         className
       )}

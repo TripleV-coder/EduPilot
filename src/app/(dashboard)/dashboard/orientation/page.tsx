@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Orientation = {
     id: string;
@@ -171,8 +172,8 @@ export default function OrientationPage() {
                 setJustification(rec.justification);
                 toast({ title: "IA: Analyse terminée", description: `Recommandation suggérée: ${rec.series}` });
             }
-        } catch (error: any) {
-            toast({ title: "Échec IA", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Échec IA", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsGeneratingAI(false);
         }
@@ -205,8 +206,8 @@ export default function OrientationPage() {
             } else {
                 toast({ title: "Analyse terminée", description: `${data.results.length} recommandations générées.` });
             }
-        } catch (error: any) {
-            toast({ title: "Échec", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Échec", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsBatchAnalyzing(false);
         }
@@ -250,8 +251,8 @@ export default function OrientationPage() {
             toast({ title: "Enregistrement terminé", description: `${successCount} dossiers créés avec succès.` });
             setIsBatchDialogOpen(false);
             fetchOrientations();
-        } catch (error: any) {
-            toast({ title: "Erreur partielle", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Erreur partielle", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -302,8 +303,8 @@ export default function OrientationPage() {
             setJustification("");
 
             fetchOrientations();
-        } catch (error: any) {
-            toast({ title: "Erreur", description: error.message || "Une erreur est survenue.", variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Erreur", description: getErrorMessage(error) || "Une erreur est survenue.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

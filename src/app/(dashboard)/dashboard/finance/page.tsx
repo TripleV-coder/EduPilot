@@ -78,12 +78,11 @@ type FinanceDashboardData = {
 
 type AcademicYear = { id: string; name: string; periods?: { id: string; name: string }[] };
 
-const formatCurrency = (amount: number): string =>
-    new Intl.NumberFormat("fr-BJ", {
-        style: "currency",
-        currency: "XOF",
-        maximumFractionDigits: 0,
-    }).format(amount);
+// fr-FR garantit le groupement par milliers (153 885 000) ; fr-BJ n'est pas
+// toujours présent dans l'ICU runtime et retombe sans séparateurs. Suffixe
+// FCFA manuel pour rester cohérent avec le reste de l'app.
+const FR_NUM = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+const formatCurrency = (amount: number): string => `${FR_NUM.format(amount)} FCFA`;
 
 export default function FinanceDashboardPage() {
     const { data: session } = useSession();
@@ -272,6 +271,7 @@ export default function FinanceDashboardPage() {
                 ) : dashData ? (
                     <>
                         <div
+                            className="edu-stagger"
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",

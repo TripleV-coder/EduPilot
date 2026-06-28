@@ -1,4 +1,3 @@
-@import "../styles/swiss-enterprise.css";
 @import "../styles/edupilot-tokens.css";
 
 @tailwind base;
@@ -562,6 +561,66 @@
   h4, h5, h6 {
     @apply font-ui tracking-tight;
   }
+}
+
+/* ─── STAGGER REVEAL ─────────────────────────────────────────────────
+   Entrée en cascade des enfants directs d'un conteneur (grilles de cartes,
+   listes de KPI). Animation CSS au montage : le contenu est visible par
+   défaut (jamais conditionné à une classe JS qui pourrait ne pas se
+   déclencher), et le bloc global prefers-reduced-motion la neutralise.
+   Usage : ajouter la classe `edu-stagger` au conteneur grid/flex existant. */
+@keyframes eduStaggerIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.edu-stagger > * {
+  animation: eduStaggerIn var(--eduflow-motion-enter, 200ms) var(--eduflow-ease-out, ease-out) both;
+}
+.edu-stagger > *:nth-child(1)  { animation-delay: 0ms;   }
+.edu-stagger > *:nth-child(2)  { animation-delay: 55ms;  }
+.edu-stagger > *:nth-child(3)  { animation-delay: 110ms; }
+.edu-stagger > *:nth-child(4)  { animation-delay: 165ms; }
+.edu-stagger > *:nth-child(5)  { animation-delay: 220ms; }
+.edu-stagger > *:nth-child(6)  { animation-delay: 275ms; }
+.edu-stagger > *:nth-child(7)  { animation-delay: 330ms; }
+.edu-stagger > *:nth-child(8)  { animation-delay: 385ms; }
+.edu-stagger > *:nth-child(9)  { animation-delay: 440ms; }
+.edu-stagger > *:nth-child(10) { animation-delay: 495ms; }
+.edu-stagger > *:nth-child(11) { animation-delay: 550ms; }
+.edu-stagger > *:nth-child(n+12) { animation-delay: 605ms; } /* cap : items au-delà entrent ensemble */
+
+/* ─── CHAMP DE FORMULAIRE COHÉRENT ───────────────────────────────────
+   Traitement unifié des inputs/textarea hors composant <Input> (dialogs,
+   formulaires ad hoc) : même bordure, rayon, et anneau de focus marque
+   que la primitive Input. Évite la dérive visuelle des champs « maison ». */
+.edu-field {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--eduflow-border-default);
+  border-radius: var(--eduflow-radius-input);
+  background: var(--eduflow-surface-card);
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--eduflow-text-primary);
+  outline: none;
+  transition: border-color var(--eduflow-motion-fast) var(--eduflow-ease-out),
+              box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out);
+}
+.edu-field::placeholder { color: var(--eduflow-text-tertiary); }
+.edu-field:focus,
+.edu-field:focus-visible {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  outline: none;
+}
+textarea.edu-field {
+  height: auto;
+  min-height: 104px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 /* ─── SWISS ENTERPRISE DESIGN SYSTEM ─────────────────────── */

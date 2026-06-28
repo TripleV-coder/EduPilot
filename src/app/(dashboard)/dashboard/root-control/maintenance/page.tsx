@@ -8,11 +8,15 @@ import { Wrench, ShieldAlert, PowerSquare, TerminalSquare, Loader2 } from "lucid
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function RootMaintenancePage() {
     const [isMaintenance, setIsMaintenance] = useState(false);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
+    const [message, setMessage] = useState("");
+    const [defaultMessage, setDefaultMessage] = useState("");
+    const [savingMessage, setSavingMessage] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -22,6 +26,8 @@ export default function RootMaintenancePage() {
             .then(data => {
                 if (!cancelled) {
                     setIsMaintenance(data.enabled === true || data.enabled === "true");
+                    if (typeof data.message === "string") setMessage(data.message);
+                    if (typeof data.defaultMessage === "string") setDefaultMessage(data.defaultMessage);
                     setLoading(false);
                 }
             })
@@ -37,25 +43,53 @@ export default function RootMaintenancePage() {
             const res = await fetch("/api/root/system/maintenance", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ enabled: !isMaintenance }),
+                body: JSON.stringify({ enabled: !isMaintenance, message }),
                 credentials: "include", cache: "no-store",
             });
             if (!res.ok) throw new Error("Échec du changement de statut");
             const data = await res.json();
             setIsMaintenance(data.enabled);
+            if (typeof data.message === "string") setMessage(data.message);
             toast({
                 title: "Statut mis à jour",
                 description: `Mode maintenance ${data.enabled ? "ACTIVÉ" : "DÉSACTIVÉ"} avec succès.`,
                 variant: data.enabled ? "destructive" : "default",
             });
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive",
             });
         } finally {
             setToggling(false);
+        }
+    };
+
+    const saveMessage = async () => {
+        setSavingMessage(true);
+        try {
+            const res = await fetch("/api/root/system/maintenance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled: isMaintenance, message }),
+                credentials: "include", cache: "no-store",
+            });
+            if (!res.ok) throw new Error("Échec de l'enregistrement du message");
+            const data = await res.json();
+            if (typeof data.message === "string") setMessage(data.message);
+            toast({
+                title: "Message enregistré",
+                description: "Le message de maintenance affiché aux utilisateurs a été mis à jour.",
+            });
+        } catch (err) {
+            toast({
+                title: "Erreur",
+                description: getErrorMessage(err),
+                variant: "destructive",
+            });
+        } finally {
+            setSavingMessage(false);
         }
     };
 
@@ -109,20 +143,40 @@ export default function RootMaintenancePage() {
                                     Que se passe-t-il lorsque ce mode est activé ?
                                 </h4>
                                 <ul className="text-sm text-muted-foreground list-disc pl-4 space-y-1">
-                                    <li>Toutes les sessions utilisateurs actives (sauf SUPER_ADMIN) seront bloquées par le middleware (`hasValidRootSession`).</li>
-                                    <li>Une page "Maintenance" s'affiche pour tous les visiteurs normaux ou la requête API échouera avec 503 HTTP.</li>
-                                    <li>Tâche critique : Le cache Redis est toujours accessible pour les super-admins.</li>
+                                    <li>Tous les utilisateurs (sauf SUPER_ADMIN) voient un écran « Maintenance » à la place du tableau de bord.</li>
+                                    <li>Les appels API métier renvoient <code>503 Service Unavailable</code> (code <code>MAINTENANCE</code>) avec en-tête <code>Retry-After</code>.</li>
+                                    <li>Les SUPER_ADMIN conservent un accès complet pour piloter la sortie de maintenance.</li>
                                 </ul>
                             </div>
 
                             <div className="space-y-3">
-                                <label className="text-sm font-medium text-foreground">Message personnalisé (Bientôt disponible)</label>
+                                <label htmlFor="maintenance-message" className="text-sm font-medium text-foreground">
+                                    Message affiché aux utilisateurs
+                                </label>
                                 <Textarea
-                                    disabled
+                                    id="maintenance-message"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    maxLength={500}
+                                    disabled={loading || savingMessage}
                                     aria-label="Message de maintenance personnalisé"
-                                    placeholder="Le message de maintenance personnalisable sera disponible dans une prochaine version."
+                                    placeholder={defaultMessage || "Message affiché sur l'écran de maintenance…"}
                                     className="min-h-[100px] bg-background"
                                 />
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">
+                                        {message.length}/500 · laissez vide pour utiliser le message par défaut
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={loading || savingMessage}
+                                        onClick={saveMessage}
+                                    >
+                                        {savingMessage ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer le message"}
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="pt-4 border-t border-border flex justify-between items-center">

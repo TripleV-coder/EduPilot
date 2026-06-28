@@ -8,8 +8,9 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
-import { Avatar, Badge, Button, Card, Chip, Icon } from "@/components/edu";
+import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
 import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SendJournalButton } from "@/components/accounting/send-journal-button";
 
 type JournalLine = {
     id: string;
@@ -179,7 +180,7 @@ function AccountingPageContent() {
         <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
             <PageHeader
                 greeting={`Comptabilité OHADA · exercice ${fiscalLabel}`}
-                sub="Plan SYSCOHADA révisé · clôture mensuelle · export DGI · réviseur Cabinet Aïvodji"
+                sub="Plan SYSCOHADA révisé · clôture mensuelle · export DGI"
                 breadcrumb={["Administration", "Finance", "Comptabilité"]}
                 actions={
                     <>
@@ -262,7 +263,10 @@ function AccountingPageContent() {
                                 totalFcfa={data.expenseTotalFcfa}
                             />
                             <DeadlinesCard />
-                            <AuditorCard />
+                            <AuditorCard
+                                fiscalYearId={data.fiscalYear?.id ?? null}
+                                fiscalLabel={data.fiscalYear?.label ?? null}
+                            />
                         </div>
                     </div>
                 </>
@@ -817,7 +821,7 @@ function DeadlinesCard() {
                 border: "1px solid var(--brand-200)",
             }}
         >
-            <SubLabel>Échéances DGI · à venir</SubLabel>
+            <SubLabel>Calendrier fiscal · indicatif</SubLabel>
             <div
                 style={{
                     marginTop: 8,
@@ -863,46 +867,37 @@ function DeadlinesCard() {
                     </div>
                 ))}
             </div>
+            <p style={{ fontSize: 10.5, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
+                Échéances récurrentes standard — à confirmer auprès de la DGI et
+                de la CNSS selon votre régime.
+            </p>
         </Card>
     );
 }
 
-function AuditorCard() {
+function AuditorCard({
+    fiscalYearId,
+    fiscalLabel,
+}: {
+    fiscalYearId: string | null;
+    fiscalLabel: string | null;
+}) {
     return (
         <Card padding={16}>
-            <SubLabel>Réviseur comptable</SubLabel>
-            <div
+            <SubLabel>Révision &amp; transmission</SubLabel>
+            <p
                 style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    marginTop: 8,
+                    fontSize: 12,
+                    color: "var(--eduflow-text-tertiary)",
+                    margin: "8px 0 0",
+                    lineHeight: 1.5,
                 }}
             >
-                <Avatar name="Cabinet Aïvodji" size="md" />
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>
-                        Cabinet Aïvodji &amp; Associés
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-                        Mission audit · ord. exp. comp. Bénin
-                    </div>
-                </div>
-                <Badge variant="success" size="sm" dot>
-                    Live
-                </Badge>
-            </div>
-            <Button
-                variant="secondary"
-                size="sm"
-                full
-                style={{ marginTop: 12 }}
-                icon="sms"
-                disabled
-                title="Envoi messagerie professionnel à venir"
-            >
-                Envoyer le journal
-            </Button>
+                Transmettez le journal à la direction et à la comptabilité pour
+                révision avant envoi au cabinet d&apos;audit. L&apos;export
+                SYSCOHADA / DGI est joint au message.
+            </p>
+            <SendJournalButton fiscalYearId={fiscalYearId} fiscalLabel={fiscalLabel} />
         </Card>
     );
 }

@@ -54,3 +54,6 @@ test_write.txt
 
 # Paquet de référence frontend (déjà intégré dans src/)
 EduPilot (1)/
+
+# E2E tour recordings (generated artifacts)
+e2e/tour/output/

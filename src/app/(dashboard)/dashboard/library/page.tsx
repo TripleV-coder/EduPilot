@@ -320,6 +320,7 @@ export default function LibraryPage() {
                             </Card>
                         ) : null}
                         <div
+                            className="edu-stagger"
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",

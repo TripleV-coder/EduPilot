@@ -269,6 +269,7 @@ export default function ParentsPage() {
 
                 {!loading && !error && parents.length > 0 && viewMode === "grid" ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",

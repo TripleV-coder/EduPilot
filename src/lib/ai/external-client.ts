@@ -11,10 +11,21 @@ export interface ExternalAIRequest {
   message: string;
   role: string;
   schoolName?: string;
-  studentData?: Record<string, any>;
+  studentData?: Record<string, unknown>;
   language?: 'fr' | 'en';
   maxTokens?: number;
   temperature?: number;
+}
+
+// Formes minimales des réponses des fournisseurs (champs réellement lus)
+interface OpenAIChatResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
+interface AnthropicMessageResponse {
+  content?: Array<{ text?: string }>;
+}
+interface GeminiResponse {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
 }
 
 export interface ExternalAIResponse {
@@ -33,8 +44,8 @@ export interface ExternalAIResponse {
 // =====================
 
 function sanitizeStudentDataForExternalAI(
-  studentData: Record<string, any> | undefined
-): Record<string, any> | undefined {
+  studentData: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
   if (!studentData) return undefined;
 
   const forbiddenKeys = new Set([
@@ -52,12 +63,12 @@ function sanitizeStudentDataForExternalAI(
     "passportNumber",
   ]);
 
-  const recurse = (value: any): any => {
+  const recurse = (value: unknown): unknown => {
     if (Array.isArray(value)) {
       return value.map(recurse);
     }
     if (value && typeof value === "object") {
-      const result: Record<string, any> = {};
+      const result: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(value)) {
         if (forbiddenKeys.has(key)) continue;
         result[key] = recurse(val);
@@ -67,7 +78,7 @@ function sanitizeStudentDataForExternalAI(
     return value;
   };
 
-  return recurse(studentData);
+  return recurse(studentData) as Record<string, unknown>;
 }
 
 async function callOpenAI(request: ExternalAIRequest): Promise<string | null> {
@@ -82,7 +93,7 @@ async function callOpenAI(request: ExternalAIRequest): Promise<string | null> {
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>('https://api.openai.com/v1/chat/completions', {
+    const result = await fetchJsonWithPolicy<OpenAIChatResponse>('https://api.openai.com/v1/chat/completions', {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}` },
       body: {
@@ -126,7 +137,7 @@ async function callAnthropic(request: ExternalAIRequest): Promise<string | null>
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>('https://api.anthropic.com/v1/messages', {
+    const result = await fetchJsonWithPolicy<AnthropicMessageResponse>('https://api.anthropic.com/v1/messages', {
       method: "POST",
       headers: {
         'x-api-key': apiKey,
@@ -175,7 +186,7 @@ async function callGoogleGemini(
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const result = await fetchJsonWithPolicy<GeminiResponse>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       body: {
         contents: [{
@@ -211,7 +222,7 @@ async function callGoogleGemini(
 function buildEduPilotSystemPrompt(
   role: string,
   schoolName?: string,
-  studentData?: Record<string, any>,
+  studentData?: Record<string, unknown>,
   language: 'fr' | 'en' = 'fr'
 ): string {
   const lang = language === 'fr' ? 'français' : 'english';

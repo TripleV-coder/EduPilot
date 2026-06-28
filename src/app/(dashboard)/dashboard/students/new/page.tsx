@@ -33,6 +33,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type StudentFormValues = z.infer<typeof studentCreateSchema>;
 
@@ -109,10 +110,10 @@ export default function NewStudentPage() {
                 router.push("/dashboard/students");
                 router.refresh(); // Refresh SWR in list
             }, 1000);
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive",
             });
             setLoading(false);

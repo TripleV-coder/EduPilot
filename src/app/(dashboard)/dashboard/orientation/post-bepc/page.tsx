@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
+import { CycleGuard } from "@/components/guard/cycle-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -248,6 +249,7 @@ export default function OrientationPostBepcPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
+            <CycleGuard requires="SECONDARY_COLLEGE">
             <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/orientation">
@@ -913,6 +915,7 @@ export default function OrientationPostBepcPage() {
                     }
                 }
             `}</style>
+            </CycleGuard>
         </PageGuard>
     );
 }

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -107,29 +107,25 @@ function LoginForm() {
     <div>
       {/* Success message */}
       {successMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           role="alert"
-          className="flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))]"
+          className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))]"
         >
           <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm">{successMessage}</span>
-        </motion.div>
+        </div>
       )}
 
       {/* Error message */}
       {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           role="alert"
           aria-live="assertive"
-          className="flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-[hsl(var(--error))]"
+          className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-[hsl(var(--error))]"
         >
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm">{error}</span>
-        </motion.div>
+        </div>
       )}
 
       {/* Form */}

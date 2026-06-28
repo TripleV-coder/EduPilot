@@ -39,6 +39,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type TeacherFormValues = z.infer<typeof teacherUpdateSchema>;
 
@@ -215,10 +216,10 @@ export default function TeacherDetailPage() {
         title: "Enseignant mis à jour",
         description: "Les informations ont été enregistrées.",
       });
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Erreur",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -243,10 +244,10 @@ export default function TeacherDetailPage() {
       await mutate((key) => typeof key === "string" && key.startsWith("/api/teachers"));
       router.push("/dashboard/teachers");
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Erreur",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {

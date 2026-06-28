@@ -12,6 +12,7 @@
             "db_error": "Une base de données a empêché l'opération. Veuillez réessayer.",
             "unexpected": "Une erreur inattendue est survenue.",
             "invalid_class_ownership": "Accès refusé : cette classe n'appartient pas à votre établissement.",
+            "cycle_not_offered": "Ce cycle n'est pas offert par votre établissement.",
             "quota_exceeded": "Quota de {resource} atteint ({limit}). Veuillez passer à un plan supérieur."
         },
         "errors": {

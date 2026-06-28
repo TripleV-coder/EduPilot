@@ -11,6 +11,8 @@ import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
 import { PageHeader } from "@/components/edu-homes/_shared";
+import { GroupMessageButton } from "@/components/cagnotte/group-message-button";
+import { HowItWorksCard } from "@/components/cagnotte/how-it-works-card";
 
 type CagnotteStatus = "OPEN" | "CLOSED" | "CANCELLED";
 
@@ -18,6 +20,7 @@ type CagnotteRow = {
     id: string;
     title: string;
     description: string | null;
+    classId: string | null;
     classLabel: string | null;
     hostLabel: string;
     targetFcfa: string;
@@ -199,79 +202,15 @@ function CagnottePageContent() {
                         gridTemplateColumns: "1fr 1fr",
                         gap: 14,
                     }}
-                    className="cag-grid"
+                    className="cag-grid edu-stagger"
                 >
                     {cagnottes.map((c) => (
-                        <CagnotteCard key={c.id} cagnotte={c} />
+                        <CagnotteCard key={c.id} cagnotte={c} canBroadcast={canCreate} />
                     ))}
                 </div>
             )}
 
-            <Card
-                padding={18}
-                style={{
-                    background: "var(--brand-50)",
-                    border: "1px solid var(--brand-200)",
-                }}
-            >
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "56px 1fr auto",
-                        gap: 14,
-                        alignItems: "center",
-                    }}
-                    className="cag-banner"
-                >
-                    <div
-                        aria-hidden
-                        style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 14,
-                            background: "var(--brand-600)",
-                            display: "grid",
-                            placeItems: "center",
-                        }}
-                    >
-                        <Icon name="sparkle" size={24} color="#fff" />
-                    </div>
-                    <div>
-                        <h3
-                            className="eduflow-display"
-                            style={{
-                                fontSize: 16,
-                                fontWeight: 700,
-                                color: "var(--brand-900)",
-                                margin: 0,
-                            }}
-                        >
-                            100% transparent · 100% reversé
-                        </h3>
-                        <p
-                            style={{
-                                fontSize: 12,
-                                color: "var(--brand-800)",
-                                margin: "4px 0 0",
-                                lineHeight: 1.55,
-                            }}
-                        >
-                            Chaque centime payé apparaît dans le journal public de la cagnotte.
-                            EduPilot ne prélève rien sur les cagnottes. À la clôture, le solde
-                            est viré au compte de l&apos;école avec reçu détaillé.
-                        </p>
-                    </div>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        iconRight="arrowRight"
-                        disabled
-                        title="Page d'explication à venir"
-                    >
-                        Comment ça marche
-                    </Button>
-                </div>
-            </Card>
+            <HowItWorksCard />
 
             <style jsx global>{`
                 @media (max-width: 960px) {
@@ -336,7 +275,7 @@ function EmptyCagnotteState() {
     );
 }
 
-function CagnotteCard({ cagnotte: c }: { cagnotte: CagnotteRow }) {
+function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; canBroadcast: boolean }) {
     const targetN = Number(c.targetFcfa);
     const raisedN = Number(c.raisedFcfa);
     const pct = targetN === 0 ? 0 : Math.min(100, (raisedN / targetN) * 100);
@@ -562,16 +501,15 @@ function CagnotteCard({ cagnotte: c }: { cagnotte: CagnotteRow }) {
                 </div>
 
                 <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        full
-                        icon="sms"
-                        disabled
-                        title="Messagerie groupe à venir"
-                    >
-                        Messagerie groupe
-                    </Button>
+                    {canBroadcast ? (
+                        <div style={{ flex: 1 }}>
+                            <GroupMessageButton
+                                cagnotteTitle={c.title}
+                                classId={c.classId}
+                                classLabel={c.classLabel}
+                            />
+                        </div>
+                    ) : null}
                     <Link href={`/dashboard/cagnotte/${c.id}`} style={{ flex: 1, textDecoration: "none" }}>
                         <Button variant="ghost" size="sm" full iconRight="arrowRight">
                             Détails

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -59,9 +59,7 @@ export default function VerifyEmailPage() {
                 title="Lien envoyé"
                 subtitle="Vérifiez votre boîte de réception pour finaliser la confirmation."
             >
-                <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
                     style={{ display: "flex", flexDirection: "column", gap: 18 }}
                 >
                     <div
@@ -105,7 +103,7 @@ export default function VerifyEmailPage() {
                             Retourner à la connexion
                         </Button>
                     </Link>
-                </motion.div>
+                </div>
             </AuthShell>
         );
     }
@@ -116,9 +114,7 @@ export default function VerifyEmailPage() {
             subtitle="Renvoyez un lien de confirmation à votre adresse pour activer votre compte."
         >
             {error ? (
-                <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
                     role="alert"
                     style={{
                         display: "flex",
@@ -134,7 +130,7 @@ export default function VerifyEmailPage() {
                 >
                     <Icon name="warning" size={16} color="var(--eduflow-danger-600)" />
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{error}</div>
-                </motion.div>
+                </div>
             ) : null}
 
             <form

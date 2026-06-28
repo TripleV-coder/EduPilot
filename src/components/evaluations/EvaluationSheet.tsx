@@ -15,6 +15,7 @@ import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const evaluationSchema = z.object({
   classSubjectId: z.string().min(1, "La matière est requise"),
@@ -75,8 +76,8 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
       mutate("/api/evaluations");
       onOpenChange(false);
       form.reset();
-    } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }

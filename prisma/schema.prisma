@@ -69,6 +69,7 @@ model School {
   code                   String                    @unique
   type                   SchoolType                @default(PRIVATE)
   level                  SchoolLevel
+  offeredLevels          SchoolLevel[]             @default([])
   siteType               SiteType                  @default(MAIN)
   address                String?
   city                   String?

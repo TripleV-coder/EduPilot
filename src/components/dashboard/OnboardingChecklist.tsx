@@ -84,7 +84,9 @@ export function OnboardingChecklist() {
 
     const [dismissedOverride, setDismissedOverride] = useState<boolean | null>(null);
     const [manualCompletedOverride, setManualCompletedOverride] = useState<string[] | null>(null);
-    const [collapsed, setCollapsed] = useState(false);
+    // Réduit par défaut : barre compacte en bas à droite qui ne recouvre pas le
+    // contenu du dashboard ; l'utilisateur déplie quand il le souhaite.
+    const [collapsed, setCollapsed] = useState(true);
 
     const checklistItems = role ? (roleChecklists[role] || []) : [];
     const showChecklist = checklistItems.length > 0;

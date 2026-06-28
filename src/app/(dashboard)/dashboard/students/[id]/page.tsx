@@ -25,6 +25,7 @@ import { StudentAiPrediction } from "@/components/students/student-ai-prediction
 import { StudentEditDialog } from "@/components/students/student-edit-dialog";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { StudentProfile360 } from "@/components/students/student-profile-360";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type StudentDetail = {
   id: string;
@@ -76,8 +77,8 @@ export default function StudentDetailPage() {
       }
       const d = await r.json();
       setStudent(d);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -115,7 +116,7 @@ export default function StudentDetailPage() {
       } else {
         await res.json();
       }
-    } catch (e: any) { setCertError(e.message); }
+    } catch (e) { setCertError(getErrorMessage(e)); }
     finally { setCertLoading(false); }
   };
 

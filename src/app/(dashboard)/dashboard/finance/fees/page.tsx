@@ -12,6 +12,7 @@ import { DollarSign, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } f
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Fee = {
     id: string;
@@ -59,8 +60,8 @@ export default function FeesManagementPage() {
                 const data = await clRes.json();
                 setClassLevels(Array.isArray(data) ? data : data.data || []);
             }
-        } catch (err: any) {
-            setError(err.message || "Erreur de chargement");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Erreur de chargement");
         } finally {
             setLoading(false);
         }
@@ -111,8 +112,8 @@ export default function FeesManagementPage() {
             showSuccess("Frais configuré avec succès");
             setIsAdding(false);
             fetchData();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

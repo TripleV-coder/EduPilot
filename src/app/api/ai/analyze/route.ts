@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { analyzeStudentPerformance } from "@/lib/ai/n8n-client";
+import { studentAlias } from "@/lib/ai/pii";
 import { logger } from "@/lib/utils/logger";
 
 export async function POST(request: NextRequest) {
@@ -60,9 +61,10 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Format data for AI
+        // Format data for AI — PII scrubbing : on n'envoie jamais le nom réel
+        // de l'élève à n8n/LLM externe, seulement ses initiales (cf. lib/ai/pii)
         const analysisPayload = {
-            studentName: `${student.user.firstName} ${student.user.lastName}`,
+            studentName: studentAlias(student.user.firstName, student.user.lastName),
             grades: student.grades.map(g => ({
                 subject: g.evaluation.classSubject.subject.name,
                 grade: g.value,

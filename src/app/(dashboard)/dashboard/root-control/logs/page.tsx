@@ -13,6 +13,7 @@ import { fr } from "date-fns/locale/fr";
 import { cn } from "@/lib/utils";
 import { formatAction } from "@/lib/utils/entity-translator";
 import { getAuditLogActionClass } from "@/lib/ui/status-styles";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type AuditLog = {
     id: string;
@@ -45,8 +46,8 @@ export default function RootLogsPage() {
                 if (!res.ok) throw new Error("Erreur lors du chargement des journaux");
                 const data = await res.json();
                 setLogs(data.data || []);
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                setError(getErrorMessage(err));
             } finally {
                 setLoading(false);
             }

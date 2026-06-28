@@ -166,6 +166,7 @@ export default function ExamsPage() {
 
                 {!loading && !error && exams.length > 0 ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",

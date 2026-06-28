@@ -44,9 +44,11 @@ export const GET = createApiHandler(
             phoneNumber: connected ? (phoneNumber ?? phoneId ?? null) : null,
             verifiedAt,
             subscribers: connected ? subscribers : null,
+            // Métriques d'usage : null tant que l'envoi réel (webhook Meta) n'est
+            // pas branché — aucune valeur inventée (cf. règle zéro fake).
             weeklyMessages: null,
-            readRate: connected ? 98 : null,
-            costPerMessage: connected ? 15 : null,
+            readRate: null,
+            costPerMessage: null,
         });
     },
     { requireAuth: true }

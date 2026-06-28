@@ -598,8 +598,14 @@ export async function getAdminDashboardData(
   const newStudentsThisMonth = await prisma.studentProfile.count({
     where: { schoolId, createdAt: { gte: startOfMonth } }
   });
-  const prevStudentsCount = Math.max(1, totalStudents - newStudentsThisMonth);
-  const studentGrowth = roundTo((newStudentsThisMonth / prevStudentsCount) * 100);
+  // Croissance mensuelle des effectifs. Garde anti-division-par-zéro : sans
+  // base le mois précédent (ex. créations en masse / 1re année), on n'affiche
+  // pas de pourcentage aberrant (0 plutôt que 99900%). Plafond de sécurité à
+  // 999 % pour absorber les très petites bases.
+  const prevStudentsCount = totalStudents - newStudentsThisMonth;
+  const studentGrowth = prevStudentsCount > 0
+    ? Math.min(999, roundTo((newStudentsThisMonth / prevStudentsCount) * 100))
+    : 0;
 
   // Calculate real attendance growth vs previous month
   const prevMonthStart = new Date(startOfMonth);

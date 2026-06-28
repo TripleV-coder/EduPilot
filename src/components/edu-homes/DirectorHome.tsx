@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-    Avatar,
     Badge,
     BarChart,
     Button,
@@ -76,6 +75,7 @@ export function DirectorHome({ userName, schoolName, periodName, data }: Directo
 
             {/* KPI strip */}
             <div
+                className="edu-stagger"
                 style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -273,17 +273,23 @@ export function DirectorHome({ userName, schoolName, periodName, data }: Directo
                             {formatNumber(data.totalClasses)} classes
                         </Badge>
                     </div>
-                    <div className="mt-3 flex">
-                        {["A. Sossou", "M. Bio", "K. Dossou", "F. Adjavon"].map((n, i) => (
+                    <div className="mt-3 flex" aria-hidden>
+                        {/* Pastilles d'effectif (pas de noms inventés) — échelle sur le compte réel */}
+                        {Array.from({ length: Math.min(4, data.totalTeachers) }).map((_, i) => (
                             <div
-                                key={n}
+                                key={i}
                                 style={{
                                     marginLeft: i ? -8 : 0,
-                                    boxShadow: "0 0 0 2px var(--eduflow-surface-card)",
+                                    width: 32,
+                                    height: 32,
                                     borderRadius: "50%",
+                                    background: "var(--brand-100)",
+                                    boxShadow: "0 0 0 2px var(--eduflow-surface-card)",
+                                    display: "grid",
+                                    placeItems: "center",
                                 }}
                             >
-                                <Avatar name={n} size="sm" />
+                                <Icon name="users" size={14} color="var(--brand-600)" />
                             </div>
                         ))}
                         {data.totalTeachers > 4 ? (

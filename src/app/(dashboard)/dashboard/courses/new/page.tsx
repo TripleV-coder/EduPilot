@@ -46,6 +46,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const lessonSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
@@ -131,8 +132,8 @@ export default function NewCoursePage() {
 
             toast({ title: "Succès !", description: "Votre cours a été créé avec succès." });
             router.push("/dashboard/courses");
-        } catch (error: any) {
-            toast({ title: "Erreur", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

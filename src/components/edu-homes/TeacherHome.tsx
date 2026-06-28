@@ -101,7 +101,7 @@ export function TeacherHome({ userName, schoolName, periodName, data }: TeacherH
                                 {schoolName ?? "École"}
                             </Badge>
                         </div>
-                        <div>
+                        <div className="edu-stagger">
                             {data.classPerformance.length === 0 ? (
                                 <EmptyState
                                     title="Aucune classe pour cette période"
@@ -365,7 +365,7 @@ function TodayScheduleCard({ schedule }: { schedule: TeacherTodaySlot[] }) {
                     <Badge variant="neutral">Programme du jour</Badge>
                 )}
             </div>
-            <div>
+            <div className="edu-stagger">
                 {schedule.map((slot, i) => (
                     <div
                         key={slot.id}

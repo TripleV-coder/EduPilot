@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useSWRConfig } from "swr";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const STANDARD_PASSWORD = "00000000";
 
@@ -79,11 +80,11 @@ export default function NewTeacherPage() {
             setSuccess(true);
             mutate(key => typeof key === 'string' && key.startsWith('/api/teachers'));
 
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive"
             });
         } finally {

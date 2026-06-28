@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
 import { Calendar, Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type AcademicYear = {
     id: string;
@@ -35,8 +36,8 @@ export default function AcademicSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Erreur lors du chargement");
             setYears(Array.isArray(data) ? data : data.data || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -79,8 +80,8 @@ export default function AcademicSettingsPage() {
             setIsAdding(false);
             showSuccess("Année académique créée avec succès");
             fetchYears();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

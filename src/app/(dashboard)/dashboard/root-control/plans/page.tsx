@@ -30,6 +30,7 @@ import { fetcher } from "@/lib/fetcher";
 import { SectionToolbar } from "@/components/ui/section-toolbar";
 import { MetricCardPro } from "@/components/ui/metric-card-pro";
 import { EmptyStateAction } from "@/components/ui/empty-state";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Plan = {
     id: string;
@@ -105,8 +106,8 @@ export default function RootPlansPage() {
             toast({ title: "Succès", description: "La formule d'accès a été créée." });
             setIsCreateDialogOpen(false);
             mutate();
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

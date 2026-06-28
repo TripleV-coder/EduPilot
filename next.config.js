@@ -88,30 +88,12 @@ const nextConfig = {
             value: "strict-origin-when-cross-origin" 
           },
           
-          // Content Security Policy
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              isProd
-                ? "script-src 'self'"
-                : "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob:",
-              "worker-src 'self' blob:",
-              isProd
-                ? "style-src 'self' 'unsafe-inline'"
-                : "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
-              "font-src 'self' data:",
-              isProd
-                ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com"
-                : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com",
-              "frame-ancestors 'self'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "object-src 'none'",
-              "upgrade-insecure-requests",
-            ].join("; "),
-          },
+          // Content-Security-Policy : gérée par le middleware (src/proxy.ts) avec
+          // un nonce par requête (script-src 'nonce-…' 'strict-dynamic', sans
+          // 'unsafe-inline'). Requiert le rendu dynamique (force-dynamic du
+          // layout racine). Ne PAS réintroduire de CSP statique sur les scripts
+          // ici : elle imposerait un script-src sans nonce et casserait
+          // l'hydratation de Next.
           
           // Permissions Policy
           {

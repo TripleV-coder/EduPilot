@@ -42,17 +42,18 @@ import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
 import { fetcher } from "@/lib/fetcher";
 import { getUserActivityClass } from "@/lib/ui/status-styles";
-import { 
-    User, 
-    Mail, 
-    Lock, 
+import {
+    User,
+    Mail,
+    Lock,
     Image as ImageIcon,
-    MapPin, 
-    Phone, 
+    MapPin,
+    Phone,
     School as SchoolIcon,
     Building2,
     Info
 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type SchoolStat = {
     id: string;
@@ -204,10 +205,10 @@ export default function RootSchoolsPage() {
             setActiveTab("school");
             setIsCreateDialogOpen(false);
             mutate();
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive",
             });
         } finally {
@@ -244,10 +245,10 @@ export default function RootSchoolsPage() {
             });
             setIsQuotaDialogOpen(false);
             mutate();
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive",
             });
         } finally {

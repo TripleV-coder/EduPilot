@@ -293,6 +293,7 @@ export default function CanteenPage() {
                             </Card>
                         ) : null}
                         <div
+                            className="edu-stagger"
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",

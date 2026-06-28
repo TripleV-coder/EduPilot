@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -117,15 +117,13 @@ export default function SetupPage() {
                     </div>
 
                     {error && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
+                        <div
                             role="alert"
-                            className="flex items-start gap-2 p-4 mb-8 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
+                            className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-start gap-2 p-4 mb-8 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
                         >
                             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                             <div className="text-sm font-medium">{error}</div>
-                        </motion.div>
+                        </div>
                     )}
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">

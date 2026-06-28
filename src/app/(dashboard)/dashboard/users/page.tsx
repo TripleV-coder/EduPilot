@@ -285,6 +285,7 @@ export default function UsersPage() {
 
                 {!loading && !error && users.length > 0 && viewMode === "grid" ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",

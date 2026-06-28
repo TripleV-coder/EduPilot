@@ -24,6 +24,8 @@ interface SchoolContextType {
     schoolName: string | null;
     currentPeriodName: string | null;
     accessibleSchools: AccessibleSchool[];
+    /** Cycles offerts par l'école active (PRIMARY/SECONDARY_COLLEGE/SECONDARY_LYCEE). */
+    offeredLevels: string[];
     isLoading: boolean;
     isSwitchingSchool: boolean;
     error: any;
@@ -204,6 +206,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         schoolName: isGlobalMode ? "Console Globale" : (schoolName || "Établissement"),
         currentPeriodName: isGlobalMode ? null : (currentPeriod?.name || null),
         accessibleSchools,
+        offeredLevels: (schoolInfo?.offeredLevels as string[] | undefined) ?? [],
         isLoading: status === "loading",
         isSwitchingSchool,
         error: schoolError || yearsError || periodsError,

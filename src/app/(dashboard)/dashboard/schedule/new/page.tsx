@@ -13,6 +13,7 @@ import { Save, AlertCircle, ArrowLeft, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type TeacherAvailability = {
     id: string;
@@ -151,8 +152,8 @@ export default function NewSchedulePage() {
             });
 
             router.push("/dashboard/schedule");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }

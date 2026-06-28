@@ -18,6 +18,7 @@ import { t } from "@/lib/i18n";
 
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { useSession } from "next-auth/react";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type ExamDetail = {
   id: string;
@@ -56,8 +57,8 @@ export default function ExamDetailPage() {
       if (!res.ok) throw new Error("Erreur lors de la suppression");
       toast({ title: "Succès", description: "L'examen a été supprimé." });
       router.push("/dashboard/exams");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setIsDeleteConfirmLoading(false);
       setDeleteDialogOpen(false);

@@ -18,7 +18,11 @@ import { generateImportPassword } from "@/lib/import/initial-password";
 // Let's explicitly define the body schema using the shared one.
 
 const bodySchema = z.object({
-  students: z.array(importStudentSchema)
+  // Cap anti-DoS à 500 lignes/lot (cohérent avec /api/import/{students,teachers,parents})
+  students: z
+    .array(importStudentSchema)
+    .min(1, "Aucun élève à importer.")
+    .max(500, "Maximum 500 lignes par import. Découpez votre fichier."),
 });
 
 export const POST = createApiHandler(

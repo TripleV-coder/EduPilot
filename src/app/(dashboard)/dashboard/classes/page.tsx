@@ -234,6 +234,7 @@ export default function ClassesPage() {
 
                 {!loading && !error && classes.length > 0 && viewMode === "grid" ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",

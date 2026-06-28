@@ -16,6 +16,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { getAppointmentStatusClass } from "@/lib/ui/status-styles";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Appointment = {
     id: string;
@@ -63,8 +64,8 @@ export default function AppointmentsPage() {
             if (!res.ok) throw new Error("Erreur de récupération des rendez-vous");
             const data = await res.json();
             setAppointments(data.appointments || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }

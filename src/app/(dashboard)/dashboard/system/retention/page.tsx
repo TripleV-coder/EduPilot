@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type EnforcementResult = {
     success: boolean;
@@ -40,8 +41,8 @@ export default function SystemRetentionPage() {
                 title: "Enforcement terminé",
                 description: `${result.totalDeleted} enregistrement(s) supprimé(s).`,
             });
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setRunning(false);
             setEnforceDialogOpen(false);

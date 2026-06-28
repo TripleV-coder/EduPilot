@@ -10,7 +10,7 @@ import { Avatar, Icon, Logo, type IconName } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { useSchool } from "@/components/providers/school-provider";
 import { fetcher } from "@/lib/fetcher";
-import { ROLE_LABELS, isActiveLink, navForRole, type NavCounts } from "./role-nav";
+import { ROLE_LABELS, isActiveLink, visibleNavGroups, type NavCounts } from "./role-nav";
 
 export function EduSidebar() {
     const pathname = usePathname() || "/dashboard";
@@ -18,7 +18,13 @@ export function EduSidebar() {
     const { isMobileOpen, setIsMobileOpen } = useSidebar();
     const role = session?.user?.role ?? "STAFF";
     const schoolCtx = useSchool();
-    const links = React.useMemo(() => navForRole(role), [role]);
+    const offeredLevels = schoolCtx.offeredLevels;
+    // Navigation groupée du global au spécifique. Les sections de cycle non
+    // offert sont masquées (défaut sûr : pendant le chargement, tout s'affiche).
+    const groups = React.useMemo(
+        () => visibleNavGroups(role, offeredLevels),
+        [role, offeredLevels]
+    );
 
     const { data: counts } = useSWR<NavCounts>(
         session?.user ? `/api/dashboard/nav-counts?role=${role}` : null,
@@ -69,17 +75,35 @@ export function EduSidebar() {
                     </div>
                 </Link>
 
-                <nav className="flex flex-col gap-0.5">
-                    {links.map((link) => (
-                        <SidebarLink
-                            key={link.href + link.label}
-                            href={link.href}
-                            icon={link.icon}
-                            label={link.label}
-                            count={link.countKey ? counts?.[link.countKey] : undefined}
-                            active={isActiveLink(pathname, link)}
-                            onNavigate={() => setIsMobileOpen(false)}
-                        />
+                <nav className="flex flex-col gap-0.5 overflow-y-auto">
+                    {groups.map((group, gi) => (
+                        <div key={group.title ?? `group-${gi}`} className="flex flex-col gap-0.5">
+                            {group.title ? (
+                                <div
+                                    className="px-3 pb-1 pt-3"
+                                    style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        letterSpacing: "0.06em",
+                                        textTransform: "uppercase",
+                                        color: "var(--eduflow-text-tertiary)",
+                                    }}
+                                >
+                                    {group.title}
+                                </div>
+                            ) : null}
+                            {group.links.map((link) => (
+                                <SidebarLink
+                                    key={link.href + link.label}
+                                    href={link.href}
+                                    icon={link.icon}
+                                    label={link.label}
+                                    count={link.countKey ? counts?.[link.countKey] : undefined}
+                                    active={isActiveLink(pathname, link)}
+                                    onNavigate={() => setIsMobileOpen(false)}
+                                />
+                            ))}
+                        </div>
                     ))}
                 </nav>
 

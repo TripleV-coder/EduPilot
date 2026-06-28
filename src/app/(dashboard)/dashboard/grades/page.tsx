@@ -211,6 +211,7 @@ export default function GradesPage() {
                         <>
                             {/* KPI strip */}
                             <div
+                                className="edu-stagger"
                                 style={{
                                     display: "grid",
                                     gridTemplateColumns:

@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 
 // ============================================
 // CUID VALIDATION
@@ -320,6 +321,19 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             if (options.requireAuth !== false && session?.user) {
                 if (session.user.isTwoFactorEnabled && !session.user.isTwoFactorAuthenticated) {
                     return NextResponse.json({ error: "Code 2FA requis", code: "MFA_REQUIRED" }, { status: 403 });
+                }
+            }
+
+            // ── MODE MAINTENANCE GLOBALE ──
+            // Bloque tous les rôles sauf SUPER_ADMIN quand la maintenance est
+            // active (état en cache TTL : pas de requête SQL par appel).
+            if (options.requireAuth !== false && maintenanceBlocksRole(session?.user?.role)) {
+                const maintenance = await getMaintenanceState();
+                if (maintenance.enabled) {
+                    return NextResponse.json(
+                        { error: maintenance.message, code: "MAINTENANCE" },
+                        { status: 503, headers: { "Retry-After": "120" } }
+                    );
                 }
             }
 

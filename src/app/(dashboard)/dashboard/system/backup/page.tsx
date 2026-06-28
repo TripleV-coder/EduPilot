@@ -15,6 +15,7 @@ import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimeShort } from "@/lib/utils/formatters";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Backup = {
     filename: string;
@@ -50,8 +51,8 @@ export default function SystemBackupPage() {
             if (!res.ok) throw new Error(result.error || "Erreur lors de la sauvegarde");
             toast({ title: "Succès", description: result.message || "Sauvegarde créée avec succès." });
             mutate("/api/system/backup");
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsGenerating(false);
         }

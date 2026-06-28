@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function BulkInvoicePage() {
     const router = useRouter();
@@ -45,8 +46,8 @@ export default function BulkInvoicePage() {
             }
             const data = await res.json();
             setSuccess(`Facturation par lot effectuée avec succès pour ${data.count ?? ""} élèves.`);
-        } catch (err: any) {
-            setError(err.message || "Une erreur est survenue");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Une erreur est survenue");
         } finally {
             setIsGenerating(false);
         }

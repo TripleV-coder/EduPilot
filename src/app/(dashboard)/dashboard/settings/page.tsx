@@ -69,6 +69,13 @@ const ADMIN_SETTINGS: SettingItem[] = [
         accent: "brand",
     },
     {
+        icon: "grid",
+        title: "Cycles de l'établissement",
+        desc: "Primaire, Collège, Lycée offerts",
+        href: "/dashboard/settings/cycles",
+        accent: "brand",
+    },
+    {
         icon: "school",
         title: "Niveaux d'étude",
         desc: "Configuration des cycles et classes",

@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSWRConfig } from "swr";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const STANDARD_PASSWORD = "00000000";
 
@@ -148,11 +149,11 @@ export default function NewUserPage() {
             // Revalidate the users list
             mutate(key => typeof key === 'string' && key.startsWith('/api/users'));
 
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive"
             });
         } finally {

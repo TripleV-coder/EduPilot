@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/formatters";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Period = {
     id: string;
@@ -141,8 +142,8 @@ export default function AcademicPeriodsPage() {
             }
             mutate(periodsKey);
             resetForm();
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -164,8 +165,8 @@ export default function AcademicPeriodsPage() {
             }
             toast({ title: "Succès", description: "Période supprimée." });
             mutate(periodsKey);
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsDeleteConfirmLoading(false);
             setDeleteDialogOpen(false);

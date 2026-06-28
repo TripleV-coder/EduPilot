@@ -21,6 +21,7 @@ vi.mock("@/lib/saas/quotas", () => ({
 }));
 
 import { POST as IMPORT_STUDENTS } from "@/app/api/import/students/route";
+import { POST as IMPORT_BULK } from "@/app/api/import/route";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -103,5 +104,27 @@ describe("POST /api/import/students — garde-fous", () => {
       })
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe("POST /api/import (endpoint massif) — cap anti-DoS", () => {
+  it("refuse un lot de plus de 500 lignes avant toute écriture DB", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+
+    const bigBatch = Array.from({ length: 501 }, (_, i) => ({
+      firstName: `Élève${i}`,
+      lastName: "Test",
+      email: `eleve${i}@ecole.bj`,
+    }));
+
+    const response = await IMPORT_BULK(
+      makeRequest("http://localhost:3000/api/import", {
+        method: "POST",
+        body: { type: "STUDENTS", data: bigBatch },
+      }) as any
+    );
+    const body = await response.json();
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("500");
   });
 });

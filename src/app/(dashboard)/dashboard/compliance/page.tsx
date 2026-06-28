@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatDateShort } from "@/lib/utils/formatters";
 import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 
 
@@ -75,8 +76,8 @@ export default function ComplianceDashboardPage() {
             setRequests(prev => prev.map(r =>
                 r.id === requestId ? { ...r, status: "COMPLETED" } : r
             ));
-        } catch (e: any) {
-            toast.error(e.message || "Erreur lors du traitement de la demande");
+        } catch (e) {
+            toast.error(getErrorMessage(e) || "Erreur lors du traitement de la demande");
         } finally {
             setFulfillingId(null);
         }

@@ -25,6 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { getErrorMessage } from "@/lib/utils/error-message";
+import { useSchool } from "@/components/providers/school-provider";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
@@ -41,8 +43,16 @@ export default function NewClassPage() {
     const { data: teachersResponse } = useSWR<any>("/api/teachers", fetcher);
 
     // Safety fallback
-    const classLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
+    const allClassLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
     const teachers = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.teachers || teachersResponse?.data || [];
+
+    // N'autoriser que les niveaux des cycles offerts par l'établissement.
+    // Défaut sûr : tant que offeredLevels est vide (chargement / non configuré),
+    // on affiche tous les niveaux — on ne masque jamais hâtivement.
+    const { offeredLevels } = useSchool();
+    const classLevels = offeredLevels && offeredLevels.length > 0
+        ? allClassLevels.filter((lvl: any) => offeredLevels.includes(lvl.level))
+        : allClassLevels;
 
     // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
     // remplacent le cast du resolver.
@@ -90,11 +100,11 @@ export default function NewClassPage() {
                 router.push("/dashboard/classes");
             }, 1000);
 
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive"
             });
         } finally {
@@ -175,6 +185,14 @@ export default function NewClassPage() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                                {!classLevels.length && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Aucun niveau disponible pour les cycles offerts par votre établissement.{" "}
+                                                        <Link href="/dashboard/settings/cycles" className="text-primary underline underline-offset-2">
+                                                            Configurer les cycles
+                                                        </Link>
+                                                    </p>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}

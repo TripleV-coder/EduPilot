@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
+import { CycleGuard } from "@/components/guard/cycle-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -186,6 +187,7 @@ export default function BepcPrepPage() {
             permission={Permission.SCHOOL_READ}
             roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
         >
+            <CycleGuard requires="SECONDARY_COLLEGE">
             <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
                 <PageHeader
                     greeting="Préparation BEPC"
@@ -619,6 +621,7 @@ export default function BepcPrepPage() {
                     }
                 }
             `}</style>
+            </CycleGuard>
         </PageGuard>
     );
 }

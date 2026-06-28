@@ -37,14 +37,18 @@ type ScanLogEntry = {
     refused?: boolean;
 };
 
+const FALLBACK_MATRICULE = "BJ-2026-A0142";
+
 export default function AccessControlPage() {
     const [loading, setLoading] = useState(true);
     const [preview, setPreview] = useState<PreviewStudent>(null);
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
     useEffect(() => {
         // Try to fetch one real student to power the badge preview. Falls back
         // to a generic placeholder when the call fails or returns nothing.
         const load = async () => {
+            let matricule = FALLBACK_MATRICULE;
             try {
                 const res = await fetch("/api/students?limit=1");
                 if (res.ok) {
@@ -52,10 +56,11 @@ export default function AccessControlPage() {
                     const list = Array.isArray(d) ? d : d.data || d.students || [];
                     const s = list[0];
                     if (s?.user) {
+                        matricule = s.matricule ?? FALLBACK_MATRICULE;
                         setPreview({
                             firstName: s.user.firstName,
                             lastName: s.user.lastName,
-                            matricule: s.matricule,
+                            matricule,
                             className:
                                 s.enrollments?.[0]?.class?.name ?? "Classe à confirmer",
                             schoolName: s.user.school?.name ?? "EduPilot School",
@@ -67,6 +72,19 @@ export default function AccessControlPage() {
                 /* ignore */
             } finally {
                 setLoading(false);
+            }
+
+            // Génère un vrai QR scannable encodant le matricule du badge.
+            try {
+                const QRCode = (await import("qrcode")).default;
+                const url = await QRCode.toDataURL(`EDUPILOT:STUDENT:${matricule}`, {
+                    margin: 0,
+                    width: 128,
+                    errorCorrectionLevel: "M",
+                });
+                setQrDataUrl(url);
+            } catch {
+                /* le badge reste lisible sans QR si la génération échoue */
             }
         };
         load();
@@ -306,18 +324,28 @@ export default function AccessControlPage() {
                                         gap: 10,
                                     }}
                                 >
-                                    {/* Faux QR — repeating-conic visual placeholder */}
-                                    <div
-                                        style={{
-                                            width: 64,
-                                            height: 64,
-                                            background:
-                                                "repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 50%/8px 8px",
-                                            borderRadius: 6,
-                                            boxShadow: "inset 0 0 0 3px #fff",
-                                            flexShrink: 0,
-                                        }}
-                                    />
+                                    {/* QR réel encodant le matricule du badge. */}
+                                    {qrDataUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={qrDataUrl}
+                                            alt={`QR badge ${preview?.matricule ?? FALLBACK_MATRICULE}`}
+                                            width={64}
+                                            height={64}
+                                            style={{ width: 64, height: 64, borderRadius: 6, flexShrink: 0 }}
+                                        />
+                                    ) : (
+                                        <div
+                                            aria-hidden="true"
+                                            style={{
+                                                width: 64,
+                                                height: 64,
+                                                borderRadius: 6,
+                                                flexShrink: 0,
+                                                background: "#f1f5f9",
+                                            }}
+                                        />
+                                    )}
                                     <div
                                         style={{
                                             fontSize: 10,

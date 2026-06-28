@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { primarySubjects, collegeSubjects, gradeMentions, levelConfig } from "@/lib/benin/config";
+import { primarySubjects, collegeSubjects, gradeMentions } from "@/lib/benin/config";
+import { LEVEL_CYCLES } from "@/lib/benin/levels";
 
 // GET: Récupérer la configuration Bénin (matières, coefficients, mentions)
 export async function GET(req: NextRequest) {
@@ -17,16 +18,16 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
                 subjects: primarySubjects,
                 mentions: gradeMentions,
-                levels: levelConfig.PRIMARY.levels,
-                exam: levelConfig.PRIMARY.finalExam,
+                levels: LEVEL_CYCLES.PRIMARY.grades,
+                exam: LEVEL_CYCLES.PRIMARY.finalExam,
             });
 
         case "college":
             return NextResponse.json({
                 subjects: collegeSubjects,
                 mentions: gradeMentions,
-                levels: levelConfig.COLLEGE.levels,
-                exam: levelConfig.COLLEGE.finalExam,
+                levels: LEVEL_CYCLES.SECONDARY_COLLEGE.grades,
+                exam: LEVEL_CYCLES.SECONDARY_COLLEGE.finalExam,
             });
 
         case "mentions":
@@ -36,11 +37,11 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
                 primary: {
                     subjects: primarySubjects,
-                    levels: levelConfig.PRIMARY.levels,
+                    levels: LEVEL_CYCLES.PRIMARY.grades,
                 },
                 college: {
                     subjects: collegeSubjects,
-                    levels: levelConfig.COLLEGE.levels,
+                    levels: LEVEL_CYCLES.SECONDARY_COLLEGE.grades,
                 },
                 mentions: gradeMentions,
             });
