@@ -19,15 +19,16 @@
 @layer base {
   :root {
     /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
-    /* Variables injectées par next/font via layout.tsx className */
-    /* --font-display → DM Serif Display (titres, métriques) */
-    /* --font-body    → Geist            (corps, interface)   */
-    /* --font-ui      → alias de --font-body */
-    --font-ui: var(--font-body);
-    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    /* Inter est chargé une seule fois via next/font sous --font-body
+       (cf. layout.tsx). Tous les autres rôles de police en sont dérivés
+       pour garantir une source unique et éviter les chargements multiples. */
+    --font-display:       var(--font-body);
+    --font-ui:            var(--font-body);
+    --font-eduflow-body:  var(--font-body);
+    --font-mono:          var(--font-eduflow-mono), 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
     /* Palette EduFlow Sky → Indigo (alignée sur edupilot-tokens.css --brand-*) */
-    --primary:            224 76% 48%;   /* brand-700 — CTA hover/pressed */
+    --primary:            221 83% 53%;   /* brand-600 — CTA primary */
     --primary-foreground: 0 0% 100%;
     --primary-50:         214 100% 97%;
     --primary-100:        214 95% 93%;
@@ -56,20 +57,20 @@
     --secondary-900:        191 35% 18%;
     --secondary-950:        191 30% 11%;
 
-    /* Accent: ambre sobre (engagement CTA secondaire) */
-    --accent:            36 71% 42%;
+    /* Accent: ambre sobre (engagement CTA secondaire) — rampe homogène */
+    --accent:            36 71% 42%;   /* = accent-600 */
     --accent-foreground: 0 0% 100%;
-    --accent-50:         258 70% 97%;
-    --accent-100:        258 55% 93%;
-    --accent-200:        258 45% 85%;
-    --accent-300:        258 40% 76%;
-    --accent-400:        258 38% 66%;
-    --accent-500:        36 71% 42%;
-    --accent-600:        36 74% 36%;
-    --accent-700:        258 33% 40%;
-    --accent-800:        258 31% 32%;
-    --accent-900:        258 29% 25%;
-    --accent-950:        258 26% 16%;
+    --accent-50:         40 90% 96%;
+    --accent-100:        40 88% 90%;
+    --accent-200:        39 85% 80%;
+    --accent-300:        38 80% 68%;
+    --accent-400:        37 75% 55%;
+    --accent-500:        36 73% 47%;
+    --accent-600:        36 71% 42%;
+    --accent-700:        35 72% 35%;
+    --accent-800:        34 70% 28%;
+    --accent-900:        33 65% 22%;
+    --accent-950:        32 60% 14%;
 
     /* ─── SÉMANTIQUE (Shadcn/UI standard, alignée EduFlow) ──── */
     /* Canvas slate-50 — eduflow-surface-page */
@@ -90,7 +91,10 @@
     /* slate-200 — eduflow-border-subtle */
     --border:               214 32% 91%;
     --input:                214 32% 91%;
-    --ring:                 217 91% 60%;
+    --ring:                 217 91% 60%;   /* brand-500 */
+
+    /* Voile des overlays (dialog, sheet, drawer) — slate-900 */
+    --overlay:              222 47% 11%;
 
     /* #C0392B rouge brique */
     --destructive:          7 51% 46%;
@@ -247,7 +251,10 @@
 
     --border: 130 7% 18%;
     --input:  130 7% 18%;
-    --ring:   146 23% 58%;
+    --ring:   213 94% 68%;   /* brand-300 — anneau de focus marque (était vert) */
+
+    /* Voile des overlays — noir profond en sombre */
+    --overlay: 0 0% 0%;
 
     --destructive:            0 63% 45%;
     --destructive-foreground: 210 40% 98%;

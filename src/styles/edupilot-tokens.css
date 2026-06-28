@@ -228,6 +228,7 @@
 /* ──────────────────────────────────────────────────────────
    Dark mode for EduFlow tokens
    ────────────────────────────────────────────────────────── */
+.dark,
 [data-eduflow-theme="dark"],
 .dark [data-eduflow-theme],
 .dark .eduflow-scope {

@@ -22,6 +22,7 @@ export default function NewPaymentPage() {
     const [amount, setAmount] = useState("");
     const [method, setMethod] = useState("CASH");
     const [reference, setReference] = useState("");
+    const [payerPhone, setPayerPhone] = useState("");
     const [notes, setNotes] = useState("");
 
     const [loading, setLoading] = useState(true);
@@ -121,6 +122,7 @@ export default function NewPaymentPage() {
                         feeId: selectedFeeId,
                         studentId: selectedStudentId,
                         provider: method === "MOBILE_MONEY_MTN" ? "MTN" : "MOOV",
+                        payerPhone: payerPhone.trim() || undefined,
                     }),
                 });
 
@@ -160,6 +162,7 @@ export default function NewPaymentPage() {
             setSelectedFeeId("");
             setAmount("");
             setReference("");
+            setPayerPhone("");
             setNotes("");
             setSearchTerm("");
             setStudents([]);
@@ -372,6 +375,23 @@ export default function NewPaymentPage() {
                                                 <option value="OTHER">Autre</option>
                                             </select>
                                         </div>
+
+                                        {(method === "MOBILE_MONEY_MTN" || method === "MOBILE_MONEY_MOOV") && (
+                                            <div className="space-y-2">
+                                                <Label>Numéro Mobile Money du payeur</Label>
+                                                <Input
+                                                    aria-label="Numéro Mobile Money du payeur"
+                                                    type="tel"
+                                                    inputMode="tel"
+                                                    value={payerPhone}
+                                                    onChange={e => setPayerPhone(e.target.value)}
+                                                    placeholder="Ex: 22990000000"
+                                                />
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Requis pour la demande de paiement push (MoMo direct). Une demande sera envoyée sur ce numéro.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         <div className="space-y-2 md:col-span-2">
                                             <Label>Référence de transaction (Optionnel)</Label>

@@ -18,6 +18,33 @@
  */
 import { FedaPay, Transaction, Webhook } from "fedapay";
 
+/** Statuts FedaPay considérés comme payés (cf. SDK Transaction.PAID_STATUS). */
+const FEDAPAY_PAID = new Set(["approved", "transferred"]);
+const FEDAPAY_FAILED = new Set(["declined", "canceled", "expired"]);
+
+export type PaymentStatus = "SUCCESS" | "FAILED" | "PENDING";
+
+/** Mappe un statut FedaPay vers le statut interne EduPilot. */
+export function mapFedaPayStatus(status: string | undefined | null): PaymentStatus {
+  const s = (status ?? "").toLowerCase();
+  if (FEDAPAY_PAID.has(s)) return "SUCCESS";
+  if (FEDAPAY_FAILED.has(s)) return "FAILED";
+  return "PENDING";
+}
+
+/**
+ * Récupère le statut d'une transaction FedaPay (pour rapprochement / verify).
+ */
+export async function retrieveFedaPayTransaction(
+  transactionId: string
+): Promise<{ status: PaymentStatus; raw: unknown }> {
+  ensureInit();
+  const tx = (await Transaction.retrieve(transactionId)) as unknown as {
+    status?: string;
+  };
+  return { status: mapFedaPayStatus(tx.status), raw: tx };
+}
+
 export function isFedaPayConfigured(): boolean {
   return Boolean(process.env.FEDAPAY_SECRET_KEY);
 }

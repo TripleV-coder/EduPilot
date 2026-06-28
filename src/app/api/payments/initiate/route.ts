@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { SupportedProvider } from "@/lib/finance/types";
+import { isMomoConfigured } from "@/lib/finance/providers/momo";
+import { isFedaPayConfigured } from "@/lib/payments/fedapay";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
@@ -13,8 +15,26 @@ const initiateSchema = z.object({
     currency: z.string().optional(),
     feeId: z.string(),
     studentId: z.string(),
-    provider: z.string()
+    provider: z.string(),
+    /** Numéro du payeur (requis pour MoMo direct requestToPay). */
+    payerPhone: z.string().optional(),
 });
+
+/**
+ * Résout le rail de paiement effectif. Les réseaux Mobile Money (MTN/Moov)
+ * passent par MoMo direct si l'école a configuré l'API MTN, sinon par FedaPay
+ * (agrégateur qui couvre MTN/Moov/Celtiis). Les autres providers sont honorés
+ * tels quels.
+ */
+function resolveProvider(requested: string): SupportedProvider {
+    const r = requested.toUpperCase();
+    if (r === "MTN" || r === "MOOV" || r === "MOBILE_MONEY") {
+        if (isMomoConfigured()) return "MOMO";
+        if (isFedaPayConfigured()) return "FEDAPAY";
+        return "FEDAPAY"; // lèvera "non configuré" côté provider
+    }
+    return r as SupportedProvider;
+}
 
 export async function POST(req: NextRequest) {
     const session = await auth();
@@ -39,7 +59,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid request data", details: parsed.error.format() }, { status: 400 });
         }
 
-        const { amount, currency, feeId, studentId, provider } = parsed.data;
+        const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
+        const resolvedProvider = resolveProvider(provider);
         // 3. Multi-tenant Check
         const [studentProfile, fee] = await Promise.all([
             prisma.studentProfile.findUnique({
@@ -145,13 +166,13 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Initiate with Provider
-        const paymentProvider = PaymentProviderFactory.getProvider(provider as SupportedProvider);
+        const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
         const result = await paymentProvider.initiatePayment(
             Number(paymentRecord.amount), // SECURITY: Use the record amount, not the request amount
             currency || 'XOF',
             session.user.email!,
             paymentRecord.reference!,
-            { paymentId: paymentRecord.id }
+            { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
         );
 
         // 3. Update with Provider reference if returned as transactionId
