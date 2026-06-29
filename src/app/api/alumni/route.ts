@@ -119,6 +119,5 @@ export const POST = createApiHandler(
     },
     {
         allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"],
-        requiredPermissions: [Permission.SCHOOL_UPDATE],
     }
 );

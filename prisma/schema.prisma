@@ -130,6 +130,9 @@ model School {
   journalEntries         JournalEntry[]
   voiceCampaigns         VoiceCampaign[]
   alumni                 Alumni[]
+  scanPoints             ScanPoint[]
+  scanLogs               ScanLog[]
+  badges                 Badge[]
   benchmarkSnapshots     BenchmarkSnapshot[]
   transportLines         TransportLine[]
   transportBuses         Bus[]
@@ -439,6 +442,8 @@ model StudentProfile {
   lessonCompletions   LessonCompletion[]
   medicalRecord       MedicalRecord?
   linkCodes           StudentLinkCode[]
+  badge               Badge?
+  scanLogs            ScanLog[]
   parentStudents      ParentStudent[]
   paymentPlans        PaymentPlan[]
   payments            Payment[]
@@ -482,6 +487,63 @@ model ParentStudent {
 
   @@unique([parentId, studentId])
   @@map("parent_students")
+}
+
+/// Point de scan physique (portail, cantine, transport, bibliothèque,
+/// infirmerie). Reçoit les passages de badges.
+model ScanPoint {
+  id        String    @id @default(cuid())
+  schoolId  String
+  name      String
+  type      String    @default("GATE")
+  location  String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanLogs  ScanLog[]
+
+  @@index([schoolId])
+  @@map("scan_points")
+}
+
+/// Journal d'un passage de badge à un point de scan. `result` = OK | REFUSED
+/// (matricule inconnu, badge révoqué…). `studentId` nul si non résolu.
+model ScanLog {
+  id          String     @id @default(cuid())
+  schoolId    String
+  scanPointId String?
+  studentId   String?
+  matricule   String?
+  action      String     @default("ENTRY")
+  result      String     @default("OK")
+  reason      String?
+  createdAt   DateTime   @default(now())
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanPoint   ScanPoint?     @relation(fields: [scanPointId], references: [id], onDelete: SetNull)
+  student     StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, createdAt])
+  @@index([scanPointId])
+  @@index([studentId])
+  @@map("scan_logs")
+}
+
+/// Badge unique par élève (QR signé) pour l'identification multi-usage.
+model Badge {
+  id         String         @id @default(cuid())
+  schoolId   String
+  studentId  String         @unique
+  code       String         @unique
+  validUntil DateTime?
+  revokedAt  DateTime?
+  issuedAt   DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  school     School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("badges")
 }
 
 /// Ancien élève (réseau alumni) rattaché à une école. Sert l'annuaire, le

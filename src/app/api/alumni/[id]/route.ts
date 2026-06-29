@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const ALUMNI_FIELDS = ["Médecine", "Tech", "Droit", "Business", "Énergie", "Autre"] as const;
@@ -53,7 +52,6 @@ export const PATCH = createApiHandler(
     },
     {
         allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"],
-        requiredPermissions: [Permission.SCHOOL_UPDATE],
     }
 );
 
@@ -80,6 +78,5 @@ export const DELETE = createApiHandler(
     },
     {
         allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"],
-        requiredPermissions: [Permission.SCHOOL_UPDATE],
     }
 );
