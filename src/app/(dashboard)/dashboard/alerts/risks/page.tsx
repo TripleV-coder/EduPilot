@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -79,6 +80,14 @@ function computeRiskScore(input: {
 }
 
 export default function AlertsRisksPage() {
+  return (
+    <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+      <AlertsRisksContent />
+    </PageGuard>
+  );
+}
+
+function AlertsRisksContent() {
   const [classId, setClassId] = useState<string>("all");
 
   const markStudentTransition = (studentId: string) => {

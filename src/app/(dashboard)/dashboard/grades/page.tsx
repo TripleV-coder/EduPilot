@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { useSession } from "next-auth/react";
 
 import { fetcher } from "@/lib/fetcher";
+import { PageGuard } from "@/components/guard/page-guard";
 import { t } from "@/lib/i18n";
 import { EvaluationList } from "@/components/evaluations/EvaluationList";
 import { EvaluationSheet } from "@/components/evaluations/EvaluationSheet";
@@ -37,6 +38,14 @@ const TABS = [
 ];
 
 export default function GradesPage() {
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <GradesContent />
+        </PageGuard>
+    );
+}
+
+function GradesContent() {
     const { data: session } = useSession();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"list" | "stats">("list");

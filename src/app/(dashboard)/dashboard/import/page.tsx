@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageGuard } from "@/components/guard/page-guard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -86,7 +87,15 @@ function fmtInt(n: number): string {
     return new Intl.NumberFormat("fr-FR").format(n);
 }
 
-export default function ImportWizardPage() {
+export default function ImportPage() {
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+            <ImportWizardPage />
+        </PageGuard>
+    );
+}
+
+function ImportWizardPage() {
     const [step, setStep] = useState<ImportStep>("SELECT_UPLOAD");
     const [selectedType, setSelectedType] = useState<SupportedImportType | null>(null);
     const [fileName, setFileName] = useState<string>("");

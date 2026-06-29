@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   ArrowUpRight, Users, GraduationCap, 
@@ -28,6 +29,14 @@ type RankedStudent = {
 };
 
 export default function PromotionEnginePage() {
+  return (
+    <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+      <PromotionEngineContent />
+    </PageGuard>
+  );
+}
+
+function PromotionEngineContent() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, StudentPromotion["status"]>>({});
