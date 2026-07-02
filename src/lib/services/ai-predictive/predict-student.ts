@@ -9,6 +9,8 @@ import { assessDataQuality } from "./algorithms/statistics";
 import { predictFailureRisk } from "./predict-failure";
 import { predictNextPeriodGrade } from "./predict-grade";
 import { predictBehaviorRisk } from "./predict-behavior";
+import { predictDropoutRisk } from "./predict-dropout";
+import { detectEarlyWarnings } from "./detect-early-warning";
 
 /**
  * Génère toutes les prédictions pour un élève
@@ -17,10 +19,12 @@ import { predictBehaviorRisk } from "./predict-behavior";
 export async function generateStudentPredictions(
     studentId: string
 ): Promise<StudentPrediction> {
-    const [failureRisk, nextGrade, behaviorRisk] = await Promise.all([
+    const [failureRisk, nextGrade, behaviorRisk, dropoutRisk, earlyWarnings] = await Promise.all([
         predictFailureRisk(studentId),
         predictNextPeriodGrade(studentId),
         predictBehaviorRisk(studentId),
+        predictDropoutRisk(studentId),
+        detectEarlyWarnings(studentId),
     ]);
 
     // Prédiction d'orientation (basée sur les analytics existantes)
@@ -126,6 +130,8 @@ export async function generateStudentPredictions(
             },
             orientationFit,
             behaviorRisk,
+            dropoutRisk,
+            earlyWarnings,
         },
         confidence,
         dataQuality,
@@ -159,6 +165,7 @@ export async function generateClassPredictions(
                 studentsAtRisk: 0,
                 studentsAtRiskIds: [],
                 dropoutRisk: 0,
+                studentsWithWarnings: 0,
                 recommendations: [
                     "Aucun élève actif trouvé pour cette classe",
                 ],
@@ -166,39 +173,54 @@ export async function generateClassPredictions(
         };
     }
 
-    // Prédictions pour tous les élèves
-    const predictions = await Promise.all(
-        studentIds.map((id) => predictNextPeriodGrade(id))
+    // Une seule passe par élève : note + risque d'échec + décrochage + alertes
+    const perStudent = await Promise.all(
+        studentIds.map(async (id) => {
+            const [grade, failure, dropout, warnings] = await Promise.all([
+                predictNextPeriodGrade(id),
+                predictFailureRisk(id),
+                predictDropoutRisk(id),
+                detectEarlyWarnings(id),
+            ]);
+            return { id, grade, failure, dropout, warnings };
+        })
     );
 
     const averageNextPeriod =
-        predictions.reduce((sum, p) => sum + p.predicted, 0) / predictions.length;
+        perStudent.reduce((sum, p) => sum + p.grade.predicted, 0) / perStudent.length;
 
-    // Élèves à risque
-    const risksAssessments = await Promise.all(
-        studentIds.map((id) => predictFailureRisk(id))
-    );
+    const studentsAtRiskIds = perStudent
+        .filter((p) => p.failure.probability >= 50) // Risque élevé ou très élevé
+        .map((p) => p.id);
 
-    const studentsAtRiskIds = studentIds.filter((id, index) => {
-        return risksAssessments[index].probability >= 50; // Risque élevé ou très élevé
-    });
-
+    // Décrochage réel = moyenne du modèle de décrochage sur la classe
     const dropoutRisk =
-        (studentsAtRiskIds.length / studentIds.length) * 100;
+        perStudent.reduce((sum, p) => sum + p.dropout.probability, 0) / perStudent.length;
+
+    const studentsWithWarnings = perStudent.filter((p) => p.warnings.length > 0).length;
+
+    // Part d'élèves à risque d'échec (pour calibrer les recommandations de classe)
+    const riskShare = (studentsAtRiskIds.length / perStudent.length) * 100;
 
     const recommendations: string[] = [];
-    if (dropoutRisk > 30) {
+    if (riskShare > 30) {
         recommendations.push(
             "Taux de risque d'échec élevé dans la classe - Intervention urgente nécessaire"
         );
         recommendations.push(
             "Organiser des séances de soutien scolaire renforcées"
         );
-    } else if (dropoutRisk > 15) {
+    } else if (riskShare > 15) {
         recommendations.push("Surveiller attentivement les élèves à risque");
         recommendations.push("Proposer du tutorat personnalisé");
     } else {
         recommendations.push("Continuer le suivi habituel de la classe");
+    }
+
+    if (studentsWithWarnings > 0) {
+        recommendations.push(
+            `${studentsWithWarnings} élève(s) avec alerte précoce active - Vérifier les signaux`
+        );
     }
 
     if (averageNextPeriod < 10) {
@@ -214,6 +236,7 @@ export async function generateClassPredictions(
             studentsAtRisk: studentsAtRiskIds.length,
             studentsAtRiskIds,
             dropoutRisk: Math.round(dropoutRisk * 100) / 100,
+            studentsWithWarnings,
             recommendations,
         },
     };

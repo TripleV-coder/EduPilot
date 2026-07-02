@@ -16,7 +16,18 @@
  */
 
 // Types
-export type { StudentPrediction, ClassPrediction, CausalFactor } from "./types";
+export type {
+    StudentPrediction,
+    ClassPrediction,
+    CausalFactor,
+    DropoutRisk,
+    DropoutSignal,
+    EarlyWarning,
+    EarlyWarningType,
+    BehaviorRisk,
+    RiskLevel,
+    DataQuality,
+} from "./types";
 export { CONFIG } from "./types";
 
 // Algorithms
@@ -26,6 +37,9 @@ export {
     polynomialRegression,
     crossValidate,
 } from "./algorithms/regression";
+
+export { mulberry32, seedFromId, rngFromId } from "./algorithms/rng";
+export type { Rng } from "./algorithms/rng";
 
 export {
     exponentialMovingAverage,
@@ -44,4 +58,8 @@ export {
 export { predictFailureRisk } from "./predict-failure";
 export { predictNextPeriodGrade } from "./predict-grade";
 export { predictBehaviorRisk } from "./predict-behavior";
+export { predictDropoutRisk, DROPOUT_WEIGHTS } from "./predict-dropout";
+export { detectEarlyWarnings, EARLY_WARNING_THRESHOLDS } from "./detect-early-warning";
 export { generateStudentPredictions, generateClassPredictions } from "./predict-student";
+export { getStudentPredictions, getClassPredictions } from "./api";
+export type { StudentPredictionResponse, ClassPredictionResponse, PredictiveApiMeta } from "./api";

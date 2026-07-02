@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { CONFIG } from "./types";
 import { linearRegression, calculateR2, polynomialRegression, crossValidate } from "./algorithms/regression";
 import { exponentialMovingAverage, detectAnomalies, bootstrapConfidenceInterval, assessDataQuality } from "./algorithms/statistics";
+import { rngFromId } from "./algorithms/rng";
 
 /**
  * Prédit la note moyenne de la prochaine période
@@ -125,8 +126,8 @@ export async function predictNextPeriodGrade(studentId: string): Promise<{
     // Confiance basée sur la validation croisée
     const confidence = Math.max(0, Math.min(100, cvScore * 100));
 
-    // Intervalle de confiance par bootstrap
-    const bootstrapInterval = bootstrapConfidenceInterval(workingValues, 0.95, 1000);
+    // Intervalle de confiance par bootstrap (RNG seedé → reproductible par élève)
+    const bootstrapInterval = bootstrapConfidenceInterval(workingValues, 0.95, 1000, rngFromId(studentId));
 
     // Calcul de l'erreur résiduelle moyenne
     const errors = workingData.map((p, i) => Math.abs(p.y - linearPredictions[i]));

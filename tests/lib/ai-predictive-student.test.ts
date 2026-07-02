@@ -15,11 +15,19 @@ vi.mock("@/lib/services/ai-predictive/predict-grade", () => ({
 vi.mock("@/lib/services/ai-predictive/predict-behavior", () => ({
   predictBehaviorRisk: vi.fn(),
 }));
+vi.mock("@/lib/services/ai-predictive/predict-dropout", () => ({
+  predictDropoutRisk: vi.fn(),
+}));
+vi.mock("@/lib/services/ai-predictive/detect-early-warning", () => ({
+  detectEarlyWarnings: vi.fn(),
+}));
 
 import prisma from "@/lib/prisma";
 import { predictFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
 import { predictNextPeriodGrade } from "@/lib/services/ai-predictive/predict-grade";
 import { predictBehaviorRisk } from "@/lib/services/ai-predictive/predict-behavior";
+import { predictDropoutRisk } from "@/lib/services/ai-predictive/predict-dropout";
+import { detectEarlyWarnings } from "@/lib/services/ai-predictive/detect-early-warning";
 import {
   generateStudentPredictions,
   generateClassPredictions,
@@ -30,6 +38,7 @@ function mockPredictors(options: {
   predicted?: number;
   failureProbability?: number;
   behaviorProbability?: number;
+  dropoutProbability?: number;
 }) {
   vi.mocked(predictNextPeriodGrade).mockResolvedValue({
     predicted: options.predicted ?? 13,
@@ -46,9 +55,21 @@ function mockPredictors(options: {
   } as any);
   vi.mocked(predictBehaviorRisk).mockResolvedValue({
     probability: options.behaviorProbability ?? 5,
-    level: "FAIBLE",
-    factors: [],
+    nextIncidentPrediction: "Comportement stable, risque très faible",
+    causalFactors: [],
+    recommendations: [],
+    confidence: 60,
+    dataQuality: "LOW",
   } as any);
+  vi.mocked(predictDropoutRisk).mockResolvedValue({
+    probability: options.dropoutProbability ?? 5,
+    level: "TRÈS FAIBLE",
+    signals: [],
+    recommendations: [],
+    confidence: 30,
+    dataQuality: "LOW",
+  } as any);
+  vi.mocked(detectEarlyWarnings).mockResolvedValue([] as any);
 }
 
 function subjectPerf(name: string, average: number, isStrength: boolean) {
@@ -153,16 +174,29 @@ describe("generateClassPredictions", () => {
       .mockResolvedValueOnce({ probability: 80 } as any)
       .mockResolvedValueOnce({ probability: 20 } as any)
       .mockResolvedValueOnce({ probability: 55 } as any);
+    // Décrochage réel : moyenne (60 + 0 + 30) / 3 = 30
+    vi.mocked(predictDropoutRisk)
+      .mockResolvedValueOnce({ probability: 60 } as any)
+      .mockResolvedValueOnce({ probability: 0 } as any)
+      .mockResolvedValueOnce({ probability: 30 } as any);
+    // 1 élève avec alerte précoce
+    vi.mocked(detectEarlyWarnings)
+      .mockResolvedValueOnce([{ type: "ATTENDANCE_CLIFF" }] as any)
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce([] as any);
 
     const result = await generateClassPredictions("cl1");
 
     expect(result.predictions.averageNextPeriod).toBe(9);
     expect(result.predictions.studentsAtRisk).toBe(2);
     expect(result.predictions.studentsAtRiskIds).toEqual(["s1", "s3"]);
-    expect(result.predictions.dropoutRisk).toBeCloseTo(66.67, 1);
-    // > 30% de risque → intervention urgente + moyenne < 10 → alerte pédagogique
+    // dropoutRisk = moyenne du vrai modèle de décrochage (60+0+30)/3 = 30
+    expect(result.predictions.dropoutRisk).toBe(30);
+    expect(result.predictions.studentsWithWarnings).toBe(1);
+    // riskShare = 2/3 ≈ 66% > 30 → intervention urgente + moyenne < 10 → alerte pédagogique
     expect(result.predictions.recommendations.join(" ")).toContain("Intervention urgente");
     expect(result.predictions.recommendations.join(" ")).toContain("méthodes pédagogiques");
+    expect(result.predictions.recommendations.join(" ")).toContain("alerte précoce");
   });
 
   it("classe saine → suivi habituel", async () => {
@@ -172,10 +206,13 @@ describe("generateClassPredictions", () => {
     ] as any);
     vi.mocked(predictNextPeriodGrade).mockResolvedValue({ predicted: 13 } as any);
     vi.mocked(predictFailureRisk).mockResolvedValue({ probability: 10 } as any);
+    vi.mocked(predictDropoutRisk).mockResolvedValue({ probability: 0 } as any);
+    vi.mocked(detectEarlyWarnings).mockResolvedValue([] as any);
 
     const result = await generateClassPredictions("cl1");
 
     expect(result.predictions.dropoutRisk).toBe(0);
+    expect(result.predictions.studentsWithWarnings).toBe(0);
     expect(result.predictions.recommendations).toEqual(["Continuer le suivi habituel de la classe"]);
   });
 });

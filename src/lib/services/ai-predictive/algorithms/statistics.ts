@@ -4,6 +4,7 @@
  */
 
 import { CONFIG } from "../types";
+import type { Rng } from "./rng";
 
 /**
  * Moyenne mobile pondérée exponentielle (pour lisser les tendances)
@@ -35,7 +36,7 @@ export function detectAnomalies(values: number[], threshold: number = 2): boolea
 /**
  * Algorithme de clustering K-means simplifié pour grouper les élèves
  */
-export function simpleKMeans(data: number[], k: number = 3): {
+export function simpleKMeans(data: number[], k: number = 3, rng: Rng = Math.random): {
     clusters: number[][];
     centroids: number[];
 } {
@@ -48,7 +49,7 @@ export function simpleKMeans(data: number[], k: number = 3): {
 
     // Initialisation des centroïdes (méthode k-means++)
     const centroids: number[] = [];
-    centroids.push(data[Math.floor(Math.random() * data.length)]);
+    centroids.push(data[Math.floor(rng() * data.length)]);
 
     while (centroids.length < k) {
         const distances = data.map(point => {
@@ -57,7 +58,7 @@ export function simpleKMeans(data: number[], k: number = 3): {
         const sumDistances = distances.reduce((sum, d) => sum + d, 0);
         const probabilities = distances.map(d => d / sumDistances);
 
-        const rand = Math.random();
+        const rand = rng();
         let cumulativeProb = 0;
         for (let i = 0; i < data.length; i++) {
             cumulativeProb += probabilities[i];
@@ -111,7 +112,8 @@ export function simpleKMeans(data: number[], k: number = 3): {
 export function bootstrapConfidenceInterval(
     values: number[],
     confidence: number = 0.95,
-    iterations: number = 1000
+    iterations: number = 1000,
+    rng: Rng = Math.random
 ): { lower: number; upper: number; standardError: number } {
     if (values.length === 0) {
         return { lower: 0, upper: 20, standardError: 10 };
@@ -123,7 +125,7 @@ export function bootstrapConfidenceInterval(
         // Échantillonnage avec remise
         const sample: number[] = [];
         for (let j = 0; j < values.length; j++) {
-            sample.push(values[Math.floor(Math.random() * values.length)]);
+            sample.push(values[Math.floor(rng() * values.length)]);
         }
         const mean = sample.reduce((sum, v) => sum + v, 0) / sample.length;
         means.push(mean);
