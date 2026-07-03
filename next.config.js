@@ -137,10 +137,34 @@ const nextConfig = {
   
   async redirects() {
     return [
-      // Redirection racine vers dashboard si connecté (géré par middleware)
       {
         source: "/home",
         destination: "/dashboard",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/cafeteria",
+        destination: "/dashboard/canteen",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/staff",
+        destination: "/dashboard/users",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/health",
+        destination: "/dashboard/medical",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/schedules",
+        destination: "/dashboard/schedule",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/ai-assistant",
+        destination: "/dashboard/ai",
         permanent: true,
       },
     ];
