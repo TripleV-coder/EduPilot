@@ -1961,6 +1961,7 @@ enum PeriodType {
 
 enum UserRole {
   SUPER_ADMIN
+  NETWORK_ADMIN
   SCHOOL_ADMIN
   DIRECTOR
   TEACHER
