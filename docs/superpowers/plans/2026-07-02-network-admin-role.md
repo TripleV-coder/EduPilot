@@ -13,7 +13,7 @@
 - **AUCUNE feature actuelle ne change.** Travail strictement additif : on ajoute une valeur d'enum, des entrées dans des `Record<UserRole, …>`, des branches de code — on ne retire ni ne modifie aucun comportement des 8 rôles existants.
 - **Jamais d'escalade vers SUPER_ADMIN.** `roleSatisfies` étend uniquement NETWORK_ADMIN → SCHOOL_ADMIN. Un écran/route réservé `["SUPER_ADMIN"]` reste fermé au NETWORK_ADMIN.
 - **NETWORK_ADMIN n'a jamais de scope global.** Toute requête réseau est bornée côté serveur par `getAccessibleSchoolIds(session)` (`schoolId: { in: … }`), jamais par l'absence de filtre.
-- **Migration Prisma additive.** L'ajout de valeur d'enum et la bascule des données sont **deux fichiers de migration séparés** (PostgreSQL interdit d'utiliser une valeur d'enum ajoutée dans la même transaction).
+- **Migrations hors-git (convention repo).** `*.sql` est gitignoré : les migrations `.sql` ne sont PAS trackées (`schema.prisma` = source de vérité). L'ajout de valeur d'enum se fait dans `schema.prisma` (tracké) ; le `.sql` généré reste sur disque, non tracké. La **bascule de données** (non exprimable en schema) est un **script TypeScript tracké** lancé via `tsx` (précédent : `prisma/backfill-offered-levels.ts`), pas un `.sql`.
 - **TypeScript strict**, pas de `any` non justifié. Le typecheck (`npm run type-check`) pilote le balayage des `Record<UserRole, …>` exhaustifs.
 - Les comptes migrés portent l'ancien rôle dans leur JWT → ils doivent se reconnecter. À noter au CHANGELOG.
 
@@ -22,8 +22,8 @@
 ## File Structure
 
 **Créés :**
-- `prisma/migrations/<ts>_add_network_admin_role/migration.sql` — `ALTER TYPE "UserRole" ADD VALUE`.
-- `prisma/migrations/<ts>_migrate_super_admin_to_network_admin/migration.sql` — bascule des comptes + AuditLog (fichier séparé).
+- `prisma/migrations/<ts>_add_network_admin_role/migration.sql` — `ALTER TYPE "UserRole" ADD VALUE` (sur disque, **non tracké** — convention repo).
+- `prisma/migrate-super-admin-to-network-admin.ts` — script TS tracké : bascule des comptes + AuditLog (Task 8).
 - `src/lib/rbac/role-satisfies.test.ts` — tests du helper d'expansion.
 - `src/lib/rbac/network-admin.test.ts` — tests des Records RBAC pour NETWORK_ADMIN.
 - `src/lib/auth/school-access.test.ts` (si absent) — tests du périmètre multi-écoles.
@@ -313,15 +313,30 @@ Dans `src/components/edu-shell/role-nav.ts`, dans `ROLE_LABELS`, après `SUPER_A
     NETWORK_ADMIN: "Admin réseau",
 ```
 
-- [ ] **Step 8: Run test + typecheck**
+- [ ] **Step 8: Compléter la 2e copie de `roleHierarchy` (auth-helpers.ts)**
+
+Le typecheck (Task 1) révèle une **seconde** copie locale de la hiérarchie dans
+`src/lib/api/auth-helpers.ts:165` : `const roleHierarchy: Record<UserRole, number> = {`.
+Y ajouter `NETWORK_ADMIN` avec la **même** valeur que dans `permissions.ts` :
+
+```typescript
+  const roleHierarchy: Record<UserRole, number> = {
+    SUPER_ADMIN: 100,
+    NETWORK_ADMIN: 90,
+    // …reste inchangé…
+```
+
+(Ne PAS refactorer/dédupliquer les deux copies — hors périmètre, additif seulement.)
+
+- [ ] **Step 9: Run test + typecheck**
 
 Run: `npx vitest run src/lib/rbac/network-admin.test.ts && npm run type-check`
-Expected: tests PASS (5) ; typecheck PASS (les `Record<UserRole,…>` sont désormais exhaustifs). Si le typecheck signale un autre `Record<UserRole,…>` (ex. dans un fichier de mapping non prévu), l'ajouter avec la valeur cohérente et le noter.
+Expected: tests PASS (5) ; typecheck PASS (tous les `Record<UserRole,…>` sont désormais exhaustifs : `rolePermissions`, `roleHierarchy` ×2, `roleCreationMatrix`, `getRoleName`). Si le typecheck signale ENCORE un autre `Record<UserRole,…>` non listé, l'ajouter avec la valeur cohérente et le noter dans le rapport.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/lib/rbac/permissions.ts src/components/edu-shell/role-nav.ts src/lib/rbac/network-admin.test.ts
+git add src/lib/rbac/permissions.ts src/components/edu-shell/role-nav.ts src/lib/api/auth-helpers.ts src/lib/rbac/network-admin.test.ts
 git commit -m "feat(rbac): permissions, hiérarchie, matrice création et libellés NETWORK_ADMIN"
 ```
 
@@ -804,68 +819,112 @@ git commit -m "feat(nav): navigation NETWORK_ADMIN curatée (écrans données-é
 
 ---
 
-## Task 8: Migration de bascule des comptes + vérification finale
+## Task 8: Script de bascule des comptes (tracké) + vérification finale
 
 **Files:**
-- Create: `prisma/migrations/<timestamp>_migrate_super_admin_to_network_admin/migration.sql`
+- Create: `prisma/migrate-super-admin-to-network-admin.ts`
 
 **Interfaces:**
-- Consumes: valeur d'enum `NETWORK_ADMIN` (Task 1, migration appliquée avant).
-- Produces: les comptes SUPER_ADMIN rattachés à une école deviennent NETWORK_ADMIN + trace AuditLog.
+- Consumes: valeur d'enum `NETWORK_ADMIN` (Task 1) ; `PrismaClient`.
+- Produces: script idempotent qui bascule les SUPER_ADMIN rattachés à une école en NETWORK_ADMIN + trace AuditLog.
 
-- [ ] **Step 1: Créer le fichier de migration de données (SÉPARÉ)**
+**Contexte convention (décision 2026-07-03) :** ce repo ne tracke PAS les fichiers
+`.sql` de migration (`*.sql` dans `.gitignore` ; les 26 migrations existantes ne sont
+pas dans git — `schema.prisma` est la source de vérité, migrations générées hors-git).
+La bascule de données n'est donc PAS un `.sql` de migration (il serait ignoré), mais un
+**script TypeScript tracké**, calqué sur le précédent `prisma/backfill-offered-levels.ts`
+(lancé via `tsx`, idempotent, sans test unitaire — cohérent avec ce précédent).
 
-Créer `prisma/migrations/20260702000002_migrate_super_admin_to_network_admin/migration.sql` (timestamp postérieur à celui de la Task 1) :
+- [ ] **Step 1: Créer le script de bascule**
 
-```sql
--- Bascule des comptes : tout SUPER_ADMIN RATTACHÉ à une école (schoolId non nul)
--- devient NETWORK_ADMIN. Les comptes opérateur plateforme (schoolId NULL) restent
--- SUPER_ADMIN. Fichier séparé de l'ajout d'enum (contrainte PostgreSQL).
--- Les comptes migrés doivent se reconnecter (le JWT porte l'ancien rôle).
+Créer `prisma/migrate-super-admin-to-network-admin.ts` :
 
--- 1) Trace d'audit AVANT bascule (une ligne par compte migré).
-INSERT INTO "audit_logs" ("id", "userId", "schoolId", "action", "entity", "entityId", "oldValues", "newValues", "createdAt")
-SELECT
-  gen_random_uuid(),
-  u."id",
-  u."schoolId",
-  'UPDATE',
-  'User.role',
-  u."id",
-  jsonb_build_object('role', 'SUPER_ADMIN'),
-  jsonb_build_object('role', 'NETWORK_ADMIN'),
-  now()
-FROM "users" u
-WHERE u."role" = 'SUPER_ADMIN' AND u."schoolId" IS NOT NULL;
+```typescript
+/**
+ * Bascule idempotente : tout SUPER_ADMIN RATTACHÉ à une école (schoolId non nul)
+ * devient NETWORK_ADMIN. Les comptes opérateur plateforme (schoolId NULL) restent
+ * SUPER_ADMIN. Trace une ligne AuditLog par compte migré.
+ *
+ * Les .sql de migration ne sont pas trackés dans ce repo (convention : schema.prisma
+ * = source de vérité). La bascule de données, non exprimable en schema.prisma, vit
+ * donc dans ce script TS tracké (précédent : prisma/backfill-offered-levels.ts).
+ *
+ * Idempotent : relancer ne trouve plus de SUPER_ADMIN rattaché → 0 mise à jour.
+ * Les comptes migrés doivent se reconnecter (le JWT porte l'ancien rôle).
+ *
+ * Lancer : npx tsx prisma/migrate-super-admin-to-network-admin.ts
+ */
+import { PrismaClient } from "@prisma/client";
 
--- 2) Bascule.
-UPDATE "users"
-SET "role" = 'NETWORK_ADMIN'
-WHERE "role" = 'SUPER_ADMIN' AND "schoolId" IS NOT NULL;
+const prisma = new PrismaClient();
+
+async function main() {
+  const targets = await prisma.user.findMany({
+    where: { role: "SUPER_ADMIN", schoolId: { not: null } },
+    select: { id: true, email: true, schoolId: true },
+  });
+
+  let migrated = 0;
+  for (const u of targets) {
+    await prisma.$transaction([
+      prisma.auditLog.create({
+        data: {
+          userId: u.id,
+          schoolId: u.schoolId,
+          action: "UPDATE",
+          entity: "User.role",
+          entityId: u.id,
+          oldValues: { role: "SUPER_ADMIN" },
+          newValues: { role: "NETWORK_ADMIN" },
+        },
+      }),
+      prisma.user.update({
+        where: { id: u.id },
+        data: { role: "NETWORK_ADMIN" },
+      }),
+    ]);
+    migrated++;
+    console.log(`  ${u.email} → NETWORK_ADMIN`);
+  }
+
+  console.log(`\nBascule terminée : ${migrated}/${targets.length} compte(s) migré(s).`);
+}
+
+main()
+  .catch((e) => {
+    console.error("Migration error:", e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
 ```
 
-**Note :** vérifier les noms exacts de table/colonnes AuditLog dans `prisma/schema.prisma` (`@@map`) avant d'écrire le SQL — ajuster `"audit_logs"` et les colonnes (`userId`, `schoolId`, `action`, `entity`, `entityId`, `oldValues`, `newValues`, `createdAt`) aux mappings réels. Si `AuditLog` a des colonnes NOT NULL supplémentaires sans défaut, les inclure.
+**Note :** ce script n'a pas de test unitaire (data-migration one-shot nécessitant
+une base), conformément au précédent `backfill-offered-levels.ts`. Le typecheck le
+couvre. Ne PAS l'ajouter au `package.json` (script one-shot, pas une commande récurrente).
 
-- [ ] **Step 2: Vérifier le mapping AuditLog**
+- [ ] **Step 2: Vérifier que le script typecheck**
 
-Run: `grep -n "model AuditLog" -A 25 prisma/schema.prisma`
-Expected: confirmer `@@map`, les noms de colonnes et leur nullabilité ; ajuster le SQL de l'étape 1 en conséquence. Si une colonne requise manque dans l'INSERT, l'ajouter.
+Run: `npm run type-check`
+Expected: PASS. Le champ AuditLog (`userId`, `schoolId?`, `action`, `entity`,
+`entityId?`, `oldValues?`, `newValues?`) et `prisma.user`/`prisma.auditLog` sont
+correctement typés. Si le typecheck se plaint de `schoolId` (type `string | null`
+vs attendu), garder tel quel — `AuditLog.schoolId` est nullable dans le schéma.
 
 - [ ] **Step 3: Vérification complète du projet**
 
 Run: `npm run type-check && npx vitest run && npm run lint`
 Expected: typecheck vert ; **tous** les tests verts (les nouveaux + les ~1015 existants, aucune régression sur les 8 rôles) ; lint OK.
 
-- [ ] **Step 4: Vérification manuelle du build**
+- [ ] **Step 4: Vérification du build de production**
 
 Run: `npm run build`
-Expected: build de production réussi.
+Expected: build réussi.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add prisma/migrations
-git commit -m "feat(rbac): migration de bascule SUPER_ADMIN rattaché → NETWORK_ADMIN (audité)"
+git add prisma/migrate-super-admin-to-network-admin.ts
+git commit -m "feat(rbac): script de bascule SUPER_ADMIN rattaché → NETWORK_ADMIN (audité, idempotent)"
 ```
 
 ---
