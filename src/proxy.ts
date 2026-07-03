@@ -93,7 +93,6 @@ const PUBLIC_PREFIXES = [
   "/api/payments/webhook",
   "/api/payments/fedapay/webhook",
   "/api/payments/momo/webhook",
-  "/api/ai/v2/chat",
   "/.well-known",
   "/_next",
   "/favicon",

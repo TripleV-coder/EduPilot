@@ -1,21 +1,17 @@
 /**
- * AI Service
+ * AI Service — Routeur 3 couches
  *
- * Chat uses a cascading strategy:
- * 1. External AI providers, if configured
- * 2. n8n webhook, if configured
- * 3. Fail with explicit 503 (no local simulation fallback)
- *
- * Governance actions are grounded in real EduPilot data and never return
- * hard-coded analytics payloads.
+ * 1. Déterministe / gabarits (gratuit, illimité, toujours disponible)
+ * 2. Cloud best-effort (Groq, Google, OpenAI, Anthropic, n8n) si configuré
+ * 3. Bascule automatique sur gabarits — jamais de 503 bloquant
  */
 
 import { logger } from "@/lib/utils/logger";
 import { callExternalAI } from "./external-client";
-import { appEnv } from "@/lib/config/env";
 import { analyticsService } from "@/lib/analytics/service";
 import { governanceService, hasExternalAIConfigured } from "./governance-service";
 import { chatWithAI } from "./n8n-client";
+import { generateChatFallback } from "./templates";
 
 export interface ChatRequest {
   message: string;
@@ -34,6 +30,8 @@ export interface ChatRequest {
   };
 }
 
+export type AIEngine = "template" | "external" | "n8n";
+
 export interface ChatResponse {
   success: boolean;
   response: string;
@@ -41,7 +39,8 @@ export interface ChatResponse {
     confidence: number;
     processingTime: number;
     sources?: string[];
-    engine?: "n8n" | "external";
+    engine?: AIEngine;
+    layer?: 1 | 2 | 3;
   };
 }
 
@@ -80,7 +79,8 @@ export interface AIServiceStatus {
   loadTime: number;
   externalConfigured: boolean;
   n8nConfigured: boolean;
-  runtimeMode: "cloud_only" | "degraded";
+  templatesAvailable: boolean;
+  runtimeMode: "autonomous" | "cloud_enhanced";
 }
 
 export class AIServiceError extends Error {
@@ -103,20 +103,14 @@ class AIService {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    logger.info("Initializing AI Service...");
+    logger.info("Initializing AI Service (3-layer router)...");
     const startedAt = Date.now();
 
-    try {
-      logger.info("Cloud AI runtime enabled (external providers + n8n)");
-      this.modelLoaded = true;
-      this.modelLoadTime = Date.now() - startedAt;
-      this.initialized = true;
+    this.modelLoaded = true;
+    this.modelLoadTime = Date.now() - startedAt;
+    this.initialized = true;
 
-      logger.info("AI Service initialized successfully");
-    } catch (error) {
-      logger.error("Failed to initialize AI Service:", error as Error);
-      throw error;
-    }
+    logger.info("AI Service initialized — templates + predictive always available");
   }
 
   async processChat(request: ChatRequest): Promise<ChatResponse> {
@@ -124,7 +118,7 @@ class AIService {
 
     await this.initialize();
 
-    const { response, engine } = await this.generateResponse(request);
+    const { response, engine, layer } = await this.generateResponse(request);
 
     if (request.stream && request.onToken) {
       const tokens = this.chunkResponse(response);
@@ -134,19 +128,21 @@ class AIService {
       }
     }
 
-    const confidenceByEngine: Record<"external" | "n8n", number> = {
+    const confidenceByEngine: Record<AIEngine, number> = {
       external: 0.9,
       n8n: 0.82,
+      template: 0.72,
     };
 
     return {
       success: true,
       response,
       metadata: {
-        confidence: confidenceByEngine[engine] ?? 0.8,
+        confidence: confidenceByEngine[engine],
         processingTime: Date.now() - startTime,
-        sources: ["knowledge_base", "context"],
+        sources: engine === "template" ? ["templates", "knowledge_base"] : ["knowledge_base", "context"],
         engine,
+        layer,
       },
     };
   }
@@ -178,9 +174,12 @@ class AIService {
     return tokens.length > 0 ? tokens : [text];
   }
 
+  /**
+   * Couche 3 (cloud) en best-effort, puis couche 2 (gabarits) en secours garanti.
+   */
   private async generateResponse(
     request: ChatRequest
-  ): Promise<{ response: string; engine: "external" | "n8n" }> {
+  ): Promise<{ response: string; engine: AIEngine; layer: 2 | 3 }> {
     const { message, userRole, options = {} } = request;
 
     if (hasExternalAIConfigured()) {
@@ -194,10 +193,10 @@ class AIService {
         });
 
         if (externalResponse.success && externalResponse.response) {
-          return { response: externalResponse.response, engine: "external" };
+          return { response: externalResponse.response, engine: "external", layer: 3 };
         }
       } catch (error) {
-        logger.warn("External AI APIs failed, trying n8n fallback", {
+        logger.warn("External AI failed, falling back to templates", {
           module: "ai-service",
           error: error instanceof Error ? error.message : String(error),
         });
@@ -208,20 +207,22 @@ class AIService {
       try {
         const n8nResponse = await this.callN8n(request);
         if (n8nResponse) {
-          return { response: n8nResponse, engine: "n8n" };
+          return { response: n8nResponse, engine: "n8n", layer: 3 };
         }
       } catch (error) {
-        logger.warn("n8n failed, no automatic local fallback in production mode", {
+        logger.warn("n8n failed, falling back to templates", {
           module: "ai-service",
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
-    throw new AIServiceError(
-      "Aucun moteur IA disponible. Vérifiez la configuration des providers externes ou n8n.",
-      503,
-      "AI_PROVIDER_UNAVAILABLE"
-    );
+
+    // Couche 2 — gabarits : toujours disponible, jamais de 503
+    return {
+      response: generateChatFallback(message, userRole),
+      engine: "template",
+      layer: 2,
+    };
   }
 
   private async callN8n(request: ChatRequest): Promise<string | null> {
@@ -237,8 +238,6 @@ class AIService {
       }
     }
 
-    // chatWithAI applique la politique réseau partagée : header API-key +
-    // signature HMAC, timeout 25 s, 1 retry sur 408/429/5xx
     const data = await chatWithAI(request.message, {
       userRole: request.userRole,
       userId: request.userId,
@@ -257,12 +256,13 @@ class AIService {
   getStatus(): AIServiceStatus {
     const cloudReady = hasExternalAIConfigured() || Boolean(process.env.N8N_HOST);
     return {
-      operational: this.initialized,
+      operational: true,
       modelLoaded: this.modelLoaded,
       loadTime: this.modelLoadTime,
       externalConfigured: hasExternalAIConfigured(),
       n8nConfigured: Boolean(process.env.N8N_HOST),
-      runtimeMode: cloudReady ? "cloud_only" : "degraded",
+      templatesAvailable: true,
+      runtimeMode: cloudReady ? "cloud_enhanced" : "autonomous",
     };
   }
 }

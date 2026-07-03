@@ -28,7 +28,8 @@ export const appEnv = {
     enabled: getEnv("AI_ENABLED") !== "false",
     providers: (getEnv("AI_PROVIDER") ?? "").split(",").map((p) => p.trim()).filter(Boolean),
     hasExternalKeys: Boolean(
-      getEnv("OPENAI_API_KEY") ||
+      getEnv("GROQ_API_KEY") ||
+        getEnv("OPENAI_API_KEY") ||
         getEnv("ANTHROPIC_API_KEY") ||
         getEnv("GOOGLE_AI_API_KEY")
     ),

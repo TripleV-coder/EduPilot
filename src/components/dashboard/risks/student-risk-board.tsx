@@ -8,7 +8,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@/components/layout/page-shell";
+import { PageLoading, PageEmpty } from "@/components/layout/page-states";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetcher } from "@/lib/fetcher";
 
@@ -267,7 +268,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
         : { title: "Moyenne moyenne", value: `${averageGrade}/20`, icon: BookX };
 
     return (
-        <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
+        <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <PageHeader
                     title={title}

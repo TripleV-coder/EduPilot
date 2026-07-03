@@ -2,12 +2,20 @@ import prisma from "@/lib/prisma";
 import { averageNumbers, dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { analyticsService } from "@/lib/analytics/service";
 import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
+import { generateStudentPredictions } from "@/lib/services/ai-predictive";
 import { predictFailureRisk as predictStudentFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
-import { predictNextPeriodGrade } from "@/lib/services/ai-predictive/predict-grade";
 import { logger } from "@/lib/utils/logger";
 import { studentAlias } from "./pii";
 import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/config/env";
+import {
+  generateAppreciation,
+  generateActionPlan,
+  generateOrientationSynthesis,
+  generateRiskSummary,
+  generateAtRiskAlerts,
+  buildStudentTemplateContext,
+} from "./templates";
 import {
   AIServiceError,
   type GovernanceRequest,
@@ -177,8 +185,19 @@ class GovernanceService {
     await this.ensureStudentScope(request, { id: student.id, userId: student.userId, schoolId: student.schoolId });
 
     const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
-    
-    // Simulate or call external AI to generate a detailed plan
+
+    const templateCtx = buildStudentTemplateContext(
+      {
+        firstName: student.user?.firstName,
+        lastName: student.user?.lastName,
+        className: student.enrollments[0]?.class.name,
+      },
+      analytics,
+      {
+        failureProbability: analytics?.riskLevel === "CRITICAL" ? 80 : analytics?.riskLevel === "HIGH" ? 60 : undefined,
+      }
+    );
+
     let planData;
     if (hasExternalAIConfigured() && analytics) {
         try {
@@ -194,17 +213,7 @@ class GovernanceService {
     }
 
     if (!planData) {
-        planData = {
-            title: `Plan de Remédiation - ${formatStudentName(student)}`,
-            description: `Intervention pédagogique ciblée pour améliorer les résultats académiques.`,
-            priority: "HIGH",
-            steps: [
-                "Entretien individuel avec l'élève pour identifier les blocages.",
-                "Mise en place de séances de tutorat hebdomadaires en mathématiques.",
-                "Rendez-vous téléphonique avec les parents dans les 7 jours."
-            ],
-            suggestedBy: "Système Expert EduPilot"
-        };
+        planData = generateActionPlan(templateCtx);
     }
 
     return { data: planData, confidence: 0.85 };
@@ -227,29 +236,31 @@ class GovernanceService {
     await this.ensureStudentScope(request, { id: student.id, userId: student.userId, schoolId: student.schoolId });
 
     const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
-    const average = analytics?.generalAverage ? Number(analytics.generalAverage) : 0;
-    
-    let comment = "";
-    if (hasExternalAIConfigured()) {
+
+    const templateCtx = buildStudentTemplateContext(
+      {
+        firstName: student.user?.firstName,
+        lastName: student.user?.lastName,
+      },
+      analytics
+    );
+
+    let comment = generateAppreciation(templateCtx);
+
+    if (hasExternalAIConfigured() && analytics) {
         try {
+            const average = analytics?.generalAverage ? Number(analytics.generalAverage) : 0;
             const prompt = `Rédige une appréciation de bulletin bienveillante et constructive (max 2 phrases) pour ${studentAlias(student.user?.firstName, student.user?.lastName)}. Moyenne générale: ${average.toFixed(2)}/20. Tendance: ${analytics?.progressionRate && Number(analytics.progressionRate) > 0 ? 'En progrès' : 'En baisse'}. Renvoie UNIQUEMENT le texte de l'appréciation.`;
             const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
-            if (externalResponse.success) {
+            if (externalResponse.success && externalResponse.response.trim()) {
                 comment = externalResponse.response.replace(/^["']|["']$/g, '').trim();
             }
         } catch (error) {
-            logger.warn("Failed to draft comment via external AI", { error });
+            logger.warn("Failed to draft comment via external AI, keeping template", { error });
         }
     }
 
-    if (!comment) {
-        if (average >= 16) comment = "Excellent trimestre. Continuez ainsi !";
-        else if (average >= 12) comment = "Bon trimestre, des résultats satisfaisants dans l'ensemble.";
-        else if (average >= 10) comment = "Ensemble juste. Des efforts sont nécessaires pour consolider les acquis.";
-        else comment = "Trimestre difficile. Il faut se ressaisir et s'impliquer davantage au prochain trimestre.";
-    }
-
-    return { data: { comment }, confidence: 0.9 };
+    return { data: { comment }, confidence: hasExternalAIConfigured() ? 0.9 : 0.85 };
   }
 
   private resolveRequestedStudentId(request: GovernanceRequest) {
@@ -480,19 +491,17 @@ class GovernanceService {
   }
 
   private buildRiskAlerts(
-    students: Array<{ id: string; name: string; riskLevel: string; averageGrade: number | null }>
+    students: Array<{ id: string; name: string; riskLevel: string; averageGrade: number | null; className?: string | null }>
   ): Alert[] {
-    return students
-      .filter((student) => ["CRITICAL", "HIGH"].includes(student.riskLevel))
-      .slice(0, 10)
-      .map((student) => ({
-        id: `risk_${student.id}`,
-        type: student.riskLevel === "CRITICAL" ? "critical" : "warning",
-        title: `Risque ${student.riskLevel === "CRITICAL" ? "critique" : "élevé"}`,
-        message: `${student.name} présente un risque ${student.riskLevel.toLowerCase()} avec une moyenne ${student.averageGrade?.toFixed(2) ?? "non disponible"}/20.`,
-        targetRoles: ["DIRECTOR", "SCHOOL_ADMIN"],
-        actionRequired: true,
-      }));
+    return generateAtRiskAlerts(
+      students.map((s) => ({
+        id: s.id,
+        name: s.name,
+        riskLevel: s.riskLevel,
+        averageGrade: s.averageGrade,
+        className: s.className,
+      }))
+    );
   }
 
   async analyzeStudent(request: GovernanceRequest): Promise<GovernanceActionResult> {
@@ -1012,15 +1021,18 @@ class GovernanceService {
 
     await this.ensureStudentScope(request, student);
 
-    const [generalPrediction, gradeHistory] = await Promise.all([
-      predictNextPeriodGrade(student.id).catch((error) => {
-        logger.warn("Unable to compute next period grade prediction", {
-          module: "ai-service",
-          studentId: student.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      }),
+    const predictions = await generateStudentPredictions(student.id).catch((error) => {
+      logger.warn("Unable to compute student predictions", {
+        module: "ai-service",
+        studentId: student.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
+
+    const generalPrediction = predictions?.predictions.nextPeriodGrade ?? null;
+
+    const [gradeHistory] = await Promise.all([
       prisma.gradeHistory.findMany({
         where: {
           studentId: student.id,
@@ -1151,24 +1163,38 @@ class GovernanceService {
       };
     }
 
-    const context = {
-      // Pseudonyme : ce contexte part vers le LLM externe (prompt + studentData)
-      studentName: studentAlias(student.user?.firstName, student.user?.lastName),
-      currentClass: student.enrollments[0]?.class.name,
-      generalAverage: Number(analytics.generalAverage || 0),
-      subjects: analytics.subjectPerformances.map((p) => ({
-        name: p.subject.name,
-        average: Number(p.average || 0),
-        isStrength: p.isStrength,
-        isWeakness: p.isWeakness,
-      })),
-    };
+    const templateCtx = buildStudentTemplateContext(
+      {
+        firstName: student.user?.firstName,
+        lastName: student.user?.lastName,
+        className: student.enrollments[0]?.class.name,
+      },
+      analytics
+    );
 
-    let result: any = null;
-    let engine: "external" | "local" = "local";
+    const templateResult = generateOrientationSynthesis(templateCtx);
+    let result: any = {
+      series: templateResult.series,
+      justification: templateResult.justification,
+      alternatives: templateResult.alternatives,
+      synthesis: templateResult.synthesis,
+    };
+    let engine: "external" | "template" = "template";
 
     if (hasExternalAIConfigured()) {
       try {
+        const context = {
+          studentName: studentAlias(student.user?.firstName, student.user?.lastName),
+          currentClass: student.enrollments[0]?.class.name,
+          generalAverage: Number(analytics.generalAverage || 0),
+          subjects: analytics.subjectPerformances.map((p) => ({
+            name: p.subject.name,
+            average: Number(p.average || 0),
+            isStrength: p.isStrength,
+            isWeakness: p.isWeakness,
+          })),
+        };
+
         const prompt = `En tant qu'expert en orientation scolaire du système béninois, analyse les résultats de l'élève ${context.studentName} (${context.currentClass}) qui finit son cycle BEPC.
         Notes: ${JSON.stringify(context.subjects)}
         Moyenne Générale: ${context.generalAverage}
@@ -1191,37 +1217,18 @@ class GovernanceService {
         if (externalResponse.success) {
           const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            result = JSON.parse(jsonMatch[0]);
+            result = { ...JSON.parse(jsonMatch[0]), synthesis: templateResult.synthesis };
             engine = "external";
           }
         }
       } catch (error) {
-        logger.warn("Orientation recommendation via external AI failed, falling back to local logic", { error });
-      }
-    }
-
-    if (!result) {
-      // Local Fallback (matching route.ts logic but as a utility)
-      const sciAvg = averageNumbers(context.subjects.filter(s => 
-        ["math", "physique", "svt", "chimie", "sciences"].some(k => s.name.toLowerCase().includes(k))
-      ).map(s => s.average)) || 0;
-      
-      const litAvg = averageNumbers(context.subjects.filter(s => 
-        ["français", "histoire", "géo", "lettres", "langue"].some(k => s.name.toLowerCase().includes(k))
-      ).map(s => s.average)) || 0;
-
-      if (sciAvg >= 12) {
-          result = { series: "SERIE_C", justification: `Excellent profil scientifique (moyenne sciences: ${sciAvg.toFixed(2)}/20).` };
-      } else if (litAvg >= 12) {
-          result = { series: "SERIE_A1", justification: `Fortes aptitudes littéraires (moyenne littéraire: ${litAvg.toFixed(2)}/20).` };
-      } else {
-          result = { series: "SERIE_D", justification: `Profil polyvalent avec une moyenne générale de ${context.generalAverage.toFixed(2)}/20.` };
+        logger.warn("Orientation via external AI failed, keeping template", { error });
       }
     }
 
     return {
       data: result,
-      confidence: engine === "external" ? 0.9 : 0.65,
+      confidence: engine === "external" ? 0.9 : 0.75,
       recommendations: result.alternatives || [],
     };
   }
@@ -1251,22 +1258,38 @@ class GovernanceService {
 
     await this.ensureStudentScope(request, { id: student.id, userId: student.userId, schoolId: student.schoolId });
 
-    // Récupérer les données de risque calculées par le moteur local
     const { predictFailureRisk } = await import("@/lib/services/ai-predictive/predict-failure");
     const localRisk = await predictFailureRisk(student.id);
 
-    const context = {
-      // Pseudonyme : ce contexte part vers le LLM externe (prompt + studentData)
-      studentName: studentAlias(student.user?.firstName, student.user?.lastName),
-      currentClass: student.enrollments[0]?.class.name,
-      riskLevel: localRisk.level,
-      riskProbability: localRisk.probability,
-      factors: localRisk.factors,
-      causalFactors: localRisk.causalFactors,
-    };
+    const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
+
+    const templateCtx = buildStudentTemplateContext(
+      {
+        firstName: student.user?.firstName,
+        lastName: student.user?.lastName,
+        className: student.enrollments[0]?.class.name,
+      },
+      analytics,
+      {
+        failureProbability: localRisk.probability,
+        failureLevel: localRisk.level,
+        failureRecommendations: localRisk.recommendations,
+      }
+    );
+
+    const templateRisk = generateRiskSummary(templateCtx);
 
     if (hasExternalAIConfigured()) {
       try {
+        const context = {
+          studentName: studentAlias(student.user?.firstName, student.user?.lastName),
+          currentClass: student.enrollments[0]?.class.name,
+          riskLevel: localRisk.level,
+          riskProbability: localRisk.probability,
+          factors: localRisk.factors,
+          causalFactors: localRisk.causalFactors,
+        };
+
         const prompt = `En tant qu'expert en psychopédagogie et réussite scolaire, analyse le risque d'échec de l'élève ${context.studentName} (${context.currentClass}).
         Niveau de risque: ${context.riskLevel} (${context.riskProbability}%)
         Facteurs identifiés: ${context.factors.join(", ")}
@@ -1288,7 +1311,8 @@ class GovernanceService {
           "priority": "${localRisk.probability >= 75 ? 'CRITICAL' : localRisk.probability >= 55 ? 'HIGH' : 'MEDIUM'}",
           "suggestedActions": [
             { "title": "Titre court", "description": "Description détaillée", "type": "Pédagogique" | "Suivi" }
-          ]
+          ],
+          "summary": "Synthèse narrative en français"
         }`;
 
         const externalResponse = await callExternalAI({
@@ -1302,40 +1326,30 @@ class GovernanceService {
           if (jsonMatch) {
             const aiData = JSON.parse(jsonMatch[0]);
             return {
-              data: aiData,
+              data: {
+                ...aiData,
+                summary: aiData.summary ?? templateRisk.summary,
+              },
               confidence: 0.9,
             };
           }
         }
       } catch (error) {
-        logger.warn("Risk intervention analysis via external AI failed", { error });
+        logger.warn("Risk intervention via external AI failed, using templates", { error });
       }
     }
 
-    // Fallback local haut de gamme
-    const priority = localRisk.probability >= 75 ? 'CRITICAL' : localRisk.probability >= 55 ? 'HIGH' : 'MEDIUM';
-    
     return {
       data: {
         riskLevel: localRisk.level,
         riskScore: localRisk.probability,
         factors: localRisk.factors,
-        recommendations: localRisk.recommendations,
-        priority: priority,
-        suggestedActions: [
-          {
-            title: "Renforcement Académique",
-            description: "Mise en place d'un tutorat par les pairs ou un répétiteur externe dans les matières à faible moyenne.",
-            type: "Pédagogique"
-          },
-          {
-            title: "Suivi de l'Assiduité",
-            description: "Contrôle quotidien de la présence et alerte immédiate des parents en cas d'absence non justifiée.",
-            type: "Suivi"
-          }
-        ]
+        recommendations: templateRisk.recommendations,
+        priority: templateRisk.priority,
+        summary: templateRisk.summary,
+        suggestedActions: templateRisk.suggestedActions,
       },
-      confidence: 0.5,
+      confidence: 0.78,
     };
   }
 }

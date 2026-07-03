@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { generateStudentPredictions } from "@/lib/services/ai-predictive";
+import { getStudentPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer les prédictions
-    const predictions = await generateStudentPredictions(studentId);
+    const result = await getStudentPredictions(studentId);
 
-    return NextResponse.json(predictions);
+    return NextResponse.json(result);
   } catch (error) {
     logger.error(" generating student predictions:", error as Error);
     return NextResponse.json(
@@ -137,9 +137,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Générer les prédictions en temps réel
-    const predictions = await generateStudentPredictions(studentId);
+    const result = await getStudentPredictions(studentId);
 
-    return NextResponse.json(predictions);
+    return NextResponse.json(result);
   } catch (error) {
     logger.error(" fetching predictions:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
