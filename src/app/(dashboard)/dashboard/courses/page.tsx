@@ -12,7 +12,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { trackUxEvent } from "@/lib/ux/telemetry";
 
 import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type CourseProgress = {
     courseId: string;
@@ -147,25 +147,26 @@ export default function CoursesPage() {
             ]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Mes cours & apprentissages"
-                        sub={`${courses.length} ${
-                            courses.length > 1 ? "cours actifs" : "cours actif"
-                        } · suis ta progression module par module`}
-                        breadcrumb={["Tableau de bord", "Cours"]}
-                        actions={
-                            <RoleActionGuard
-                                allowedRoles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}
-                            >
-                                <Link href="/dashboard/courses/new">
-                                    <Button icon="plus">Créer un cours</Button>
-                                </Link>
-                            </RoleActionGuard>
-                        }
-                    />
-                </div>
+            <PageShell>
+                <PageHeader
+                    title="Mes cours et apprentissages"
+                    description={`${courses.length} ${
+                        courses.length > 1 ? "cours actifs" : "cours actif"
+                    } · suivez la progression module par module`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Cours" },
+                    ]}
+                    actions={
+                        <RoleActionGuard
+                            allowedRoles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}
+                        >
+                            <Link href="/dashboard/courses/new">
+                                <Button icon="plus">Créer un cours</Button>
+                            </Link>
+                        </RoleActionGuard>
+                    }
+                />
 
                 {loading ? (
                     <div
@@ -539,7 +540,7 @@ export default function CoursesPage() {
                         })}
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

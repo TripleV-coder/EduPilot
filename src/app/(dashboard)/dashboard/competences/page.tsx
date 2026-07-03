@@ -11,7 +11,7 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type ClassOption = { id: string; name: string };
 type SubjectOption = { id: string; name: string };
@@ -98,15 +98,18 @@ export default function CompetencesPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Évaluations par compétences"
-                    sub={
+                    title="Évaluations par compétences"
+                    description={
                         data
                             ? `${data.class.name} · ${data.subject?.name ?? "toutes matières"} · grille MEMP`
                             : "Suivi MEMP par compétence — classe et matière au choix"
                     }
-                    breadcrumb={["Pédagogie", "Compétences"]}
+                    breadcrumbs={[
+                        { label: "Pédagogie" },
+                        { label: "Compétences" },
+                    ]}
                     actions={
                         data ? (
                             <>
@@ -370,7 +373,7 @@ export default function CompetencesPage() {
                             className="insight-grid"
                         >
                             <Card>
-                                <SubLabel>Compétences solides (&gt;70% acquis)</SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -394,7 +397,7 @@ export default function CompetencesPage() {
                                 </p>
                             </Card>
                             <Card>
-                                <SubLabel>À renforcer</SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -424,7 +427,7 @@ export default function CompetencesPage() {
                                     border: "1px solid var(--eduflow-danger-200)",
                                 }}
                             >
-                                <SubLabel>Priorité absolue</SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -451,7 +454,7 @@ export default function CompetencesPage() {
                         </div>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

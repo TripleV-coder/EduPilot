@@ -26,13 +26,9 @@ export default async function DashboardLayout({
 
     return (
         <CommandPaletteProvider>
+            <SkipToContent />
             <DashboardLayoutClient
-                sidebar={
-                    <>
-                        <SkipToContent />
-                        <EduSidebar />
-                    </>
-                }
+                sidebar={<EduSidebar />}
                 header={<EduTopBar />}
             >
                 <div className="eduflow-scope" style={{ background: "var(--eduflow-surface-page)" }}>

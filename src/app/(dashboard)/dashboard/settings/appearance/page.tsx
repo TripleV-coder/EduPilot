@@ -9,7 +9,7 @@ import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type ThemeValue = "light" | "dark" | "system";
 type DisplayMode = "comfort" | "dense" | "focus";
@@ -136,10 +136,14 @@ export default function AppearanceSettingsPage() {
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="eduflow-scope mx-auto flex max-w-5xl flex-col gap-6 pb-12">
+            <PageShell className="max-w-5xl pb-12">
                 <PageHeader
-                    greeting="Apparence & affichage"
-                    sub="Contrôle le rendu visuel, la densité et le mode focus de ton espace EduPilot."
+                    title="Apparence & affichage"
+                    description="Contrôle le rendu visuel, la densité et le mode focus de ton espace EduPilot."
+                    breadcrumbs={[
+                        { label: "Paramètres", href: "/dashboard/settings" },
+                        { label: "Apparence" },
+                    ]}
                 />
 
                 {saved ? (
@@ -253,7 +257,7 @@ export default function AppearanceSettingsPage() {
                         })}
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,15 +153,10 @@ export default function IncidentDetailsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <motion.div
-                className="space-y-6 max-w-5xl mx-auto pb-12"
-                initial={fromListTransition ? { opacity: 0, y: 12, scale: 0.99 } : false}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={FLOW_TRANSITION}
-            >
+            <PageShell>
                 <PageHeader
-                    title="Détails de l'Incident"
-                    description={`Signalement du ${new Date(incident.date).toLocaleDateString()}`}
+                    title="Détails de l'incident"
+                    description={`Signalement du ${new Date(incident.date).toLocaleDateString("fr-FR")}`}
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Vie Scolaire", href: "/dashboard/incidents" },
@@ -341,7 +336,7 @@ export default function IncidentDetailsPage() {
 
                     </div>
                 </div>
-            </motion.div>
+            </PageShell>
         </PageGuard>
     );
 }

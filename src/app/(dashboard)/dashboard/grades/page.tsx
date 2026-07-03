@@ -14,7 +14,8 @@ import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
 import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
 
 import { Badge, Button, Card, Chip, FilterBar, Icon, MetricCard } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageLoading } from "@/components/layout/page-states";
 
 type GradeStats = {
     average: number;
@@ -36,6 +37,27 @@ const TABS = [
     { id: "list", label: "Liste des évaluations", icon: "cards" as const },
     { id: "stats", label: "Statistiques & analyse", icon: "chart" as const },
 ];
+
+function exportEvaluationsCsv(evaluations: unknown) {
+    const rows = Array.isArray(evaluations) ? evaluations : [];
+    if (rows.length === 0) return;
+    const headers = ["Titre", "Type", "Date", "Classe", "Matière"];
+    const lines = rows.map((item: Record<string, unknown>) => [
+        String(item.title ?? ""),
+        String(item.type ?? ""),
+        item.date ? new Date(String(item.date)).toLocaleDateString("fr-FR") : "",
+        String((item.class as { name?: string } | undefined)?.name ?? ""),
+        String((item.subject as { name?: string } | undefined)?.name ?? ""),
+    ]);
+    const csv = [headers, ...lines].map((line) => line.join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "evaluations.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+}
 
 export default function GradesPage() {
     return (
@@ -70,14 +92,17 @@ function GradesContent() {
     const stats = statsData?.statistics;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-[1400px] flex-col gap-4 pb-12">
+        <PageShell className="max-w-[1400px] pb-12">
             <PageHeader
-                greeting="Notes & évaluations"
-                sub="Gérez les devoirs, saisissez les notes et suivez les performances académiques."
-                breadcrumb={["Tableau de bord", "Notes & évaluations"]}
+                title="Notes et évaluations"
+                description="Gérez les devoirs, saisissez les notes et suivez les performances académiques."
+                breadcrumbs={[
+                    { label: "Tableau de bord", href: "/dashboard" },
+                    { label: "Notes et évaluations" },
+                ]}
                 actions={
                     <>
-                        <Button variant="ghost" icon="download">
+                        <Button variant="ghost" icon="download" onClick={() => exportEvaluationsCsv(evaluations)}>
                             {t("common.export")}
                         </Button>
                         <Link href="/dashboard/grades/bulletins">
@@ -158,62 +183,29 @@ function GradesContent() {
             {/* Liste */}
             {activeTab === "list" ? (
                 <Card padding={0}>
-                    <EvaluationList
-                        evaluations={evaluations || []}
-                        isLoading={evalsLoading}
-                    />
+                    {evalsLoading ? (
+                        <PageLoading label="Chargement des évaluations…" />
+                    ) : (
+                        <EvaluationList evaluations={evaluations || []} isLoading={false} />
+                    )}
                 </Card>
             ) : null}
 
             {/* Stats */}
             {activeTab === "stats" ? (
                 <div className="flex flex-col gap-4">
+                    {statsLoading ? <PageLoading label="Chargement des statistiques…" /> : null}
+
                     {!statsLoading && !stats ? (
-                        <Card padding={28}>
-                            <div className="flex flex-col items-start gap-3">
-                                <div
-                                    className="grid place-items-center"
-                                    style={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 12,
-                                        background: "var(--brand-50)",
-                                    }}
-                                >
-                                    <Icon
-                                        name="chart"
-                                        size={20}
-                                        color="var(--brand-700)"
-                                    />
-                                </div>
-                                <div>
-                                    <h3
-                                        className="eduflow-display"
-                                        style={{ fontSize: 18, margin: 0 }}
-                                    >
-                                        Aucune statistique disponible
-                                    </h3>
-                                    <p
-                                        style={{
-                                            fontSize: 13,
-                                            color: "var(--eduflow-text-secondary)",
-                                            lineHeight: 1.55,
-                                            margin: "6px 0 0",
-                                            maxWidth: 540,
-                                        }}
-                                    >
-                                        Les statistiques apparaîtront dès que des évaluations
-                                        auront des notes enregistrées. Commence par créer une
-                                        évaluation, puis saisis les notes.
-                                    </p>
-                                </div>
-                                <Link href="/dashboard/grades/entry">
-                                    <Button variant="secondary" iconRight="arrowRight">
-                                        Créer une évaluation
-                                    </Button>
-                                </Link>
-                            </div>
-                        </Card>
+                        <PageEmpty
+                            icon="chart"
+                            title="Aucune statistique disponible"
+                            description="Les statistiques apparaîtront dès que des évaluations auront des notes enregistrées."
+                            actions={[
+                                { label: "Saisir des notes", href: "/dashboard/grades/entry" },
+                                { label: "Créer une évaluation", onClick: () => setIsSheetOpen(true) },
+                            ]}
+                        />
                     ) : null}
 
                     {stats ? (
@@ -274,7 +266,12 @@ function GradesContent() {
                             >
                                 <Card padding={20}>
                                     <div className="flex items-center justify-between">
-                                        <SubLabel>Distribution des résultats</SubLabel>
+                                        <p
+                                            className="text-xs font-semibold uppercase tracking-wide"
+                                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                                        >
+                                            Distribution des résultats
+                                        </p>
                                         <Badge variant="brand" size="sm">
                                             {stats.gradeDistribution.excellent +
                                                 stats.gradeDistribution.good +
@@ -299,7 +296,12 @@ function GradesContent() {
 
                                 <Card padding={20}>
                                     <div className="flex items-center justify-between">
-                                        <SubLabel>Radar par matière</SubLabel>
+                                        <p
+                                            className="text-xs font-semibold uppercase tracking-wide"
+                                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                                        >
+                                            Radar par matière
+                                        </p>
                                         <Badge variant="info" size="sm">
                                             {Object.keys(stats.bySubject).length} matières
                                         </Badge>
@@ -320,7 +322,12 @@ function GradesContent() {
                             {/* Subject ranking — bonus inspired du bundle Teacher */}
                             <Card padding={20}>
                                 <div className="mb-3 flex items-center justify-between">
-                                    <SubLabel>Classement par matière</SubLabel>
+                                    <p
+                                        className="text-xs font-semibold uppercase tracking-wide"
+                                        style={{ color: "var(--eduflow-text-tertiary)" }}
+                                    >
+                                        Classement par matière
+                                    </p>
                                     <Badge variant="neutral" size="sm">
                                         Top {Math.min(8, Object.keys(stats.bySubject).length)}
                                     </Badge>
@@ -393,7 +400,7 @@ function GradesContent() {
             ) : null}
 
             <EvaluationSheet open={isSheetOpen} onOpenChange={setIsSheetOpen} />
-        </div>
+        </PageShell>
     );
 }
 

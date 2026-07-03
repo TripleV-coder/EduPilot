@@ -4,13 +4,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingTable } from "@/components/ui/loading-table";
 import { Permission } from "@/lib/rbac/permissions";
 import { 
   GraduationCap, ArrowLeft, Award, Download, Loader2, 
@@ -22,6 +21,11 @@ import { StudentGradesTab } from "@/components/students/student-grades-tab";
 import { StudentAttendanceTab } from "@/components/students/student-attendance-tab";
 import { StudentPerformanceDashboard } from "@/components/students/student-performance-dashboard";
 import { StudentAiPrediction } from "@/components/students/student-ai-prediction";
+import {
+  StudentRiskCard,
+  StudentOrientationAction,
+  StudentInterventionPlan,
+} from "@/components/ai/student-risk-card";
 import { StudentEditDialog } from "@/components/students/student-edit-dialog";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { StudentProfile360 } from "@/components/students/student-profile-360";
@@ -126,44 +130,51 @@ export default function StudentDetailPage() {
 
   return (
     <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
+      <PageShell>
       <motion.div
-        className="space-y-6 max-w-[1400px] mx-auto animate-fade-in pb-12"
+        className="flex flex-col gap-6"
         initial={fromListTransition ? { opacity: 0, y: 12, scale: 0.99 } : false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <PageHeader
-            title={name}
-            description={student?.studentNumber ?? student?.matricule ?? "—"}
-          />
-          <div className="flex items-center gap-3">
-            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
-              {student?.id ? <ParentLinkCodeDialog studentId={student.id} /> : null}
-            </RoleActionGuard>
-            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-              <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">
-                <Edit className="h-3.5 w-3.5" />
-                Modifier profil
+        <PageHeader
+          title={loading ? "Chargement…" : name}
+          description={student?.studentNumber ?? student?.matricule ?? "Fiche élève"}
+          breadcrumbs={[
+            { label: "Tableau de bord", href: "/dashboard" },
+            { label: "Élèves", href: "/dashboard/students" },
+            { label: loading ? "…" : name },
+          ]}
+          actions={
+            <div className="flex items-center gap-3">
+              <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                {student?.id ? <ParentLinkCodeDialog studentId={student.id} /> : null}
+              </RoleActionGuard>
+              <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+                <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">
+                  <Edit className="h-3.5 w-3.5" />
+                  Modifier le profil
+                </Button>
+              </RoleActionGuard>
+              <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase" onClick={() => router.back()}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-2" />
+                Retour
               </Button>
-            </RoleActionGuard>
-            <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase" onClick={() => router.back()}>
-              <ArrowLeft className="h-3.5 w-3.5 mr-2" />
-              Retour
-            </Button>
-          </div>
-        </div>
+            </div>
+          }
+        />
 
-        {error && (
-          <div className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <PageError message={error} onRetry={fetchStudent} />}
         
-        {loading && <LoadingTable rows={6} cols={2} />}
+        {loading && !error && <PageLoading label="Chargement de la fiche élève…" />}
         
         {!loading && !error && !student && (
-          <EmptyState icon={GraduationCap} title="Élève introuvable" description="L'élève demandé n'existe pas ou vous n'avez pas les droits pour y accéder." />
+          <PageEmpty
+            icon="users"
+            title="Élève introuvable"
+            description="L'élève demandé n'existe pas ou vous n'avez pas les droits pour y accéder."
+            actions={[{ label: "Retour à la liste", href: "/dashboard/students" }]}
+          />
         )}
 
         {!loading && !error && student && (
@@ -204,10 +215,14 @@ export default function StudentDetailPage() {
               <TabsContent value="profil" className="mt-0 space-y-4 animate-in fade-in slide-in-from-bottom-2">
                 <StudentProfile360 studentId={id} />
 
+                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+                  <StudentRiskCard studentId={id} />
+                </RoleActionGuard>
+
                 <Card className="border-none shadow-none bg-muted/20">
                   <CardHeader className="p-4 border-b border-border/50">
                     <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      Documents & Certificats
+                      Documents et certificats
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-3">
@@ -217,7 +232,7 @@ export default function StudentDetailPage() {
                     {certError && <p className="text-[10px] text-destructive font-bold">{certError}</p>}
                     <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-tight" onClick={downloadCertificate} disabled={certLoading}>
                       {certLoading ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Download className="h-3 w-3 mr-2" />}
-                      Certificat de Scolarité
+                      Certificat de scolarité
                     </Button>
                   </CardContent>
                 </Card>
@@ -234,7 +249,7 @@ export default function StudentDetailPage() {
                             <GraduationCap className="text-primary w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Inscription Active</p>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Inscription active</p>
                             <p className="font-bold text-sm">{currentEnrollment.class?.name} &middot; {currentEnrollment.class?.classLevel?.level}</p>
                           </div>
                         </div>
@@ -292,6 +307,12 @@ export default function StudentDetailPage() {
                   <StudentPerformanceDashboard studentId={id} />
                   <StudentAiPrediction studentId={id} />
                 </div>
+                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <StudentOrientationAction studentId={id} />
+                    <StudentInterventionPlan studentId={id} />
+                  </div>
+                </RoleActionGuard>
               </TabsContent>
             </Tabs>
           </>
@@ -306,6 +327,7 @@ export default function StudentDetailPage() {
           />
         )}
       </motion.div>
+      </PageShell>
     </PageGuard>
   );
 }

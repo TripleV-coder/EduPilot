@@ -4,9 +4,8 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
-
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
 type Message = {
     id: string;
@@ -188,14 +187,15 @@ export default function AiAssistantPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div
-                className="eduflow-scope mx-auto flex max-w-[1000px] flex-col gap-4 pb-6"
-                style={{ minHeight: "calc(100vh - 120px)" }}
-            >
+            <PageShell className="eduflow-scope max-w-[1000px] pb-6">
+                <div style={{ minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column", gap: 16 }}>
                 <PageHeader
-                    greeting="Assistant EduPilot"
-                    sub="Intelligence artificielle d'aide à la décision et au suivi pédagogique."
-                    breadcrumb={["Tableau de bord", "Assistant IA"]}
+                    title="Assistant EduPilot"
+                    description="Intelligence artificielle d'aide à la décision et au suivi pédagogique."
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Assistant IA" },
+                    ]}
                     actions={
                         <>
                             <Badge variant="neutral" icon="sparkle" size="sm">
@@ -284,7 +284,18 @@ export default function AiAssistantPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <SubLabel>Démarrer rapidement</SubLabel>
+                                <p
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "var(--eduflow-text-tertiary)",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                        marginBottom: 10,
+                                    }}
+                                >
+                                    Démarrer rapidement
+                                </p>
                                 <div
                                     style={{
                                         display: "flex",
@@ -491,7 +502,8 @@ export default function AiAssistantPage() {
                         </div>
                     </div>
                 </Card>
-            </div>
+                </div>
+            </PageShell>
         </PageGuard>
     );
 }

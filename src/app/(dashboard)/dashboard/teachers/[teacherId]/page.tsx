@@ -21,7 +21,8 @@ import { fetcher } from "@/lib/fetcher";
 import { teacherUpdateSchema } from "@/lib/validations/user";
 import { Permission } from "@/lib/rbac/permissions";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -258,33 +259,30 @@ export default function TeacherDetailPage() {
 
   return (
     <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-      <div className="space-y-6 max-w-6xl mx-auto">
+      <PageShell className="max-w-6xl">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/teachers">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" aria-label="Retour à la liste des enseignants">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <PageHeader
             title={teacher ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Fiche enseignant"}
             description="Informations, affectations et gestion du compte enseignant"
+            breadcrumbs={[
+              { label: "Tableau de bord", href: "/dashboard" },
+              { label: "Enseignants", href: "/dashboard/teachers" },
+              { label: teacher ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Fiche" },
+            ]}
           />
         </div>
 
         {error ? (
-          <Card>
-            <CardContent className="pt-6 text-sm text-destructive">
-              Impossible de charger la fiche enseignant.
-            </CardContent>
-          </Card>
+          <PageError message="Impossible de charger la fiche enseignant." onRetry={() => mutate(`/api/teachers/${teacherId}`)} />
         ) : null}
 
         {isLoading || !teacher ? (
-          <Card>
-            <CardContent className="pt-6 text-sm text-muted-foreground">
-              Chargement de la fiche enseignant...
-            </CardContent>
-          </Card>
+          <PageLoading label="Chargement de la fiche enseignant…" />
         ) : (
           <>
             <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -595,7 +593,7 @@ export default function TeacherDetailPage() {
             />
           </>
         )}
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

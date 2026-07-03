@@ -1,14 +1,14 @@
 "use client";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Info, Cpu, Database, Blocks, ShieldCheck, Server } from "lucide-react";
 
 export default function SystemInfoPage() {
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Informations Système"
                     description="Détails de l'instance, versions et caractéristiques techniques"
@@ -107,7 +107,7 @@ export default function SystemInfoPage() {
                         </CardContent>
                     </Card>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

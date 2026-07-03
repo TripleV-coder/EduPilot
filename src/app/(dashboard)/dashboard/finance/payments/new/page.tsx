@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,7 +201,7 @@ export default function NewPaymentPage() {
 
     return (
         <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
                         <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -428,7 +428,7 @@ export default function NewPaymentPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

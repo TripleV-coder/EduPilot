@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 
-import { Spinner } from "@/components/edu";
+import { PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 import { TeacherOnboarding } from "@/components/onboarding/teacher-onboarding";
 import { ParentOnboarding } from "@/components/onboarding/parent-onboarding";
 import { StudentOnboarding } from "@/components/onboarding/student-onboarding";
@@ -16,31 +17,30 @@ export default function OnboardingPage() {
     const { data: session, status } = useSession();
     if (status === "loading") {
         return (
-            <div className="flex flex-col items-center gap-3 py-24">
-                <Spinner size={28} color="var(--brand-600)" />
-                <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                    Préparation de ta visite…
-                </span>
-            </div>
+            <PageShell>
+                <PageLoading label="Préparation de ta visite…" />
+            </PageShell>
         );
     }
     if (!session?.user) {
         return (
-            <div style={{ padding: 48, textAlign: "center" }}>
-                <p style={{ fontSize: 14 }}>Session expirée. Reconnecte-toi pour continuer.</p>
-            </div>
+            <PageShell>
+                <div style={{ padding: 48, textAlign: "center" }}>
+                    <p style={{ fontSize: 14 }}>Session expirée. Reconnecte-toi pour continuer.</p>
+                </div>
+            </PageShell>
         );
     }
     const role = session.user.role;
     const user = `${session.user.firstName ?? ""} ${session.user.lastName ?? ""}`.trim() || "EduPilot user";
 
-    if (role === "TEACHER") return <TeacherOnboarding user={user} />;
-    if (role === "PARENT") return <ParentOnboarding user={user} />;
-    if (role === "STUDENT") return <StudentOnboarding user={user} />;
-    if (role === "SUPER_ADMIN") return <SuperAdminOnboarding user={user} />;
+    if (role === "TEACHER") return <PageShell><TeacherOnboarding user={user} /></PageShell>;
+    if (role === "PARENT") return <PageShell><ParentOnboarding user={user} /></PageShell>;
+    if (role === "STUDENT") return <PageShell><StudentOnboarding user={user} /></PageShell>;
+    if (role === "SUPER_ADMIN") return <PageShell><SuperAdminOnboarding user={user} /></PageShell>;
     // Director / school admin / accountant / staff fall back to the director
     // wizard handled elsewhere (settings/academic-config + import wizard).
-    return <FallbackOnboarding role={role} user={user} />;
+    return <PageShell><FallbackOnboarding role={role} user={user} /></PageShell>;
 }
 
 // ─── 1 · TEACHER ─────────────────────────────────────────────

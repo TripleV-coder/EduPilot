@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Server, Database, Activity, HardDrive, Cpu, AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -66,13 +67,13 @@ export default function RootMonitoringPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Monitoring Root (Infrastructure)"
                     description="Surveillance globale des serveurs, bases de données et services de messagerie."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Monitoring Global" },
                     ]}
                 />
@@ -187,7 +188,7 @@ export default function RootMonitoringPage() {
                         )}
                     </>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

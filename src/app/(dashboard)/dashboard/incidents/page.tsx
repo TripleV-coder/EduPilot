@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -278,15 +278,10 @@ export default function IncidentsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
-            <motion.div
-                className="space-y-6 max-w-7xl mx-auto pb-12"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            >
+            <PageShell>
                 <PageHeader
-                    title="Vie Scolaire & Discipline"
-                    description="Suivez les incidents disciplinaires, retards, et sanctions des élèves."
+                    title="Vie scolaire et discipline"
+                    description="Suivez les incidents disciplinaires, retards et sanctions des élèves."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Vie Scolaire" },
@@ -507,7 +502,7 @@ export default function IncidentsPage() {
                         </motion.div>
                     )}
                 </Card>
-            </motion.div>
+            </PageShell>
         </PageGuard>
     );
 }

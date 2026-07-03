@@ -15,7 +15,8 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 type ChannelStatus = {
     connected: boolean;
@@ -117,15 +118,19 @@ export default function WhatsAppPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="WhatsApp Business · canal #1 au Bénin"
-                    sub={
+                    title="WhatsApp Business · canal #1 au Bénin"
+                    description={
                         status?.connected
                             ? `Activé · numéro vérifié ${status.phoneNumber} · ${status.subscribers ?? "?"} parents abonnés`
                             : "Module à activer · META Business API non encore connecté"
                     }
-                    breadcrumb={["Communication", "Canaux", "WhatsApp Business"]}
+                    breadcrumbs={[
+                        { label: "Communication" },
+                        { label: "Canaux" },
+                        { label: "WhatsApp Business" },
+                    ]}
                     actions={
                         <>
                             {status?.connected ? (
@@ -542,7 +547,7 @@ export default function WhatsAppPage() {
                                 </Card>
 
                                 <Card>
-                                    <SubLabel>Comparaison canaux · indicatif</SubLabel>
+                                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Comparaison canaux · indicatif</p>
                                     <div
                                         style={{
                                             display: "flex",
@@ -629,7 +634,7 @@ export default function WhatsAppPage() {
                         </div>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

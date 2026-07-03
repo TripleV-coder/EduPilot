@@ -1,26 +1,22 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { t } from "@/lib/i18n";
-import { Users, FileText, Clock, DollarSign, MessageSquare, BarChart3, Layers, ArrowRight } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { SectionHeader } from "./SectionHeader";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
+import { Button, Icon, type IconName } from "@/components/edu";
 
 interface Feature {
     key: string;
-    icon: LucideIcon;
-    gradient: string;
+    icon: IconName;
 }
 
 const features: Feature[] = [
-    { key: "students", icon: Users, gradient: "from-primary/20 to-secondary/10" },
-    { key: "grades", icon: FileText, gradient: "from-secondary/20 to-accent/10" },
-    { key: "schedule", icon: Clock, gradient: "from-accent/20 to-primary/10" },
-    { key: "finance", icon: DollarSign, gradient: "from-primary/15 to-accent/15" },
-    { key: "communication", icon: MessageSquare, gradient: "from-secondary/15 to-primary/15" },
-    { key: "analytics", icon: BarChart3, gradient: "from-accent/15 to-secondary/15" },
+    { key: "students", icon: "users" },
+    { key: "grades", icon: "book" },
+    { key: "schedule", icon: "clock" },
+    { key: "finance", icon: "money" },
+    { key: "communication", icon: "sms" },
+    { key: "analytics", icon: "chart" },
 ];
 
 const onboardingSteps = [
@@ -66,17 +62,37 @@ const itemVariants = {
 
 export function FeaturesSection() {
     return (
-        <section id="features" className="py-24 md:py-32 bg-white dark:bg-zinc-950 relative overflow-hidden border-b border-zinc-100 dark:border-zinc-900">
+        <section
+            id="features"
+            className="relative overflow-hidden py-24 md:py-32"
+            style={{
+                background: "var(--eduflow-surface-card)",
+                borderBottom: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
             <div className="container mx-auto px-4">
                 <div className="mb-20">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-4">Fonctionnalités</p>
-                    <h2 className="text-4xl md:text-5xl font-sans font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-[0.9]">
-                        Une architecture logicielle <br /> <span className="text-zinc-500">sans compromis</span>
+                    <p
+                        className="mb-4 text-[10px] font-black uppercase tracking-[0.3em]"
+                        style={{ color: "var(--brand-600)" }}
+                    >
+                        Fonctionnalités
+                    </p>
+                    <h2
+                        className="eduflow-display text-4xl font-black uppercase leading-[0.9] tracking-tighter md:text-5xl"
+                        style={{ color: "var(--eduflow-text-primary)" }}
+                    >
+                        Une architecture logicielle <br />
+                        <span style={{ color: "var(--eduflow-text-tertiary)" }}>sans compromis</span>
                     </h2>
                 </div>
 
                 <motion.div
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-zinc-100 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-900 max-w-7xl mx-auto"
+                    className="mx-auto grid max-w-7xl grid-cols-1 gap-px border md:grid-cols-2 lg:grid-cols-3"
+                    style={{
+                        background: "var(--eduflow-border-subtle)",
+                        borderColor: "var(--eduflow-border-subtle)",
+                    }}
                     variants={containerVariants}
                     initial="hidden"
                     whileInView="visible"
@@ -86,15 +102,25 @@ export function FeaturesSection() {
                         <motion.div
                             key={feature.key}
                             variants={itemVariants}
-                            className="group relative bg-white dark:bg-zinc-950 p-10 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50 cursor-crosshair"
+                            className="group cursor-crosshair p-10 transition-colors hover:bg-[var(--eduflow-surface-sunken)]"
+                            style={{ background: "var(--eduflow-surface-card)" }}
                         >
-                            <div className="inline-flex items-center justify-center w-10 h-10 border border-zinc-200 dark:border-zinc-800 mb-8">
-                                <feature.icon className="h-5 w-5 text-primary" />
+                            <div
+                                className="mb-8 inline-flex h-10 w-10 items-center justify-center border"
+                                style={{ borderColor: "var(--eduflow-border-default)" }}
+                            >
+                                <Icon name={feature.icon} size={20} color="var(--brand-600)" />
                             </div>
-                            <h3 className="text-xs font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest">
+                            <h3
+                                className="mb-4 text-xs font-black uppercase tracking-widest"
+                                style={{ color: "var(--eduflow-text-primary)" }}
+                            >
                                 {t(`landing.features.${feature.key}.title`)}
                             </h3>
-                            <p className="text-sm text-zinc-500 leading-relaxed font-medium">
+                            <p
+                                className="text-sm font-medium leading-relaxed"
+                                style={{ color: "var(--eduflow-text-secondary)" }}
+                            >
                                 {t(`landing.features.${feature.key}.description`)}
                             </p>
                         </motion.div>
@@ -106,21 +132,39 @@ export function FeaturesSection() {
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true, margin: "-80px" }}
                     transition={{ duration: 0.6 }}
-                    className="mt-24 border border-zinc-100 dark:border-zinc-900 p-8 md:p-12 max-w-7xl mx-auto"
+                    className="mx-auto mt-24 max-w-7xl border p-8 md:p-12"
+                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
                         {onboardingSteps.map((step) => (
                             <div key={step.id} className="group">
-                                <div className="text-[10px] font-black text-zinc-300 dark:text-zinc-700 uppercase tracking-widest mb-6">
+                                <div
+                                    className="mb-6 text-[10px] font-black uppercase tracking-widest"
+                                    style={{ color: "var(--eduflow-text-tertiary)" }}
+                                >
                                     Phase {step.id}
                                 </div>
-                                <h4 className="text-sm font-black text-zinc-900 dark:text-white uppercase mb-4 tracking-tight">{step.title}</h4>
-                                <p className="text-xs leading-relaxed text-zinc-500 font-medium mb-6">{step.description}</p>
-                                <Button asChild variant="link" className="p-0 h-auto text-[10px] font-black text-primary uppercase tracking-widest hover:no-underline group-hover:translate-x-1 transition-transform">
-                                    <Link href={step.href}>
+                                <h4
+                                    className="mb-4 text-sm font-black uppercase tracking-tight"
+                                    style={{ color: "var(--eduflow-text-primary)" }}
+                                >
+                                    {step.title}
+                                </h4>
+                                <p
+                                    className="mb-6 text-xs font-medium leading-relaxed"
+                                    style={{ color: "var(--eduflow-text-secondary)" }}
+                                >
+                                    {step.description}
+                                </p>
+                                <Link href={step.href}>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-auto p-0 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-1"
+                                    >
                                         {step.cta} →
-                                    </Link>
-                                </Button>
+                                    </Button>
+                                </Link>
                             </div>
                         ))}
                     </div>

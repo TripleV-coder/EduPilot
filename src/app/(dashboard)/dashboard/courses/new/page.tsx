@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,7 +141,7 @@ export default function NewCoursePage() {
 
     return (
         <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="max-w-5xl mx-auto space-y-8 pb-20">
+            <PageShell>
                 <PageHeader
                     title="Créer un nouveau cours"
                     description="Concevez votre programme pédagogique, ajoutez des modules et des leçons."
@@ -325,7 +325,7 @@ export default function NewCoursePage() {
                         </div>
                     </form>
                 </Form>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

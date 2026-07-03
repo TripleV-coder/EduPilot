@@ -18,8 +18,9 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { Badge, Button, Card, Icon, Input, Spinner, type IconName } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { Badge, Button, Card, Icon, Input, type IconName } from "@/components/edu";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type MenuItem = {
     id: string;
@@ -126,12 +127,15 @@ export default function CanteenPage() {
         <PageGuard
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Cantine & restauration"
-                        sub="Menus quotidiens, tickets repas, portefeuille élève"
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Cantine & restauration"
+                    description="Menus quotidiens, tickets repas, portefeuille élève"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Cantine" },
+                    ]}
+                    actions={
                             <RoleActionGuard
                                 allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
                             >
@@ -143,7 +147,7 @@ export default function CanteenPage() {
                                         <DialogHeader>
                                             <DialogTitle>Programmer le menu</DialogTitle>
                                             <DialogDescription>
-                                                Saisis les plats pour une date spécifique.
+                                                Saisissez les plats pour une date spécifique.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <form
@@ -203,9 +207,8 @@ export default function CanteenPage() {
                                     </DialogContent>
                                 </Dialog>
                             </RoleActionGuard>
-                        }
-                    />
-                </div>
+                    }
+                />
 
                 <SegmentedToggle
                     value={view}
@@ -218,79 +221,14 @@ export default function CanteenPage() {
 
                 {view === "menu" ? (
                     <div className="flex flex-col gap-4">
-                        {loading ? (
-                            <Card padding={20}>
-                                <div className="flex items-center gap-3">
-                                    <Spinner size={18} color="var(--brand-600)" />
-                                    <span
-                                        style={{
-                                            fontSize: 13,
-                                            color: "var(--eduflow-text-secondary)",
-                                        }}
-                                    >
-                                        Chargement du menu…
-                                    </span>
-                                </div>
-                            </Card>
-                        ) : null}
-                        {error ? (
-                            <Card
-                                padding={14}
-                                style={{
-                                    borderLeft: "3px solid var(--eduflow-danger-500)",
-                                    background: "var(--eduflow-danger-50)",
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon
-                                        name="warning"
-                                        size={18}
-                                        color="var(--eduflow-danger-600)"
-                                    />
-                                    <p
-                                        style={{
-                                            margin: 0,
-                                            fontSize: 13,
-                                            color: "var(--eduflow-danger-800)",
-                                        }}
-                                    >
-                                        {error}
-                                    </p>
-                                </div>
-                            </Card>
-                        ) : null}
+                        {loading ? <PageLoading label="Chargement du menu…" /> : null}
+                        {error ? <PageError message={error} onRetry={() => void fetchMenus()} /> : null}
                         {!loading && !error && menus.length === 0 ? (
-                            <Card padding={36}>
-                                <div className="flex flex-col items-center gap-3 text-center">
-                                    <div
-                                        className="grid place-items-center"
-                                        style={{
-                                            width: 60,
-                                            height: 60,
-                                            borderRadius: 16,
-                                            background: "var(--brand-50)",
-                                        }}
-                                    >
-                                        <Icon name="book" size={26} color="var(--brand-700)" />
-                                    </div>
-                                    <h3
-                                        className="eduflow-display"
-                                        style={{ fontSize: 18, margin: 0 }}
-                                    >
-                                        Aucun menu programmé
-                                    </h3>
-                                    <p
-                                        style={{
-                                            fontSize: 13,
-                                            color: "var(--eduflow-text-secondary)",
-                                            margin: 0,
-                                        }}
-                                    >
-                                        Programme le menu de la semaine pour informer parents et
-                                        élèves.
-                                    </p>
-                                </div>
-                            </Card>
+                            <PageEmpty
+                                icon="book"
+                                title="Aucun menu programmé"
+                                description="Programmez le menu de la semaine pour informer parents et élèves."
+                            />
                         ) : null}
                         <div
                             className="edu-stagger"
@@ -559,7 +497,7 @@ export default function CanteenPage() {
                         ))}
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

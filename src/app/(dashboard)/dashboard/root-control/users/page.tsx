@@ -3,7 +3,8 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card } from "@/components/ui/card";
 import { Users, Search, MoreHorizontal, ShieldCheck, Mail, Loader2, FilterX, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,13 +51,13 @@ export default function RootUsersPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Annuaire Global"
                     description="Console d'administration globale: Recherche et gestion de tous les utilisateurs inter-écoles."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Utilisateurs Globaux" },
                     ]}
                 />
@@ -182,7 +183,7 @@ export default function RootUsersPage() {
                     </div>
                     )}
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

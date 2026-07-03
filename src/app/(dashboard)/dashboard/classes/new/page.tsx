@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,6 +121,11 @@ export default function NewClassPage() {
             title="Créer une classe"
             description="Ajouter une nouvelle classe à l'établissement"
             maxWidth="max-w-2xl"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Classes", href: "/dashboard/classes" },
+                { label: "Nouvelle" },
+            ]}
         >
 
                 <Card className="border-border shadow-sm">

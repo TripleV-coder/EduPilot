@@ -17,7 +17,8 @@ import {
     Progress,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 
 type ScholarshipType =
     | "MERIT"
@@ -195,15 +196,18 @@ export default function ScholarshipsPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Bourses & aides scolaires"
-                    sub={
+                    title="Bourses & aides scolaires"
+                    description={
                         scholarships.length > 0
                             ? `${activeScholarships.length} boursier${activeScholarships.length > 1 ? "s" : ""} actif${activeScholarships.length > 1 ? "s" : ""} · ${compactAmount(totalBudget)} FCFA distribués · ${pending} en attente`
-                            : "Suivi des bourses et aides distribuées"
+                            : "Suivi des bourses et aides distribuées aux élèves"
                     }
-                    breadcrumb={["Administration", "Bourses"]}
+                    breadcrumbs={[
+                        { label: "Administration" },
+                        { label: "Bourses" },
+                    ]}
                     actions={
                         <>
                             <Button variant="secondary" icon="download">
@@ -214,26 +218,7 @@ export default function ScholarshipsPage() {
                     }
                 />
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <p
-                            style={{
-                                margin: 0,
-                                fontSize: 13,
-                                color: "var(--eduflow-danger-800)",
-                                fontWeight: 500,
-                            }}
-                        >
-                            {error}
-                        </p>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} /> : null}
 
                 <div
                     style={{
@@ -530,9 +515,9 @@ export default function ScholarshipsPage() {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             <Card>
-                                <SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                     Répartition par type · {compactAmount(totalBudget)} FCFA
-                                </SubLabel>
+                                </p>
                                 {distribution.length === 0 ? (
                                     <div
                                         style={{
@@ -625,7 +610,7 @@ export default function ScholarshipsPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

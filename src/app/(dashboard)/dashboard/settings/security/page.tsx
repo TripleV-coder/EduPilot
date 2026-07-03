@@ -9,7 +9,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 
 import { Badge, Button, Card, Icon, Input } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 const mfaCodeSchema = z.object({
     token: z.string().length(6, "Le code 2FA doit contenir 6 chiffres"),
@@ -157,10 +157,14 @@ export default function SecuritySettingsPage() {
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Sécurité & accès"
-                    sub="Active l'authentification à double facteur (2FA) et utilise le flux sécurisé pour réinitialiser ton mot de passe."
+                    title="Sécurité & accès"
+                    description="Active l'authentification à double facteur (2FA) et utilise le flux sécurisé pour réinitialiser ton mot de passe."
+                    breadcrumbs={[
+                        { label: "Paramètres", href: "/dashboard/settings" },
+                        { label: "Sécurité" },
+                    ]}
                 />
 
                 {infoMessage ? (
@@ -529,7 +533,7 @@ export default function SecuritySettingsPage() {
                         </Button>
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

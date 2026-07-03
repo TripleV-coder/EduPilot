@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -126,7 +127,7 @@ export default function PerformancesPage() {
 
     return (
         <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
                     title="Performances Pédagogiques"
                     description="Analyse des résultats scolaires, suivi des moyennes par classe, niveau et matière."
@@ -202,20 +203,11 @@ export default function PerformancesPage() {
                     </div>
                 </Card>
 
-                {loading && (
-                    <div className="flex justify-center items-center py-20">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    </div>
-                )}
+                {loading ? <PageLoading label="Chargement des performances…" /> : null}
 
-                {error && (
-                    <div className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <p>{error}</p>
-                    </div>
-                )}
+                {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
 
-                {!loading && !error && stats && (
+                {!loading && !error && stats ? (
                     <div className="space-y-6">
                         {/* Summary Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -390,8 +382,8 @@ export default function PerformancesPage() {
                         </Card>
 
                     </div>
-                )}
-            </div>
+                ) : null}
+            </PageShell>
         </PageGuard>
     );
 }

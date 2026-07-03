@@ -20,7 +20,7 @@ import {
     Sparkline,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -225,11 +225,14 @@ export default function DisciplinePage() {
             permission={Permission.INCIDENT_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Discipline & comportement"
-                    sub="Suivi des sanctions, retards, manquements"
-                    breadcrumb={["Vie scolaire", "Discipline"]}
+                    title="Discipline & comportement"
+                    description="Suivi des sanctions, retards et manquements au règlement intérieur"
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Discipline" },
+                    ]}
                     actions={
                         <>
                             <Link href="/dashboard/incidents" style={{ textDecoration: "none" }}>
@@ -468,7 +471,7 @@ export default function DisciplinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <SubLabel>Évolution sur 8 semaines</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
                             {weeklyTrend.length > 0 ? (
                                 <>
                                     <Sparkline
@@ -519,7 +522,7 @@ export default function DisciplinePage() {
                         </Card>
 
                         <Card>
-                            <SubLabel>Top motifs</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
                             {statsLoading ? (
                                 <div
                                     style={{
@@ -605,7 +608,7 @@ export default function DisciplinePage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

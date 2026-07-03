@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Wrench, ShieldAlert, PowerSquare, TerminalSquare, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,7 @@ export default function RootMaintenancePage() {
                     description="Contrôlez l'accès au SaaS en cas de mise à jour majeure de la base de données ou de l'infrastructure."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Maintenance" },
                     ]}
                 />

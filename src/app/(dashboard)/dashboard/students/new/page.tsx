@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,6 +129,11 @@ export default function NewStudentPage() {
             title="Inscrire un(e) Élève"
             description="Veuillez remplir les informations pour créer le compte de l'élève."
             className="pb-10"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Élèves", href: "/dashboard/students" },
+                { label: "Inscription" },
+            ]}
         >
 
                 <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6 text-sm text-muted-foreground">

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { ShieldCheck, FileText, Download, Users, AlertTriangle, Loader2, AlertCircle, Clock, CheckCircle, Play } from "lucide-react";
@@ -97,7 +98,7 @@ export default function ComplianceDashboardPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Conformité RGPD"
                     description="Centre de contrôle de la protection des données personnelles de votre établissement."
@@ -226,7 +227,7 @@ export default function ComplianceDashboardPage() {
                         </div>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

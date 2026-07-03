@@ -9,7 +9,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Input } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type ClassOption = { id: string; name: string; classLevel?: { name?: string } | null };
 
@@ -82,11 +83,15 @@ function NewCagnotteContent() {
     };
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-3xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-3xl pb-12">
             <PageHeader
-                greeting="Créer une cagnotte"
-                sub="Sortie scolaire, fournitures partagées, cadeau collectif — 100% transparent, 0% de frais."
-                breadcrumb={["Communauté", "Cagnottes", "Nouvelle"]}
+                title="Créer une cagnotte"
+                description="Sortie scolaire, fournitures partagées, cadeau collectif — 100 % transparent, 0 % de frais."
+                breadcrumbs={[
+                    { label: "Communauté" },
+                    { label: "Cagnottes", href: "/dashboard/cagnotte" },
+                    { label: "Nouvelle" },
+                ]}
             />
 
             <form onSubmit={handleSubmit}>
@@ -246,6 +251,6 @@ function NewCagnotteContent() {
                     </div>
                 </Card>
             </form>
-        </div>
+        </PageShell>
     );
 }

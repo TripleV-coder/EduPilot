@@ -15,7 +15,9 @@ import {
     Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 import {
     type Student,
     type GradeEntry,
@@ -199,9 +201,18 @@ export default function CahierDeNotesPage() {
 
     if (loading) {
         return (
-            <div className="eduflow-scope flex min-h-[60vh] items-center justify-center">
-                <Spinner size={32} color="var(--brand-600)" />
-            </div>
+            <PageShell className="max-w-[1400px] pb-12">
+                <PageHeader
+                    title="Cahier de notes"
+                    description="Chargement des données…"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Notes & évaluations", href: "/dashboard/grades" },
+                        { label: "Cahier de notes" },
+                    ]}
+                />
+                <PageLoading label="Chargement du cahier de notes…" />
+            </PageShell>
         );
     }
 
@@ -210,19 +221,17 @@ export default function CahierDeNotesPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-[1400px] flex-col gap-4 pb-12">
+            <PageShell className="max-w-[1400px] pb-12">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <PageHeader
-                            greeting="Cahier de notes"
-                            sub="Relevé détaillé des évaluations, devoirs et compositions par classe et période."
-                            breadcrumb={[
-                                <Link key="dash" href="/dashboard">Tableau de bord</Link>,
-                                <Link key="grades" href="/dashboard/grades">Notes & évaluations</Link>,
-                                "Cahier de notes",
-                            ]}
-                        />
-                    </div>
+                    <PageHeader
+                        title="Cahier de notes"
+                        description="Relevé détaillé des évaluations, devoirs et compositions par classe et période."
+                        breadcrumbs={[
+                            { label: "Tableau de bord", href: "/dashboard" },
+                            { label: "Notes & évaluations", href: "/dashboard/grades" },
+                            { label: "Cahier de notes" },
+                        ]}
+                    />
                     <SegmentedToggle
                         value={viewMode}
                         onChange={setViewMode}
@@ -843,7 +852,7 @@ export default function CahierDeNotesPage() {
                         ) : null}
                     </>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

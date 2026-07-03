@@ -16,7 +16,8 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 import { AlumniCreateDialog } from "@/components/alumni/alumni-create-dialog";
 
 type AlumniField = "Médecine" | "Tech" | "Droit" | "Business" | "Énergie" | "Autre";
@@ -101,15 +102,18 @@ export default function AlumniPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Réseau Alumni"
-                    sub={
+                    title="Réseau Alumni"
+                    description={
                         loading
                             ? "Chargement de l'annuaire…"
                             : `${data?.total ?? 0} anciens élèves · ${data?.mentorCount ?? 0} mentors disponibles`
                     }
-                    breadcrumb={["Communauté", "Alumni"]}
+                    breadcrumbs={[
+                        { label: "Communauté" },
+                        { label: "Alumni" },
+                    ]}
                     actions={
                         <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
                             <AlumniCreateDialog onCreated={load} />
@@ -117,15 +121,7 @@ export default function AlumniPage() {
                     }
                 />
 
-                {error ? (
-                    <Card padding={16} style={{ border: "1px solid var(--eduflow-danger-200)", background: "var(--eduflow-danger-50)" }}>
-                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                            <Icon name="info" size={16} color="var(--eduflow-danger-700)" />
-                            <span style={{ fontSize: 13, color: "var(--eduflow-danger-800)" }}>{error}</span>
-                            <Button variant="secondary" size="sm" onClick={load} style={{ marginLeft: "auto" }}>Réessayer</Button>
-                        </div>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} onRetry={load} /> : null}
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }} className="kpi-grid">
                     <MetricCard label="Anciens élèves" value={loading ? "…" : String(data?.total ?? 0)} icon="users" variant="neutral" />
@@ -157,16 +153,17 @@ export default function AlumniPage() {
                         </div>
 
                         {loading ? (
-                            <div style={{ display: "flex", justifyContent: "center", padding: 40 }}><Spinner /></div>
+                            <PageLoading label="Chargement de l'annuaire…" />
                         ) : filtered.length === 0 ? (
-                            <div style={{ padding: 40, textAlign: "center", color: "var(--eduflow-text-secondary)" }}>
-                                <Icon name="users" size={28} color="var(--eduflow-text-tertiary)" />
-                                <p style={{ fontSize: 13, marginTop: 10 }}>
-                                    {alumni.length === 0
-                                        ? "Aucun ancien élève dans l'annuaire. Ajoute le premier profil."
-                                        : "Aucun ancien élève pour ce domaine."}
-                                </p>
-                            </div>
+                            <PageEmpty
+                                icon="users"
+                                title={alumni.length === 0 ? "Annuaire vide" : "Aucun résultat"}
+                                description={
+                                    alumni.length === 0
+                                        ? "Aucun ancien élève dans l'annuaire. Ajoutez le premier profil."
+                                        : "Aucun ancien élève pour ce domaine."
+                                }
+                            />
                         ) : (
                             filtered.map((a, i) => (
                                 <div
@@ -204,7 +201,7 @@ export default function AlumniPage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <SubLabel>Membres par promotion</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Membres par promotion</p>
                             <div style={{ marginTop: 8 }}>
                                 {!loading && (data?.promotions.length ?? 0) === 0 ? (
                                     <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", padding: "8px 0" }}>
@@ -235,7 +232,7 @@ export default function AlumniPage() {
                         </Card>
 
                         <Card>
-                            <SubLabel>Mentorat</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Mentorat</p>
                             <p style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", lineHeight: 1.55, margin: "6px 0 0" }}>
                                 Marque un ancien élève comme « mentor » lors de l'ajout pour le proposer aux élèves
                                 en orientation. Les mentors disponibles sont comptés ci-dessus.
@@ -243,7 +240,7 @@ export default function AlumniPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

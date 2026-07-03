@@ -10,7 +10,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 import { GroupMessageButton } from "@/components/cagnotte/group-message-button";
 import { HowItWorksCard } from "@/components/cagnotte/how-it-works-card";
 
@@ -72,6 +73,11 @@ export default function CagnottePage() {
     );
 }
 
+const CAGNOTTE_BREADCRUMBS = [
+    { label: "Communauté" },
+    { label: "Cagnottes" },
+] as const;
+
 function CagnottePageContent() {
     const { data: session } = useSession();
     // Création réservée direction/enseignants — le bouton est masqué aux parents
@@ -86,87 +92,27 @@ function CagnottePageContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cagnottes & pots communs"
-                    sub="Chargement des cagnottes actives…"
-                    breadcrumb={["Communauté", "Cagnottes"]}
+                    title="Cagnottes & pots communs"
+                    description="Chargement des cagnottes actives…"
+                    breadcrumbs={[...CAGNOTTE_BREADCRUMBS]}
                 />
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 14,
-                    }}
-                    className="cag-grid"
-                >
-                    {[0, 1].map((i) => (
-                        <Card key={i} padding={20} style={{ minHeight: 380 }}>
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 18,
-                                    width: "60%",
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 6,
-                                    marginBottom: 10,
-                                }}
-                            />
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 32,
-                                    width: "40%",
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 6,
-                                    marginBottom: 16,
-                                }}
-                            />
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 10,
-                                    width: "100%",
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 5,
-                                }}
-                            />
-                        </Card>
-                    ))}
-                </div>
-                <style jsx global>{`
-                    @media (max-width: 960px) {
-                        .cag-grid {
-                            grid-template-columns: 1fr !important;
-                        }
-                    }
-                `}</style>
-            </div>
+                <PageLoading label="Chargement des cagnottes…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cagnottes & pots communs"
-                    sub="Impossible de charger les cagnottes"
-                    breadcrumb={["Communauté", "Cagnottes"]}
+                    title="Cagnottes & pots communs"
+                    description="Impossible de charger les cagnottes"
+                    breadcrumbs={[...CAGNOTTE_BREADCRUMBS]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service cagnottes est momentanément indisponible.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service cagnottes est momentanément indisponible." />
+            </PageShell>
         );
     }
 
@@ -174,11 +120,12 @@ function CagnottePageContent() {
     const openCount = cagnottes.length;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <>
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Cagnottes & pots communs"
-                sub="Sorties scolaires · fournitures partagées · cadeaux profs · 100% transparent"
-                breadcrumb={["Communauté", "Cagnottes"]}
+                title="Cagnottes & pots communs"
+                description="Sorties scolaires · fournitures partagées · cadeaux profs · 100% transparent"
+                breadcrumbs={[...CAGNOTTE_BREADCRUMBS]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
@@ -222,7 +169,8 @@ function CagnottePageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </PageShell>
+        </>
     );
 }
 

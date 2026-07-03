@@ -12,9 +12,10 @@ import {
     Card,
     Chip,
     Icon,
-    Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type Variant = "success" | "warning" | "danger" | "info" | "neutral";
 
@@ -152,26 +153,31 @@ export default function LiaisonPage() {
             permission={Permission.SCHOOL_READ}
             roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <PageHeader
-                    greeting={
+                    title={
                         data
                             ? `Cahier de liaison · ${data.student.firstName} ${data.student.lastName}`
                             : "Cahier de liaison"
                     }
-                    sub={
+                    description={
                         data
-                            ? `${data.class?.name ?? "—"} · ${data.entries.length} entrées récentes · ${data.toSignCount} nécessitent ta signature`
+                            ? `${data.class?.name ?? "—"} · ${data.entries.length} entrées récentes · ${data.toSignCount} nécessitent votre signature`
                             : "Suivi des échanges école-famille"
                     }
-                    breadcrumb={
+                    breadcrumbs={
                         data
                             ? [
-                                  "Mes enfants",
-                                  `${data.student.firstName} ${data.student.lastName}`,
-                                  "Cahier de liaison",
+                                  { label: "Mes enfants" },
+                                  {
+                                      label: `${data.student.firstName} ${data.student.lastName}`,
+                                  },
+                                  { label: "Cahier de liaison" },
                               ]
-                            : undefined
+                            : [
+                                  { label: "Tableau de bord", href: "/dashboard" },
+                                  { label: "Cahier de liaison" },
+                              ]
                     }
                     actions={
                         data ? (
@@ -181,37 +187,10 @@ export default function LiaisonPage() {
                 />
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement du cahier…
-                        </span>
-                    </div>
+                    <PageLoading label="Chargement du cahier…" />
                 ) : null}
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} /> : null}
 
                 {data && data.toSignCount > 0 ? (
                     <Card
@@ -548,7 +527,7 @@ export default function LiaisonPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

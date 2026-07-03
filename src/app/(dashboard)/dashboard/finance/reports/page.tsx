@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { BarChart3, TrendingUp, TrendingDown, Calendar, FileText, Download, AlertCircle, Loader2 } from "lucide-react";
@@ -74,7 +74,7 @@ export default function FinanceReportsPage() {
 
     return (
         <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Rapports financiers"
@@ -219,7 +219,7 @@ export default function FinanceReportsPage() {
                         </div>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

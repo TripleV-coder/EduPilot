@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PageHeader } from "@/components/layout/page-header";
 import { PageGuard } from "@/components/guard/page-guard";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -161,13 +162,16 @@ function AlertsRisksContent() {
   );
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeader 
-          title="Module de Prévention" 
-          description="Anticipez le décrochage scolaire et les risques académiques par une analyse prédictive."
-        />
-        <div className="flex items-center gap-2">
+    <PageShell className="animate-fade-in">
+      <PageHeader
+        title="Module de Prévention"
+        description="Anticipez le décrochage scolaire et les risques académiques par une analyse prédictive."
+        breadcrumbs={[
+          { label: "Tableau de bord", href: "/dashboard" },
+          { label: "Alertes & Risques" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
            <Select value={classId} onValueChange={setClassId}>
             <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-[11px] font-bold uppercase">
               <SelectValue placeholder="Toutes les classes" />
@@ -190,7 +194,8 @@ function AlertsRisksContent() {
              {t("common.export")}
            </Button>
         </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Colonne Gauche: Matrice (8/12) */}
@@ -262,7 +267,9 @@ function AlertsRisksContent() {
                   <tbody className="divide-y divide-border/50">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Chargement des risques...</td>
+                        <td colSpan={7} className="px-4 py-10">
+                          <PageLoading label="Chargement des risques…" />
+                        </td>
                       </tr>
                     ) : riskRows.length === 0 ? (
                       <tr>
@@ -371,6 +378,6 @@ function AlertsRisksContent() {
            </Card>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

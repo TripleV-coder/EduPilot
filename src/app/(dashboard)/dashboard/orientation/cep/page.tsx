@@ -16,6 +16,7 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
+import { PageShell } from "@/components/layout/page-shell";
 import { PageHeader } from "@/components/edu-homes/_shared";
 
 type ClassOption = { id: string; name: string };
@@ -127,7 +128,7 @@ export default function OrientationCepPage() {
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
             <CycleGuard requires="PRIMARY">
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/orientation">
                         <Button variant="secondary" size="sm">
@@ -562,7 +563,7 @@ export default function OrientationCepPage() {
                         </Card>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

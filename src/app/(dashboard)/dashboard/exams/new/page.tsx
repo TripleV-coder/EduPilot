@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,7 @@ export default function NewExamPage() {
 
   return (
     <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6 max-w-3xl mx-auto pb-10">
+      <PageShell>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
             <Button variant="outline" size="icon">
@@ -141,7 +141,7 @@ export default function NewExamPage() {
             </Button>
           </div>
         </form>
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

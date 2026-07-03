@@ -23,7 +23,8 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type User = {
     id: string;
@@ -89,6 +90,7 @@ export default function UsersPage() {
         data: response,
         error,
         isLoading: loading,
+        mutate: mutateUsers,
     } = useSWR<UsersResponse | User[]>(url, fetcher);
 
     const users: User[] = Array.isArray(response)
@@ -198,14 +200,17 @@ export default function UsersPage() {
             permission={Permission.USER_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Utilisateurs & Comptes"
-                        sub={`${users.length} ${
-                            users.length > 1 ? "comptes actifs" : "compte actif"
-                        } dans le système`}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Utilisateurs et comptes"
+                    description={`${users.length} ${
+                        users.length > 1 ? "comptes actifs" : "compte actif"
+                    } dans le système`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Utilisateurs" },
+                    ]}
+                    actions={
                             <>
                                 <SegmentedToggle
                                     value={viewMode}
@@ -223,8 +228,7 @@ export default function UsersPage() {
                                 </Link>
                             </>
                         }
-                    />
-                </div>
+                />
 
                 {/* Filters */}
                 <Card padding={14}>
@@ -257,28 +261,27 @@ export default function UsersPage() {
                     </div>
                 </Card>
 
-                {error ? <ErrorCard label="Impossible de charger les utilisateurs." /> : null}
-
-                {loading ? <SkeletonGrid /> : null}
+                {loading ? <PageLoading label="Chargement des utilisateurs…" /> : null}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les utilisateurs."
+                        onRetry={() => void mutateUsers()}
+                    />
+                ) : null}
 
                 {!loading && !error && users.length === 0 ? (
-                    <EmptyState
+                    <PageEmpty
+                        icon="users"
                         title="Aucun utilisateur trouvé"
-                        body={
+                        description={
                             activeFiltersCount > 0
                                 ? "Aucun compte ne correspond aux filtres actuels."
                                 : "Le premier compte sera créé lors de l'inscription d'un membre du personnel ou d'un élève."
                         }
-                        primaryCta={
-                            activeFiltersCount > 0 ? (
-                                <Button variant="secondary" icon="x" onClick={resetFilters}>
-                                    Réinitialiser les filtres
-                                </Button>
-                            ) : (
-                                <Link href="/dashboard/users/new">
-                                    <Button icon="plus">Ajouter un compte</Button>
-                                </Link>
-                            )
+                        actions={
+                            activeFiltersCount > 0
+                                ? [{ label: "Réinitialiser les filtres", onClick: resetFilters }]
+                                : [{ label: "Ajouter un compte", href: "/dashboard/users/new" }]
                         }
                     />
                 ) : null}
@@ -439,7 +442,7 @@ export default function UsersPage() {
                         </div>
                     </Card>
                 ) : null}
-            </div>
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}

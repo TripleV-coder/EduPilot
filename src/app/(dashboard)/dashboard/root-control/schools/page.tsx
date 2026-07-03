@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Building, Plus, Search, Settings, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -258,14 +259,14 @@ export default function RootSchoolsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Établissements Clients (Tenants)"
                         description="Gestion centrale des souscriptions et déploiement de nouveaux établissements."
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Root Control", href: "/dashboard/root-control" },
+                            { label: "Pilotage root", href: "/dashboard/root-control" },
                             { label: "Écoles" },
                         ]}
                     />
@@ -749,7 +750,7 @@ export default function RootSchoolsPage() {
                         )}
                     </DialogContent>
                 </Dialog>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { HardDriveDownload, DatabaseBackup, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -65,7 +65,7 @@ export default function SystemBackupPage() {
 
     return (
         <PageGuard permission={[Permission.SYSTEM_BACKUP_CREATE, Permission.SYSTEM_BACKUP_VIEW]} roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Sauvegardes Système"
@@ -196,7 +196,7 @@ export default function SystemBackupPage() {
                         </Card>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

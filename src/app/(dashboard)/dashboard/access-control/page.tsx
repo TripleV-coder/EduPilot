@@ -18,7 +18,7 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type PreviewStudent = {
     firstName: string;
@@ -141,11 +141,14 @@ export default function AccessControlPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="QR Badge & contrôle d'accès"
-                    sub={`${scanPoints.length} point${scanPoints.length > 1 ? "s" : ""} de scan · ${metrics?.todayTotal ?? 0} passages aujourd'hui`}
-                    breadcrumb={["Vie scolaire", "Contrôle accès"]}
+                    title="QR Badge & contrôle d'accès"
+                    description={`${scanPoints.length} point${scanPoints.length > 1 ? "s" : ""} de scan · ${metrics?.todayTotal ?? 0} passages aujourd'hui`}
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Contrôle d'accès" },
+                    ]}
                     actions={
                         <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
                             <BadgeRegenerateDialog />
@@ -241,12 +244,12 @@ export default function AccessControlPage() {
                     className="qr-grid"
                 >
                     <Card padding={20}>
-                        <SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
                             {preview
                                 ? `${preview.firstName} ${preview.lastName.toUpperCase()}`
                                 : "exemple"}
-                        </SubLabel>
+                        </p>
                         {loading ? (
                             <div
                                 style={{
@@ -552,7 +555,7 @@ export default function AccessControlPage() {
                         )}
                     </Card>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

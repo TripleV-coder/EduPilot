@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +87,7 @@ export default function ExamDetailPage() {
 
   return (
     <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6 max-w-4xl mx-auto pb-10">
+      <PageShell>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
             <Button variant="outline" size="icon">
@@ -223,7 +223,7 @@ export default function ExamDetailPage() {
             </CardContent>
           </Card>
         )}
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

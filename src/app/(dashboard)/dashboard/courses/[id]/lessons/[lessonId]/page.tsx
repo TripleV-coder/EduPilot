@@ -6,7 +6,8 @@ import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -97,29 +98,33 @@ export default function LessonViewerPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center py-24 space-y-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground animate-pulse">Chargement de votre leçon...</p>
-            </div>
+            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+                <PageShell>
+                    <PageLoading label="Chargement de votre leçon…" />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     if (error || !lesson) {
         return (
-            <div className="flex flex-col items-center justify-center py-24 space-y-4 text-center px-4">
-                <AlertCircle className="h-12 w-12 text-destructive/50" />
-                <h3 className="text-xl font-bold">Oups ! Leçon introuvable</h3>
-                <p className="text-muted-foreground max-w-md">Nous n&apos;avons pas pu charger le contenu de cette leçon. Il se peut qu&apos;elle n&apos;existe plus ou que vous n&apos;ayez pas les accès nécessaires.</p>
-                <Link href={`/dashboard/courses/${id}`}>
-                    <Button variant="outline" className="mt-4">Retour au cours</Button>
-                </Link>
-            </div>
+            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+                <PageShell>
+                    <PageError
+                        message="Nous n'avons pas pu charger le contenu de cette leçon."
+                        onRetry={() => mutate()}
+                    />
+                    <Link href={`/dashboard/courses/${id}`} className="mt-4 inline-block">
+                        <Button variant="outline">Retour au cours</Button>
+                    </Link>
+                </PageShell>
+            </PageGuard>
         );
     }
 
     return (
         <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="max-w-5xl mx-auto space-y-6 pb-20">
+            <PageShell className="max-w-5xl pb-20">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between">
                     <Link href={`/dashboard/courses/${id}`} className="flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
@@ -288,7 +293,7 @@ export default function LessonViewerPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

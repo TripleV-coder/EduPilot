@@ -21,7 +21,9 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type Student = {
     id: string;
@@ -72,14 +74,13 @@ export default function StudentsPage() {
     if (selectedStatus !== "ALL") queryParams.set("status", selectedStatus);
     if (debouncedSearch) queryParams.set("search", debouncedSearch);
 
+    const studentsUrl = `/api/students?${queryParams.toString()}`;
     const {
         data: response,
         error,
         isLoading: loading,
-    } = useSWR<StudentResponse | Student[]>(
-        `/api/students?${queryParams.toString()}`,
-        fetcher
-    );
+        mutate: mutateStudents,
+    } = useSWR<StudentResponse | Student[]>(studentsUrl, fetcher);
     const { data: classesData } = useSWR<ClassesResponse | ClassOption[]>(
         "/api/classes",
         fetcher
@@ -177,7 +178,7 @@ export default function StudentsPage() {
             toast({ title: "Succès", description: "L'élève a été supprimé." });
             setDeleteDialogOpen(false);
             setPendingDelete(null);
-            mutate(`/api/students?${queryParams.toString()}`);
+            mutateStudents();
         } catch (err) {
             toast({
                 title: "Erreur",
@@ -206,12 +207,15 @@ export default function StudentsPage() {
                 "STUDENT",
             ]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Élèves"
-                        sub={`${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Élèves"
+                    description={`${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Élèves" },
+                    ]}
+                    actions={
                             <>
                                 <SegmentedToggle
                                     value={viewMode}
@@ -238,8 +242,7 @@ export default function StudentsPage() {
                                 </RoleActionGuard>
                             </>
                         }
-                    />
-                </div>
+                />
 
                 {/* Filters */}
                 <Card padding={14}>
@@ -290,84 +293,32 @@ export default function StudentsPage() {
                     </div>
                 </Card>
 
+                {loading ? <PageLoading label="Chargement des élèves…" /> : null}
                 {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Impossible de charger les élèves.
-                            </p>
-                        </div>
-                    </Card>
+                    <PageError
+                        message="Impossible de charger les élèves."
+                        onRetry={() => void mutateStudents()}
+                    />
                 ) : null}
 
-                {loading ? <SkeletonGrid /> : null}
-
                 {!loading && !error && students.length === 0 ? (
-                    <Card padding={36}>
-                        <div className="flex flex-col items-center gap-3 text-center">
-                            <div
-                                className="grid place-items-center"
-                                style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: 16,
-                                    background: "var(--brand-50)",
-                                }}
-                            >
-                                <Icon name="users" size={26} color="var(--brand-700)" />
-                            </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Aucun élève trouvé
-                            </h3>
-                            <p
-                                style={{
-                                    fontSize: 13,
-                                    color: "var(--eduflow-text-secondary)",
-                                    maxWidth: 480,
-                                    lineHeight: 1.55,
-                                    margin: 0,
-                                }}
-                            >
-                                {activeFiltersCount > 0
-                                    ? "Aucun élève ne correspond aux filtres actuels. Essaie d'élargir la recherche."
-                                    : "Inscris des élèves manuellement ou via import. Une fois inscrits, tu pourras suivre leur présence, leurs notes et leurs documents."}
-                            </p>
-                            <div className="mt-2 flex flex-wrap justify-center gap-2">
-                                {activeFiltersCount > 0 ? (
-                                    <Button variant="secondary" icon="x" onClick={resetFilters}>
-                                        Réinitialiser les filtres
-                                    </Button>
-                                ) : (
-                                    <RoleActionGuard
-                                        allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-                                    >
-                                        <Link href="/dashboard/import">
-                                            <Button variant="secondary" icon="download">
-                                                Importer
-                                            </Button>
-                                        </Link>
-                                        <Link href="/dashboard/students/new">
-                                            <Button icon="plus">Inscrire un élève</Button>
-                                        </Link>
-                                    </RoleActionGuard>
-                                )}
-                            </div>
-                        </div>
-                    </Card>
+                    <PageEmpty
+                        icon="users"
+                        title="Aucun élève trouvé"
+                        description={
+                            activeFiltersCount > 0
+                                ? "Aucun élève ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres."
+                                : "Inscrivez des élèves manuellement ou par import pour suivre présence, notes et documents."
+                        }
+                        actions={
+                            activeFiltersCount > 0
+                                ? [{ label: "Réinitialiser les filtres", onClick: resetFilters }]
+                                : [
+                                      { label: "Importer", href: "/dashboard/import" },
+                                      { label: "Inscrire un élève", href: "/dashboard/students/new" },
+                                  ]
+                        }
+                    />
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "grid" ? (
@@ -395,172 +346,143 @@ export default function StudentsPage() {
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "table" ? (
-                    <Card padding={0}>
-                        <div className="overflow-x-auto">
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                    <tr
-                                        style={{
-                                            background: "var(--eduflow-surface-sunken)",
-                                            textAlign: "left",
-                                        }}
+                    <DataTable
+                        caption="Liste des élèves"
+                        data={students}
+                        getRowKey={(student) => student.id}
+                        page={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        columns={[
+                            {
+                                id: "matricule",
+                                header: "Matricule",
+                                cell: (student) => (
+                                    <span
+                                        className="eduflow-mono text-[11px] uppercase"
+                                        style={{ color: "var(--eduflow-text-tertiary)" }}
                                     >
-                                        <Th width={140}>Matricule</Th>
-                                        <Th>Élève</Th>
-                                        <Th>Classe</Th>
-                                        <Th width={120}>Statut</Th>
-                                        <Th width={100} center>
-                                            Actions
-                                        </Th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {students.map((student) => {
-                                        const fullName = student.user
-                                            ? `${student.user.firstName} ${student.user.lastName}`
-                                            : student.studentNumber ?? student.matricule ?? "—";
-                                        const className =
-                                            Array.isArray(student.enrollments) &&
-                                            student.enrollments.length > 0
-                                                ? student.enrollments[0].class?.name
-                                                : null;
-                                        return (
-                                            <tr
-                                                key={student.id}
-                                                style={{
-                                                    borderTop: "1px solid var(--eduflow-border-subtle)",
-                                                    transition:
-                                                        "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                                                }}
-                                            >
-                                                <Td>
-                                                    <span
-                                                        className="eduflow-mono"
-                                                        style={{
-                                                            fontSize: 11,
-                                                            color: "var(--eduflow-text-tertiary)",
-                                                            textTransform: "uppercase",
-                                                        }}
+                                        {student.matricule || student.studentNumber || "—"}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "eleve",
+                                header: "Élève",
+                                cell: (student) => {
+                                    const fullName = student.user
+                                        ? `${student.user.firstName} ${student.user.lastName}`
+                                        : student.studentNumber ?? student.matricule ?? "—";
+                                    return (
+                                        <div className="flex items-center gap-2.5">
+                                            <Avatar name={fullName} size="sm" />
+                                            <div className="min-w-0">
+                                                <div className="text-[13px] font-semibold">{fullName}</div>
+                                                {student.user?.email ? (
+                                                    <div
+                                                        className="truncate text-[11px]"
+                                                        style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
-                                                        {student.matricule || student.studentNumber || "—"}
-                                                    </span>
-                                                </Td>
-                                                <Td>
-                                                    <div className="flex items-center gap-2.5">
-                                                        <Avatar name={fullName} size="sm" />
-                                                        <div className="min-w-0">
-                                                            <div
-                                                                style={{
-                                                                    fontSize: 13,
-                                                                    fontWeight: 600,
-                                                                    color: "var(--eduflow-text-primary)",
-                                                                }}
-                                                            >
-                                                                {fullName}
-                                                            </div>
-                                                            {student.user?.email ? (
-                                                                <div
-                                                                    className="truncate"
-                                                                    style={{
-                                                                        fontSize: 11,
-                                                                        color:
-                                                                            "var(--eduflow-text-tertiary)",
-                                                                    }}
-                                                                >
-                                                                    {student.user.email}
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
+                                                        {student.user.email}
                                                     </div>
-                                                </Td>
-                                                <Td>
-                                                    {className ? (
-                                                        <Badge variant="brand" size="sm">
-                                                            {className}
-                                                        </Badge>
-                                                    ) : (
-                                                        <span
-                                                            style={{
-                                                                fontSize: 12,
-                                                                color: "var(--eduflow-text-tertiary)",
-                                                            }}
-                                                        >
-                                                            Non assigné
-                                                        </span>
-                                                    )}
-                                                </Td>
-                                                <Td>
-                                                    {student.user?.isActive ? (
-                                                        <Badge variant="success" size="sm" dot>
-                                                            Actif
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="neutral" size="sm">
-                                                            Inactif
-                                                        </Badge>
-                                                    )}
-                                                </Td>
-                                                <Td center>
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Link
-                                                            href={`/dashboard/students/${student.id}`}
-                                                            onClick={() =>
-                                                                markStudentTransition(student.id)
-                                                            }
-                                                            aria-label="Voir l'élève"
-                                                        >
-                                                            <Button variant="ghost" size="sm" icon="search">
-                                                                {""}
-                                                            </Button>
-                                                        </Link>
-                                                        <RoleActionGuard
-                                                            allowedRoles={[
-                                                                "SUPER_ADMIN",
-                                                                "SCHOOL_ADMIN",
-                                                                "DIRECTOR",
-                                                            ]}
-                                                        >
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                icon="x"
-                                                                onClick={(e) =>
-                                                                    requestDelete(
-                                                                        e,
-                                                                        student.id,
-                                                                        fullName
-                                                                    )
-                                                                }
-                                                            >
-                                                                {""}
-                                                            </Button>
-                                                        </RoleActionGuard>
-                                                    </div>
-                                                </Td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                },
+                            },
+                            {
+                                id: "classe",
+                                header: "Classe",
+                                cell: (student) => {
+                                    const className =
+                                        Array.isArray(student.enrollments) &&
+                                        student.enrollments.length > 0
+                                            ? student.enrollments[0].class?.name
+                                            : null;
+                                    return className ? (
+                                        <Badge variant="brand" size="sm">
+                                            {className}
+                                        </Badge>
+                                    ) : (
+                                        <span
+                                            className="text-xs"
+                                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                                        >
+                                            Non assigné
+                                        </span>
+                                    );
+                                },
+                            },
+                            {
+                                id: "statut",
+                                header: "Statut",
+                                cell: (student) =>
+                                    student.user?.isActive ? (
+                                        <Badge variant="success" size="sm" dot>
+                                            Actif
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="neutral" size="sm">
+                                            Inactif
+                                        </Badge>
+                                    ),
+                            },
+                            {
+                                id: "actions",
+                                header: "Actions",
+                                cell: (student) => {
+                                    const fullName = student.user
+                                        ? `${student.user.firstName} ${student.user.lastName}`
+                                        : student.studentNumber ?? student.matricule ?? "—";
+                                    return (
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Link
+                                                href={`/dashboard/students/${student.id}`}
+                                                onClick={() => markStudentTransition(student.id)}
+                                                aria-label="Voir l'élève"
+                                            >
+                                                <Button variant="ghost" size="sm" icon="search">
+                                                    {""}
+                                                </Button>
+                                            </Link>
+                                            <RoleActionGuard
+                                                allowedRoles={[
+                                                    "SUPER_ADMIN",
+                                                    "SCHOOL_ADMIN",
+                                                    "DIRECTOR",
+                                                ]}
+                                            >
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    icon="x"
+                                                    onClick={(e) =>
+                                                        requestDelete(e, student.id, fullName)
+                                                    }
+                                                >
+                                                    {""}
+                                                </Button>
+                                            </RoleActionGuard>
+                                        </div>
+                                    );
+                                },
+                            },
+                        ]}
+                    />
                 ) : null}
 
-                {/* Pagination */}
-                {!loading && !error && totalStudents > 0 ? (
+                {!loading && !error && totalStudents > 0 && viewMode === "grid" ? (
                     <div
                         className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <p
-                            style={{
-                                fontSize: 12,
-                                color: "var(--eduflow-text-secondary)",
-                                margin: 0,
-                            }}
+                            className="text-xs"
+                            style={{ color: "var(--eduflow-text-secondary)", margin: 0 }}
                         >
                             <span className="eduflow-tabular">{totalStudents}</span> élève
-                            {totalStudents > 1 ? "s" : ""} au total — Page{" "}
+                            {totalStudents > 1 ? "s" : ""} au total — page{" "}
                             <span className="eduflow-tabular">{currentPage}</span> sur{" "}
                             <span className="eduflow-tabular">{totalPages}</span>
                         </p>
@@ -588,7 +510,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -742,69 +664,6 @@ function StudentCard({
                 </div>
             </Card>
         </Link>
-    );
-}
-
-function SkeletonGrid() {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                gap: 14,
-            }}
-        >
-            {Array.from({ length: 8 }).map((_, idx) => (
-                <Card key={idx} padding={16}>
-                    <div className="flex items-start gap-3">
-                        <div
-                            style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "50%",
-                                background: "var(--eduflow-surface-sunken)",
-                            }}
-                        />
-                        <div className="flex-1 space-y-2">
-                            <div
-                                style={{
-                                    height: 14,
-                                    width: "70%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    height: 10,
-                                    width: "50%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                        <div
-                            style={{
-                                height: 18,
-                                width: 70,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 9,
-                            }}
-                        />
-                        <div
-                            style={{
-                                height: 18,
-                                width: 50,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 9,
-                            }}
-                        />
-                    </div>
-                </Card>
-            ))}
-        </div>
     );
 }
 
@@ -973,56 +832,6 @@ function FieldSearch({
                 />
             </div>
         </label>
-    );
-}
-
-function Th({
-    children,
-    width,
-    center,
-}: {
-    children: React.ReactNode;
-    width?: number;
-    center?: boolean;
-}) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                textAlign: center ? "center" : "left",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td({
-    children,
-    style,
-    center,
-}: {
-    children: React.ReactNode;
-    style?: React.CSSProperties;
-    center?: boolean;
-}) {
-    return (
-        <td
-            style={{
-                padding: "12px 16px",
-                fontSize: 13,
-                textAlign: center ? "center" : "left",
-                ...style,
-            }}
-        >
-            {children}
-        </td>
     );
 }
 

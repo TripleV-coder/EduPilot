@@ -14,7 +14,8 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 
 type SubjectAvg = { name: string; average: number };
 
@@ -188,11 +189,14 @@ export default function BepcPrepPage() {
             roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
         >
             <CycleGuard requires="SECONDARY_COLLEGE">
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Préparation BEPC"
-                    sub={`Plus que ${daysLeft} jours · annales · IA tutrice · planning de révision`}
-                    breadcrumb={["Examens", `BEPC ${bepcDate.getFullYear()}`]}
+                    title="Préparation BEPC"
+                    description={`Plus que ${daysLeft} jours · annales · IA tutrice · planning de révision`}
+                    breadcrumbs={[
+                        { label: "Examens" },
+                        { label: `BEPC ${bepcDate.getFullYear()}` },
+                    ]}
                     actions={
                         <Badge variant="warning" icon="flame">
                             Compte à rebours · J-{daysLeft}
@@ -287,26 +291,7 @@ export default function BepcPrepPage() {
                     </div>
                 </Card>
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <p
-                            style={{
-                                margin: 0,
-                                fontSize: 13,
-                                color: "var(--eduflow-danger-800)",
-                                fontWeight: 500,
-                            }}
-                        >
-                            {error}
-                        </p>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} /> : null}
 
                 <div
                     style={{
@@ -477,7 +462,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <SubLabel>Pronostic mention · BEPC</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={20} color="var(--brand-600)" />
@@ -533,7 +518,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <SubLabel>Points faibles · à travailler</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={18} color="var(--brand-600)" />
@@ -612,7 +597,7 @@ export default function BepcPrepPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

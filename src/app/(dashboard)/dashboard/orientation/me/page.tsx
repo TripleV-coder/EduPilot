@@ -13,6 +13,7 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
+import { PageShell } from "@/components/layout/page-shell";
 import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
 type Wish = {
@@ -234,7 +235,7 @@ export default function OrientationMePage() {
             permission={Permission.SCHOOL_READ}
             roles={["STUDENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell>
                 <PageHeader
                     greeting="Mon orientation post-BEPC"
                     sub="Choisis tes 3 vœux de série pour la 2nde · à remplir avant le conseil d'orientation"
@@ -841,7 +842,7 @@ export default function OrientationMePage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { useSchool } from "@/components/providers/school-provider";
 import { Permission } from "@/lib/rbac/permissions";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ export default function SchoolIdentityPage() {
                     description="Configuration de l'établissement, branding, conformité"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Paramètres" },
+                        { label: "Paramètres", href: "/dashboard/settings" },
                     ]}
                 />
 

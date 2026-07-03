@@ -9,8 +9,9 @@ import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 
-import { Avatar, Badge, Button, Card, Icon, Input, Spinner } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { Avatar, Badge, Button, Card, Icon, Input } from "@/components/edu";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 
 interface ProfileData {
     firstName?: string;
@@ -102,20 +103,17 @@ export default function ProfileSettingsPage() {
     if (status === "loading" || profileLoading) {
         return (
             <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-                <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
+                <PageShell className="max-w-4xl pb-12">
                     <PageHeader
-                        greeting="Mon profil"
-                        sub="Gère tes informations personnelles et tes coordonnées."
+                        title="Mon profil"
+                        description="Gère tes informations personnelles et tes coordonnées."
+                        breadcrumbs={[
+                            { label: "Paramètres", href: "/dashboard/settings" },
+                            { label: "Profil" },
+                        ]}
                     />
-                    <Card padding={28}>
-                        <div className="flex items-center gap-3">
-                            <Spinner size={20} color="var(--brand-600)" />
-                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                Chargement du profil…
-                            </span>
-                        </div>
-                    </Card>
-                </div>
+                    <PageLoading label="Chargement du profil…" />
+                </PageShell>
             </PageGuard>
         );
     }
@@ -123,40 +121,30 @@ export default function ProfileSettingsPage() {
     if (profileError) {
         return (
             <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-                <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
-                    <PageHeader greeting="Mon profil" />
-                    <Card
-                        padding={20}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Impossible de charger ton profil. Réessaie plus tard.
-                            </p>
-                        </div>
-                    </Card>
-                </div>
+                <PageShell className="max-w-4xl pb-12">
+                    <PageHeader
+                        title="Mon profil"
+                        breadcrumbs={[
+                            { label: "Paramètres", href: "/dashboard/settings" },
+                            { label: "Profil" },
+                        ]}
+                    />
+                    <PageError message="Impossible de charger ton profil. Réessaie plus tard." />
+                </PageShell>
             </PageGuard>
         );
     }
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Mon profil"
-                    sub="Gère tes informations personnelles et tes coordonnées."
+                    title="Mon profil"
+                    description="Gère tes informations personnelles et tes coordonnées."
+                    breadcrumbs={[
+                        { label: "Paramètres", href: "/dashboard/settings" },
+                        { label: "Profil" },
+                    ]}
                 />
 
                 {successMsg ? (
@@ -378,7 +366,7 @@ export default function ProfileSettingsPage() {
                         </Button>
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

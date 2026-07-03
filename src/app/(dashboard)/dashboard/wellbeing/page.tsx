@@ -13,7 +13,8 @@ import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
 import { downloadClimateReport } from "@/lib/wellbeing/climate-report";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type ReportTag = "ANONYME" | "PARENT" | "ENSEIGNANT" | "AUTO_IA" | "NOMINATIF";
 type ReportSeverity = "P0" | "P1" | "P2";
@@ -132,6 +133,11 @@ export default function WellbeingPage() {
     );
 }
 
+const WELLBEING_BREADCRUMBS = [
+    { label: "Vie scolaire" },
+    { label: "Bien-être & cellule d'écoute" },
+] as const;
+
 function WellbeingPageContent() {
     const { data, error, isLoading } = useSWR<WellbeingOverview>(
         "/api/wellbeing/overview",
@@ -159,56 +165,27 @@ function WellbeingPageContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cellule d'écoute & bien-être"
-                    sub="Chargement…"
-                    breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                    title="Cellule d'écoute & bien-être"
+                    description="Chargement…"
+                    breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 />
-                <div
-                    style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}
-                    className="kpi-grid"
-                >
-                    {[0, 1, 2, 3].map((i) => (
-                        <Card key={i} padding={16} style={{ minHeight: 96 }}>
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 32,
-                                    width: 60,
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </Card>
-                    ))}
-                </div>
-            </div>
+                <PageLoading label="Chargement des données bien-être…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cellule d'écoute & bien-être"
-                    sub="Impossible de charger les données"
-                    breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                    title="Cellule d'écoute & bien-être"
+                    description="Impossible de charger les données"
+                    breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service bien-être est momentanément indisponible.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service bien-être est momentanément indisponible." />
+            </PageShell>
         );
     }
 
@@ -219,11 +196,12 @@ function WellbeingPageContent() {
         data.kpis.activeReports > 0;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <>
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Cellule d'écoute & bien-être"
-                sub="Climat scolaire · signalements anonymes · suivi psychologique · prévention harcèlement"
-                breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                title="Cellule d'écoute & bien-être"
+                description="Climat scolaire · signalements anonymes · suivi psychologique · prévention harcèlement"
+                breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
@@ -308,6 +286,8 @@ function WellbeingPageContent() {
                 </>
             )}
 
+            </PageShell>
+
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .kpi-grid {
@@ -318,7 +298,7 @@ function WellbeingPageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </>
     );
 }
 
@@ -565,7 +545,7 @@ function ClimatePulseCard({
 }) {
     return (
         <Card padding={20}>
-            <SubLabel>Climat scolaire · pulse anonyme hebdomadaire</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
             {weeks.length === 0 ? (
                 <p
                     style={{

@@ -9,7 +9,9 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type ReportDetail = {
     id: string;
@@ -67,6 +69,12 @@ const FR_DATETIME = new Intl.DateTimeFormat("fr-FR", {
     minute: "2-digit",
 });
 
+const WELLBEING_REPORT_BREADCRUMBS = [
+    { label: "Vie scolaire" },
+    { label: "Bien-être", href: "/dashboard/wellbeing" },
+    { label: "Dossier" },
+] as const;
+
 export default function WellbeingReportPage() {
     return (
         <PageGuard
@@ -105,59 +113,43 @@ function WellbeingReportContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Dossier d'écoute"
-                    sub="Chargement…"
-                    breadcrumb={["Vie scolaire", "Bien-être", "Dossier"]}
+                    title="Dossier d'écoute"
+                    description="Chargement du dossier…"
+                    breadcrumbs={[...WELLBEING_REPORT_BREADCRUMBS]}
                 />
-                <Card padding={24} style={{ minHeight: 280 }}>
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            height: 20,
-                            width: "50%",
-                            background: "var(--eduflow-neutral-200)",
-                            borderRadius: 6,
-                        }}
-                    />
-                </Card>
-            </div>
+                <PageLoading label="Chargement du dossier…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Dossier introuvable"
-                    breadcrumb={["Vie scolaire", "Bien-être"]}
+                    title="Dossier introuvable"
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Bien-être", href: "/dashboard/wellbeing" },
+                    ]}
                 />
-                <Card padding={24}>
-                    <p style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                        Ce dossier n&apos;existe pas ou son accès est restreint.
-                    </p>
-                    <Button
-                        variant="secondary"
-                        icon="chevron"
-                        onClick={() => router.push("/dashboard/wellbeing")}
-                        style={{ marginTop: 12 }}
-                    >
-                        Retour à la cellule d&apos;écoute
-                    </Button>
-                </Card>
-            </div>
+                <PageError
+                    message="Ce dossier n'existe pas ou son accès est restreint."
+                    onRetry={() => router.push("/dashboard/wellbeing")}
+                />
+            </PageShell>
         );
     }
 
     const currentStep = STATUS_FLOW.findIndex((s) => s.value === data.status);
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-4xl pb-12">
             <PageHeader
-                greeting={`Dossier · ${data.category}`}
-                sub={`Ouvert le ${FR_DATETIME.format(new Date(data.createdAt))}`}
-                breadcrumb={["Vie scolaire", "Bien-être", "Dossier"]}
+                title={`Dossier · ${data.category}`}
+                description={`Ouvert le ${FR_DATETIME.format(new Date(data.createdAt))}`}
+                breadcrumbs={[...WELLBEING_REPORT_BREADCRUMBS]}
                 actions={
                     <>
                         <Badge variant={TAG_VARIANT[data.tag]}>{data.tag.replace("_", "·")}</Badge>
@@ -392,6 +384,6 @@ function WellbeingReportContent() {
                     </div>
                 </Card>
             </div>
-        </div>
+        </PageShell>
     );
 }

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,7 +149,7 @@ export default function SubjectsSettingsPage() {
 
     return (
         <PageGuard permission={Permission.SUBJECT_CREATE}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Matières & Évaluations"
                     description="Gérer le catalogue des matières et les types d'évaluations (coefficients, catégories)."
@@ -396,7 +397,7 @@ export default function SubjectsSettingsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

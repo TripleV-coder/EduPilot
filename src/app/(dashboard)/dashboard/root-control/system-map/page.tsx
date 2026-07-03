@@ -3,7 +3,8 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -76,9 +77,9 @@ function formatDate(value: string) {
 function NodeStats({ school }: { school: SchoolNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-      <span>{school.stats.users} users</span>
+      <span>{school.stats.users} utilisateurs</span>
       <span className="text-border">•</span>
-      <span>{school.stats.students} eleves</span>
+      <span>{school.stats.students} élèves</span>
       <span className="text-border">•</span>
       <span>{school.stats.teachers} enseignants</span>
       <span className="text-border">•</span>
@@ -122,13 +123,13 @@ export default function RootSystemMapPage() {
 
   return (
     <PageGuard roles={["SUPER_ADMIN"]}>
-      <div className="mx-auto max-w-[1600px] space-y-6 pb-12">
+      <PageShell className="max-w-[1600px] pb-12">
         <PageHeader
-          title="Cartographie Systeme Root"
-          description="Topologie complete des organisations, des ecoles rattachees et des etablissements independants."
+          title="Cartographie système root"
+          description="Topologie complète des organisations, des écoles rattachées et des établissements indépendants."
           breadcrumbs={[
             { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Root Control", href: "/dashboard/root-control" },
+            { label: "Pilotage root", href: "/dashboard/root-control" },
             { label: "Cartographie" },
           ]}
         />
@@ -146,7 +147,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Ecoles</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Écoles</p>
                 <p className="mt-1 text-2xl font-black">{data?.totals.schools ?? 0}</p>
               </div>
               <School className="h-5 w-5 text-primary" />
@@ -155,7 +156,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Independantes</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Indépendantes</p>
                 <p className="mt-1 text-2xl font-black">{data?.totals.independentSchools ?? 0}</p>
               </div>
               <Building2 className="h-5 w-5 text-warning" />
@@ -173,7 +174,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Liens Hierarchie</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Liens hiérarchie</p>
                 <p className="mt-1 text-2xl font-black">{data?.totals.hierarchyLinks ?? 0}</p>
               </div>
               <GitBranch className="h-5 w-5 text-primary" />
@@ -189,13 +190,13 @@ export default function RootSystemMapPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 className="h-11 pl-9"
-                placeholder="Rechercher une organisation, une ecole, une ville..."
+                placeholder="Rechercher une organisation, une école, une ville…"
                 aria-label="Rechercher dans la cartographie"
               />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Workflow className="h-4 w-4" />
-              {data ? `Derniere mise a jour: ${formatDate(data.generatedAt)}` : "Chargement..."}
+              {data ? `Dernière mise à jour : ${formatDate(data.generatedAt)}` : "Chargement…"}
             </div>
           </CardContent>
         </Card>
@@ -210,7 +211,7 @@ export default function RootSystemMapPage() {
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="flex min-h-[200px] items-center justify-center gap-2 text-sm text-destructive">
               <ShieldAlert className="h-4 w-4" />
-              Impossible de charger la cartographie systeme.
+              Impossible de charger la cartographie système.
             </CardContent>
           </Card>
         ) : (
@@ -219,10 +220,10 @@ export default function RootSystemMapPage() {
               <CardHeader className="border-b border-border/60">
                 <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-muted-foreground">
                   <Network className="h-4 w-4 text-primary" />
-                  Organisations et sites relies
+                  Organisations et sites reliés
                 </CardTitle>
                 <CardDescription>
-                  Chaque bloc represente une organisation. Les lignes verticales symbolisent le lien organisation → ecole.
+                  Chaque bloc représente une organisation. Les lignes verticales symbolisent le lien organisation → école.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 p-5">
@@ -242,7 +243,7 @@ export default function RootSystemMapPage() {
                               variant="outline"
                               className={organization.isActive ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}
                             >
-                              {organization.isActive ? "Active" : "Inactive"}
+                              {organization.isActive ? "Active" : "Inactif"}
                             </Badge>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -267,7 +268,7 @@ export default function RootSystemMapPage() {
                             </div>
                             {school.parentSchoolName ? (
                               <p className="mt-1 text-xs text-muted-foreground">
-                                Lie a: {school.parentSchoolName}
+                                Lié à : {school.parentSchoolName}
                               </p>
                             ) : null}
                             <div className="mt-2">
@@ -286,16 +287,16 @@ export default function RootSystemMapPage() {
               <CardHeader className="border-b border-border/60">
                 <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-muted-foreground">
                   <Building2 className="h-4 w-4 text-warning" />
-                  Ecoles independantes (hors organisation)
+                  Écoles indépendantes (hors organisation)
                 </CardTitle>
                 <CardDescription>
-                  Ces etablissements ne sont rattaches a aucune organisation. Ils restent geres directement au niveau tenant.
+                  Ces établissements ne sont rattachés à aucune organisation. Ils restent gérés directement au niveau tenant.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-5">
                 {filteredIndependentSchools.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                    Aucune ecole independante detectee pour ce filtre.
+                    Aucune école indépendante détectée pour ce filtre.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -307,8 +308,8 @@ export default function RootSystemMapPage() {
                           <Badge variant="outline" className="text-[10px]">{school.siteType === "MAIN" ? "Site principal" : "Annexe"}</Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {school.city || "Ville non renseignee"}
-                          {school.parentSchoolName ? ` • Lie a ${school.parentSchoolName}` : ""}
+                          {school.city || "Ville non renseignée"}
+                          {school.parentSchoolName ? ` • Lié à ${school.parentSchoolName}` : ""}
                         </p>
                         <div className="mt-2">
                           <NodeStats school={school} />
@@ -321,7 +322,7 @@ export default function RootSystemMapPage() {
             </Card>
           </div>
         )}
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

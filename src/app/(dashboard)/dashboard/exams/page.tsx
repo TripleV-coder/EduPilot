@@ -13,7 +13,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
 
 import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type ExamItem = {
     id: string;
@@ -81,24 +81,26 @@ export default function ExamsPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Examens en ligne"
-                        sub={`${exams.length} ${
-                            exams.length > 1 ? "examens disponibles" : "examen disponible"
-                        } · QCM, devoirs surveillés, compositions`}
-                        actions={
-                            <RoleActionGuard
-                                allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-                            >
-                                <Link href="/dashboard/exams/new">
-                                    <Button icon="plus">Créer un examen</Button>
-                                </Link>
-                            </RoleActionGuard>
-                        }
-                    />
-                </div>
+            <PageShell>
+                <PageHeader
+                    title="Examens en ligne"
+                    description={`${exams.length} ${
+                        exams.length > 1 ? "examens disponibles" : "examen disponible"
+                    } · QCM, devoirs surveillés, compositions`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Examens" },
+                    ]}
+                    actions={
+                        <RoleActionGuard
+                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+                        >
+                            <Link href="/dashboard/exams/new">
+                                <Button icon="plus">Créer un examen</Button>
+                            </Link>
+                        </RoleActionGuard>
+                    }
+                />
 
                 {error ? (
                     <Card
@@ -294,7 +296,6 @@ export default function ExamsPage() {
                         ))}
                     </div>
                 ) : null}
-            </div>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -314,6 +315,7 @@ export default function ExamsPage() {
                 isConfirmLoading={isDeleteConfirmLoading}
                 onConfirm={confirmDelete}
             />
+            </PageShell>
         </PageGuard>
     );
 }

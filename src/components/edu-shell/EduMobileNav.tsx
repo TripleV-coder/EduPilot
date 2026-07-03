@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
+import { AI_ASSISTANT_NAV_LINK } from "./role-nav";
 
 type MobileNavItem = {
     key: string;
@@ -24,35 +25,35 @@ function mobileItemsForRole(role: string | undefined | null): Omit<MobileNavItem
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
                 { key: "kids", label: "Enfants", icon: "users", href: "/dashboard/students", matchPrefix: true },
                 { key: "pay", label: "Paiements", icon: "money", href: "/dashboard/finance", matchPrefix: true },
-                { key: "msg", label: "Messages", icon: "sms", href: "/dashboard/messages", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
         case "STUDENT":
             return [
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
-                { key: "edt", label: "EDT", icon: "calendar", href: "/dashboard/schedule", matchPrefix: true },
                 { key: "grades", label: "Notes", icon: "pencil", href: "/dashboard/grades", matchPrefix: true },
                 { key: "hw", label: "Devoirs", icon: "book", href: "/dashboard/homework", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
         case "TEACHER":
             return [
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
                 { key: "attend", label: "Appel", icon: "check", href: "/dashboard/attendance", matchPrefix: true },
                 { key: "entry", label: "Notes", icon: "pencil", href: "/dashboard/grades/entry", matchPrefix: true },
-                { key: "edt", label: "EDT", icon: "calendar", href: "/dashboard/schedule", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
         case "ACCOUNTANT":
             return [
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
                 { key: "fin", label: "Finance", icon: "money", href: "/dashboard/finance", matchPrefix: true },
-                { key: "wallet", label: "Wallet", icon: "money", href: "/dashboard/wallet", matchPrefix: true },
-                { key: "acct", label: "OHADA", icon: "cards", href: "/dashboard/accounting", matchPrefix: true },
+                { key: "wallet", label: "Portefeuille", icon: "money", href: "/dashboard/wallet", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
         case "SUPER_ADMIN":
             return [
                 { key: "home", label: "Réseau", icon: "grid", href: "/dashboard" },
                 { key: "schools", label: "Écoles", icon: "school", href: "/dashboard/root-control/schools", matchPrefix: true },
-                { key: "users", label: "Users", icon: "users", href: "/dashboard/users", matchPrefix: true },
-                { key: "analytics", label: "Analytics", icon: "chart", href: "/dashboard/analytics", matchPrefix: true },
+                { key: "users", label: "Utilisateurs", icon: "users", href: "/dashboard/users", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
@@ -61,7 +62,7 @@ function mobileItemsForRole(role: string | undefined | null): Omit<MobileNavItem
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
                 { key: "kids", label: "Élèves", icon: "users", href: "/dashboard/students", matchPrefix: true },
                 { key: "fin", label: "Finance", icon: "money", href: "/dashboard/finance", matchPrefix: true },
-                { key: "edt", label: "EDT", icon: "calendar", href: "/dashboard/schedule", matchPrefix: true },
+                { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
     }
 }
@@ -129,6 +130,7 @@ export function EduMobileNav() {
                     const content = (
                         <span
                             style={{
+                                position: "relative",
                                 display: "flex",
                                 flexDirection: "column",
                                 alignItems: "center",

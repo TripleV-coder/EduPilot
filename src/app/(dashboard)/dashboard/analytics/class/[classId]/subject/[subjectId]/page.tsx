@@ -5,7 +5,8 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,14 +52,22 @@ export default function SubjectAnalyticsPage() {
         }
     ];
 
-    if (error) return <div className="p-8 text-destructive">Erreur de chargement des données analytiques.</div>;
+    if (error) {
+        return (
+            <PageGuard permission={Permission.ANALYTICS_VIEW}>
+                <PageShell>
+                    <PageError message="Erreur de chargement des données analytiques." onRetry={() => window.location.reload()} />
+                </PageShell>
+            </PageGuard>
+        );
+    }
 
     return (
         <PageGuard permission={Permission.ANALYTICS_VIEW}>
-            <div className="space-y-6 pb-24">
+            <PageShell className="pb-24">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/analytics">
-                        <Button variant="ghost" size="icon" className="rounded-full">
+                        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Retour aux analytics">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
@@ -73,7 +82,7 @@ export default function SubjectAnalyticsPage() {
                 </div>
 
                 {isLoading ? (
-                    <div className="flex justify-center py-24"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" /></div>
+                    <PageLoading label="Chargement des analytics…" />
                 ) : (
                     <>
                         {/* KPI Grid */}
@@ -163,7 +172,7 @@ export default function SubjectAnalyticsPage() {
                         </Card>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

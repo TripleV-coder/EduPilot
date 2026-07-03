@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +114,11 @@ export default function NewTeacherPage() {
             backHref="/dashboard/teachers"
             title="Ajouter un Enseignant"
             description="Enregistrer un nouveau membre du corps professoral"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Enseignants", href: "/dashboard/teachers" },
+                { label: "Nouveau" },
+            ]}
         >
 
                 <Card className="border-border shadow-sm">

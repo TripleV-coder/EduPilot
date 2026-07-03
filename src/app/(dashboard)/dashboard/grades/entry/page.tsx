@@ -17,7 +17,9 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 import {
     type ClassOption,
     type PeriodOption,
@@ -26,6 +28,7 @@ import {
     type StudentItem,
     type GradeCell,
 } from "@/components/grades/entry/types";
+import { AppreciationButton } from "@/components/ai/appreciation-button";
 import {
     type CellState,
     computeCellState,
@@ -289,15 +292,23 @@ export default function GradesEntryPage() {
 
     if (loading) {
         return (
-            <div className="eduflow-scope flex min-h-[60vh] items-center justify-center">
-                <Spinner size={32} color="var(--brand-600)" />
-            </div>
+            <PageShell className="pb-32">
+                <PageHeader
+                    title="Nouvelle saisie de notes"
+                    description="Chargement des classes et périodes…"
+                    breadcrumbs={[
+                        { label: "Pédagogie", href: "/dashboard/grades" },
+                        { label: "Saisie de notes" },
+                    ]}
+                />
+                <PageLoading label="Préparation de la grille de saisie…" />
+            </PageShell>
         );
     }
 
     if (success) {
         return (
-            <div className="eduflow-scope mx-auto max-w-3xl py-12">
+            <PageShell className="max-w-3xl pb-12">
                 <Card padding={36}>
                     <div className="flex flex-col items-center gap-4 text-center">
                         <div
@@ -354,7 +365,7 @@ export default function GradesEntryPage() {
                         </div>
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         );
     }
 
@@ -367,10 +378,8 @@ export default function GradesEntryPage() {
             permission={Permission.EVALUATION_CREATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div
-                className={`eduflow-scope mx-auto flex flex-col gap-4 pb-32 ${
-                    isFocusMode ? "max-w-7xl" : "max-w-6xl"
-                }`}
+            <PageShell
+                className={`pb-32 ${isFocusMode ? "max-w-7xl" : "max-w-6xl"}`}
             >
                 <div className="flex items-center gap-3">
                     {!isFocusMode ? (
@@ -381,12 +390,16 @@ export default function GradesEntryPage() {
                         </Link>
                     ) : null}
                     <PageHeader
-                        greeting={isFocusMode ? "Saisie rapide" : "Nouvelle saisie de notes"}
-                        sub={
+                        title={isFocusMode ? "Saisie rapide" : "Nouvelle saisie de notes"}
+                        description={
                             isFocusMode
                                 ? "Mode focus actif — entre tes notes sans distraction."
                                 : "Crée une évaluation et saisis les notes de la classe."
                         }
+                        breadcrumbs={[
+                            { label: "Pédagogie", href: "/dashboard/grades" },
+                            { label: "Saisie de notes" },
+                        ]}
                     />
                 </div>
 
@@ -573,7 +586,7 @@ export default function GradesEntryPage() {
                                         disabled={generatingComments || completedCount === 0}
                                         onClick={handleGenerateComments}
                                     >
-                                        Suggérer des appréciations IA
+                                        Rédiger les appréciations
                                     </Button>
                                 ) : null}
                             </div>
@@ -740,34 +753,49 @@ export default function GradesEntryPage() {
                                                         </td>
                                                         {!isFocusMode ? (
                                                             <td style={{ padding: "10px 16px" }}>
-                                                                <input
-                                                                    value={g.comment}
-                                                                    onChange={(e) =>
-                                                                        handleGradeChange(
-                                                                            stu.id,
-                                                                            "comment",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    placeholder="Appréciation…"
-                                                                    aria-label={`Appréciation de ${fullName}`}
-                                                                    style={{
-                                                                        width: "100%",
-                                                                        height: 30,
-                                                                        padding: "0 10px",
-                                                                        border:
-                                                                            "1px solid var(--eduflow-border-default)",
-                                                                        borderRadius: 8,
-                                                                        background:
-                                                                            "var(--eduflow-surface-card)",
-                                                                        fontFamily: "inherit",
-                                                                        fontSize: 12,
-                                                                        color: "var(--eduflow-text-primary)",
-                                                                        outline: "none",
-                                                                        transition:
-                                                                            "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                                                                    }}
-                                                                />
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        value={g.comment}
+                                                                        onChange={(e) =>
+                                                                            handleGradeChange(
+                                                                                stu.id,
+                                                                                "comment",
+                                                                                e.target.value
+                                                                            )
+                                                                        }
+                                                                        placeholder="Appréciation…"
+                                                                        aria-label={`Appréciation de ${fullName}`}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            minWidth: 0,
+                                                                            height: 30,
+                                                                            padding: "0 10px",
+                                                                            border:
+                                                                                "1px solid var(--eduflow-border-default)",
+                                                                            borderRadius: 8,
+                                                                            background:
+                                                                                "var(--eduflow-surface-card)",
+                                                                            fontFamily: "inherit",
+                                                                            fontSize: 12,
+                                                                            color: "var(--eduflow-text-primary)",
+                                                                            outline: "none",
+                                                                            transition:
+                                                                                "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                                                        }}
+                                                                    />
+                                                                    <AppreciationButton
+                                                                        studentId={stu.id}
+                                                                        currentGrade={g.value}
+                                                                        maxGrade={maxGrade}
+                                                                        onGenerated={(comment) =>
+                                                                            handleGradeChange(
+                                                                                stu.id,
+                                                                                "comment",
+                                                                                comment
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </div>
                                                             </td>
                                                         ) : null}
                                                     </tr>
@@ -839,7 +867,7 @@ export default function GradesEntryPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,6 +191,11 @@ export default function NewUserPage() {
             title="Nouvel Utilisateur"
             description="Créer un compte pour un membre du personnel"
             maxWidth="max-w-3xl"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Utilisateurs", href: "/dashboard/users" },
+                { label: t("common.new") },
+            ]}
         >
 
                 <Card className="border-border shadow-sm">

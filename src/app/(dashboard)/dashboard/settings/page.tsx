@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 interface SettingItem {
     icon: IconName;
@@ -149,10 +149,10 @@ export default function SettingsPage() {
     const adminFiltered = useMemo(() => filterByQuery(ADMIN_SETTINGS, search), [search]);
 
     return (
-        <div className="eduflow-scope flex flex-col gap-6 pb-12">
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Paramètres"
-                sub="Préférences de ton compte et configuration de l'établissement."
+                title="Paramètres"
+                description="Préférences de ton compte et configuration de l'établissement."
             />
 
             <Card padding={14}>
@@ -218,7 +218,7 @@ export default function SettingsPage() {
                 <Icon name="settings" size={14} />
                 Configuration centralisée EduPilot
             </div>
-        </div>
+        </PageShell>
     );
 }
 

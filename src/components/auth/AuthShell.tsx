@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Avatar, Logo } from "@/components/edu";
+import { cn } from "@/lib/utils";
 
 export interface AuthShellProps {
     title: React.ReactNode;
@@ -34,7 +35,7 @@ const DEFAULT_TESTIMONIAL: AuthTestimonial = {
  * Split-screen authentication shell matching the EduPilot v3 design.
  *
  * Layout: 1fr (form) / 1.1fr (brand testimonial gradient).
- * Collapses to single column under 880px.
+ * Collapses to single column under 880px (md breakpoint).
  */
 export function AuthShell({
     title,
@@ -45,73 +46,54 @@ export function AuthShell({
 }: AuthShellProps) {
     return (
         <div
-            className="eduflow-scope auth-shell"
+            className={cn(
+                "eduflow-scope auth-shell grid min-h-dvh w-full",
+                soloColumn
+                    ? "grid-cols-1"
+                    : "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"
+            )}
             style={{
-                minHeight: "100vh",
-                width: "100%",
                 background: "var(--eduflow-surface-page)",
                 color: "var(--eduflow-text-primary)",
                 fontFamily: "var(--eduflow-font-body)",
-                display: "grid",
-                gridTemplateColumns: soloColumn ? "1fr" : "minmax(0, 1fr) minmax(0, 1.1fr)",
             }}
         >
             <div
+                className="flex min-h-dvh flex-col justify-between gap-8"
                 style={{
                     padding: "clamp(24px, 5vw, 48px) clamp(24px, 6vw, 64px)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
                     background: "var(--eduflow-surface-card)",
-                    minHeight: "100vh",
-                    gap: 32,
                 }}
             >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="flex items-center gap-2.5">
                     <Logo size={32} />
                     <span
-                        className="eduflow-display"
-                        style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}
+                        className="eduflow-display text-lg font-bold tracking-tight"
                     >
                         EduPilot
                     </span>
                 </div>
-                <div style={{ maxWidth: 420, width: "100%" }}>
+                <div className="w-full max-w-[420px]">
                     <h1
-                        className="eduflow-display"
-                        style={{
-                            fontSize: "clamp(28px, 4vw, 36px)",
-                            fontWeight: 700,
-                            margin: "0 0 8px",
-                            letterSpacing: "-0.025em",
-                            lineHeight: 1.1,
-                        }}
+                        className="eduflow-display m-0 mb-2 text-[clamp(28px,4vw,36px)] font-bold leading-tight tracking-tight"
                     >
                         {title}
                     </h1>
                     {subtitle ? (
                         <p
-                            style={{
-                                fontSize: 14,
-                                color: "var(--eduflow-text-secondary)",
-                                margin: "0 0 32px",
-                                lineHeight: 1.55,
-                            }}
+                            className="mb-8 text-sm leading-relaxed"
+                            style={{ color: "var(--eduflow-text-secondary)" }}
                         >
                             {subtitle}
                         </p>
                     ) : (
-                        <div style={{ height: 24 }} />
+                        <div className="h-6" />
                     )}
                     {children}
                 </div>
                 <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: 11,
-                        color: "var(--eduflow-text-tertiary)",
-                    }}
+                    className="flex flex-wrap items-center justify-between gap-2 text-[11px] max-md:justify-center max-md:text-center"
+                    style={{ color: "var(--eduflow-text-tertiary)" }}
                 >
                     <span>© {new Date().getFullYear()} EduPilot</span>
                     <span>Aide · Confidentialité · CGV</span>
@@ -121,87 +103,42 @@ export function AuthShell({
             {!soloColumn ? (
                 <aside
                     aria-hidden
-                    className="hidden md:flex"
+                    className="relative hidden min-h-dvh flex-col justify-end overflow-hidden p-[clamp(32px,5vw,56px)] text-white md:flex"
                     style={{
                         background:
                             "linear-gradient(135deg, var(--brand-700), var(--brand-accent-600, #4F46E5))",
-                        position: "relative",
-                        overflow: "hidden",
-                        padding: "clamp(32px, 5vw, 56px)",
-                        color: "#fff",
-                        flexDirection: "column",
-                        justifyContent: "flex-end",
                     }}
                 >
                     <div
+                        className="pointer-events-none absolute inset-0"
                         style={{
-                            position: "absolute",
-                            inset: 0,
                             background:
                                 "radial-gradient(60% 50% at 80% 20%, rgba(255,255,255,0.18), transparent 60%)",
-                            pointerEvents: "none",
                         }}
                     />
-                    <div
-                        style={{
-                            position: "absolute",
-                            top: 40,
-                            right: 40,
-                            display: "flex",
-                            gap: 6,
-                            alignItems: "center",
-                            fontSize: 11,
-                            opacity: 0.85,
-                        }}
-                    >
+                    <div className="absolute right-10 top-10 hidden items-center gap-1.5 text-[11px] opacity-85 lg:flex">
                         <span
-                            style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: 3,
-                                background: "#fff",
-                                boxShadow: "0 0 8px rgba(255,255,255,0.6)",
-                            }}
+                            className="h-1.5 w-1.5 rounded-full bg-white"
+                            style={{ boxShadow: "0 0 8px rgba(255,255,255,0.6)" }}
                         />
                         Tous les systèmes opérationnels
                     </div>
-                    <div style={{ position: "relative" }}>
+                    <div className="relative">
                         {testimonial.eyebrow ? (
-                            <div
-                                style={{
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    letterSpacing: "0.14em",
-                                    textTransform: "uppercase",
-                                    opacity: 0.7,
-                                    marginBottom: 18,
-                                }}
-                            >
+                            <div className="mb-[18px] text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
                                 {testimonial.eyebrow}
                             </div>
                         ) : null}
                         <p
-                            className="eduflow-display"
-                            style={{
-                                fontSize: "clamp(24px, 3.6vw, 36px)",
-                                fontWeight: 600,
-                                lineHeight: 1.15,
-                                letterSpacing: "-0.025em",
-                                margin: "0 0 28px",
-                                color: "#fff",
-                            }}
+                            className="eduflow-display m-0 mb-7 text-[clamp(24px,3.6vw,36px)] font-semibold leading-tight tracking-tight text-white"
                         >
                             {testimonial.quote}
                         </p>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div className="flex items-center gap-3">
                             <Avatar name={testimonial.author} size="md" />
                             <div>
-                                <div style={{ fontSize: 14, fontWeight: 700 }}>
-                                    {testimonial.author}
-                                </div>
-                                <div style={{ fontSize: 12, opacity: 0.78 }}>
-                                    {testimonial.role}
-                                </div>
+                                <div className="text-sm font-bold">{testimonial.author}</div>
+                                <div className="text-xs opacity-80">{testimonial.role}</div>
                             </div>
                         </div>
                     </div>

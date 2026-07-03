@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { FileUp, FileSpreadsheet, FileText, Download } from "lucide-react";
@@ -44,7 +44,7 @@ export default function FinanceExportPage() {
 
     return (
         <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Export Financier"
                     description="Générez des extractions de données financières pour votre comptabilité"
@@ -167,7 +167,7 @@ export default function FinanceExportPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, Users, CreditCard, TrendingUp, Activity, Loader2, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -62,14 +63,14 @@ export default function RootAnalyticsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Pilotage Analytique Root"
                         description="Vue globale (SaaS) des performances et de l'utilisation de la plateforme EduPilot"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Root Control", href: "/dashboard/root-control" },
+                            { label: "Pilotage root", href: "/dashboard/root-control" },
                             { label: "Analytics" },
                         ]}
                     />
@@ -194,7 +195,7 @@ export default function RootAnalyticsPage() {
                         </div>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,9 +145,9 @@ export default function CurriculumConfigPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell className="max-w-4xl">
                 <PageHeader
-                    title="Configuration du Curriculum"
+                    title="Programmes scolaires"
                     description="Assignez les matières et coefficients par classe."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -287,7 +287,7 @@ export default function CurriculumConfigPage() {
                         </CardContent>
                     </Card>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

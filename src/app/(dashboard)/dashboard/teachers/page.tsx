@@ -21,7 +21,9 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type Teacher = {
     id: string;
@@ -61,6 +63,7 @@ export default function TeachersPage() {
         data: response,
         error,
         isLoading: loading,
+        mutate: mutateTeachers,
     } = useSWR<TeachersResponse | Teacher[]>(url, fetcher);
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
@@ -88,7 +91,7 @@ export default function TeachersPage() {
             });
             return;
         }
-        const headers = ["Nom", "Prénom", "Email", "Statut", "Matières", "Date Embauche"];
+        const headers = ["Nom", "Prénom", "Email", "Statut", "Matières", "Date d'embauche"];
         const rows = teachers.map((t) => [
             t.user?.lastName || "",
             t.user?.firstName || "",
@@ -148,14 +151,17 @@ export default function TeachersPage() {
             permission={Permission.TEACHER_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Enseignants"
-                        sub={`${teachers.length} ${
-                            teachers.length > 1 ? "enseignants" : "enseignant"
-                        } dans l'équipe pédagogique`}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Enseignants"
+                    description={`${teachers.length} ${
+                        teachers.length > 1 ? "enseignants" : "enseignant"
+                    } dans l'équipe pédagogique`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Enseignants" },
+                    ]}
+                    actions={
                             <>
                                 <SegmentedToggle
                                     value={viewMode}
@@ -177,8 +183,7 @@ export default function TeachersPage() {
                                 </RoleActionGuard>
                             </>
                         }
-                    />
-                </div>
+                />
 
                 {/* Filters */}
                 <Card padding={14}>
@@ -215,32 +220,27 @@ export default function TeachersPage() {
                     </div>
                 </Card>
 
-                {error ? <ErrorCard label="Impossible de charger les enseignants." /> : null}
-
-                {loading ? <SkeletonGrid /> : null}
+                {loading ? <PageLoading label="Chargement des enseignants…" /> : null}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les enseignants."
+                        onRetry={() => void mutateTeachers()}
+                    />
+                ) : null}
 
                 {!loading && !error && teachers.length === 0 ? (
-                    <EmptyState
+                    <PageEmpty
+                        icon="users"
                         title="Aucun enseignant trouvé"
-                        body={
+                        description={
                             activeFiltersCount > 0
                                 ? "Aucun enseignant ne correspond aux filtres actuels."
-                                : "Ajoute des enseignants pour démarrer l'affectation des matières et la saisie des notes."
+                                : "Ajoutez des enseignants pour démarrer l'affectation des matières et la saisie des notes."
                         }
-                        primaryCta={
-                            activeFiltersCount > 0 ? (
-                                <Button variant="secondary" icon="x" onClick={resetFilters}>
-                                    Réinitialiser les filtres
-                                </Button>
-                            ) : (
-                                <RoleActionGuard
-                                    allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-                                >
-                                    <Link href="/dashboard/teachers/new">
-                                        <Button icon="plus">Ajouter un enseignant</Button>
-                                    </Link>
-                                </RoleActionGuard>
-                            )
+                        actions={
+                            activeFiltersCount > 0
+                                ? [{ label: "Réinitialiser les filtres", onClick: resetFilters }]
+                                : [{ label: "Ajouter un enseignant", href: "/dashboard/teachers/new" }]
                         }
                     />
                 ) : null}
@@ -270,156 +270,125 @@ export default function TeachersPage() {
                 ) : null}
 
                 {!loading && !error && teachers.length > 0 && viewMode === "table" ? (
-                    <Card padding={0}>
-                        <div className="overflow-x-auto">
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                    <tr
-                                        style={{
-                                            background: "var(--eduflow-surface-sunken)",
-                                            textAlign: "left",
-                                        }}
-                                    >
-                                        <Th>Enseignant</Th>
-                                        <Th>Matières</Th>
-                                        <Th width={140}>Embauche</Th>
-                                        <Th width={120}>Statut</Th>
-                                        <Th width={100} center>
-                                            Actions
-                                        </Th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {teachers.map((teacher) => {
-                                        const fullName = teacher.user
-                                            ? `${teacher.user.firstName} ${teacher.user.lastName}`
-                                            : "—";
-                                        const subjects = Array.from(
-                                            new Set(
-                                                teacher.classSubjects
-                                                    ?.map((cs) => cs.subject?.name)
-                                                    .filter(Boolean) ?? []
-                                            )
-                                        );
-                                        return (
-                                            <tr
-                                                key={teacher.id}
-                                                style={{
-                                                    borderTop: "1px solid var(--eduflow-border-subtle)",
-                                                }}
-                                            >
-                                                <Td>
-                                                    <div className="flex items-center gap-2.5">
-                                                        <Avatar name={fullName} size="sm" />
-                                                        <div className="min-w-0">
-                                                            <div
-                                                                style={{
-                                                                    fontSize: 13,
-                                                                    fontWeight: 600,
-                                                                    color: "var(--eduflow-text-primary)",
-                                                                }}
-                                                            >
-                                                                {fullName}
-                                                            </div>
-                                                            {teacher.user?.email ? (
-                                                                <div
-                                                                    className="truncate"
-                                                                    style={{
-                                                                        fontSize: 11,
-                                                                        color:
-                                                                            "var(--eduflow-text-tertiary)",
-                                                                    }}
-                                                                >
-                                                                    {teacher.user.email}
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
+                    <DataTable
+                        caption="Liste des enseignants"
+                        data={teachers}
+                        getRowKey={(teacher) => teacher.id}
+                        columns={[
+                            {
+                                id: "enseignant",
+                                header: "Enseignant",
+                                cell: (teacher) => {
+                                    const fullName = teacher.user
+                                        ? `${teacher.user.firstName} ${teacher.user.lastName}`
+                                        : "—";
+                                    return (
+                                        <div className="flex items-center gap-2.5">
+                                            <Avatar name={fullName} size="sm" />
+                                            <div className="min-w-0">
+                                                <div className="text-[13px] font-semibold">{fullName}</div>
+                                                {teacher.user?.email ? (
+                                                    <div
+                                                        className="truncate text-[11px]"
+                                                        style={{ color: "var(--eduflow-text-tertiary)" }}
+                                                    >
+                                                        {teacher.user.email}
                                                     </div>
-                                                </Td>
-                                                <Td>
-                                                    {subjects.length > 0 ? (
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {subjects.slice(0, 3).map((s) => (
-                                                                <Badge
-                                                                    key={s}
-                                                                    variant="brand"
-                                                                    size="sm"
-                                                                >
-                                                                    {s}
-                                                                </Badge>
-                                                            ))}
-                                                            {subjects.length > 3 ? (
-                                                                <Badge variant="neutral" size="sm">
-                                                                    +{subjects.length - 3}
-                                                                </Badge>
-                                                            ) : null}
-                                                        </div>
-                                                    ) : (
-                                                        <span
-                                                            style={{
-                                                                fontSize: 12,
-                                                                color: "var(--eduflow-text-tertiary)",
-                                                            }}
-                                                        >
-                                                            Aucune affectation
-                                                        </span>
-                                                    )}
-                                                </Td>
-                                                <Td>
-                                                    <span
-                                                        className="eduflow-tabular"
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: "var(--eduflow-text-secondary)",
-                                                        }}
-                                                    >
-                                                        {teacher.hireDate
-                                                            ? new Date(teacher.hireDate).toLocaleDateString(
-                                                                  "fr-FR"
-                                                              )
-                                                            : "—"}
-                                                    </span>
-                                                </Td>
-                                                <Td>
-                                                    {teacher.user?.isActive ? (
-                                                        <Badge variant="success" size="sm" dot>
-                                                            Actif
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="neutral" size="sm">
-                                                            Inactif
-                                                        </Badge>
-                                                    )}
-                                                </Td>
-                                                <Td center>
-                                                    <RoleActionGuard
-                                                        allowedRoles={[
-                                                            "SUPER_ADMIN",
-                                                            "SCHOOL_ADMIN",
-                                                            "DIRECTOR",
-                                                        ]}
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            icon="x"
-                                                            onClick={(e) =>
-                                                                requestDelete(e, teacher.id, fullName)
-                                                            }
-                                                        >
-                                                            {""}
-                                                        </Button>
-                                                    </RoleActionGuard>
-                                                </Td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                },
+                            },
+                            {
+                                id: "matieres",
+                                header: "Matières",
+                                cell: (teacher) => {
+                                    const subjects = Array.from(
+                                        new Set(
+                                            teacher.classSubjects
+                                                ?.map((cs) => cs.subject?.name)
+                                                .filter(Boolean) ?? []
+                                        )
+                                    );
+                                    return subjects.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {subjects.slice(0, 3).map((s) => (
+                                                <Badge key={s} variant="brand" size="sm">
+                                                    {s}
+                                                </Badge>
+                                            ))}
+                                            {subjects.length > 3 ? (
+                                                <Badge variant="neutral" size="sm">
+                                                    +{subjects.length - 3}
+                                                </Badge>
+                                            ) : null}
+                                        </div>
+                                    ) : (
+                                        <span
+                                            className="text-xs"
+                                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                                        >
+                                            Aucune affectation
+                                        </span>
+                                    );
+                                },
+                            },
+                            {
+                                id: "embauche",
+                                header: "Embauche",
+                                cell: (teacher) => (
+                                    <span
+                                        className="eduflow-tabular text-xs"
+                                        style={{ color: "var(--eduflow-text-secondary)" }}
+                                    >
+                                        {teacher.hireDate
+                                            ? new Date(teacher.hireDate).toLocaleDateString("fr-FR")
+                                            : "—"}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "statut",
+                                header: "Statut",
+                                cell: (teacher) =>
+                                    teacher.user?.isActive ? (
+                                        <Badge variant="success" size="sm" dot>
+                                            Actif
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="neutral" size="sm">
+                                            Inactif
+                                        </Badge>
+                                    ),
+                            },
+                            {
+                                id: "actions",
+                                header: "Actions",
+                                cell: (teacher) => {
+                                    const fullName = teacher.user
+                                        ? `${teacher.user.firstName} ${teacher.user.lastName}`
+                                        : "—";
+                                    return (
+                                        <RoleActionGuard
+                                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                icon="x"
+                                                onClick={(e) => requestDelete(e, teacher.id, fullName)}
+                                            >
+                                                {""}
+                                            </Button>
+                                        </RoleActionGuard>
+                                    );
+                                },
+                            },
+                        ]}
+                    />
                 ) : null}
-            </div>
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -738,187 +707,5 @@ function FieldSearch({
                 />
             </div>
         </label>
-    );
-}
-
-function ErrorCard({ label }: { label: string }) {
-    return (
-        <Card
-            padding={14}
-            style={{
-                borderLeft: "3px solid var(--eduflow-danger-500)",
-                background: "var(--eduflow-danger-50)",
-            }}
-        >
-            <div className="flex items-center gap-3">
-                <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: 13,
-                        color: "var(--eduflow-danger-800)",
-                        fontWeight: 500,
-                    }}
-                >
-                    {label}
-                </p>
-            </div>
-        </Card>
-    );
-}
-
-function EmptyState({
-    title,
-    body,
-    primaryCta,
-}: {
-    title: string;
-    body: string;
-    primaryCta?: React.ReactNode;
-}) {
-    return (
-        <Card padding={36}>
-            <div className="flex flex-col items-center gap-3 text-center">
-                <div
-                    className="grid place-items-center"
-                    style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 16,
-                        background: "var(--brand-50)",
-                    }}
-                >
-                    <Icon name="users" size={26} color="var(--brand-700)" />
-                </div>
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                    {title}
-                </h3>
-                <p
-                    style={{
-                        fontSize: 13,
-                        color: "var(--eduflow-text-secondary)",
-                        maxWidth: 480,
-                        lineHeight: 1.55,
-                        margin: 0,
-                    }}
-                >
-                    {body}
-                </p>
-                {primaryCta ? <div className="mt-2">{primaryCta}</div> : null}
-            </div>
-        </Card>
-    );
-}
-
-function SkeletonGrid() {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 14,
-            }}
-        >
-            {Array.from({ length: 6 }).map((_, idx) => (
-                <Card key={idx} padding={16}>
-                    <div className="flex items-start gap-3">
-                        <div
-                            style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "50%",
-                                background: "var(--eduflow-surface-sunken)",
-                            }}
-                        />
-                        <div className="flex-1 space-y-2">
-                            <div
-                                style={{
-                                    height: 14,
-                                    width: "70%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    height: 10,
-                                    width: "50%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                        <div
-                            style={{
-                                height: 18,
-                                width: 70,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 9,
-                            }}
-                        />
-                        <div
-                            style={{
-                                height: 18,
-                                width: 50,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 9,
-                            }}
-                        />
-                    </div>
-                </Card>
-            ))}
-        </div>
-    );
-}
-
-function Th({
-    children,
-    width,
-    center,
-}: {
-    children: React.ReactNode;
-    width?: number;
-    center?: boolean;
-}) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                textAlign: center ? "center" : "left",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td({
-    children,
-    style,
-    center,
-}: {
-    children: React.ReactNode;
-    style?: React.CSSProperties;
-    center?: boolean;
-}) {
-    return (
-        <td
-            style={{
-                padding: "12px 16px",
-                fontSize: 13,
-                textAlign: center ? "center" : "left",
-                ...style,
-            }}
-        >
-            {children}
-        </td>
     );
 }

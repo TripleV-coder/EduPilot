@@ -6,6 +6,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
+import { PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -162,7 +163,7 @@ export default function TakeExamPage() {
 
     return (
         <PageGuard roles={["STUDENT"]}>
-            <div className="max-w-4xl mx-auto space-y-6 pb-20">
+            <PageShell>
                 {/* Header with Timer */}
                 <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border px-2">
                     <div className="flex items-center gap-4">
@@ -259,7 +260,7 @@ export default function TakeExamPage() {
                         </button>
                     ))}
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

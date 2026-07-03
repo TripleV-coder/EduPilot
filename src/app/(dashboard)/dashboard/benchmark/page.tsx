@@ -7,7 +7,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type BenchmarkIndicator = {
     id: string;
@@ -104,6 +105,11 @@ export default function BenchmarkPage() {
     );
 }
 
+const BENCHMARK_BREADCRUMBS = [
+    { label: "Analytics" },
+    { label: "Benchmark" },
+] as const;
+
 function BenchmarkPageContent() {
     const { data, error, isLoading } = useSWR<BenchmarkResponse>(
         "/api/benchmark/latest",
@@ -113,76 +119,27 @@ function BenchmarkPageContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Benchmark national · MEMP open data"
-                    sub="Chargement du dernier snapshot…"
-                    breadcrumb={["Analytics", "Benchmark"]}
+                    title="Benchmark national · MEMP open data"
+                    description="Chargement du dernier snapshot…"
+                    breadcrumbs={[...BENCHMARK_BREADCRUMBS]}
                 />
-                <Card
-                    style={{
-                        background:
-                            "linear-gradient(135deg, var(--brand-800), var(--brand-accent-600))",
-                        minHeight: 200,
-                        border: 0,
-                    }}
-                >
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, padding: 24 }}>
-                        {[0, 1, 2].map((i) => (
-                            <div key={i}>
-                                <div
-                                    className="animate-pulse"
-                                    style={{ width: "70%", height: 14, borderRadius: 4, background: "rgba(255,255,255,0.18)" }}
-                                />
-                                <div
-                                    className="animate-pulse"
-                                    style={{ width: 120, height: 64, borderRadius: 8, background: "rgba(255,255,255,0.18)", marginTop: 16 }}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-                <Card padding={24}>
-                    {[0, 1, 2, 3, 4].map((i) => (
-                        <div
-                            key={i}
-                            className="animate-pulse"
-                            style={{
-                                height: 36,
-                                borderRadius: 6,
-                                background: "var(--surface-sunken)",
-                                marginTop: i === 0 ? 0 : 10,
-                            }}
-                        />
-                    ))}
-                </Card>
-            </div>
+                <PageLoading label="Chargement du benchmark…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Benchmark national · MEMP open data"
-                    sub="Impossible de charger le benchmark"
-                    breadcrumb={["Analytics", "Benchmark"]}
+                    title="Benchmark national · MEMP open data"
+                    description="Impossible de charger le benchmark"
+                    breadcrumbs={[...BENCHMARK_BREADCRUMBS]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--danger-50)",
-                        border: "1px solid var(--danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--danger-800)", marginTop: 12 }}>
-                        Le service benchmark est momentanément indisponible. Réessayez dans
-                        quelques instants ou contactez l&apos;administrateur.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service benchmark est momentanément indisponible. Réessayez dans quelques instants ou contactez l'administrateur." />
+            </PageShell>
         );
     }
 
@@ -190,35 +147,18 @@ function BenchmarkPageContent() {
 
     if (!snapshot) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Benchmark national · MEMP open data"
-                    sub="Positionnement de votre établissement parmi les collèges du Bénin · anonymisé"
-                    breadcrumb={["Analytics", "Benchmark"]}
+                    title="Benchmark national · MEMP open data"
+                    description="Positionnement de votre établissement parmi les collèges du Bénin · anonymisé"
+                    breadcrumbs={[...BENCHMARK_BREADCRUMBS]}
                 />
-                <Card padding={40} style={{ textAlign: "center" }}>
-                    <Icon name="trophy" size={32} color="var(--brand-600)" />
-                    <h3
-                        className="eduflow-display"
-                        style={{ fontSize: 18, margin: "14px 0 0" }}
-                    >
-                        Aucun snapshot benchmark disponible
-                    </h3>
-                    <p
-                        style={{
-                            fontSize: 13,
-                            color: "var(--text-secondary)",
-                            margin: "8px auto 0",
-                            maxWidth: 460,
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        Le premier classement de votre établissement apparaîtra ici dès que
-                        les données MEMP / DEC de la période en cours auront été ingérées.
-                        L&apos;ingestion est mensuelle et automatique.
-                    </p>
-                </Card>
-            </div>
+                <PageEmpty
+                    icon="trophy"
+                    title="Aucun snapshot benchmark disponible"
+                    description="Le premier classement apparaîtra dès que les données MEMP / DEC de la période en cours auront été ingérées. L'ingestion est mensuelle et automatique."
+                />
+            </PageShell>
         );
     }
 
@@ -233,11 +173,12 @@ function BenchmarkPageContent() {
     });
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <>
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Benchmark national · MEMP open data"
-                sub={`Positionnement de votre établissement · anonymisé · snapshot du ${capturedAt}`}
-                breadcrumb={["Analytics", "Benchmark"]}
+                title="Benchmark national · MEMP open data"
+                description={`Positionnement de votre établissement · anonymisé · snapshot du ${capturedAt}`}
+                breadcrumbs={[...BENCHMARK_BREADCRUMBS]}
                 actions={
                     <Badge variant="brand" size="sm">
                         {snapshot.periodLabel ?? "Période courante"}
@@ -459,7 +400,7 @@ function BenchmarkPageContent() {
                             border: "1px solid var(--success-200)",
                         }}
                     >
-                        <SubLabel>Vos points forts · à mettre en avant</SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Vos points forts · à mettre en avant</p>
                         {strengths.length === 0 ? (
                             <p
                                 style={{
@@ -517,7 +458,7 @@ function BenchmarkPageContent() {
                             border: "1px solid var(--warning-200)",
                         }}
                     >
-                        <SubLabel>Axes d&apos;amélioration prioritaires</SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Axes d&apos;amélioration prioritaires</p>
                         {improvements.length === 0 ? (
                             <p
                                 style={{
@@ -613,6 +554,7 @@ function BenchmarkPageContent() {
                     ) : null}
                 </div>
             </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {
@@ -631,6 +573,6 @@ function BenchmarkPageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </>
     );
 }

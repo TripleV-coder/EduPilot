@@ -9,7 +9,9 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon, Input, Progress } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type JournalRow = {
     id: string;
@@ -54,6 +56,12 @@ const FR_DATETIME = new Intl.DateTimeFormat("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
 });
+
+const CAGNOTTE_DETAIL_BREADCRUMBS = [
+    { label: "Communauté" },
+    { label: "Cagnottes", href: "/dashboard/cagnotte" },
+    { label: "Détail" },
+] as const;
 
 export default function CagnotteDetailPage() {
     return (
@@ -113,48 +121,32 @@ function CagnotteDetailContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Cagnotte"
-                    sub="Chargement…"
-                    breadcrumb={["Communauté", "Cagnottes", "Détail"]}
+                    title="Cagnotte"
+                    description="Chargement du détail…"
+                    breadcrumbs={[...CAGNOTTE_DETAIL_BREADCRUMBS]}
                 />
-                <Card padding={24} style={{ minHeight: 320 }}>
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            height: 22,
-                            width: "55%",
-                            background: "var(--eduflow-neutral-200)",
-                            borderRadius: 6,
-                        }}
-                    />
-                </Card>
-            </div>
+                <PageLoading label="Chargement de la cagnotte…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Cagnotte introuvable"
-                    breadcrumb={["Communauté", "Cagnottes"]}
+                    title="Cagnotte introuvable"
+                    breadcrumbs={[
+                        { label: "Communauté" },
+                        { label: "Cagnottes", href: "/dashboard/cagnotte" },
+                    ]}
                 />
-                <Card padding={24}>
-                    <p style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                        Cette cagnotte n&apos;existe pas ou n&apos;est plus accessible.
-                    </p>
-                    <Button
-                        variant="secondary"
-                        icon="chevron"
-                        onClick={() => router.push("/dashboard/cagnotte")}
-                        style={{ marginTop: 12 }}
-                    >
-                        Retour aux cagnottes
-                    </Button>
-                </Card>
-            </div>
+                <PageError
+                    message="Cette cagnotte n'existe pas ou n'est plus accessible."
+                    onRetry={() => router.push("/dashboard/cagnotte")}
+                />
+            </PageShell>
         );
     }
 
@@ -164,11 +156,11 @@ function CagnotteDetailContent() {
     );
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-4xl pb-12">
             <PageHeader
-                greeting={data.title}
-                sub={`${data.classLabel ?? "Toute l'école"} · organisé par ${data.hostLabel}`}
-                breadcrumb={["Communauté", "Cagnottes", "Détail"]}
+                title={data.title}
+                description={`${data.classLabel ?? "Toute l'école"} · organisé par ${data.hostLabel}`}
+                breadcrumbs={[...CAGNOTTE_DETAIL_BREADCRUMBS]}
                 actions={
                     <Badge
                         variant={data.status === "OPEN" ? "brand" : "neutral"}
@@ -490,6 +482,6 @@ function CagnotteDetailContent() {
                     </Card>
                 </div>
             </div>
-        </div>
+        </PageShell>
     );
 }

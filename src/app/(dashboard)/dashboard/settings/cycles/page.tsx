@@ -7,7 +7,9 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 import { useSchool } from "@/components/providers/school-provider";
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type Cycle = {
     level: "PRIMARY" | "SECONDARY_COLLEGE" | "SECONDARY_LYCEE";
@@ -85,28 +87,21 @@ function SchoolCyclesContent() {
     const dirty = data ? !setsEqual(current, new Set(data.offeredLevels)) : false;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-4xl pb-12">
             <PageHeader
-                greeting="Cycles de l'établissement"
-                sub="Configurez les cycles offerts (Primaire, Collège, Lycée). L'application n'affiche que ce qui correspond."
-                breadcrumb={["Paramètres", "Cycles"]}
+                title="Cycles de l'établissement"
+                description="Configurez les cycles offerts (Primaire, Collège, Lycée). L'application n'affiche que ce qui correspond."
+                breadcrumbs={[
+                    { label: "Tableau de bord", href: "/dashboard" },
+                    { label: "Paramètres", href: "/dashboard/settings" },
+                    { label: "Cycles" },
+                ]}
             />
 
             {isLoading || (!data && !error) ? (
-                <div className="edu-stagger" style={{ display: "grid", gap: 12 }}>
-                    {[0, 1, 2].map((i) => (
-                        <Card key={i} padding={20} style={{ minHeight: 96 }}>
-                            <div className="animate-pulse" style={{ height: 16, width: "40%", background: "var(--eduflow-neutral-200)", borderRadius: 6 }} />
-                        </Card>
-                    ))}
-                </div>
+                <PageLoading label="Chargement des cycles…" />
             ) : error ? (
-                <Card padding={24}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--eduflow-danger-600)" }}>
-                        <Icon name="warning" size={18} />
-                        <span style={{ fontSize: 14 }}>Impossible de charger la configuration. Réessayez.</span>
-                    </div>
-                </Card>
+                <PageError message="Impossible de charger la configuration. Réessayez." onRetry={() => void mutate()} />
             ) : data ? (
                 <>
                     <div className="edu-stagger" style={{ display: "grid", gap: 12 }}>
@@ -170,7 +165,7 @@ function SchoolCyclesContent() {
                     </div>
                 </>
             ) : null}
-        </div>
+        </PageShell>
     );
 }
 

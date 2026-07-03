@@ -8,7 +8,8 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { SubLabel } from "@/components/edu-homes/_shared";
 import {
     type ClassOption,
     type ClassLevelOption,
@@ -196,7 +197,7 @@ export default function InscriptionPage() {
             permission={Permission.STUDENT_CREATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/students">
                         <Button variant="secondary" size="sm">
@@ -213,12 +214,16 @@ export default function InscriptionPage() {
                 </div>
 
                 <PageHeader
-                    greeting="Nouvelle inscription"
-                    sub={`Année ${
+                    title="Nouvelle inscription"
+                    description={`Année ${
                         years.find((y) => y.id === form.academicYearId)?.name ||
                         "à venir"
                     } · pré-inscription en ligne · vérification documents`}
-                    breadcrumb={["Élèves", "Inscriptions", "Nouveau dossier"]}
+                    breadcrumbs={[
+                        { label: "Élèves", href: "/dashboard/students" },
+                        { label: "Inscriptions" },
+                        { label: "Nouveau dossier" },
+                    ]}
                     actions={
                         <>
                             <Button
@@ -460,7 +465,7 @@ export default function InscriptionPage() {
                 </Card>
 
                 {loading_spinner_placeholder(submitting)}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

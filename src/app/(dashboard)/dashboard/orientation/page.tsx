@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,7 +333,7 @@ export default function OrientationPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
-            <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            <PageShell>
                 <PageHeader
                     title="Orientation Scolaire & Universitaire"
                     description="Gérez les vœux d'orientation, visualisez les recommandations du conseil de classe et suivez les parcours des élèves."
@@ -651,7 +651,7 @@ export default function OrientationPage() {
                         </div>
                     </Card>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

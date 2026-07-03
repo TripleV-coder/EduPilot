@@ -27,10 +27,11 @@ import {
     Card,
     Icon,
     Input,
-    Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type Book = {
     id: string;
@@ -176,12 +177,15 @@ export default function LibraryPage() {
             permission={Permission.REPORT_VIEW}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Bibliothèque & fonds"
-                        sub={`${books.length} ouvrages au catalogue · ${availableCount} disponibles à l'emprunt`}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Bibliothèque & fonds"
+                    description={`${books.length} ouvrages au catalogue · ${availableCount} disponibles à l'emprunt`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Bibliothèque" },
+                    ]}
+                    actions={
                             isAdmin ? (
                                 <Dialog open={isAddingBook} onOpenChange={setIsAddingBook}>
                                     <DialogTrigger asChild>
@@ -191,7 +195,7 @@ export default function LibraryPage() {
                                         <DialogHeader>
                                             <DialogTitle>Nouvel ouvrage</DialogTitle>
                                             <DialogDescription>
-                                                Ajoute une ressource au catalogue.
+                                                Ajoutez une ressource au catalogue.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <form onSubmit={handleAddBook} className="flex flex-col gap-3 py-4">
@@ -252,9 +256,8 @@ export default function LibraryPage() {
                                     </DialogContent>
                                 </Dialog>
                             ) : null
-                        }
-                    />
-                </div>
+                    }
+                />
 
                 <SegmentedToggle
                     value={activeTab}
@@ -268,56 +271,20 @@ export default function LibraryPage() {
                 {activeTab === "catalogue" ? (
                     <div className="flex flex-col gap-4">
                         {loadingBooks ? (
-                            <Card padding={20}>
-                                <div className="flex items-center gap-3">
-                                    <Spinner size={18} color="var(--brand-600)" />
-                                    <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                        Chargement du catalogue…
-                                    </span>
-                                </div>
-                            </Card>
+                            <PageLoading label="Chargement du catalogue…" />
                         ) : null}
-                        {errorBooks ? (
-                            <Card
-                                padding={14}
-                                style={{
-                                    borderLeft: "3px solid var(--eduflow-danger-500)",
-                                    background: "var(--eduflow-danger-50)",
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                                    <p style={{ margin: 0, fontSize: 13, color: "var(--eduflow-danger-800)" }}>
-                                        {errorBooks}
-                                    </p>
-                                </div>
-                            </Card>
-                        ) : null}
+                        {errorBooks ? <PageError message={errorBooks} onRetry={() => void fetchBooks()} /> : null}
                         {!loadingBooks && !errorBooks && books.length === 0 ? (
-                            <Card padding={36}>
-                                <div className="flex flex-col items-center gap-3 text-center">
-                                    <div
-                                        className="grid place-items-center"
-                                        style={{
-                                            width: 60,
-                                            height: 60,
-                                            borderRadius: 16,
-                                            background: "var(--brand-50)",
-                                        }}
-                                    >
-                                        <Icon name="book" size={26} color="var(--brand-700)" />
-                                    </div>
-                                    <h3
-                                        className="eduflow-display"
-                                        style={{ fontSize: 18, margin: 0 }}
-                                    >
-                                        Catalogue vide
-                                    </h3>
-                                    <p style={{ fontSize: 13, color: "var(--eduflow-text-secondary)", margin: 0 }}>
-                                        Ajoute des ouvrages pour démarrer la bibliothèque.
-                                    </p>
-                                </div>
-                            </Card>
+                            <PageEmpty
+                                icon="book"
+                                title="Catalogue vide"
+                                description="Ajoutez des ouvrages pour démarrer la bibliothèque."
+                                actions={
+                                    isAdmin
+                                        ? [{ label: "Ajouter un livre", onClick: () => setIsAddingBook(true) }]
+                                        : undefined
+                                }
+                            />
                         ) : null}
                         <div
                             className="edu-stagger"
@@ -421,157 +388,139 @@ export default function LibraryPage() {
                 ) : null}
 
                 {activeTab === "borrowings" ? (
-                    <Card padding={0}>
-                        <div
-                            className="flex items-center gap-2 border-b px-5 py-4"
-                            style={{ borderColor: "var(--eduflow-border-subtle)" }}
-                        >
-                            <Icon name="users" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Emprunts en cours
-                            </h3>
-                        </div>
+                    <div className="flex flex-col gap-4">
                         {loadingBorrowings ? (
-                            <div className="flex items-center gap-3 px-5 py-8">
-                                <Spinner size={18} color="var(--brand-600)" />
-                                <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                    Chargement des emprunts…
-                                </span>
-                            </div>
+                            <PageLoading label="Chargement des emprunts…" />
                         ) : !borrowings || borrowings.length === 0 ? (
-                            <div className="flex flex-col items-center gap-2 px-5 py-12 text-center">
-                                <Icon name="info" size={28} color="var(--eduflow-text-tertiary)" />
-                                <p
-                                    style={{
-                                        margin: 0,
-                                        fontSize: 13,
-                                        color: "var(--eduflow-text-secondary)",
-                                    }}
-                                >
-                                    Aucun emprunt en cours
-                                </p>
-                            </div>
+                            <PageEmpty
+                                icon="users"
+                                title="Aucun emprunt en cours"
+                                description="Les emprunts actifs apparaîtront ici une fois enregistrés."
+                            />
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                    <thead>
-                                        <tr style={{ background: "var(--eduflow-surface-sunken)", textAlign: "left" }}>
-                                            <Th>Livre</Th>
-                                            <Th>Élève</Th>
-                                            <Th width={140}>Emprunté le</Th>
-                                            <Th width={140}>À rendre</Th>
-                                            <Th width={120}>Statut</Th>
-                                            <Th width={110} center>
-                                                Action
-                                            </Th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {borrowings.map((rec) => {
+                            <DataTable
+                                caption="Emprunts en cours"
+                                data={borrowings}
+                                getRowKey={(rec) => rec.id}
+                                columns={[
+                                    {
+                                        id: "livre",
+                                        header: "Livre",
+                                        cell: (rec) => (
+                                            <div>
+                                                <div className="text-[13px] font-semibold">
+                                                    {rec.book.title}
+                                                </div>
+                                                {rec.book.author ? (
+                                                    <div
+                                                        className="text-[11px] italic"
+                                                        style={{ color: "var(--eduflow-text-tertiary)" }}
+                                                    >
+                                                        {rec.book.author}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        id: "eleve",
+                                        header: "Élève",
+                                        cell: (rec) => {
+                                            const studentName = `${rec.student.user.firstName} ${rec.student.user.lastName}`;
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar name={studentName} size="xs" />
+                                                    <span className="text-[13px] font-medium">
+                                                        {studentName}
+                                                    </span>
+                                                </div>
+                                            );
+                                        },
+                                    },
+                                    {
+                                        id: "emprunte",
+                                        header: "Emprunté le",
+                                        cell: (rec) => (
+                                            <span
+                                                className="eduflow-tabular text-xs"
+                                                style={{ color: "var(--eduflow-text-secondary)" }}
+                                            >
+                                                {formatDateNumeric(rec.borrowedAt)}
+                                            </span>
+                                        ),
+                                    },
+                                    {
+                                        id: "rendre",
+                                        header: "À rendre",
+                                        cell: (rec) => {
                                             const overdue =
                                                 rec.status === "BORROWED" &&
                                                 new Date(rec.dueDate).getTime() < Date.now();
-                                            const studentName = `${rec.student.user.firstName} ${rec.student.user.lastName}`;
                                             return (
-                                                <tr
-                                                    key={rec.id}
+                                                <span
+                                                    className="eduflow-tabular text-xs"
                                                     style={{
-                                                        borderTop: "1px solid var(--eduflow-border-subtle)",
+                                                        color: overdue
+                                                            ? "var(--eduflow-danger-700)"
+                                                            : "var(--eduflow-text-secondary)",
+                                                        fontWeight: overdue ? 700 : 500,
                                                     }}
                                                 >
-                                                    <Td>
-                                                        <div
-                                                            style={{
-                                                                fontSize: 13,
-                                                                fontWeight: 600,
-                                                                color: "var(--eduflow-text-primary)",
-                                                            }}
-                                                        >
-                                                            {rec.book.title}
-                                                        </div>
-                                                        {rec.book.author ? (
-                                                            <div
-                                                                style={{
-                                                                    fontSize: 11,
-                                                                    fontStyle: "italic",
-                                                                    color: "var(--eduflow-text-tertiary)",
-                                                                }}
-                                                            >
-                                                                {rec.book.author}
-                                                            </div>
-                                                        ) : null}
-                                                    </Td>
-                                                    <Td>
-                                                        <div className="flex items-center gap-2">
-                                                            <Avatar name={studentName} size="xs" />
-                                                            <span style={{ fontSize: 13, fontWeight: 500 }}>
-                                                                {studentName}
-                                                            </span>
-                                                        </div>
-                                                    </Td>
-                                                    <Td>
-                                                        <span
-                                                            className="eduflow-tabular"
-                                                            style={{
-                                                                fontSize: 12,
-                                                                color: "var(--eduflow-text-secondary)",
-                                                            }}
-                                                        >
-                                                            {formatDateNumeric(rec.borrowedAt)}
-                                                        </span>
-                                                    </Td>
-                                                    <Td>
-                                                        <span
-                                                            className="eduflow-tabular"
-                                                            style={{
-                                                                fontSize: 12,
-                                                                color: overdue
-                                                                    ? "var(--eduflow-danger-700)"
-                                                                    : "var(--eduflow-text-secondary)",
-                                                                fontWeight: overdue ? 700 : 500,
-                                                            }}
-                                                        >
-                                                            {formatDateNumeric(rec.dueDate)}
-                                                        </span>
-                                                    </Td>
-                                                    <Td>
-                                                        {rec.status === "RETURNED" ? (
-                                                            <Badge variant="success" size="sm" icon="check">
-                                                                Rendu
-                                                            </Badge>
-                                                        ) : overdue ? (
-                                                            <Badge variant="danger" size="sm" dot>
-                                                                En retard
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge variant="brand" size="sm" dot>
-                                                                En cours
-                                                            </Badge>
-                                                        )}
-                                                    </Td>
-                                                    <Td center>
-                                                        {rec.status === "BORROWED" ? (
-                                                            <Button
-                                                                variant="secondary"
-                                                                size="sm"
-                                                                loading={returningId === rec.id}
-                                                                disabled={returningId === rec.id}
-                                                                onClick={() => handleReturn(rec.id)}
-                                                            >
-                                                                Retourner
-                                                            </Button>
-                                                        ) : null}
-                                                    </Td>
-                                                </tr>
+                                                    {formatDateNumeric(rec.dueDate)}
+                                                </span>
                                             );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        },
+                                    },
+                                    {
+                                        id: "statut",
+                                        header: "Statut",
+                                        cell: (rec) => {
+                                            const overdue =
+                                                rec.status === "BORROWED" &&
+                                                new Date(rec.dueDate).getTime() < Date.now();
+                                            if (rec.status === "RETURNED") {
+                                                return (
+                                                    <Badge variant="success" size="sm" icon="check">
+                                                        Rendu
+                                                    </Badge>
+                                                );
+                                            }
+                                            if (overdue) {
+                                                return (
+                                                    <Badge variant="danger" size="sm" dot>
+                                                        En retard
+                                                    </Badge>
+                                                );
+                                            }
+                                            return (
+                                                <Badge variant="brand" size="sm" dot>
+                                                    En cours
+                                                </Badge>
+                                            );
+                                        },
+                                    },
+                                    {
+                                        id: "action",
+                                        header: "Action",
+                                        cell: (rec) =>
+                                            rec.status === "BORROWED" ? (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    loading={returningId === rec.id}
+                                                    disabled={returningId === rec.id}
+                                                    onClick={() => handleReturn(rec.id)}
+                                                >
+                                                    Retourner
+                                                </Button>
+                                            ) : null,
+                                    },
+                                ]}
+                            />
                         )}
-                    </Card>
+                    </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }
@@ -626,52 +575,3 @@ function SegmentedToggle<T extends string>({
     );
 }
 
-function Th({
-    children,
-    width,
-    center,
-}: {
-    children: React.ReactNode;
-    width?: number;
-    center?: boolean;
-}) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                textAlign: center ? "center" : "left",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td({
-    children,
-    style,
-    center,
-}: {
-    children: React.ReactNode;
-    style?: React.CSSProperties;
-    center?: boolean;
-}) {
-    return (
-        <td
-            style={{
-                padding: "12px 16px",
-                fontSize: 13,
-                textAlign: center ? "center" : "left",
-                ...style,
-            }}
-        >
-            {children}
-        </td>
-    );
-}

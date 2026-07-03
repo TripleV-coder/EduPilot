@@ -9,7 +9,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon, Input } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type AccountOption = {
     id: string;
@@ -239,11 +240,16 @@ function NewJournalEntryContent() {
     }
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-4xl pb-12">
             <PageHeader
-                greeting="Nouvelle écriture comptable"
-                sub="Partie double SYSCOHADA · l'écriture doit être équilibrée avant validation."
-                breadcrumb={["Administration", "Finance", "Comptabilité", "Nouvelle écriture"]}
+                title="Nouvelle écriture comptable"
+                description="Partie double SYSCOHADA · l'écriture doit être équilibrée avant validation."
+                breadcrumbs={[
+                    { label: "Administration" },
+                    { label: "Finance" },
+                    { label: "Comptabilité", href: "/dashboard/accounting" },
+                    { label: "Nouvelle écriture" },
+                ]}
                 actions={
                     <Badge
                         variant={balanced ? "success" : "warning"}
@@ -344,6 +350,6 @@ function NewJournalEntryContent() {
                     </div>
                 </Card>
             </form>
-        </div>
+        </PageShell>
     );
 }

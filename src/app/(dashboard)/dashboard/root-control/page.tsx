@@ -1,8 +1,9 @@
 "use client";
 
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
+import { Badge, Button, MetricCard } from "@/components/edu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
   Activity,
@@ -94,54 +95,37 @@ export default function RootDashboard() {
 
   return (
     <PageGuard roles={["SUPER_ADMIN"]}>
-      <div className="mx-auto max-w-[1600px] space-y-8 animate-in fade-in duration-700">
+      <PageShell className="max-w-[1600px]">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <PageHeader
-            title="Console d'Infrastructure"
+            title="Console d'infrastructure"
             description="État de santé global et métriques agrégées de la plateforme EduPilot."
+            breadcrumbs={[
+              { label: "Tableau de bord", href: "/dashboard" },
+              { label: "Pilotage réseau" },
+            ]}
           />
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" className="h-10">
-              <Link href="/dashboard/root-control/system-map">Ouvrir cartographie système</Link>
-            </Button>
-            <div className="flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-4 py-2">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-success" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-success">
-                Visibilité root active
-              </span>
-            </div>
+            <Link href="/dashboard/root-control/system-map">
+              <Button variant="secondary" size="sm">
+                Cartographie système
+              </Button>
+            </Link>
+            <Badge variant="success" dot>
+              Visibilité root active
+            </Badge>
           </div>
         </div>
 
+        {isLoading ? <PageLoading label="Chargement des métriques réseau…" /> : null}
+
+        {!isLoading ? (
+        <>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <InfraStatCard
-            title="Tenants Actifs"
-            value={stats?.totalSchools ?? (isLoading ? "..." : "0")}
-            subValue="Établissements déployés"
-            icon={Building2}
-            color="from-primary"
-          />
-          <InfraStatCard
-            title="Utilisateurs"
-            value={stats?.totalUsers?.toLocaleString() ?? (isLoading ? "..." : "0")}
-            subValue="Comptes actifs agrégés"
-            icon={Users}
-            color="from-success"
-          />
-          <InfraStatCard
-            title="Stockage LMS"
-            value={stats?.storageUsed ?? (isLoading ? "..." : "N/A")}
-            subValue="Mesure réellement exposée"
-            icon={HardDrive}
-            color="from-warning"
-          />
-          <InfraStatCard
-            title="Disponibilité"
-            value="N/A"
-            subValue="Monitoring SLA non instrumenté"
-            icon={Zap}
-            color="from-primary"
-          />
+          <MetricCard label="Établissements actifs" value={String(stats?.totalSchools ?? 0)} icon="school" />
+          <MetricCard label="Utilisateurs" value={stats?.totalUsers?.toLocaleString() ?? "0"} icon="users" />
+          <MetricCard label="Stockage LMS" value={stats?.storageUsed ?? "N/A"} icon="cards" />
+          <MetricCard label="Disponibilité" value="N/A" icon="sparkle" />
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -259,7 +243,9 @@ export default function RootDashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </>
+        ) : null}
+      </PageShell>
     </PageGuard>
   );
 }

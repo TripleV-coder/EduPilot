@@ -7,7 +7,8 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import { Badge, Button, Card, Input } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 const TAGS = [
     { value: "NOMINATIF", label: "Nominatif", hint: "Identité du déclarant visible par la cellule" },
@@ -92,11 +93,15 @@ function NewWellbeingReportContent() {
     };
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-3xl flex-col gap-4 pb-12">
+        <PageShell className="max-w-3xl pb-12">
             <PageHeader
-                greeting="Nouveau dossier · cellule d'écoute"
-                sub="Chiffré bout-en-bout · accès restreint au psychologue et à la direction."
-                breadcrumb={["Vie scolaire", "Bien-être", "Nouveau dossier"]}
+                title="Nouveau dossier · cellule d'écoute"
+                description="Chiffré bout-en-bout · accès restreint au psychologue et à la direction."
+                breadcrumbs={[
+                    { label: "Vie scolaire" },
+                    { label: "Bien-être", href: "/dashboard/wellbeing" },
+                    { label: "Nouveau dossier" },
+                ]}
             />
 
             <form onSubmit={handleSubmit}>
@@ -297,6 +302,6 @@ function NewWellbeingReportContent() {
                     </div>
                 </Card>
             </form>
-        </div>
+        </PageShell>
     );
 }

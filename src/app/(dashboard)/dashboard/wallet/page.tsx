@@ -8,7 +8,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type AccountKind = "BANK" | "MTN" | "MOOV" | "CELTIIS" | "CASH" | "OTHER";
 type Direction = "INFLOW" | "OUTFLOW";
@@ -200,70 +201,36 @@ function WalletPageContent() {
         [scheduledDisbursements],
     );
 
+    const walletBreadcrumbs = [
+        { label: "Finance" },
+        { label: "Wallet & banques" },
+    ] as const;
+
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Wallet école · Mobile Money & banques"
-                    sub="Chargement du solde consolidé…"
-                    breadcrumb={["Finance", "Wallet & banques"]}
+                    title="Wallet école · Mobile Money & banques"
+                    description="Chargement du solde consolidé…"
+                    breadcrumbs={[...walletBreadcrumbs]}
                 />
-                <Card
-                    padding={28}
-                    style={{
-                        background: "linear-gradient(135deg, #0F172A 0%, #1E40AF 100%)",
-                        minHeight: 220,
-                        color: "#fff",
-                        border: 0,
-                    }}
-                >
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            width: 220,
-                            height: 32,
-                            borderRadius: 6,
-                            background: "rgba(255,255,255,0.18)",
-                        }}
-                    />
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            width: 320,
-                            height: 64,
-                            borderRadius: 8,
-                            background: "rgba(255,255,255,0.18)",
-                            marginTop: 18,
-                        }}
-                    />
-                </Card>
-            </div>
+                <PageLoading label="Chargement du wallet…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Wallet école · Mobile Money & banques"
-                    sub="Impossible de charger le wallet"
-                    breadcrumb={["Finance", "Wallet & banques"]}
+                    title="Wallet école · Mobile Money & banques"
+                    description="Impossible de charger le wallet"
+                    breadcrumbs={[...walletBreadcrumbs]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service wallet est momentanément indisponible. Réessayez dans quelques
-                        instants ou contactez l&apos;administrateur.
-                    </p>
-                </Card>
-            </div>
+                <PageError
+                    message="Le service wallet est momentanément indisponible. Réessayez dans quelques instants ou contactez l'administrateur."
+                />
+            </PageShell>
         );
     }
 
@@ -272,11 +239,11 @@ function WalletPageContent() {
     const availableBalance = Math.max(0, totalBalanceN - pendingDisbursementsAmount);
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Wallet école · Mobile Money & banques"
-                sub="MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave"
-                breadcrumb={["Finance", "Wallet & banques"]}
+                title="Wallet école · Mobile Money & banques"
+                description="MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave"
+                breadcrumbs={[...walletBreadcrumbs]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
@@ -360,7 +327,7 @@ function WalletPageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </PageShell>
     );
 }
 
@@ -783,7 +750,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
 function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[] }) {
     return (
         <Card>
-            <SubLabel>Décaissements programmés · 48h</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
             <div style={{ marginTop: 10 }}>
                 {disbursements.length === 0 ? (
                     <div
@@ -848,7 +815,7 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
 function FeesSavingsCard() {
     return (
         <Card>
-            <SubLabel>Frais Mobile Money économisés · 12 mois</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Frais Mobile Money économisés · 12 mois</p>
             <div
                 className="eduflow-display tabular"
                 style={{

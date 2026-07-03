@@ -24,7 +24,8 @@ import {
     NotifItem,
     Progress,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
 import { BasePieChart } from "@/components/charts/BasePieChart";
 import { CHART_COLORS } from "@/components/charts/chart-theme";
@@ -194,11 +195,14 @@ export default function FinanceDashboardPage() {
             permission={[Permission.FINANCE_READ]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Finances"
-                    sub="Suivi des encaissements, impayés et santé financière de l'établissement."
-                    breadcrumb={["Tableau de bord", "Finances"]}
+                    title="Finances"
+                    description="Suivi des encaissements, impayés et santé financière de l'établissement."
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Finances" },
+                    ]}
                     actions={
                         <RoleActionGuard
                             allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}
@@ -244,31 +248,16 @@ export default function FinanceDashboardPage() {
                 </FilterBar>
 
                 {dashError ? (
-                    <Card padding={16} style={{ borderLeft: "3px solid var(--eduflow-danger-500)" }}>
-                        <div className="flex items-start gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <div>
-                                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                                    Erreur de chargement
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: "var(--eduflow-text-secondary)",
-                                        marginTop: 2,
-                                    }}
-                                >
-                                    Impossible de récupérer les indicateurs financiers.
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
+                    <PageError
+                        message="Impossible de récupérer les indicateurs financiers."
+                        onRetry={() => void mutateDash()}
+                    />
                 ) : null}
 
+                {dashLoading ? <PageLoading label="Chargement des indicateurs financiers…" /> : null}
+
                 {/* KPI strip */}
-                {dashLoading ? (
-                    <KpiSkeleton />
-                ) : dashData ? (
+                {!dashLoading && dashData ? (
                     <>
                         <div
                             className="edu-stagger"
@@ -307,7 +296,6 @@ export default function FinanceDashboardPage() {
                             />
                         </div>
 
-                        {/* Charts */}
                         <div
                             style={{
                                 display: "grid",
@@ -344,7 +332,12 @@ export default function FinanceDashboardPage() {
                                 </div>
                             </Card>
                             <Card padding={20}>
-                                <SubLabel>Répartition</SubLabel>
+                                <p
+                                    className="mb-3 text-xs font-semibold uppercase tracking-wide"
+                                    style={{ color: "var(--eduflow-text-tertiary)" }}
+                                >
+                                    Répartition
+                                </p>
                                 <div style={{ height: 220 }}>
                                     <BasePieChart
                                         data={collectionPieData}
@@ -733,7 +726,7 @@ export default function FinanceDashboardPage() {
                         </Card>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }
@@ -807,30 +800,6 @@ function EmptyRow({ title, body }: { title: string; body: string }) {
                 </div>
                 <div>{body}</div>
             </div>
-        </div>
-    );
-}
-
-function KpiSkeleton() {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 12,
-            }}
-        >
-            {[1, 2, 3, 4].map((i) => (
-                <Card key={i}>
-                    <div
-                        style={{
-                            height: 70,
-                            background: "var(--eduflow-surface-sunken)",
-                            borderRadius: 8,
-                        }}
-                    />
-                </Card>
-            ))}
         </div>
     );
 }

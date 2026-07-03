@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { FilePlus2, AlertCircle, ArrowRight, Zap, ListChecks } from "lucide-react";
@@ -55,7 +55,7 @@ export default function BulkInvoicePage() {
 
     return (
         <PageGuard permission={[Permission.FEE_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 max-w-3xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Facturation en Masse"
                     description="Générez des frais de scolarité pour une classe ou un niveau entier en un clic"
@@ -205,7 +205,7 @@ export default function BulkInvoicePage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

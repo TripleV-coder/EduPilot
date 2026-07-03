@@ -15,7 +15,8 @@ import {
     Input,
     Spinner,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type EventType =
     | "GENERAL"
@@ -167,44 +168,26 @@ export default function EventsPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Agenda & événements"
-                        sub={`${events.length} ${
-                            events.length > 1 ? "événements à venir" : "événement à venir"
-                        } · sorties scolaires, ateliers, compétitions`}
-                        breadcrumb={["Tableau de bord", "Agenda & événements"]}
-                    />
-                    {isDirectorOrAdmin && !isAdding ? (
-                        <Button icon="plus" onClick={() => setIsAdding(true)}>
-                            Créer un événement
-                        </Button>
-                    ) : null}
-                </div>
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Agenda & événements"
+                    description={`${events.length} ${
+                        events.length > 1 ? "événements à venir" : "événement à venir"
+                    } · sorties scolaires, ateliers, compétitions`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Agenda & événements" },
+                    ]}
+                    actions={
+                        isDirectorOrAdmin && !isAdding ? (
+                            <Button icon="plus" onClick={() => setIsAdding(true)}>
+                                Créer un événement
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} onRetry={fetchEvents} /> : null}
 
                 {successMsg ? (
                     <Card
@@ -373,44 +356,22 @@ export default function EventsPage() {
                 ) : null}
 
                 {loading ? (
-                    <Card padding={20}>
-                        <div className="flex items-center gap-3">
-                            <Spinner size={18} color="var(--brand-600)" />
-                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                Chargement des événements…
-                            </span>
-                        </div>
-                    </Card>
+                    <PageLoading label="Chargement des événements…" />
                 ) : events.length === 0 ? (
-                    <Card padding={36}>
-                        <div className="flex flex-col items-center gap-3 text-center">
-                            <div
-                                className="grid place-items-center"
-                                style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: 16,
-                                    background: "var(--brand-50)",
-                                }}
-                            >
-                                <Icon name="calendar" size={26} color="var(--brand-700)" />
-                            </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Aucun événement programmé
-                            </h3>
-                            <p
-                                style={{
-                                    fontSize: 13,
-                                    color: "var(--eduflow-text-secondary)",
-                                    margin: 0,
-                                }}
-                            >
-                                {isDirectorOrAdmin
-                                    ? "Crée le premier événement pour mobiliser la communauté scolaire."
-                                    : "Les événements à venir s'afficheront ici."}
-                            </p>
-                        </div>
-                    </Card>
+                    <PageEmpty
+                        icon="calendar"
+                        title="Aucun événement programmé"
+                        description={
+                            isDirectorOrAdmin
+                                ? "Créez le premier événement pour mobiliser la communauté scolaire."
+                                : "Les événements à venir s'afficheront ici."
+                        }
+                        actions={
+                            isDirectorOrAdmin
+                                ? [{ label: "Créer un événement", onClick: () => setIsAdding(true) }]
+                                : undefined
+                        }
+                    />
                 ) : (
                     <div
                         style={{
@@ -424,7 +385,7 @@ export default function EventsPage() {
                         ))}
                     </div>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

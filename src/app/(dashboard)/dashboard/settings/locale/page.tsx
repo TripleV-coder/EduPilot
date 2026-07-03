@@ -8,7 +8,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 
 import { Button, Card, Icon } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 interface LocalePrefs {
     language: string;
@@ -107,10 +107,14 @@ export default function LocaleSettingsPage() {
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-            <div className="eduflow-scope mx-auto flex max-w-4xl flex-col gap-6 pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <PageHeader
-                    greeting="Langue & région"
-                    sub="Configure la langue de l'interface, le fuseau horaire et le format des dates."
+                    title="Langue & région"
+                    description="Configure la langue de l'interface, le fuseau horaire et le format des dates."
+                    breadcrumbs={[
+                        { label: "Paramètres", href: "/dashboard/settings" },
+                        { label: "Langue & région" },
+                    ]}
                 />
 
                 {saved ? (
@@ -217,7 +221,7 @@ export default function LocaleSettingsPage() {
                         </Button>
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

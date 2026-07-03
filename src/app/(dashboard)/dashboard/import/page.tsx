@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -216,7 +216,7 @@ function ImportWizardPage() {
         : "Importer des données · CSV";
 
     return (
-        <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+        <PageShell className="max-w-[1280px] pb-12">
             <PageHeader
                 title={titleByType}
                 description={subtitle}
@@ -504,7 +504,7 @@ function ImportWizardPage() {
                     typeLabel={selectedType ? IMPORT_TYPE_LABELS[selectedType] : "enregistrements"}
                 />
             )}
-        </div>
+        </PageShell>
     );
 }
 

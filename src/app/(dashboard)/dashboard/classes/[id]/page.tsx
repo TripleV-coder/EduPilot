@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,26 +153,32 @@ export default function ClassDetailsPage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
+            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+                <PageShell>
+                    <PageLoading label="Chargement de la classe…" />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     if (!classData && !loading) {
         return (
-            <div className="text-center py-20">
-                <h2 className="text-xl font-bold text-destructive">Classe introuvable</h2>
-                <Link href="/dashboard/classes" className="text-primary mt-4 inline-block hover:underline">
-                    Retour aux classes
-                </Link>
-            </div>
+            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+                <PageShell>
+                    <PageEmpty
+                        icon="school"
+                        title="Classe introuvable"
+                        description="Cette classe n'existe pas ou a été supprimée."
+                        actions={[{ label: "Retour aux classes", href: "/dashboard/classes" }]}
+                    />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     return (
         <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title={`Classe : ${classData?.name}`}
                     description={`Niveau : ${classData?.classLevel?.name} | ${classData?._count?.enrollments || 0} Élèves inscrits`}
@@ -525,7 +532,7 @@ export default function ClassDetailsPage() {
                         )}
                     </TabsContent>
                 </Tabs>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }
