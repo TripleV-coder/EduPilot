@@ -496,6 +496,24 @@ export function getRolePermissions(roleOrRoles: UserRole | UserRole[]): Permissi
 }
 
 /**
+ * Expansion centralisée des rôles pour les vérifications `allowedRoles`.
+ *
+ * Un NETWORK_ADMIN (patron d'un groupe d'écoles) est autorisé partout où un
+ * SCHOOL_ADMIN l'est — mais son périmètre de DONNÉES reste borné à son réseau
+ * par le cloisonnement (getAccessibleSchoolIds). Ne JAMAIS étendre vers
+ * SUPER_ADMIN : un écran plateforme réservé ["SUPER_ADMIN"] reste fermé.
+ */
+export function roleSatisfies(
+  role: string | undefined | null,
+  allowedRoles: readonly string[]
+): boolean {
+  if (!role) return false;
+  if (allowedRoles.includes(role)) return true;
+  if (role === "NETWORK_ADMIN" && allowedRoles.includes("SCHOOL_ADMIN")) return true;
+  return false;
+}
+
+/**
  * Check if user can perform an action on a resource
  */
 export function canPerformAction(
