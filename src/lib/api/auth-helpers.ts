@@ -164,6 +164,7 @@ export function canManageUser(
   // Hiérarchie de rôles
   const roleHierarchy: Record<UserRole, number> = {
     SUPER_ADMIN: 100,
+    NETWORK_ADMIN: 90,
     SCHOOL_ADMIN: 80,
     DIRECTOR: 80,
     ACCOUNTANT: 60,
