@@ -7,8 +7,9 @@ import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 
-import { Button, Card, Icon } from "@/components/edu";
+import { Button, Card, Icon, SaveStatus } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { useAutoSave } from "@/hooks/use-autosave";
 
 interface LocalePrefs {
     language: string;
@@ -66,44 +67,50 @@ export default function LocaleSettingsPage() {
     const [timezone, setTimezone] = useState(defaults.timezone);
     const [dateformat, setDateformat] = useState(defaults.dateformat);
     const [currency, setCurrency] = useState(defaults.currency);
-    const [saved, setSaved] = useState(false);
-    const [saving, setSaving] = useState(false);
+    // Passe à true une fois les préférences serveur appliquées : sert de garde
+    // pour n'activer l'auto-save qu'après hydratation (pas de save parasite).
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-        const prefs = profileData?.preferences?.locale;
+        if (!profileData) return;
+        const prefs = profileData.preferences?.locale;
         if (prefs) {
-            queueMicrotask(() => {
-                if (prefs.language) setLanguage(prefs.language);
-                if (prefs.timezone) setTimezone(prefs.timezone);
-                if (prefs.dateformat) setDateformat(prefs.dateformat);
-                if (prefs.currency) setCurrency(prefs.currency);
-            });
+            if (prefs.language) setLanguage(prefs.language);
+            if (prefs.timezone) setTimezone(prefs.timezone);
+            if (prefs.dateformat) setDateformat(prefs.dateformat);
+            if (prefs.currency) setCurrency(prefs.currency);
         }
+        setHydrated(true);
     }, [profileData]);
 
-    const handleSave = async () => {
-        setSaving(true);
-        const localePrefs: LocalePrefs = {
-            language,
-            timezone,
-            dateformat,
-            currency,
-        };
-        try {
+    const localePrefs: LocalePrefs = { language, timezone, dateformat, currency };
+
+    const {
+        status: saveStatus,
+        lastSavedAt,
+        error: saveError,
+        isOnline,
+        saveNow,
+    } = useAutoSave({
+        data: localePrefs,
+        enabled: hydrated,
+        onSave: async (prefs) => {
             const currentPrefs = profileData?.preferences || {};
-            const updatedPrefs = { ...currentPrefs, locale: localePrefs };
-            await fetch("/api/user/profile", {
+            const updatedPrefs = { ...currentPrefs, locale: prefs };
+            const res = await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ preferences: updatedPrefs }),
             });
-            mutate({ ...(profileData || {}), preferences: updatedPrefs }, false);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2200);
-        } finally {
-            setSaving(false);
-        }
-    };
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.error || "Erreur lors de la sauvegarde");
+            }
+            await mutate({ ...(profileData || {}), preferences: updatedPrefs }, false);
+        },
+    });
+
+    const saving = saveStatus === "saving";
 
     return (
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
@@ -116,30 +123,6 @@ export default function LocaleSettingsPage() {
                         { label: "Langue & région" },
                     ]}
                 />
-
-                {saved ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
-                            background: "var(--eduflow-success-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="success" size={18} color="var(--eduflow-success-700)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-success-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Préférences enregistrées avec succès.
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
 
                 <Card padding={0}>
                     <div
@@ -206,18 +189,25 @@ export default function LocaleSettingsPage() {
                         />
                     </div>
                     <div
-                        className="flex justify-end border-t px-5 py-4"
+                        className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4"
                         style={{
                             borderColor: "var(--eduflow-border-subtle)",
                             background: "var(--eduflow-surface-sunken)",
                         }}
                     >
+                        <SaveStatus
+                            status={saveStatus}
+                            lastSavedAt={lastSavedAt}
+                            error={saveError}
+                            isOnline={isOnline}
+                            onRetry={saveNow}
+                        />
                         <Button
                             icon={saving ? undefined : "check"}
                             loading={saving}
-                            onClick={handleSave}
+                            onClick={saveNow}
                         >
-                            Enregistrer les préférences
+                            {saving ? "Enregistrement…" : "Enregistrer maintenant"}
                         </Button>
                     </div>
                 </Card>
