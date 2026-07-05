@@ -15,7 +15,7 @@ import {
   GraduationCap, ArrowLeft, Award, Download, Loader2, 
   BookOpen, CalendarCheck, Users, BarChart3, BrainCircuit, 
   Edit, ShieldAlert, HeartPulse, DollarSign, Activity, FileText,
-  UserCircle
+  UserCircle, CreditCard
 } from "lucide-react";
 import { StudentGradesTab } from "@/components/students/student-grades-tab";
 import { StudentAttendanceTab } from "@/components/students/student-attendance-tab";
@@ -149,6 +149,19 @@ export default function StudentDetailPage() {
             <div className="flex items-center gap-3">
               <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
                 {student?.id ? <ParentLinkCodeDialog studentId={student.id} /> : null}
+              </RoleActionGuard>
+              <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                {student?.id ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[11px] font-bold uppercase gap-2"
+                    onClick={() => window.open(`/dashboard/cards/print?studentId=${student.id}`, "_blank")}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    Carte scolaire
+                  </Button>
+                ) : null}
               </RoleActionGuard>
               <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
                 <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">

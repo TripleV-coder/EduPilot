@@ -11,6 +11,11 @@ export function makeBadgeCode(): string {
     return `BDG-${nanoid(16)}`;
 }
 
+/** Construit le QR encodant le matricule, reconnu par le scanner d'accès. */
+export function makeMatriculeQr(matricule: string): string {
+    return `${MATRICULE_QR_PREFIX}${matricule.trim()}`;
+}
+
 /**
  * Extrait le matricule d'une valeur scannée. Accepte le QR matricule
  * (`EDUPILOT:STUDENT:<matricule>`) ou un matricule brut.

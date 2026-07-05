@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { BookOpen, Users, AlertCircle, CheckCircle, Plus, Trash2, GraduationCap, Clock } from "lucide-react";
+import { BookOpen, Users, AlertCircle, CheckCircle, Plus, Trash2, GraduationCap, Clock, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useSWR from "swr";
@@ -187,6 +187,17 @@ export default function ClassDetailsPage() {
                         { label: "Classes", href: "/dashboard/classes" },
                         { label: classData?.name || "Détails" },
                     ]}
+                    actions={
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
+                        >
+                            <CreditCard className="h-4 w-4" />
+                            Cartes scolaires
+                        </Button>
+                    }
                 />
 
                 {error && (
