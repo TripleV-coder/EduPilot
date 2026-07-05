@@ -41,6 +41,9 @@ export type { NotifItemProps, NotifItemAction } from "./notif-item";
 export { Progress, RingProgress } from "./progress";
 export type { ProgressProps, RingProgressProps } from "./progress";
 
+export { SaveStatus } from "./save-status";
+export type { SaveStatusProps } from "./save-status";
+
 export { Sparkline } from "./sparkline";
 export type { SparklineProps } from "./sparkline";
 

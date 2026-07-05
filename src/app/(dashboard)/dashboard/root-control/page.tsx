@@ -111,6 +111,11 @@ export default function RootDashboard() {
                 Cartographie système
               </Button>
             </Link>
+            <Link href="/dashboard/root-control/ux-analytics">
+              <Button variant="secondary" size="sm">
+                Analytics produit
+              </Button>
+            </Link>
             <Badge variant="success" dot>
               Visibilité root active
             </Badge>

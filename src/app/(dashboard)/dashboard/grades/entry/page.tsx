@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -8,6 +8,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { t } from "@/lib/i18n";
+import { useAutoSave } from "@/hooks/use-autosave";
 
 import {
     Avatar,
@@ -45,6 +46,23 @@ import {
 // Extrait de dashboard/grades/entry/page.tsx (1218 lignes) lors de la
 // découpe (P3.1, 2026-06-11). Logique inchangée.
 
+// Brouillon local : la saisie est un flux créationnel (POST évaluation +
+// POST notes). On NE sauvegarde PAS automatiquement vers le serveur (créerait
+// des doublons) ; on persiste le travail en cours dans localStorage pour ne
+// jamais le perdre. La publication reste explicite.
+interface GradeDraft {
+    grades: Record<string, GradeCell>;
+    title: string;
+    date: string;
+    typeId: string;
+    periodId: string;
+    maxGrade: number;
+    coefficient: number;
+    savedAt: string;
+}
+
+const DRAFT_PREFIX = "edupilot.grade-draft";
+
 export default function GradesEntryPage() {
     const { isFocusMode } = useSidebar();
 
@@ -73,6 +91,14 @@ export default function GradesEntryPage() {
     const [generatingComments, setGeneratingComments] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    const [pendingDraft, setPendingDraft] = useState<GradeDraft | null>(null);
+    const [draftDismissed, setDraftDismissed] = useState(false);
+
+    const draftKey =
+        selectedClass && selectedSubject
+            ? `${DRAFT_PREFIX}:${selectedClass}:${selectedSubject}`
+            : null;
 
     useEffect(() => {
         const fetchInitial = async () => {
@@ -258,6 +284,7 @@ export default function GradesEntryPage() {
                     );
                 }
             }
+            if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
             setSuccess(true);
             window.scrollTo(0, 0);
         } catch (err) {
@@ -289,6 +316,56 @@ export default function GradesEntryPage() {
             }).length,
         [grades, initialGrades]
     );
+
+    // Auto-save du brouillon en localStorage (jamais vers le serveur).
+    const draftSnapshot = { grades, title, date, typeId, periodId, maxGrade, coefficient };
+    const { status: draftStatus, lastSavedAt: draftSavedAt } = useAutoSave({
+        data: draftSnapshot,
+        enabled: !!draftKey && students.length > 0 && !pendingDraft,
+        delay: 800,
+        onSave: async (snap) => {
+            if (!draftKey || typeof window === "undefined") return;
+            if (dirtyCount === 0) {
+                localStorage.removeItem(draftKey);
+                return;
+            }
+            const payload: GradeDraft = { ...snap, savedAt: new Date().toISOString() };
+            localStorage.setItem(draftKey, JSON.stringify(payload));
+        },
+    });
+
+    // Détection d'un brouillon existant à la sélection classe+matière.
+    useEffect(() => {
+        if (!draftKey || students.length === 0 || draftDismissed || typeof window === "undefined") {
+            return;
+        }
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as GradeDraft;
+            if (parsed && parsed.grades) setPendingDraft(parsed);
+        } catch {
+            // brouillon corrompu : on l'ignore
+        }
+    }, [draftKey, students.length, draftDismissed]);
+
+    const applyDraft = useCallback(() => {
+        if (!pendingDraft) return;
+        setGrades(pendingDraft.grades);
+        setTitle(pendingDraft.title);
+        setDate(pendingDraft.date);
+        setTypeId(pendingDraft.typeId);
+        setPeriodId(pendingDraft.periodId);
+        setMaxGrade(pendingDraft.maxGrade);
+        setCoefficient(pendingDraft.coefficient);
+        setPendingDraft(null);
+    }, [pendingDraft]);
+
+    const discardDraft = useCallback(() => {
+        if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
+        setPendingDraft(null);
+        setDraftDismissed(true);
+    }, [draftKey]);
 
     if (loading) {
         return (
@@ -427,6 +504,45 @@ export default function GradesEntryPage() {
                             >
                                 {error}
                             </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {pendingDraft ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--brand-500)",
+                            background: "var(--brand-50)",
+                        }}
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <Icon name="info" size={18} color="var(--brand-700)" />
+                                <p
+                                    style={{
+                                        margin: 0,
+                                        fontSize: 13,
+                                        color: "var(--brand-800)",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    Brouillon retrouvé (
+                                    {new Date(pendingDraft.savedAt).toLocaleString("fr-FR", {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                    })}
+                                    ). Reprendre la saisie&nbsp;?
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" size="sm" onClick={discardDraft}>
+                                    Ignorer
+                                </Button>
+                                <Button size="sm" icon="check" onClick={applyDraft}>
+                                    Reprendre
+                                </Button>
+                            </div>
                         </div>
                     </Card>
                 ) : null}
@@ -575,6 +691,33 @@ export default function GradesEntryPage() {
                                         Coefficient {coefficient} · {completedCount} / {students.length}{" "}
                                         saisie{completedCount > 1 ? "s" : ""}
                                     </p>
+                                    {draftStatus === "saving" ? (
+                                        <p
+                                            aria-live="polite"
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            Brouillon en cours d&apos;enregistrement…
+                                        </p>
+                                    ) : draftSavedAt ? (
+                                        <p
+                                            aria-live="polite"
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            Brouillon enregistré à{" "}
+                                            {draftSavedAt.toLocaleTimeString("fr-FR", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </p>
+                                    ) : null}
                                 </div>
                                 {!isFocusMode && students.length > 0 ? (
                                     <Button

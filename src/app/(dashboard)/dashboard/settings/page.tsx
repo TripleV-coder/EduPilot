@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 interface SettingItem {
     icon: IconName;
@@ -139,10 +140,9 @@ export default function SettingsPage() {
 
     const isGlobalSuperAdmin =
         session?.user?.role === "SUPER_ADMIN" && !session?.user?.schoolId;
+    // NETWORK_ADMIN hérite de la vue Admin de SCHOOL_ADMIN via roleSatisfies.
     const isAdmin =
-        (session?.user?.role === "SUPER_ADMIN" ||
-            session?.user?.role === "SCHOOL_ADMIN" ||
-            session?.user?.role === "DIRECTOR") &&
+        roleSatisfies(session?.user?.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]) &&
         !isGlobalSuperAdmin;
 
     const personalFiltered = useMemo(() => filterByQuery(PERSONAL_SETTINGS, search), [search]);

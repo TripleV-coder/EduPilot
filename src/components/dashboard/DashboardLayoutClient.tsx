@@ -49,6 +49,7 @@ export function DashboardLayoutClient({
 }) {
     const pathname = usePathname();
     const mainRef = useRef<HTMLElement | null>(null);
+    const isFirstRouteRef = useRef(true);
     const hasLoadedPreferencesRef = useRef(false);
 
     const [isOpen, setIsOpen] = useState(readSidebarOpen);
@@ -191,6 +192,14 @@ export function DashboardLayoutClient({
 
     useEffect(() => {
         setIsMobileOpen(false);
+        // Accessibilité : au changement de route (hors montage initial), ramener
+        // le focus sur le contenu principal pour que les lecteurs d'écran
+        // annoncent la nouvelle page. preventScroll évite tout saut visuel.
+        if (isFirstRouteRef.current) {
+            isFirstRouteRef.current = false;
+            return;
+        }
+        mainRef.current?.focus({ preventScroll: true });
     }, [pathname]);
 
     return (
@@ -202,19 +211,19 @@ export function DashboardLayoutClient({
                     isFocusMode && "ui-focus-mode"
                 )}
             >
-                <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden print:hidden">
                     <div className="absolute -top-48 left-[18%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,_hsl(var(--primary)/0.12)_0%,_transparent_70%)] blur-3xl" />
                     <div className="absolute bottom-[-18rem] right-[-8rem] h-[34rem] w-[34rem] rounded-full bg-[radial-gradient(circle,_hsl(var(--secondary)/0.10)_0%,_transparent_72%)] blur-3xl" />
                 </div>
-                {!isFocusMode && sidebar}
+                {!isFocusMode && <div className="contents print:hidden">{sidebar}</div>}
                 <div
                     className={cn(
-                        "flex-1 flex flex-col min-h-screen w-full transition-[margin-left] duration-300 relative bg-muted/10",
+                        "flex-1 flex flex-col min-h-screen w-full transition-[margin-left] duration-300 relative bg-muted/10 print:ml-0 print:bg-white",
                         !isFocusMode && (isOpen ? "md:ml-[220px]" : "md:ml-[56px]"),
                         isFocusMode && "md:ml-0"
                     )}
                 >
-                    {!isFocusMode && header}
+                    {!isFocusMode && <div className="contents print:hidden">{header}</div>}
                         {isFocusMode && (
                             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top-4 fade-in duration-500">
                                 <button
@@ -230,17 +239,22 @@ export function DashboardLayoutClient({
                             ref={mainRef}
                             id="main-content"
                             role="main"
+                            tabIndex={-1}
                             aria-label="Contenu principal"
                             className={cn(
-                                "dashboard-motion flex-1 overflow-y-auto w-full custom-scrollbar",
+                                "dashboard-motion flex-1 overflow-y-auto w-full custom-scrollbar focus:outline-none print:overflow-visible print:p-0",
                                 density === "dense" ? "p-3 md:p-4" : "p-4 md:p-8"
                             )}
                         >
                             {children}
                         </main>
-                        <DashboardFooter />
+                        <div className="contents print:hidden">
+                            <DashboardFooter />
+                        </div>
                 </div>
-                <OnboardingChecklist />
+                <div className="contents print:hidden">
+                    <OnboardingChecklist />
+                </div>
             </div>
         </SidebarContext.Provider>
     );
