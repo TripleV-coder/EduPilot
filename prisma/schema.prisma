@@ -145,6 +145,7 @@ model School {
   staffAttendances       StaffAttendance[]
   leaveRequests          LeaveRequest[]
   payrollEntries         PayrollEntry[]
+  documentSignatures     DocumentSignature[]
 
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
@@ -284,6 +285,7 @@ model User {
   leaveDecisions            LeaveRequest[]              @relation("LeaveRequestDecider")
   payrollEntries            PayrollEntry[]              @relation("PayrollUser")
   payrollEntriesCreated     PayrollEntry[]              @relation("PayrollCreator")
+  documentSignatures        DocumentSignature[]         @relation("DocumentSigner")
   school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
@@ -3098,4 +3100,43 @@ model PayrollEntry {
   @@unique([userId, period])
   @@index([schoolId, period])
   @@map("payroll_entries")
+}
+
+// ─── Signature électronique (autorisations, bulletins, contrats) ───────────
+
+enum SignableDocType {
+  REPORT_CARD // bulletin
+  CERTIFICATE // certificat / attestation
+  PARENT_AUTHORIZATION // autorisation parentale (sortie, droit à l'image…)
+  STAFF_CONTRACT // contrat / document du personnel
+}
+
+enum SignatureMethod {
+  DRAWN // tracé manuscrit (canvas)
+  TYPED // nom saisi
+  OTP // code à usage unique (SMS/email)
+}
+
+/// Signature électronique simple à valeur probante légère (pas de PKI eIDAS).
+/// `contentHash` scelle le document signé ; toute altération devient détectable.
+model DocumentSignature {
+  id            String          @id @default(cuid())
+  schoolId      String
+  docType       SignableDocType
+  docId         String
+  signerId      String?
+  signerName    String // nom du signataire au moment de la signature (traçabilité)
+  signerRole    String
+  method        SignatureMethod
+  signatureData String? // data URL du tracé (DRAWN) ou texte saisi (TYPED)
+  contentHash   String // empreinte SHA-256 du document signé
+  ipHash        String? // IP hachée (RGPD : jamais l'IP en clair)
+  meta          Json?
+  signedAt      DateTime        @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  signer User?  @relation("DocumentSigner", fields: [signerId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, docType, docId])
+  @@map("document_signatures")
 }

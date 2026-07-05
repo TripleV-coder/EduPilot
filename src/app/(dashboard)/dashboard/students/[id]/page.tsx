@@ -2,7 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import { SignatureBlock } from "@/components/signatures/signature-block";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
@@ -71,6 +73,10 @@ export default function StudentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [fromListTransition, setFromListTransition] = useState(false);
+  const { data: sessionData } = useSession();
+  const canSignBulletin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "NETWORK_ADMIN"].includes(
+    sessionData?.user?.role ?? "",
+  );
 
   const fetchStudent = async () => {
     setLoading(true);
@@ -273,6 +279,17 @@ export default function StudentDetailPage() {
                     </Card>
                   )}
                   <StudentGradesTab studentId={id} />
+                  <SignatureBlock
+                    docType="REPORT_CARD"
+                    docId={id}
+                    payload={{
+                      studentId: id,
+                      class: currentEnrollment?.class?.name ?? null,
+                      year: currentEnrollment?.academicYear?.name ?? null,
+                    }}
+                    canSign={canSignBulletin}
+                    title="Signature du bulletin"
+                  />
                 </div>
               </TabsContent>
 
