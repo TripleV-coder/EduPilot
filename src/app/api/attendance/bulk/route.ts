@@ -5,6 +5,7 @@ import { invalidateByPath } from "@/lib/api/cache-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * API Endpoint for bulk attendance recording
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
     // Only teachers and admins can record attendance
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

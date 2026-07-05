@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user || !["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+  if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"])) {
     return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
   }
 

@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { translateEntity } from "@/lib/utils/entity-translator";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/audit-logs/export
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Only SUPER_ADMIN and SCHOOL_ADMIN can export audit logs
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -31,8 +32,10 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.AuditLogWhereInput = {};
 
-    // For SCHOOL_ADMIN, only show logs for their school (Inviolable isolation)
-    if (session.user.role === "SCHOOL_ADMIN") {
+    // For SCHOOL_ADMIN (et NETWORK_ADMIN, qui hérite de ses droits), only show logs
+    // for their school — sinon un NETWORK_ADMIN exporterait les logs de toutes les
+    // écoles. Seul SUPER_ADMIN reste global (isolation inviolable).
+    if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"])) {
       if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }

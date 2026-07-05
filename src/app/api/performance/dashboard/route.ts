@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { checkPerformanceThresholds, sendPerformanceAlerts, type PerformanceMetrics } from "@/lib/performance/alerts";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/performance/dashboard
@@ -37,7 +38,7 @@ import { checkPerformanceThresholds, sendPerformanceAlerts, type PerformanceMetr
 export const GET = createApiHandler(
   async (request, { session }) => {
     // Only SUPER_ADMIN and SCHOOL_ADMIN can access performance dashboard
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

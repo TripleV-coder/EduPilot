@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { aiService } from "@/lib/ai/ai-service";
 import { SubjectGroup } from "@prisma/client";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const SUBJECT_MAPPING: Record<string, SubjectGroup> = {
     "mathématiques": "SCIENTIFIQUE",
@@ -31,7 +32,7 @@ const SUBJECT_MAPPING: Record<string, SubjectGroup> = {
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role)) {
+        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 

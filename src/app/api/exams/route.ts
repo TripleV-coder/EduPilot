@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

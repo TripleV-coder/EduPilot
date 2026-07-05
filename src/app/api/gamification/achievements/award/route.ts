@@ -3,10 +3,11 @@ import { auth } from "@/lib/auth";
 import { gamificationService } from "@/lib/gamification/service";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function POST(req: NextRequest) {
     const session = await auth();
-    if (!session?.user || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

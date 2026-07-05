@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/finance/fees
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
         const userRole = session.user.role;
         const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"];
 
-        if (!allowedRoles.includes(userRole)) {
+        if (!roleSatisfies(userRole, allowedRoles)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
         }
 
         const userRole = authSession.user.role;
-        if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(userRole)) {
+        if (!roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"])) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

@@ -8,6 +8,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateHomeworkSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -134,7 +135,7 @@ export async function PATCH(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");
@@ -228,7 +229,7 @@ export async function DELETE(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");

@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { generateImportPassword } from "@/lib/import/initial-password";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const categorySchema = z.object({
     name: z.string().min(1).optional(),
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const params = await props.params;
     try {
         const session = await auth();
-        if (!session || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!session || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -59,7 +60,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     const params = await props.params;
     try {
         const session = await auth();
-        if (!session || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!session || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

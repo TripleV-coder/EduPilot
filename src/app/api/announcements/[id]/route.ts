@@ -8,6 +8,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateAnnouncementSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -110,7 +111,7 @@ export async function PATCH(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -202,7 +203,7 @@ export async function DELETE(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

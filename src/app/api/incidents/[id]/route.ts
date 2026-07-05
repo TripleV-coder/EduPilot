@@ -7,6 +7,7 @@ import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytic
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateIncidentSchema = z.object({
   isResolved: z.boolean().optional(),
@@ -79,7 +80,7 @@ export async function PATCH(
     const { id } = await params;
     const session = await auth();
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "incident", id, "Incident non trouvé");

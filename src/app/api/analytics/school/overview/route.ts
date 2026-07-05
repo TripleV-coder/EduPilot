@@ -7,6 +7,7 @@ import {
 } from "@/lib/analytics/helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
   const scoredAnalytics = analytics
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role as string)) {
+    if (!session?.user || !roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

@@ -6,6 +6,7 @@ import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const paymentUpdateSchema = z.object({
     amount: z.number().optional().or(z.preprocess(v => Number(v), z.number())),
@@ -30,7 +31,7 @@ export async function PUT(
         const validatedData = paymentUpdateSchema.parse(body);
 
         // Check permissions
-        if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"].includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"])) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -125,7 +126,7 @@ export async function DELETE(
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"].includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"])) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

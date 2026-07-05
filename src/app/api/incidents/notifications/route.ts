@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const VALID_NOTIFICATION_TYPES = new Set<string>(Object.values(NotificationType));
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins, directors, and teachers can create incident notifications
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

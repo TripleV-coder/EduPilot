@@ -11,7 +11,7 @@ import { sanitizeRequestBody, sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { checkStudentQuota, checkTeacherQuota } from "@/lib/saas/quotas";
-import { canCreateRole } from "@/lib/rbac/permissions";
+import { canCreateRole, roleSatisfies } from "@/lib/rbac/permissions";
 import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createSchoolWithDefaults } from "@/lib/schools/provisioning";
@@ -27,10 +27,8 @@ export const GET = createApiHandler(
     // Teachers + accountants can search (for messaging/recipient pickers) but only with a non-empty search query.
     // Students/parents cannot enumerate users at all.
     const callerRole = session.user.role;
-    const isManager =
-      callerRole === "SUPER_ADMIN" ||
-      callerRole === "SCHOOL_ADMIN" ||
-      callerRole === "DIRECTOR";
+    // NETWORK_ADMIN hérite des droits de gestion de SCHOOL_ADMIN via roleSatisfies.
+    const isManager = roleSatisfies(callerRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     const canSearch = isManager || callerRole === "TEACHER" || callerRole === "ACCOUNTANT";
 
     if (!canSearch) {

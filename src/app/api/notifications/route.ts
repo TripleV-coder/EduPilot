@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { NotificationWhereFilter } from "@/lib/types/api";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createNotificationSchema = z.object({
   userId: z.string().cuid(),
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
 
     // Only admins can create notifications for others
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

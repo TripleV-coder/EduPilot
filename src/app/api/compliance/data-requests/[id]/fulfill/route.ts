@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { exportUserData } from "@/lib/security/rgpd";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * POST /api/compliance/data-requests/[id]/fulfill
@@ -18,7 +19,7 @@ export async function POST(
         const session = await auth();
 
         const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-        if (!session?.user || !allowedRoles.includes(session.user.role)) {
+        if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
@@ -31,7 +32,7 @@ export async function POST(
             return NextResponse.json({ error: "Demande non trouvée" }, { status: 404 });
         }
 
-        if (session.user.role === "SCHOOL_ADMIN") {
+        if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"])) {
             if (!getActiveSchoolId(session)) {
                 return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
             }

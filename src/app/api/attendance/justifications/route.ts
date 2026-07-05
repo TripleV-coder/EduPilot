@@ -7,6 +7,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/attendance/justifications
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Impossible de justifier un élève marqué comme présent." }, { status: 400 });
     }
 
-    if (currentAttendance?.status === "EXCUSED" && !["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+    if (currentAttendance?.status === "EXCUSED" && !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"])) {
       return NextResponse.json({ error: "Cette absence est déjà justifiée." }, { status: 400 });
     }
 

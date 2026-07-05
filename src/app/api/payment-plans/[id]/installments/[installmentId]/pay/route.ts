@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const payInstallmentSchema = z.object({
   method: z.enum(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER", "CHECK", "OTHER"]),
@@ -23,7 +24,7 @@ export async function POST(
   try {
     const { id, installmentId } = await params;
     const session = await auth();
-    if (!session?.user || !["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "installmentPayment", installmentId, "Mensualité non trouvée");

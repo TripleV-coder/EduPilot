@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useMemo } from "react";
-import { getRolePermissions } from "@/lib/rbac/permissions";
+import { getRolePermissions, roleSatisfies } from "@/lib/rbac/permissions";
 import type { UserRole } from "@prisma/client";
 
 type Permission = string | string[];
@@ -31,9 +31,9 @@ export function useRBAC() {
             // Super admin can access everything
             if (isSuperAdmin) return true;
 
-            // Check role-based access: user must have AT LEAST ONE of the required roles
+            // Check role-based access: NETWORK_ADMIN hérite de SCHOOL_ADMIN via roleSatisfies.
             if (roles && roles.length > 0) {
-                const hasMatchingRole = roles.some(r => userRoles.includes(r as UserRole));
+                const hasMatchingRole = userRoles.some((ur) => roleSatisfies(ur, roles));
                 if (!hasMatchingRole) return false;
             }
 

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/analytics/class/[classId]/subject/[subjectId]
@@ -20,7 +21,7 @@ export async function GET(
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

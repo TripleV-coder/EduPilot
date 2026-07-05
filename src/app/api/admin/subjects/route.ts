@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { primarySubjects, collegeSubjects } from "@/lib/benin/config";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // GET: Liste des matières de l'école
 export async function GET(_req: NextRequest) {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check admin permission
-    if (!["SCHOOL_ADMIN", "SUPER_ADMIN"].includes(session.user.role || "")) {
+    if (!roleSatisfies(session.user.role || "", ["SCHOOL_ADMIN", "SUPER_ADMIN"])) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -67,7 +68,7 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!["SCHOOL_ADMIN", "SUPER_ADMIN"].includes(session.user.role || "")) {
+    if (!roleSatisfies(session.user.role || "", ["SCHOOL_ADMIN", "SUPER_ADMIN"])) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

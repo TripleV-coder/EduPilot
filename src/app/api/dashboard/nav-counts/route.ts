@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET() {
         prisma.notification.count({ where: { userId, isRead: false } }).catch(() => 0);
 
     try {
-        if (role === "DIRECTOR" || role === "SCHOOL_ADMIN") {
+        if (roleSatisfies(role, ["DIRECTOR", "SCHOOL_ADMIN"])) {
             if (schoolId) {
                 const [students, pendingPayments, alerts] = await Promise.all([
                     prisma.studentProfile.count({ where: { schoolId, deletedAt: null } }),

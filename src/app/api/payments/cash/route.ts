@@ -7,6 +7,7 @@ import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const MANUAL_PAYMENT_METHODS = ["CASH", "CHECK", "BANK_TRANSFER", "OTHER"] as const;
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(session.user.role)) {
+  if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"])) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

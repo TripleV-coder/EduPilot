@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -32,12 +33,15 @@ export async function GET(request: NextRequest) {
     const where: Prisma.DataAccessRequestWhereInput = {};
 
     // Role-based filtering
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role);
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"]);
 
     if (!isAdmin) {
       // Non-admins can only see their own requests
       where.userId = session.user.id;
-    } else if (session.user.role === "SCHOOL_ADMIN") {
+    } else if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"])) {
+      // SCHOOL_ADMIN et NETWORK_ADMIN : cloisonnés à l'établissement actif — sans ce
+      // scoping, un NETWORK_ADMIN (désormais "admin") verrait les demandes de toutes
+      // les écoles, y compris hors de son réseau (fuite inter-tenant).
       if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { validateRecommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * POST /api/orientation/[id]/validate
@@ -22,7 +23,7 @@ export async function POST(
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

@@ -5,6 +5,7 @@ import { calendarEventSchema } from "@/lib/validations/calendar";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/calendar/events
@@ -35,7 +36,7 @@ export const GET = createApiHandler(
     }
 
     // Filtrer par rôle si nécessaire
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
       where.OR = [
         { isPublic: true },
         { targetRoles: { has: session.user.role } },

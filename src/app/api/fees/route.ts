@@ -4,6 +4,7 @@ import { feeSchema } from "@/lib/validations/finance";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/fees
@@ -12,12 +13,9 @@ import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     // RBAC: fees are sensitive financial data — restricted to finance/admin roles.
+    // NETWORK_ADMIN hérite des droits de SCHOOL_ADMIN via roleSatisfies.
     const callerRole = session.user.role;
-    const allowed =
-      callerRole === "SUPER_ADMIN" ||
-      callerRole === "SCHOOL_ADMIN" ||
-      callerRole === "DIRECTOR" ||
-      callerRole === "ACCOUNTANT";
+    const allowed = roleSatisfies(callerRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]);
     if (!allowed) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }

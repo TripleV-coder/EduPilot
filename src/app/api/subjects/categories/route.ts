@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const categorySchema = z.object({
     name: z.string().min(1),
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const session = await auth();
-        if (!session || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!session || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

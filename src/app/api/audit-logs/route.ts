@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/audit-logs
@@ -65,8 +66,11 @@ export const GET = createApiHandler(
       ];
     }
 
-    // For SCHOOL_ADMIN, only show logs for their school's users
-    if (session.user.role === "SCHOOL_ADMIN" && getActiveSchoolId(session)) {
+    // For SCHOOL_ADMIN (et NETWORK_ADMIN, qui hérite via roleSatisfies depuis que
+    // le goulot allowedRoles de createApiHandler l'admet ici), on ne montre que
+    // les logs des utilisateurs de l'établissement actif — sinon un NETWORK_ADMIN
+    // verrait tous les logs de toutes les écoles, sans borne (régression de sécurité).
+    if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"]) && getActiveSchoolId(session)) {
       const schoolUserIds = await prisma.user.findMany({
         where: { schoolId: getActiveSchoolId(session) },
         select: { id: true },

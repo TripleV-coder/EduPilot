@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getClassPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * POST /api/ai/predictions/class
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

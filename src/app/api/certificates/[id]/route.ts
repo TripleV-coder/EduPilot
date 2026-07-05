@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/certificates/[id]
@@ -72,7 +73,7 @@ export async function GET(
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
     } else if (
-      !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(userRole)
+      !roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])
     ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
@@ -100,7 +101,7 @@ export async function DELETE(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "certificate", id, "Certificat non trouvé");

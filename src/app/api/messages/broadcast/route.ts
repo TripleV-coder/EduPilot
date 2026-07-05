@@ -8,6 +8,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { createBulkNotifications } from "@/lib/services/notification.service";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const broadcastSchema = z.object({
     classId: z.string().cuid(),
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         }
 
         const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-        if (!allowedRoles.includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, allowedRoles)) {
             return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
         }
 

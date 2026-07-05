@@ -17,6 +17,7 @@ import {
 } from "@/lib/finance/helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 function calculateGrowth(currentValue: number, previousValue: number): number {
   if (previousValue === 0) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"];
-  if (!allowedRoles.includes(session.user.role)) {
+  if (!roleSatisfies(session.user.role, allowedRoles)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

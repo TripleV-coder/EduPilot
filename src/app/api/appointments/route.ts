@@ -7,6 +7,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createAppointmentSchema = z.object({
   teacherId: z.string().cuid(),
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

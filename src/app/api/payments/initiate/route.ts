@@ -9,6 +9,7 @@ import { logger } from "@/lib/utils/logger";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const initiateSchema = z.object({
     amount: z.union([z.number(), z.string()]).transform(val => Number(val)),
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // 1. RBAC check
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"])) {
         return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
     }
 

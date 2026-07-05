@@ -6,6 +6,7 @@ import { predictFailureRisk } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function POST(request: NextRequest) {
     try {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
         // Only Teachers and Admins can predict failure risk (Privacy)
         const allowedRoles = ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"];
-        if (!allowedRoles.includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, allowedRoles)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 

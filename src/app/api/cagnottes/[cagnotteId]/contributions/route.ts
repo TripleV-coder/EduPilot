@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // ─── POST /api/cagnottes/[cagnotteId]/contributions ───────────────────────
 // Enregistre une contribution parent.
@@ -21,7 +22,7 @@ export async function POST(
     // Parents contribuent ; la direction peut saisir une contribution
     // espèces pour le compte d'une famille.
     const role = session.user.role as string;
-    if (!["PARENT", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"].includes(role)) {
+    if (!roleSatisfies(role, ["PARENT", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"])) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

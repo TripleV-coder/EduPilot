@@ -8,6 +8,7 @@ import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/analytics/students
@@ -262,7 +263,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
