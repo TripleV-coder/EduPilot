@@ -80,6 +80,12 @@ model School {
   motto                  String?
   mempCode               String?
   primaryColor           String?
+  // Vitrine publique (annuaire + fiche établissement) — champs exposés sans auth.
+  isPublic               Boolean                   @default(false)
+  coverImage             String?
+  publicDescription      String?
+  region                 String?
+  publicPhone            String?
   isActive               Boolean                   @default(true)
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
@@ -136,6 +142,9 @@ model School {
   benchmarkSnapshots     BenchmarkSnapshot[]
   transportLines         TransportLine[]
   transportBuses         Bus[]
+  staffAttendances       StaffAttendance[]
+  leaveRequests          LeaveRequest[]
+  payrollEntries         PayrollEntry[]
 
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
@@ -269,6 +278,12 @@ model User {
   psyAppointmentsAsPsy      PsyAppointment[]            @relation("PsyAppointmentPsy")
   psyAppointmentsAsStudent  PsyAppointment[]            @relation("PsyAppointmentStudent")
   voiceCampaignsAuthored    VoiceCampaign[]             @relation("VoiceCampaignAuthor")
+  staffAttendances          StaffAttendance[]           @relation("StaffAttendanceUser")
+  staffAttendancesRecorded  StaffAttendance[]           @relation("StaffAttendanceRecorder")
+  leaveRequests             LeaveRequest[]              @relation("LeaveRequestUser")
+  leaveDecisions            LeaveRequest[]              @relation("LeaveRequestDecider")
+  payrollEntries            PayrollEntry[]              @relation("PayrollUser")
+  payrollEntriesCreated     PayrollEntry[]              @relation("PayrollCreator")
   school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
@@ -2978,4 +2993,109 @@ model TelemetryEvent {
   @@index([event, createdAt])
   @@index([createdAt])
   @@map("telemetry_events")
+}
+
+// ─── Gestion des ressources humaines (personnel) ──────────────────────────
+
+enum StaffAttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+}
+
+enum LeaveType {
+  SICK // maladie
+  ANNUAL // congé annuel
+  MATERNITY // maternité / paternité
+  EXCEPTIONAL // exceptionnel (événement familial…)
+  UNPAID // sans solde
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  VALIDATED
+  PAID
+}
+
+/// Pointage quotidien d'un membre du personnel (une ligne par agent et par jour).
+model StaffAttendance {
+  id           String                @id @default(cuid())
+  schoolId     String
+  userId       String
+  date         DateTime
+  status       StaffAttendanceStatus @default(PRESENT)
+  checkIn      String? // "HH:MM"
+  checkOut     String? // "HH:MM"
+  note         String?
+  recordedById String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User   @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  recordedBy User?  @relation("StaffAttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([schoolId, date])
+  @@map("staff_attendances")
+}
+
+/// Demande de congé d'un membre du personnel, avec workflow de validation.
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  schoolId     String
+  userId       String
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  decidedById  String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User   @relation("LeaveRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?  @relation("LeaveRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status])
+  @@index([userId, startDate])
+  @@map("leave_requests")
+}
+
+/// Fiche de paie mensuelle (montants en FCFA). Pas de calcul fiscal automatique.
+model PayrollEntry {
+  id             String        @id @default(cuid())
+  schoolId       String
+  userId         String
+  period         String // "YYYY-MM"
+  baseSalary     Int
+  allowances     Json          @default("[]") // [{ label, amount }]
+  deductions     Json          @default("[]") // [{ label, amount }]
+  netAmount      Int
+  status         PayrollStatus @default(DRAFT)
+  paidAt         DateTime?
+  pdfUrl         String?
+  journalEntryId String? // écriture OHADA de charge de personnel (à la validation)
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User   @relation("PayrollUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("PayrollCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, period])
+  @@index([schoolId, period])
+  @@map("payroll_entries")
 }
