@@ -1,0 +1,1094 @@
+[
+  {
+    "role": "super-admin",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "super-admin",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "school-admin",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "director",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "accountant",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/login",
+    "action": "connexion",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/students",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/students",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/students",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/students",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/calendar",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/calendar",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/calendar",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/calendar",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/announcements",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/announcements",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/announcements",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/announcements",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/ai-assistant",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/ai-assistant",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/ai-assistant",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/ai-assistant",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/settings",
+    "action": "navigation",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/settings",
+    "action": "onglets",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/settings",
+    "action": "détail-ligne",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard/settings",
+    "action": "crud-create",
+    "ok": true
+  },
+  {
+    "role": "parent",
+    "page": "/dashboard",
+    "action": "retour",
+    "ok": true
+  }
+]

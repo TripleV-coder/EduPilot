@@ -1,0 +1,7 @@
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/super-admin.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/school-admin.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/director.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/accountant.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/teacher.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/student.mp4'
+file '/home/triple-v/Documents/Projets Personnels/edupilot-master/e2e/tour/output/videos/parent.mp4'
