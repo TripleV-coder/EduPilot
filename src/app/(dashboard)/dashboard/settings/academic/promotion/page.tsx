@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
+import { PageHeader } from "@/components/layout/page-shell";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -16,17 +15,34 @@ import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
+// UNDECIDED = statut UI par défaut tant que le staff n'a pas tranché.
+// Il n'est jamais envoyé au backend : seules les décisions explicites sont
+// appliquées (évite de réinscrire automatiquement des redoublants).
+type PromotionStatus = "PROMOTE" | "REPEAT" | "LEAVE" | "UNDECIDED";
+
 type StudentPromotion = {
   id: string;
   name: string;
-  average: number;
-  status: "PROMOTE" | "REPEAT" | "LEAVE";
+  average: number | null;
+  status: PromotionStatus;
 };
 
 type RankedStudent = {
   studentId: string;
   studentName: string;
   average: number | string;
+};
+
+type RosterStudent = {
+  id: string;
+  user: { firstName: string; lastName: string };
+};
+
+type AcademicYearOption = {
+  id: string;
+  name: string;
+  isCurrent: boolean;
+  startDate: string;
 };
 
 export default function PromotionEnginePage() {
@@ -39,10 +55,22 @@ export default function PromotionEnginePage() {
 
 function PromotionEngineContent() {
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [targetYearId, setTargetYearId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [statusOverrides, setStatusOverrides] = useState<Record<string, StudentPromotion["status"]>>({});
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, PromotionStatus>>({});
 
   const { data: classes } = useSWR("/api/classes", fetcher);
+  const { data: academicYears } = useSWR<AcademicYearOption[]>("/api/academic-years", fetcher);
+
+  // Effectif complet de la classe (année courante), y compris les élèves sans
+  // note : ils doivent aussi pouvoir être promus / diplômés / déscolarisés.
+  const {
+    data: rosterData,
+    isLoading: rosterLoading,
+  } = useSWR<{ data: RosterStudent[] }>(
+    selectedClassId ? `/api/students?classId=${selectedClassId}&limit=100` : null,
+    fetcher
+  );
 
   const {
     data: gradeStatsData,
@@ -53,34 +81,114 @@ function PromotionEngineContent() {
   );
 
   const students = useMemo<StudentPromotion[]>(() => {
-    const list = (gradeStatsData?.ranking?.students ?? []) as RankedStudent[];
-    return list.map((student) => {
-      const average = Number(student.average);
-      const defaultStatus = average >= 10 ? "PROMOTE" : "REPEAT";
+    const roster = (rosterData?.data ?? []) as RosterStudent[];
+    // Moyennes par élève (seuls ceux ayant des notes apparaissent ici).
+    const averageById = new Map<string, number>();
+    for (const r of (gradeStatsData?.ranking?.students ?? []) as RankedStudent[]) {
+      averageById.set(r.studentId, Number(r.average));
+    }
+
+    return roster.map((student) => {
+      const average = averageById.has(student.id) ? averageById.get(student.id)! : null;
+      // Suggestion par défaut : promotion pour une moyenne >= 10. Tous les autres
+      // cas (sous la moyenne OU sans note) restent « non décidés » et exigent un
+      // choix explicite — aucune réinscription/redoublement n'est appliqué à l'aveugle.
+      const defaultStatus: PromotionStatus =
+        average !== null && average >= 10 ? "PROMOTE" : "UNDECIDED";
 
       return {
-        id: student.studentId,
-        name: student.studentName,
+        id: student.id,
+        name: `${student.user.firstName} ${student.user.lastName}`.trim(),
         average,
-        status: statusOverrides[student.studentId] ?? defaultStatus,
+        status: statusOverrides[student.id] ?? defaultStatus,
       };
     });
-  }, [gradeStatsData, statusOverrides]);
+  }, [rosterData, gradeStatsData, statusOverrides]);
+
+  const decidedStudents = useMemo(
+    () => students.filter((s) => s.status !== "UNDECIDED"),
+    [students]
+  );
+  const undecidedCount = students.length - decidedStudents.length;
 
   const setStatus = (id: string, status: "PROMOTE" | "REPEAT" | "LEAVE") => {
     setStatusOverrides((prev) => ({ ...prev, [id]: status }));
   };
 
+  // Cibles valides : années postérieures à l'année courante uniquement
+  // (le backend rejette aussi les années antérieures ou égales).
+  const targetYearOptions = useMemo(() => {
+    const years = academicYears ?? [];
+    const current = years.find((y) => y.isCurrent);
+    return years
+      .filter(
+        (y) =>
+          !y.isCurrent &&
+          (!current || new Date(y.startDate).getTime() > new Date(current.startDate).getTime())
+      )
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  }, [academicYears]);
+
   const handlePromotion = async () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      const promoteCount = students.filter((s) => s.status === "PROMOTE").length;
+    if (!selectedClassId || students.length === 0) return;
+    if (!targetYearId) {
       toast({
-        title: "Décisions enregistrées",
-        description: `Promotion: ${promoteCount} élève(s). La migration backend reste à implémenter dans cette version.`,
+        title: "Année cible requise",
+        description: "Sélectionnez l'année académique de destination avant d'appliquer les promotions.",
+        variant: "destructive",
       });
-    }, 2000);
+      return;
+    }
+    if (decidedStudents.length === 0) {
+      toast({
+        title: "Aucune décision",
+        description: "Choisissez une action (promouvoir, redoubler ou partant) pour au moins un élève.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/classes/${selectedClassId}/promote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetAcademicYearId: targetYearId,
+          // Seules les décisions explicites sont envoyées ; les élèves « non
+          // décidés » restent inchangés dans leur classe actuelle.
+          decisions: decidedStudents.map((s) => ({ studentId: s.id, decision: s.status })),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Échec de la promotion");
+      }
+
+      const parts = [
+        data.promoted ? `${data.promoted} promu(s)` : null,
+        data.graduated ? `${data.graduated} diplômé(s)` : null,
+        data.repeated ? `${data.repeated} redoublant(s)` : null,
+        data.left ? `${data.left} départ(s)` : null,
+      ].filter(Boolean);
+
+      toast({
+        title: "Promotions appliquées",
+        description:
+          (parts.length ? parts.join(", ") : "Aucun changement") +
+          (data.skipped?.length ? ` — ${data.skipped.length} ignoré(s)` : ""),
+      });
+      setStatusOverrides({});
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -162,6 +270,10 @@ function PromotionEngineContent() {
                     <div className="w-2 h-2 rounded-full bg-warning" />
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Redouble: {students.filter(s => s.status === "REPEAT").length}</span>
                  </div>
+                 <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">À décider: {undecidedCount}</span>
+                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -181,10 +293,14 @@ function PromotionEngineContent() {
                           <p className="font-bold">{s.name}</p>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={cn(
-                            "text-sm font-black px-2.5 py-1 rounded-lg",
-                            s.average >= 10 ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
-                          )}>{s.average.toFixed(2)} / 20</span>
+                          {s.average === null ? (
+                            <span className="text-sm font-bold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground">Aucune note</span>
+                          ) : (
+                            <span className={cn(
+                              "text-sm font-black px-2.5 py-1 rounded-lg",
+                              s.average >= 10 ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
+                            )}>{s.average.toFixed(2)} / 20</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-2">
@@ -232,11 +348,14 @@ function PromotionEngineContent() {
                 </div>
                 <div>
                    <h3 className="text-lg font-black tracking-tight">Appliquer les promotions</h3>
-                   <p className="text-xs text-muted-foreground">Cette action migrera les {students.filter(s => s.status === "PROMOTE").length} élèves vers l&apos;année suivante.</p>
+                   <p className="text-xs text-muted-foreground">
+                     {decidedStudents.length} décision(s) seront appliquées vers l&apos;année cible.
+                     {undecidedCount > 0 && ` ${undecidedCount} élève(s) « à décider » resteront inchangés.`}
+                   </p>
                 </div>
              </div>
-             <Button 
-              disabled={isProcessing || !selectedClassId || gradeStatsLoading || students.length === 0} 
+             <Button
+              disabled={isProcessing || !selectedClassId || rosterLoading || gradeStatsLoading || students.length === 0}
                onClick={handlePromotion}
                className="h-12 px-10 rounded-xl font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-white"
              >

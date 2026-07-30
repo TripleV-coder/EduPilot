@@ -92,7 +92,7 @@ export const enrollmentSchema = z.object({
   studentId: z.string().cuid("ID étudiant invalide"),
   classId: z.string().cuid("ID classe invalide"),
   academicYearId: z.string().cuid("ID année scolaire invalide"),
-  status: z.enum(["ACTIVE", "TRANSFERRED", "GRADUATED", "DROPPED", "SUSPENDED"]).default("ACTIVE"),
+  status: z.enum(["ACTIVE", "TRANSFERRED", "GRADUATED", "DROPPED", "SUSPENDED", "COMPLETED"]).default("ACTIVE"),
 });
 
 export const studentUpdateSchema = z.object({

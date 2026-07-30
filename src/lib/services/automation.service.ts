@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
-import { createNotification, createBulkNotifications } from "@/lib/services/notification.service";
+import { createBulkNotifications } from "@/lib/services/notification.service";
+import { runInstallmentReminders } from "@/lib/finance/reminders";
 import { logger } from "@/lib/utils/logger";
 
 export class AutomationService {
@@ -13,6 +14,7 @@ export class AutomationService {
             analyticsSync: { processed: 0, errors: 0 },
             absenteeismAlerts: 0,
             financeAlerts: 0,
+            financeReminders: { swept: 0, notified: 0, UPCOMING: 0, DUE: 0, OVERDUE: 0, CRITICAL: 0 },
         };
 
         try {
@@ -22,8 +24,13 @@ export class AutomationService {
             // 2. Check Absenteeism
             results.absenteeismAlerts = await this.checkAbsenteeismAlerts();
 
-            // 3. Check Overdue Payments
-            results.financeAlerts = await this.checkOverduePaymentAlerts();
+            // 3. Balayage des échéances + relances étagées aux parents.
+            // `financeReminders` porte le détail par étape ; `financeAlerts`
+            // conserve son ancienne sémantique (alertes de retard critique
+            // > 30 j) pour ne pas casser les consommateurs existants.
+            const finance = await this.runFinanceReminders();
+            results.financeReminders = finance;
+            results.financeAlerts = finance.CRITICAL;
 
             logger.info("✨ Daily maintenance complete!", results);
             return { success: true, ...results };
@@ -134,64 +141,12 @@ export class AutomationService {
     }
 
     /**
-     * Notify parents of students with overdue payments (> 30 days)
+     * Balaie les échéances échues (PENDING → OVERDUE) et envoie les relances
+     * étagées aux parents (à venir / aujourd'hui / en retard / critique).
+     * Voir `src/lib/finance/reminders.ts` pour la logique et l'idempotence.
      */
-    async checkOverduePaymentAlerts() {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const overdueInstallments = await prisma.installmentPayment.findMany({
-            where: {
-                status: "OVERDUE",
-                dueDate: { lt: thirtyDaysAgo },
-                paymentPlan: {
-                    status: { not: "COMPLETED" },
-                    student: {
-                        user: { isActive: true }
-                    }
-                }
-            },
-            include: {
-                paymentPlan: {
-                    include: {
-                        student: {
-                            include: {
-                                user: { select: { firstName: true, lastName: true } },
-                                parentStudents: {
-                                    include: {
-                                        parent: {
-                                            include: {
-                                                user: { select: { id: true } }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        let alertsSent = 0;
-
-        for (const installment of overdueInstallments) {
-            const student = installment.paymentPlan.student;
-            const parents = student.parentStudents.map((ps: typeof student.parentStudents[number]) => ps.parent.user.id);
-
-            if (parents.length > 0) {
-                await createBulkNotifications({
-                    userIds: parents,
-                    type: "PAYMENT",
-                    title: "Retard de paiement critique",
-                    message: `Le paiement de l'échéance du ${installment.dueDate.toLocaleDateString()} pour ${student.user.firstName} est en retard de plus de 30 jours. Merci de régulariser la situation au plus vite.`,
-                    link: "/dashboard/finance"
-                });
-                alertsSent++;
-            }
-        }
-
-        return alertsSent;
+    async runFinanceReminders() {
+        return runInstallmentReminders();
     }
 }
 

@@ -467,6 +467,7 @@ model StudentProfile {
   scholarships        Scholarship[]
   studentAnalytics    StudentAnalytics[]
   studentOrientations StudentOrientation[]
+  alumni              Alumni[]
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transports          StudentTransport[]
@@ -568,6 +569,11 @@ model Badge {
 model Alumni {
   id             String   @id @default(cuid())
   schoolId       String
+  // Lien optionnel vers le dossier élève d'origine : renseigné quand l'alumni
+  // est créé par le moteur de promotion (diplôme). Permet de réconcilier
+  // l'annuaire alumni avec le dossier scolaire. `SetNull` conserve l'historique
+  // alumni même si l'élève est supprimé.
+  studentId      String?
   firstName      String
   lastName       String
   graduationYear Int
@@ -581,11 +587,13 @@ model Alumni {
   mentorTopic    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  school         School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
   @@index([schoolId, graduationYear])
   @@index([schoolId, field])
+  @@index([studentId])
   @@map("alumni")
 }
 
@@ -878,12 +886,18 @@ model InstallmentPayment {
   dueDate       DateTime
   paidAt        DateTime?
   status        InstallmentStatus @default(PENDING)
+  // Rappels d'échéance : dernière étape de relance notifiée aux parents
+  // (UPCOMING / DUE / OVERDUE / CRITICAL) pour éviter les notifications en double
+  // lors des passages quotidiens de l'automatisation.
+  lastReminderStage String?
+  lastReminderAt    DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   paymentPlan   PaymentPlan       @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
 
   @@index([paymentPlanId])
   @@index([dueDate])
+  @@index([status])
   @@map("installment_payments")
 }
 
@@ -2012,6 +2026,10 @@ enum EnrollmentStatus {
   GRADUATED
   DROPPED
   SUSPENDED
+  // Année source clôturée après promotion/redoublement : l'élève a une
+  // nouvelle inscription ACTIVE sur l'année cible ; l'ancienne devient un
+  // historique non comptabilisé dans les effectifs "actifs".
+  COMPLETED
 }
 
 enum PaymentMethod {

@@ -7,6 +7,39 @@ import { RecommendedSeries, SubjectGroup, PerformanceTrend } from "@prisma/clien
  */
 
 // ============================================
+// TENDANCE DE PERFORMANCE (chronologique)
+// ============================================
+
+type DatedGrade = { date: Date; value: number };
+
+/**
+ * Calcule la tendance d'un groupe de matières en comparant la moyenne de la
+ * première moitié des notes (dans le temps) à celle de la seconde moitié.
+ *
+ * Il faut au moins 4 notes pour dégager une tendance fiable ; en-deçà on reste
+ * STABLE. Les seuils (en points sur 20) : ±0,5 = variation, ±2 = forte variation.
+ */
+export function computePerformanceTrend(grades: DatedGrade[]): PerformanceTrend {
+  if (grades.length < 4) return "STABLE";
+
+  const sorted = [...grades].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const mid = Math.floor(sorted.length / 2);
+  const firstHalf = sorted.slice(0, mid);
+  const secondHalf = sorted.slice(sorted.length - mid);
+
+  const mean = (list: DatedGrade[]) =>
+    list.reduce((sum, g) => sum + g.value, 0) / list.length;
+
+  const delta = mean(secondHalf) - mean(firstHalf);
+
+  if (delta >= 2) return "STRONG_INCREASE";
+  if (delta >= 0.5) return "INCREASE";
+  if (delta <= -2) return "STRONG_DECREASE";
+  if (delta <= -0.5) return "DECREASE";
+  return "STABLE";
+}
+
+// ============================================
 // MAPPING MATIÈRES → GROUPES
 // ============================================
 
@@ -418,21 +451,26 @@ export async function generateOrientationRecommendations(orientationId: string) 
 
   // 2. Calculer les moyennes par groupe de matières
   const groupGrades: Map<SubjectGroup, number[]> = new Map();
+  // Notes datées (pour le calcul de tendance chronologique) : on conserve la date
+  // de l'évaluation afin d'ordonner les notes dans le temps.
+  const groupDatedGrades: Map<SubjectGroup, DatedGrade[]> = new Map();
 
   for (const cs of enrollment.class.classSubjects) {
     const subjectGroup = classifySubject(cs.subject.name);
     if (!subjectGroup) continue;
 
-    const grades = cs.evaluations
-      .flatMap((ev) => ev.grades)
-      .filter((g) => g.value !== null && !g.isAbsent)
-      .map((g) => Number(g.value));
+    const datedGrades = cs.evaluations
+      .flatMap((ev) => ev.grades.map((g) => ({ date: ev.date, grade: g })))
+      .filter(({ grade }) => grade.value !== null && !grade.isAbsent)
+      .map(({ date, grade }) => ({ date, value: Number(grade.value) }));
 
-    if (grades.length > 0) {
+    if (datedGrades.length > 0) {
       if (!groupGrades.has(subjectGroup)) {
         groupGrades.set(subjectGroup, []);
+        groupDatedGrades.set(subjectGroup, []);
       }
-      groupGrades.get(subjectGroup)!.push(...grades);
+      groupGrades.get(subjectGroup)!.push(...datedGrades.map((d) => d.value));
+      groupDatedGrades.get(subjectGroup)!.push(...datedGrades);
     }
   }
 
@@ -454,8 +492,9 @@ export async function generateOrientationRecommendations(orientationId: string) 
     const min = Math.min(...grades);
     const max = Math.max(...grades);
 
-    // Calculer la tendance (à implémenter avec historique)
-    const trend: PerformanceTrend = "STABLE";
+    // Tendance chronologique : compare la moyenne de la 1ère moitié des notes
+    // (dans le temps) à celle de la 2nde moitié pour ce groupe de matières.
+    const trend = computePerformanceTrend(groupDatedGrades.get(group) ?? []);
 
     // Calculer le taux de constance
     const stdDev = Math.sqrt(
