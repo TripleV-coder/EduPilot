@@ -7,6 +7,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const paymentUpdateSchema = z.object({
   amount: z.coerce.number().positive().optional(),
@@ -26,7 +27,7 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
@@ -96,7 +97,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
@@ -178,7 +179,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

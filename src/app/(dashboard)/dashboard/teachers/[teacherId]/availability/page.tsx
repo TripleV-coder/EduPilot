@@ -1,7 +1,8 @@
 "use client";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Clock, Save, CalendarCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell className="max-w-5xl">
                 <PageHeader
                     title="Disponibilités Enseignant"
                     description="Cliquez sur les créneaux pour définir la disponibilité. Les changements sont enregistrés en cliquant sur Enregistrer."
@@ -139,9 +140,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
                     </CardHeader>
                     <CardContent className="p-6 overflow-x-auto">
                         {isLoading ? (
-                            <div className="flex items-center justify-center py-12 text-muted-foreground">
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Chargement...
-                            </div>
+                            <PageLoading label="Chargement des disponibilités…" />
                         ) : (
                             <div className="min-w-[700px]">
                                 <div className="grid grid-cols-7 gap-2 mb-2 font-medium text-sm text-center text-muted-foreground">
@@ -202,7 +201,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

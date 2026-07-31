@@ -96,6 +96,7 @@ export const GET = createApiHandler(async (request, { session }) => {
                     },
                 },
             },
+            orderBy: { createdAt: "desc" },
             take: limit,
         });
 

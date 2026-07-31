@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const evaluationTypeUpdateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -71,7 +72,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
@@ -123,7 +124,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!allowedRoles.includes(session.user.role as string)) {
+    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { normalizeGradeTo20, roundTo } from "@/lib/analytics/helpers";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // Types for report card data
 interface SubjectGrade {
@@ -426,7 +427,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify access
-    if (!["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

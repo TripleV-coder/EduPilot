@@ -1,9 +1,12 @@
 import prisma from "@/lib/prisma";
 import Redis from "ioredis";
+import { logger } from "@/lib/utils/logger";
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
-  console.warn("⚠️  REDIS_URL non défini — les notifications temps réel seront désactivées");
+  logger.warn("REDIS_URL non défini — les notifications temps réel seront désactivées", {
+    module: "notification.service",
+  });
 }
 let publisher: Redis | null = null;
 function getPublisher(): Redis | null {
@@ -14,7 +17,7 @@ function getPublisher(): Redis | null {
   return publisher;
 }
 
-type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "GRADE" | "PAYMENT" | "BULLETIN" | "ENROLLMENT" | "SYSTEM";
+type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "GRADE" | "PAYMENT" | "BULLETIN" | "ENROLLMENT" | "SYSTEM" | "MESSAGE" | "ATTENDANCE";
 
 interface CreateNotificationParams {
   userId: string;
@@ -77,7 +80,7 @@ export async function notifyNewGrade(
     type: "GRADE",
     title: "Nouvelle note",
     message: `Vous avez reçu une note de ${grade}/20 en ${subjectName}`,
-    link: "/student/grades",
+    link: "/dashboard/grades",
   });
 }
 
@@ -93,7 +96,7 @@ export async function notifyPayment(
     type: "PAYMENT",
     title: "Paiement enregistré",
     message: `Un paiement de ${amount} FCFA pour ${feeName} a été enregistré pour ${studentName}`,
-    link: "/parent/payments",
+    link: "/dashboard/finance",
   });
 }
 
@@ -107,7 +110,7 @@ export async function notifyBulletinAvailable(
     type: "BULLETIN",
     title: "Bulletin disponible",
     message: `Votre bulletin pour ${periodName} est maintenant disponible`,
-    link: "/student/bulletins",
+    link: "/dashboard/report-cards",
   });
 }
 

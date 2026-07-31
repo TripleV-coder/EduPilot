@@ -1,21 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Permission } from "@/lib/rbac/permissions";
-import {
-    CalendarClock, AlertCircle, CheckCircle, Video, Phone,
-    Users, MapPin, Loader2, Search, ArrowUpDown, Download, X
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+
+import { PageGuard } from "@/components/guard/page-guard";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { Badge, Button, Card, Input } from "@/components/edu";
+import { Permission } from "@/lib/rbac/permissions";
+import { fetcher } from "@/lib/fetcher";
 import { useDebounce } from "@/hooks/use-debounce";
-import { getAppointmentStatusClass } from "@/lib/ui/status-styles";
 
 type Appointment = {
     id: string;
@@ -24,7 +20,6 @@ type Appointment = {
     scheduledAt: string;
     duration: number;
     location: string | null;
-    notes: string | null;
     meetingLink: string | null;
     teacher: { user: { firstName: string; lastName: string } };
     parent: { user: { firstName: string; lastName: string } };
@@ -36,252 +31,267 @@ const getTypeLabel = (type: string) =>
 
 const getStatusLabel = (status: string) => {
     switch (status) {
-        case "CONFIRMED": return "Confirmé";
-        case "PENDING": return "En Attente";
-        case "CANCELLED": return "Annulé";
-        case "COMPLETED": return "Terminé";
-        default: return status;
+        case "CONFIRMED":
+            return "Confirmé";
+        case "PENDING":
+            return "En attente";
+        case "CANCELLED":
+            return "Annulé";
+        case "COMPLETED":
+            return "Terminé";
+        default:
+            return status;
     }
 };
 
 export default function AppointmentsPage() {
     const { data: session } = useSession();
     const role = session?.user?.role || "";
-
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 300);
 
-    const fetchAppointments = async () => {
-        setLoading(true);
-        try {
-            const statusQuery = statusFilter !== "ALL" ? `&status=${statusFilter}` : "";
-            const res = await fetch(`/api/appointments?limit=200${statusQuery}`);
-            if (!res.ok) throw new Error("Erreur de récupération des rendez-vous");
-            const data = await res.json();
-            setAppointments(data.appointments || []);
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const statusQuery = statusFilter !== "ALL" ? `&status=${statusFilter}` : "";
+    const { data, error, isLoading, mutate } = useSWR<{ appointments?: Appointment[] }>(
+        `/api/appointments?limit=200${statusQuery}`,
+        fetcher
+    );
 
-    useEffect(() => {
-        fetchAppointments();
-    }, [statusFilter]);
+    const appointments = data?.appointments ?? [];
+
+    const filteredAppointments = useMemo(() => {
+        if (!debouncedSearch) return appointments;
+        const query = debouncedSearch.toLowerCase();
+        return appointments.filter((appointment) =>
+            `${appointment.teacher.user.firstName} ${appointment.teacher.user.lastName} ${appointment.parent.user.firstName} ${appointment.parent.user.lastName} ${appointment.student.user.firstName} ${appointment.student.user.lastName}`
+                .toLowerCase()
+                .includes(query)
+        );
+    }, [appointments, debouncedSearch]);
 
     const handleStatusUpdate = async (id: string, newStatus: string) => {
         try {
             const res = await fetch(`/api/appointments/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus }),
             });
-            if (res.ok) {
-                setAppointments(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
-            }
-        } catch (error) {
-            console.error(error);
+            if (res.ok) void mutate();
+        } catch {
+            // silencieux — l'état SWR reste inchangé
         }
     };
 
-    const filteredAppointments = appointments.filter(app => {
-        if (!debouncedSearch) return true;
-        const query = debouncedSearch.toLowerCase();
-        return `${app.teacher.user.firstName} ${app.teacher.user.lastName} ${app.parent.user.firstName} ${app.parent.user.lastName} ${app.student.user.firstName} ${app.student.user.lastName}`.toLowerCase().includes(query);
-    });
-
     const exportCSV = () => {
         const headers = ["Date", "Heure", "Parent", "Enseignant", "Élève", "Type", "Statut", "Durée (min)"];
-        const rows = filteredAppointments.map(a => [
-            new Date(a.scheduledAt).toLocaleDateString("fr-FR"),
-            new Date(a.scheduledAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-            `${a.parent.user.firstName} ${a.parent.user.lastName}`,
-            `${a.teacher.user.firstName} ${a.teacher.user.lastName}`,
-            `${a.student.user.firstName} ${a.student.user.lastName}`,
-            getTypeLabel(a.type),
-            getStatusLabel(a.status),
-            String(a.duration),
+        const rows = filteredAppointments.map((appointment) => [
+            new Date(appointment.scheduledAt).toLocaleDateString("fr-FR"),
+            new Date(appointment.scheduledAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+            `${appointment.parent.user.firstName} ${appointment.parent.user.lastName}`,
+            `${appointment.teacher.user.firstName} ${appointment.teacher.user.lastName}`,
+            `${appointment.student.user.firstName} ${appointment.student.user.lastName}`,
+            getTypeLabel(appointment.type),
+            getStatusLabel(appointment.status),
+            String(appointment.duration),
         ]);
-        const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+        const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
         const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "rendez-vous.csv";
-        a.click();
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "rendez-vous.csv";
+        anchor.click();
         URL.revokeObjectURL(url);
     };
 
-    const columns: ColumnDef<Appointment>[] = [
-        {
-            id: "date",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Date & Heure <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => new Date(row.scheduledAt).getTime(),
-            cell: ({ row }) => {
-                const app = row.original;
-                return (
-                    <div>
-                        <div className="font-semibold text-foreground">
-                            {new Date(app.scheduledAt).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
-                        </div>
-                        <div className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
-                            <CalendarClock className="w-3 h-3" />
-                            {new Date(app.scheduledAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                            ({app.duration} min)
-                        </div>
-                    </div>
-                );
-            },
-        },
-        {
-            id: "participants",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Participants <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => `${row.parent.user.lastName} ${row.teacher.user.lastName}`,
-            cell: ({ row }) => {
-                const app = row.original;
-                return (
-                    <div className="flex flex-col gap-1">
-                        <div className="text-sm"><span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mr-1">R:</span><span className="font-medium text-foreground">{app.parent.user.firstName} {app.parent.user.lastName}</span></div>
-                        <div className="text-sm"><span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mr-1">P:</span><span className="text-foreground/80">{app.teacher.user.firstName} {app.teacher.user.lastName}</span></div>
-                        <div className="text-xs text-muted-foreground italic">Élève: {app.student.user.firstName} {app.student.user.lastName}</div>
-                    </div>
-                );
-            },
-        },
-        {
-            id: "type",
-            header: "Type & Lieu",
-            cell: ({ row }) => {
-                const app = row.original;
-                const TypeIcon = app.type === "VIDEO_CALL" ? Video : app.type === "PHONE_CALL" ? Phone : Users;
-                const iconColor = app.type === "VIDEO_CALL" ? "text-primary" : app.type === "PHONE_CALL" ? "text-warning" : "text-success";
-                return (
-                    <div>
-                        <div className="flex items-center gap-2 font-medium text-foreground/80 mb-1">
-                            <TypeIcon className={`w-4 h-4 ${iconColor}`} /> {getTypeLabel(app.type)}
-                        </div>
-                        {app.type === "IN_PERSON" && app.location ? (
-                            <div className="flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>{app.location}</span></div>
-                        ) : app.meetingLink ? (
-                            <a href={app.meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Lien réunion</a>
-                        ) : null}
-                    </div>
-                );
-            },
-        },
-        {
-            id: "status",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Statut <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            accessorFn: (row) => row.status,
-            cell: ({ row }) => (
-                <span className={`inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold uppercase rounded-full border ${getAppointmentStatusClass(row.original.status)}`}>
-                    {getStatusLabel(row.original.status)}
-                </span>
-            ),
-        },
-        {
-            id: "actions",
-            header: "",
-            cell: ({ row }) => {
-                const app = row.original;
-                if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(role) || app.status !== "PENDING") return null;
-                return (
-                    <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" className="text-success hover:text-success hover:bg-success/10 border-success/30" onClick={() => handleStatusUpdate(app.id, "CONFIRMED")}>
-                            <CheckCircle className="w-4 h-4 mr-1" /> Valider
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => handleStatusUpdate(app.id, "CANCELLED")}>
-                            <X className="w-4 h-4" />
-                        </Button>
-                    </div>
-                );
-            },
-        },
-    ];
+    const canModerate = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(role);
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
-            <div className="space-y-6 max-w-6xl mx-auto pb-12">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <PageHeader
-                        title="Agenda des Rendez-vous"
-                        description="Gérez les rencontres entre les parents et les professeurs."
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Rendez-vous" },
-                        ]}
-                    />
-                    <Button type="button" variant="outline" onClick={exportCSV} className="gap-2 shrink-0">
-                        <Download className="w-4 h-4" /> Export CSV
-                    </Button>
-                </div>
+            <PageShell className="max-w-6xl pb-12">
+                <PageHeader
+                    title="Agenda des rendez-vous"
+                    description="Gérez les rencontres entre les parents et les enseignants."
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Rendez-vous" },
+                    ]}
+                    actions={
+                        <Button variant="secondary" size="sm" icon="download" onClick={exportCSV}>
+                            Exporter CSV
+                        </Button>
+                    }
+                />
 
-                {error && (
-                    <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm">{error}</p>
-                    </div>
-                )}
-
-                <Card className="border-border shadow-sm overflow-hidden">
-                    <CardHeader className="pb-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30">
+                <Card padding={0}>
+                    <div
+                        className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between"
+                        style={{
+                            borderColor: "var(--eduflow-border-subtle)",
+                            background: "var(--eduflow-surface-sunken)",
+                        }}
+                    >
                         <div className="flex flex-wrap gap-2">
-                            {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map(s => (
+                            {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((status) => (
                                 <Button
-                                    key={s}
+                                    key={status}
                                     type="button"
-                                    variant={statusFilter === s ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => setStatusFilter(s)}
+                                    variant={statusFilter === status ? "primary" : "secondary"}
+                                    onClick={() => setStatusFilter(status)}
                                 >
-                                    {s === "ALL" ? "Tous" : getStatusLabel(s)}
+                                    {status === "ALL" ? "Tous" : getStatusLabel(status)}
                                 </Button>
                             ))}
                         </div>
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <div className="w-full sm:w-72">
                             <Input
                                 aria-label="Rechercher un rendez-vous"
-                                placeholder="Parent, professeur, élève..."
-                                className="pl-9 h-9"
+                                icon="search"
+                                placeholder="Parent, professeur, élève…"
                                 value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                    </CardHeader>
+                    </div>
 
-                    <CardContent className="p-0">
-                        {loading ? (
-                            <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
-                        ) : filteredAppointments.length === 0 ? (
-                            <div className="text-center py-20 border-dashed rounded-b-xl bg-background">
-                                <CalendarClock className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Aucun rendez-vous</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Vous n&apos;avez aucun rendez-vous avec ce statut.</p>
-                            </div>
-                        ) : (
-                            <DataTable columns={columns} data={filteredAppointments} searchKey="participants" searchPlaceholder="Filtrer..." />
-                        )}
-                    </CardContent>
+                    {isLoading ? <PageLoading label="Chargement des rendez-vous…" /> : null}
+                    {error ? (
+                        <PageError
+                            message={error.message || "Erreur de récupération des rendez-vous"}
+                            onRetry={() => void mutate()}
+                        />
+                    ) : null}
+
+                    {!isLoading && !error && filteredAppointments.length === 0 ? (
+                        <PageEmpty
+                            icon="calendar"
+                            title="Aucun rendez-vous"
+                            description="Aucun rendez-vous ne correspond à ces critères."
+                        />
+                    ) : null}
+
+                    {!isLoading && !error && filteredAppointments.length > 0 ? (
+                        <div className="p-4">
+                            <DataTable
+                                caption="Liste des rendez-vous parents-enseignants"
+                                data={filteredAppointments}
+                                getRowKey={(row) => row.id}
+                                columns={[
+                                    {
+                                        id: "date",
+                                        header: "Date et heure",
+                                        cell: (appointment) => (
+                                            <div>
+                                                <div className="font-semibold">
+                                                    {new Date(appointment.scheduledAt).toLocaleDateString("fr-FR", {
+                                                        weekday: "short",
+                                                        day: "numeric",
+                                                        month: "short",
+                                                    })}
+                                                </div>
+                                                <div className="text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
+                                                    {new Date(appointment.scheduledAt).toLocaleTimeString("fr-FR", {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    })}{" "}
+                                                    · {appointment.duration} min
+                                                </div>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        id: "participants",
+                                        header: "Participants",
+                                        cell: (appointment) => (
+                                            <div className="space-y-1 text-sm">
+                                                <div>
+                                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>Parent · </span>
+                                                    {appointment.parent.user.firstName} {appointment.parent.user.lastName}
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>Enseignant · </span>
+                                                    {appointment.teacher.user.firstName} {appointment.teacher.user.lastName}
+                                                </div>
+                                                <div className="text-xs italic" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                                    Élève : {appointment.student.user.firstName} {appointment.student.user.lastName}
+                                                </div>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        id: "type",
+                                        header: "Type",
+                                        cell: (appointment) => (
+                                            <div>
+                                                <div>{getTypeLabel(appointment.type)}</div>
+                                                {appointment.meetingLink ? (
+                                                    <a
+                                                        href={appointment.meetingLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs"
+                                                        style={{ color: "var(--brand-600)" }}
+                                                    >
+                                                        Lien réunion
+                                                    </a>
+                                                ) : appointment.location ? (
+                                                    <div className="text-xs" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                                        {appointment.location}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        id: "status",
+                                        header: "Statut",
+                                        cell: (appointment) => (
+                                            <Badge
+                                                variant={
+                                                    appointment.status === "CONFIRMED" || appointment.status === "COMPLETED"
+                                                        ? "success"
+                                                        : appointment.status === "PENDING"
+                                                            ? "warning"
+                                                            : appointment.status === "CANCELLED"
+                                                                ? "danger"
+                                                                : "neutral"
+                                                }
+                                                size="sm"
+                                            >
+                                                {getStatusLabel(appointment.status)}
+                                            </Badge>
+                                        ),
+                                    },
+                                    {
+                                        id: "actions",
+                                        header: "Actions",
+                                        cell: (appointment) =>
+                                            canModerate && appointment.status === "PENDING" ? (
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => void handleStatusUpdate(appointment.id, "CONFIRMED")}
+                                                    >
+                                                        Valider
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="danger"
+                                                        onClick={() => void handleStatusUpdate(appointment.id, "CANCELLED")}
+                                                    >
+                                                        Refuser
+                                                    </Button>
+                                                </div>
+                                            ) : null,
+                                    },
+                                ]}
+                            />
+                        </div>
+                    ) : null}
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

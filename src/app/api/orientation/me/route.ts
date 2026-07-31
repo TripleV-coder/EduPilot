@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { calculateWeightedAverage } from "@/lib/utils/grades";
+import { computeIndicativeRecommendations } from "@/lib/services/orientation";
 import { logger } from "@/lib/utils/logger";
 import type { RecommendedSeries } from "@prisma/client";
 
@@ -108,6 +109,13 @@ export async function GET(request: NextRequest) {
         });
 
         if (!orientation || orientation.recommendations.length === 0) {
+            // Pas encore de dossier du conseil : recommandations indicatives
+            // calculées à la volée depuis les notes réelles (P2.5)
+            const indicative = await computeIndicativeRecommendations(
+                student.id,
+                academicYear.id
+            );
+
             return NextResponse.json({
                 student: {
                     firstName: student.user.firstName,
@@ -119,6 +127,17 @@ export async function GET(request: NextRequest) {
                 aiTop: null,
                 wishes: [],
                 subjectAverages: [],
+                indicative: {
+                    generalAverage: indicative.generalAverage,
+                    recommendations: indicative.recommendations.map((rec) => ({
+                        series: seriesLabel(rec.series),
+                        name: rec.name,
+                        description: rec.description,
+                        score: rec.score,
+                        strengths: rec.strengths.slice(0, 3),
+                        warnings: rec.warnings.slice(0, 2),
+                    })),
+                },
             });
         }
 

@@ -7,6 +7,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateResourceSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -63,7 +64,7 @@ export async function GET(
     }
 
     const userRole = session.user.role;
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(userRole);
+    const isAdmin = roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]);
 
     if (!resource.isPublic && !isAdmin) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -97,7 +98,7 @@ export async function PATCH(
       "DIRECTOR",
       "TEACHER",
     ];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
@@ -118,9 +119,7 @@ export async function PATCH(
     }
 
     // Only uploader or admin can edit
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
-      session.user.role
-    );
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     if (
       existingResource.uploadedById !== session.user.id &&
       !isAdmin
@@ -195,7 +194,7 @@ export async function DELETE(
       "DIRECTOR",
       "TEACHER",
     ];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
@@ -213,9 +212,7 @@ export async function DELETE(
     }
 
     // Only uploader or admin can delete
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
-      session.user.role
-    );
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     if (resource.uploadedById !== session.user.id && !isAdmin) {
       return NextResponse.json(
         { error: "Vous ne pouvez supprimer que vos propres ressources" },

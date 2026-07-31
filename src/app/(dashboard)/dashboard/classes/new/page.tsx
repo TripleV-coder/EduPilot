@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
-import { AlertCircle, Save, ArrowLeft, CheckCircle, BookOpen } from "lucide-react";
+import { AlertCircle, Save, CheckCircle, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -26,6 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { getErrorMessage } from "@/lib/utils/error-message";
+import { useSchool } from "@/components/providers/school-provider";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
@@ -42,11 +44,21 @@ export default function NewClassPage() {
     const { data: teachersResponse } = useSWR<any>("/api/teachers", fetcher);
 
     // Safety fallback
-    const classLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
+    const allClassLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
     const teachers = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.teachers || teachersResponse?.data || [];
 
-    const form = useForm<ClassFormValues>({
-        resolver: zodResolver(classSchema) as any,
+    // N'autoriser que les niveaux des cycles offerts par l'établissement.
+    // Défaut sûr : tant que offeredLevels est vide (chargement / non configuré),
+    // on affiche tous les niveaux — on ne masque jamais hâtivement.
+    const { offeredLevels } = useSchool();
+    const classLevels = offeredLevels && offeredLevels.length > 0
+        ? allClassLevels.filter((lvl: any) => offeredLevels.includes(lvl.level))
+        : allClassLevels;
+
+    // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
+    // remplacent le cast du resolver.
+    const form = useForm<z.input<typeof classSchema>, unknown, ClassFormValues>({
+        resolver: zodResolver(classSchema),
         defaultValues: {
             name: "",
             classLevelId: "",
@@ -89,11 +101,11 @@ export default function NewClassPage() {
                 router.push("/dashboard/classes");
             }, 1000);
 
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive"
             });
         } finally {
@@ -102,19 +114,19 @@ export default function NewClassPage() {
     };
 
     return (
-        <PageGuard permission={Permission.CLASS_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <div className="space-y-6 max-w-2xl mx-auto">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/classes">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <PageHeader
-                        title="Créer une classe"
-                        description="Ajouter une nouvelle classe à l'établissement"
-                    />
-                </div>
+        <FormPageTemplate
+            permission={Permission.CLASS_CREATE}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+            backHref="/dashboard/classes"
+            title="Créer une classe"
+            description="Ajouter une nouvelle classe à l'établissement"
+            maxWidth="max-w-2xl"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Classes", href: "/dashboard/classes" },
+                { label: "Nouvelle" },
+            ]}
+        >
 
                 <Card className="border-border shadow-sm">
                     <CardHeader className="border-b bg-muted/30">
@@ -179,6 +191,14 @@ export default function NewClassPage() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                                {!classLevels.length && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Aucun niveau disponible pour les cycles offerts par votre établissement.{" "}
+                                                        <Link href="/dashboard/settings/cycles" className="text-primary underline underline-offset-2">
+                                                            Configurer les cycles
+                                                        </Link>
+                                                    </p>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -246,7 +266,6 @@ export default function NewClassPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }

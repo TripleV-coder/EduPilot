@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,15 +29,16 @@ import {
 import { Permission } from "@/lib/rbac/permissions";
 import { StudentIdentityFields, StudentContactFields } from "@/components/students/student-basic-fields";
 import { studentCreateSchema } from "@/lib/validations/user";
-import { AlertCircle, Save, ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Save, UserPlus, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type StudentFormValues = z.infer<typeof studentCreateSchema>;
 
-const formatDateInput = (value?: Date) => {
+const formatDateInput = (value?: string | Date) => {
     if (!value) return "";
     const date = new Date(value);
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -59,9 +60,11 @@ export default function NewStudentPage() {
     const academicYears = Array.isArray(yearsData) ? yearsData : yearsData?.data || [];
     const currentYear = academicYears.find((y: any) => y.isCurrent)?.id || academicYears[0]?.id;
 
-    // React Hook Form
-    const form = useForm<StudentFormValues>({
-        resolver: zodResolver(studentCreateSchema) as any,
+    // React Hook Form — dateOfBirth (coerce) et nationality (.default)
+    // rendent le type d'entrée ≠ type de sortie : trois génériques au lieu
+    // d'un cast du resolver.
+    const form = useForm<z.input<typeof studentCreateSchema>, unknown, StudentFormValues>({
+        resolver: zodResolver(studentCreateSchema),
         defaultValues: {
             email: "",
             firstName: "",
@@ -108,10 +111,10 @@ export default function NewStudentPage() {
                 router.push("/dashboard/students");
                 router.refresh(); // Refresh SWR in list
             }, 1000);
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive",
             });
             setLoading(false);
@@ -119,19 +122,19 @@ export default function NewStudentPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.STUDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto pb-10">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/students">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <PageHeader
-                        title="Inscrire un(e) Élève"
-                        description="Veuillez remplir les informations pour créer le compte de l'élève."
-                    />
-                </div>
+        <FormPageTemplate
+            permission={[Permission.STUDENT_CREATE]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}
+            backHref="/dashboard/students"
+            title="Inscrire un(e) Élève"
+            description="Veuillez remplir les informations pour créer le compte de l'élève."
+            className="pb-10"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Élèves", href: "/dashboard/students" },
+                { label: "Inscription" },
+            ]}
+        >
 
                 <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6 text-sm text-muted-foreground">
                     <AlertCircle className="w-5 h-5 inline-block mr-2 text-primary" />
@@ -149,8 +152,8 @@ export default function NewStudentPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <StudentIdentityFields control={form.control as any} showDescriptions={true} />
-                                <FormField control={form.control as any} name="dateOfBirth" render={({ field }) => (
+                                <StudentIdentityFields showDescriptions={true} />
+                                <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Date de naissance</FormLabel>
                                         <FormControl>
@@ -170,7 +173,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="birthPlace" render={({ field }) => (
+                                <FormField control={form.control} name="birthPlace" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Lieu de naissance</FormLabel>
                                         <FormControl><Input {...field} /></FormControl>
@@ -180,7 +183,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="nationality" render={({ field }) => (
+                                <FormField control={form.control} name="nationality" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Nationalité</FormLabel>
                                         <FormControl>
@@ -205,7 +208,7 @@ export default function NewStudentPage() {
                                 <CardTitle className="text-lg">Scolarité Actuelle</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormField control={form.control as any} name="classId" render={({ field }) => (
+                                <FormField control={form.control} name="classId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Classe d'affectation <span className="text-destructive">*</span></FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -226,7 +229,7 @@ export default function NewStudentPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={form.control as any} name="academicYearId" render={({ field }) => (
+                                <FormField control={form.control} name="academicYearId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Année Académique <span className="text-destructive">*</span></FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -255,8 +258,8 @@ export default function NewStudentPage() {
                                 <CardTitle className="text-lg">Compte & Contacts</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <StudentContactFields control={form.control as any} showDescriptions={true} />
-                                <FormField control={form.control as any} name="password" render={({ field }) => (
+                                <StudentContactFields showDescriptions={true} />
+                                <FormField control={form.control} name="password" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Mot de passe provisoire <span className="text-destructive">*</span></FormLabel>
                                         <FormControl>
@@ -299,7 +302,6 @@ export default function NewStudentPage() {
                         </div>
                     </form>
                 </Form>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }

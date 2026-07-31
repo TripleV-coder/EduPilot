@@ -24,7 +24,7 @@ Le design system EduPilot lui-même (tokens, composants atomiques) **doit être 
 **High-fidelity (hifi)** sur tout l'ensemble.
 - Couleurs exactes, typographies définies, espacements précis, états interactifs spécifiés.
 - 14 palettes (4 marques × 2 thèmes × 2 densités) supportées.
-- Le développeur doit recréer pixel-perfect — les valeurs hex, échelles d'espacement, typographies et radii sont définis dans `tokens.css`.
+- Le développeur doit recréer pixel-perfect — les valeurs hex, échelles d'espacement, typographies et radii sont définis dans [`src/styles/edupilot-tokens.css`](../src/styles/edupilot-tokens.css) (source de vérité en production).
 
 ---
 
@@ -39,7 +39,7 @@ Le design system EduPilot lui-même (tokens, composants atomiques) **doit être 
 ### Design tokens
 | Fichier | Rôle |
 |---|---|
-| `tokens.css` | **Single source of truth** — tous les tokens (couleurs, type, spacing, radii, shadows, motion). À porter en `tailwind.config.ts` ou variables CSS du projet cible |
+| `src/styles/edupilot-tokens.css` | **Single source of truth** (production) — tous les tokens. Le fichier `tokens.css` local du handoff est obsolète ; ouvrir les HTML via un serveur local en important ce chemin si besoin. |
 
 ### Bibliothèques de composants (par couche)
 | Fichier | Contenu |

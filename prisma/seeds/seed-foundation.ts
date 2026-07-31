@@ -141,13 +141,13 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
     // 3. Schools
     console.log("🏫 Création des établissements scolaires...\n");
     ctx.school1 = await prisma.school.create({
-        data: { name: "Collège d'Excellence Saint-Michel", code: "CESM", type: "PRIVATE", level: "SECONDARY_COLLEGE", city: "Cotonou", address: "Quartier Akpakpa, Rue 112, Lot 456", phone: await generatePhone(), email: "contact@saintmichel.bj" },
+        data: { name: "Collège d'Excellence Saint-Michel", code: "CESM", type: "PRIVATE", level: "SECONDARY_COLLEGE", offeredLevels: ["SECONDARY_COLLEGE", "SECONDARY_LYCEE"], city: "Cotonou", address: "Quartier Akpakpa, Rue 112, Lot 456", phone: await generatePhone(), email: "contact@saintmichel.bj" },
     });
     ctx.school2 = await prisma.school.create({
-        data: { name: "Lycée National Béhanzin", code: "LNB", type: "PUBLIC", level: "SECONDARY_LYCEE", city: "Porto-Novo", address: "Avenue du Gouverneur, BP 2345", phone: await generatePhone(), email: "direction@lycee-behanzin.bj" },
+        data: { name: "Lycée National Béhanzin", code: "LNB", type: "PUBLIC", level: "SECONDARY_LYCEE", offeredLevels: ["SECONDARY_LYCEE"], city: "Porto-Novo", address: "Avenue du Gouverneur, BP 2345", phone: await generatePhone(), email: "direction@lycee-behanzin.bj" },
     });
     ctx.school3 = await prisma.school.create({
-        data: { name: "École Primaire Les Étoiles Brillantes", code: "EPEB", type: "PRIVATE", level: "PRIMARY", city: "Abomey-Calavi", address: "Quartier Togoudo, Carré 234", phone: await generatePhone(), email: "contact@etoilesbrillantes.bj" },
+        data: { name: "École Primaire Les Étoiles Brillantes", code: "EPEB", type: "PRIVATE", level: "PRIMARY", offeredLevels: ["PRIMARY"], city: "Abomey-Calavi", address: "Quartier Togoudo, Carré 234", phone: await generatePhone(), email: "contact@etoilesbrillantes.bj" },
     });
     console.log("   ✅ 3 établissements créés\n");
 

@@ -30,9 +30,30 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 /**
  * Sanitize plain text: strip ALL HTML tags and trim.
  * Safe for server-side use — no DOM dependency.
+ *
+ * Scan linéaire (pas de regex) : `/<[^>]*>/g` est O(n²) sur une chaîne de
+ * `<` répétés (CodeQL js/polynomial-redos) — inacceptable sur de l'input
+ * utilisateur. Sémantique identique : chaque paire `<...>` est retirée,
+ * un `<` sans `>` fermant est conservé tel quel.
  */
 export function sanitizePlainText(input: string): string {
-  return input.replace(/<[^>]*>/g, "").trim();
+  let result = "";
+  let i = 0;
+  while (i < input.length) {
+    const lt = input.indexOf("<", i);
+    if (lt === -1) {
+      result += input.slice(i);
+      break;
+    }
+    result += input.slice(i, lt);
+    const gt = input.indexOf(">", lt + 1);
+    if (gt === -1) {
+      result += input.slice(lt);
+      break;
+    }
+    i = gt + 1;
+  }
+  return result.trim();
 }
 
 /**

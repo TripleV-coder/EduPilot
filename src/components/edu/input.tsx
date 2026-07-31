@@ -16,6 +16,12 @@ export interface InputProps {
     name?: string;
     autoComplete?: string;
     disabled?: boolean;
+    id?: string;
+    min?: string | number;
+    max?: string | number;
+    step?: string | number;
+    required?: boolean;
+    "aria-label"?: string;
 }
 
 export function Input({
@@ -31,6 +37,12 @@ export function Input({
     name,
     autoComplete,
     disabled,
+    id,
+    min,
+    max,
+    step,
+    required,
+    "aria-label": ariaLabel,
 }: InputProps) {
     const [focused, setFocused] = React.useState(false);
     const filled = focused || (value != null && value.length > 0);
@@ -90,6 +102,12 @@ export function Input({
                     <input
                         type={type}
                         name={name}
+                        id={id}
+                        min={min}
+                        max={max}
+                        step={step}
+                        required={required}
+                        aria-label={ariaLabel}
                         autoComplete={autoComplete}
                         disabled={disabled}
                         value={value ?? ""}

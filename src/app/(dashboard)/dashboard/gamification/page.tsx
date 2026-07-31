@@ -25,7 +25,8 @@ import {
     Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageLoading } from "@/components/layout/page-states";
 
 type LeaderboardEntry = {
     id: string;
@@ -167,22 +168,25 @@ export default function GamificationPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-7xl flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Gamification & récompenses"
-                        sub="Le classement et les badges débloqués par les élèves pour leur mérite."
-                        actions={
-                            <RoleActionGuard
-                                allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+            <PageShell className="max-w-7xl pb-12">
+                <PageHeader
+                    title="Gamification & récompenses"
+                    description="Classement et badges débloqués par les élèves pour leur mérite scolaire."
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Gamification" },
+                    ]}
+                    actions={
+                        <RoleActionGuard
+                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
+                        >
+                            <Dialog
+                                open={isAwardDialogOpen}
+                                onOpenChange={setIsAwardDialogOpen}
                             >
-                                <Dialog
-                                    open={isAwardDialogOpen}
-                                    onOpenChange={setIsAwardDialogOpen}
-                                >
-                                    <DialogTrigger asChild>
-                                        <Button icon="trophy">Récompenser un élève</Button>
-                                    </DialogTrigger>
+                                <DialogTrigger asChild>
+                                    <Button icon="trophy">Récompenser un élève</Button>
+                                </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
                                             <DialogTitle>Attribuer une récompense</DialogTitle>
@@ -237,11 +241,10 @@ export default function GamificationPage() {
                                             </DialogFooter>
                                         </form>
                                     </DialogContent>
-                                </Dialog>
-                            </RoleActionGuard>
-                        }
-                    />
-                </div>
+                            </Dialog>
+                        </RoleActionGuard>
+                    }
+                />
 
                 <div
                     style={{
@@ -262,30 +265,13 @@ export default function GamificationPage() {
                             </h3>
                         </div>
                         {loading ? (
-                            <div className="flex items-center gap-3 px-5 py-8">
-                                <Spinner size={18} color="var(--brand-600)" />
-                                <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                    Chargement du classement…
-                                </span>
-                            </div>
+                            <PageLoading label="Chargement du classement…" />
                         ) : leaderboard.length === 0 ? (
-                            <div className="px-5 py-12 text-center">
-                                <Icon
-                                    name="trophy"
-                                    size={28}
-                                    color="var(--eduflow-text-tertiary)"
-                                    style={{ marginBottom: 8 }}
-                                />
-                                <p
-                                    style={{
-                                        margin: 0,
-                                        fontSize: 13,
-                                        color: "var(--eduflow-text-secondary)",
-                                    }}
-                                >
-                                    Aucune entrée dans le classement pour le moment.
-                                </p>
-                            </div>
+                            <PageEmpty
+                                icon="trophy"
+                                title="Aucun point attribué"
+                                description="Récompensez les premiers élèves pour lancer le classement."
+                            />
                         ) : (
                             leaderboard.map((entry, idx) => {
                                 const rank = entry.rank ?? idx + 1;
@@ -308,7 +294,7 @@ export default function GamificationPage() {
                                 Badges disponibles
                             </h3>
                         </div>
-                        <SubLabel>Aperçu de quelques récompenses</SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
                         <div className="flex flex-col gap-3">
                             {SHOWCASE_ACHIEVEMENTS.map((a) => (
                                 <div
@@ -359,7 +345,7 @@ export default function GamificationPage() {
                         </div>
                     </Card>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

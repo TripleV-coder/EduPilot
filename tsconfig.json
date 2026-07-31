@@ -45,6 +45,7 @@
     "**/*.test.tsx",
     "vitest.config.ts",
     "prisma",
-    "scripts"
+    "scripts",
+    "EduPilot (1)"
   ]
 }

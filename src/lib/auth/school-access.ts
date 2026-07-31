@@ -82,7 +82,7 @@ export async function getAccessibleSchoolIdsForUser(input: {
     return uniqueSchoolIds(organizationAccess.accessibleSchoolIds, [primarySchoolId, studentProfile?.schoolId]);
   }
 
-  if (role === "SCHOOL_ADMIN" || role === "DIRECTOR") {
+  if (role === "SCHOOL_ADMIN" || role === "DIRECTOR" || role === "NETWORK_ADMIN") {
     if (!primarySchoolId) return uniqueSchoolIds(organizationAccess.accessibleSchoolIds);
     
     // Check if this school has annexes/children

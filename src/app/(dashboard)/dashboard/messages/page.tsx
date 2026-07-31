@@ -13,9 +13,10 @@ import {
     Card,
     Icon,
     Input,
-    Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type UserStub = {
     id: string;
@@ -290,11 +291,14 @@ export default function MessagesPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <PageHeader
-                    greeting="Messagerie"
-                    sub={`Conversations internes · parents · enseignants · ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
-                    breadcrumb={["Communication", "Messagerie"]}
+                    title="Messagerie"
+                    description={`Conversations internes · parents · enseignants · ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
+                    breadcrumbs={[
+                        { label: "Communication" },
+                        { label: "Messagerie" },
+                    ]}
                     actions={
                         <Button
                             icon="plus"
@@ -312,36 +316,11 @@ export default function MessagesPage() {
                 />
 
                 {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
+                    <PageError message={error} onRetry={() => void refresh()} />
                 ) : null}
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement des conversations…
-                        </span>
-                    </div>
+                    <PageLoading label="Chargement des conversations…" />
                 ) : null}
 
                 {!loading ? (
@@ -614,7 +593,7 @@ export default function MessagesPage() {
                                         fontSize: 13,
                                     }}
                                 >
-                                    Sélectionne une conversation pour démarrer.
+                                    Sélectionnez une conversation pour démarrer.
                                 </div>
                             )}
                         </div>
@@ -736,13 +715,13 @@ export default function MessagesPage() {
                                         padding: "32px 8px",
                                     }}
                                 >
-                                    Sélectionne une conversation pour voir le contact.
+                                    Sélectionnez une conversation pour voir le contact.
                                 </div>
                             )}
                         </div>
                     </Card>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 1100px) {

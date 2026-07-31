@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
     RefreshCw
 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const DEFAULT_BAC_SUBJECTS: ExamSubject[] = [
     { code: "MATH", name: "Mathématiques", coefficient: 4 },
@@ -97,8 +99,8 @@ export default function ReformsPage() {
             setBepcSubjects(bepc);
             setBacSubjects(bac.length > 0 ? bac : DEFAULT_BAC_SUBJECTS);
             setMentions(m.length > 0 ? m : DEFAULT_MENTIONS);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -121,8 +123,8 @@ export default function ReformsPage() {
             setSuccess(`Configuration ${code} mise à jour`);
             setTimeout(() => setSuccess(null), 3000);
             loadConfigs();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -158,13 +160,13 @@ export default function ReformsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Gestion des Réformes Nationales"
                     description="Configurez les matières d'examen et les mentions de notes au niveau national."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Réformes" },
                     ]}
                 />
@@ -349,7 +351,7 @@ export default function ReformsPage() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

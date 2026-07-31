@@ -21,6 +21,12 @@ const updateSchoolSchema = z.object({
   type: z.nativeEnum(SchoolType).optional(),
   level: z.nativeEnum(SchoolLevel).optional(),
   isActive: z.boolean().optional(),
+  // Vitrine publique (annuaire + fiche).
+  isPublic: z.boolean().optional(),
+  coverImage: z.string().url("URL de couverture invalide").nullable().optional(),
+  publicDescription: z.string().max(2000, "Description trop longue").nullable().optional(),
+  region: z.string().max(120).nullable().optional(),
+  publicPhone: z.string().max(40).nullable().optional(),
 }).strict();
 
 export const GET = createApiHandler(

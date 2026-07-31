@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizeRichText } from "@/lib/sanitize";
 import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createCourseSchema = z.object({
   classSubjectId: z.string().cuid(),
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || !["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"])) {
       return NextResponse.json({ error: "Accès refusé", code: "FORBIDDEN" }, { status: 403 });
     }
 

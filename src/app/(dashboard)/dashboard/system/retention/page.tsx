@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { ShieldCheck, Database, FileText, Activity, Play, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type EnforcementResult = {
     success: boolean;
@@ -40,8 +41,8 @@ export default function SystemRetentionPage() {
                 title: "Enforcement terminé",
                 description: `${result.totalDeleted} enregistrement(s) supprimé(s).`,
             });
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setRunning(false);
             setEnforceDialogOpen(false);
@@ -50,7 +51,7 @@ export default function SystemRetentionPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Rétention & RGPD"
                     description="Règles d'archivage et de suppression automatique des données"
@@ -215,7 +216,7 @@ export default function SystemRetentionPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

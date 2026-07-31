@@ -13,7 +13,9 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type CatColor = "neutral" | "danger" | "warning" | "success" | "info" | "brand";
 
@@ -174,15 +176,15 @@ export default function NotificationsCenterPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <PageHeader
-                    greeting="Centre de notifications"
-                    sub={
+                    title="Centre de notifications"
+                    description={
                         data
                             ? `${data.totalCount} messages · ${data.unreadCount} non lus · regroupés et priorisés`
                             : "Vue intelligente · regroupement automatique"
                     }
-                    breadcrumb={["Notifications"]}
+                    breadcrumbs={[{ label: "Notifications" }]}
                     actions={
                         <>
                             <Link href="/dashboard/settings/notifications">
@@ -205,37 +207,12 @@ export default function NotificationsCenterPage() {
                     }
                 />
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
+                {error && !data ? (
+                    <PageError message={error} />
                 ) : null}
 
                 {loading && !data ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement des notifications…
-                        </span>
-                    </div>
+                    <PageLoading label="Chargement des notifications…" />
                 ) : null}
 
                 {data ? (
@@ -470,7 +447,7 @@ export default function NotificationsCenterPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 1100px) {

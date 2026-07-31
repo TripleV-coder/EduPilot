@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Permission } from "@/lib/rbac/permissions";
+import { ScanPointCreateDialog } from "@/components/access-control/scan-point-create-dialog";
+import { BadgeRegenerateDialog } from "@/components/access-control/badge-regenerate-dialog";
 
 import {
     Avatar,
@@ -15,7 +18,7 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type PreviewStudent = {
     firstName: string;
@@ -37,14 +40,18 @@ type ScanLogEntry = {
     refused?: boolean;
 };
 
+const FALLBACK_MATRICULE = "BJ-2026-A0142";
+
 export default function AccessControlPage() {
     const [loading, setLoading] = useState(true);
     const [preview, setPreview] = useState<PreviewStudent>(null);
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
     useEffect(() => {
         // Try to fetch one real student to power the badge preview. Falls back
         // to a generic placeholder when the call fails or returns nothing.
         const load = async () => {
+            let matricule = FALLBACK_MATRICULE;
             try {
                 const res = await fetch("/api/students?limit=1");
                 if (res.ok) {
@@ -52,10 +59,11 @@ export default function AccessControlPage() {
                     const list = Array.isArray(d) ? d : d.data || d.students || [];
                     const s = list[0];
                     if (s?.user) {
+                        matricule = s.matricule ?? FALLBACK_MATRICULE;
                         setPreview({
                             firstName: s.user.firstName,
                             lastName: s.user.lastName,
-                            matricule: s.matricule,
+                            matricule,
                             className:
                                 s.enrollments?.[0]?.class?.name ?? "Classe à confirmer",
                             schoolName: s.user.school?.name ?? "EduPilot School",
@@ -68,75 +76,129 @@ export default function AccessControlPage() {
             } finally {
                 setLoading(false);
             }
+
+            // Génère un vrai QR scannable encodant le matricule du badge.
+            try {
+                const QRCode = (await import("qrcode")).default;
+                const url = await QRCode.toDataURL(`EDUPILOT:STUDENT:${matricule}`, {
+                    margin: 0,
+                    width: 128,
+                    errorCorrectionLevel: "M",
+                });
+                setQrDataUrl(url);
+            } catch {
+                /* le badge reste lisible sans QR si la génération échoue */
+            }
         };
         load();
     }, []);
 
-    const liveLog: ScanLogEntry[] = []; // Empty until a ScanLog model exists
+    const [liveLog, setLiveLog] = useState<ScanLogEntry[]>([]);
+    const [metrics, setMetrics] = useState<{ todayTotal: number; todayRefused: number; todayOk: number } | null>(null);
+    const [scanPoints, setScanPoints] = useState<Array<{ id: string; name: string; type: string; location: string | null; isActive: boolean }>>([]);
+
+    const loadLogs = useCallback(async () => {
+        try {
+            const res = await fetch("/api/access-control/logs", { credentials: "include", cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            setMetrics(data.metrics ?? null);
+            setLiveLog(
+                (data.logs ?? []).map((l: { id: string; time: string; name: string; matricule: string | null; point: string; action: string; refused: boolean }) => ({
+                    id: l.id,
+                    time: new Date(l.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+                    name: l.name,
+                    klass: l.matricule ?? "—",
+                    point: l.point,
+                    action: l.action === "EXIT" ? "Sortie" : "Entrée",
+                    variant: l.refused ? "danger" : "success",
+                    refused: l.refused,
+                }))
+            );
+        } catch {
+            /* journal indisponible : on garde l'état courant */
+        }
+    }, []);
+
+    const loadScanPoints = useCallback(async () => {
+        try {
+            const res = await fetch("/api/access-control/scan-points", { credentials: "include", cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            setScanPoints(data.scanPoints ?? []);
+        } catch {
+            /* ignore */
+        }
+    }, []);
+
+    useEffect(() => {
+        loadLogs();
+        loadScanPoints();
+    }, [loadLogs, loadScanPoints]);
 
     return (
         <PageGuard
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="QR Badge & contrôle d'accès"
-                    sub="Module à configurer · génération badges, points de scan, journal en direct"
-                    breadcrumb={["Vie scolaire", "Contrôle accès"]}
+                    title="QR Badge & contrôle d'accès"
+                    description={`${scanPoints.length} point${scanPoints.length > 1 ? "s" : ""} de scan · ${metrics?.todayTotal ?? 0} passages aujourd'hui`}
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Contrôle d'accès" },
+                    ]}
                     actions={
-                        <>
-                            <Button variant="secondary" icon="download" disabled>
-                                Régénérer badges classe
-                            </Button>
-                            <Button icon="plus" disabled>
-                                Nouveau point de scan
-                            </Button>
-                        </>
+                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                            <BadgeRegenerateDialog />
+                            <ScanPointCreateDialog onCreated={loadScanPoints} />
+                        </RoleActionGuard>
                     }
                 />
 
-                <Card
-                    padding={20}
-                    style={{
-                        background: "var(--brand-50)",
-                        border: "1px solid var(--brand-200)",
-                    }}
-                >
-                    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                        <Icon
-                            name="info"
-                            size={20}
-                            color="var(--brand-700)"
-                            style={{ marginTop: 2, flexShrink: 0 }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                                className="eduflow-display"
-                                style={{
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    color: "var(--brand-900, var(--brand-800))",
-                                }}
-                            >
-                                Module en préparation
-                            </div>
-                            <p
-                                style={{
-                                    fontSize: 13,
-                                    color: "var(--brand-800)",
-                                    margin: "4px 0 0",
-                                    lineHeight: 1.6,
-                                }}
-                            >
-                                Le badge unique par élève (avec QR signé) permettra le contrôle des
-                                entrées/sorties, l'identification cantine et le pointage transport.
-                                Les modèles Prisma <code>AccessPoint</code> + <code>ScanLog</code> et
-                                la génération QR ne sont pas encore branchés — l'aperçu ci-dessous
-                                montre le rendu final attendu.
-                            </p>
-                        </div>
+                <Card padding={0}>
+                    <div
+                        style={{
+                            padding: "12px 18px",
+                            borderBottom: scanPoints.length > 0 ? "1px solid var(--eduflow-border-subtle)" : 0,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                        }}
+                    >
+                        <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>Points de scan</h3>
+                        <Badge variant={scanPoints.some((p) => p.isActive) ? "success" : "neutral"} size="sm">
+                            {scanPoints.filter((p) => p.isActive).length} actif{scanPoints.filter((p) => p.isActive).length > 1 ? "s" : ""}
+                        </Badge>
                     </div>
+                    {scanPoints.length === 0 ? (
+                        <div style={{ padding: "24px 18px", fontSize: 12, color: "var(--eduflow-text-tertiary)", textAlign: "center" }}>
+                            Aucun point de scan. Crée-en un (portail, cantine, transport…) pour démarrer la journalisation.
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 18px" }}>
+                            {scanPoints.map((p) => (
+                                <div
+                                    key={p.id}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        padding: "6px 12px",
+                                        borderRadius: 999,
+                                        border: "1px solid var(--eduflow-border-subtle)",
+                                        fontSize: 12,
+                                        opacity: p.isActive ? 1 : 0.5,
+                                    }}
+                                >
+                                    <Icon name="check" size={12} color="var(--eduflow-success-600)" />
+                                    <strong>{p.name}</strong>
+                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>{p.type}{p.location ? ` · ${p.location}` : ""}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </Card>
 
                 <div
@@ -148,27 +210,27 @@ export default function AccessControlPage() {
                     className="kpi-grid"
                 >
                     <MetricCard
-                        label="Passages · matin"
-                        value="—"
+                        label="Passages aujourd'hui"
+                        value={metrics ? String(metrics.todayTotal) : "—"}
                         icon="users"
                         variant="neutral"
                     />
                     <MetricCard
-                        label="Retards entrée"
-                        value="—"
-                        icon="warning"
-                        variant="neutral"
-                    />
-                    <MetricCard
-                        label="Repas cantine"
-                        value="—"
-                        icon="cards"
-                        variant="neutral"
-                    />
-                    <MetricCard
-                        label="Sorties non autorisées"
-                        value="—"
+                        label="Accès validés"
+                        value={metrics ? String(metrics.todayOk) : "—"}
                         icon="check"
+                        variant={metrics && metrics.todayOk > 0 ? "success" : "neutral"}
+                    />
+                    <MetricCard
+                        label="Refusés"
+                        value={metrics ? String(metrics.todayRefused) : "—"}
+                        icon="warning"
+                        variant={metrics && metrics.todayRefused > 0 ? "danger" : "neutral"}
+                    />
+                    <MetricCard
+                        label="Points de scan"
+                        value={String(scanPoints.length)}
+                        icon="cards"
                         variant="neutral"
                     />
                 </div>
@@ -182,12 +244,12 @@ export default function AccessControlPage() {
                     className="qr-grid"
                 >
                     <Card padding={20}>
-                        <SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
                             {preview
                                 ? `${preview.firstName} ${preview.lastName.toUpperCase()}`
                                 : "exemple"}
-                        </SubLabel>
+                        </p>
                         {loading ? (
                             <div
                                 style={{
@@ -306,18 +368,28 @@ export default function AccessControlPage() {
                                         gap: 10,
                                     }}
                                 >
-                                    {/* Faux QR — repeating-conic visual placeholder */}
-                                    <div
-                                        style={{
-                                            width: 64,
-                                            height: 64,
-                                            background:
-                                                "repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 50%/8px 8px",
-                                            borderRadius: 6,
-                                            boxShadow: "inset 0 0 0 3px #fff",
-                                            flexShrink: 0,
-                                        }}
-                                    />
+                                    {/* QR réel encodant le matricule du badge. */}
+                                    {qrDataUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={qrDataUrl}
+                                            alt={`QR badge ${preview?.matricule ?? FALLBACK_MATRICULE}`}
+                                            width={64}
+                                            height={64}
+                                            style={{ width: 64, height: 64, borderRadius: 6, flexShrink: 0 }}
+                                        />
+                                    ) : (
+                                        <div
+                                            aria-hidden="true"
+                                            style={{
+                                                width: 64,
+                                                height: 64,
+                                                borderRadius: 6,
+                                                flexShrink: 0,
+                                                background: "#f1f5f9",
+                                            }}
+                                        />
+                                    )}
                                     <div
                                         style={{
                                             fontSize: 10,
@@ -389,12 +461,11 @@ export default function AccessControlPage() {
                                         margin: "2px 0 0",
                                     }}
                                 >
-                                    Le journal en temps réel apparaîtra ici dès que les points de
-                                    scan seront configurés.
+                                    50 derniers passages enregistrés aux points de scan.
                                 </p>
                             </div>
-                            <Badge variant="neutral" size="sm">
-                                Inactif
+                            <Badge variant={scanPoints.some((p) => p.isActive) ? "success" : "neutral"} size="sm">
+                                {scanPoints.some((p) => p.isActive) ? "Actif" : "Inactif"}
                             </Badge>
                         </div>
                         {liveLog.length === 0 ? (
@@ -484,7 +555,7 @@ export default function AccessControlPage() {
                         )}
                     </Card>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

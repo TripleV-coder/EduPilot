@@ -3,8 +3,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { t } from "@/lib/i18n";
-import { BarChart3, Loader2 } from "lucide-react";
-import { SectionHeader } from "./SectionHeader";
+import { Spinner } from "@/components/edu";
 
 function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
     const ref = useRef<HTMLSpanElement>(null);
@@ -28,8 +27,13 @@ function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: num
     }, [isInView, target, duration]);
 
     return (
-        <span ref={ref} className="font-sans text-5xl md:text-7xl font-black tabular-nums text-zinc-900 dark:text-white tracking-tighter">
-            {count.toLocaleString("fr-FR")}{suffix}
+        <span
+            ref={ref}
+            className="eduflow-display text-[clamp(2.5rem,6vw,4.5rem)] font-black tabular-nums tracking-tighter"
+            style={{ color: "var(--eduflow-text-primary)" }}
+        >
+            {count.toLocaleString("fr-FR")}
+            {suffix}
         </span>
     );
 }
@@ -82,13 +86,20 @@ export function StatsSection() {
     ];
 
     return (
-        <section className="py-24 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-900">
+        <section
+            className="py-24"
+            style={{
+                background: "var(--eduflow-surface-sunken)",
+                borderBottom: "1px solid var(--eduflow-border-subtle)",
+            }}
+        >
             <div className="container mx-auto px-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 max-w-7xl mx-auto">
+                <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 md:grid-cols-4 md:gap-4">
                     {statItems.map((stat, idx) => (
                         <motion.div
                             key={stat.key}
-                            className="flex flex-col items-start p-6 border-l border-zinc-200 dark:border-zinc-800"
+                            className="flex flex-col items-start p-6"
+                            style={{ borderLeft: "1px solid var(--eduflow-border-default)" }}
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
                             viewport={{ once: true }}
@@ -96,14 +107,17 @@ export function StatsSection() {
                         >
                             <div className="mb-4">
                                 {loading ? (
-                                    <span className="inline-flex items-center justify-center text-3xl font-bold text-zinc-300 animate-pulse">
-                                        ...
+                                    <span className="inline-flex items-center gap-2">
+                                        <Spinner size={24} />
                                     </span>
                                 ) : (
                                     <AnimatedCounter target={stat.target} suffix={stat.suffix} />
                                 )}
                             </div>
-                            <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">
+                            <p
+                                className="text-[10px] font-black uppercase tracking-[0.2em]"
+                                style={{ color: "var(--eduflow-text-tertiary)" }}
+                            >
                                 {t(`landing.stats.${stat.key}`)}
                             </p>
                         </motion.div>

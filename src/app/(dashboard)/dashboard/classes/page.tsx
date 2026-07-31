@@ -19,7 +19,9 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type ClassItem = {
     id: string;
@@ -74,6 +76,7 @@ export default function ClassesPage() {
         data: response,
         error,
         isLoading: loading,
+        mutate: mutateClasses,
     } = useSWR<ClassesResponse | ClassItem[]>(url, fetcher);
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
@@ -166,15 +169,17 @@ export default function ClassesPage() {
             permission={Permission.CLASS_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Classes"
-                        sub={`${allClasses.length} ${
-                            allClasses.length > 1 ? "classes" : "classe"
-                        } · ${totalEnrollments} élèves inscrits au total`}
-                        breadcrumb={["Tableau de bord", "Classes"]}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Classes"
+                    description={`${allClasses.length} ${
+                        allClasses.length > 1 ? "classes" : "classe"
+                    } · ${totalEnrollments} élèves inscrits au total`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Classes" },
+                    ]}
+                    actions={
                             <>
                                 <SegmentedToggle
                                     value={viewMode}
@@ -192,8 +197,7 @@ export default function ClassesPage() {
                                 </Link>
                             </>
                         }
-                    />
-                </div>
+                />
 
                 {/* Filters */}
                 <Card padding={14}>
@@ -212,28 +216,30 @@ export default function ClassesPage() {
                     </div>
                 </Card>
 
-                {error ? <ErrorCard label="Impossible de charger les classes." /> : null}
-
-                {loading ? <SkeletonGrid /> : null}
+                {loading ? <PageLoading label="Chargement des classes…" /> : null}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les classes."
+                        onRetry={() => void mutateClasses()}
+                    />
+                ) : null}
 
                 {!loading && !error && classes.length === 0 ? (
-                    <EmptyState
+                    <PageEmpty
+                        icon="book"
                         title={
                             selectedCycle !== "ALL"
                                 ? `Aucune classe en ${CYCLE_LABELS[selectedCycle] || selectedCycle}`
                                 : "Aucune classe enregistrée"
                         }
-                        body="Crée tes classes pour pouvoir inscrire des élèves, planifier l'emploi du temps et saisir des notes."
-                        primaryCta={
-                            <Link href="/dashboard/classes/new">
-                                <Button icon="plus">Ajouter une classe</Button>
-                            </Link>
-                        }
+                        description="Créez vos classes pour inscrire des élèves, planifier l'emploi du temps et saisir des notes."
+                        actions={[{ label: "Ajouter une classe", href: "/dashboard/classes/new" }]}
                     />
                 ) : null}
 
                 {!loading && !error && classes.length > 0 && viewMode === "grid" ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
@@ -251,163 +257,111 @@ export default function ClassesPage() {
                 ) : null}
 
                 {!loading && !error && classes.length > 0 && viewMode === "table" ? (
-                    <Card padding={0}>
-                        <div className="overflow-x-auto">
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                    <tr
-                                        style={{
-                                            background: "var(--eduflow-surface-sunken)",
-                                            textAlign: "left",
-                                        }}
+                    <DataTable
+                        caption="Liste des classes"
+                        data={classes}
+                        getRowKey={(cls) => cls.id}
+                        columns={[
+                            {
+                                id: "classe",
+                                header: "Classe",
+                                cell: (cls) => (
+                                    <Link
+                                        href={`/dashboard/classes/${cls.id}`}
+                                        className="flex items-center gap-2.5 no-underline"
+                                        style={{ color: "inherit" }}
                                     >
-                                        <Th>Classe</Th>
-                                        <Th>Niveau</Th>
-                                        <Th width={130}>Cycle</Th>
-                                        <Th width={110} center>
-                                            Élèves
-                                        </Th>
-                                        <Th width={110} center>
-                                            Matières
-                                        </Th>
-                                        <Th width={100} center>
-                                            Actions
-                                        </Th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {classes.map((cls) => {
-                                        const cycleVariant =
-                                            CYCLE_VARIANTS[cls.classLevel?.level || ""] || "neutral";
-                                        return (
-                                            <tr
-                                                key={cls.id}
-                                                style={{
-                                                    borderTop:
-                                                        "1px solid var(--eduflow-border-subtle)",
-                                                }}
-                                            >
-                                                <Td>
-                                                    <Link
-                                                        href={`/dashboard/classes/${cls.id}`}
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            gap: 10,
-                                                            textDecoration: "none",
-                                                            color: "inherit",
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="grid place-items-center"
-                                                            style={{
-                                                                width: 32,
-                                                                height: 32,
-                                                                borderRadius: 8,
-                                                                background: "var(--brand-50)",
-                                                                color: "var(--brand-700)",
-                                                                flexShrink: 0,
-                                                            }}
-                                                        >
-                                                            <Icon name="book" size={15} />
-                                                        </div>
-                                                        <span
-                                                            style={{
-                                                                fontSize: 13,
-                                                                fontWeight: 600,
-                                                                color: "var(--eduflow-text-primary)",
-                                                            }}
-                                                        >
-                                                            {cls.name}
-                                                        </span>
-                                                    </Link>
-                                                </Td>
-                                                <Td>
-                                                    <span
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: "var(--eduflow-text-secondary)",
-                                                        }}
-                                                    >
-                                                        {cls.classLevel?.name || "—"}
-                                                    </span>
-                                                </Td>
-                                                <Td>
-                                                    {cls.classLevel?.level ? (
-                                                        <Badge variant={cycleVariant} size="sm">
-                                                            {CYCLE_LABELS[cls.classLevel.level] ||
-                                                                cls.classLevel.level}
-                                                        </Badge>
-                                                    ) : (
-                                                        <span
-                                                            style={{
-                                                                fontSize: 12,
-                                                                color:
-                                                                    "var(--eduflow-text-tertiary)",
-                                                            }}
-                                                        >
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </Td>
-                                                <Td center>
-                                                    <span
-                                                        className="eduflow-tabular"
-                                                        style={{
-                                                            fontSize: 13,
-                                                            fontWeight: 600,
-                                                            color: "var(--eduflow-text-primary)",
-                                                        }}
-                                                    >
-                                                        {cls._count?.enrollments ?? 0}
-                                                    </span>
-                                                </Td>
-                                                <Td center>
-                                                    <span
-                                                        className="eduflow-tabular"
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: "var(--eduflow-text-secondary)",
-                                                        }}
-                                                    >
-                                                        {cls._count?.classSubjects ?? 0}
-                                                    </span>
-                                                </Td>
-                                                <Td center>
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Link
-                                                            href={`/dashboard/classes/${cls.id}`}
-                                                            aria-label="Voir la classe"
-                                                        >
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                icon="search"
-                                                            >
-                                                                {""}
-                                                            </Button>
-                                                        </Link>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            icon="x"
-                                                            onClick={(e) =>
-                                                                requestDelete(e, cls.id, cls.name)
-                                                            }
-                                                        >
-                                                            {""}
-                                                        </Button>
-                                                    </div>
-                                                </Td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                                        <div
+                                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+                                            style={{
+                                                background: "var(--brand-50)",
+                                                color: "var(--brand-700)",
+                                            }}
+                                        >
+                                            <Icon name="book" size={15} />
+                                        </div>
+                                        <span className="text-[13px] font-semibold">{cls.name}</span>
+                                    </Link>
+                                ),
+                            },
+                            {
+                                id: "niveau",
+                                header: "Niveau",
+                                cell: (cls) => (
+                                    <span
+                                        className="text-xs"
+                                        style={{ color: "var(--eduflow-text-secondary)" }}
+                                    >
+                                        {cls.classLevel?.name || "—"}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "cycle",
+                                header: "Cycle",
+                                cell: (cls) => {
+                                    const cycleVariant =
+                                        CYCLE_VARIANTS[cls.classLevel?.level || ""] || "neutral";
+                                    return cls.classLevel?.level ? (
+                                        <Badge variant={cycleVariant} size="sm">
+                                            {CYCLE_LABELS[cls.classLevel.level] || cls.classLevel.level}
+                                        </Badge>
+                                    ) : (
+                                        <span
+                                            className="text-xs"
+                                            style={{ color: "var(--eduflow-text-tertiary)" }}
+                                        >
+                                            —
+                                        </span>
+                                    );
+                                },
+                            },
+                            {
+                                id: "eleves",
+                                header: "Élèves",
+                                cell: (cls) => (
+                                    <span className="eduflow-tabular text-[13px] font-semibold">
+                                        {cls._count?.enrollments ?? 0}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "matieres",
+                                header: "Matières",
+                                cell: (cls) => (
+                                    <span
+                                        className="eduflow-tabular text-xs"
+                                        style={{ color: "var(--eduflow-text-secondary)" }}
+                                    >
+                                        {cls._count?.classSubjects ?? 0}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "actions",
+                                header: "Actions",
+                                cell: (cls) => (
+                                    <div className="flex items-center justify-end gap-1">
+                                        <Link href={`/dashboard/classes/${cls.id}`} aria-label="Voir la classe">
+                                            <Button variant="ghost" size="sm" icon="search">
+                                                {""}
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            icon="x"
+                                            onClick={(e) => requestDelete(e, cls.id, cls.name)}
+                                        >
+                                            {""}
+                                        </Button>
+                                    </div>
+                                ),
+                            },
+                        ]}
+                    />
                 ) : null}
-            </div>
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -718,187 +672,5 @@ function FieldSearch({
                 />
             </div>
         </label>
-    );
-}
-
-function ErrorCard({ label }: { label: string }) {
-    return (
-        <Card
-            padding={14}
-            style={{
-                borderLeft: "3px solid var(--eduflow-danger-500)",
-                background: "var(--eduflow-danger-50)",
-            }}
-        >
-            <div className="flex items-center gap-3">
-                <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: 13,
-                        color: "var(--eduflow-danger-800)",
-                        fontWeight: 500,
-                    }}
-                >
-                    {label}
-                </p>
-            </div>
-        </Card>
-    );
-}
-
-function EmptyState({
-    title,
-    body,
-    primaryCta,
-}: {
-    title: string;
-    body: string;
-    primaryCta?: React.ReactNode;
-}) {
-    return (
-        <Card padding={36}>
-            <div className="flex flex-col items-center gap-3 text-center">
-                <div
-                    className="grid place-items-center"
-                    style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 16,
-                        background: "var(--brand-50)",
-                    }}
-                >
-                    <Icon name="book" size={26} color="var(--brand-700)" />
-                </div>
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                    {title}
-                </h3>
-                <p
-                    style={{
-                        fontSize: 13,
-                        color: "var(--eduflow-text-secondary)",
-                        maxWidth: 480,
-                        lineHeight: 1.55,
-                        margin: 0,
-                    }}
-                >
-                    {body}
-                </p>
-                {primaryCta ? <div className="mt-2">{primaryCta}</div> : null}
-            </div>
-        </Card>
-    );
-}
-
-function SkeletonGrid() {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: 14,
-            }}
-        >
-            {Array.from({ length: 8 }).map((_, idx) => (
-                <Card key={idx} padding={16}>
-                    <div className="flex items-start gap-3">
-                        <div
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 12,
-                                background: "var(--eduflow-surface-sunken)",
-                            }}
-                        />
-                        <div className="flex-1 space-y-2">
-                            <div
-                                style={{
-                                    height: 18,
-                                    width: "60%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    height: 10,
-                                    width: "40%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex justify-between">
-                        <div
-                            style={{
-                                height: 14,
-                                width: 80,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 4,
-                            }}
-                        />
-                        <div
-                            style={{
-                                height: 18,
-                                width: 70,
-                                background: "var(--eduflow-surface-sunken)",
-                                borderRadius: 9,
-                            }}
-                        />
-                    </div>
-                </Card>
-            ))}
-        </div>
-    );
-}
-
-function Th({
-    children,
-    width,
-    center,
-}: {
-    children: React.ReactNode;
-    width?: number;
-    center?: boolean;
-}) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                textAlign: center ? "center" : "left",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td({
-    children,
-    style,
-    center,
-}: {
-    children: React.ReactNode;
-    style?: React.CSSProperties;
-    center?: boolean;
-}) {
-    return (
-        <td
-            style={{
-                padding: "12px 16px",
-                fontSize: 13,
-                textAlign: center ? "center" : "left",
-                ...style,
-            }}
-        >
-            {children}
-        </td>
     );
 }

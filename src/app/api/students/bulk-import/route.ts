@@ -9,6 +9,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { checkStudentQuota } from "@/lib/saas/quotas";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { generateImportPassword } from "@/lib/import/initial-password";
 
 // Wrap the shared schema in an array for bulk import structure expectations if needed
 // But the shared schema is for a single student. 
@@ -17,7 +18,11 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 // Let's explicitly define the body schema using the shared one.
 
 const bodySchema = z.object({
-  students: z.array(importStudentSchema)
+  // Cap anti-DoS à 500 lignes/lot (cohérent avec /api/import/{students,teachers,parents})
+  students: z
+    .array(importStudentSchema)
+    .min(1, "Aucun élève à importer.")
+    .max(500, "Maximum 500 lignes par import. Découpez votre fichier."),
 });
 
 export const POST = createApiHandler(
@@ -61,7 +66,8 @@ export const POST = createApiHandler(
       errors: [] as string[],
       created: [] as string[],
     };
-    const DEFAULT_IMPORT_PASSWORD = "00000000";
+    // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
+        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
     // Pre-fetch existing data in batch to avoid N+1 queries
     const allEmails = students.map((s) => s.email);

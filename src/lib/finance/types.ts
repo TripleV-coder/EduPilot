@@ -4,4 +4,4 @@ export interface PaymentProvider {
     verifyPayment(transactionId: string): Promise<{ status: 'SUCCESS' | 'FAILED' | 'PENDING'; rawData: any }>;
 }
 
-export type SupportedProvider = 'FLUTTERWAVE' | 'PAYSTACK' | 'FEDAPAY';
+export type SupportedProvider = 'FLUTTERWAVE' | 'PAYSTACK' | 'FEDAPAY' | 'MOMO';

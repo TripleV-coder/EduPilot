@@ -15,7 +15,8 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 type Evaluation = {
     id: string;
@@ -167,7 +168,7 @@ export default function ExamsPlanningPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/exams" style={{ textDecoration: "none" }}>
                         <Button variant="secondary" size="sm">
@@ -184,9 +185,13 @@ export default function ExamsPlanningPage() {
                 </div>
 
                 <PageHeader
-                    greeting="Examens · planning"
-                    sub={`Composition · ${fmtRangeLabel(weekStart)}`}
-                    breadcrumb={["Pédagogie", "Examens", "Planning"]}
+                    title="Examens · planning"
+                    description={`Composition · ${fmtRangeLabel(weekStart)}`}
+                    breadcrumbs={[
+                        { label: "Pédagogie" },
+                        { label: "Examens", href: "/dashboard/exams" },
+                        { label: "Planning" },
+                    ]}
                     actions={
                         <>
                             <Button variant="secondary" icon="download">
@@ -494,7 +499,7 @@ export default function ExamsPlanningPage() {
                         </div>
                     </Card>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

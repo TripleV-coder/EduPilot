@@ -8,6 +8,7 @@ import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { incidentCreateSchema } from "@/lib/validations/incident";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/incidents
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -137,9 +137,7 @@ function FirstLoginForm() {
 
     if (isSuccess) {
         return (
-            <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300"
                 style={{ display: "flex", flexDirection: "column", gap: 18 }}
             >
                 <div
@@ -184,16 +182,14 @@ function FirstLoginForm() {
                         Se connecter maintenant
                     </Button>
                 </Link>
-            </motion.div>
+            </div>
         );
     }
 
     return (
         <>
             {error ? (
-                <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
                     role="alert"
                     style={{
                         display: "flex",
@@ -209,7 +205,7 @@ function FirstLoginForm() {
                 >
                     <Icon name="warning" size={16} color="var(--eduflow-danger-600)" />
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{error}</div>
-                </motion.div>
+                </div>
             ) : null}
 
             <form

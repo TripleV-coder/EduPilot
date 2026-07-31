@@ -1,7 +1,7 @@
 "use client";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { useSchool } from "@/components/providers/school-provider";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 interface ClassSubjectEntry {
     classId: string;
@@ -95,8 +96,8 @@ export default function CurriculumConfigPage() {
             setAssignSubjectId("");
             setAssignCoeff("1");
             toast.success("Matière ajoutée au curriculum");
-        } catch (e: any) {
-            toast.error(e.message || "Erreur lors de l'ajout");
+        } catch (e) {
+            toast.error(getErrorMessage(e) || "Erreur lors de l'ajout");
         } finally {
             setSaving(false);
         }
@@ -133,8 +134,8 @@ export default function CurriculumConfigPage() {
             }
             await mutateCurriculum();
             toast.success("Matière retirée du curriculum");
-        } catch (e: any) {
-            toast.error(e.message || "Erreur — des notes existent peut-être pour cette matière");
+        } catch (e) {
+            toast.error(getErrorMessage(e) || "Erreur — des notes existent peut-être pour cette matière");
         }
     }, [mutateCurriculum]);
 
@@ -144,9 +145,9 @@ export default function CurriculumConfigPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell className="max-w-4xl">
                 <PageHeader
-                    title="Configuration du Curriculum"
+                    title="Programmes scolaires"
                     description="Assignez les matières et coefficients par classe."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -286,7 +287,7 @@ export default function CurriculumConfigPage() {
                         </CardContent>
                     </Card>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

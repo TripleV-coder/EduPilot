@@ -77,7 +77,18 @@ export function Button({
     const s = SIZE_TOKENS[size];
     const v = VARIANT_TOKENS[variant];
     const [hov, setHov] = React.useState(false);
+    const [pressed, setPressed] = React.useState(false);
     const isDisabled = disabled || loading;
+
+    // Feedback tactile : la pression enfonce le bouton (scale 0.97), le survol
+    // le soulève légèrement. La pression prime sur le survol.
+    const transform = isDisabled
+        ? "none"
+        : pressed
+          ? "scale(0.97)"
+          : hov
+            ? "translateY(-0.5px)"
+            : "none";
 
     return (
         <button
@@ -85,7 +96,13 @@ export function Button({
             onClick={onClick}
             disabled={isDisabled}
             onMouseEnter={() => setHov(true)}
-            onMouseLeave={() => setHov(false)}
+            onMouseLeave={() => {
+                setHov(false);
+                setPressed(false);
+            }}
+            onPointerDown={() => !isDisabled && setPressed(true)}
+            onPointerUp={() => setPressed(false)}
+            onPointerCancel={() => setPressed(false)}
             style={{
                 height: s.h,
                 padding: `0 ${s.px}px`,
@@ -103,8 +120,8 @@ export function Button({
                 cursor: isDisabled ? "not-allowed" : "pointer",
                 opacity: isDisabled ? 0.5 : 1,
                 transition:
-                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out), transform var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                transform: hov && !isDisabled ? "translateY(-0.5px)" : "none",
+                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out), transform var(--eduflow-motion-tap) var(--eduflow-ease-out)",
+                transform,
                 fontFamily: "inherit",
                 width: full ? "100%" : "auto",
                 whiteSpace: "nowrap",

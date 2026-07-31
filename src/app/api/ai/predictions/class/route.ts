@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { generateClassPredictions } from "@/lib/services/ai-predictive";
+import { getClassPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * POST /api/ai/predictions/class
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -44,9 +45,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer les prédictions
-    const predictions = await generateClassPredictions(classId);
+    const result = await getClassPredictions(classId);
 
-    return NextResponse.json(predictions);
+    return NextResponse.json(result);
   } catch (error) {
     logger.error(" generating class predictions:", error as Error);
     return NextResponse.json(
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -95,9 +96,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Générer les prédictions en temps réel
-    const predictions = await generateClassPredictions(classId);
+    const result = await getClassPredictions(classId);
 
-    return NextResponse.json(predictions);
+    return NextResponse.json(result);
   } catch (error) {
     logger.error(" fetching class predictions:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

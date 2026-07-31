@@ -4,11 +4,12 @@ import prisma from "@/lib/prisma";
 import { aiService } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 

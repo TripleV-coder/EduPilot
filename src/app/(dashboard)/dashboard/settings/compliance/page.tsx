@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Permission } from "@/lib/rbac/permissions";
@@ -46,7 +47,7 @@ export default function ComplianceDashboardPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="RGPD & Conformité"
                     description="Tableau de bord de suivi de la protection des données et politiques de confidentialité."
@@ -230,7 +231,7 @@ export default function ComplianceDashboardPage() {
                         </Card>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

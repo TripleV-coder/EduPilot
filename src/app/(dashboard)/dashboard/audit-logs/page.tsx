@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
@@ -131,7 +132,7 @@ export default function AuditLogsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
-            <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
                     title="Journal d'audit"
                     description="Toutes les actions critiques · conforme MEMP · 90 jours en accès direct"
@@ -202,29 +203,15 @@ export default function AuditLogsPage() {
                     }}
                 >
                     {loading ? (
-                        <div className="p-3 space-y-2">
-                            {Array.from({ length: 8 }).map((_, idx) => (
-                                <div
-                                    key={idx}
-                                    className="h-12 rounded-lg animate-pulse"
-                                    style={{ background: "var(--eduflow-surface-sunken)" }}
-                                />
-                            ))}
-                        </div>
+                        <PageLoading label="Chargement du journal d'audit…" />
                     ) : error ? (
-                        <div
-                            className="px-6 py-16 text-center"
-                            style={{ color: "var(--eduflow-danger-700)" }}
-                        >
-                            <p className="text-sm">Impossible de charger les logs ({error}).</p>
-                        </div>
+                        <PageError message={`Impossible de charger les logs (${error}).`} onRetry={() => window.location.reload()} />
                     ) : filtered.length === 0 ? (
-                        <div
-                            className="px-6 py-16 text-center"
-                            style={{ color: "var(--eduflow-text-tertiary)" }}
-                        >
-                            <p className="text-sm">Aucun événement pour ce filtre.</p>
-                        </div>
+                        <PageEmpty
+                            icon="cards"
+                            title="Aucun événement pour ce filtre"
+                            description="Ajustez les filtres ou la recherche pour afficher des entrées."
+                        />
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full border-collapse text-[12px]">
@@ -311,7 +298,7 @@ export default function AuditLogsPage() {
                         </div>
                     )}
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

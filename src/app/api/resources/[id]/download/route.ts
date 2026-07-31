@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * POST /api/resources/[id]/download
@@ -43,7 +44,7 @@ export async function POST(
     }
 
     const userRole = session.user.role;
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(userRole);
+    const isAdmin = roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]);
 
     if (!resource.isPublic && !isAdmin) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });

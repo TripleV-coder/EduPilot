@@ -7,6 +7,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createHomeworkSchema = z.object({
   classSubjectId: z.string().cuid(),
@@ -294,7 +295,7 @@ export async function POST(request: NextRequest) {
 
     // Only teachers and admins can create homework
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

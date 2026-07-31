@@ -9,6 +9,8 @@ import { checkTeacherQuota } from "@/lib/saas/quotas";
 import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { generateImportPassword } from "@/lib/import/initial-password";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function POST(request: NextRequest) {
     try {
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+        if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -26,6 +28,14 @@ export async function POST(request: NextRequest) {
 
         if (!Array.isArray(data)) {
             return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
+
+        }
+
+        if (data.length > 500) {
+            return NextResponse.json(
+                { error: "Maximum 500 lignes par import. Découpez votre fichier." },
+                { status: 400 }
+            );
         }
 
         const results = {
@@ -33,7 +43,8 @@ export async function POST(request: NextRequest) {
             errors: [] as any[],
         };
 
-        const DEFAULT_IMPORT_PASSWORD = "00000000";
+        // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
+        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
         // Resolve school context once
         let schoolId = getActiveSchoolId(session) || null;

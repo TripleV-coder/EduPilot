@@ -16,7 +16,8 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type Teacher = {
     id: string;
@@ -135,7 +136,7 @@ export default function TeachersHRPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/teachers" style={{ textDecoration: "none" }}>
                         <Button variant="secondary" size="sm">
@@ -151,9 +152,13 @@ export default function TeachersHRPage() {
                     </Link>
                 </div>
                 <PageHeader
-                    greeting="Ressources humaines · enseignants"
-                    sub={`${teachers.length} contrats · ${partitioned.titulaires.length} titulaires · ${partitioned.vacataires.length} vacataires`}
-                    breadcrumb={["Administration", "RH", "Enseignants"]}
+                    title="Ressources humaines · enseignants"
+                    description={`${teachers.length} contrats · ${partitioned.titulaires.length} titulaires · ${partitioned.vacataires.length} vacataires`}
+                    breadcrumbs={[
+                        { label: "Administration" },
+                        { label: "RH" },
+                        { label: "Enseignants" },
+                    ]}
                     actions={
                         <>
                             <Button variant="secondary" icon="download" disabled>
@@ -589,7 +594,7 @@ export default function TeachersHRPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 1200px) {

@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import {
     Building2,
@@ -553,14 +554,14 @@ export default function RoomsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Salles de classe"
                         description="Gestion des salles physiques de l'établissement, partagées par tous les utilisateurs."
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Paramètres" },
+                            { label: "Paramètres", href: "/dashboard/settings" },
                             { label: "Salles" },
                         ]}
                     />
@@ -700,7 +701,7 @@ export default function RoomsPage() {
                         </Card>
                     </div>
                 )}
-            </div>
+            </PageShell>
 
             <EditRoomDialog
                 room={editRoom}

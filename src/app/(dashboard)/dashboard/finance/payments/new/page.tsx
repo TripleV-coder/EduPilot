@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { CreditCard, Save, AlertCircle, CheckCircle, ArrowLeft, Search, User, DollarSign, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function NewPaymentPage() {
     const [students, setStudents] = useState<any[]>([]);
@@ -21,6 +22,7 @@ export default function NewPaymentPage() {
     const [amount, setAmount] = useState("");
     const [method, setMethod] = useState("CASH");
     const [reference, setReference] = useState("");
+    const [payerPhone, setPayerPhone] = useState("");
     const [notes, setNotes] = useState("");
 
     const [loading, setLoading] = useState(true);
@@ -120,6 +122,7 @@ export default function NewPaymentPage() {
                         feeId: selectedFeeId,
                         studentId: selectedStudentId,
                         provider: method === "MOBILE_MONEY_MTN" ? "MTN" : "MOOV",
+                        payerPhone: payerPhone.trim() || undefined,
                     }),
                 });
 
@@ -159,13 +162,14 @@ export default function NewPaymentPage() {
             setSelectedFeeId("");
             setAmount("");
             setReference("");
+            setPayerPhone("");
             setNotes("");
             setSearchTerm("");
             setStudents([]);
 
             window.scrollTo(0, 0);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -197,7 +201,7 @@ export default function NewPaymentPage() {
 
     return (
         <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
                         <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -372,6 +376,23 @@ export default function NewPaymentPage() {
                                             </select>
                                         </div>
 
+                                        {(method === "MOBILE_MONEY_MTN" || method === "MOBILE_MONEY_MOOV") && (
+                                            <div className="space-y-2">
+                                                <Label>Numéro Mobile Money du payeur</Label>
+                                                <Input
+                                                    aria-label="Numéro Mobile Money du payeur"
+                                                    type="tel"
+                                                    inputMode="tel"
+                                                    value={payerPhone}
+                                                    onChange={e => setPayerPhone(e.target.value)}
+                                                    placeholder="Ex: 22990000000"
+                                                />
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Requis pour la demande de paiement push (MoMo direct). Une demande sera envoyée sur ce numéro.
+                                                </p>
+                                            </div>
+                                        )}
+
                                         <div className="space-y-2 md:col-span-2">
                                             <Label>Référence de transaction (Optionnel)</Label>
                                             <Input
@@ -407,7 +428,7 @@ export default function NewPaymentPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -1,14 +1,18 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import useSWR from "swr";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
-import { Avatar, Badge, Button, Card, Chip, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import { SendJournalButton } from "@/components/accounting/send-journal-button";
 
 type JournalLine = {
     id: string;
@@ -113,56 +117,35 @@ function AccountingPageContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Comptabilité OHADA"
-                    sub="Chargement de l'exercice…"
-                    breadcrumb={["Administration", "Finance", "Comptabilité"]}
+                    title="Comptabilité OHADA"
+                    description="Chargement de l'exercice…"
+                    breadcrumbs={[
+                        { label: "Administration" },
+                        { label: "Finance" },
+                        { label: "Comptabilité" },
+                    ]}
                 />
-                <div
-                    style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}
-                    className="kpi-grid"
-                >
-                    {[0, 1, 2, 3].map((i) => (
-                        <Card key={i} padding={16} style={{ minHeight: 100 }}>
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 28,
-                                    width: "70%",
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </Card>
-                    ))}
-                </div>
-            </div>
+                <PageLoading label="Chargement de l'exercice comptable…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Comptabilité OHADA"
-                    sub="Impossible de charger l'exercice"
-                    breadcrumb={["Administration", "Finance", "Comptabilité"]}
+                    title="Comptabilité OHADA"
+                    description="Impossible de charger l'exercice"
+                    breadcrumbs={[
+                        { label: "Administration" },
+                        { label: "Finance" },
+                        { label: "Comptabilité" },
+                    ]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service comptabilité est momentanément indisponible.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service comptabilité est momentanément indisponible." />
+            </PageShell>
         );
     }
 
@@ -175,28 +158,47 @@ function AccountingPageContent() {
         resultN >= 0 ? "success" : "danger";
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <PageShell className="pb-12">
             <PageHeader
-                greeting={`Comptabilité OHADA · exercice ${fiscalLabel}`}
-                sub="Plan SYSCOHADA révisé · clôture mensuelle · export DGI · réviseur Cabinet Aïvodji"
-                breadcrumb={["Administration", "Finance", "Comptabilité"]}
+                title={`Comptabilité OHADA · exercice ${fiscalLabel}`}
+                description="Plan SYSCOHADA révisé · clôture mensuelle · export DGI"
+                breadcrumbs={[
+                    { label: "Administration" },
+                    { label: "Finance" },
+                    { label: "Comptabilité" },
+                ]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
                             Conforme SYSCOHADA
                         </Badge>
-                        <Button variant="secondary" icon="download" disabled title="Export DGI iTAS à venir">
+                        <Button
+                            variant="secondary"
+                            icon="download"
+                            onClick={() => {
+                                const url = data?.fiscalYear?.id
+                                    ? `/api/accounting/export?fiscalYearId=${data.fiscalYear.id}&format=itas`
+                                    : "/api/accounting/export?format=itas";
+                                window.open(url, "_blank");
+                            }}
+                            disabled={!hasFiscalYear}
+                            title={hasFiscalYear ? "Télécharger l'export DGI iTAS (CSV SYSCOHADA)" : "Aucun exercice fiscal actif"}
+                        >
                             Export DGI · iTAS
                         </Button>
-                        <Button icon="plus" disabled title="Création écriture à venir">
-                            Nouvelle écriture
-                        </Button>
+                        <Link href="/dashboard/accounting/entries/new">
+                            <Button icon="plus">Nouvelle écriture</Button>
+                        </Link>
                     </>
                 }
             />
 
             {!hasFiscalYear ? (
-                <EmptyAccountingState />
+                <PageEmpty
+                    icon="money"
+                    title="Aucun exercice comptable ouvert"
+                    description="Ouvrez l'exercice fiscal (ex. 2025-2026) et chargez le plan comptable SYSCOHADA pour démarrer la tenue de comptabilité. Les écritures sont ensuite générées automatiquement depuis les paiements scolarité et les décaissements Wallet."
+                />
             ) : (
                 <>
                     <div
@@ -250,7 +252,10 @@ function AccountingPageContent() {
                                 totalFcfa={data.expenseTotalFcfa}
                             />
                             <DeadlinesCard />
-                            <AuditorCard />
+                            <AuditorCard
+                                fiscalYearId={data.fiscalYear?.id ?? null}
+                                fiscalLabel={data.fiscalYear?.label ?? null}
+                            />
                         </div>
                     </div>
                 </>
@@ -266,54 +271,7 @@ function AccountingPageContent() {
                     }
                 }
             `}</style>
-        </div>
-    );
-}
-
-function EmptyAccountingState() {
-    return (
-        <Card
-            padding={40}
-            style={{
-                textAlign: "center",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                minHeight: 360,
-                justifyContent: "center",
-            }}
-        >
-            <div
-                style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 24,
-                    background: "var(--brand-50)",
-                    display: "grid",
-                    placeItems: "center",
-                    marginBottom: 18,
-                }}
-            >
-                <Icon name="money" size={36} color="var(--brand-700)" />
-            </div>
-            <h3 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 8px" }}>
-                Aucun exercice comptable ouvert
-            </h3>
-            <p
-                style={{
-                    fontSize: 13,
-                    color: "var(--eduflow-text-secondary)",
-                    maxWidth: 420,
-                    lineHeight: 1.55,
-                    margin: 0,
-                }}
-            >
-                Ouvrez l&apos;exercice fiscal (ex. 2025-2026) et chargez le plan comptable
-                SYSCOHADA pour démarrer la tenue de comptabilité. Les écritures sont ensuite
-                générées automatiquement depuis les paiements scolarité et les décaissements
-                Wallet.
-            </p>
-        </Card>
+        </PageShell>
     );
 }
 
@@ -805,7 +763,7 @@ function DeadlinesCard() {
                 border: "1px solid var(--brand-200)",
             }}
         >
-            <SubLabel>Échéances DGI · à venir</SubLabel>
+            <SubLabel>Calendrier fiscal · indicatif</SubLabel>
             <div
                 style={{
                     marginTop: 8,
@@ -851,46 +809,37 @@ function DeadlinesCard() {
                     </div>
                 ))}
             </div>
+            <p style={{ fontSize: 10.5, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
+                Échéances récurrentes standard — à confirmer auprès de la DGI et
+                de la CNSS selon votre régime.
+            </p>
         </Card>
     );
 }
 
-function AuditorCard() {
+function AuditorCard({
+    fiscalYearId,
+    fiscalLabel,
+}: {
+    fiscalYearId: string | null;
+    fiscalLabel: string | null;
+}) {
     return (
         <Card padding={16}>
-            <SubLabel>Réviseur comptable</SubLabel>
-            <div
+            <SubLabel>Révision &amp; transmission</SubLabel>
+            <p
                 style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    marginTop: 8,
+                    fontSize: 12,
+                    color: "var(--eduflow-text-tertiary)",
+                    margin: "8px 0 0",
+                    lineHeight: 1.5,
                 }}
             >
-                <Avatar name="Cabinet Aïvodji" size="md" />
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>
-                        Cabinet Aïvodji &amp; Associés
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-                        Mission audit · ord. exp. comp. Bénin
-                    </div>
-                </div>
-                <Badge variant="success" size="sm" dot>
-                    Live
-                </Badge>
-            </div>
-            <Button
-                variant="secondary"
-                size="sm"
-                full
-                style={{ marginTop: 12 }}
-                icon="sms"
-                disabled
-                title="Envoi messagerie professionnel à venir"
-            >
-                Envoyer le journal
-            </Button>
+                Transmettez le journal à la direction et à la comptabilité pour
+                révision avant envoi au cabinet d&apos;audit. L&apos;export
+                SYSCOHADA / DGI est joint au message.
+            </p>
+            <SendJournalButton fiscalYearId={fiscalYearId} fiscalLabel={fiscalLabel} />
         </Card>
     );
 }

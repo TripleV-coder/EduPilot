@@ -79,7 +79,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
             const data = await response.json();
 
             if (data.success) {
-                setInterventionPlan(data.analysis);
+                setInterventionPlan(data.data);
                 toast.success("Analyse IA terminée avec succès");
             } else {
                 toast.error(data.error || "Une erreur est survenue lors de l'analyse");

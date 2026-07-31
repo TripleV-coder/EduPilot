@@ -6,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const availabilitySchema = z.object({
   dayOfWeek: z.number().min(0).max(6),
@@ -120,7 +121,7 @@ export async function POST(
       );
     }
 
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role);
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     const isOwner = teacherProfile.userId === session.user.id;
     const activeSchoolId = getActiveSchoolId(session);
 
@@ -231,7 +232,7 @@ export async function DELETE(
       );
     }
 
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role);
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     const isOwner = teacherProfile.userId === session.user.id;
     const activeSchoolId = getActiveSchoolId(session);
 

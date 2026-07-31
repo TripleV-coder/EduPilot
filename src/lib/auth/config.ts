@@ -11,6 +11,12 @@ import {
   resetFailedLoginAttempts
 } from "./account-lockout";
 import { verifyToken, findMatchingBackupCode } from "./two-factor";
+import {
+  checkRateLimit,
+  createRateLimitKey,
+  resetRateLimit,
+  MFA_VERIFY_RATE_LIMIT,
+} from "./rate-limiter";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
@@ -204,6 +210,20 @@ export const authConfig: NextAuthConfig = {
               const hashedBackupCodes = user.twoFactorBackupCodes || [];
               const backupIndex = await findMatchingBackupCode(twoFactorCode, hashedBackupCodes);
               if (backupIndex === -1) {
+                // Un code 2FA erroné est une tentative d'authentification
+                // échouée au même titre qu'un mot de passe erroné : sans
+                // incrément du compteur, le verrouillage de compte ne protège
+                // pas le second facteur contre la force brute.
+                await recordFailedLoginAttempt(user.id);
+                await prisma.auditLog.create({
+                  data: {
+                    userId: user.id,
+                    action: 'LOGIN_FAILED_2FA',
+                    entity: 'user',
+                    entityId: user.id,
+                    newValues: { message: 'Invalid 2FA code' },
+                  },
+                });
                 throw new Error("Code 2FA incorrect");
               }
               // Supprimer le backup code utilisé (à usage unique)
@@ -294,6 +314,24 @@ export const authConfig: NextAuthConfig = {
         // MFA Verification
         if (session?.twoFactorCode) {
           if (userId) {
+            // Un TOTP ne vaut que 6 chiffres : sans plafond de tentatives, il
+            // est devinable par force brute depuis une session pré-2FA.
+            const mfaRl = await checkRateLimit(
+              createRateLimitKey("mfa-verify", userId),
+              MFA_VERIFY_RATE_LIMIT,
+            );
+            if (!mfaRl.allowed) {
+              await prisma.auditLog.create({
+                data: {
+                  userId,
+                  action: "MFA_VERIFY_RATE_LIMITED",
+                  entity: "user",
+                  entityId: userId,
+                },
+              });
+              return token;
+            }
+
             const dbUser = await prisma.user.findUnique({
               where: { id: userId },
               select: { twoFactorSecret: true, twoFactorBackupCodes: true },
@@ -318,6 +356,15 @@ export const authConfig: NextAuthConfig = {
 
               if (isValid || isBackup) {
                 token.isTwoFactorAuthenticated = true;
+                await resetRateLimit(createRateLimitKey("mfa-verify", userId));
+                await prisma.auditLog.create({
+                  data: {
+                    userId,
+                    action: isBackup ? "MFA_VERIFIED_BACKUP_CODE" : "MFA_VERIFIED",
+                    entity: "user",
+                    entityId: userId,
+                  },
+                });
               }
             }
           }

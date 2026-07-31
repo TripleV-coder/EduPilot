@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { calculateWeightedAverage, getAppreciation, getRank } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const _BULLETIN_ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"];
 
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
       if (!isParentOf) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
-    } else if (!["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(userRole)) {
+    } else if (!roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 

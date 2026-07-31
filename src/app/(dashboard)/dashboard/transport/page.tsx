@@ -12,9 +12,9 @@ import {
     Chip,
     Icon,
     MetricCard,
-    Spinner,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type Variant = "success" | "warning" | "danger";
 
@@ -71,15 +71,18 @@ export default function TransportPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <PageHeader
-                    greeting="Transport scolaire"
-                    sub={
+                    title="Transport scolaire"
+                    description={
                         data && data.configured
                             ? `${data.metrics.totalBuses ?? "?"} bus · ${data.lines.length} lignes · ${data.metrics.transportedStudents ?? "?"} élèves transportés · suivi GPS temps réel`
                             : "Suivi GPS · lignes · alertes parents (module à configurer)"
                     }
-                    breadcrumb={["Vie scolaire", "Transport"]}
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Transport" },
+                    ]}
                     actions={
                         <>
                             <Button variant="secondary" icon="download">
@@ -91,37 +94,10 @@ export default function TransportPage() {
                 />
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement du module transport…
-                        </span>
-                    </div>
+                    <PageLoading label="Chargement du module transport…" />
                 ) : null}
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} /> : null}
 
                 {data ? (
                     <>
@@ -326,8 +302,8 @@ export default function TransportPage() {
                                                         margin: 0,
                                                     }}
                                                 >
-                                                    Active le suivi en déclarant tes bus, lignes et chauffeurs,
-                                                    puis connecte les balises GPS. Les positions, retards et
+                                                    Activez le suivi en déclarant vos bus, lignes et chauffeurs,
+                                                    puis connectez les balises GPS. Les positions, retards et
                                                     alertes SMS s'afficheront ici en temps réel.
                                                 </p>
                                             </div>
@@ -367,7 +343,7 @@ export default function TransportPage() {
                                         >
                                             Aucune ligne configurée pour l'instant.
                                             <br />
-                                            Crée ta première ligne pour démarrer le suivi.
+                                            Créez votre première ligne pour démarrer le suivi.
                                         </div>
                                     ) : (
                                         data.lines.map((l, i) => (
@@ -461,7 +437,7 @@ export default function TransportPage() {
                         </div>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

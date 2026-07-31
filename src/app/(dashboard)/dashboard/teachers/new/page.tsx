@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { FormPageTemplate } from "@/components/layout/form-page-template";
+export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
-import { AlertCircle, Save, ArrowLeft, CheckCircle, UserPlus, Info } from "lucide-react";
+import { AlertCircle, Save, CheckCircle, UserPlus, Info } from "lucide-react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useSWRConfig } from "swr";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const STANDARD_PASSWORD = "00000000";
 
@@ -35,8 +36,10 @@ export default function NewTeacherPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const form = useForm<TeacherFormValues>({
-        resolver: zodResolver(teacherCreateSchema) as any,
+    // additionalSchoolIds (.default) et hireDate (coerce) rendent le type
+    // d'entrée ≠ type de sortie : trois génériques au lieu d'un cast.
+    const form = useForm<z.input<typeof teacherCreateSchema>, unknown, TeacherFormValues>({
+        resolver: zodResolver(teacherCreateSchema),
         defaultValues: {
             firstName: "",
             lastName: "",
@@ -45,7 +48,7 @@ export default function NewTeacherPage() {
             password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
-            hireDate: undefined as any,
+            hireDate: undefined,
         },
     });
 
@@ -78,11 +81,11 @@ export default function NewTeacherPage() {
             setSuccess(true);
             mutate(key => typeof key === 'string' && key.startsWith('/api/teachers'));
 
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
             toast({
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
                 variant: "destructive"
             });
         } finally {
@@ -100,24 +103,23 @@ export default function NewTeacherPage() {
             password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
-            hireDate: undefined as any,
+            hireDate: undefined,
         });
     };
 
     return (
-        <PageGuard permission={Permission.TEACHER_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-4xl mx-auto">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/teachers">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <PageHeader
-                        title="Ajouter un Enseignant"
-                        description="Enregistrer un nouveau membre du corps professoral"
-                    />
-                </div>
+        <FormPageTemplate
+            permission={Permission.TEACHER_CREATE}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+            backHref="/dashboard/teachers"
+            title="Ajouter un Enseignant"
+            description="Enregistrer un nouveau membre du corps professoral"
+            breadcrumbs={[
+                { label: "Tableau de bord", href: "/dashboard" },
+                { label: "Enseignants", href: "/dashboard/teachers" },
+                { label: "Nouveau" },
+            ]}
+        >
 
                 <Card className="border-border shadow-sm">
                     <CardHeader className="border-b bg-muted/30">
@@ -309,8 +311,7 @@ export default function NewTeacherPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
-        </PageGuard>
+        </FormPageTemplate>
     );
 }
 

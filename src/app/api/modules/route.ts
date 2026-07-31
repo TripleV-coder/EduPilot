@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createModuleSchema = z.object({
   courseId: z.string().cuid(),
@@ -19,7 +20,7 @@ const createModuleSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || !["SUPER_ADMIN", "TEACHER", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

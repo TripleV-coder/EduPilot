@@ -21,7 +21,8 @@ import { fetcher } from "@/lib/fetcher";
 import { teacherUpdateSchema } from "@/lib/validations/user";
 import { Permission } from "@/lib/rbac/permissions";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type TeacherFormValues = z.infer<typeof teacherUpdateSchema>;
 
@@ -66,7 +68,7 @@ type SchoolOption = {
   code: string;
 };
 
-function toDateInputValue(value?: string | null) {
+function toDateInputValue(value?: string | Date | null) {
   if (!value) return "";
   return new Date(value).toISOString().split("T")[0];
 }
@@ -99,8 +101,10 @@ export default function TeacherDetailPage() {
       ? schoolsResponse
       : [];
 
-  const form = useForm<TeacherFormValues>({
-    resolver: zodResolver(teacherUpdateSchema) as any,
+  // hireDate (coerce) rend le type d'entrée ≠ type de sortie : trois
+  // génériques au lieu d'un cast.
+  const form = useForm<z.input<typeof teacherUpdateSchema>, unknown, TeacherFormValues>({
+    resolver: zodResolver(teacherUpdateSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -131,7 +135,7 @@ export default function TeacherDetailPage() {
       phone: teacher.user.phone || "",
       matricule: teacher.matricule || "",
       specialization: teacher.specialization || "",
-      hireDate: teacher.hireDate ? (new Date(teacher.hireDate) as any) : undefined,
+      hireDate: teacher.hireDate ? new Date(teacher.hireDate) : undefined,
       isActive: teacher.user.isActive,
       primarySchoolId,
       additionalSchoolIds: teacherSchoolIds.filter((schoolId) => schoolId !== primarySchoolId),
@@ -213,10 +217,10 @@ export default function TeacherDetailPage() {
         title: "Enseignant mis à jour",
         description: "Les informations ont été enregistrées.",
       });
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Erreur",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -241,10 +245,10 @@ export default function TeacherDetailPage() {
       await mutate((key) => typeof key === "string" && key.startsWith("/api/teachers"));
       router.push("/dashboard/teachers");
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Erreur",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -255,33 +259,30 @@ export default function TeacherDetailPage() {
 
   return (
     <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-      <div className="space-y-6 max-w-6xl mx-auto">
+      <PageShell className="max-w-6xl">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/teachers">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" aria-label="Retour à la liste des enseignants">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <PageHeader
             title={teacher ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Fiche enseignant"}
             description="Informations, affectations et gestion du compte enseignant"
+            breadcrumbs={[
+              { label: "Tableau de bord", href: "/dashboard" },
+              { label: "Enseignants", href: "/dashboard/teachers" },
+              { label: teacher ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Fiche" },
+            ]}
           />
         </div>
 
         {error ? (
-          <Card>
-            <CardContent className="pt-6 text-sm text-destructive">
-              Impossible de charger la fiche enseignant.
-            </CardContent>
-          </Card>
+          <PageError message="Impossible de charger la fiche enseignant." onRetry={() => mutate(`/api/teachers/${teacherId}`)} />
         ) : null}
 
         {isLoading || !teacher ? (
-          <Card>
-            <CardContent className="pt-6 text-sm text-muted-foreground">
-              Chargement de la fiche enseignant...
-            </CardContent>
-          </Card>
+          <PageLoading label="Chargement de la fiche enseignant…" />
         ) : (
           <>
             <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -386,7 +387,7 @@ export default function TeacherDetailPage() {
                               <FormControl>
                                 <Input
                                   type="date"
-                                  value={field.value ? toDateInputValue(field.value as any) : ""}
+                                  value={field.value ? toDateInputValue(field.value) : ""}
                                   onChange={(event) => field.onChange(event.target.value ? new Date(event.target.value) : undefined)}
                                 />
                               </FormControl>
@@ -592,7 +593,7 @@ export default function TeacherDetailPage() {
             />
           </>
         )}
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

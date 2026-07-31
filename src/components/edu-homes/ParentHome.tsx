@@ -76,6 +76,7 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                 <>
                     {/* Children cards */}
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns:

@@ -5,6 +5,47 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [Non publié] - 2026-07-30
+
+### 🔒 Sécurité — le second facteur devient effectif
+
+#### Corrigé
+- **Critique — 2FA non imposé.** `authorize()` délivre volontairement une
+  session « pré-2FA » (mot de passe validé, code TOTP pas encore fourni), mais
+  rien ne confinait cet état : `src/proxy.ts` ne vérifiait que l'existence de la
+  session, et seules les 75 routes passant par `createApiHandler` testaient
+  `isTwoFactorAuthenticated`. Un attaquant disposant du mot de passe d'un compte
+  protégé par 2FA accédait à 192 routes d'API et à toutes les pages. Le 2FA
+  était **décoratif**.
+  → Garde ajouté au middleware, seul point couvrant les 283 routes et les 174
+  pages : `403 MFA_REQUIRED` sur l'API, redirection `/mfa-verify` sur les pages.
+- **Force brute sur le TOTP.** La vérification du code (callback JWT) n'avait
+  aucun plafond de tentatives sur 10⁶ combinaisons.
+  → `MFA_VERIFY_RATE_LIMIT` : 5 essais / 10 min par utilisateur, remis à zéro au
+  succès, dépassement audité.
+- **Verrouillage de compte contourné par le 2FA.** Un code erroné dans
+  `authorize()` levait une exception sans appeler `recordFailedLoginAttempt` :
+  le verrouillage protégeait le mot de passe mais pas le second facteur.
+  → Compteur incrémenté, audit `LOGIN_FAILED_2FA`.
+- **Documentation trompeuse.** `docs/SECURITY.md` §2.3 affirmait qu'il n'y avait
+  « pas de codes de secours en V1 » alors qu'ils sont implémentés (10 codes
+  hachés, à usage unique).
+
+#### Ajouté
+- Page `/mfa-verify` : saisie TOTP, bascule vers un code de secours,
+  déconnexion, retour à la destination initiale via `callbackUrl`.
+- `src/components/auth/OtpInput.tsx` : saisie à 6 chiffres partagée (focus,
+  collage, navigation clavier, `aria-describedby`).
+- Journalisation `MFA_VERIFIED`, `MFA_VERIFIED_BACKUP_CODE`,
+  `MFA_VERIFY_RATE_LIMITED`, `LOGIN_FAILED_2FA`.
+- `tests/lib/auth/mfa-gate.test.ts` — 8 cas de non-régression, **vérifiés rouges
+  sans le correctif**.
+- `TECH_DEBT.md` : registre de dette technique chiffré sur le dépôt réel.
+
+### 📊 État de la CI
+`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 129 tests verts** (115
+fichiers, +8) · `next build` OK.
+
 ## [1.1.0] - 2025-03-23
 
 ### 🎉 Version de Finalisation & Optimisation

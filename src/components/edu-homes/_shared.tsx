@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import {
+    PageHeader as UnifiedPageHeader,
+    type PageBreadcrumb,
+} from "@/components/layout/page-shell";
 import { Button } from "@/components/edu";
 
 export function PageHeader({
@@ -12,72 +16,21 @@ export function PageHeader({
     greeting: React.ReactNode;
     sub?: React.ReactNode;
     actions?: React.ReactNode;
-    /** Optional breadcrumb segments. Last segment is rendered as the current location. */
     breadcrumb?: React.ReactNode[];
 }) {
+    const breadcrumbs: PageBreadcrumb[] | undefined = breadcrumb?.map((segment, index) => ({
+        label: String(segment),
+        href: index < breadcrumb.length - 1 ? undefined : undefined,
+    }));
+
     return (
-        <div
-            className="mb-6 flex flex-wrap items-end justify-between gap-3"
-            style={{ color: "var(--eduflow-text-primary)" }}
-        >
-            <div>
-                {breadcrumb && breadcrumb.length > 0 ? (
-                    <nav
-                        aria-label="Fil d'Ariane"
-                        style={{
-                            display: "flex",
-                            gap: 8,
-                            fontSize: 11,
-                            color: "var(--eduflow-text-tertiary)",
-                            marginBottom: 6,
-                            flexWrap: "wrap",
-                        }}
-                    >
-                        {breadcrumb.map((segment, i) => {
-                            const isLast = i === breadcrumb.length - 1;
-                            return (
-                                <React.Fragment key={i}>
-                                    <span
-                                        style={{
-                                            fontWeight: isLast ? 600 : 400,
-                                            color: isLast
-                                                ? "var(--eduflow-text-secondary)"
-                                                : "inherit",
-                                        }}
-                                    >
-                                        {segment}
-                                    </span>
-                                    {!isLast ? <span aria-hidden>›</span> : null}
-                                </React.Fragment>
-                            );
-                        })}
-                    </nav>
-                ) : null}
-                <h1
-                    className="eduflow-display"
-                    style={{
-                        fontSize: "clamp(24px, 3.6vw, 32px)",
-                        margin: 0,
-                        letterSpacing: "-0.025em",
-                        color: "var(--eduflow-text-primary)",
-                    }}
-                >
-                    {greeting}
-                </h1>
-                {sub ? (
-                    <p
-                        style={{
-                            margin: "6px 0 0",
-                            color: "var(--eduflow-text-secondary)",
-                            fontSize: 14,
-                        }}
-                    >
-                        {sub}
-                    </p>
-                ) : null}
-            </div>
-            {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-        </div>
+        <UnifiedPageHeader
+            className="mb-6"
+            title={typeof greeting === "string" ? greeting : String(greeting)}
+            description={typeof sub === "string" ? sub : sub ? String(sub) : undefined}
+            breadcrumbs={breadcrumbs}
+            actions={actions}
+        />
     );
 }
 

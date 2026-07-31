@@ -15,6 +15,7 @@ import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const evaluationSchema = z.object({
   classSubjectId: z.string().min(1, "La matière est requise"),
@@ -22,8 +23,10 @@ const evaluationSchema = z.object({
   typeId: z.string().min(1, "Le type d'évaluation est requis"),
   title: z.string().optional(),
   date: z.string().min(1, "La date est requise"),
-  maxGrade: z.coerce.number().min(1).default(20),
-  coefficient: z.coerce.number().min(0.1).default(1),
+  // Entrée typée string|number : bindings RHF sans cast (zod 4 type
+  // l'entrée de coerce en unknown)
+  maxGrade: z.coerce.number<string | number>().min(1).default(20),
+  coefficient: z.coerce.number<string | number>().min(0.1).default(1),
 });
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
@@ -41,8 +44,10 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
   const { data: periods } = useSWR(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
   const { data: evalTypes } = useSWR("/api/evaluation-types", fetcher);
 
-  const form = useForm<EvaluationFormValues>({
-    resolver: zodResolver(evaluationSchema) as any,
+  // z.coerce + .default rendent le type d'entrée ≠ type de sortie : les
+  // trois génériques remplacent le cast du resolver.
+  const form = useForm<z.input<typeof evaluationSchema>, unknown, EvaluationFormValues>({
+    resolver: zodResolver(evaluationSchema),
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
       maxGrade: 20,
@@ -71,8 +76,8 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
       mutate("/api/evaluations");
       onOpenChange(false);
       form.reset();
-    } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }

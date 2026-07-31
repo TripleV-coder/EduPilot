@@ -8,7 +8,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type AccountKind = "BANK" | "MTN" | "MOOV" | "CELTIIS" | "CASH" | "OTHER";
 type Direction = "INFLOW" | "OUTFLOW";
@@ -175,6 +176,12 @@ function WalletPageContent() {
         fetcher,
         { revalidateOnFocus: false, refreshInterval: 60_000 },
     );
+    const { data: momoStatus } = useSWR<{ configured: boolean; requiredEnvVars: string[] }>(
+        "/api/integrations/momo",
+        fetcher,
+        { revalidateOnFocus: false },
+    );
+    const momoConfigured = momoStatus?.configured ?? false;
 
     const transactions = data?.transactions ?? [];
     const scheduledDisbursements = data?.scheduledDisbursements ?? [];
@@ -194,70 +201,36 @@ function WalletPageContent() {
         [scheduledDisbursements],
     );
 
+    const walletBreadcrumbs = [
+        { label: "Finance" },
+        { label: "Wallet & banques" },
+    ] as const;
+
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Wallet école · Mobile Money & banques"
-                    sub="Chargement du solde consolidé…"
-                    breadcrumb={["Finance", "Wallet & banques"]}
+                    title="Wallet école · Mobile Money & banques"
+                    description="Chargement du solde consolidé…"
+                    breadcrumbs={[...walletBreadcrumbs]}
                 />
-                <Card
-                    padding={28}
-                    style={{
-                        background: "linear-gradient(135deg, #0F172A 0%, #1E40AF 100%)",
-                        minHeight: 220,
-                        color: "#fff",
-                        border: 0,
-                    }}
-                >
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            width: 220,
-                            height: 32,
-                            borderRadius: 6,
-                            background: "rgba(255,255,255,0.18)",
-                        }}
-                    />
-                    <div
-                        className="animate-pulse"
-                        style={{
-                            width: 320,
-                            height: 64,
-                            borderRadius: 8,
-                            background: "rgba(255,255,255,0.18)",
-                            marginTop: 18,
-                        }}
-                    />
-                </Card>
-            </div>
+                <PageLoading label="Chargement du wallet…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Wallet école · Mobile Money & banques"
-                    sub="Impossible de charger le wallet"
-                    breadcrumb={["Finance", "Wallet & banques"]}
+                    title="Wallet école · Mobile Money & banques"
+                    description="Impossible de charger le wallet"
+                    breadcrumbs={[...walletBreadcrumbs]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service wallet est momentanément indisponible. Réessayez dans quelques
-                        instants ou contactez l&apos;administrateur.
-                    </p>
-                </Card>
-            </div>
+                <PageError
+                    message="Le service wallet est momentanément indisponible. Réessayez dans quelques instants ou contactez l'administrateur."
+                />
+            </PageShell>
         );
     }
 
@@ -266,11 +239,11 @@ function WalletPageContent() {
     const availableBalance = Math.max(0, totalBalanceN - pendingDisbursementsAmount);
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Wallet école · Mobile Money & banques"
-                sub="MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave"
-                breadcrumb={["Finance", "Wallet & banques"]}
+                title="Wallet école · Mobile Money & banques"
+                description="MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave"
+                breadcrumbs={[...walletBreadcrumbs]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
@@ -279,12 +252,43 @@ function WalletPageContent() {
                         <Button variant="secondary" icon="download" disabled title="Génération PDF multibanque — à activer">
                             Relevé multibanque
                         </Button>
-                        <Button icon="plus" disabled title="Nécessite webhook MoMo signé">
+                        <Button
+                            icon="plus"
+                            disabled={!momoConfigured}
+                            title={
+                                momoConfigured
+                                    ? "Créer un décaissement Mobile Money"
+                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
+                            }
+                        >
                             Décaissement
                         </Button>
                     </>
                 }
             />
+
+            {!momoConfigured && (
+                <Card
+                    padding={14}
+                    style={{
+                        borderLeft: "3px solid var(--brand-500)",
+                        background: "var(--brand-50)",
+                    }}
+                >
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <Icon name="sparkle" size={18} color="var(--brand-700)" style={{ flexShrink: 0 }} />
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--brand-800)", lineHeight: 1.5 }}>
+                            <strong>Mobile Money non configuré</strong> — Pour activer les décaissements et la
+                            réconciliation MoMo, définir{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_WEBHOOK_SECRET</code> et{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_SUBSCRIPTION_KEY</code> dans
+                            les variables d&apos;environnement, puis enregistrer{" "}
+                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>/api/payments/momo/webhook</code>{" "}
+                            sur le portail MTN MoMo Developer.
+                        </p>
+                    </div>
+                </Card>
+            )}
 
             {!hasAccounts ? (
                 <EmptyWalletState />
@@ -295,6 +299,7 @@ function WalletPageContent() {
                         availableBalance={availableBalance}
                         pendingDisbursementsAmount={pendingDisbursementsAmount}
                         inflows24h={inflows24h}
+                        momoConfigured={momoConfigured}
                         accounts={data.accounts}
                     />
 
@@ -322,7 +327,7 @@ function WalletPageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </PageShell>
     );
 }
 
@@ -393,12 +398,14 @@ function WalletHero({
     pendingDisbursementsAmount,
     inflows24h,
     accounts,
+    momoConfigured,
 }: {
     totalBalanceN: number;
     availableBalance: number;
     pendingDisbursementsAmount: number;
     inflows24h: number;
     accounts: AccountRow[];
+    momoConfigured: boolean;
 }) {
     return (
         <Card
@@ -513,8 +520,12 @@ function WalletHero({
                                 color: "var(--brand-800)",
                             }}
                             icon="money"
-                            disabled
-                            title="Décaissement signé — requiert le webhook MoMo configuré"
+                            disabled={!momoConfigured}
+                            title={
+                                momoConfigured
+                                    ? "Créer un décaissement Mobile Money"
+                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
+                            }
                         >
                             Décaisser
                         </Button>
@@ -739,7 +750,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
 function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[] }) {
     return (
         <Card>
-            <SubLabel>Décaissements programmés · 48h</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
             <div style={{ marginTop: 10 }}>
                 {disbursements.length === 0 ? (
                     <div
@@ -804,7 +815,7 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
 function FeesSavingsCard() {
     return (
         <Card>
-            <SubLabel>Frais Mobile Money économisés · 12 mois</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Frais Mobile Money économisés · 12 mois</p>
             <div
                 className="eduflow-display tabular"
                 style={{

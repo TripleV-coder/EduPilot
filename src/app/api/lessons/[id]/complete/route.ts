@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // POST /api/lessons/[id]/complete - Mark lesson as completed
 export async function POST(
@@ -190,7 +191,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const session = await auth();
-    if (!session?.user || !["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

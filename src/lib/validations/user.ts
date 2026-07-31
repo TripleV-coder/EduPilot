@@ -30,7 +30,7 @@ export const teacherProfileSchema = z.object({
 export const studentProfileSchema = z.object({
   userId: z.string().cuid(),
   matricule: z.string().min(1, "Le matricule est obligatoire").max(50),
-  dateOfBirth: z.coerce.date().optional(),
+  dateOfBirth: z.coerce.date<string | Date>().optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
   birthPlace: z.string().max(100).optional(),
   nationality: z.string().max(50).default("Beninoise"),
@@ -44,7 +44,7 @@ export const studentCreateSchema = z.object({
   phone: phoneSchema,
   password: strongPasswordSchema,
   matricule: z.string().min(1, "Le matricule est obligatoire").max(50),
-  dateOfBirth: z.coerce.date().optional(),
+  dateOfBirth: z.coerce.date<string | Date>().optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
   birthPlace: z.string().max(100).optional(),
   nationality: z.string().max(50).default("Beninoise"),
@@ -61,7 +61,9 @@ export const teacherCreateSchema = z.object({
   password: strongPasswordSchema,
   matricule: z.string().max(50).optional(),
   specialization: z.string().max(100).optional(),
-  hireDate: z.coerce.date().optional(),
+  // Entrée typée string|Date : bindings RHF sans cast (zod 4 type l'entrée
+  // de coerce en unknown). Comportement runtime inchangé.
+  hireDate: z.coerce.date<string | Date>().optional(),
   schoolId: z.string().cuid().optional(),
   primarySchoolId: z.string().cuid().optional(),
   additionalSchoolIds: z.array(z.string().cuid()).max(20).optional().default([]),
@@ -74,7 +76,7 @@ export const teacherUpdateSchema = z.object({
   phone: phoneSchema,
   matricule: z.string().max(50).optional().nullable(),
   specialization: z.string().max(100).optional().nullable(),
-  hireDate: z.coerce.date().optional().nullable(),
+  hireDate: z.coerce.date<string | Date>().optional().nullable(),
   isActive: z.boolean().optional(),
   schoolId: z.string().cuid().optional(),
   primarySchoolId: z.string().cuid().optional(),
@@ -90,7 +92,7 @@ export const enrollmentSchema = z.object({
   studentId: z.string().cuid("ID étudiant invalide"),
   classId: z.string().cuid("ID classe invalide"),
   academicYearId: z.string().cuid("ID année scolaire invalide"),
-  status: z.enum(["ACTIVE", "TRANSFERRED", "GRADUATED", "DROPPED", "SUSPENDED"]).default("ACTIVE"),
+  status: z.enum(["ACTIVE", "TRANSFERRED", "GRADUATED", "DROPPED", "SUSPENDED", "COMPLETED"]).default("ACTIVE"),
 });
 
 export const studentUpdateSchema = z.object({
@@ -99,7 +101,7 @@ export const studentUpdateSchema = z.object({
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim().optional(),
   phone: phoneSchema,
   matricule: z.string().min(1, "Le matricule est obligatoire").max(50).optional(),
-  dateOfBirth: z.coerce.date().optional(),
+  dateOfBirth: z.coerce.date<string | Date>().optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
   birthPlace: z.string().max(100).optional(),
   nationality: z.string().max(50).optional(),

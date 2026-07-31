@@ -12,7 +12,8 @@ import {
     Icon,
     Input,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type Template = {
     id: string;
@@ -213,11 +214,15 @@ export default function TemplatesPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="eduflow-scope pb-12">
                 <PageHeader
-                    greeting="Modèles de communication"
-                    sub="Email · SMS · WhatsApp — pré-écrits, personnalisés par l'IA"
-                    breadcrumb={["Communication", "Modèles"]}
+                    title="Modèles de communication"
+                    description="Email · SMS · WhatsApp — pré-écrits, personnalisés par l'IA"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Communication" },
+                        { label: "Modèles" },
+                    ]}
                     actions={
                         <Button icon="plus" disabled>
                             Nouveau modèle
@@ -561,7 +566,7 @@ export default function TemplatesPage() {
                         </div>
                     </Card>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

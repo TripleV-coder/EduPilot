@@ -183,6 +183,10 @@
   --eduflow-z-modal:    1000;
   --eduflow-z-toast:    1100;
   --eduflow-z-overlay:  1200;
+
+  /* Overlay + focus (light) */
+  --eduflow-overlay:     rgba(15, 23, 42, 0.55);
+  --eduflow-focus-ring:  rgba(37, 99, 235, 0.35);
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -228,6 +232,7 @@
 /* ──────────────────────────────────────────────────────────
    Dark mode for EduFlow tokens
    ────────────────────────────────────────────────────────── */
+.dark,
 [data-eduflow-theme="dark"],
 .dark [data-eduflow-theme],
 .dark .eduflow-scope {
@@ -254,6 +259,55 @@
   --eduflow-shadow-overlay:    0 24px 48px rgba(0, 0, 0, 0.60);
   --eduflow-shadow-card-brand: 0 4px 16px rgba(59, 130, 246, 0.18);
   --eduflow-shadow-cta:        0 6px 18px rgba(59, 130, 246, 0.35);
+
+  /* Overlay + focus (dialogs, sheets) */
+  --eduflow-overlay:     rgba(2, 6, 23, 0.72);
+  --eduflow-focus-ring:  rgba(59, 130, 246, 0.45);
+
+  /* Semantic ramps — tonal badges/chips en sombre */
+  --eduflow-success-50:  #022C22;
+  --eduflow-success-100: #064E3B;
+  --eduflow-success-200: #065F46;
+  --eduflow-success-300: #047857;
+  --eduflow-success-400: #059669;
+  --eduflow-success-500: #10B981;
+  --eduflow-success-600: #34D399;
+  --eduflow-success-700: #6EE7B7;
+  --eduflow-success-800: #A7F3D0;
+  --eduflow-success-900: #D1FAE5;
+
+  --eduflow-info-50:  #0C1929;
+  --eduflow-info-100: #1E3A5F;
+  --eduflow-info-200: #1E40AF;
+  --eduflow-info-300: #1D4ED8;
+  --eduflow-info-400: #2563EB;
+  --eduflow-info-500: #3B82F6;
+  --eduflow-info-600: #60A5FA;
+  --eduflow-info-700: #93C5FD;
+  --eduflow-info-800: #BFDBFE;
+  --eduflow-info-900: #DBEAFE;
+
+  --eduflow-warning-50:  #1C1408;
+  --eduflow-warning-100: #422006;
+  --eduflow-warning-200: #713F12;
+  --eduflow-warning-300: #92400E;
+  --eduflow-warning-400: #B45309;
+  --eduflow-warning-500: #D97706;
+  --eduflow-warning-600: #F59E0B;
+  --eduflow-warning-700: #FBBF24;
+  --eduflow-warning-800: #FDE68A;
+  --eduflow-warning-900: #FEF3C7;
+
+  --eduflow-danger-50:  #1C0A0A;
+  --eduflow-danger-100: #450A0A;
+  --eduflow-danger-200: #7F1D1D;
+  --eduflow-danger-300: #991B1B;
+  --eduflow-danger-400: #B91C1C;
+  --eduflow-danger-500: #DC2626;
+  --eduflow-danger-600: #EF4444;
+  --eduflow-danger-700: #F87171;
+  --eduflow-danger-800: #FECACA;
+  --eduflow-danger-900: #FEE2E2;
 }
 
 /* ──────────────────────────────────────────────────────────

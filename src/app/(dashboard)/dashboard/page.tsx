@@ -17,6 +17,7 @@ import {
     StudentHome,
     SuperAdminHome,
 } from "@/components/edu-homes";
+import { PageShell } from "@/components/layout/page-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -36,16 +37,28 @@ export default async function DashboardPage() {
 
     if (isSuperAdminGlobal) {
         const data = await getGlobalDashboardData();
-        return <SuperAdminHome userName={userName} data={data} />;
+        return (
+            <PageShell>
+                <SuperAdminHome userName={userName} data={data} />
+            </PageShell>
+        );
     }
 
     if (!schoolId) {
-        return <NoSchoolFallback />;
+        return (
+            <PageShell>
+                <NoSchoolFallback />
+            </PageShell>
+        );
     }
 
     const yearId = await resolveYearId(schoolId, requestedYearId);
     if (!yearId) {
-        return <NoYearFallback />;
+        return (
+            <PageShell>
+                <NoYearFallback />
+            </PageShell>
+        );
     }
 
     const now = new Date();
@@ -107,20 +120,40 @@ export default async function DashboardPage() {
         }
     } catch (error) {
         console.error("Dashboard data fetch error:", error);
-        return <DashboardErrorFallback />;
+        return (
+            <PageShell>
+                <DashboardErrorFallback />
+            </PageShell>
+        );
     }
 
     const homeProps = { userName, schoolName, periodName };
     switch (payload.kind) {
         case "teacher":
-            return <TeacherHome {...homeProps} data={payload.data} />;
+            return (
+                <PageShell>
+                    <TeacherHome {...homeProps} data={payload.data} />
+                </PageShell>
+            );
         case "student":
-            return <StudentHome {...homeProps} data={payload.data} />;
+            return (
+                <PageShell>
+                    <StudentHome {...homeProps} data={payload.data} />
+                </PageShell>
+            );
         case "parent":
-            return <ParentHome {...homeProps} data={payload.data} />;
+            return (
+                <PageShell>
+                    <ParentHome {...homeProps} data={payload.data} />
+                </PageShell>
+            );
         case "director":
         default:
-            return <DirectorHome {...homeProps} data={payload.data} />;
+            return (
+                <PageShell>
+                    <DirectorHome {...homeProps} data={payload.data} />
+                </PageShell>
+            );
     }
 }
 

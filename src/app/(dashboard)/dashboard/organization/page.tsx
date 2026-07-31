@@ -20,7 +20,8 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
 } from "recharts";
 import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -305,7 +306,7 @@ export default function OrganizationDashboardPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-8 animate-in fade-in duration-700 pb-10">
+    <PageShell className="animate-in fade-in duration-700 pb-10">
       <PageHeader
         title="Pilotage d’Organisation"
         description="Comparaison multisites stricte par réseau, avec périmètre harmonisé sur l’année académique de référence."
@@ -536,6 +537,6 @@ export default function OrganizationDashboardPage() {
           </div>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

@@ -13,6 +13,7 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
+import { PageShell } from "@/components/layout/page-shell";
 import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
 
 type Wish = {
@@ -44,6 +45,18 @@ type MeData = {
     wishes: Wish[];
     recommendations: Wish[];
     subjectAverages: SubjectAverage[];
+    /** Estimation personnelle calculée depuis les notes, en attendant le conseil */
+    indicative?: {
+        generalAverage: number | null;
+        recommendations: {
+            series: string | null;
+            name: string;
+            description: string;
+            score: number;
+            strengths: string[];
+            warnings: string[];
+        }[];
+    };
 };
 
 type SeriesColor = "brand" | "info" | "success" | "warning" | "danger";
@@ -222,7 +235,7 @@ export default function OrientationMePage() {
             permission={Permission.SCHOOL_READ}
             roles={["STUDENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell>
                 <PageHeader
                     greeting="Mon orientation post-BEPC"
                     sub="Choisis tes 3 vœux de série pour la 2nde · à remplir avant le conseil d'orientation"
@@ -281,7 +294,9 @@ export default function OrientationMePage() {
                                 <Icon name="sparkle" size={26} color="var(--brand-700)" />
                             </div>
                             <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Tes recommandations arrivent bientôt
+                                {data.indicative?.recommendations.length
+                                    ? "Ton estimation personnelle, en attendant le conseil"
+                                    : "Tes recommandations arrivent bientôt"}
                             </h3>
                             <p
                                 style={{
@@ -297,6 +312,74 @@ export default function OrientationMePage() {
                                 ordonner tes 3 vœux.
                             </p>
                         </div>
+
+                        {data.indicative && data.indicative.recommendations.length > 0 ? (
+                            <div style={{ marginTop: 24 }}>
+                                <div
+                                    className="flex items-center justify-between"
+                                    style={{ marginBottom: 10 }}
+                                >
+                                    <SubLabel>
+                                        Estimation indicative basée sur tes moyennes
+                                        {data.indicative.generalAverage !== null
+                                            ? ` (générale : ${data.indicative.generalAverage}/20)`
+                                            : ""}
+                                    </SubLabel>
+                                    <Badge variant="neutral">Non validée par le conseil</Badge>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                    {data.indicative.recommendations.map((rec, index) => (
+                                        <Card key={rec.name} padding={14}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant={index === 0 ? "brand" : "neutral"}>
+                                                            {rec.series ?? "—"}
+                                                        </Badge>
+                                                        <strong style={{ fontSize: 13 }}>{rec.name}</strong>
+                                                    </div>
+                                                    <p
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: "var(--eduflow-text-secondary)",
+                                                            margin: "6px 0 0",
+                                                            lineHeight: 1.5,
+                                                        }}
+                                                    >
+                                                        {rec.description}
+                                                    </p>
+                                                    {rec.strengths[0] ? (
+                                                        <p
+                                                            style={{
+                                                                fontSize: 11,
+                                                                color: "var(--eduflow-success-700, #047857)",
+                                                                margin: "6px 0 0",
+                                                            }}
+                                                        >
+                                                            ✓ {rec.strengths[0]}
+                                                        </p>
+                                                    ) : null}
+                                                    {rec.warnings[0] ? (
+                                                        <p
+                                                            style={{
+                                                                fontSize: 11,
+                                                                color: "var(--eduflow-warning-700, #b45309)",
+                                                                margin: "2px 0 0",
+                                                            }}
+                                                        >
+                                                            ⚠ {rec.warnings[0]}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <Badge variant={rec.score >= 60 ? "success" : "neutral"}>
+                                                    {rec.score}/100
+                                                </Badge>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </Card>
                 ) : null}
 
@@ -759,7 +842,7 @@ export default function OrientationMePage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

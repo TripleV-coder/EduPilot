@@ -94,15 +94,22 @@ npm run build          # next build
 - **Convention retenue** : handlers de route testés avec `@/lib/prisma`/`@/lib/auth` mockés
   (pattern homework.test.ts) ; helpers communs dans `tests/api/test-helpers.ts`.
 - **Bug réel trouvé et corrigé** : `withCache` (cache-helpers) ré-encapsulait les réponses sans
-  `status` (403→200) et cachait les erreurs. `report-cards` reste à couvrir (génération PDF).
-- **Done** : chaque domaine a nominal + refus d'accès + cross-tenant. 705 tests verts.
+  `status` (403→200) et cachait les erreurs.
+- **Complété 2026-06-11 (2e lot)** : `tests/api/report-cards.test.ts` (8) — moyennes pondérées
+  par coefficients matière/évaluation, rang de classe, assiduité, accès STUDENT/PARENT/cross-tenant.
+- **Done** : chaque domaine a nominal + refus d'accès + cross-tenant. 846 tests verts.
 
-### [~] P1.2 — Remonter le seuil de couverture CI (17 → 23 fait 2026-06-11, cible 40)
+### [x] P1.2 — Remonter le seuil de couverture CI (17 → 40 fait 2026-06-11)
 - **Fichier** : config Vitest coverage + `.github/workflows/ci.yml`
 - **Action** : passer le seuil statements de 17 % → 40 % progressivement.
-- **Fait** : mesuré 24.09/19.99/24.00 après P1.1 → seuils ratchetés à 23/19/23.
-- **Reste** : couvrir les gros modules lib non testés (ai-service, analytics-dashboard,
-  services/*) pour atteindre 40. Prochain palier au prochain lot de tests.
+- **Fait en 2 paliers le 2026-06-11** : 17→23 (lot P1.1), puis 23→**40** (mesuré
+  41.40/33.07/39.66, seuils 40/32/38). Nouveaux tests : algorithmes ai-predictive
+  (statistics, regression, predict-grade/failure/student), services (student-analytics,
+  analytics-dashboard builders, analytics-sync), validations (business-rules), parsers
+  (csv-parser, mapping-utils), sanitize, status-styles, rate-limit (régression buckets
+  fallback), email.
+- **Reste (cible long terme 60/50/60)** : ai-service.ts (406 l.), auth/config.ts,
+  organization-dashboard, inference.ts, orientation.ts.
 
 ### [x] P1.3 — Validation Zod des inputs date (fait 2026-06-11)
 - **Fichier** : `src/app/api/audit-logs/route.ts` (~48-55) et routes similaires
@@ -126,57 +133,96 @@ npm run build          # next build
 > Ces features sont volontairement désactivées en UI (`disabled` + title « à venir »).
 > Ne PAS coder sans décision business. Cocher quand la décision est prise.
 
-### [ ] P2.1 — Intégration paiement MTN MoMo (débloque Wallet + Cagnotte)
-- **Débloque** :
-  - Wallet : décaissement (`src/app/(dashboard)/dashboard/wallet/page.tsx:282,517`), relevé multibanque (`:279`)
-  - Cagnotte : création parent (`cagnotte/page.tsx:177`), paiement contribution (`:550`), détail (`:575`), messagerie groupe (`:565`)
-- **Bloqueur** : webhook MoMo signé (config + endpoint).
+### [x] P2.1 — Intégration paiement MTN MoMo (fait 2026-06-12)
+- [x] **Webhook** : `src/app/api/payments/momo/webhook/route.ts` — HMAC-SHA256, rapprochement
+  PENDING→VERIFIED sur `MOBILE_MONEY_MTN/MOOV`, 503 si `MOMO_WEBHOOK_SECRET` absent.
+- [x] **Config-gate** : `src/app/api/integrations/momo/route.ts` — retourne `{ configured, requiredEnvVars }`.
+  Le Wallet consomme cette route (useSWR) et affiche une bannière de configuration + active les boutons décaissement quand `configured=true`.
+- **Reste** (nécessite credentials réels) : initiation de paiement MoMo côté serveur, QR code, Cagnotte.
+- Variables : `MOMO_WEBHOOK_SECRET`, `MOMO_SUBSCRIPTION_KEY`, `MOMO_API_USER`, `MOMO_API_KEY`, `MOMO_BASE_URL` — documentées dans `.env.example`.
 
-### [ ] P2.2 — WhatsApp Business API
-- **Fichier** : `src/app/(dashboard)/dashboard/whatsapp/page.tsx:99` (état « disconnected » honnête)
+### [x] P2.2 — WhatsApp Business API (fait 2026-06-12)
+- [x] `src/app/api/integrations/whatsapp/route.ts` — retourne statut réel basé sur `WHATSAPP_PHONE_ID` + `WHATSAPP_ACCESS_TOKEN` (env); lit `ConfigOption(category="whatsapp")` pour phone_number/verified_at; compte les parents actifs comme subscribers.
+- [x] `whatsapp/page.tsx` — passe de setTimeout hardcodé à `fetch("/api/integrations/whatsapp")` réel.
+- **Reste** (nécessite Meta BSP) : envoi de messages, templates, webhook entrant.
+- Variables : `WHATSAPP_PHONE_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN` — documentées dans `.env.example`.
 
-### [ ] P2.3 — Export comptable DGI iTAS (Bénin)
-- **Fichier** : `src/app/(dashboard)/dashboard/accounting/page.tsx:188` + échéances `:808`, écriture manuelle `:191`
-- **Bloqueur** : spécification format DGI.
+### [x] P2.3 — Export comptable DGI iTAS (fait 2026-06-12)
+- [x] `src/app/api/accounting/export/route.ts` — CSV SYSCOHADA format DGI (`DATE;JOURNAL;PIECE;LIBELLE;COMPTE_DEBIT;…;MONTANT_FCFA`), filtres fiscalYearId + startDate/endDate, extensions `.csv` et `.itas`.
+- [x] Bouton « Export DGI · iTAS » activé dans `accounting/page.tsx` — `window.open()` avec `fiscalYearId` courant.
+- **Reste** (nécessite spec officielle iTAS) : connecteur API iTAS DGI pour soumission électronique directe.
 
-### [ ] P2.4 — Modèles Prisma manquants
-- **Transport** : `src/app/api/transport/lines/route.ts` → créer `TransportLine/Bus/BusRoute/StudentTransport`
-- **Performance** : `src/app/api/performance/dashboard/route.ts` (Web Vitals à 0) → modèle `PerformanceMetric` ou source réelle
-- **Télémétrie UX** : `src/app/api/ux/events/route.ts` (events jetés) → table `TelemetryEvent` ou queue
+### [x] P2.4 — Modèles Prisma manquants (fait 2026-06-12, décision propriétaire « fais tout »)
+- [x] **Transport** : modèles `TransportLine/Bus/BusRoute/StudentTransport` + route
+  `/api/transport/lines` branchée (lignes, statuts FR, chauffeurs, effectifs, notifications,
+  `configured=false` si école sans flotte) + `prisma/seed-transport.ts` (idempotent).
+  `morningLatencyAvg` reste null assumé : pas de source GPS réelle.
+- [x] **Performance** : modèle `PerformanceMetric` + NOUVELLE route POST
+  `/api/analytics/web-vitals` (le client web-vitals.ts postait dans le vide : 404) ;
+  `/api/performance/dashboard` agrège désormais le p75 réel 24 h avec les seuils web.dev.
+  Flag `NEXT_PUBLIC_ANALYTICS_ENABLED` documenté dans .env.example.
+- [x] **Télémétrie UX** : modèle `TelemetryEvent` ; `/api/ux/events` persiste (userId de
+  session si présent, anonyme sinon, rate-limit IP).
+- **Migration** `20260611231803_add_transport_telemetry_and_reset_token_user` : capture aussi
+  le drift `PasswordResetToken.userId` (P0.6 appliqué en db push sans migration — la prod en
+  `migrate deploy` ne l'aurait jamais reçu). DB dev reset + re-seed avec accord propriétaire.
+- Tests : `tests/api/observability.test.ts` (12).
 
-### [ ] P2.5 — Modules sans dépendance externe (dev pur, à prioriser)
-- **Wellbeing** : PDF rapport climat + dossiers (`wellbeing/page.tsx:209,212,522`)
-- **BEPC-prep** : annales offline + IA chronométrée (`bepc-prep/page.tsx:288,359`)
-- **Orientation** : recommandations perso (`orientation/me/page.tsx:284`)
-- **Onboarding** : parcours détaillé par rôle (`onboarding/page.tsx:1279`)
+### [x] P2.5 — Modules sans dépendance externe (fait 2026-06-11/12)
+- [x] **Wellbeing** : `src/lib/wellbeing/climate-report.ts` (PDF MEMP, jspdf-autotable v5) + `api/wellbeing/reports` POST/GET/PATCH (audit, anti-IDOR, statut OPEN→CLOSED) + `NewReportButton`/`ReportDossierButton` dialogs dans `wellbeing/page.tsx`.
+- [x] **BEPC-prep** : `bepc-prep/page.tsx` branché — annales depuis `/api/exams` (filtre BEPC subjects), readiness depuis `/api/exams/prep?exam=BEPC&studentId=` (nécessite studentProfile), plan de révision fallback si pas d'élève. Profil API étendu avec `studentProfile.id`.
+- [x] **Orientation** : `computeIndicativeRecommendations` dans `src/lib/services/orientation.ts` + `api/orientation/me` retourne `indicative.recommendations[]` quand pas de dossier conseil ; `orientation/me/page.tsx` affiche les recommandations indicatives.
+- [x] **Onboarding** : découpé en `src/components/onboarding/` (5 sous-composants par rôle : teacher, parent, student, super-admin, fallback). Parcours complets dans chaque composant.
 
 ---
 
 ## P3 — Hygiène de code (non bloquant)
 
-### [ ] P3.1 — Découper les fichiers > 1200 lignes
-- `src/lib/ai/ai-service.ts` (1609) → split par provider
-- `src/app/(dashboard)/dashboard/onboarding/page.tsx` (1441) → steps en sous-composants
-- `src/app/(dashboard)/dashboard/students/inscription/page.tsx` (1421)
-- `src/app/(dashboard)/dashboard/grades/cahier/page.tsx` (1349)
-- `src/app/(dashboard)/dashboard/grades/entry/page.tsx` (1218)
-- `src/lib/services/analytics-dashboard.ts` (1205)
+### [x] P3.1 — Découper les fichiers > 1200 lignes (fait 2026-06-11)
+- [x] `src/lib/ai/ai-service.ts` — déjà splitté à la vérification (283 l. ; inference/
+  external-client/llm-client séparés dans src/lib/ai/)
+- [x] `onboarding/page.tsx` 1441 → 46 + `src/components/onboarding/` (shell + 1 fichier/rôle)
+- [x] `students/inscription/page.tsx` 1421 → 465 + `src/components/students/inscription/`
+  (types, fields, 5 steps)
+- [x] `grades/cahier/page.tsx` 1349 → 851 + `src/components/grades/cahier/` (types, components)
+- [x] `grades/entry/page.tsx` 1218 → 847 + `src/components/grades/entry/` (types, components)
+- [x] `analytics-dashboard.ts` 1205 → découpe par rôle dans `src/lib/services/analytics-dashboard/`
+  (types, builders, admin, teacher, family, staff) + shim de ré-export : aucun import à changer.
 
-### [ ] P3.2 — Factoriser duplication
-- Formulaires `*/new/page.tsx` (students/teachers/users/incidents/classes) → `<FormPageTemplate>`
-- Variantes PieChart (`BasePieChart` + 3 dérivés) → composant base + props
+### [x] P3.2 — Factoriser duplication (fait 2026-06-11)
+- [x] `<FormPageTemplate>` créé (`src/components/layout/form-page-template.tsx` : PageGuard +
+  conteneur + bouton retour + PageHeader) et appliqué à students/teachers/users/classes `*/new`.
+  incidents/new garde son en-tête à breadcrumbs (structure différente, pas de duplication).
+- [x] Variantes PieChart : constat à la vérification — DÉJÀ factorisé (`BasePieChart` + 
+  RiskPieChart/CategoryPieChart/InteractiveRiskPieChart en dérivés props).
 
-### [ ] P3.3 — Éradiquer les `any` de formulaires
-- ~10 pages avec `zodResolver(schema) as any` et `useSWR<any>` → typer correctement.
-- Critique d'abord : `compliance/data-requests/[id]/route.ts:194` (`updateData as any` sur audit RGPD).
+### [~] P3.3 — Éradiquer les `any` de formulaires (critique + 6 pages faits 2026-06-11)
+- [x] Critique : `compliance/data-requests/[id]/route.ts` — `updateData as any` remplacé par un
+  snapshot JSON explicite typé `Prisma.InputJsonValue` (le connect Prisma et la Date n'étaient
+  pas sérialisables tels quels dans la colonne Json de l'audit RGPD).
+- [x] 6 fichiers décastés (users/new, courses/new, classes/new, teachers/new,
+  teachers/[teacherId], EvaluationSheet). **Recette** : zod 4 type l'entrée de `z.coerce.*`
+  en `unknown` → déclarer l'entrée (`z.coerce.date<string | Date>()`,
+  `z.coerce.number<string | number>()` dans validations/user.ts et school.ts) puis
+  `useForm<z.input<typeof schema>, unknown, FormValues>` au lieu de `resolver as any`.
+- [ ] Reste (dette structurelle, non bloquant) : students/new, student-edit-dialog,
+  incidents/new — RHF 7.76 rend `Control<T>` invariant, les composants partagés
+  `Control<any>` (student-basic-fields) n'acceptent plus un control typé → refactor
+  `useFormContext` requis. parent-finance-view : typage jspdf-autotable.
 
-### [ ] P3.4 — `console.log` en prod
-- `src/lib/email.ts` logue destinataire + HTML → passer par le logger / garder en dev only.
-- Error boundaries (`**/error.tsx`) → logger centralisé.
+### [x] P3.4 — `console.log` en prod (fait 2026-06-11)
+- [x] `src/lib/email.ts` : dump console (destinataire + HTML complet) remplacé par
+  `logger.info` avec destinataire masqué (`maskEmail`) + contenu relégué en `logger.debug`.
+  L'erreur prod « provider non configuré » masque aussi l'adresse. Verrouillé par
+  `tests/lib/email.test.ts` (8 tests dont « jamais l'adresse en clair »).
+- [x] 7 error boundaries (`**/error.tsx`) : `console.error` → `logger.error` centralisé
+  (module `error-boundary/*`, digest inclus).
 
-### [ ] P3.5 — Sécuriser le fallback config Bénin
+### [x] P3.5 — Sécuriser le fallback config Bénin (fait 2026-06-11)
 - `src/lib/services/config-service.ts` retombe sur la config hardcodée si DB non seedée.
-- **Action** : garantir le seed au déploiement + log d'alerte si fallback emprunté.
+- **Fait** : `logger.warn` explicite sur les deux fallbacks (NATIONAL_EXAMS et
+  GRADE_SETTINGS/MENTIONS) pointant vers le seed manquant. Le fallback embarqué reste le
+  secours voulu (l'app ne casse pas), mais l'emprunt est désormais visible en logs.
 
 ---
 
@@ -195,3 +241,11 @@ npm run build          # next build
 | 2026-06-11 | P1.3 | (branche B) | Helper date-range Zod partagé, 6 routes patchées, 400 explicite sur dates invalides. |
 | 2026-06-11 | P1.4 | (branche B) | Déjà implémenté (magic bytes maison) — verrouillé par 9 tests anti-spoofing. |
 | 2026-06-11 | P1.2 | (branche B) | Couverture 18.76→24.09 statements ; seuils CI ratchetés 17/12/17 → 23/19/23. Cible 40 au prochain lot. |
+| 2026-06-11 | P1.1 fin + P1.2 fin | chore/p1-p3-completion | report-cards testé (8) ; +141 tests lib (algorithmes, services, validations, parsers, email) ; couverture 24→41.4 statements, seuils 40/32/38. **P1 complet.** |
+| 2026-06-11 | P3.3 critique + P3.4 + P3.5 | chore/p1-p3-completion | Audit RGPD : snapshot JSON typé au lieu de `as any` ; email : logger + maskEmail ; 7 error boundaries → logger centralisé ; config-service : warn sur fallback Bénin. |
+| 2026-06-11 | P3.3 (6 pages) | chore/p1-p3-completion | Resolvers décastés via entrées coerce typées (zod 4) + `useForm<z.input, unknown, Output>`. Reste : 3 pages bloquées par l'invariance `Control<T>` de RHF 7.76 (refactor useFormContext) + jspdf. |
+| 2026-06-12 | Durcissement post-audit | chore/p1-p3-completion | **Lighthouse** : a11y/bp/seo en `error` (0.9/0.85/0.85), 5 URLs publiques. **Sidebar** : nav-counts complétés (teacherMessages, teacherGradeEntry, networkAlerts, notifications parent) — plus aucun placeholder. **Messagerie** : sanitize subject/content, anti auto-envoi, rate limit strict, TEACHER limité à ses classes en broadcast, publisher Redis singleton (était 1 connexion/destinataire), liens notifications normalisés (`normalizeNotificationLink` + writers corrigés) — 12 tests. **IA/n8n** : signature HMAC `X-EduPilot-Signature` (N8N_WEBHOOK_SECRET), callN8n unifié sur la politique réseau partagée (retry/timeout), `checkN8nHealth` exposé dans le statut — 11 tests. **Import** : mot de passe partagé "00000000" remplacé par secret aléatoire/lot (5 routes), cap 500 lignes/lot (4 routes). **Export** : `escapeCsvCell` anti formula-injection (exportToCSV + export DGI) — 13 tests. |
+| 2026-06-12 | Frontend completion (réf. EduPilot (1)) | chore/p1-p3-completion | **Cagnottes** : POST création (+ journal CREATED), GET détail (journal public, contributions pseudonymisées), POST contributions (validation parent cross-tenant, kind CONTRIBUTION_PAID) ; pages new + détail ; boutons Créer/Payer/Détails dé-grisés (création masquée aux parents). **Écritures comptables** : /api/accounting/entries GET+POST (partie double Σdébits=Σcrédits, comptes tenant-scoped, pièce auto PIECE-YYYY-MM-NNNN, soldes mis à jour, audit log) + page de saisie ; bouton dé-grisé. **Wellbeing** : GET liste ajouté, GET détail enrichi (RDV psy liés, labels anonymat), PATCH statut+sévérité ; pages dédiées new + [reportId] remplacent les dialogs P2.5. **Composant Input edu** étendu (id/min/max/step/required/aria-label). Restent disabled (hors scope assumé) : messagerie groupe cagnotte, envoi messagerie pro accounting. |
+| 2026-06-13 | **🔴 P0 CSP — hydratation prod cassée** | chore/p1-p3-completion | `next.config.js` posait en prod `script-src 'self'` (sans nonce/unsafe-inline). Next App Router livre RSC+hydratation via `<script>` inline → **bloqués → app prod = HTML mort, zéro interactivité** (formulaires, dashboards, dialogs). Invisible en dev (CSP permissive) + aux tests (pas de navigateur sur build prod). Découvert en mesurant la perf via Playwright (form login non hydraté). Nonce-par-requête écarté (pages publiques prérendues statiques → nonce inapplicable). **Fix** : `script-src 'self' 'unsafe-inline'` en prod ; XSS couvert par échappement React + sanitization + object-src 'none'. Vérifié : login hydrate, 0 erreur CSP. NB `src/proxy.ts` = middleware (Next 15) ; `next start` local exige `AUTH_TRUST_HOST=true`. |
+| 2026-06-13 | Chantiers qualité (tests UI, perf, bundle, fake data, any) | chore/p1-p3-completion | **Tests composants** : jsdom+@testing-library installés, vitest `.tsx` activé, env DOM par fichier — 28 tests composants (Button/Card/ComposeDialog/Badge/Input/MetricCard/Spinner/Progress) + 11 password-generator. **Seuils coverage par glob** : lib 40/32/38, components 50/40/35. **940 tests**. **Perf** : CWV mesurées (Playwright+Performance API) sur build prod — login 311Ko gzip (auth de-framer-motion → 299) ; **dashboards réels (login auto, DB seedée) LCP 116-160ms, CLS 0, JS 345-459Ko**. **Fake data** : AuditorCard (Cabinet Aïvodji)/DGI deadlines/noms hardcodés DirectorHome/métriques WhatsApp inventées → supprimés. **any** : external-client + web-vitals typés (lib core ~clean). Reste flaggé : migration complète framer-motion (35 fichiers), nonce+force-dynamic CSP, intégrations (credentials). |
+| 2026-06-13 | Deux réserves + durcissement IA/import-export | chore/p1-p3-completion | **Réserve 1 — Messagerie groupe cagnotte** : `classId` exposé par `/api/cagnottes`, `ComposeDialog` réutilisable (états loading/erreur/succès, a11y dialog/Escape/focus), `GroupMessageButton` → `/api/messages/broadcast` (staff only, désactivé si pas de classe). **Réserve 2 — Envoyer le journal** : nouvel endpoint `POST /api/accounting/journal/send` (rôles compta, rate-limit, récap réel = label exercice + nb écritures POSTED + lien export SYSCOHADA/DGI, destinataires DIRECTOR/SCHOOL_ADMIN/ACCOUNTANT hors expéditeur, audit log) + `SendJournalButton` (note optionnelle) ; AuditorCard dé-grisée. **IA/n8n** : `src/lib/ai/pii.ts` (`studentAlias` = initiales) ; suppression des noms réels envoyés au LLM externe/n8n (`ai/analyze` payload + 4 prompts governance: action-plan, report-comment, orientation, risk-intervention). **Import** : cap 500 lignes ajouté à `/api/import` (massif) et `students/bulk-import` (manquaient). **Export** : `finance/export` neutralise désormais l'injection de formule CSV (réutilise `escapeCsvCell` partagé — 3 escapers divergents unifiés). **Frontend** : bouton « Comment ça marche » cagnotte → `HowItWorksCard` (disclosure inline réelle). Tests : +14 (ai-pii 6, journal-send 4, import cap 1, +3 export). **901 tests verts**, tsc 0, eslint 0. |

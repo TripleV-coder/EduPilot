@@ -15,10 +15,10 @@ import {
     Card,
     Icon,
     Input,
-    Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type Announcement = {
     id: string;
@@ -197,45 +197,26 @@ export default function AnnouncementsPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-5xl flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Fil d'annonces"
-                        sub={`${announcements.length} ${
-                            announcements.length > 1 ? "annonces actives" : "annonce active"
-                        } · tableau d'affichage numérique`}
-                        breadcrumb={["Tableau de bord", "Fil d'annonces"]}
-                    />
-                    {isDirectorOrAdmin && !isAdding ? (
-                        <Button icon="plus" onClick={() => setIsAdding(true)}>
-                            Nouvelle annonce
-                        </Button>
-                    ) : null}
-                </div>
+            <PageShell className="max-w-5xl pb-12">
+                <PageHeader
+                    title="Fil d'annonces"
+                    description={`${announcements.length} ${
+                        announcements.length > 1 ? "annonces actives" : "annonce active"
+                    } · tableau d'affichage numérique`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Fil d'annonces" },
+                    ]}
+                    actions={
+                        isDirectorOrAdmin && !isAdding ? (
+                            <Button icon="plus" onClick={() => setIsAdding(true)}>
+                                Nouvelle annonce
+                            </Button>
+                        ) : null
+                    }
+                />
 
-                {error ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
-                            background: "var(--eduflow-danger-50)",
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--eduflow-danger-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {error}
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
+                {error ? <PageError message={error} onRetry={() => void fetchAnnouncements()} /> : null}
 
                 {successMsg ? (
                     <Card
@@ -432,48 +413,26 @@ export default function AnnouncementsPage() {
                 ) : null}
 
                 {/* Feed */}
-                {loading ? (
-                    <Card padding={20}>
-                        <div className="flex items-center gap-3">
-                            <Spinner size={20} color="var(--brand-600)" />
-                            <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                Chargement des annonces…
-                            </span>
-                        </div>
-                    </Card>
-                ) : announcements.length === 0 ? (
-                    <Card padding={36}>
-                        <div className="flex flex-col items-center gap-3 text-center">
-                            <div
-                                className="grid place-items-center"
-                                style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: 16,
-                                    background: "var(--brand-50)",
-                                }}
-                            >
-                                <Icon name="bell" size={26} color="var(--brand-700)" />
-                            </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Aucune annonce publiée
-                            </h3>
-                            <p
-                                style={{
-                                    fontSize: 13,
-                                    color: "var(--eduflow-text-secondary)",
-                                    maxWidth: 480,
-                                    lineHeight: 1.55,
-                                    margin: 0,
-                                }}
-                            >
-                                {isDirectorOrAdmin
-                                    ? "Crée la première annonce pour informer la communauté scolaire."
-                                    : "Les annonces de l'établissement apparaîtront ici dès leur publication."}
-                            </p>
-                        </div>
-                    </Card>
-                ) : (
+                {loading ? <PageLoading label="Chargement des annonces…" /> : null}
+
+                {!loading && announcements.length === 0 ? (
+                    <PageEmpty
+                        icon="bell"
+                        title="Aucune annonce publiée"
+                        description={
+                            isDirectorOrAdmin
+                                ? "Créez la première annonce pour informer la communauté scolaire."
+                                : "Les annonces de l'établissement apparaîtront ici dès leur publication."
+                        }
+                        actions={
+                            isDirectorOrAdmin
+                                ? [{ label: "Nouvelle annonce", onClick: () => setIsAdding(true) }]
+                                : undefined
+                        }
+                    />
+                ) : null}
+
+                {!loading && announcements.length > 0 ? (
                     <div className="flex flex-col gap-3">
                         {announcements.map((a) => (
                             <AnnouncementCard
@@ -484,8 +443,8 @@ export default function AnnouncementsPage() {
                             />
                         ))}
                     </div>
-                )}
-            </div>
+                ) : null}
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}

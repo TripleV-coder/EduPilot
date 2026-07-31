@@ -14,7 +14,8 @@ import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
 
 import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageLoading } from "@/components/layout/page-states";
 
 type RawStudent = {
     id: string;
@@ -251,28 +252,31 @@ export default function AttendancePage() {
             permission={Permission.ATTENDANCE_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-[1200px] flex-col gap-4 pb-32">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Feuille d'appel"
-                        sub={
-                            isFocusMode
-                                ? "Mode focus — marquage rapide P/E/A."
-                                : "Saisis les présences quotidiennes par classe et par date."
-                        }
-                        breadcrumb={["Tableau de bord", "Feuille d'appel"]}
-                    />
-                    {!isFocusMode ? (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon="cards"
-                            onClick={() => window.print()}
-                        >
-                            Imprimer
-                        </Button>
-                    ) : null}
-                </div>
+            <PageShell className="max-w-[1200px] pb-32">
+                <PageHeader
+                    title="Feuille d'appel"
+                    description={
+                        isFocusMode
+                            ? "Mode focus — marquage rapide P / E / A."
+                            : "Saisissez les présences quotidiennes par classe et par date."
+                    }
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Feuille d'appel" },
+                    ]}
+                    actions={
+                        !isFocusMode ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon="cards"
+                                onClick={() => window.print()}
+                            >
+                                Imprimer
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
                 {/* Config card */}
                 <Card padding={0}>
@@ -305,37 +309,11 @@ export default function AttendancePage() {
                 </Card>
 
                 {!selectedClassId ? (
-                    <Card padding={36}>
-                        <div className="flex flex-col items-center gap-3 text-center">
-                            <div
-                                className="grid place-items-center"
-                                style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: 16,
-                                    background: "var(--brand-50)",
-                                }}
-                            >
-                                <Icon name="check" size={26} color="var(--brand-700)" />
-                            </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Sélectionne une classe pour démarrer l&apos;appel
-                            </h3>
-                            <p
-                                style={{
-                                    fontSize: 13,
-                                    color: "var(--eduflow-text-secondary)",
-                                    maxWidth: 480,
-                                    lineHeight: 1.55,
-                                    margin: 0,
-                                }}
-                            >
-                                Choisis la classe et la date, puis marque les présences avec les
-                                boutons P / E / A. Tu pourras enregistrer l&apos;appel via le bouton
-                                en bas de page.
-                            </p>
-                        </div>
-                    </Card>
+                    <PageEmpty
+                        icon="check"
+                        title="Sélectionnez une classe pour démarrer l'appel"
+                        description="Choisissez la classe et la date, puis marquez les présences avec les boutons P / E / A. Enregistrez l'appel via le bouton en bas de page."
+                    />
                 ) : null}
 
                 {selectedClassId ? (
@@ -413,37 +391,13 @@ export default function AttendancePage() {
                         ) : null}
 
                         {isFetchingData ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Spinner size={28} color="var(--brand-600)" />
-                            </div>
+                            <PageLoading label="Chargement de la feuille d'appel…" />
                         ) : filteredIds.length === 0 ? (
-                            <div className="px-5 py-12 text-center">
-                                <Icon
-                                    name="users"
-                                    size={28}
-                                    color="var(--eduflow-text-tertiary)"
-                                    style={{ marginBottom: 12 }}
-                                />
-                                <div
-                                    style={{
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                        color: "var(--eduflow-text-primary)",
-                                    }}
-                                >
-                                    Aucun élève à afficher
-                                </div>
-                                <p
-                                    style={{
-                                        fontSize: 13,
-                                        color: "var(--eduflow-text-secondary)",
-                                        marginTop: 6,
-                                    }}
-                                >
-                                    Aucun élève ne correspond à la recherche, ou la classe ne
-                                    contient pas encore d&apos;inscriptions actives.
-                                </p>
-                            </div>
+                            <PageEmpty
+                                icon="users"
+                                title="Aucun élève à afficher"
+                                description="Aucun élève ne correspond à la recherche, ou la classe ne contient pas encore d'inscriptions actives."
+                            />
                         ) : (
                             <div className="overflow-x-auto">
                                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -627,7 +581,7 @@ export default function AttendancePage() {
                         </button>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

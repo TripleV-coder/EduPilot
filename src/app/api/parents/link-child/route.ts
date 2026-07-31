@@ -4,12 +4,13 @@ import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { verifyLinkCode } from "@/lib/parents/link-code";
 
 const schema = z.object({
     matricule: z.string().min(1, "Matricule requis").trim(),
-    // verificationCode is currently a UX-only field — there's no Prisma model
-    // for issued liaison codes yet, so we accept and audit but don't validate.
-    verificationCode: z.string().optional(),
+    // Code de liaison émis par l'école (obligatoire) : seul le parent à qui le
+    // code a été remis peut rattacher l'élève. Vérifié contre StudentLinkCode.
+    verificationCode: z.string().min(1, "Code de liaison requis").trim(),
     relationship: z.string().default("PARENT"),
 });
 
@@ -92,6 +93,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Vérification du code de liaison émis par l'école : un code actif,
+        // non expiré, non utilisé, dont le hash correspond à la saisie.
+        const activeCode = await prisma.studentLinkCode.findFirst({
+            where: {
+                studentId: student.id,
+                usedAt: null,
+                expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        const codeValid = activeCode
+            ? await verifyLinkCode(data.verificationCode, activeCode.codeHash)
+            : false;
+
+        if (!activeCode || !codeValid) {
+            return NextResponse.json(
+                { error: "Code de liaison invalide ou expiré — demande un nouveau code à l'école" },
+                { status: 403 }
+            );
+        }
+
         // Determine isPrimary: first link = primary
         const existingCount = await prisma.parentStudent.count({
             where: { parentId: parent.id },
@@ -104,6 +127,12 @@ export async function POST(request: NextRequest) {
                 relationship: data.relationship,
                 isPrimary: existingCount === 0,
             },
+        });
+
+        // Consomme le code (usage unique).
+        await prisma.studentLinkCode.update({
+            where: { id: activeCode.id },
+            data: { usedAt: new Date(), usedByUserId: session.user.id },
         });
 
         await prisma.auditLog.create({

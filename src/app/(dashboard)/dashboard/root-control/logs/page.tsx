@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity, Search, Filter, Loader2, AlertCircle, Clock, Building2, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { fr } from "date-fns/locale/fr";
 import { cn } from "@/lib/utils";
 import { formatAction } from "@/lib/utils/entity-translator";
 import { getAuditLogActionClass } from "@/lib/ui/status-styles";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type AuditLog = {
     id: string;
@@ -45,8 +47,8 @@ export default function RootLogsPage() {
                 if (!res.ok) throw new Error("Erreur lors du chargement des journaux");
                 const data = await res.json();
                 setLogs(data.data || []);
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                setError(getErrorMessage(err));
             } finally {
                 setLoading(false);
             }
@@ -63,13 +65,13 @@ export default function RootLogsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-7xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Journal d'Infrastructure"
                     description="Historique complet des actions effectuées sur l'ensemble de la plateforme."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Journaux d'audit" },
                     ]}
                 />
@@ -183,7 +185,7 @@ export default function RootLogsPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

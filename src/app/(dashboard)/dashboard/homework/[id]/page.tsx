@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
 import { formatDateTimeLong } from "@/lib/utils/formatters";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Submission = {
   id: string;
@@ -85,8 +87,8 @@ export default function HomeworkDetailPage() {
       setGradeValue(0);
       setFeedbackValue("");
       mutate();
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -103,8 +105,8 @@ export default function HomeworkDetailPage() {
       if (!res.ok) throw new Error("Erreur lors de la suppression");
       toast({ title: "Succès", description: "Le devoir a été supprimé." });
       router.push("/dashboard/homework");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setIsDeleteConfirmLoading(false);
       setDeleteDialogOpen(false);
@@ -122,8 +124,8 @@ export default function HomeworkDetailPage() {
       if (!res.ok) throw new Error("Erreur");
       toast({ title: "Succès", description: homework.isPublished ? "Dépublié" : "Publié" });
       mutate();
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     }
   };
 

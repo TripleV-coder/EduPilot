@@ -3,26 +3,12 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 // EduPilot Design System — Inter (display + body) et JetBrains Mono (tabular).
-// On expose Inter à la fois sous --font-body / --font-display (compat avec
-// les composants existants qui utilisent ces variables) et sous
-// --font-eduflow-body (utilisé par les composants edu/*).
+// Inter n'est chargé qu'UNE seule fois sous --font-body ; les alias
+// --font-display / --font-eduflow-body / --font-ui sont dérivés en CSS
+// (cf. globals.css) pour éviter trois téléchargements de la même police.
 const inter = Inter({
     subsets: ["latin"],
     variable: "--font-body",
-    weight: ["400", "500", "600", "700"],
-    display: "swap",
-});
-
-const interDisplay = Inter({
-    subsets: ["latin"],
-    variable: "--font-display",
-    weight: ["500", "600", "700"],
-    display: "swap",
-});
-
-const eduflowBody = Inter({
-    subsets: ["latin"],
-    variable: "--font-eduflow-body",
     weight: ["400", "500", "600", "700"],
     display: "swap",
 });
@@ -39,6 +25,12 @@ import { SchoolProvider } from "@/components/providers/school-provider";
 import { SWRProvider } from "@/components/providers/swr-provider";
 import { CookieBanner } from "@/components/gdpr/CookieBanner";
 import { Toaster as SonnerToaster } from "sonner";
+
+// Rendu dynamique forcé : indispensable pour la CSP à nonce par requête
+// (cf. src/proxy.ts). Un nonce ne peut pas s'appliquer à du HTML prérendu
+// statiquement. L'app étant authentifiée (pages majoritairement dynamiques),
+// le coût de cache est marginal.
+export const dynamic = "force-dynamic";
 
 export const viewport: Viewport = {
     width: "device-width",
@@ -87,7 +79,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="fr" className={`${inter.variable} ${interDisplay.variable} ${eduflowBody.variable} ${eduflowMono.variable}`}>
+        <html lang="fr" className={`${inter.variable} ${eduflowMono.variable}`}>
             <body className="font-body antialiased">
                 <SessionProvider>
                     <SWRProvider>

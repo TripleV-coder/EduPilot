@@ -19,27 +19,27 @@ const config: Config = {
   	extend: {
   		fontFamily: {
   			display: [
-  				'var(--font-sans)',
+  				'var(--font-display)',
   				'system-ui',
   				'sans-serif'
   			],
   			body: [
-  				'var(--font-sans)',
+  				'var(--font-body)',
   				'system-ui',
   				'sans-serif'
   			],
   			ui: [
-  				'var(--font-sans)',
+  				'var(--font-body)',
   				'system-ui',
   				'sans-serif'
   			],
   			sans: [
-  				'var(--font-sans)',
+  				'var(--font-body)',
   				'system-ui',
   				'sans-serif'
   			],
   			heading: [
-  				'var(--font-sans)',
+  				'var(--font-display)',
   				'system-ui',
   				'sans-serif'
   			],
@@ -76,6 +76,7 @@ const config: Config = {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
+  			overlay: 'hsl(var(--overlay) / <alpha-value>)',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			primary: {

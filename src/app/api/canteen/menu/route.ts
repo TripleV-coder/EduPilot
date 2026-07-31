@@ -5,6 +5,7 @@ import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-h
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export async function GET(req: NextRequest) {
     const session = await auth();
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     const session = await auth();
-    if (!session?.user?.schoolId || !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!session?.user?.schoolId || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

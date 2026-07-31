@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { checkPerformanceThresholds, sendPerformanceAlerts, type PerformanceMetrics } from "@/lib/performance/alerts";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/performance/dashboard
@@ -36,19 +38,49 @@ import { checkPerformanceThresholds, sendPerformanceAlerts, type PerformanceMetr
 export const GET = createApiHandler(
   async (request, { session }) => {
     // Only SUPER_ADMIN and SCHOOL_ADMIN can access performance dashboard
-    if (!["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     try {
-      // Get Web Vitals metrics (would be stored in database or analytics service)
+      // Web Vitals réels : p75 des mesures des dernières 24 h ingérées par
+      // POST /api/analytics/web-vitals (modèle PerformanceMetric — P2.4)
+      const since = new Date(Date.now() - 24 * 3600 * 1000);
+      const samples = await prisma.performanceMetric.findMany({
+        where: { createdAt: { gte: since } },
+        select: { metric: true, value: true },
+      });
+
+      const p75 = (metric: string): number | null => {
+        const values = samples
+          .filter((sample) => sample.metric === metric)
+          .map((sample) => sample.value)
+          .sort((a, b) => a - b);
+        if (values.length === 0) return null;
+        // Percentile nearest-rank : index = ⌈n × 0.75⌉ - 1
+        return values[Math.max(0, Math.ceil(values.length * 0.75) - 1)];
+      };
+
+      // Seuils officiels web.dev (good / needs-improvement / poor)
+      const rate = (value: number | null, good: number, poor: number): string => {
+        if (value === null) return "good";
+        if (value <= good) return "good";
+        if (value <= poor) return "needs-improvement";
+        return "poor";
+      };
+
+      const vital = (metric: string, good: number, poor: number) => {
+        const value = p75(metric);
+        return { value: value ?? 0, rating: rate(value, good, poor) };
+      };
+
       const webVitals = {
-        lcp: { value: 0, rating: "good" },
-        fid: { value: 0, rating: "good" },
-        cls: { value: 0, rating: "good" },
-        fcp: { value: 0, rating: "good" },
-        ttfb: { value: 0, rating: "good" },
-        inp: { value: 0, rating: "good" },
+        lcp: vital("LCP", 2500, 4000),
+        fid: vital("FID", 100, 300),
+        cls: vital("CLS", 0.1, 0.25),
+        fcp: vital("FCP", 1800, 3000),
+        ttfb: vital("TTFB", 800, 1800),
+        inp: vital("INP", 200, 500),
       };
 
       // Get API performance metrics

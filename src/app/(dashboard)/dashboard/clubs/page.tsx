@@ -12,7 +12,7 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type ClubColor = "info" | "warning" | "success" | "brand" | "danger";
 
@@ -144,12 +144,16 @@ export default function ClubsPage() {
             permission={Permission.SCHOOL_READ}
             roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Clubs & activités"
-                    sub={`${CLUBS.length} clubs proposés · ${ready ? myClubs.length : 0} ${
-                        ready && myClubs.length > 1 ? "auxquels tu es inscrit" : "auquel tu es inscrit"
+                    title="Clubs & activités"
+                    description={`${CLUBS.length} clubs proposés · ${ready ? myClubs.length : 0} ${
+                        ready && myClubs.length > 1 ? "auxquels vous êtes inscrit" : "auquel vous êtes inscrit"
                     }`}
+                    breadcrumbs={[
+                        { label: "Vie scolaire" },
+                        { label: "Clubs & activités" },
+                    ]}
                     actions={
                         ready ? (
                             <Badge
@@ -307,7 +311,7 @@ export default function ClubsPage() {
                         );
                     })}
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

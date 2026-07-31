@@ -7,6 +7,39 @@ import { RecommendedSeries, SubjectGroup, PerformanceTrend } from "@prisma/clien
  */
 
 // ============================================
+// TENDANCE DE PERFORMANCE (chronologique)
+// ============================================
+
+type DatedGrade = { date: Date; value: number };
+
+/**
+ * Calcule la tendance d'un groupe de matières en comparant la moyenne de la
+ * première moitié des notes (dans le temps) à celle de la seconde moitié.
+ *
+ * Il faut au moins 4 notes pour dégager une tendance fiable ; en-deçà on reste
+ * STABLE. Les seuils (en points sur 20) : ±0,5 = variation, ±2 = forte variation.
+ */
+export function computePerformanceTrend(grades: DatedGrade[]): PerformanceTrend {
+  if (grades.length < 4) return "STABLE";
+
+  const sorted = [...grades].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const mid = Math.floor(sorted.length / 2);
+  const firstHalf = sorted.slice(0, mid);
+  const secondHalf = sorted.slice(sorted.length - mid);
+
+  const mean = (list: DatedGrade[]) =>
+    list.reduce((sum, g) => sum + g.value, 0) / list.length;
+
+  const delta = mean(secondHalf) - mean(firstHalf);
+
+  if (delta >= 2) return "STRONG_INCREASE";
+  if (delta >= 0.5) return "INCREASE";
+  if (delta <= -2) return "STRONG_DECREASE";
+  if (delta <= -0.5) return "DECREASE";
+  return "STABLE";
+}
+
+// ============================================
 // MAPPING MATIÈRES → GROUPES
 // ============================================
 
@@ -246,6 +279,88 @@ function calculateSeriesScore(
 }
 
 // ============================================
+// RECOMMANDATIONS INDICATIVES (sans dossier)
+// ============================================
+
+export interface IndicativeRecommendation {
+  series: RecommendedSeries;
+  name: string;
+  description: string;
+  score: number;
+  strengths: string[];
+  warnings: string[];
+}
+
+/**
+ * Calcule des recommandations indicatives à partir des notes réelles de
+ * l'élève sur l'année, SANS créer de dossier d'orientation : utilisé pour
+ * donner un aperçu personnel à l'élève en attendant l'avis du conseil
+ * (P2.5 — orientation/me).
+ */
+export async function computeIndicativeRecommendations(
+  studentId: string,
+  academicYearId: string
+): Promise<{ recommendations: IndicativeRecommendation[]; generalAverage: number | null }> {
+  const grades = await prisma.grade.findMany({
+    where: {
+      studentId,
+      deletedAt: null,
+      value: { not: null },
+      isAbsent: false,
+      evaluation: { period: { academicYearId } },
+    },
+    select: {
+      value: true,
+      evaluation: {
+        select: {
+          maxGrade: true,
+          classSubject: { select: { subject: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+
+  const groupGrades = new Map<SubjectGroup, number[]>();
+  for (const grade of grades) {
+    const group = classifySubject(grade.evaluation.classSubject.subject.name);
+    if (!group) continue;
+    const maxGrade = Number(grade.evaluation.maxGrade) || 20;
+    const normalized = (Number(grade.value) / maxGrade) * 20;
+    if (!Number.isFinite(normalized)) continue;
+    if (!groupGrades.has(group)) groupGrades.set(group, []);
+    groupGrades.get(group)!.push(normalized);
+  }
+
+  const groupAverages = new Map<SubjectGroup, number>();
+  for (const [group, values] of groupGrades) {
+    groupAverages.set(group, values.reduce((sum, v) => sum + v, 0) / values.length);
+  }
+
+  const allValues = Array.from(groupGrades.values()).flat();
+  if (allValues.length === 0) {
+    return { recommendations: [], generalAverage: null };
+  }
+  const generalAverage = allValues.reduce((sum, v) => sum + v, 0) / allValues.length;
+
+  const scored = SERIES_REQUIREMENTS.map((req) => {
+    const { score, strengths, warnings } = calculateSeriesScore(req, groupAverages, generalAverage);
+    return {
+      series: req.series,
+      name: req.name,
+      description: req.description,
+      score,
+      strengths,
+      warnings,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  return {
+    recommendations: scored.slice(0, 3),
+    generalAverage: Math.round(generalAverage * 100) / 100,
+  };
+}
+
+// ============================================
 // GÉNÉRATION DES RECOMMANDATIONS
 // ============================================
 
@@ -336,21 +451,26 @@ export async function generateOrientationRecommendations(orientationId: string) 
 
   // 2. Calculer les moyennes par groupe de matières
   const groupGrades: Map<SubjectGroup, number[]> = new Map();
+  // Notes datées (pour le calcul de tendance chronologique) : on conserve la date
+  // de l'évaluation afin d'ordonner les notes dans le temps.
+  const groupDatedGrades: Map<SubjectGroup, DatedGrade[]> = new Map();
 
   for (const cs of enrollment.class.classSubjects) {
     const subjectGroup = classifySubject(cs.subject.name);
     if (!subjectGroup) continue;
 
-    const grades = cs.evaluations
-      .flatMap((ev) => ev.grades)
-      .filter((g) => g.value !== null && !g.isAbsent)
-      .map((g) => Number(g.value));
+    const datedGrades = cs.evaluations
+      .flatMap((ev) => ev.grades.map((g) => ({ date: ev.date, grade: g })))
+      .filter(({ grade }) => grade.value !== null && !grade.isAbsent)
+      .map(({ date, grade }) => ({ date, value: Number(grade.value) }));
 
-    if (grades.length > 0) {
+    if (datedGrades.length > 0) {
       if (!groupGrades.has(subjectGroup)) {
         groupGrades.set(subjectGroup, []);
+        groupDatedGrades.set(subjectGroup, []);
       }
-      groupGrades.get(subjectGroup)!.push(...grades);
+      groupGrades.get(subjectGroup)!.push(...datedGrades.map((d) => d.value));
+      groupDatedGrades.get(subjectGroup)!.push(...datedGrades);
     }
   }
 
@@ -372,8 +492,9 @@ export async function generateOrientationRecommendations(orientationId: string) 
     const min = Math.min(...grades);
     const max = Math.max(...grades);
 
-    // Calculer la tendance (à implémenter avec historique)
-    const trend: PerformanceTrend = "STABLE";
+    // Tendance chronologique : compare la moyenne de la 1ère moitié des notes
+    // (dans le temps) à celle de la 2nde moitié pour ce groupe de matières.
+    const trend = computePerformanceTrend(groupDatedGrades.get(group) ?? []);
 
     // Calculer le taux de constance
     const stdDev = Math.sqrt(

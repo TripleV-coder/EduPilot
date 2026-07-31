@@ -4,15 +4,18 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { useSchool } from "@/components/providers/school-provider";
 import { Permission } from "@/lib/rbac/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SaveStatus } from "@/components/edu";
 import { Loader2, Check, Building2 } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
+import { useAutoSave } from "@/hooks/use-autosave";
 
 type PrimaryColor = "brand" | "success" | "warning" | "danger" | "accent";
 
@@ -26,6 +29,11 @@ type SchoolProfile = {
     email: string | null;
     logo: string | null;
     primaryColor: PrimaryColor | null;
+    isPublic: boolean;
+    coverImage: string | null;
+    publicDescription: string | null;
+    region: string | null;
+    publicPhone: string | null;
 };
 
 const COLOR_SWATCHES: Array<{ key: PrimaryColor; label: string; swatch: string }> = [
@@ -39,6 +47,7 @@ const COLOR_SWATCHES: Array<{ key: PrimaryColor; label: string; swatch: string }
 const EMPTY: SchoolProfile = {
     id: "", name: "", code: null, motto: null, mempCode: null,
     emailDomain: null, email: null, logo: null, primaryColor: "brand",
+    isPublic: false, coverImage: null, publicDescription: null, region: null, publicPhone: null,
 };
 
 export default function SchoolIdentityPage() {
@@ -49,8 +58,10 @@ export default function SchoolIdentityPage() {
     );
 
     const [form, setForm] = useState<SchoolProfile>(EMPTY);
-    const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    // Passe à true une fois l'établissement chargé et le formulaire hydraté :
+    // n'active l'auto-save qu'ensuite pour ne pas ré-enregistrer au chargement.
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
         if (!school) return;
@@ -64,7 +75,13 @@ export default function SchoolIdentityPage() {
             email: school.email ?? "",
             logo: school.logo ?? "",
             primaryColor: (school.primaryColor as PrimaryColor) ?? "brand",
+            isPublic: school.isPublic ?? false,
+            coverImage: school.coverImage ?? "",
+            publicDescription: school.publicDescription ?? "",
+            region: school.region ?? "",
+            publicPhone: school.publicPhone ?? "",
         });
+        setHydrated(true);
     }, [school]);
 
     const dirty = !!school && (
@@ -74,34 +91,59 @@ export default function SchoolIdentityPage() {
         form.mempCode !== (school.mempCode ?? "") ||
         form.emailDomain !== (school.emailDomain ?? "") ||
         form.logo !== (school.logo ?? "") ||
-        form.primaryColor !== ((school.primaryColor as PrimaryColor) ?? "brand")
+        form.primaryColor !== ((school.primaryColor as PrimaryColor) ?? "brand") ||
+        form.isPublic !== (school.isPublic ?? false) ||
+        form.coverImage !== (school.coverImage ?? "") ||
+        form.publicDescription !== (school.publicDescription ?? "") ||
+        form.region !== (school.region ?? "") ||
+        form.publicPhone !== (school.publicPhone ?? "")
     );
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!schoolId) return;
-        setSaving(true);
-        try {
+    // Charge utile PATCH (idempotent) surveillée par l'auto-save.
+    const payload = {
+        name: form.name,
+        motto: form.motto || null,
+        mempCode: form.mempCode || null,
+        emailDomain: form.emailDomain || null,
+        logo: form.logo || null,
+        primaryColor: form.primaryColor,
+        isPublic: form.isPublic,
+        coverImage: form.coverImage || null,
+        publicDescription: form.publicDescription || null,
+        region: form.region || null,
+        publicPhone: form.publicPhone || null,
+    };
+
+    const {
+        status: saveStatus,
+        lastSavedAt,
+        error: saveError,
+        isOnline,
+        saveNow,
+    } = useAutoSave({
+        data: payload,
+        enabled: hydrated && !!schoolId,
+        // Le nom officiel est requis (min. 3 caractères) : on bloque l'envoi sinon.
+        validate: (d) => (d.name ?? "").trim().length >= 3,
+        onSave: async (d) => {
             const res = await fetch(`/api/schools/${schoolId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: form.name,
-                    motto: form.motto || null,
-                    mempCode: form.mempCode || null,
-                    emailDomain: form.emailDomain || null,
-                    logo: form.logo || null,
-                    primaryColor: form.primaryColor,
-                }),
+                body: JSON.stringify(d),
             });
-            if (!res.ok) throw new Error("Échec de l'enregistrement");
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.error || "Échec de l'enregistrement");
+            }
             await mutate();
-            toast.success("Identité enregistrée.");
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Erreur inconnue");
-        } finally {
-            setSaving(false);
-        }
+        },
+    });
+
+    const saving = saveStatus === "saving";
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        saveNow();
     };
 
     const handleCancel = () => {
@@ -116,7 +158,34 @@ export default function SchoolIdentityPage() {
                 email: school.email ?? "",
                 logo: school.logo ?? "",
                 primaryColor: (school.primaryColor as PrimaryColor) ?? "brand",
+                isPublic: school.isPublic ?? false,
+                coverImage: school.coverImage ?? "",
+                publicDescription: school.publicDescription ?? "",
+                region: school.region ?? "",
+                publicPhone: school.publicPhone ?? "",
             });
+        }
+    };
+
+    const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("type", "school-cover");
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            if (!res.ok) throw new Error("Upload refusé");
+            const data = await res.json();
+            const url = data?.url ?? data?.data?.url;
+            if (!url) throw new Error("URL absente de la réponse");
+            setForm((f) => ({ ...f, coverImage: url }));
+            toast.success("Image de couverture téléversée.");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erreur d'upload");
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -134,7 +203,7 @@ export default function SchoolIdentityPage() {
             const url = data?.url ?? data?.data?.url;
             if (!url) throw new Error("URL absente de la réponse");
             setForm((f) => ({ ...f, logo: url }));
-            toast.success("Logo téléversé. N'oublie pas d'enregistrer.");
+            toast.success("Logo téléversé.");
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Erreur d'upload");
         } finally {
@@ -153,7 +222,7 @@ export default function SchoolIdentityPage() {
                     description="Configuration de l'établissement, branding, conformité"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Paramètres" },
+                        { label: "Paramètres", href: "/dashboard/settings" },
                     ]}
                 />
 
@@ -357,26 +426,108 @@ export default function SchoolIdentityPage() {
                                     })}
                                 </div>
 
+                                <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--eduflow-border-subtle)" }}>
+                                    <SubLabel>Vitrine publique · annuaire des écoles</SubLabel>
+
+                                    <label className="flex items-start gap-3" style={{ marginTop: 12, cursor: "pointer" }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={form.isPublic}
+                                            onChange={(e) => setForm((f) => ({ ...f, isPublic: e.target.checked }))}
+                                            style={{ width: 18, height: 18, marginTop: 2 }}
+                                        />
+                                        <span>
+                                            <span style={{ fontSize: 14, fontWeight: 600 }}>Publier la fiche publique</span>
+                                            <span style={{ display: "block", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
+                                                Rend l&apos;établissement visible dans l&apos;annuaire public et sur sa fiche.
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    {form.isPublic && form.code ? (
+                                        <a
+                                            href={`/ecole/${form.code}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 600, color: "var(--brand-700)" }}
+                                        >
+                                            Voir la fiche publique ↗
+                                        </a>
+                                    ) : null}
+
+                                    <div className="grid gap-3.5" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
+                                        <Field label="Région / département">
+                                            <Input type="text" value={form.region ?? ""} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} maxLength={120} placeholder="Ex : Littoral" />
+                                        </Field>
+                                        <Field label="Téléphone public">
+                                            <Input type="text" value={form.publicPhone ?? ""} onChange={(e) => setForm((f) => ({ ...f, publicPhone: e.target.value }))} maxLength={40} placeholder="+229 …" />
+                                        </Field>
+                                    </div>
+
+                                    <div style={{ marginTop: 14 }}>
+                                        <Field label="Présentation publique">
+                                            <textarea
+                                                value={form.publicDescription ?? ""}
+                                                onChange={(e) => setForm((f) => ({ ...f, publicDescription: e.target.value }))}
+                                                maxLength={2000}
+                                                rows={4}
+                                                placeholder="Quelques lignes de présentation affichées sur la fiche publique."
+                                                style={{ width: "100%", padding: 12, borderRadius: "var(--eduflow-radius-input)", border: "1px solid var(--eduflow-border-default)", background: "var(--eduflow-surface-card)", fontFamily: "inherit", fontSize: 13, color: "var(--eduflow-text-primary)", resize: "vertical" }}
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div style={{ marginTop: 14 }}>
+                                        <SubLabel>Image de couverture</SubLabel>
+                                        <div className="flex items-center gap-3" style={{ marginTop: 8 }}>
+                                            {form.coverImage ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={form.coverImage} alt="Couverture" style={{ width: 120, height: 60, objectFit: "cover", borderRadius: 8, border: "1px solid var(--eduflow-border-subtle)" }} />
+                                            ) : (
+                                                <div style={{ width: 120, height: 60, borderRadius: 8, background: "var(--eduflow-surface-sunken)", border: "1px dashed var(--eduflow-border-default)" }} />
+                                            )}
+                                            <label className="inline-flex items-center gap-1 rounded-md cursor-pointer" style={{ fontSize: 12, fontWeight: 600, padding: "8px 12px", background: "var(--eduflow-surface-card)", border: "1px solid var(--eduflow-border-default)", color: "var(--eduflow-text-primary)" }}>
+                                                {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Téléverser"}
+                                                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={handleCoverFile} disabled={uploading} />
+                                            </label>
+                                            {form.coverImage ? (
+                                                <button type="button" onClick={() => setForm((f) => ({ ...f, coverImage: "" }))} style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-tertiary)" }}>
+                                                    Retirer
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div
-                                    className="flex justify-end gap-2"
+                                    className="flex flex-wrap items-center justify-between gap-2"
                                     style={{
                                         marginTop: 24,
                                         paddingTop: 20,
                                         borderTop: "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={handleCancel}
-                                        disabled={!dirty || saving}
-                                    >
-                                        Annuler
-                                    </Button>
-                                    <Button type="submit" disabled={!dirty || saving}>
-                                        {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                                        Enregistrer
-                                    </Button>
+                                    <SaveStatus
+                                        status={saveStatus}
+                                        lastSavedAt={lastSavedAt}
+                                        error={saveError}
+                                        isOnline={isOnline}
+                                        onRetry={saveNow}
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={handleCancel}
+                                            disabled={!dirty || saving}
+                                        >
+                                            Annuler
+                                        </Button>
+                                        <Button type="submit" disabled={!dirty || saving}>
+                                            {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                                            Enregistrer maintenant
+                                        </Button>
+                                    </div>
                                 </div>
                             </>
                         )}

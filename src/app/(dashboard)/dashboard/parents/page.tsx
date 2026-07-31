@@ -23,7 +23,9 @@ import {
     Icon,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { DataTable } from "@/components/layout/data-table";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type ParentUser = {
     id: string;
@@ -70,6 +72,7 @@ export default function ParentsPage() {
         data: response,
         error,
         isLoading: loading,
+        mutate: mutateParents,
     } = useSWR<ParentsResponse | ParentUser[]>(url, fetcher);
 
     const parents: ParentUser[] = Array.isArray(response)
@@ -163,14 +166,17 @@ export default function ParentsPage() {
             permission={[Permission.USER_READ]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Parents"
-                        sub={`${totalParents} ${
-                            totalParents > 1 ? "comptes parents" : "compte parent"
-                        } enregistrés dans l'établissement`}
-                        actions={
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Parents"
+                    description={`${totalParents} ${
+                        totalParents > 1 ? "comptes parents" : "compte parent"
+                    } enregistrés dans l'établissement`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Parents" },
+                    ]}
+                    actions={
                             <>
                                 <SegmentedToggle
                                     value={viewMode}
@@ -192,8 +198,7 @@ export default function ParentsPage() {
                                 </RoleActionGuard>
                             </>
                         }
-                    />
-                </div>
+                />
 
                 {/* Filters */}
                 <Card padding={14}>
@@ -230,45 +235,42 @@ export default function ParentsPage() {
                     </div>
                 </Card>
 
-                {error ? <ErrorCard label="Impossible de charger les parents." /> : null}
-
-                {loading ? <SkeletonGrid /> : null}
+                {loading ? <PageLoading label="Chargement des parents…" /> : null}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les parents."
+                        onRetry={() => void mutateParents()}
+                    />
+                ) : null}
 
                 {!loading && !error && parents.length === 0 ? (
-                    <EmptyState
+                    <PageEmpty
+                        icon="users"
                         title="Aucun parent enregistré"
-                        body={
+                        description={
                             searchTerm
                                 ? "Aucun parent ne correspond à la recherche."
-                                : "Les comptes parents permettent de suivre la scolarité de leurs enfants. Ajoute-les manuellement ou via import."
+                                : "Les comptes parents permettent de suivre la scolarité de leurs enfants. Ajoutez-les manuellement ou par import."
                         }
-                        primaryCta={
-                            searchTerm ? (
-                                <Button
-                                    variant="secondary"
-                                    icon="x"
-                                    onClick={() => {
-                                        setSearchTerm("");
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    Effacer la recherche
-                                </Button>
-                            ) : (
-                                <RoleActionGuard
-                                    allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-                                >
-                                    <Link href="/dashboard/parents/new">
-                                        <Button icon="plus">Ajouter un parent</Button>
-                                    </Link>
-                                </RoleActionGuard>
-                            )
+                        actions={
+                            searchTerm
+                                ? [
+                                      {
+                                          label: "Effacer la recherche",
+                                          onClick: () => {
+                                              setSearchTerm("");
+                                              setCurrentPage(1);
+                                          },
+                                      },
+                                  ]
+                                : [{ label: "Ajouter un parent", href: "/dashboard/parents/new" }]
                         }
                     />
                 ) : null}
 
                 {!loading && !error && parents.length > 0 && viewMode === "grid" ? (
                     <div
+                        className="edu-stagger"
                         style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -293,135 +295,114 @@ export default function ParentsPage() {
                 ) : null}
 
                 {!loading && !error && parents.length > 0 && viewMode === "table" ? (
-                    <Card padding={0}>
-                        <div className="overflow-x-auto">
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                    <tr
-                                        style={{
-                                            background: "var(--eduflow-surface-sunken)",
-                                            textAlign: "left",
-                                        }}
+                    <DataTable
+                        caption="Liste des parents"
+                        data={parents}
+                        getRowKey={(parent) => parent.id}
+                        page={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        columns={[
+                            {
+                                id: "parent",
+                                header: "Parent",
+                                cell: (parent) => {
+                                    const fullName = `${parent.firstName} ${parent.lastName}`;
+                                    return (
+                                        <div className="flex items-center gap-2.5">
+                                            <Avatar name={fullName} size="sm" />
+                                            <div className="min-w-0">
+                                                <div className="text-[13px] font-semibold">
+                                                    {fullName}
+                                                </div>
+                                                <div
+                                                    className="truncate text-[11px]"
+                                                    style={{ color: "var(--eduflow-text-tertiary)" }}
+                                                >
+                                                    {parent.email}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                },
+                            },
+                            {
+                                id: "phone",
+                                header: "Téléphone",
+                                cell: (parent) => (
+                                    <span
+                                        className="eduflow-mono text-xs"
+                                        style={{ color: "var(--eduflow-text-secondary)" }}
                                     >
-                                        <Th>Parent</Th>
-                                        <Th width={160}>Téléphone</Th>
-                                        <Th width={140}>Inscrit le</Th>
-                                        <Th width={120}>Statut</Th>
-                                        <Th width={80} center>
-                                            Actions
-                                        </Th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {parents.map((parent) => {
-                                        const fullName = `${parent.firstName} ${parent.lastName}`;
-                                        return (
-                                            <tr
-                                                key={parent.id}
-                                                style={{
-                                                    borderTop:
-                                                        "1px solid var(--eduflow-border-subtle)",
-                                                }}
+                                        {parent.phone || "—"}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "created",
+                                header: "Inscrit le",
+                                cell: (parent) => (
+                                    <span
+                                        className="eduflow-tabular text-xs"
+                                        style={{ color: "var(--eduflow-text-secondary)" }}
+                                    >
+                                        {format(new Date(parent.createdAt), "dd MMM yyyy", {
+                                            locale: fr,
+                                        })}
+                                    </span>
+                                ),
+                            },
+                            {
+                                id: "status",
+                                header: "Statut",
+                                cell: (parent) =>
+                                    parent.isActive ? (
+                                        <Badge variant="success" size="sm" dot>
+                                            Actif
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="neutral" size="sm">
+                                            Inactif
+                                        </Badge>
+                                    ),
+                            },
+                            {
+                                id: "actions",
+                                header: "Actions",
+                                cell: (parent) => {
+                                    const fullName = `${parent.firstName} ${parent.lastName}`;
+                                    return (
+                                        <RoleActionGuard
+                                            allowedRoles={[
+                                                "SUPER_ADMIN",
+                                                "SCHOOL_ADMIN",
+                                                "DIRECTOR",
+                                            ]}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                icon="x"
+                                                onClick={(e) =>
+                                                    requestDelete(
+                                                        e,
+                                                        parent.id,
+                                                        fullName,
+                                                        parent.email
+                                                    )
+                                                }
                                             >
-                                                <Td>
-                                                    <div className="flex items-center gap-2.5">
-                                                        <Avatar name={fullName} size="sm" />
-                                                        <div className="min-w-0">
-                                                            <div
-                                                                style={{
-                                                                    fontSize: 13,
-                                                                    fontWeight: 600,
-                                                                    color:
-                                                                        "var(--eduflow-text-primary)",
-                                                                }}
-                                                            >
-                                                                {fullName}
-                                                            </div>
-                                                            <div
-                                                                className="truncate"
-                                                                style={{
-                                                                    fontSize: 11,
-                                                                    color:
-                                                                        "var(--eduflow-text-tertiary)",
-                                                                }}
-                                                            >
-                                                                {parent.email}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </Td>
-                                                <Td>
-                                                    <span
-                                                        className="eduflow-mono"
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: "var(--eduflow-text-secondary)",
-                                                        }}
-                                                    >
-                                                        {parent.phone || "—"}
-                                                    </span>
-                                                </Td>
-                                                <Td>
-                                                    <span
-                                                        className="eduflow-tabular"
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: "var(--eduflow-text-secondary)",
-                                                        }}
-                                                    >
-                                                        {format(
-                                                            new Date(parent.createdAt),
-                                                            "dd MMM yyyy",
-                                                            { locale: fr }
-                                                        )}
-                                                    </span>
-                                                </Td>
-                                                <Td>
-                                                    {parent.isActive ? (
-                                                        <Badge variant="success" size="sm" dot>
-                                                            Actif
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="neutral" size="sm">
-                                                            Inactif
-                                                        </Badge>
-                                                    )}
-                                                </Td>
-                                                <Td center>
-                                                    <RoleActionGuard
-                                                        allowedRoles={[
-                                                            "SUPER_ADMIN",
-                                                            "SCHOOL_ADMIN",
-                                                            "DIRECTOR",
-                                                        ]}
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            icon="x"
-                                                            onClick={(e) =>
-                                                                requestDelete(
-                                                                    e,
-                                                                    parent.id,
-                                                                    fullName,
-                                                                    parent.email
-                                                                )
-                                                            }
-                                                        >
-                                                            {""}
-                                                        </Button>
-                                                    </RoleActionGuard>
-                                                </Td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                                                {""}
+                                            </Button>
+                                        </RoleActionGuard>
+                                    );
+                                },
+                            },
+                        ]}
+                    />
                 ) : null}
 
-                {!loading && !error && totalParents > 0 ? (
+                {!loading && !error && totalParents > 0 && viewMode === "grid" ? (
                     <div
                         className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
@@ -459,7 +440,7 @@ export default function ParentsPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -698,166 +679,3 @@ function FieldSearch({
     );
 }
 
-function ErrorCard({ label }: { label: string }) {
-    return (
-        <Card
-            padding={14}
-            style={{
-                borderLeft: "3px solid var(--eduflow-danger-500)",
-                background: "var(--eduflow-danger-50)",
-            }}
-        >
-            <div className="flex items-center gap-3">
-                <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: 13,
-                        color: "var(--eduflow-danger-800)",
-                        fontWeight: 500,
-                    }}
-                >
-                    {label}
-                </p>
-            </div>
-        </Card>
-    );
-}
-
-function EmptyState({
-    title,
-    body,
-    primaryCta,
-}: {
-    title: string;
-    body: string;
-    primaryCta?: React.ReactNode;
-}) {
-    return (
-        <Card padding={36}>
-            <div className="flex flex-col items-center gap-3 text-center">
-                <div
-                    className="grid place-items-center"
-                    style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 16,
-                        background: "var(--brand-50)",
-                    }}
-                >
-                    <Icon name="users" size={26} color="var(--brand-700)" />
-                </div>
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                    {title}
-                </h3>
-                <p
-                    style={{
-                        fontSize: 13,
-                        color: "var(--eduflow-text-secondary)",
-                        maxWidth: 480,
-                        lineHeight: 1.55,
-                        margin: 0,
-                    }}
-                >
-                    {body}
-                </p>
-                {primaryCta ? <div className="mt-2">{primaryCta}</div> : null}
-            </div>
-        </Card>
-    );
-}
-
-function SkeletonGrid() {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 14,
-            }}
-        >
-            {Array.from({ length: 6 }).map((_, idx) => (
-                <Card key={idx} padding={16}>
-                    <div className="flex items-start gap-3">
-                        <div
-                            style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "50%",
-                                background: "var(--eduflow-surface-sunken)",
-                            }}
-                        />
-                        <div className="flex-1 space-y-2">
-                            <div
-                                style={{
-                                    height: 14,
-                                    width: "70%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    height: 10,
-                                    width: "50%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </div>
-                    </div>
-                </Card>
-            ))}
-        </div>
-    );
-}
-
-function Th({
-    children,
-    width,
-    center,
-}: {
-    children: React.ReactNode;
-    width?: number;
-    center?: boolean;
-}) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                textAlign: center ? "center" : "left",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td({
-    children,
-    style,
-    center,
-}: {
-    children: React.ReactNode;
-    style?: React.CSSProperties;
-    center?: boolean;
-}) {
-    return (
-        <td
-            style={{
-                padding: "12px 16px",
-                fontSize: 13,
-                textAlign: center ? "center" : "left",
-                ...style,
-            }}
-        >
-            {children}
-        </td>
-    );
-}

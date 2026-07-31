@@ -9,6 +9,7 @@ import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getPaginationParams } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createAnnouncementSchema = z.object({
   title: z.string().min(3).max(200),
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ADMIN_ROLES } from "@/lib/rbac/permissions";
-import { Shield, Users, School, Activity, AlertCircle, Database } from "lucide-react";
+import { Users, School, Activity, AlertCircle, Database } from "lucide-react";
 
 type SystemStats = {
     userCount: number;
@@ -46,7 +47,7 @@ export default function AdminPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <PageHeader
                     title="Administration"
                     description="Panel d'administration système"
@@ -56,20 +57,11 @@ export default function AdminPage() {
                     ]}
                 />
 
-                {loading && (
-                    <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                    </div>
-                )}
+                {loading ? <PageLoading label="Chargement des statistiques système…" /> : null}
 
-                {error && (
-                    <div role="alert" className="rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] px-4 py-3 text-sm text-destructive flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <p>{error}</p>
-                    </div>
-                )}
+                {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
 
-                {!loading && !error && stats && (
+                {!loading && !error && stats ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <Card className="border-border bg-card">
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -115,7 +107,7 @@ export default function AdminPage() {
                             </CardContent>
                         </Card>
                     </div>
-                )}
+                ) : null}
 
                 {/* Pending Actions */}
                 {pendingActions && pendingActions.length > 0 && (
@@ -161,14 +153,14 @@ export default function AdminPage() {
                     </Card>
                 )}
 
-                {!loading && !error && !stats && (
-                    <div className="text-center py-16 border border-dashed border-border rounded-xl bg-muted/30">
-                        <Shield className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                        <h3 className="text-lg font-medium text-foreground">Données système indisponibles</h3>
-                        <p className="text-sm text-muted-foreground mt-2">Vérifiez la connexion au serveur.</p>
-                    </div>
-                )}
-            </div>
+                {!loading && !error && !stats ? (
+                    <PageEmpty
+                        icon="settings"
+                        title="Données système indisponibles"
+                        description="Vérifiez la connexion au serveur."
+                    />
+                ) : null}
+            </PageShell>
         </PageGuard>
     );
 }

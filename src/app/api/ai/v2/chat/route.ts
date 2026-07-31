@@ -1,19 +1,27 @@
 /**
- * AI Chat API v2 - Public Access
- * Handles chat requests with streaming support for all users (authenticated or not)
+ * AI Chat API v2 - Authenticated Access
+ * Handles chat requests with streaming support for authenticated users only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { aiService } from '@/lib/ai/ai-service';
+import { checkN8nHealth } from '@/lib/ai/n8n-client';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
     // Rate limiting harmonisé (même logique que strictLimiter / autres routes sensibles)
     const ipClean = getClientIdentifier(request);
-    const rl = await checkRateLimit(strictLimiter, `ai:public-chat:${ipClean}`);
+    const rl = await checkRateLimit(strictLimiter, `ai:chat:${session.user.id}:${ipClean}`);
     if (!rl.success) {
       const retryAfter = Math.ceil((rl.reset.getTime() - Date.now()) / 1000);
       return NextResponse.json(
@@ -51,8 +59,9 @@ export async function POST(request: NextRequest) {
             // Process chat and stream the response
             const result = await aiService.processChat({
               message: message.trim(),
-              userId: `public_${ipClean}`,
-              userRole: 'PUBLIC',
+              userId: session.user.id,
+              userRole: session.user.role,
+              schoolId: getActiveSchoolId(session),
               stream: true,
               options: {
                 maxLength: options.maxLength || 1024,
@@ -93,8 +102,9 @@ export async function POST(request: NextRequest) {
     // Non-streaming response
     const result = await aiService.processChat({
       message: message.trim(),
-      userId: `public_${ipClean}`,
-      userRole: 'PUBLIC',
+      userId: session.user.id,
+      userRole: session.user.role,
+      schoolId: getActiveSchoolId(session),
       stream: false,
       options: {
         maxLength: options.maxLength || 1024,
@@ -124,10 +134,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Get service status (public endpoint)
+// Get service status (authenticated endpoint)
 export async function GET(_request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
     const status = aiService.getStatus();
+    const n8nHealth = await checkN8nHealth();
 
     return NextResponse.json({
       success: true,
@@ -141,6 +157,8 @@ export async function GET(_request: NextRequest) {
         providers: {
           externalConfigured: status.externalConfigured,
           n8nConfigured: status.n8nConfigured,
+          n8nReachable: n8nHealth.reachable,
+          n8nLatencyMs: n8nHealth.latencyMs,
           runtimeMode: status.runtimeMode,
         },
       },

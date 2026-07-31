@@ -16,7 +16,9 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 type ClassOption = { id: string; name: string };
 type PeriodOption = { id: string; name: string };
@@ -170,20 +172,23 @@ export default function CouncilsPage() {
         : council
         ? `${council.participantsExpected} enseignants attendus · ${council.period.name}`
         : "Sélectionne une classe et une période pour préparer le conseil.";
-    const breadcrumb = council
+    const breadcrumbs = council
         ? [
-              "Pédagogie",
-              "Conseils de classe",
-              `${council.class.name} · ${council.period.name}`,
+              { label: "Pédagogie" },
+              { label: "Conseils de classe", href: "/dashboard/grades/councils" },
+              { label: `${council.class.name} · ${council.period.name}` },
           ]
-        : undefined;
+        : [
+              { label: "Pédagogie", href: "/dashboard/grades" },
+              { label: "Conseils de classe" },
+          ];
 
     return (
         <PageGuard
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/grades">
                         <Button variant="secondary" size="sm">
@@ -200,9 +205,9 @@ export default function CouncilsPage() {
                 </div>
 
                 <PageHeader
-                    greeting={title}
-                    sub={sub}
-                    breadcrumb={breadcrumb}
+                    title={title}
+                    description={sub}
+                    breadcrumbs={breadcrumbs}
                     actions={
                         council ? (
                             <>
@@ -317,12 +322,7 @@ export default function CouncilsPage() {
                 ) : null}
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Calcul du conseil…
-                        </span>
-                    </div>
+                    <PageLoading label="Calcul du conseil de classe…" />
                 ) : null}
 
                 {council ? (
@@ -743,7 +743,7 @@ export default function CouncilsPage() {
                         </div>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

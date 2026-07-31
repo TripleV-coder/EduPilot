@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateRequestSchema = z.object({
   status: z.enum(["IN_PROGRESS", "COMPLETED", "REJECTED"]),
@@ -58,11 +59,11 @@ export async function GET(
     }
 
     // Check access
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN"].includes(session.user.role);
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"]);
     if (!isAdmin && dataRequest.userId !== session.user.id) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
-    if (session.user.role === "SCHOOL_ADMIN") {
+    if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"])) {
       if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
@@ -94,7 +95,7 @@ export async function PATCH(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -120,7 +121,7 @@ export async function PATCH(
         { status: 404 }
       );
     }
-    if (session.user.role === "SCHOOL_ADMIN") {
+    if (roleSatisfies(session.user.role, ["SCHOOL_ADMIN"])) {
       if (!getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
       }
@@ -191,7 +192,15 @@ export async function PATCH(
         entity: "DataAccessRequest",
         entityId: id,
         oldValues: { status: existingRequest.status } as Prisma.InputJsonValue,
-        newValues: updateData as any,
+        // Snapshot JSON explicite (updateData contient un connect Prisma et une
+        // Date, non sérialisables tels quels dans une colonne Json)
+        newValues: {
+          status: validatedData.status,
+          notes: validatedData.notes ?? null,
+          downloadUrl: validatedData.downloadUrl ?? null,
+          completedAt: validatedData.status === "COMPLETED" ? new Date().toISOString() : null,
+          processedBy: session.user.id,
+        } as Prisma.InputJsonValue,
       },
     });
 

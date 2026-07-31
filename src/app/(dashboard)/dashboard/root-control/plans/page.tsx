@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Zap, Plus, Loader2,
@@ -30,6 +31,7 @@ import { fetcher } from "@/lib/fetcher";
 import { SectionToolbar } from "@/components/ui/section-toolbar";
 import { MetricCardPro } from "@/components/ui/metric-card-pro";
 import { EmptyStateAction } from "@/components/ui/empty-state";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Plan = {
     id: string;
@@ -105,8 +107,8 @@ export default function RootPlansPage() {
             toast({ title: "Succès", description: "La formule d'accès a été créée." });
             setIsCreateDialogOpen(false);
             mutate();
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
     HeartPulse, Search, Loader2, AlertCircle, Users, Activity,
     Droplet, Pill, AlertTriangle, FileText, FileClock, Edit,
-    Phone, Syringe, ShieldCheck
+    Phone, Syringe
 } from "lucide-react";
 import { t } from "@/lib/i18n";
 
@@ -185,7 +185,7 @@ export default function MedicalRecordsPage() {
 
     return (
         <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
-            <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
                     title="Infirmerie & Dossiers Médicaux"
                     description="Gérez les fiches de santé, antécédents et urgences médicales des élèves."
@@ -515,7 +515,7 @@ export default function MedicalRecordsPage() {
                         )}
                     </Card>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -13,6 +13,7 @@ import {
 import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/analytics/dashboard
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
     const yearId = resolvedYear.id;
 
     // ─── SUPER_ADMIN / SCHOOL_ADMIN / DIRECTOR ───
-    if (["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(role)) {
+    if (roleSatisfies(role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
       const comparisonSchoolIds =
         Array.isArray(session.user.accessibleSchoolIds) && session.user.accessibleSchoolIds.length > 0
           ? session.user.accessibleSchoolIds

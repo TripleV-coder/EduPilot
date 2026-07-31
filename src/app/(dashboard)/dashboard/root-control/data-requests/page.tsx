@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ShieldCheck, UserX, Download, CheckCircle, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimeShort } from "@/lib/utils/formatters";
 import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type DataRequest = {
     id: string;
@@ -49,8 +51,8 @@ export default function RootDataRequestsPage() {
             if (!res.ok) throw new Error("Erreur serveur lors du chargement des requêtes");
             const data = await res.json();
             setRequests(data.data || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -76,11 +78,11 @@ export default function RootDataRequestsPage() {
                 description: `Demande ${action === "APPROVE" ? "approuvée" : "rejetée"} avec succès.`,
             });
             fetchRequests();
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 variant: "destructive",
                 title: "Erreur",
-                description: err.message,
+                description: getErrorMessage(err),
             });
         } finally {
             setProcessingId(null);
@@ -89,13 +91,13 @@ export default function RootDataRequestsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Conformité RGPD / Demandes"
                     description="Traitement centralisé des demandes d'exportation de données et de suppression de compte (Droit à l'oubli)."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Root Control", href: "/dashboard/root-control" },
+                        { label: "Pilotage root", href: "/dashboard/root-control" },
                         { label: "Requêtes Données" },
                     ]}
                 />
@@ -220,7 +222,7 @@ export default function RootDataRequestsPage() {
                         </Table>
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

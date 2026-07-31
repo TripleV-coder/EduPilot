@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { DollarSign, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } f
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Fee = {
     id: string;
@@ -59,8 +60,8 @@ export default function FeesManagementPage() {
                 const data = await clRes.json();
                 setClassLevels(Array.isArray(data) ? data : data.data || []);
             }
-        } catch (err: any) {
-            setError(err.message || "Erreur de chargement");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Erreur de chargement");
         } finally {
             setLoading(false);
         }
@@ -111,8 +112,8 @@ export default function FeesManagementPage() {
             showSuccess("Frais configuré avec succès");
             setIsAdding(false);
             fetchData();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -120,7 +121,7 @@ export default function FeesManagementPage() {
 
     return (
         <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
                         <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -272,7 +273,7 @@ export default function FeesManagementPage() {
                         ))
                     )}
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

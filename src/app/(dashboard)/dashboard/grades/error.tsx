@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 import Link from "next/link";
+import { logger } from "@/lib/utils/logger";
 
 export default function GradesError({
     error,
@@ -13,7 +14,7 @@ export default function GradesError({
     reset: () => void;
 }) {
     useEffect(() => {
-        console.error("Grades error:", error);
+        logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/grades", digest: error.digest });
     }, [error]);
 
     return (

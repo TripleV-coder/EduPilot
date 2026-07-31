@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateScholarshipSchema = z.object({
   name: z.string().min(3).max(200).optional(),
@@ -91,7 +92,7 @@ export async function GET(
       if (!isParent) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
-    } else if (!["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"].includes(session.user.role)) {
+    } else if (!roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -110,7 +111,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const session = await auth();
-    if (!session?.user || !["SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
@@ -227,7 +228,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const session = await auth();
-    if (!session?.user || !["SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR"])) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");

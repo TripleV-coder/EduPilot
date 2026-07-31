@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import { ArrowLeft, Save, FileText } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function NewHomeworkPage() {
   const router = useRouter();
@@ -76,8 +78,8 @@ export default function NewHomeworkPage() {
 
       toast({ title: "Succès", description: "Le devoir a été créé avec succès." });
       router.push("/dashboard/homework");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

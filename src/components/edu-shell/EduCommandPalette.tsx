@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
-import { navForRole } from "./role-nav";
+import { navForRole, AI_ASSISTANT_NAV_LINK } from "./role-nav";
 
 type Action = {
     id: string;
@@ -18,7 +18,33 @@ type Action = {
     category: "Navigation" | "Action" | "Recherche";
 };
 
-const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>): Action[] => [
+function roleQuickActions(role: string | undefined | null): Action[] {
+    switch (role) {
+        case "TEACHER":
+            return [
+                { id: "qa-attendance", label: "Faire l'appel", hint: "Présences du jour", icon: "check", href: "/dashboard/attendance", category: "Action", keywords: "appel présence" },
+                { id: "qa-grades", label: "Saisir des notes", hint: "Saisie rapide", icon: "pencil", href: "/dashboard/grades/entry", category: "Action", keywords: "notes saisie" },
+            ];
+        case "DIRECTOR":
+        case "SCHOOL_ADMIN":
+            return [
+                { id: "qa-finance", label: "Encaisser un paiement", hint: "Finance scolarité", icon: "money", href: "/dashboard/finance", category: "Action", keywords: "paiement encaissement" },
+                { id: "qa-students", label: "Voir les effectifs", hint: "Liste des élèves", icon: "users", href: "/dashboard/students", category: "Action", keywords: "élèves effectifs" },
+            ];
+        case "PARENT":
+            return [
+                { id: "qa-pay", label: "Payer les frais", hint: "Espace finance", icon: "money", href: "/dashboard/finance", category: "Action", keywords: "paiement frais" },
+            ];
+        case "ACCOUNTANT":
+            return [
+                { id: "qa-accounting", label: "Saisie comptable OHADA", hint: "Comptabilité", icon: "cards", href: "/dashboard/accounting", category: "Action", keywords: "ohada comptabilité" },
+            ];
+        default:
+            return [];
+    }
+}
+
+const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | undefined | null): Action[] => [
     {
         id: "act-profile",
         label: "Mon compte",
@@ -41,10 +67,10 @@ const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>): Action[] => [
     },
     {
         id: "act-ai",
-        label: "Assistant IA",
+        label: AI_ASSISTANT_NAV_LINK.label,
         hint: "Aide pédago, génération bulletins",
-        icon: "sparkle",
-        href: "/dashboard/ai-assistant",
+        icon: AI_ASSISTANT_NAV_LINK.icon,
+        href: AI_ASSISTANT_NAV_LINK.href,
         keywords: "ia ai assistant chat",
         category: "Action",
     },
@@ -71,7 +97,7 @@ function buildActions(role: string | undefined | null, router: ReturnType<typeof
         keywords: `${n.label} ${n.href}`,
         category: "Navigation",
     }));
-    return [...navItems, ...STATIC_ACTIONS(router)];
+    return [...roleQuickActions(role), ...navItems, ...STATIC_ACTIONS(router, role)];
 }
 
 export interface EduCommandPaletteProps {
@@ -87,6 +113,8 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const [query, setQuery] = React.useState("");
     const [activeIndex, setActiveIndex] = React.useState(0);
     const inputRef = React.useRef<HTMLInputElement | null>(null);
+    const panelRef = React.useRef<HTMLDivElement | null>(null);
+    const triggerRef = React.useRef<HTMLElement | null>(null);
 
     const actions = React.useMemo(() => buildActions(role, router), [role, router]);
 
@@ -127,6 +155,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
 
     React.useEffect(() => {
         if (!open) return;
+        triggerRef.current = document.activeElement as HTMLElement | null;
         setQuery("");
         setActiveIndex(0);
         const t = window.setTimeout(() => inputRef.current?.focus(), 30);
@@ -134,10 +163,35 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     }, [open]);
 
     React.useEffect(() => {
+        if (!open) return;
+        const onTabTrap = (event: KeyboardEvent) => {
+            if (event.key !== "Tab" || !panelRef.current) return;
+            const nodes = panelRef.current.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+            );
+            if (nodes.length === 0) return;
+            const first = nodes[0];
+            const last = nodes[nodes.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener("keydown", onTabTrap);
+        return () => document.removeEventListener("keydown", onTabTrap);
+    }, [open]);
+
+    React.useEffect(() => {
         setActiveIndex(0);
     }, [query]);
 
-    const close = React.useCallback(() => onOpenChange(false), [onOpenChange]);
+    const close = React.useCallback(() => {
+        onOpenChange(false);
+        window.setTimeout(() => triggerRef.current?.focus(), 0);
+    }, [onOpenChange]);
 
     const execute = React.useCallback(
         (item: Action) => {
@@ -197,19 +251,20 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                 style={{
                     position: "fixed",
                     inset: 0,
-                    background: "rgba(15, 23, 42, 0.45)",
+                    background: "var(--eduflow-overlay)",
                     backdropFilter: "blur(2px)",
                 }}
             />
 
             <div
+                ref={panelRef}
                 style={{
                     position: "relative",
                     width: "min(640px, 100%)",
                     background: "var(--eduflow-surface-card)",
                     borderRadius: 16,
-                    boxShadow: "var(--shadow-overlay, 0 24px 64px rgba(15,23,42,0.32))",
-                    border: "1px solid var(--border-subtle)",
+                    boxShadow: "var(--eduflow-shadow-overlay)",
+                    border: "1px solid var(--eduflow-border-subtle)",
                     overflow: "hidden",
                     maxHeight: "70vh",
                     display: "flex",

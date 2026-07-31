@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -8,6 +8,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { t } from "@/lib/i18n";
+import { useAutoSave } from "@/hooks/use-autosave";
 
 import {
     Avatar,
@@ -17,35 +18,50 @@ import {
     Icon,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
+import {
+    type ClassOption,
+    type PeriodOption,
+    type EvalTypeOption,
+    type ClassSubjectOption,
+    type StudentItem,
+    type GradeCell,
+} from "@/components/grades/entry/types";
+import { AppreciationButton } from "@/components/ai/appreciation-button";
+import {
+    type CellState,
+    computeCellState,
+    StateBadge,
+    NoteCell,
+    TrendCell,
+    ToggleAbsent,
+    FieldSelect,
+    FieldText,
+    Th,
+    EmptyState,
+} from "@/components/grades/entry/components";
 
-interface ClassOption {
-    id: string;
-    name: string;
+// Extrait de dashboard/grades/entry/page.tsx (1218 lignes) lors de la
+// découpe (P3.1, 2026-06-11). Logique inchangée.
+
+// Brouillon local : la saisie est un flux créationnel (POST évaluation +
+// POST notes). On NE sauvegarde PAS automatiquement vers le serveur (créerait
+// des doublons) ; on persiste le travail en cours dans localStorage pour ne
+// jamais le perdre. La publication reste explicite.
+interface GradeDraft {
+    grades: Record<string, GradeCell>;
+    title: string;
+    date: string;
+    typeId: string;
+    periodId: string;
+    maxGrade: number;
+    coefficient: number;
+    savedAt: string;
 }
-interface PeriodOption {
-    id: string;
-    name: string;
-}
-interface EvalTypeOption {
-    id: string;
-    name: string;
-}
-interface ClassSubjectOption {
-    id: string;
-    subject?: { name: string };
-}
-interface StudentItem {
-    id: string;
-    matricule?: string;
-    user?: { firstName: string; lastName: string };
-}
-interface GradeCell {
-    value: string;
-    isAbsent: boolean;
-    isExcused: boolean;
-    comment: string;
-}
+
+const DRAFT_PREFIX = "edupilot.grade-draft";
 
 export default function GradesEntryPage() {
     const { isFocusMode } = useSidebar();
@@ -75,6 +91,14 @@ export default function GradesEntryPage() {
     const [generatingComments, setGeneratingComments] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    const [pendingDraft, setPendingDraft] = useState<GradeDraft | null>(null);
+    const [draftDismissed, setDraftDismissed] = useState(false);
+
+    const draftKey =
+        selectedClass && selectedSubject
+            ? `${DRAFT_PREFIX}:${selectedClass}:${selectedSubject}`
+            : null;
 
     useEffect(() => {
         const fetchInitial = async () => {
@@ -260,6 +284,7 @@ export default function GradesEntryPage() {
                     );
                 }
             }
+            if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
             setSuccess(true);
             window.scrollTo(0, 0);
         } catch (err) {
@@ -292,17 +317,75 @@ export default function GradesEntryPage() {
         [grades, initialGrades]
     );
 
+    // Auto-save du brouillon en localStorage (jamais vers le serveur).
+    const draftSnapshot = { grades, title, date, typeId, periodId, maxGrade, coefficient };
+    const { status: draftStatus, lastSavedAt: draftSavedAt } = useAutoSave({
+        data: draftSnapshot,
+        enabled: !!draftKey && students.length > 0 && !pendingDraft,
+        delay: 800,
+        onSave: async (snap) => {
+            if (!draftKey || typeof window === "undefined") return;
+            if (dirtyCount === 0) {
+                localStorage.removeItem(draftKey);
+                return;
+            }
+            const payload: GradeDraft = { ...snap, savedAt: new Date().toISOString() };
+            localStorage.setItem(draftKey, JSON.stringify(payload));
+        },
+    });
+
+    // Détection d'un brouillon existant à la sélection classe+matière.
+    useEffect(() => {
+        if (!draftKey || students.length === 0 || draftDismissed || typeof window === "undefined") {
+            return;
+        }
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as GradeDraft;
+            if (parsed && parsed.grades) setPendingDraft(parsed);
+        } catch {
+            // brouillon corrompu : on l'ignore
+        }
+    }, [draftKey, students.length, draftDismissed]);
+
+    const applyDraft = useCallback(() => {
+        if (!pendingDraft) return;
+        setGrades(pendingDraft.grades);
+        setTitle(pendingDraft.title);
+        setDate(pendingDraft.date);
+        setTypeId(pendingDraft.typeId);
+        setPeriodId(pendingDraft.periodId);
+        setMaxGrade(pendingDraft.maxGrade);
+        setCoefficient(pendingDraft.coefficient);
+        setPendingDraft(null);
+    }, [pendingDraft]);
+
+    const discardDraft = useCallback(() => {
+        if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
+        setPendingDraft(null);
+        setDraftDismissed(true);
+    }, [draftKey]);
+
     if (loading) {
         return (
-            <div className="eduflow-scope flex min-h-[60vh] items-center justify-center">
-                <Spinner size={32} color="var(--brand-600)" />
-            </div>
+            <PageShell className="pb-32">
+                <PageHeader
+                    title="Nouvelle saisie de notes"
+                    description="Chargement des classes et périodes…"
+                    breadcrumbs={[
+                        { label: "Pédagogie", href: "/dashboard/grades" },
+                        { label: "Saisie de notes" },
+                    ]}
+                />
+                <PageLoading label="Préparation de la grille de saisie…" />
+            </PageShell>
         );
     }
 
     if (success) {
         return (
-            <div className="eduflow-scope mx-auto max-w-3xl py-12">
+            <PageShell className="max-w-3xl pb-12">
                 <Card padding={36}>
                     <div className="flex flex-col items-center gap-4 text-center">
                         <div
@@ -359,7 +442,7 @@ export default function GradesEntryPage() {
                         </div>
                     </div>
                 </Card>
-            </div>
+            </PageShell>
         );
     }
 
@@ -372,10 +455,8 @@ export default function GradesEntryPage() {
             permission={Permission.EVALUATION_CREATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div
-                className={`eduflow-scope mx-auto flex flex-col gap-4 pb-32 ${
-                    isFocusMode ? "max-w-7xl" : "max-w-6xl"
-                }`}
+            <PageShell
+                className={`pb-32 ${isFocusMode ? "max-w-7xl" : "max-w-6xl"}`}
             >
                 <div className="flex items-center gap-3">
                     {!isFocusMode ? (
@@ -386,12 +467,16 @@ export default function GradesEntryPage() {
                         </Link>
                     ) : null}
                     <PageHeader
-                        greeting={isFocusMode ? "Saisie rapide" : "Nouvelle saisie de notes"}
-                        sub={
+                        title={isFocusMode ? "Saisie rapide" : "Nouvelle saisie de notes"}
+                        description={
                             isFocusMode
                                 ? "Mode focus actif — entre tes notes sans distraction."
                                 : "Crée une évaluation et saisis les notes de la classe."
                         }
+                        breadcrumbs={[
+                            { label: "Pédagogie", href: "/dashboard/grades" },
+                            { label: "Saisie de notes" },
+                        ]}
                     />
                 </div>
 
@@ -419,6 +504,45 @@ export default function GradesEntryPage() {
                             >
                                 {error}
                             </p>
+                        </div>
+                    </Card>
+                ) : null}
+
+                {pendingDraft ? (
+                    <Card
+                        padding={14}
+                        style={{
+                            borderLeft: "3px solid var(--brand-500)",
+                            background: "var(--brand-50)",
+                        }}
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <Icon name="info" size={18} color="var(--brand-700)" />
+                                <p
+                                    style={{
+                                        margin: 0,
+                                        fontSize: 13,
+                                        color: "var(--brand-800)",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    Brouillon retrouvé (
+                                    {new Date(pendingDraft.savedAt).toLocaleString("fr-FR", {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                    })}
+                                    ). Reprendre la saisie&nbsp;?
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" size="sm" onClick={discardDraft}>
+                                    Ignorer
+                                </Button>
+                                <Button size="sm" icon="check" onClick={applyDraft}>
+                                    Reprendre
+                                </Button>
+                            </div>
                         </div>
                     </Card>
                 ) : null}
@@ -567,6 +691,33 @@ export default function GradesEntryPage() {
                                         Coefficient {coefficient} · {completedCount} / {students.length}{" "}
                                         saisie{completedCount > 1 ? "s" : ""}
                                     </p>
+                                    {draftStatus === "saving" ? (
+                                        <p
+                                            aria-live="polite"
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            Brouillon en cours d&apos;enregistrement…
+                                        </p>
+                                    ) : draftSavedAt ? (
+                                        <p
+                                            aria-live="polite"
+                                            style={{
+                                                fontSize: 11,
+                                                color: "var(--eduflow-text-tertiary)",
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            Brouillon enregistré à{" "}
+                                            {draftSavedAt.toLocaleTimeString("fr-FR", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </p>
+                                    ) : null}
                                 </div>
                                 {!isFocusMode && students.length > 0 ? (
                                     <Button
@@ -578,7 +729,7 @@ export default function GradesEntryPage() {
                                         disabled={generatingComments || completedCount === 0}
                                         onClick={handleGenerateComments}
                                     >
-                                        Suggérer des appréciations IA
+                                        Rédiger les appréciations
                                     </Button>
                                 ) : null}
                             </div>
@@ -745,34 +896,49 @@ export default function GradesEntryPage() {
                                                         </td>
                                                         {!isFocusMode ? (
                                                             <td style={{ padding: "10px 16px" }}>
-                                                                <input
-                                                                    value={g.comment}
-                                                                    onChange={(e) =>
-                                                                        handleGradeChange(
-                                                                            stu.id,
-                                                                            "comment",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    placeholder="Appréciation…"
-                                                                    aria-label={`Appréciation de ${fullName}`}
-                                                                    style={{
-                                                                        width: "100%",
-                                                                        height: 30,
-                                                                        padding: "0 10px",
-                                                                        border:
-                                                                            "1px solid var(--eduflow-border-default)",
-                                                                        borderRadius: 8,
-                                                                        background:
-                                                                            "var(--eduflow-surface-card)",
-                                                                        fontFamily: "inherit",
-                                                                        fontSize: 12,
-                                                                        color: "var(--eduflow-text-primary)",
-                                                                        outline: "none",
-                                                                        transition:
-                                                                            "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                                                                    }}
-                                                                />
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        value={g.comment}
+                                                                        onChange={(e) =>
+                                                                            handleGradeChange(
+                                                                                stu.id,
+                                                                                "comment",
+                                                                                e.target.value
+                                                                            )
+                                                                        }
+                                                                        placeholder="Appréciation…"
+                                                                        aria-label={`Appréciation de ${fullName}`}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            minWidth: 0,
+                                                                            height: 30,
+                                                                            padding: "0 10px",
+                                                                            border:
+                                                                                "1px solid var(--eduflow-border-default)",
+                                                                            borderRadius: 8,
+                                                                            background:
+                                                                                "var(--eduflow-surface-card)",
+                                                                            fontFamily: "inherit",
+                                                                            fontSize: 12,
+                                                                            color: "var(--eduflow-text-primary)",
+                                                                            outline: "none",
+                                                                            transition:
+                                                                                "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                                                                        }}
+                                                                    />
+                                                                    <AppreciationButton
+                                                                        studentId={stu.id}
+                                                                        currentGrade={g.value}
+                                                                        maxGrade={maxGrade}
+                                                                        onGenerated={(comment) =>
+                                                                            handleGradeChange(
+                                                                                stu.id,
+                                                                                "comment",
+                                                                                comment
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </div>
                                                             </td>
                                                         ) : null}
                                                     </tr>
@@ -844,375 +1010,9 @@ export default function GradesEntryPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
-
-type CellState = "empty" | "dirty" | "absent";
-
-function computeCellState({
-    isAbsent,
-    hasValue,
-    isDirty,
-}: {
-    isAbsent: boolean;
-    hasValue: boolean;
-    isDirty: boolean;
-}): CellState {
-    if (isAbsent) return "absent";
-    if (isDirty && hasValue) return "dirty";
-    return "empty";
-}
-
-function StateBadge({ state }: { state: CellState }) {
-    if (state === "absent") {
-        return (
-            <Badge variant="warning" size="sm">
-                Absent
-            </Badge>
-        );
-    }
-    if (state === "dirty") {
-        return (
-            <Badge variant="brand" size="sm" dot>
-                À publier
-            </Badge>
-        );
-    }
-    return (
-        <Badge variant="neutral" size="sm">
-            À saisir
-        </Badge>
-    );
-}
-
-function NoteCell({
-    value,
-    disabled,
-    editing,
-    dirty,
-    maxGrade,
-    onFocus,
-    onBlur,
-    onChange,
-}: {
-    value: string;
-    disabled: boolean;
-    editing: boolean;
-    dirty: boolean;
-    maxGrade: number;
-    onFocus: () => void;
-    onBlur: () => void;
-    onChange: (v: string) => void;
-}) {
-    const active = editing && !disabled;
-    const filled = !disabled && value.trim() !== "";
-    return (
-        <div
-            className="flex h-9 items-center"
-            style={{
-                width: 110,
-                padding: "0 12px",
-                borderRadius: 10,
-                border: active
-                    ? "1.5px solid var(--brand-600)"
-                    : filled
-                    ? "1px solid var(--brand-200)"
-                    : "1px solid var(--eduflow-border-default)",
-                background: active
-                    ? "var(--brand-50)"
-                    : disabled
-                    ? "var(--eduflow-neutral-100)"
-                    : "var(--eduflow-surface-card)",
-                transition:
-                    "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                boxShadow: active ? "0 0 0 3px rgba(37,99,235,0.18)" : "none",
-            }}
-        >
-            <input
-                type="number"
-                step="0.25"
-                min={0}
-                max={maxGrade}
-                value={value}
-                disabled={disabled}
-                onFocus={onFocus}
-                onBlur={onBlur}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="—"
-                aria-label="Note"
-                className="eduflow-tabular"
-                style={{
-                    flex: 1,
-                    border: 0,
-                    outline: 0,
-                    background: "transparent",
-                    fontFamily: "inherit",
-                    fontSize: 14,
-                    fontWeight: filled || active ? 700 : 500,
-                    textAlign: "right",
-                    color: disabled
-                        ? "var(--eduflow-text-tertiary)"
-                        : active
-                        ? "var(--brand-800)"
-                        : filled
-                        ? "var(--eduflow-text-primary)"
-                        : "var(--eduflow-text-tertiary)",
-                }}
-            />
-            {dirty && !disabled ? (
-                <span
-                    aria-hidden
-                    style={{
-                        width: 4,
-                        height: 14,
-                        marginLeft: 4,
-                        background: "var(--brand-600)",
-                        borderRadius: 1,
-                        animation: "eduflowPulse 1s ease-in-out infinite",
-                    }}
-                />
-            ) : null}
-        </div>
-    );
-}
-
-function TrendCell({
-    value,
-    maxGrade,
-}: {
-    value: number | null;
-    maxGrade: number;
-}) {
-    if (value == null) {
-        return (
-            <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
-                —
-            </span>
-        );
-    }
-    const passing = maxGrade > 0 ? value >= maxGrade / 2 : true;
-    const variantColor = passing
-        ? "var(--eduflow-success-700)"
-        : "var(--eduflow-danger-700)";
-    return (
-        <span
-            className="eduflow-tabular inline-flex items-center gap-1"
-            style={{ fontSize: 11, fontWeight: 600, color: variantColor }}
-        >
-            <Icon name={passing ? "arrowUp" : "arrowDown"} size={11} />
-            {value.toFixed(1).replace(".", ",")}
-        </span>
-    );
-}
-
-function ToggleAbsent({
-    checked,
-    onChange,
-}: {
-    checked: boolean;
-    onChange: (c: boolean) => void;
-}) {
-    return (
-        <button
-            type="button"
-            role="switch"
-            aria-checked={checked}
-            onClick={() => onChange(!checked)}
-            className="grid place-items-center"
-            style={{
-                width: 30,
-                height: 18,
-                padding: 2,
-                borderRadius: 9,
-                border: 0,
-                background: checked
-                    ? "var(--eduflow-warning-500)"
-                    : "var(--eduflow-neutral-300)",
-                cursor: "pointer",
-                transition:
-                    "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-            }}
-        >
-            <span
-                aria-hidden
-                style={{
-                    display: "block",
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    background: "#fff",
-                    transform: checked ? "translateX(6px)" : "translateX(-6px)",
-                    transition:
-                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
-                }}
-            />
-        </button>
-    );
-}
-
-function FieldSelect({
-    label,
-    required,
-    value,
-    onChange,
-    options,
-    placeholder,
-    disabled,
-}: {
-    label: string;
-    required?: boolean;
-    value: string;
-    onChange: (v: string) => void;
-    options: { value: string; label: string }[];
-    placeholder: string;
-    disabled?: boolean;
-}) {
-    return (
-        <label className="block">
-            <span
-                style={{
-                    display: "block",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    color: "var(--eduflow-text-tertiary)",
-                    marginBottom: 6,
-                }}
-            >
-                {label} {required ? <span style={{ color: "var(--eduflow-danger-600)" }}>*</span> : null}
-            </span>
-            <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                disabled={disabled}
-                style={{
-                    width: "100%",
-                    height: 38,
-                    padding: "0 12px",
-                    borderRadius: "var(--eduflow-radius-input)",
-                    border: "1px solid var(--eduflow-border-default)",
-                    background: "var(--eduflow-surface-card)",
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    fontWeight: value ? 600 : 500,
-                    color: value ? "var(--eduflow-text-primary)" : "var(--eduflow-text-tertiary)",
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    opacity: disabled ? 0.55 : 1,
-                    outline: "none",
-                }}
-            >
-                <option value="">{placeholder}</option>
-                {options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                    </option>
-                ))}
-            </select>
-        </label>
-    );
-}
-
-function FieldText({
-    label,
-    value,
-    onChange,
-    type = "text",
-    placeholder,
-    required,
-    min,
-    step,
-    full,
-}: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    type?: string;
-    placeholder?: string;
-    required?: boolean;
-    min?: number;
-    step?: string | number;
-    full?: boolean;
-}) {
-    return (
-        <label className="block" style={{ gridColumn: full ? "span 2" : undefined }}>
-            <span
-                style={{
-                    display: "block",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    color: "var(--eduflow-text-tertiary)",
-                    marginBottom: 6,
-                }}
-            >
-                {label} {required ? <span style={{ color: "var(--eduflow-danger-600)" }}>*</span> : null}
-            </span>
-            <input
-                type={type}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                required={required}
-                min={min}
-                step={step}
-                style={{
-                    width: "100%",
-                    height: 38,
-                    padding: "0 12px",
-                    borderRadius: "var(--eduflow-radius-input)",
-                    border: "1px solid var(--eduflow-border-default)",
-                    background: "var(--eduflow-surface-card)",
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    color: "var(--eduflow-text-primary)",
-                    outline: "none",
-                }}
-            />
-        </label>
-    );
-}
-
-function Th({ children, width }: { children: React.ReactNode; width?: number }) {
-    return (
-        <th
-            style={{
-                padding: "10px 16px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--eduflow-text-tertiary)",
-                width,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-    return (
-        <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
-            <Icon name="warning" size={28} color="var(--eduflow-warning-600)" />
-            <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
-                <div
-                    style={{
-                        fontSize: 13,
-                        color: "var(--eduflow-text-secondary)",
-                        marginTop: 4,
-                    }}
-                >
-                    {body}
-                </div>
-            </div>
-        </div>
-    );
-}

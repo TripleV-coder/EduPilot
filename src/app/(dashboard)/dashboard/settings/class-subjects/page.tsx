@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookMarked, Save, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -99,13 +100,13 @@ export default function ClassSubjectsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Matières par Classe"
                     description="Affectation des matières, coefficients et enseignants aux classes"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Paramètres" },
+                        { label: "Paramètres", href: "/dashboard/settings" },
                         { label: "Matières" },
                     ]}
                 />
@@ -268,7 +269,7 @@ export default function ClassSubjectsPage() {
                 </div>
                 </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { ArrowLeft, Save, ClipboardList } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function NewExamPage() {
   const router = useRouter();
@@ -54,8 +55,8 @@ export default function NewExamPage() {
 
       toast({ title: "Succès", description: "L'examen a été créé." });
       router.push("/dashboard/exams");
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ export default function NewExamPage() {
 
   return (
     <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-      <div className="space-y-6 max-w-3xl mx-auto pb-10">
+      <PageShell>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
             <Button variant="outline" size="icon">
@@ -140,7 +141,7 @@ export default function NewExamPage() {
             </Button>
           </div>
         </form>
-      </div>
+      </PageShell>
     </PageGuard>
   );
 }

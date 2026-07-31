@@ -31,6 +31,7 @@ export const GET = createApiHandler(
                 preferences: true,
                 avatar: true,
                 createdAt: true,
+                studentProfile: { select: { id: true } },
             },
         });
 

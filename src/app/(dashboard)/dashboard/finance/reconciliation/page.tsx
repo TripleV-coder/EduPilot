@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { Link2, AlertCircle, Search, Loader2, FilterX, Wallet, Clock3 } from "lucide-react";
@@ -69,7 +69,7 @@ export default function FinanceReconciliationPage() {
 
     return (
         <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <PageHeader
                     title="Réconciliation Bancaire"
                     description="Associez les virements reçus aux factures des élèves"
@@ -212,7 +212,7 @@ export default function FinanceReconciliationPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

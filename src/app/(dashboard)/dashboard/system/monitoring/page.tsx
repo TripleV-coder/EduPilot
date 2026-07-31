@@ -1,7 +1,7 @@
 "use client";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Activity, Server, Cpu, HardDrive, Users, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 export default function SystemMonitoringPage() {
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <PageHeader
                     title="Monitoring Système"
                     description="Surveillance en temps réel des performances des serveurs et de l'application"
@@ -142,7 +142,7 @@ export default function SystemMonitoringPage() {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

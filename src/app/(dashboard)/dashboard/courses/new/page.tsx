@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 const lessonSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
@@ -81,8 +82,10 @@ export default function NewCoursePage() {
     const [mySubjects, setMySubjects] = useState<any[]>([]);
     const [expandedModule, setExpandedModule] = useState<number | null>(0);
 
-    const form = useForm<CourseFormValues>({
-        resolver: zodResolver(courseSchema) as any,
+    // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
+    // remplacent le cast du resolver.
+    const form = useForm<z.input<typeof courseSchema>, unknown, CourseFormValues>({
+        resolver: zodResolver(courseSchema),
         defaultValues: {
             title: "",
             description: "",
@@ -129,8 +132,8 @@ export default function NewCoursePage() {
 
             toast({ title: "Succès !", description: "Votre cours a été créé avec succès." });
             router.push("/dashboard/courses");
-        } catch (error: any) {
-            toast({ title: "Erreur", description: error.message, variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -138,7 +141,7 @@ export default function NewCoursePage() {
 
     return (
         <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="max-w-5xl mx-auto space-y-8 pb-20">
+            <PageShell>
                 <PageHeader
                     title="Créer un nouveau cours"
                     description="Concevez votre programme pédagogique, ajoutez des modules et des leçons."
@@ -322,7 +325,7 @@ export default function NewCoursePage() {
                         </div>
                     </form>
                 </Form>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

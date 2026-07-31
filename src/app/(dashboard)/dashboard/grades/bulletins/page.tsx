@@ -8,7 +8,8 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import { Badge, Button, Card, Icon, Logo, Spinner } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 type BulletinSubject = {
     subjectId: string;
@@ -209,7 +210,7 @@ export default function BulletinsPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link href="/dashboard/grades">
                         <Button variant="secondary" size="sm">
@@ -224,8 +225,12 @@ export default function BulletinsPage() {
                         </Button>
                     </Link>
                     <PageHeader
-                        greeting="Bulletins de notes"
-                        sub="Génération et impression des bulletins périodiques officiels."
+                        title="Bulletins de notes"
+                        description="Génération et impression des bulletins périodiques officiels."
+                        breadcrumbs={[
+                            { label: "Pédagogie", href: "/dashboard/grades" },
+                            { label: "Bulletins" },
+                        ]}
                     />
                 </div>
 
@@ -458,14 +463,9 @@ export default function BulletinsPage() {
                 ) : null}
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12 print:hidden">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Génération du bulletin…
-                        </span>
-                    </div>
+                    <PageLoading label="Génération du bulletin…" />
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media print {

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import prisma from "@/lib/prisma";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const bulkInvoiceSchema = z.object({
   paymentIds: z.array(z.string().cuid()).min(1).max(100),
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       "DIRECTOR",
       "ACCOUNTANT",
     ];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

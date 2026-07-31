@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
+import { CycleGuard } from "@/components/guard/cycle-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -15,6 +16,7 @@ import {
     MetricCard,
     Spinner,
 } from "@/components/edu";
+import { PageShell } from "@/components/layout/page-shell";
 import { PageHeader } from "@/components/edu-homes/_shared";
 
 type ClassOption = { id: string; name: string };
@@ -125,7 +127,8 @@ export default function OrientationCepPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <CycleGuard requires="PRIMARY">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/orientation">
                         <Button variant="secondary" size="sm">
@@ -560,7 +563,7 @@ export default function OrientationCepPage() {
                         </Card>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {
@@ -572,6 +575,7 @@ export default function OrientationCepPage() {
                     }
                 }
             `}</style>
+            </CycleGuard>
         </PageGuard>
     );
 }

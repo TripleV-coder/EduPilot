@@ -69,6 +69,7 @@ model School {
   code                   String                    @unique
   type                   SchoolType                @default(PRIVATE)
   level                  SchoolLevel
+  offeredLevels          SchoolLevel[]             @default([])
   siteType               SiteType                  @default(MAIN)
   address                String?
   city                   String?
@@ -79,6 +80,12 @@ model School {
   motto                  String?
   mempCode               String?
   primaryColor           String?
+  // Vitrine publique (annuaire + fiche établissement) — champs exposés sans auth.
+  isPublic               Boolean                   @default(false)
+  coverImage             String?
+  publicDescription      String?
+  region                 String?
+  publicPhone            String?
   isActive               Boolean                   @default(true)
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
@@ -128,7 +135,17 @@ model School {
   ohadaAccounts          OhadaAccount[]
   journalEntries         JournalEntry[]
   voiceCampaigns         VoiceCampaign[]
+  alumni                 Alumni[]
+  scanPoints             ScanPoint[]
+  scanLogs               ScanLog[]
+  badges                 Badge[]
   benchmarkSnapshots     BenchmarkSnapshot[]
+  transportLines         TransportLine[]
+  transportBuses         Bus[]
+  staffAttendances       StaffAttendance[]
+  leaveRequests          LeaveRequest[]
+  payrollEntries         PayrollEntry[]
+  documentSignatures     DocumentSignature[]
 
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
@@ -262,6 +279,13 @@ model User {
   psyAppointmentsAsPsy      PsyAppointment[]            @relation("PsyAppointmentPsy")
   psyAppointmentsAsStudent  PsyAppointment[]            @relation("PsyAppointmentStudent")
   voiceCampaignsAuthored    VoiceCampaign[]             @relation("VoiceCampaignAuthor")
+  staffAttendances          StaffAttendance[]           @relation("StaffAttendanceUser")
+  staffAttendancesRecorded  StaffAttendance[]           @relation("StaffAttendanceRecorder")
+  leaveRequests             LeaveRequest[]              @relation("LeaveRequestUser")
+  leaveDecisions            LeaveRequest[]              @relation("LeaveRequestDecider")
+  payrollEntries            PayrollEntry[]              @relation("PayrollUser")
+  payrollEntriesCreated     PayrollEntry[]              @relation("PayrollCreator")
+  documentSignatures        DocumentSignature[]         @relation("DocumentSigner")
   school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
@@ -380,6 +404,7 @@ model TeacherProfile {
 
   @@unique([schoolId, matricule])
   @@index([schoolId])
+  @@index([deletedAt])
   @@map("teacher_profiles")
 }
 
@@ -433,19 +458,25 @@ model StudentProfile {
   homeworkSubmissions HomeworkSubmission[]
   lessonCompletions   LessonCompletion[]
   medicalRecord       MedicalRecord?
+  linkCodes           StudentLinkCode[]
+  badge               Badge?
+  scanLogs            ScanLog[]
   parentStudents      ParentStudent[]
   paymentPlans        PaymentPlan[]
   payments            Payment[]
   scholarships        Scholarship[]
   studentAnalytics    StudentAnalytics[]
   studentOrientations StudentOrientation[]
+  alumni              Alumni[]
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transports          StudentTransport[]
 
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
   @@index([matricule])
   @@index([schoolId, createdAt])
+  @@index([deletedAt])
   @@map("student_profiles")
 }
 
@@ -474,6 +505,116 @@ model ParentStudent {
 
   @@unique([parentId, studentId])
   @@map("parent_students")
+}
+
+/// Point de scan physique (portail, cantine, transport, bibliothèque,
+/// infirmerie). Reçoit les passages de badges.
+model ScanPoint {
+  id        String    @id @default(cuid())
+  schoolId  String
+  name      String
+  type      String    @default("GATE")
+  location  String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanLogs  ScanLog[]
+
+  @@index([schoolId])
+  @@map("scan_points")
+}
+
+/// Journal d'un passage de badge à un point de scan. `result` = OK | REFUSED
+/// (matricule inconnu, badge révoqué…). `studentId` nul si non résolu.
+model ScanLog {
+  id          String     @id @default(cuid())
+  schoolId    String
+  scanPointId String?
+  studentId   String?
+  matricule   String?
+  action      String     @default("ENTRY")
+  result      String     @default("OK")
+  reason      String?
+  createdAt   DateTime   @default(now())
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanPoint   ScanPoint?     @relation(fields: [scanPointId], references: [id], onDelete: SetNull)
+  student     StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, createdAt])
+  @@index([scanPointId])
+  @@index([studentId])
+  @@map("scan_logs")
+}
+
+/// Badge unique par élève (QR signé) pour l'identification multi-usage.
+model Badge {
+  id         String         @id @default(cuid())
+  schoolId   String
+  studentId  String         @unique
+  code       String         @unique
+  validUntil DateTime?
+  revokedAt  DateTime?
+  issuedAt   DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  school     School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("badges")
+}
+
+/// Ancien élève (réseau alumni) rattaché à une école. Sert l'annuaire, le
+/// mentorat et les statistiques par promotion.
+model Alumni {
+  id             String   @id @default(cuid())
+  schoolId       String
+  // Lien optionnel vers le dossier élève d'origine : renseigné quand l'alumni
+  // est créé par le moteur de promotion (diplôme). Permet de réconcilier
+  // l'annuaire alumni avec le dossier scolaire. `SetNull` conserve l'historique
+  // alumni même si l'élève est supprimé.
+  studentId      String?
+  firstName      String
+  lastName       String
+  graduationYear Int
+  series         String?
+  field          String   @default("Autre")
+  currentRole    String?
+  company        String?
+  email          String?
+  phone          String?
+  isMentor       Boolean  @default(false)
+  mentorTopic    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId])
+  @@index([schoolId, graduationYear])
+  @@index([schoolId, field])
+  @@index([studentId])
+  @@map("alumni")
+}
+
+/// Code de liaison parent-enfant à usage unique, émis par l'école et requis
+/// pour qu'un parent puisse rattacher un élève à son compte. Le code est stocké
+/// haché (bcrypt) ; un seul code actif par élève à la fois.
+model StudentLinkCode {
+  id           String         @id @default(cuid())
+  studentId    String
+  schoolId     String
+  codeHash     String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  createdById  String?
+  createdAt    DateTime       @default(now())
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([schoolId])
+  @@map("student_link_codes")
 }
 
 model ClassLevel {
@@ -515,6 +656,7 @@ model Class {
 
   @@unique([schoolId, classLevelId, name])
   @@index([schoolId, classLevelId])
+  @@index([deletedAt])
   @@map("classes")
 }
 
@@ -536,6 +678,7 @@ model Subject {
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, code])
+  @@index([deletedAt])
   @@map("subjects")
 }
 
@@ -580,6 +723,7 @@ model Enrollment {
 
   @@index([studentId, academicYearId]) // Fixed Edge Case: Removed unique to allow multiple enrollments (e.g., transfers) per year
   @@index([classId, academicYearId])
+  @@index([deletedAt])
   @@map("enrollments")
 }
 
@@ -641,6 +785,7 @@ model Grade {
   @@unique([evaluationId, studentId])
   @@index([evaluationId])
   @@index([studentId, evaluationId])
+  @@index([deletedAt])
   @@map("grades")
 }
 
@@ -682,6 +827,7 @@ model Fee {
   payments       Payment[]
 
   @@index([schoolId])
+  @@index([deletedAt])
   @@map("fees")
 }
 
@@ -710,6 +856,7 @@ model Payment {
   @@index([studentId, feeId])
   @@index([reference])
   @@index([status])
+  @@index([deletedAt])
   @@map("payments")
 }
 
@@ -739,12 +886,18 @@ model InstallmentPayment {
   dueDate       DateTime
   paidAt        DateTime?
   status        InstallmentStatus @default(PENDING)
+  // Rappels d'échéance : dernière étape de relance notifiée aux parents
+  // (UPCOMING / DUE / OVERDUE / CRITICAL) pour éviter les notifications en double
+  // lors des passages quotidiens de l'automatisation.
+  lastReminderStage String?
+  lastReminderAt    DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   paymentPlan   PaymentPlan       @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
 
   @@index([paymentPlanId])
   @@index([dueDate])
+  @@index([status])
   @@map("installment_payments")
 }
 
@@ -810,6 +963,7 @@ model Homework {
 
   @@index([classSubjectId, dueDate])
   @@index([dueDate])
+  @@index([deletedAt])
   @@map("homeworks")
 }
 
@@ -859,6 +1013,7 @@ model Message {
   @@index([senderId, deletedBySender])
   @@index([recipientId, deletedByRecipient, isRead])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("messages")
 }
 
@@ -927,6 +1082,7 @@ model Resource {
   @@index([schoolId, type, isPublic])
   @@index([subjectId])
   @@index([classLevelId])
+  @@index([deletedAt])
   @@map("resources")
 }
 
@@ -951,6 +1107,7 @@ model Announcement {
 
   @@index([schoolId, isPublished, publishedAt])
   @@index([expiresAt])
+  @@index([deletedAt])
   @@map("announcements")
 }
 
@@ -1725,6 +1882,7 @@ model MealTicket {
 
   @@index([schoolId, userId])
   @@index([qrCode])
+  @@index([deletedAt])
   @@map("meal_tickets")
 }
 
@@ -1834,6 +1992,7 @@ enum PeriodType {
 
 enum UserRole {
   SUPER_ADMIN
+  NETWORK_ADMIN
   SCHOOL_ADMIN
   DIRECTOR
   TEACHER
@@ -1867,6 +2026,10 @@ enum EnrollmentStatus {
   GRADUATED
   DROPPED
   SUSPENDED
+  // Année source clôturée après promotion/redoublement : l'élève a une
+  // nouvelle inscription ACTIVE sur l'année cible ; l'ancienne devient un
+  // historique non comptabilisé dans les effectifs "actifs".
+  COMPLETED
 }
 
 enum PaymentMethod {
@@ -2727,4 +2890,271 @@ model BenchmarkSnapshotIndicator {
 
   @@index([snapshotId])
   @@map("benchmark_snapshot_indicators")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Transport scolaire (P2.4 — 2026-06-12)
+// ─────────────────────────────────────────────────────────────
+
+enum TransportLineStatus {
+  ON_TIME
+  DELAYED
+  INCIDENT
+  INACTIVE
+}
+
+enum TransportDirection {
+  OUTBOUND
+  RETURN
+  BOTH
+}
+
+model TransportLine {
+  id        String              @id @default(cuid())
+  schoolId  String
+  number    String // ex. "L1"
+  label     String // ex. "Ganhi → Campus"
+  direction TransportDirection  @default(BOTH)
+  status    TransportLineStatus @default(ON_TIME)
+  note      String?
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  school   School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  buses    Bus[]
+  stops    BusRoute[]
+  students StudentTransport[]
+
+  @@unique([schoolId, number])
+  @@index([schoolId, isActive])
+  @@map("transport_lines")
+}
+
+model Bus {
+  id          String   @id @default(cuid())
+  schoolId    String
+  lineId      String?
+  plateNumber String
+  capacity    Int      @default(30)
+  driverName  String?
+  driverPhone String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  line   TransportLine? @relation(fields: [lineId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, plateNumber])
+  @@index([schoolId, isActive])
+  @@map("buses")
+}
+
+model BusRoute {
+  id            String  @id @default(cuid())
+  lineId        String
+  name          String // ex. "Carrefour Ganhi"
+  order         Int // position de l'arrêt sur la ligne
+  scheduledTime String? // "07:15"
+  latitude      Float?
+  longitude     Float?
+
+  line     TransportLine      @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  students StudentTransport[]
+
+  @@unique([lineId, order])
+  @@map("bus_routes")
+}
+
+model StudentTransport {
+  id        String             @id @default(cuid())
+  studentId String
+  lineId    String
+  stopId    String?
+  direction TransportDirection @default(BOTH)
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  line    TransportLine  @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stop    BusRoute?      @relation(fields: [stopId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, lineId])
+  @@index([lineId, isActive])
+  @@map("student_transports")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Observabilité produit (P2.4 — 2026-06-12)
+// ─────────────────────────────────────────────────────────────
+
+model PerformanceMetric {
+  id        String   @id @default(cuid())
+  metric    String // "LCP" | "CLS" | "INP" | "FCP" | "TTFB"
+  value     Float
+  rating    String? // good | needs-improvement | poor
+  pathname  String?
+  createdAt DateTime @default(now())
+
+  @@index([metric, createdAt])
+  @@index([createdAt])
+  @@map("performance_metrics")
+}
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  event     String
+  pathname  String?
+  userId    String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([createdAt])
+  @@map("telemetry_events")
+}
+
+// ─── Gestion des ressources humaines (personnel) ──────────────────────────
+
+enum StaffAttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+}
+
+enum LeaveType {
+  SICK // maladie
+  ANNUAL // congé annuel
+  MATERNITY // maternité / paternité
+  EXCEPTIONAL // exceptionnel (événement familial…)
+  UNPAID // sans solde
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  VALIDATED
+  PAID
+}
+
+/// Pointage quotidien d'un membre du personnel (une ligne par agent et par jour).
+model StaffAttendance {
+  id           String                @id @default(cuid())
+  schoolId     String
+  userId       String
+  date         DateTime
+  status       StaffAttendanceStatus @default(PRESENT)
+  checkIn      String? // "HH:MM"
+  checkOut     String? // "HH:MM"
+  note         String?
+  recordedById String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User   @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  recordedBy User?  @relation("StaffAttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([schoolId, date])
+  @@map("staff_attendances")
+}
+
+/// Demande de congé d'un membre du personnel, avec workflow de validation.
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  schoolId     String
+  userId       String
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  decidedById  String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User   @relation("LeaveRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?  @relation("LeaveRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status])
+  @@index([userId, startDate])
+  @@map("leave_requests")
+}
+
+/// Fiche de paie mensuelle (montants en FCFA). Pas de calcul fiscal automatique.
+model PayrollEntry {
+  id             String        @id @default(cuid())
+  schoolId       String
+  userId         String
+  period         String // "YYYY-MM"
+  baseSalary     Int
+  allowances     Json          @default("[]") // [{ label, amount }]
+  deductions     Json          @default("[]") // [{ label, amount }]
+  netAmount      Int
+  status         PayrollStatus @default(DRAFT)
+  paidAt         DateTime?
+  pdfUrl         String?
+  journalEntryId String? // écriture OHADA de charge de personnel (à la validation)
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User   @relation("PayrollUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("PayrollCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, period])
+  @@index([schoolId, period])
+  @@map("payroll_entries")
+}
+
+// ─── Signature électronique (autorisations, bulletins, contrats) ───────────
+
+enum SignableDocType {
+  REPORT_CARD // bulletin
+  CERTIFICATE // certificat / attestation
+  PARENT_AUTHORIZATION // autorisation parentale (sortie, droit à l'image…)
+  STAFF_CONTRACT // contrat / document du personnel
+}
+
+enum SignatureMethod {
+  DRAWN // tracé manuscrit (canvas)
+  TYPED // nom saisi
+  OTP // code à usage unique (SMS/email)
+}
+
+/// Signature électronique simple à valeur probante légère (pas de PKI eIDAS).
+/// `contentHash` scelle le document signé ; toute altération devient détectable.
+model DocumentSignature {
+  id            String          @id @default(cuid())
+  schoolId      String
+  docType       SignableDocType
+  docId         String
+  signerId      String?
+  signerName    String // nom du signataire au moment de la signature (traçabilité)
+  signerRole    String
+  method        SignatureMethod
+  signatureData String? // data URL du tracé (DRAWN) ou texte saisi (TYPED)
+  contentHash   String // empreinte SHA-256 du document signé
+  ipHash        String? // IP hachée (RGPD : jamais l'IP en clair)
+  meta          Json?
+  signedAt      DateTime        @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  signer User?  @relation("DocumentSigner", fields: [signerId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, docType, docId])
+  @@map("document_signatures")
 }

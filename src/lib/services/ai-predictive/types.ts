@@ -11,12 +11,63 @@ export interface ActionPlan {
     suggestedBy: string;
 }
 
+export type RiskLevel = "TRÈS FAIBLE" | "FAIBLE" | "MODÉRÉ" | "ÉLEVÉ" | "TRÈS ÉLEVÉ";
+export type DataQuality = "LOW" | "MEDIUM" | "HIGH";
+
+/**
+ * Risque de décrochage — trajectoire de désengagement (distincte du niveau de notes).
+ */
+export interface DropoutSignal {
+    factor: string;
+    severity: "LOW" | "MEDIUM" | "HIGH";
+    contribution: number; // 0-100, part du signal dans le score
+    description: string;
+}
+
+export interface DropoutRisk {
+    probability: number; // 0-100%
+    level: RiskLevel;
+    signals: DropoutSignal[];
+    recommendations: string[];
+    confidence: number; // 0-100%
+    dataQuality: DataQuality;
+}
+
+/**
+ * Alerte précoce — signal aigu ponctuel (déclencheur), pas une tendance lente.
+ */
+export type EarlyWarningType =
+    | "GRADE_DROP"
+    | "ATTENDANCE_CLIFF"
+    | "HOMEWORK_STOP"
+    | "BEHAVIOR_SPIKE";
+
+export interface EarlyWarning {
+    type: EarlyWarningType;
+    severity: "WARNING" | "CRITICAL";
+    value: number; // valeur mesurée déclenchant l'alerte (chute en pts, nb absences…)
+    message: string;
+    since: Date | null; // date approximative du début du signal
+}
+
+/**
+ * Risque comportemental — enrichi (aligné sur le modèle d'échec).
+ */
+export interface BehaviorRisk {
+    probability: number;
+    nextIncidentPrediction: string;
+    causalFactors: CausalFactor[];
+    recommendations: string[];
+    confidence: number;
+    dataQuality: DataQuality;
+}
+
 export interface StudentPrediction {
     studentId: string;
     predictions: {
         failureRisk: {
             probability: number; // 0-100%
-            level: "TRÈS FAIBLE" | "FAIBLE" | "MODÉRÉ" | "ÉLEVÉ" | "TRÈS ÉLEVÉ";
+            level: RiskLevel;
             factors: string[];
             recommendations: string[];
             causalFactors: CausalFactor[];
@@ -33,15 +84,13 @@ export interface StudentPrediction {
             scores: number[];
             reasoning: string;
         };
-        behaviorRisk: {
-            probability: number;
-            nextIncidentPrediction: string;
-            recommendedActions?: string[];
-        };
+        behaviorRisk: BehaviorRisk;
+        dropoutRisk: DropoutRisk;
+        earlyWarnings: EarlyWarning[];
     };
     recommendedActions?: ActionPlan[];
     confidence: number; // Confiance globale du modèle
-    dataQuality: "LOW" | "MEDIUM" | "HIGH";
+    dataQuality: DataQuality;
     generatedAt: Date;
 }
 
@@ -58,7 +107,8 @@ export interface ClassPrediction {
         averageNextPeriod: number;
         studentsAtRisk: number;
         studentsAtRiskIds: string[];
-        dropoutRisk: number;
+        dropoutRisk: number; // moyenne du vrai modèle de décrochage (0-100)
+        studentsWithWarnings: number; // élèves avec ≥1 alerte précoce active
         recommendations: string[];
     };
 }

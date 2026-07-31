@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { BookOpen, Plus, Settings2, Trash2, Edit2, Loader2 } from "lucide-react";
@@ -154,14 +155,14 @@ export default function EvaluationTypesPage() {
 
     return (
         <PageGuard permission={[Permission.EVALUATION_CREATE]}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Types d'évaluation"
                         description="Personnalisez les types de notes et leurs coefficients par défaut"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Paramètres" },
+                            { label: "Paramètres", href: "/dashboard/settings" },
                             { label: "Évaluations" },
                         ]}
                     />
@@ -274,7 +275,7 @@ export default function EvaluationTypesPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
 
             {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

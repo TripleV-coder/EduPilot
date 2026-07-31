@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // PUT: Modifier une matière
 export async function PUT(
@@ -14,7 +15,7 @@ export async function PUT(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"].includes(session.user.role || "")) {
+    if (!roleSatisfies(session.user.role || "", ["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"])) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -54,7 +55,7 @@ export async function DELETE(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"].includes(session.user.role || "")) {
+    if (!roleSatisfies(session.user.role || "", ["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"])) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

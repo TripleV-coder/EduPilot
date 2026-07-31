@@ -43,7 +43,9 @@ export const classLevelSchema = z.object({
 export const classSchema = z.object({
   name: z.string().min(1),
   classLevelId: z.string().cuid(),
-  capacity: z.coerce.number().min(1).optional(),
+  // Type d'entrée déclaré string|number : permet aux formulaires RHF de
+  // typer leurs bindings sans cast (zod 4 type l'entrée de coerce en unknown)
+  capacity: z.coerce.number<string | number>().min(1).optional(),
   mainTeacherId: z.string().cuid().optional().nullable(),
 });
 

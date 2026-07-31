@@ -4,9 +4,18 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * API Trigger for Automated Maintenance Tasks
- * Secure via CRON_SECRET environment variable
+ * Secured via the CRON_SECRET environment variable.
+ *
+ * - Vercel Cron Jobs invoke this path with a **GET** request and inject the
+ *   `Authorization: Bearer <CRON_SECRET>` header automatically (see vercel.json).
+ * - External schedulers may also POST with the same bearer token.
+ * Both verbs share the exact same secured handler.
  */
-export async function POST(req: NextRequest) {
+
+/** Vercel functions can run longer than the daily maintenance sweep needs. */
+export const maxDuration = 300;
+
+async function handleMaintenance(req: NextRequest) {
     const authHeader = req.headers.get("Authorization");
     const cronSecret = process.env.CRON_SECRET;
 
@@ -31,10 +40,6 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// GET disabled — use POST with Bearer token only
-export async function GET() {
-    return NextResponse.json(
-        { error: "Method not allowed. Use POST with Authorization: Bearer <CRON_SECRET>" },
-        { status: 405 }
-    );
-}
+// Vercel Cron uses GET; manual/external triggers may use POST.
+export const GET = handleMaintenance;
+export const POST = handleMaintenance;

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { libraryService } from "@/lib/library/service";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // Helper to get studentProfileId from userId
 async function getStudentProfileId(userId: string): Promise<string | null> {
@@ -93,7 +94,7 @@ export async function GET(_req: NextRequest) {
         const studentId = await getStudentProfileId(session.user.id);
         if (!studentId) {
             const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT"];
-            if (!allowedRoles.includes(session.user.role)) {
+            if (!roleSatisfies(session.user.role, allowedRoles)) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
             // For non-students (admins, teachers), return all borrowings for the school

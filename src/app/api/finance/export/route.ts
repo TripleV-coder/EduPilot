@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
+import { escapeCsvCell } from "@/lib/utils/export";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -93,16 +94,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const headers = Object.keys(exportData[0] || {}).join(",");
+    // escapeCsvCell : neutralise l'injection de formule (= + - @) + échappe les
+    // guillemets — source unique partagée avec l'export analytics (cf. utils/export)
+    const headers = Object.keys(exportData[0] || {})
+      .map((cell) => escapeCsvCell(cell))
+      .join(",");
     const rows = exportData.map((row) =>
       Object.values(row)
-        .map((value) => {
-          const stringValue = String(value ?? "");
-          if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-            return `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
-        })
+        .map((value) => escapeCsvCell(String(value ?? "")))
         .join(",")
     );
     const csv = [headers, ...rows].join("\n");

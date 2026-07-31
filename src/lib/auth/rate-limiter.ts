@@ -205,6 +205,17 @@ export const FORGOT_PASSWORD_RATE_LIMIT: RateLimitConfig = {
     windowMs: 15 * 60 * 1000,
 };
 
+/**
+ * Vérification du second facteur. Un TOTP ne fait que 6 chiffres (10^6
+ * combinaisons) et reste valide ~30 s : sans plafond, un code est devinable par
+ * force brute. On est plus strict que le login car la victime a déjà franchi
+ * l'étape mot de passe.
+ */
+export const MFA_VERIFY_RATE_LIMIT: RateLimitConfig = {
+    maxAttempts: 5,
+    windowMs: 10 * 60 * 1000, // 10 minutes
+};
+
 export const API_RATE_LIMIT: RateLimitConfig = {
     maxAttempts: 100,
     windowMs: 60 * 1000, // 1 minute

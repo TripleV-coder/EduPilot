@@ -346,6 +346,20 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.ORIENTATION_DELETE,
   ],
 
+  NETWORK_ADMIN: [
+    // Patron d'un groupe d'écoles : mêmes droits qu'un SCHOOL_ADMIN, appliqués
+    // à toutes les écoles de son réseau (cloisonnement via getAccessibleSchoolIds).
+    // Seul ajout : SCHOOL_CREATE (ouvrir une annexe dans son réseau).
+    ...SCHOOL_LEVEL_BASE_PERMISSIONS,
+    Permission.USER_DELETE,
+    Permission.FEE_DELETE,
+    Permission.FINANCE_DELETE,
+    Permission.PAYMENT_DELETE,
+    Permission.NOTIFICATION_DELETE,
+    Permission.ORIENTATION_DELETE,
+    Permission.SCHOOL_CREATE,
+  ],
+
   DIRECTOR: [
     // Director: inherits base (no DELETE on users, fees, finance, notifications — intentional)
     ...SCHOOL_LEVEL_BASE_PERMISSIONS,
@@ -496,6 +510,24 @@ export function getRolePermissions(roleOrRoles: UserRole | UserRole[]): Permissi
 }
 
 /**
+ * Expansion centralisée des rôles pour les vérifications `allowedRoles`.
+ *
+ * Un NETWORK_ADMIN (patron d'un groupe d'écoles) est autorisé partout où un
+ * SCHOOL_ADMIN l'est — mais son périmètre de DONNÉES reste borné à son réseau
+ * par le cloisonnement (getAccessibleSchoolIds). Ne JAMAIS étendre vers
+ * SUPER_ADMIN : un écran plateforme réservé ["SUPER_ADMIN"] reste fermé.
+ */
+export function roleSatisfies(
+  role: string | undefined | null,
+  allowedRoles: readonly string[]
+): boolean {
+  if (!role) return false;
+  if (allowedRoles.includes(role)) return true;
+  if (role === "NETWORK_ADMIN" && allowedRoles.includes("SCHOOL_ADMIN")) return true;
+  return false;
+}
+
+/**
  * Check if user can perform an action on a resource
  */
 export function canPerformAction(
@@ -513,6 +545,7 @@ export function canPerformAction(
 
 export const roleHierarchy: Record<UserRole, number> = {
   SUPER_ADMIN: 100,
+  NETWORK_ADMIN: 90,
   SCHOOL_ADMIN: 80,
   DIRECTOR: 80,
   ACCOUNTANT: 60,
@@ -523,7 +556,8 @@ export const roleHierarchy: Record<UserRole, number> = {
 };
 
 export const roleCreationMatrix: Record<UserRole, UserRole[]> = {
-  SUPER_ADMIN: ["SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "STUDENT", "PARENT"],
+  SUPER_ADMIN: ["NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "STUDENT", "PARENT"],
+  NETWORK_ADMIN: ["SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "STUDENT", "PARENT"],
   SCHOOL_ADMIN: ["DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "STUDENT", "PARENT"],
   DIRECTOR: ["TEACHER", "STAFF", "STUDENT", "PARENT"],
   TEACHER: ["PARENT"],
@@ -634,6 +668,7 @@ export function isAllowedRole(userRole: UserRole, allowedRoles: UserRole[]): boo
 export function getRoleName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
     SUPER_ADMIN: "Super Administrateur",
+    NETWORK_ADMIN: "Administrateur de Réseau",
     SCHOOL_ADMIN: "Administrateur d'Établissement",
     DIRECTOR: "Directeur",
     STAFF: "Personnel Administratif",
@@ -652,6 +687,7 @@ export function getRoleName(role: UserRole): string {
 export function getRoleDescription(role: UserRole): string {
   const descriptions: Record<UserRole, string> = {
     SUPER_ADMIN: "Accès complet à tous les établissements et fonctionnalités",
+    NETWORK_ADMIN: "Gestion de toutes les écoles de son réseau",
     SCHOOL_ADMIN: "Gestion complète de l'établissement",
     DIRECTOR: "Direction pédagogique et administrative",
     STAFF: "Personnel administratif et surveillance",

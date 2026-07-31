@@ -7,6 +7,7 @@ import { hash } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { generateImportPassword } from "@/lib/import/initial-password";
 
 export const POST = createApiHandler(
   async (request, { session }) => {
@@ -21,6 +22,14 @@ export const POST = createApiHandler(
       return NextResponse.json({ error: "Données invalides ou vides" }, { status: 400 });
     }
 
+    // Cap anti-DoS : une transaction non bornée bloquerait la connexion DB
+    if (data.length > 500) {
+      return NextResponse.json(
+        { error: "Maximum 500 lignes par import. Découpez votre fichier." },
+        { status: 400 }
+      );
+    }
+
     if (type !== "STUDENTS") {
       return NextResponse.json(
         {
@@ -32,7 +41,8 @@ export const POST = createApiHandler(
       );
     }
 
-    const DEFAULT_IMPORT_PASSWORD = "00000000";
+    // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
+    const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
     try {
       const results = await prisma.$transaction(async (tx) => {

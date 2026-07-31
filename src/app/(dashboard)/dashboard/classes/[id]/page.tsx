@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { BookOpen, Users, AlertCircle, CheckCircle, Plus, Trash2, GraduationCap, Clock } from "lucide-react";
+import { BookOpen, Users, AlertCircle, CheckCircle, Plus, Trash2, GraduationCap, Clock, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useSWR from "swr";
@@ -19,6 +20,7 @@ import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
 import { TrendLineChart } from "@/components/charts/TrendLineChart";
 import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type ClassData = {
     id: string;
@@ -91,8 +93,8 @@ export default function ClassDetailsPage() {
                     setAvailableSubjects(Array.isArray(s) ? s : s.data || []);
                 }
 
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                setError(getErrorMessage(err));
             } finally {
                 setLoading(false);
             }
@@ -142,8 +144,8 @@ export default function ClassDetailsPage() {
             setClassSubjects(prev => [...prev, newAssignment]);
             setIsAssigning(false);
             showSuccess("Matière assignée avec succès");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setAssigningLoading(false);
         }
@@ -151,26 +153,32 @@ export default function ClassDetailsPage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
+            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+                <PageShell>
+                    <PageLoading label="Chargement de la classe…" />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     if (!classData && !loading) {
         return (
-            <div className="text-center py-20">
-                <h2 className="text-xl font-bold text-destructive">Classe introuvable</h2>
-                <Link href="/dashboard/classes" className="text-primary mt-4 inline-block hover:underline">
-                    Retour aux classes
-                </Link>
-            </div>
+            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+                <PageShell>
+                    <PageEmpty
+                        icon="school"
+                        title="Classe introuvable"
+                        description="Cette classe n'existe pas ou a été supprimée."
+                        actions={[{ label: "Retour aux classes", href: "/dashboard/classes" }]}
+                    />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     return (
         <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title={`Classe : ${classData?.name}`}
                     description={`Niveau : ${classData?.classLevel?.name} | ${classData?._count?.enrollments || 0} Élèves inscrits`}
@@ -179,6 +187,17 @@ export default function ClassDetailsPage() {
                         { label: "Classes", href: "/dashboard/classes" },
                         { label: classData?.name || "Détails" },
                     ]}
+                    actions={
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
+                        >
+                            <CreditCard className="h-4 w-4" />
+                            Cartes scolaires
+                        </Button>
+                    }
                 />
 
                 {error && (
@@ -524,7 +543,7 @@ export default function ClassDetailsPage() {
                         )}
                     </TabsContent>
                 </Tabs>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
 import { GraduationCap, Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2, Layers } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type ClassLevel = {
     id: string;
@@ -36,8 +38,8 @@ export default function ClassLevelsSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Erreur lors du chargement");
             setLevels(Array.isArray(data) ? data : data.data || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -82,8 +84,8 @@ export default function ClassLevelsSettingsPage() {
             setIsAdding(false);
             showSuccess("Niveau d'étude créé avec succès");
             fetchLevels();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -91,7 +93,7 @@ export default function ClassLevelsSettingsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE}>
-            <div className="space-y-6 max-w-5xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Niveaux d'Étude"
                     description="Gérer la hiérarchie des classes (Primaire, Collège, Lycée...)"
@@ -228,7 +230,7 @@ export default function ClassLevelsSettingsPage() {
                         ))
                     )}
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

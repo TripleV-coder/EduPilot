@@ -9,7 +9,7 @@ import { z } from "zod";
 import { sendWelcomeEmail } from "@/lib/email";
 import crypto from "crypto";
 import type { UserRole } from "@prisma/client";
-import { canCreateRole } from "@/lib/rbac/permissions";
+import { canCreateRole, roleSatisfies } from "@/lib/rbac/permissions";
 import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         }
 
         const allowedRoles = ["SUPER_ADMIN", "DIRECTOR", "SCHOOL_ADMIN"];
-        if (!allowedRoles.includes(currentUser.role)) {
+        if (!roleSatisfies(currentUser.role, allowedRoles)) {
             return NextResponse.json(
                 { error: "Vous n'avez pas la permission d'inviter des utilisateurs." },
                 { status: 403 }

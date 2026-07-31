@@ -28,10 +28,11 @@ import {
     Button,
     Card,
     Icon,
-    Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { SubLabel } from "@/components/edu-homes/_shared";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -231,24 +232,27 @@ export default function CalendarPage() {
                 "PARENT",
             ]}
         >
-            <div className="eduflow-scope flex flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Calendrier"
-                        sub={`${eventCount} évènements · ${holidayCount} vacances scolaires · ${publicHolidayCount} jours fériés`}
-                        breadcrumb={["Tableau de bord", "Calendrier"]}
-                    />
-                    <SegmentedToggle
-                        value={view}
-                        onChange={setView}
-                        options={[
-                            { value: "month", label: "Mois", icon: "grid" },
-                            { value: "events", label: "Évènements", icon: "calendar" },
-                            { value: "holidays", label: "Vacances", icon: "sun" },
-                            { value: "public", label: "Fériés", icon: "tag" },
-                        ]}
-                    />
-                </div>
+            <PageShell className="pb-12">
+                <PageHeader
+                    title="Calendrier"
+                    description={`${eventCount} évènements · ${holidayCount} vacances scolaires · ${publicHolidayCount} jours fériés`}
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Calendrier" },
+                    ]}
+                    actions={
+                        <SegmentedToggle
+                            value={view}
+                            onChange={setView}
+                            options={[
+                                { value: "month", label: "Mois", icon: "grid" },
+                                { value: "events", label: "Évènements", icon: "calendar" },
+                                { value: "holidays", label: "Vacances", icon: "sun" },
+                                { value: "public", label: "Fériés", icon: "tag" },
+                            ]}
+                        />
+                    }
+                />
 
                 {view === "month" ? (
                     <div
@@ -334,46 +338,11 @@ export default function CalendarPage() {
                             </Card>
 
                             {isLoadingAny ? (
-                                <Card padding={16}>
-                                    <div className="flex items-center gap-3">
-                                        <Spinner size={18} color="var(--brand-600)" />
-                                        <span
-                                            style={{
-                                                fontSize: 12,
-                                                color: "var(--eduflow-text-secondary)",
-                                            }}
-                                        >
-                                            Chargement du calendrier…
-                                        </span>
-                                    </div>
-                                </Card>
+                                <PageLoading label="Chargement du calendrier…" />
                             ) : null}
 
                             {eventsError || holidaysError || publicHolidaysError ? (
-                                <Card
-                                    padding={14}
-                                    style={{
-                                        borderLeft: "3px solid var(--eduflow-danger-500)",
-                                        background: "var(--eduflow-danger-50)",
-                                    }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Icon
-                                            name="warning"
-                                            size={18}
-                                            color="var(--eduflow-danger-600)"
-                                        />
-                                        <p
-                                            style={{
-                                                margin: 0,
-                                                fontSize: 13,
-                                                color: "var(--eduflow-danger-800)",
-                                            }}
-                                        >
-                                            Une partie du calendrier n&apos;a pas pu être chargée.
-                                        </p>
-                                    </div>
-                                </Card>
+                                <PageError message="Une partie du calendrier n'a pas pu être chargée." />
                             ) : null}
                         </div>
                     </div>
@@ -427,7 +396,7 @@ export default function CalendarPage() {
                             : null}
                     </ListView>
                 ) : null}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }
@@ -848,73 +817,19 @@ function ListView({
                 </h2>
             </div>
 
-            {loading ? (
-                <Card padding={20}>
-                    <div className="flex items-center gap-3">
-                        <Spinner size={20} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement…
-                        </span>
-                    </div>
-                </Card>
-            ) : null}
+            {loading ? <PageLoading label="Chargement…" /> : null}
 
-            {error ? (
-                <Card
-                    padding={14}
-                    style={{
-                        borderLeft: "3px solid var(--eduflow-danger-500)",
-                        background: "var(--eduflow-danger-50)",
-                    }}
-                >
-                    <div className="flex items-center gap-3">
-                        <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
-                        <p
-                            style={{
-                                margin: 0,
-                                fontSize: 13,
-                                color: "var(--eduflow-danger-800)",
-                            }}
-                        >
-                            {error}
-                        </p>
-                    </div>
-                </Card>
-            ) : null}
+            {error ? <PageError message={error} /> : null}
 
             {isEmpty ? (
-                <Card padding={36}>
-                    <div className="flex flex-col items-center gap-3 text-center">
-                        <div
-                            className="grid place-items-center"
-                            style={{
-                                width: 60,
-                                height: 60,
-                                borderRadius: 16,
-                                background: "var(--brand-50)",
-                            }}
-                        >
-                            <Icon name={emptyIcon} size={26} color="var(--brand-700)" />
-                        </div>
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                            {emptyTitle}
-                        </h3>
-                        <p
-                            style={{
-                                fontSize: 13,
-                                color: "var(--eduflow-text-secondary)",
-                                maxWidth: 480,
-                                lineHeight: 1.55,
-                                margin: 0,
-                            }}
-                        >
-                            {emptyBody}
-                        </p>
-                    </div>
-                </Card>
+                <PageEmpty
+                    icon={emptyIcon}
+                    title={emptyTitle}
+                    description={emptyBody}
+                />
             ) : null}
 
-            {!loading && !error ? (
+            {!loading && !error && !isEmpty ? (
                 <div className="flex flex-col gap-2">{children}</div>
             ) : null}
         </div>

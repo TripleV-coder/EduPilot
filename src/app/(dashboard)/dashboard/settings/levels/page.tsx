@@ -3,7 +3,8 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Layers, Network, Boxes, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,13 +43,13 @@ export default function AcademicLevelsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <PageShell>
                 <PageHeader
                     title="Cycles, Niveaux & Séries"
                     description="Structurez l'arborescence académique de votre établissement, essentielle pour le module 'Classes'."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Paramètres" },
+                        { label: "Paramètres", href: "/dashboard/settings" },
                         { label: "Structure Académique" },
                     ]}
                 />
@@ -138,7 +139,7 @@ export default function AcademicLevelsPage() {
                         </div>
                     </div>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

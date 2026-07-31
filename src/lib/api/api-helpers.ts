@@ -5,11 +5,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { Permission, hasPermission } from "@/lib/rbac/permissions";
+import { Permission, hasPermission, roleSatisfies } from "@/lib/rbac/permissions";
 import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 
 // ============================================
 // CUID VALIDATION
@@ -226,7 +227,7 @@ export function authorizeRoles(
     role: string,
     allowedRoles: string[]
 ): { authorized: boolean; response?: NextResponse } {
-    if (allowedRoles.includes(role)) return { authorized: true };
+    if (roleSatisfies(role, allowedRoles)) return { authorized: true };
     return { authorized: false, response: NextResponse.json({ error: "Accès refusé" }, { status: 403 }) };
 }
 
@@ -323,8 +324,21 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
+            // ── MODE MAINTENANCE GLOBALE ──
+            // Bloque tous les rôles sauf SUPER_ADMIN quand la maintenance est
+            // active (état en cache TTL : pas de requête SQL par appel).
+            if (options.requireAuth !== false && maintenanceBlocksRole(session?.user?.role)) {
+                const maintenance = await getMaintenanceState();
+                if (maintenance.enabled) {
+                    return NextResponse.json(
+                        { error: maintenance.message, code: "MAINTENANCE" },
+                        { status: 503, headers: { "Retry-After": "120" } }
+                    );
+                }
+            }
+
             if (options.allowedRoles && options.allowedRoles.length > 0 && session?.user) {
-                if (!options.allowedRoles.includes(session.user.role)) {
+                if (!roleSatisfies(session.user.role, options.allowedRoles)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
             }

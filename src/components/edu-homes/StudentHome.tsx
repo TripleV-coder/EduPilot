@@ -53,6 +53,7 @@ export function StudentHome({ userName, schoolName, periodName, data }: StudentH
 
             {/* Hero strip */}
             <div
+                className="edu-stagger"
                 style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",

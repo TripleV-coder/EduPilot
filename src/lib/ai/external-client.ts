@@ -1,7 +1,7 @@
 /**
- * External AI APIs Client
- * Support for OpenAI, Anthropic, and Google Gemini APIs
- * Used as cloud AI providers for AI-powered features
+ * External AI APIs Client (couche 3 — optionnelle)
+ * Groq, Google Gemini, OpenAI, Anthropic en cascade best-effort.
+ * Sans clé configurée, le routeur bascule sur les gabarits locaux.
  */
 
 import { logger } from '@/lib/utils/logger';
@@ -11,16 +11,30 @@ export interface ExternalAIRequest {
   message: string;
   role: string;
   schoolName?: string;
-  studentData?: Record<string, any>;
+  studentData?: Record<string, unknown>;
   language?: 'fr' | 'en';
   maxTokens?: number;
   temperature?: number;
 }
 
+// Formes minimales des réponses des fournisseurs (champs réellement lus)
+interface OpenAIChatResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
+interface AnthropicMessageResponse {
+  content?: Array<{ text?: string }>;
+}
+interface GeminiResponse {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}
+interface GroqChatResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
+
 export interface ExternalAIResponse {
   success: boolean;
   response: string;
-  provider: 'openai' | 'anthropic' | 'google' | null;
+  provider: 'groq' | 'openai' | 'anthropic' | 'google' | null;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;
@@ -29,12 +43,59 @@ export interface ExternalAIResponse {
 }
 
 // =====================
+// Groq Client (gratuit, optionnel)
+// =====================
+
+async function callGroq(request: ExternalAIRequest): Promise<string | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const systemPrompt = buildEduPilotSystemPrompt(
+      request.role,
+      request.schoolName,
+      request.studentData,
+      request.language
+    );
+
+    const result = await fetchJsonWithPolicy<GroqChatResponse>(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: {
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: request.message },
+          ],
+          max_tokens: request.maxTokens || 1000,
+          temperature: request.temperature || 0.7,
+        },
+        timeoutMs: 18_000,
+        retries: 1,
+      }
+    );
+
+    if (!result.ok) {
+      logger.warn("Groq API error", { status: result.status, error: result.error });
+      return null;
+    }
+
+    return result.data.choices?.[0]?.message?.content || null;
+  } catch (error) {
+    logger.error("Groq API call failed", { error });
+    return null;
+  }
+}
+
+// =====================
 // OpenAI Client
 // =====================
 
 function sanitizeStudentDataForExternalAI(
-  studentData: Record<string, any> | undefined
-): Record<string, any> | undefined {
+  studentData: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
   if (!studentData) return undefined;
 
   const forbiddenKeys = new Set([
@@ -52,12 +113,12 @@ function sanitizeStudentDataForExternalAI(
     "passportNumber",
   ]);
 
-  const recurse = (value: any): any => {
+  const recurse = (value: unknown): unknown => {
     if (Array.isArray(value)) {
       return value.map(recurse);
     }
     if (value && typeof value === "object") {
-      const result: Record<string, any> = {};
+      const result: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(value)) {
         if (forbiddenKeys.has(key)) continue;
         result[key] = recurse(val);
@@ -67,7 +128,7 @@ function sanitizeStudentDataForExternalAI(
     return value;
   };
 
-  return recurse(studentData);
+  return recurse(studentData) as Record<string, unknown>;
 }
 
 async function callOpenAI(request: ExternalAIRequest): Promise<string | null> {
@@ -82,7 +143,7 @@ async function callOpenAI(request: ExternalAIRequest): Promise<string | null> {
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>('https://api.openai.com/v1/chat/completions', {
+    const result = await fetchJsonWithPolicy<OpenAIChatResponse>('https://api.openai.com/v1/chat/completions', {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}` },
       body: {
@@ -126,7 +187,7 @@ async function callAnthropic(request: ExternalAIRequest): Promise<string | null>
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>('https://api.anthropic.com/v1/messages', {
+    const result = await fetchJsonWithPolicy<AnthropicMessageResponse>('https://api.anthropic.com/v1/messages', {
       method: "POST",
       headers: {
         'x-api-key': apiKey,
@@ -175,7 +236,7 @@ async function callGoogleGemini(
       request.language
     );
 
-    const result = await fetchJsonWithPolicy<any>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const result = await fetchJsonWithPolicy<GeminiResponse>(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       body: {
         contents: [{
@@ -211,7 +272,7 @@ async function callGoogleGemini(
 function buildEduPilotSystemPrompt(
   role: string,
   schoolName?: string,
-  studentData?: Record<string, any>,
+  studentData?: Record<string, unknown>,
   language: 'fr' | 'en' = 'fr'
 ): string {
   const lang = language === 'fr' ? 'français' : 'english';
@@ -245,13 +306,21 @@ Keep responses clear and actionable. If you don't have specific data, acknowledg
 // =====================
 
 export async function callExternalAI(request: ExternalAIRequest): Promise<ExternalAIResponse> {
-  const providers = process.env.AI_PROVIDER?.split(',') || ['openai', 'anthropic', 'google'];
+  const configured = process.env.AI_PROVIDER?.split(",").map((p) => p.trim()).filter(Boolean);
+  const providers = configured?.length ? configured : ["groq", "google"];
 
   for (const provider of providers) {
     let response: string | null = null;
 
     switch (provider.trim()) {
-      case 'openai':
+      case "groq":
+        response = await callGroq(request);
+        if (response) {
+          return { success: true, response, provider: "groq" };
+        }
+        break;
+
+      case "openai":
         response = await callOpenAI(request);
         if (response) {
           return { success: true, response, provider: 'openai' };
@@ -282,15 +351,21 @@ export async function callExternalAI(request: ExternalAIRequest): Promise<Extern
 // =====================
 
 export async function isExternalAIAvailable(): Promise<boolean> {
-  const providers = ['openai', 'anthropic', 'google'];
-  const envVars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_AI_API_KEY'];
+  const providers = ["groq", "openai", "anthropic", "google"] as const;
+  const envVars = ["GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_AI_API_KEY"] as const;
 
   for (let i = 0; i < providers.length; i++) {
     if (process.env[envVars[i]]) {
-      // Quick API check
       try {
         switch (providers[i]) {
-          case 'openai':
+          case "groq": {
+            const groqResponse = await fetch("https://api.groq.com/openai/v1/models", {
+              headers: { Authorization: `Bearer ${process.env[envVars[i]]}` },
+            });
+            if (groqResponse.ok) return true;
+            break;
+          }
+          case "openai":
             const openaiResponse = await fetch('https://api.openai.com/v1/models', {
               headers: { 'Authorization': `Bearer ${process.env[envVars[i]]}` }
             });

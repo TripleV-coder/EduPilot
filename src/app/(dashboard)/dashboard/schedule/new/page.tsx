@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { Save, AlertCircle, ArrowLeft, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type TeacherAvailability = {
     id: string;
@@ -151,8 +153,8 @@ export default function NewSchedulePage() {
             });
 
             router.push("/dashboard/schedule");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setSaving(false);
         }
@@ -160,24 +162,31 @@ export default function NewSchedulePage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-20">
-                <Loader2 className="animate-spin w-8 h-8 text-primary" />
-            </div>
+            <PageGuard permission={Permission.SCHEDULE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+                <PageShell className="max-w-4xl pb-12">
+                    <PageLoading label="Chargement des classes…" />
+                </PageShell>
+            </PageGuard>
         );
     }
 
     return (
         <PageGuard permission={Permission.SCHEDULE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-6 max-w-4xl mx-auto pb-12">
+            <PageShell className="max-w-4xl pb-12">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/schedule">
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" aria-label="Retour à l'emploi du temps">
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     </Link>
                     <PageHeader
                         title="Planifier un cours"
                         description="Associez un enseignant et une matière à un créneau horaire."
+                        breadcrumbs={[
+                            { label: "Tableau de bord", href: "/dashboard" },
+                            { label: "Emploi du temps", href: "/dashboard/schedule" },
+                            { label: t("common.new") },
+                        ]}
                     />
                 </div>
 
@@ -303,7 +312,7 @@ export default function NewSchedulePage() {
                         </form>
                     </CardContent>
                 </Card>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

@@ -83,7 +83,8 @@ interface ChatRequestBody {
 
 interface GovernanceRequestBody {
   action: string;
-  data?: any;
+  studentId?: string;
+  data?: Record<string, unknown>;
 }
 
 async function handleChat(session: Session, body: ChatRequestBody) {
@@ -115,7 +116,7 @@ async function handleChat(session: Session, body: ChatRequestBody) {
 }
 
 async function handleGovernance(session: Session, body: GovernanceRequestBody) {
-  const { action, data } = body;
+  const { action, data, studentId } = body;
 
   if (!action) {
     return NextResponse.json(
@@ -129,7 +130,8 @@ async function handleGovernance(session: Session, body: GovernanceRequestBody) {
     userId: session.user.id,
     userRole: session.user.role || 'user',
     schoolId: getActiveSchoolId(session),
-    classId: data?.classId,
+    studentId: studentId ?? (typeof data?.studentId === "string" ? data.studentId : undefined),
+    classId: typeof data?.classId === "string" ? data.classId : undefined,
     data,
   });
 

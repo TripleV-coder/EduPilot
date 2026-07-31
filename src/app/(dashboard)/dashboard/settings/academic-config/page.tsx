@@ -11,10 +11,10 @@ import {
     Button,
     Card,
     Icon,
-    Spinner,
     type IconName,
 } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 type PeriodType = "TRIMESTER" | "SEMESTER" | "HYBRID";
 
@@ -152,7 +152,7 @@ export default function AcademicConfigPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="max-w-6xl pb-12">
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/settings">
                         <Button variant="secondary" size="sm">
@@ -168,13 +168,17 @@ export default function AcademicConfigPage() {
                     </Link>
                 </div>
                 <PageHeader
-                    greeting={
+                    title={
                         data?.academicYear
                             ? `Année académique · ${data.academicYear.name}`
                             : "Année académique"
                     }
-                    sub="Définissez votre découpage, les vacances et les dates clés. L'app s'adapte automatiquement."
-                    breadcrumb={["Paramètres", "Établissement", "Année académique"]}
+                    description="Définissez votre découpage, les vacances et les dates clés. L'app s'adapte automatiquement."
+                    breadcrumbs={[
+                        { label: "Paramètres", href: "/dashboard/settings" },
+                        { label: "Établissement" },
+                        { label: "Année académique" },
+                    ]}
                     actions={
                         <>
                             <Link href="/dashboard/calendar">
@@ -243,12 +247,7 @@ export default function AcademicConfigPage() {
                 ) : null}
 
                 {loading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement de la configuration…
-                        </span>
-                    </div>
+                    <PageLoading label="Chargement de la configuration…" />
                 ) : null}
 
                 {data ? (
@@ -580,7 +579,7 @@ export default function AcademicConfigPage() {
                         </Card>
                     </>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 760px) {

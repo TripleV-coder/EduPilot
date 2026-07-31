@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -82,7 +82,7 @@ export default function CourseDetailPage() {
 
     return (
         <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <div className="space-y-8 max-w-5xl mx-auto pb-20">
+            <PageShell>
                 <PageHeader
                     title={course.title}
                     description={`${course.classSubject.subject.name} • Par ${course.classSubject.teacher.user.firstName} ${course.classSubject.teacher.user.lastName}`}
@@ -195,7 +195,7 @@ export default function CourseDetailPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

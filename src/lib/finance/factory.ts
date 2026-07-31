@@ -1,6 +1,8 @@
 import { PaymentProvider, SupportedProvider } from './types';
 import { FlutterwaveProvider } from './providers/flutterwave';
 import { PaystackProvider } from './providers/paystack';
+import { FedaPayProvider } from './providers/fedapay';
+import { MomoProvider } from './providers/momo';
 
 export class PaymentProviderFactory {
     static getProvider(type: SupportedProvider): PaymentProvider {
@@ -10,7 +12,9 @@ export class PaymentProviderFactory {
             case 'PAYSTACK':
                 return new PaystackProvider();
             case 'FEDAPAY':
-                throw new Error('FedaPay not implemented yet');
+                return new FedaPayProvider();
+            case 'MOMO':
+                return new MomoProvider();
             default:
                 throw new Error(`Unsupported provider: ${type}`);
         }

@@ -11,7 +11,8 @@ import { t } from "@/lib/i18n";
 import { WeeklyTimetableGrid } from "@/components/schedule/weekly-timetable-grid";
 
 import { Button, Card, Icon, type IconName } from "@/components/edu";
-import { PageHeader } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 interface ScheduleItem {
     id: string;
@@ -40,7 +41,10 @@ export default function SchedulePage() {
     const [filterType, setFilterType] = useState<"class" | "teacher">("class");
     const [selectedId, setSelectedId] = useState<string>("ALL");
 
-    const { data: schedules } = useSWR<ScheduleItem[]>("/api/schedules", fetcher);
+    const { data: schedules, isLoading: loadingSchedules } = useSWR<ScheduleItem[]>(
+        "/api/schedules",
+        fetcher
+    );
     const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>(
         "/api/classes",
         fetcher
@@ -69,19 +73,23 @@ export default function SchedulePage() {
             permission={Permission.SCHEDULE_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-[1400px] flex-col gap-4 pb-12">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <PageHeader
-                        greeting="Emploi du temps"
-                        sub="Planifie et visualise l'occupation des salles et des enseignants."
-                    />
-                    <div className="flex gap-2">
-                        <Button variant="ghost" icon="download">
-                            {t("common.export")}
-                        </Button>
-                        <Button icon="plus">Nouvel horaire</Button>
-                    </div>
-                </div>
+            <PageShell className="max-w-[1400px] pb-12">
+                <PageHeader
+                    title="Emploi du temps"
+                    description="Planifiez et visualisez l'occupation des salles et des enseignants."
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Emploi du temps" },
+                    ]}
+                    actions={
+                        <>
+                            <Button variant="ghost" icon="download">
+                                {t("common.export")}
+                            </Button>
+                            <Button icon="plus">Nouvel horaire</Button>
+                        </>
+                    }
+                />
 
                 <Card padding={14}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -150,13 +158,20 @@ export default function SchedulePage() {
                     </div>
                 </Card>
 
-                <Card padding={0} style={{ overflow: "hidden" }}>
-                    {/* The shared component uses its own Schedule shape; cast pass-through. */}
-                    <WeeklyTimetableGrid
-                        schedules={filteredSchedules as unknown as React.ComponentProps<typeof WeeklyTimetableGrid>["schedules"]}
-                    />
-                </Card>
-            </div>
+                {loadingSchedules ? (
+                    <PageLoading label="Chargement de l'emploi du temps…" />
+                ) : (
+                    <Card padding={0} style={{ overflow: "hidden" }}>
+                        <WeeklyTimetableGrid
+                            schedules={
+                                filteredSchedules as unknown as React.ComponentProps<
+                                    typeof WeeklyTimetableGrid
+                                >["schedules"]
+                            }
+                        />
+                    </Card>
+                )}
+            </PageShell>
         </PageGuard>
     );
 }

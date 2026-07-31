@@ -1,0 +1,520 @@
+{
+  "$meta": {
+    "title": "EduPilot — Spécification de reconstruction du FRONTEND UNIQUE ET CANONIQUE",
+    "version": "1.1.0",
+    "date": "2026-06-15",
+    "changelog": "1.1.0 (2026-06-15) : consolidation pour le design — règle MAÎTRE anti-mélange (regles_anti_melange) ; nav passée en GROUPÉE global→cycle (mapping_module_role_route.nav_groupee_par_role, aligné sur role-nav.ts) ; ajout blueprint_dashboards_par_role (contenu réel de chaque /dashboard par rôle, sourcé d'edu-homes) ; regroupement du menu marqué FAIT.",
+    "but": "Refaire entièrement la couche frontend d'EduPilot pour éliminer la confusion des multiples versions d'UI et combler les manques/incohérences, en produisant UN SEUL frontend cohérent, complet et fidèle à l'application réelle (RBAC, features, API, modèle de données).",
+    "nature_du_document": "Prompt d'ingénierie exécutable par un agent/équipe. Toutes les valeurs ci-dessous sont EXTRAITES du code réel (juin 2026), pas supposées.",
+    "regles_anti_hallucination": [
+      "INTERDIT d'inventer une route, un endpoint, un rôle, une permission, un modèle ou un champ qui n'existe pas dans le code.",
+      "Les SOURCES DE VÉRITÉ font autorité et DOIVENT être lues avant d'écrire du code : prisma/schema.prisma, src/lib/rbac/permissions.ts, src/lib/rbac/nav-config.ts, src/lib/rbac/matrix.ts, src/app/api/**/route.ts.",
+      "Si une donnée n'est pas confirmable dans le code, NE PAS l'afficher : utiliser un état vide honnête (jamais de fake data, lorem, noms inventés, métriques fabriquées).",
+      "Chaque écran consomme une route API RÉELLE existante. Si l'écran a besoin d'une donnée non exposée, créer/étendre la route côté serveur AVANT de l'afficher — ne jamais simuler.",
+      "Aucune valeur numérique codée en dur présentée comme une donnée métier (ni deltas, ni taux, ni montants)."
+    ]
+  },
+
+  "regles_anti_melange": {
+    "but": "Règle MAÎTRE pour qu'aucun mélange (de design, de rôle, de cycle, de données) n'apparaisse. À appliquer sur CHAQUE écran avant toute autre considération.",
+    "1_un_seul_design": "UNE seule langue visuelle = eduflow (tokens --eduflow-*/--brand-*). Jamais deux DS sur un écran ; aucun hex en dur ; primitives uniques (cf. design_system_spec).",
+    "2_isolation_par_role": "Chaque rôle ne voit QUE ses entrées (navGroupsForRole) et ses actions (hasPermission). Un écran partagé entre rôles adapte son contenu par rôle — il ne montre jamais une action non autorisée (la masquer, pas la désactiver silencieusement).",
+    "3_portee_des_donnees": "Ownership strict : PARENT→ses enfants, STUDENT→soi, TEACHER→ses classes ; + isolation tenant (schoolId). Jamais de fuite inter-école ni inter-utilisateur.",
+    "4_groupement_global_vers_specifique": "La nav et toute liste de features se lisent du GLOBAL au SPÉCIFIQUE : groupes thématiques communs d'abord, groupes propres à un cycle ensuite. Une feature de cycle ne vit QUE dans son groupe de cycle.",
+    "5_gating_par_cycle": "Filtrer par School.offeredLevels à 3 niveaux (NAV via visibleNavGroups, PAGE via CycleGuard, CRÉATION via filtre + 403 serveur). Défaut SÛR : offeredLevels vide → tout afficher / ne rien imposer. Aucune feature inutile selon le niveau de l'école.",
+    "6_donnees_reelles": "Chaque bloc consomme une route/service réel ; sinon EmptyState honnête. Zéro fake data ; toute métrique dérivée gardée (anti division par zéro) + plafonnée ; formats fr-FR + FCFA, tabular-nums.",
+    "7_un_cta_primaire": "Un seul CTA primaire visible par écran ; actions secondaires subordonnées."
+  },
+
+  "application_reality": {
+    "stack": {
+      "framework": "Next.js 15 (App Router, RSC) — rendu dynamique forcé (export const dynamic = 'force-dynamic' dans src/app/layout.tsx, requis par la CSP à nonce)",
+      "langage": "TypeScript strict",
+      "orm_db": "Prisma + PostgreSQL",
+      "auth": "next-auth (v5) — session JWT ; middleware = src/app/proxy.ts (et non middleware.ts ; Next 15 'Proxy (Middleware)')",
+      "securite": "CSP stricte par nonce (script-src 'self' 'nonce-…' 'strict-dynamic') générée dans src/proxy.ts ; rate-limiting ; isolation multi-tenant par schoolId",
+      "data_fetching": "useSWR (client) + helpers cache (Redis/Upstash)",
+      "i18n": "fonction t() — src/lib/i18n ; langue par défaut FR (Bénin)",
+      "tests": "vitest (lib + composants jsdom@testing-library) ; seuils coverage par glob (src/lib 40/32/38, src/components 50/40/35)"
+    },
+    "contexte_metier": "Système de gestion scolaire pour le Bénin : SYSCOHADA/OHADA (comptabilité), DGI (fiscalité), BEPC/CEP (examens nationaux), Mobile Money (paiements via FedaPay), séries d'orientation (A1/A2/B/C/D/E/F/G).",
+    "echelle_reelle": {
+      "pages": 167,
+      "routes_api": 261,
+      "modeles_prisma": 112,
+      "roles": 8,
+      "permissions": 104,
+      "modules_fonctionnels": "~65 (voir features_modules)",
+      "mesure": "comptes vérifiés le 2026-06-15 (find page.tsx / route.ts, grep model)"
+    }
+  },
+
+  "PROBLEME_central_versions_multiples": {
+    "constat": "Plusieurs systèmes d'UI coexistent et se mélangent page par page, produisant un rendu visuellement incohérent ('bizarre'). C'est la cause racine à supprimer.",
+    "systemes_ui_concurrents": [
+      {
+        "nom": "edu / eduflow",
+        "chemin": "src/components/edu/** + src/components/edu-homes/** + src/components/edu-shell/**",
+        "tokens": "src/styles/edupilot-tokens.css (--eduflow-*, --brand-*)",
+        "fichiers_consommateurs": 96,
+        "role": "Design system de marque, styles inline + tokens CSS. Utilisé par le SHELL du dashboard (EduSidebar, EduTopBar, EduMobileNav) et les dashboards de rôle (edu-homes). Page vitrine: /dashboard/design-system.",
+        "statut": "VIVANT — branche de marque, la plus récente/polie",
+        "decision_recommandee": "CANONIQUE (source visuelle unique)"
+      },
+      {
+        "nom": "ui (shadcn/Radix + Tailwind)",
+        "chemin": "src/components/ui/**",
+        "tokens": "variables shadcn dans globals.css (@layer base, hsl(var(--…)))",
+        "fichiers_consommateurs": 154,
+        "role": "Couche de primitives générique (la plus largement importée). Utilisée par la majorité des PAGES de features.",
+        "statut": "VIVANT — mais visuellement distinct de 'edu' → c'est le cœur de l'incohérence (homes en 'edu', features en 'shadcn')",
+        "decision_recommandee": "À RÉCONCILIER : soit re-skinner via les tokens eduflow pour une seule langue visuelle, soit migrer les pages vers 'edu'. UN SEUL rendu visuel à la fin."
+      },
+      {
+        "nom": "swiss (Swiss Enterprise)",
+        "chemin": "src/components/ui/swiss-*.tsx (swiss-bento-card, swiss-chart, swiss-command-palette, swiss-data-table, swiss-dialog, swiss-dropdown, swiss-sidebar, swiss-toast)",
+        "tokens": "src/styles/swiss-enterprise.css (IMPORTÉ dans globals.css ligne 1, donc CSS mort chargé en prod)",
+        "fichiers_consommateurs": 0,
+        "statut": "MORT — 0 import de composant, mais le CSS est toujours chargé",
+        "decision_recommandee": "SUPPRIMER : composants swiss-*.tsx + l'import de swiss-enterprise.css dans globals.css + docs/SWISS_*.md"
+      },
+      {
+        "nom": "variantes -v2",
+        "chemin": "src/components/ui/toast-v2.tsx, src/components/ui/form-v2.tsx",
+        "statut": "DOUBLON — versions parallèles de toast/form",
+        "decision_recommandee": "Choisir UNE version par primitive ; supprimer la version morte après vérification des imports."
+      }
+    ],
+    "doublons_systemes": [
+      { "type": "tokens", "items": ["src/styles/edupilot-tokens.css", "src/styles/swiss-enterprise.css"], "decision": "Garder UNIQUEMENT edupilot-tokens.css ; retirer l'import swiss." },
+      { "type": "navigation", "items": ["src/components/edu-shell/role-nav.ts (VIVANT, canonique — utilisé par EduSidebar)", "src/lib/rbac/nav-config.ts (MORT, 0 import — SUPPRIMÉ le 2026-06-14)", "src/lib/config/navigation.ts + src/components/dashboard/sidebar/* (MORT, sidebar non rendue — SUPPRIMÉ le 2026-06-14)"], "decision": "TROIS définitions de navigation existaient ; seule role-nav.ts est vivante (par rôle, switch). Les deux autres ont été supprimées. Source unique = role-nav.ts." },
+      { "type": "toasts", "items": ["src/components/edu/toast.tsx", "src/components/ui/toast-v2.tsx", "sonner (Toaster dans layout)"], "decision": "Unifier sur UN seul système de toast." },
+      { "type": "dialogs", "items": ["src/components/messaging/compose-dialog.tsx", "src/components/ui/swiss-dialog.tsx", "src/components/ui/dialog.tsx (shadcn)"], "decision": "UN seul composant Dialog." }
+    ],
+    "alias_de_routes_redondants": [
+      { "alias": "/dashboard/schedules", "vers": "/dashboard/schedule" },
+      { "alias": "/dashboard/cafeteria", "vers": "/dashboard/canteen" },
+      { "alias": "/dashboard/ai-assistant", "vers": "/dashboard/ai" },
+      { "note": "Confirmés comme ré-exports. Décider d'une route canonique par module et supprimer les alias OU les conserver comme redirections explicites documentées." }
+    ],
+    "incoherences_constatees_juin_2026": [
+      "Dashboards de rôle (edu-homes) en langage 'edu', pages de features en langage 'shadcn' → deux esthétiques sur le même produit.",
+      "Panneau onboarding (OnboardingChecklist) en position fixed bottom-right recouvrant le contenu sur les dashboards denses (corrigé: replié par défaut — à intégrer proprement dans la refonte).",
+      "Calculs de delta KPI non gardés contre la division par zéro (ex. croissance élèves affichait 99900%) — toute métrique dérivée DOIT être gardée + plafonnée.",
+      "Formatage monétaire non localisé (fr-BJ tombait sans séparateurs) — utiliser un util de formatage unique (fr-FR + FCFA, tabular-nums).",
+      "Finance: 'Total attendu' à 0 alors que 'Encaissé'=153,9M car la seed ne crée pas de montants attendus par élève — états vides honnêtes requis, jamais de chiffres fabriqués.",
+      "framer-motion utilisé dans ~27 fichiers (dont AnimatePresence/variants) en parallèle de classes CSS tailwindcss-animate → choisir UNE stratégie d'animation cohérente.",
+      "~184 'any' résiduels dispersés dans la couche UI (dette de typage à éroder)."
+    ]
+  },
+
+  "rbac_reel": {
+    "source_de_verite": "src/lib/rbac/permissions.ts (enum Permission, rolePermissions, roleHierarchy, roleCreationMatrix, helpers hasPermission/getRoleName), src/lib/rbac/nav-config.ts, src/lib/rbac/matrix.ts, src/lib/rbac/api-guard.ts. NE PAS réinventer ces mappings — les LIRE.",
+    "roles": [
+      { "code": "SUPER_ADMIN", "hierarchie": 100, "libelle_indicatif": "Super administrateur (plateforme)", "scope": "Système global, multi-écoles, root-control" },
+      { "code": "SCHOOL_ADMIN", "hierarchie": 80, "scope": "Administration d'un établissement" },
+      { "code": "DIRECTOR", "hierarchie": 80, "scope": "Direction pédagogique d'un établissement" },
+      { "code": "ACCOUNTANT", "hierarchie": 60, "scope": "Comptabilité / finances" },
+      { "code": "STAFF", "hierarchie": 55, "scope": "Personnel (vie scolaire)" },
+      { "code": "TEACHER", "hierarchie": 50, "scope": "Enseignant (ses classes)" },
+      { "code": "PARENT", "hierarchie": 20, "scope": "Parent (ses enfants)" },
+      { "code": "STUDENT", "hierarchie": 10, "scope": "Élève (ses propres données)" }
+    ],
+    "permissions_total": 104,
+    "permissions_familles": [
+      "SCHOOL_*", "USER_*", "STUDENT_* (+ STUDENT_READ_OWN)", "TEACHER_*", "CLASS_*", "SUBJECT_*",
+      "GRADE_* (+ GRADE_READ_OWN, GRADE_READ_CHILDREN)", "EVALUATION_*", "SCHEDULE_*", "FEE_*",
+      "FINANCE_*", "PAYMENT_* (+ PAYMENT_READ_OWN)", "REPORT_VIEW", "STATISTICS_VIEW", "NOTIFICATION_*",
+      "ACADEMIC_YEAR_*", "et autres (voir l'enum complet dans permissions.ts)"
+    ],
+    "modele_d_acces": "Chaque permission est suffixée par l'action (CREATE/READ/UPDATE/DELETE) + variantes _OWN/_CHILDREN pour le scope personnel. Le frontend DOIT masquer/désactiver les actions selon hasPermission(role, Permission.X) et selon l'ownership (un PARENT ne voit que ses enfants, un STUDENT que lui-même, un TEACHER que ses classes).",
+    "creation_matrix": {
+      "source": "roleCreationMatrix dans permissions.ts",
+      "regle": "SUPER_ADMIN crée tout ; SCHOOL_ADMIN ne crée pas un autre SCHOOL_ADMIN ; DIRECTOR ne crée pas un autre DIRECTOR ; ACCOUNTANT/STUDENT/PARENT ne créent personne. Les écrans de création d'utilisateurs DOIVENT respecter cette matrice."
+    },
+    "guards_obligatoires": [
+      "Pages: <PageGuard permission={Permission.X} roles={[...]} /> (src/components/guard/page-guard).",
+      "Routes API: createApiHandler({ requiredPermissions }) (src/lib/api/api-helpers) — déjà la convention.",
+      "Isolation tenant: getActiveSchoolId(session) + ensureSchoolAccess/ensureRequestedSchoolAccess sur chaque accès école-scoped."
+    ]
+  },
+
+  "features_modules": {
+    "note": "Modules réels (dossiers sous src/app/(dashboard)/dashboard). Dédupliquer les alias. Chaque module = ensemble de pages + routes API + modèles Prisma.",
+    "liste": [
+      "accounting (SYSCOHADA/OHADA, écritures, export DGI)", "ai + ai-assistant (alias)", "alerts", "alumni",
+      "analytics", "announcements", "appointments", "attendance", "audit-logs", "benchmark", "bepc-prep",
+      "cagnotte (pots communs)", "calendar", "canteen + cafeteria (alias)", "classes", "clubs", "competences",
+      "compliance (RGPD)", "courses (LMS)", "discipline + incidents", "documents", "events", "exams (BEPC/CEP)",
+      "finance (frais, paiements, plans, bourses)", "gamification", "grades (notes, bulletins, conseils)",
+      "health + medical (dossiers médicaux)", "homework", "import (CSV en masse)", "library", "liaison",
+      "lms", "messages (messagerie)", "notifications", "offline", "onboarding", "organization", "orientation",
+      "parents", "performances", "resources", "risks", "root-control (SUPER_ADMIN)", "schedule + schedules (alias)",
+      "scholarships", "schools", "settings", "staff", "students", "system", "teachers", "transport",
+      "users", "voice-notifs", "wallet (décaissements)", "wellbeing (climat scolaire, psy)", "whatsapp", "access-control",
+      "design-system (vitrine du DS — à conserver comme référence vivante)"
+    ],
+    "regle": "Le frontend canonique DOIT couvrir TOUS ces modules, mais filtrés par RBAC (chaque rôle ne voit que ses modules/actions autorisés). Lire nav-config.ts pour le mapping module→rôles RÉEL."
+  },
+
+  "data_model": {
+    "source_de_verite": "prisma/schema.prisma (112 modèles). Le frontend représente ces entités — ne pas inventer de champ.",
+    "entites_cles": [
+      "Organization, School, AcademicYear, Period, AcademicConfig",
+      "User, TeacherProfile, StudentProfile, ParentProfile, ParentStudent, TeacherSchoolAssignment",
+      "ClassLevel, Class, Subject, ClassSubject, Enrollment",
+      "EvaluationType, Evaluation, Grade, GradeHistory, StudentAnalytics, SubjectPerformance",
+      "Schedule, Attendance, Homework, HomeworkSubmission",
+      "Fee, Payment, PaymentPlan, InstallmentPayment, Scholarship",
+      "FiscalYear, OhadaAccount, JournalEntry, JournalEntryLine (comptabilité SYSCOHADA)",
+      "WalletAccount, WalletTransaction, ScheduledDisbursement, Cagnotte, CagnotteContribution, CagnotteJournalEntry",
+      "Message, Notification, Announcement, CommunicationLog/Preference/Template, VoiceCampaign",
+      "BehaviorIncident, Sanction, WellbeingReport, PsyAppointment, ClimatePulseWeek",
+      "MedicalRecord, Allergy, Vaccination, EmergencyContact, Appointment",
+      "ExamTemplate, Question, ExamSession, ExamAnswer, Course, CourseModule, Lesson, CourseEnrollment, LessonCompletion",
+      "StudentOrientation, OrientationRecommendation, Book, BorrowingRecord, CanteenMenu, MealTicket",
+      "Achievement, UserAchievement, Leaderboard, TransportLine, Bus, BusRoute, StudentTransport",
+      "AuditLog, DataConsent, DataRetentionPolicy, DataAccessRequest (RGPD)",
+      "ConfigOption, ImportTemplate, PerformanceMetric, TelemetryEvent, BenchmarkSnapshot"
+    ]
+  },
+
+  "api_contract": {
+    "source_de_verite": "src/app/api/**/route.ts (260 routes). Le frontend consomme ces endpoints — lire chaque route.ts pour le contrat (méthodes, query, body, réponse).",
+    "groupes_principaux_par_volume": {
+      "root": 15, "analytics": 13, "payments": 11, "ai": 10, "import": 9, "orientation": 8,
+      "finance": 8, "auth": 8, "grades": 7, "system": 6, "exams": 6, "admin": 6,
+      "notifications": 5, "incidents": 5, "courses": 5, "attendance": 5,
+      "users": 4, "students": 4, "reference": 4, "medical-records": 4, "health": 4,
+      "compliance": 4, "calendar": 4, "accounting": 4
+    },
+    "conventions": [
+      "Toutes les mutations renvoient un statut clair + message FR ; le frontend gère loading/success/error.",
+      "Pagination: getPaginationParams (defaultLimit/maxLimit) — toujours paginer les listes.",
+      "Dates validées via parseDateRangeParams (Zod) côté serveur ; le frontend envoie des ISO.",
+      "Webhooks paiement publics + signés (FedaPay: /api/payments/fedapay/webhook ; MoMo: /api/payments/momo/webhook)."
+    ]
+  },
+
+  "decision_frontend_canonique": {
+    "principe": "UN seul design system, UN seul jeu de tokens, UN seul shell, UNE seule config de navigation, UN composant par rôle UI (button, card, input, dialog, toast, table, chart, form).",
+    "design_system_retenu": "eduflow (edu) — tokens src/styles/edupilot-tokens.css",
+    "justification_factuelle": [
+      "C'est le système de marque (tokens --eduflow-*/--brand-*, page vitrine /dashboard/design-system).",
+      "Le SHELL réel du dashboard l'utilise déjà (edu-shell: EduSidebar/EduTopBar/EduMobileNav).",
+      "Les dashboards de rôle réels l'utilisent (edu-homes).",
+      "Il a déjà l'accessibilité (focus-visible global, reduced-motion global), un scale de rayons/ombres, des tokens motion."
+    ],
+    "alternative_acceptable": "Garder les primitives shadcn (ui/) comme socle technique MAIS re-skinnées intégralement avec les tokens eduflow, de sorte qu'il n'existe qu'UNE langue visuelle. Interdit: deux esthétiques visibles.",
+    "a_supprimer": [
+      "src/components/ui/swiss-*.tsx (8 fichiers, 0 import)",
+      "import de src/styles/swiss-enterprise.css dans src/app/globals.css + le fichier si plus référencé",
+      "docs/SWISS_ENTERPRISE_DESIGN_SYSTEM.md, docs/SWISS_COMPONENTS_GUIDE.md (obsolètes)",
+      "Variante morte parmi toast-v2/form-v2 (après vérif des imports)",
+      "La 2e config de navigation (garder une seule source dérivée du RBAC)",
+      "Les alias de routes redondants OU les convertir en redirections explicites"
+    ],
+    "a_conserver_et_unifier": [
+      "Tokens eduflow + globals (nettoyés)",
+      "edu-shell (sidebar/topbar/mobile-nav/command-palette) comme chrome unique",
+      "Guards (PageGuard) + RBAC + isolation tenant",
+      "Les utils transverses: formatage FCFA unique (tabular-nums), getErrorMessage, date-range, sanitize, export CSV (escapeCsvCell)"
+    ]
+  },
+
+  "frontend_par_role": {
+    "regle": "La navigation et les écrans sont dérivés du RBAC (nav-config.ts). Pour CHAQUE rôle, ne montrer que les modules/actions autorisés. Ci-dessous l'intention métier (À VÉRIFIER ligne par ligne dans nav-config.ts / rolePermissions).",
+    "SUPER_ADMIN": "root-control, schools, organization, system, audit-logs, plans, users globaux, accès lecture système global.",
+    "SCHOOL_ADMIN": "Administration établissement: users, teachers, students, classes, settings, academic-year, finance, analytics, compliance.",
+    "DIRECTOR": "Pilotage pédagogique: analytics, classes, teachers, grades/conseils, attendance, incidents, orientation, exports.",
+    "ACCOUNTANT": "finance (frais/paiements/plans/réconciliation), accounting (SYSCOHADA/DGI), wallet/cagnotte, exports.",
+    "STAFF": "Vie scolaire: attendance, incidents, calendar, documents, health/medical selon droits.",
+    "TEACHER": "Ses classes: attendance (appel), grades/entry, homework, evaluations, messages de classe, cahier.",
+    "PARENT": "Suivi enfant(s): dashboard enfant, grades (children), finance/paiements (own), messages, cagnotte, attendance enfant.",
+    "STUDENT": "Soi: courses, homework, exams, grades (own), schedule, bibliothèque."
+  },
+
+  "design_system_spec": {
+    "tokens": "Utiliser EXCLUSIVEMENT les tokens eduflow (couleurs --brand-*/--eduflow-*, rayons --eduflow-radius-*, ombres, motion --eduflow-motion-*/--eduflow-ease-*). Aucun hex en dur dans les composants.",
+    "primitives_obligatoires": ["Button", "Card", "Input/Textarea (champ unifié .edu-field)", "Select", "Badge", "Avatar", "Dialog/Sheet", "Toast", "Table (triable, paginée)", "Tabs", "Chart (wrapper unique)", "EmptyState", "Skeleton", "FormField"],
+    "etats_obligatoires_par_ecran": ["loading (skeleton)", "empty (illustration + CTA réel)", "error (message API réel + action)", "success", "partial/dégradé", "offline"],
+    "accessibilite": "WCAG 2.1 AA: contraste 4.5:1, focus-visible (déjà global), labels ARIA, nav clavier, prefers-reduced-motion (déjà global), heading hierarchy, color-not-only.",
+    "animation": "UNE stratégie: CSS (tailwindcss-animate + tokens) pour entrées/hover/press/stagger ; réserver une lib JS UNIQUEMENT pour les vraies animations de sortie (AnimatePresence) si conservées. Durées 150–300ms, ease-out, reduced-motion respecté.",
+    "data_viz": "Wrapper chart unique ; légendes + tooltips + axes labellisés + état vide + état d'erreur ; couleurs accessibles (pas rouge/vert seul) ; formatage locale-aware.",
+    "formatage": "Nombres/montants via util unique fr-FR + ' FCFA', tabular-nums, gardes anti-division-par-zéro + plafonds sur tout pourcentage dérivé."
+  },
+
+  "plan_de_reconstruction": [
+    "Phase 0 — Audit & gel: lire schema.prisma, permissions.ts, nav-config.ts, matrix.ts, et inventorier chaque route API. Dresser la table module→rôles→permissions→routes→modèles (à partir du code, pas d'invention).",
+    "Phase 1 — Nettoyage des versions: supprimer swiss-* + import CSS swiss + docs swiss ; choisir 1 variante toast/form ; fusionner les 2 configs nav ; trancher les alias de routes. tsc/eslint/build verts après chaque suppression.",
+    "Phase 2 — Design system unique: figer les tokens eduflow ; finaliser les primitives (liste ci-dessus) avec tous les états ; re-skinner ou migrer les primitives shadcn pour qu'il n'existe qu'UNE langue visuelle.",
+    "Phase 3 — Shell unique: edu-shell (sidebar/topbar/mobile-nav/command-palette) dérivé d'UNE config de navigation RBAC.",
+    "Phase 4 — Écrans par rôle: reconstruire chaque module en consommant les routes API réelles, filtré par RBAC + ownership, avec tous les états UX. Aucun fake.",
+    "Phase 5 — Combler les manques: pour chaque écran nécessitant une donnée non exposée, créer/étendre la route serveur AVANT l'affichage. Documenter ce qui dépend de credentials externes (FedaPay, WhatsApp, DGI) en config-gated.",
+    "Phase 6 — Qualité: tests composants + intégration ; vérif visuelle réelle (login seedé: admin@edupilot.bj / Password123!, + 1 compte par rôle) ; CWV ; a11y axe ; 0 'any' nouveau."
+  ],
+
+  "criteres_acceptation": [
+    "UN SEUL design system visible (aucune page en 'shadcn brut' à côté d'une page 'edu').",
+    "0 composant swiss-* et 0 CSS swiss chargé ; 1 seule variante par primitive ; 1 seule config de navigation.",
+    "Chaque rôle (8) a une navigation et des écrans cohérents, strictement filtrés par RBAC + ownership.",
+    "Chaque écran consomme une route API réelle existante ; 0 fake data ; tous les états UX présents.",
+    "Tous les montants/nombres formatés (tabular-nums) ; 0 delta aberrant (gardes + plafonds).",
+    "tsc 0, eslint 0, build prod 0, tests verts, CSP nonce OK (hydratation), WCAG AA.",
+    "Validation visuelle par capture pour au moins: dashboard de chaque rôle + finance + grades + 1 formulaire."
+  ],
+
+  "interdictions": [
+    "Ne pas inventer de route/champ/rôle/permission.",
+    "Ne pas mélanger deux design systems.",
+    "Ne pas afficher de donnée non confirmée par une route réelle (états vides à la place).",
+    "Ne pas réintroduire swiss-*, ni une CSP statique sans nonce, ni 'unsafe-inline' scripts.",
+    "Ne pas casser les guards RBAC ni l'isolation multi-tenant.",
+    "Ne pas livrer sans vérification visuelle réelle sur données seedées."
+  ],
+
+  "mapping_module_role_route": {
+    "source_de_verite": "src/components/edu-shell/role-nav.ts — navGroupsForRole(role) = source de vérité GROUPÉE (NavGroup[]) ; visibleNavGroups(role, offeredLevels) = ce que la sidebar rend réellement (masque les sections de cycle non offert) ; navForRole(role) = aplatissement (command palette). Les permissions fines sont appliquées au niveau PAGE (<PageGuard permission/roles>) et API (createApiHandler({requiredPermissions})) ; voir rolePermissions dans permissions.ts.",
+    "modele_d_application": "Visibilité menu = par RÔLE (switch) PUIS par CYCLE offert (group.requiresCycle / NavLink.requiresCycle filtrés par School.offeredLevels). Autorisation d'accès = par PERMISSION (PageGuard + createApiHandler). Portée des données = ownership (PARENT→enfants, STUDENT→soi, TEACHER→ses classes) + isolation tenant (schoolId).",
+    "ordre_de_lecture": "Chaque rôle = un tableau de GROUPES, du global au spécifique au niveau. Un groupe sans `section` est le bloc d'en-tête (sans titre). Les groupes avec `requiresCycle` ne s'affichent que si l'école offre ce cycle. NE PAS mélanger : les features d'un cycle ne vivent QUE dans leur groupe de cycle.",
+    "nav_groupee_par_role": {
+      "SUPER_ADMIN": [
+        { "section": null, "items": [
+          { "label": "Vue réseau", "href": "/dashboard" },
+          { "label": "Établissements", "href": "/dashboard/root-control/schools", "count": "networkSchools" },
+          { "label": "Utilisateurs", "href": "/dashboard/users", "count": "networkUsers" }
+        ]},
+        { "section": "Pilotage réseau", "items": [
+          { "label": "Finance consolidée", "href": "/dashboard/finance" },
+          { "label": "Analytics BI", "href": "/dashboard/analytics" },
+          { "label": "Benchmark MEMP", "href": "/dashboard/benchmark" },
+          { "label": "Alertes", "href": "/dashboard/alerts", "count": "networkAlerts" },
+          { "label": "Configuration", "href": "/dashboard/settings" }
+        ]}
+      ],
+      "SCHOOL_ADMIN_ET_DIRECTOR": [
+        { "section": null, "items": [
+          { "label": "Vue d'ensemble", "href": "/dashboard" },
+          { "label": "Établissement", "href": "/dashboard/schools" }
+        ]},
+        { "section": "Scolarité", "items": [
+          { "label": "Élèves", "href": "/dashboard/students", "count": "students" },
+          { "label": "Inscriptions", "href": "/dashboard/students/inscription" },
+          { "label": "Pédagogie", "href": "/dashboard/courses" },
+          { "label": "Conseil de classe", "href": "/dashboard/grades/councils" },
+          { "label": "Compétences MEMP", "href": "/dashboard/competences" }
+        ]},
+        { "section": "Finance", "items": [
+          { "label": "Finance", "href": "/dashboard/finance", "count": "finance" },
+          { "label": "Wallet & banques", "href": "/dashboard/wallet" },
+          { "label": "Comptabilité OHADA", "href": "/dashboard/accounting" }
+        ]},
+        { "section": "Vie scolaire", "items": [
+          { "label": "Vie scolaire", "href": "/dashboard/calendar" },
+          { "label": "Bien-être & écoute", "href": "/dashboard/wellbeing" },
+          { "label": "Transport scolaire", "href": "/dashboard/transport" }
+        ]},
+        { "section": "Pilotage & communication", "items": [
+          { "label": "Analytics", "href": "/dashboard/analytics" },
+          { "label": "Benchmark MEMP", "href": "/dashboard/benchmark" },
+          { "label": "Communication", "href": "/dashboard/announcements", "count": "notifications" },
+          { "label": "Vocal multilingue", "href": "/dashboard/voice-notifs" },
+          { "label": "Paramètres", "href": "/dashboard/settings" }
+        ]},
+        { "section": "Cycle Primaire", "requiresCycle": "PRIMARY", "items": [
+          { "label": "Passage CEP (CM2)", "href": "/dashboard/orientation/cep" }
+        ]},
+        { "section": "Cycle Collège", "requiresCycle": "SECONDARY_COLLEGE", "items": [
+          { "label": "Préparation BEPC", "href": "/dashboard/bepc-prep" },
+          { "label": "Orientation post-BEPC", "href": "/dashboard/orientation/post-bepc" }
+        ]}
+      ],
+      "TEACHER": [
+        { "section": null, "items": [
+          { "label": "Mes classes", "href": "/dashboard" },
+          { "label": "Mes élèves", "href": "/dashboard/students", "count": "teacherStudents" }
+        ]},
+        { "section": "Pédagogie", "items": [
+          { "label": "Cahier de textes", "href": "/dashboard/grades/cahier" },
+          { "label": "Saisie de notes", "href": "/dashboard/grades/entry", "count": "teacherGradeEntry" },
+          { "label": "Conseil de classe", "href": "/dashboard/grades/councils" },
+          { "label": "Compétences MEMP", "href": "/dashboard/competences" },
+          { "label": "Appel d'aujourd'hui", "href": "/dashboard/attendance" },
+          { "label": "Emploi du temps", "href": "/dashboard/schedule" }
+        ]},
+        { "section": "Communication", "items": [
+          { "label": "Messages", "href": "/dashboard/messages", "count": "teacherMessages" },
+          { "label": "Assistant IA", "href": "/dashboard/ai-assistant" }
+        ]}
+      ],
+      "PARENT": [
+        { "section": null, "items": [
+          { "label": "Accueil", "href": "/dashboard" },
+          { "label": "Mes enfants", "href": "/dashboard/students", "count": "children" },
+          { "label": "Cahier de liaison", "href": "/dashboard/liaison" },
+          { "label": "Emploi du temps", "href": "/dashboard/schedule" }
+        ]},
+        { "section": "Finance", "items": [
+          { "label": "Paiements", "href": "/dashboard/finance", "count": "pendingPayments" },
+          { "label": "Cagnottes & pots communs", "href": "/dashboard/cagnotte" }
+        ]},
+        { "section": "Communication", "items": [
+          { "label": "Notifications", "href": "/dashboard/notifications", "count": "notifications" },
+          { "label": "Messagerie école", "href": "/dashboard/messages" },
+          { "label": "Mon compte", "href": "/dashboard/settings" }
+        ]}
+      ],
+      "STUDENT": [
+        { "section": null, "items": [
+          { "label": "Mon tableau", "href": "/dashboard" },
+          { "label": "Emploi du temps", "href": "/dashboard/schedule" },
+          { "label": "Ma classe", "href": "/dashboard/classes" }
+        ]},
+        { "section": "Scolarité", "items": [
+          { "label": "Mes notes", "href": "/dashboard/grades" },
+          { "label": "Devoirs", "href": "/dashboard/homework", "count": "homework" },
+          { "label": "Mon orientation", "href": "/dashboard/orientation/me" },
+          { "label": "Mes badges", "href": "/dashboard/gamification", "count": "badges" }
+        ]},
+        { "section": "Communication", "items": [
+          { "label": "Messagerie", "href": "/dashboard/messages" }
+        ]}
+      ],
+      "ACCOUNTANT": [
+        { "section": null, "items": [
+          { "label": "Vue d'ensemble", "href": "/dashboard" },
+          { "label": "Élèves", "href": "/dashboard/students" }
+        ]},
+        { "section": "Finance", "items": [
+          { "label": "Finance", "href": "/dashboard/finance" },
+          { "label": "Wallet & banques", "href": "/dashboard/wallet" },
+          { "label": "Comptabilité OHADA", "href": "/dashboard/accounting" },
+          { "label": "Reporting", "href": "/dashboard/analytics" }
+        ]},
+        { "section": "Paramètres", "items": [
+          { "label": "Paramètres", "href": "/dashboard/settings" }
+        ]}
+      ],
+      "STAFF": [
+        { "section": null, "items": [
+          { "label": "Accueil", "href": "/dashboard" },
+          { "label": "Élèves", "href": "/dashboard/students" },
+          { "label": "Vie scolaire", "href": "/dashboard/calendar" },
+          { "label": "Communication", "href": "/dashboard/announcements" },
+          { "label": "Paramètres", "href": "/dashboard/settings" }
+        ]}
+      ]
+    }
+  },
+
+  "blueprint_dashboards_par_role": {
+    "but": "Dire EXACTEMENT quoi afficher sur l'écran d'accueil (/dashboard) de chaque rôle. Contenu EXTRAIT des composants réels src/components/edu-homes/** et de leurs services src/lib/services/analytics-dashboard/**. Ne RIEN ajouter qui n'a pas de source de données ; tout bloc sans donnée confirmée = EmptyState honnête.",
+    "dispatch_reel": "src/app/(dashboard)/dashboard/page.tsx : SUPER_ADMIN sans école active → SuperAdminHome (getGlobalDashboardData) ; SUPER_ADMIN/SCHOOL_ADMIN/DIRECTOR avec école → DirectorHome (getAdminDashboardData) ; TEACHER → TeacherHome ; STUDENT → StudentHome ; PARENT → ParentHome ; ACCOUNTANT & STAFF → DirectorHome (fallback, KPIs établissement). Fallbacks: NoSchool / NoYear / DashboardError.",
+    "SUPER_ADMIN_global": {
+      "composant": "SuperAdminHome", "donnees": "getGlobalDashboardData()",
+      "kpis": ["Établissements actifs", "Élèves réseau", "Sites en alerte", "Activité 24h"],
+      "sections": ["Liste des établissements (empty: « Aucun établissement enregistré »)", "Croissance du réseau (graphe)", "Activité du jour (empty: « Aucune activité signalée »)"],
+      "cta_primaire": "Nouveau site"
+    },
+    "DIRECTION_etablissement": {
+      "composant": "DirectorHome", "donnees": "getAdminDashboardData(schoolId, yearId)", "roles_servis": ["SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN(avec école)", "ACCOUNTANT(fallback)", "STAFF(fallback)"],
+      "kpis": ["Élèves actifs", "Recouvrement", "Présence", "À risque"],
+      "sections": ["Tendance périodique (BarChart) + badge Comparaison", "Finance (Encaissé / En attente / Collecté, en FCFA)", "Élèves à risque (empty: « Aucun élève à risque cette semaine »)", "Top classes · période", "Équipe pédagogique", "Cantine · semaine"],
+      "cta_primaire": "Nouvelle annonce"
+    },
+    "TEACHER": {
+      "composant": "TeacherHome", "donnees": "getTeacherDashboardData(userId, schoolId, yearId)",
+      "sections": ["Mes classes (badge période ; empty: « Aucune classe pour cette période »)", "Élèves en difficulté (badge warning ; empty: « Aucun élève en difficulté détecté »)", "Évolution périodique (graphe ; empty: « Pas encore de période »)", "Programme du jour (emploi du temps du jour)"],
+      "cta_primaire": "Nouvelle note"
+    },
+    "STUDENT": {
+      "composant": "StudentHome", "donnees": "getStudentDashboardData(userId, yearId)",
+      "hero": ["Moyenne /20 (avec tendance ↑/↓)", "Classement", "Présence (%)"],
+      "sections": ["Mes notes (empty: « Pas encore de notes »)", "Mes badges récents", "Objectifs (Top rang, % présence, moyenne, matières fortes ≥14)"]
+    },
+    "PARENT": {
+      "composant": "ParentHome", "donnees": "getParentDashboardData(userId, yearId)",
+      "par_enfant": ["Moyenne /20", "Présence", "Classement"],
+      "sections": ["Paiements & échéances (PaymentsSection)", "Événements (ex. « Réunion parents »)"],
+      "empty_global": "Aucun enfant"
+    },
+    "regle": "Si un rôle gagne une nouvelle donnée de dashboard, l'ajouter d'ABORD au service analytics-dashboard correspondant, PUIS au Home. Jamais de widget sans source."
+  },
+
+  "parcours_simplifie_cible": {
+    "principe": "Réduire la charge cognitive : navigation par rôle, regroupée du global au spécifique, libellés courts, 1 CTA primaire par écran, ownership implicite.",
+    "statut_regroupement": "FAIT (2026-06-15). Le menu n'est plus une liste plate : role-nav.ts expose des NavGroup[] (sections à en-tête) rendus par EduSidebar ; les sections de cycle (« Cycle Primaire »/« Cycle Collège ») n'apparaissent que si l'école offre le cycle (visibleNavGroups). Voir mapping_module_role_route.nav_groupee_par_role pour la structure exacte.",
+    "regle_simplicite": "Grouper en sections thématiques d'abord, sections de cycle ensuite. Conserver les libellés et hrefs réels, seule l'ORGANISATION (groupes) structure la liste.",
+    "regroupement_reel_admin_director": {
+      "(en-tête, sans titre)": ["Vue d'ensemble", "Établissement"],
+      "Scolarité": ["Élèves", "Inscriptions", "Pédagogie", "Conseil de classe", "Compétences MEMP"],
+      "Finance": ["Finance", "Wallet & banques", "Comptabilité OHADA"],
+      "Vie scolaire": ["Vie scolaire", "Bien-être & écoute", "Transport scolaire"],
+      "Pilotage & communication": ["Analytics", "Benchmark MEMP", "Communication", "Vocal multilingue", "Paramètres"],
+      "Cycle Primaire (si offert)": ["Passage CEP (CM2)"],
+      "Cycle Collège (si offert)": ["Préparation BEPC", "Orientation post-BEPC"]
+    },
+    "exigences_parcours": [
+      "Le rôle détermine le menu (déjà le cas) — ne montrer AUCUN item non autorisé.",
+      "Chaque écran indique clairement où l'on est (état actif du menu) + un fil d'Ariane si profondeur ≥3.",
+      "Retour/état préservés (scroll, filtres).",
+      "Un seul CTA primaire visible par page ; actions secondaires subordonnées.",
+      "Recherche globale (command palette edu-shell déjà présente) accessible partout."
+    ]
+  },
+
+  "nettoyage_effectue_2026_06_14": {
+    "statut": "FAIT et vérifié (tsc 0, eslint 0, 950 tests, build prod 0).",
+    "fichiers_supprimes": [
+      "src/lib/rbac/nav-config.ts (config nav morte, 0 import)",
+      "src/lib/config/navigation.ts (config nav morte)",
+      "src/components/dashboard/sidebar/SidebarNavGroup.tsx + SidebarNavItem.tsx (sidebar non rendue)",
+      "src/components/ui/swiss-bento-card.tsx, swiss-chart.tsx, swiss-command-palette.tsx, swiss-data-table.tsx, swiss-dialog.tsx, swiss-dropdown.tsx, swiss-sidebar.tsx, swiss-toast.tsx (8 composants, 0 import)",
+      "src/components/ui/toast-v2.tsx, form-v2.tsx (variantes mortes)",
+      "src/styles/swiss-enterprise.css (+ retrait de son @import dans globals.css ; 0 classe/var utilisée)",
+      "docs/SWISS_ENTERPRISE_DESIGN_SYSTEM.md, docs/SWISS_COMPONENTS_GUIDE.md (docs obsolètes)"
+    ],
+    "resultat": "Source de navigation unique (role-nav.ts). Plus aucun résidu 'swiss'.",
+    "reconciliation_ui_vers_edu": {
+      "statut": "FAIT (cœur) le 2026-06-14 — vérifié tsc 0, eslint 0, build 0, 950 tests + capture.",
+      "methode": "Re-skin des primitives shadcn via les tokens eduflow déjà exposés dans tailwind.config (pas de réécriture des 154 consommateurs). Couleurs déjà alignées (shadcn --primary = brand).",
+      "fait": [
+        "ui/card.tsx (105 consommateurs) : rounded-xl→rounded-card (22px) + shadow→shadow-eduflow-sm, elevated→shadow-eduflow-card",
+        "ui/button.tsx : rounded-md→rounded-[10px] (= edu md)",
+        "ui/input.tsx : rounded-lg→rounded-input (12px) + shadow-eduflow-sm"
+      ],
+      "reste_optionnel": ["Aligner select/dialog/table/tabs/badge si écarts visibles", "Trancher les dialogs/toasts en double", "Aligner la command palette sur le filtrage par cycle (la sidebar le fait déjà ; la palette liste encore les entrées de cycle sans filtrage offeredLevels)"]
+    }
+  },
+
+  "repartition_par_niveau": {
+    "source_de_verite": "src/lib/benin/levels.ts (LEVEL_CYCLES, typé par l'enum SchoolLevel) + School.offeredLevels (cycles réellement offerts par école).",
+    "cycles": {
+      "PRIMARY": { "label": "Primaire", "classes": ["CI", "CP", "CE1", "CE2", "CM1", "CM2"], "examen": "CEP" },
+      "SECONDARY_COLLEGE": { "label": "Collège (premier cycle)", "classes": ["6EME", "5EME", "4EME", "3EME"], "examen": "BEPC" },
+      "SECONDARY_LYCEE": { "label": "Lycée (second cycle)", "classes": ["2NDE", "1ERE", "TLE"], "examen": "BAC", "series": ["SERIE_A1", "SERIE_A2", "SERIE_B", "SERIE_C", "SERIE_D", "SERIE_E", "SERIE_F1", "SERIE_F2", "SERIE_F3", "SERIE_F4", "SERIE_G1", "SERIE_G2", "SERIE_G3"] }
+    },
+    "configuration_par_ecole": {
+      "champ": "School.offeredLevels: SchoolLevel[] (chaque école choisit ses cycles ; School.level conservé en legacy = cycle principal, MIXED si multi).",
+      "ui": "/dashboard/settings/cycles (DS edu, SCHOOL_ADMIN/SUPER_ADMIN).",
+      "api": "GET/PATCH /api/schools/[id]/levels (Permission SCHOOL_UPDATE, isolation tenant, Zod ≥1 cycle, garde-fou 409 si retrait d'un cycle ayant des classes).",
+      "backfill": "prisma/backfill-offered-levels.ts (déduit depuis level + ClassLevels)."
+    },
+    "groupement_features": "La navigation est GROUPÉE du global au spécifique au niveau (role-nav.ts → NavGroup[]). En tête : groupes thématiques communs à tous les cycles (Scolarité, Finance, Vie scolaire, Pilotage & communication…) ; en fin : groupes propres à un cycle (« Cycle Primaire », « Cycle Collège »…) tagués group.requiresCycle. `visibleNavGroups(role, offeredLevels)` masque un groupe de cycle non offert ET les liens cycle-tagués, et retire les groupes devenus vides ; EduSidebar rend chaque groupe avec son en-tête. `navForRole` = aplatissement (compat command palette). But : zéro mélange de features et aucune entrée inutile selon le niveau de l'école.",
+    "regle_enforcement": "Filtrer PARTOUT par offeredLevels. Trois mécanismes : (1) NAV — navigation groupée global→cycle ; les groupes/liens de cycle (group.requiresCycle / NavLink.requiresCycle) sont masqués par visibleNavGroups via school-provider.offeredLevels ; (2) PAGE — <CycleGuard requires=...> (src/components/guard/cycle-guard.tsx) affiche un état honnête « cycle non offert » + lien vers /settings/cycles (défense en profondeur si URL directe) ; (3) CRÉATION — la liste des niveaux à la création de classe (classes/new) est filtrée par offeredLevels côté client, ET le POST /api/classes refuse (403) un niveau hors cycle offert (garde-fou serveur autoritaire). Défaut SÛR : tant que offeredLevels est vide (chargement / non configuré) → tout afficher / ne rien imposer.",
+    "statut": "FAIT (2026-06-15) : référentiel levels.ts + School.offeredLevels + migration/backfill + API + page de config + NAV GROUPÉE global→cycle (NavGroup[] + visibleNavGroups, sections de cycle masquées) + CycleGuard (cep PRIMARY, post-bepc & bepc-prep SECONDARY_COLLEGE) + création de classe filtrée client + garde-fou serveur POST /api/classes (403 cycle_not_offered). bepc-prep (page existante) désormais atteignable via le groupe Collège. NB : la création d'élève sélectionne une classe existante (déjà contrainte en amont). Les jeux de matières (primary/college/bac, src/lib/benin/config.ts via /api/config/benin) n'ont AUCUN consommateur UI actif → pas de surface à filtrer aujourd'hui. Vérifié : tsc 0, eslint 0, 969 tests, build prod 0."
+  },
+
+  "verification": {
+    "commandes": ["npx tsc --noEmit", "npx eslint src", "npx vitest run", "npm run build", "npm run dev (port 3000)"],
+    "comptes_seed": {
+      "mot_de_passe": "Password123!",
+      "SUPER_ADMIN": "admin@edupilot.bj",
+      "SCHOOL_ADMIN": "admin@saintmichel.bj",
+      "DIRECTOR": "directeur@saintmichel.bj",
+      "TEACHER": "m.agbossou@saintmichel.bj",
+      "PARENT": "fabrice.agbossou0@gmail.com"
+    },
+    "note_demarrage_local": "En build prod local: AUTH_TRUST_HOST=true npx next start. La CSP à nonce exige le rendu dynamique (déjà configuré)."
+  }
+}

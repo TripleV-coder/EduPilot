@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Folder, UploadCloud, FileText, Video, Link as LinkIcon, Download, MoreVertical, Search, Plus, Loader2, Music } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { PageCallout } from "@/components/layout/page-callout";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { Badge, Button, Card, Icon, Input, type IconName } from "@/components/edu";
+import { fetcher } from "@/lib/fetcher";
 import { formatDateShort, formatFileSize } from "@/lib/utils/formatters";
 
 const RESOURCE_TYPES = [
@@ -25,23 +22,14 @@ const RESOURCE_TYPES = [
     { value: "OTHER", label: "Autre" },
 ] as const;
 
-function getIcon(type: string) {
+function resourceIcon(type: string): IconName {
     switch (type) {
-        case "LESSON":
-        case "DOCUMENT":
-            return <FileText className="w-8 h-8 text-primary" />;
-        case "VIDEO":
-            return <Video className="w-8 h-8 text-primary" />;
         case "EXAM":
-            return <FileText className="w-8 h-8 text-destructive" />;
+            return "warning";
         case "EXERCISE":
-            return <FileText className="w-8 h-8 text-warning" />;
-        case "CORRECTION":
-            return <FileText className="w-8 h-8 text-success" />;
-        case "AUDIO":
-            return <Music className="w-8 h-8 text-primary" />;
+            return "pencil";
         default:
-            return <FileText className="w-8 h-8 text-muted-foreground" />;
+            return "cards";
     }
 }
 
@@ -62,9 +50,8 @@ export default function ResourcesPage() {
 
     const debouncedSearch = useDebounce(search, 400);
 
-    // Reset page when filters change
     useEffect(() => {
-        queueMicrotask(() => setPage(1));
+        setPage(1);
     }, [debouncedSearch, typeFilter]);
 
     const params = new URLSearchParams();
@@ -73,143 +60,164 @@ export default function ResourcesPage() {
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (typeFilter) params.set("type", typeFilter);
 
-    const { data, isLoading } = useSWR(`/api/resources?${params.toString()}`, fetcher);
+    const { data, error, isLoading, mutate } = useSWR(
+        `/api/resources?${params.toString()}`,
+        fetcher
+    );
 
     const resources = data?.resources ?? [];
     const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}>
-            <div className="space-y-6 max-w-6xl mx-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <PageHeader
-                        title="Ressources Pédagogiques"
-                        description="Banque de documents, vidéos et supports de cours"
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Ressources numériques" },
-                        ]}
-                    />
-                    <div className="flex gap-3">
-                        <Button className="gap-2 shadow-sm">
-                            <UploadCloud className="w-4 h-4" />
+            <PageShell className="max-w-6xl">
+                <PageHeader
+                    title="Ressources pédagogiques"
+                    description="Banque de documents, vidéos et supports de cours"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Ressources numériques" },
+                    ]}
+                    actions={
+                        <Button variant="primary" size="sm" icon="plus">
                             Ajouter une ressource
                         </Button>
-                    </div>
-                </div>
+                    }
+                />
 
-                <div className="flex flex-col sm:flex-row gap-4 mb-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="flex-1">
                         <Input
                             aria-label="Rechercher une ressource"
-                            placeholder="Rechercher un titre, une matière ou un niveau..."
-                            className="pl-9 bg-muted/50 border-border"
+                            icon="search"
+                            placeholder="Rechercher un titre, une matière ou un niveau…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
                     <select
                         aria-label="Filtrer les ressources par type"
-                        className="h-10 rounded-md border border-border bg-muted/50 px-3 text-sm"
+                        className="edu-field h-10 w-full sm:w-48"
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
                     >
-                        {RESOURCE_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
+                        {RESOURCE_TYPES.map((type) => (
+                            <option key={type.value} value={type.value}>
+                                {type.label}
+                            </option>
                         ))}
                     </select>
-                    <Button variant="outline" className="gap-2">
-                        <Folder className="w-4 h-4" />
-                        Gérer les dossiers
-                    </Button>
                 </div>
 
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                    </div>
-                ) : resources.length === 0 ? (
-                    <PageCallout
-                        icon={FileText}
-                        title="Aucune ressource disponible"
-                        description="Ajoutez des cours, exercices, corrigés, documents ou médias pour alimenter la bibliothèque pédagogique."
-                        actions={[{ label: "Ajouter une ressource", href: "/dashboard/resources", variant: "outline" }]}
+                {isLoading ? <PageLoading label="Chargement des ressources…" /> : null}
+                {error ? (
+                    <PageError
+                        message={error.message || "Impossible de charger les ressources"}
+                        onRetry={() => void mutate()}
                     />
-                ) : (
+                ) : null}
+
+                {!isLoading && !error && resources.length === 0 ? (
+                    <PageEmpty
+                        icon="cards"
+                        title="Aucune ressource disponible"
+                        description="Ajoutez des cours, exercices, corrigés ou médias pour alimenter la bibliothèque."
+                        actions={[{ label: "Ajouter une ressource", href: "/dashboard/resources" }]}
+                    />
+                ) : null}
+
+                {!isLoading && !error && resources.length > 0 ? (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {resources.map((res: any) => (
-                                <Card key={res.id} className="border-border shadow-sm hover:shadow-md transition-shadow group">
-                                    <CardContent className="p-4 relative">
-                                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Plus d'options">
-                                            <MoreVertical className="w-4 h-4" />
-                                        </Button>
-
-                                        <div className="flex flex-col items-center text-center mt-2 mb-4">
-                                            <div className="p-3 bg-muted/30 rounded-full mb-3">
-                                                {getIcon(res.type)}
-                                            </div>
-                                            <h3 className="font-semibold text-foreground line-clamp-2" title={res.title}>{res.title}</h3>
-                                            <div className="mt-2 flex flex-wrap justify-center gap-1">
-                                                {res.subject?.name && (
-                                                    <Badge variant="secondary" className="text-[10px] font-normal">{res.subject.name}</Badge>
-                                                )}
-                                                {res.classLevel?.name && (
-                                                    <Badge variant="outline" className="text-[10px] font-normal">{res.classLevel.name}</Badge>
-                                                )}
-                                            </div>
+                        <div className="edu-stagger grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {resources.map((resource: {
+                                id: string;
+                                title: string;
+                                type: string;
+                                createdAt: string;
+                                fileSize?: number;
+                                fileUrl: string;
+                                subject?: { name: string };
+                                classLevel?: { name: string };
+                            }) => (
+                                <Card key={resource.id} padding={16} interactive>
+                                    <div className="flex flex-col items-center text-center">
+                                        <div
+                                            className="mb-3 grid h-14 w-14 place-items-center rounded-full"
+                                            style={{ background: "var(--eduflow-surface-sunken)" }}
+                                        >
+                                            <Icon name={resourceIcon(resource.type)} size={24} color="var(--brand-600)" />
                                         </div>
-
-                                        <div className="pt-3 border-t border-border flex justify-between items-center text-xs text-muted-foreground">
-                                            <span>{formatDateShort(res.createdAt)} • {formatFileSize(res.fileSize)}</span>
-                                            <a href={res.fileUrl} target="_blank" rel="noopener noreferrer" download>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Télécharger">
-                                                    <Download className="w-4 h-4" />
-                                                </Button>
-                                            </a>
+                                        <h3
+                                            className="line-clamp-2 text-sm font-semibold"
+                                            title={resource.title}
+                                            style={{ color: "var(--eduflow-text-primary)" }}
+                                        >
+                                            {resource.title}
+                                        </h3>
+                                        <div className="mt-2 flex flex-wrap justify-center gap-1">
+                                            {resource.subject?.name ? (
+                                                <Badge variant="brand" size="sm">
+                                                    {resource.subject.name}
+                                                </Badge>
+                                            ) : null}
+                                            {resource.classLevel?.name ? (
+                                                <Badge variant="neutral" size="sm">
+                                                    {resource.classLevel.name}
+                                                </Badge>
+                                            ) : null}
                                         </div>
-                                    </CardContent>
+                                    </div>
+                                    <div
+                                        className="mt-4 flex items-center justify-between border-t pt-3 text-xs"
+                                        style={{
+                                            borderColor: "var(--eduflow-border-subtle)",
+                                            color: "var(--eduflow-text-tertiary)",
+                                        }}
+                                    >
+                                        <span>
+                                            {formatDateShort(resource.createdAt)}
+                                            {resource.fileSize ? ` · ${formatFileSize(resource.fileSize)}` : ""}
+                                        </span>
+                                        <a
+                                            href={resource.fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            download
+                                            aria-label={`Télécharger ${resource.title}`}
+                                        >
+                                            <Button variant="ghost" size="sm" icon="download" aria-label="Télécharger" />
+                                        </a>
+                                    </div>
                                 </Card>
                             ))}
-
-                            <Card className="border-border border-dashed shadow-none hover:bg-muted/5 transition-colors cursor-pointer bg-muted/10">
-                                <CardContent className="p-4 flex flex-col items-center justify-center h-full min-h-[220px] text-center">
-                                    <div className="p-3 bg-background rounded-full mb-3 shadow-sm border border-border">
-                                        <Plus className="w-6 h-6 text-muted-foreground" />
-                                    </div>
-                                    <h3 className="font-medium text-foreground">Nouvelle ressource</h3>
-                                    <p className="text-xs text-muted-foreground mt-1 px-4">Glissez-déposez un fichier ici ou cliquez pour parcourir.</p>
-                                </CardContent>
-                            </Card>
                         </div>
 
-                        {pagination.totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-4 pt-4">
+                        {pagination.totalPages > 1 ? (
+                            <div className="flex items-center justify-center gap-3">
                                 <Button
-                                    variant="outline"
+                                    variant="secondary"
                                     size="sm"
                                     disabled={page <= 1}
-                                    onClick={() => setPage((p) => p - 1)}
+                                    onClick={() => setPage((current) => current - 1)}
                                 >
                                     Précédent
                                 </Button>
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-sm" style={{ color: "var(--eduflow-text-secondary)" }}>
                                     Page {pagination.page} / {pagination.totalPages}
                                 </span>
                                 <Button
-                                    variant="outline"
+                                    variant="secondary"
                                     size="sm"
                                     disabled={page >= pagination.totalPages}
-                                    onClick={() => setPage((p) => p + 1)}
+                                    onClick={() => setPage((current) => current + 1)}
                                 >
                                     Suivant
                                 </Button>
                             </div>
-                        )}
+                        ) : null}
                     </>
-                )}
-            </div>
+                ) : null}
+            </PageShell>
         </PageGuard>
     );
 }

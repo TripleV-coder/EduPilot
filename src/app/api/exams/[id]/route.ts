@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/exams/[id]
@@ -81,7 +82,7 @@ export async function DELETE(
     }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
@@ -101,7 +102,7 @@ export async function DELETE(
     }
 
     // Only creator or admin can delete
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session.user.role);
+    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     if (exam.createdById !== session.user.id && !isAdmin) {
       return NextResponse.json(
         { error: "Vous ne pouvez supprimer que vos propres examens" },

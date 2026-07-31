@@ -32,7 +32,7 @@ export interface StudentWhereFilter {
     some: {
       classId?: string;
       academicYearId?: string;
-      status?: "ACTIVE" | "TRANSFERRED" | "GRADUATED" | "DROPPED" | "SUSPENDED";
+      status?: "ACTIVE" | "TRANSFERRED" | "GRADUATED" | "DROPPED" | "SUSPENDED" | "COMPLETED";
     };
   };
   OR?: Array<{

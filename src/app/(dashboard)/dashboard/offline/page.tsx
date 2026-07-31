@@ -12,7 +12,7 @@ import {
     Card,
     Icon,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type StorageInfo = {
     used: number | null;
@@ -122,7 +122,7 @@ export default function OfflinePage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 {!online ? (
                     <div
                         style={{
@@ -176,13 +176,16 @@ export default function OfflinePage() {
                 ) : null}
 
                 <PageHeader
-                    greeting="Mode hors-ligne & PWA"
-                    sub={
+                    title="Mode hors-ligne & PWA"
+                    description={
                         online
                             ? `Connecté · dernière sync il y a ${minutesSinceSync} min`
                             : "Hors-ligne · données déjà chargées disponibles"
                     }
-                    breadcrumb={["Système", "Hors-ligne · PWA"]}
+                    breadcrumbs={[
+                        { label: "Système" },
+                        { label: "Hors-ligne · PWA" },
+                    ]}
                     actions={
                         installed ? (
                             <Badge variant="success" icon="check">
@@ -246,7 +249,7 @@ export default function OfflinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <SubLabel>État de la synchronisation</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
                             <div
                                 style={{
                                     marginTop: 10,
@@ -422,7 +425,7 @@ export default function OfflinePage() {
                         </Card>
 
                         <Card>
-                            <SubLabel>Fonctionnalités offline-first</SubLabel>
+                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
                             <div
                                 style={{
                                     marginTop: 8,
@@ -478,7 +481,7 @@ export default function OfflinePage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {

@@ -6,6 +6,7 @@ import { Prisma, NotificationType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateAppointmentSchema = z.object({
   status: z.enum(["CONFIRMED", "CANCELED", "COMPLETED", "NO_SHOW"]).optional(),
@@ -82,7 +83,7 @@ export async function GET(
 
     // Check access
     const userRole = session.user.role;
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(userRole);
+    const isAdmin = roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
 
     if (!isAdmin) {
       const hasAccess =
@@ -173,7 +174,7 @@ export async function PATCH(
 
     // Check authorization
     const userRole = session.user.role;
-    const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(userRole);
+    const isAdmin = roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
     const isTeacher = userRole === "TEACHER" && existingAppointment.teacher.userId === session.user.id;
     const isParent = userRole === "PARENT" && existingAppointment.parent.userId === session.user.id;
 
@@ -324,7 +325,7 @@ export async function DELETE(
     const session = await auth();
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
     const guard = await assertModelAccess(session, "appointment", id, "Rendez-vous non trouvé");

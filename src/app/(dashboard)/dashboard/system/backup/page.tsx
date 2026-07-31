@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { HardDriveDownload, DatabaseBackup, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -15,6 +15,7 @@ import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimeShort } from "@/lib/utils/formatters";
+import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Backup = {
     filename: string;
@@ -50,8 +51,8 @@ export default function SystemBackupPage() {
             if (!res.ok) throw new Error(result.error || "Erreur lors de la sauvegarde");
             toast({ title: "Succès", description: result.message || "Sauvegarde créée avec succès." });
             mutate("/api/system/backup");
-        } catch (err: any) {
-            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        } catch (err) {
+            toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
         } finally {
             setIsGenerating(false);
         }
@@ -64,7 +65,7 @@ export default function SystemBackupPage() {
 
     return (
         <PageGuard permission={[Permission.SYSTEM_BACKUP_CREATE, Permission.SYSTEM_BACKUP_VIEW]} roles={["SUPER_ADMIN"]}>
-            <div className="space-y-6">
+            <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
                         title="Sauvegardes Système"
@@ -195,7 +196,7 @@ export default function SystemBackupPage() {
                         </Card>
                     </>
                 )}
-            </div>
+            </PageShell>
         </PageGuard>
     );
 }

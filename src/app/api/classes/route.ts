@@ -160,7 +160,7 @@ export const POST = createApiHandler(
     // Récupérer le classLevel une seule fois (évite la double requête)
     const classLevel = await prisma.classLevel.findUnique({
       where: { id: validatedData.classLevelId },
-      select: { schoolId: true },
+      select: { schoolId: true, level: true },
     });
 
     if (session.user.role === "SUPER_ADMIN" && !schoolId) {
@@ -177,6 +177,22 @@ export const POST = createApiHandler(
     if (!classLevel || classLevel.schoolId !== schoolId) {
       return NextResponse.json(
         { ...translateError(API_ERRORS.INVALID_DATA, t), error: t("api.issues.invalid_class_level_ownership") || "Ce niveau n'appartient pas à votre établissement" },
+        { status: 403 }
+      );
+    }
+
+    // Le niveau doit appartenir à un cycle offert par l'établissement.
+    // Défaut sûr : si offeredLevels est vide (non configuré), on n'impose rien.
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { offeredLevels: true },
+    });
+    if (
+      school?.offeredLevels?.length &&
+      !school.offeredLevels.includes(classLevel.level)
+    ) {
+      return NextResponse.json(
+        { ...translateError(API_ERRORS.INVALID_DATA, t), error: t("api.issues.cycle_not_offered") || "Ce cycle n'est pas offert par votre établissement" },
         { status: 403 }
       );
     }

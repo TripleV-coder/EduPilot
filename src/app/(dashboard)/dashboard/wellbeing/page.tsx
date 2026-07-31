@@ -7,8 +7,14 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
+import Link from "next/link";
+
 import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { downloadClimateReport } from "@/lib/wellbeing/climate-report";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type ReportTag = "ANONYME" | "PARENT" | "ENSEIGNANT" | "AUTO_IA" | "NOMINATIF";
 type ReportSeverity = "P0" | "P1" | "P2";
@@ -127,65 +133,59 @@ export default function WellbeingPage() {
     );
 }
 
+const WELLBEING_BREADCRUMBS = [
+    { label: "Vie scolaire" },
+    { label: "Bien-être & cellule d'écoute" },
+] as const;
+
 function WellbeingPageContent() {
     const { data, error, isLoading } = useSWR<WellbeingOverview>(
         "/api/wellbeing/overview",
         fetcher,
         { revalidateOnFocus: false },
     );
+    const { toast } = useToast();
+    const [generatingPdf, setGeneratingPdf] = useState(false);
+
+    const handleClimateReport = async () => {
+        if (!data) return;
+        setGeneratingPdf(true);
+        try {
+            await downloadClimateReport(data);
+        } catch {
+            toast({
+                title: "Erreur",
+                description: "La génération du rapport PDF a échoué.",
+                variant: "destructive",
+            });
+        } finally {
+            setGeneratingPdf(false);
+        }
+    };
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cellule d'écoute & bien-être"
-                    sub="Chargement…"
-                    breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                    title="Cellule d'écoute & bien-être"
+                    description="Chargement…"
+                    breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 />
-                <div
-                    style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}
-                    className="kpi-grid"
-                >
-                    {[0, 1, 2, 3].map((i) => (
-                        <Card key={i} padding={16} style={{ minHeight: 96 }}>
-                            <div
-                                className="animate-pulse"
-                                style={{
-                                    height: 32,
-                                    width: 60,
-                                    background: "var(--eduflow-neutral-200)",
-                                    borderRadius: 4,
-                                }}
-                            />
-                        </Card>
-                    ))}
-                </div>
-            </div>
+                <PageLoading label="Chargement des données bien-être…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Cellule d'écoute & bien-être"
-                    sub="Impossible de charger les données"
-                    breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                    title="Cellule d'écoute & bien-être"
+                    description="Impossible de charger les données"
+                    breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--eduflow-danger-50)",
-                        border: "1px solid var(--eduflow-danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--eduflow-danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--eduflow-danger-800)", marginTop: 12 }}>
-                        Le service bien-être est momentanément indisponible.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service bien-être est momentanément indisponible." />
+            </PageShell>
         );
     }
 
@@ -196,22 +196,28 @@ function WellbeingPageContent() {
         data.kpis.activeReports > 0;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <>
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Cellule d'écoute & bien-être"
-                sub="Climat scolaire · signalements anonymes · suivi psychologique · prévention harcèlement"
-                breadcrumb={["Vie scolaire", "Bien-être & cellule d'écoute"]}
+                title="Cellule d'écoute & bien-être"
+                description="Climat scolaire · signalements anonymes · suivi psychologique · prévention harcèlement"
+                breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 actions={
                     <>
                         <Badge variant="success" icon="check">
                             Conforme protocole MEMP 2024
                         </Badge>
-                        <Button variant="secondary" icon="download" disabled title="Génération PDF à venir">
-                            Rapport climat
+                        <Button
+                            variant="secondary"
+                            icon="download"
+                            disabled={generatingPdf}
+                            onClick={handleClimateReport}
+                        >
+                            {generatingPdf ? "Génération…" : "Rapport climat"}
                         </Button>
-                        <Button icon="plus" disabled title="Création dossier à venir">
-                            Nouveau dossier
-                        </Button>
+                        <Link href="/dashboard/wellbeing/new">
+                            <Button icon="plus">Nouveau dossier</Button>
+                        </Link>
                     </>
                 }
             />
@@ -280,6 +286,8 @@ function WellbeingPageContent() {
                 </>
             )}
 
+            </PageShell>
+
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .kpi-grid {
@@ -290,7 +298,7 @@ function WellbeingPageContent() {
                     }
                 }
             `}</style>
-        </div>
+        </>
     );
 }
 
@@ -514,15 +522,11 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                                 <Badge variant={tone} size="sm" dot={r.severity === "P0"}>
                                     {r.severityLabel ?? r.severity}
                                 </Badge>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    iconRight="arrowRight"
-                                    disabled
-                                    title="Page dossier à venir"
-                                >
-                                    Dossier
-                                </Button>
+                                <Link href={`/dashboard/wellbeing/${r.id}`}>
+                                    <Button variant="ghost" size="sm" iconRight="arrowRight">
+                                        Dossier
+                                    </Button>
+                                </Link>
                             </div>
                         </div>
                     );
@@ -541,7 +545,7 @@ function ClimatePulseCard({
 }) {
     return (
         <Card padding={20}>
-            <SubLabel>Climat scolaire · pulse anonyme hebdomadaire</SubLabel>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
             {weeks.length === 0 ? (
                 <p
                     style={{

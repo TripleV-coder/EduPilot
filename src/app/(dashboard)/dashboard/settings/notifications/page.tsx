@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Bell, CheckCircle, Mail, Save, Smartphone } from "lucide-react";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { Button } from "@/components/ui/button";

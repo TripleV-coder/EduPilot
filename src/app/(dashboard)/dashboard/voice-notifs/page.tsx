@@ -8,7 +8,8 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Card, Icon } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 
 type LangKey = "fr" | "fon" | "yor" | "bar" | "din";
 
@@ -177,6 +178,12 @@ export default function VoiceNotifsPage() {
     );
 }
 
+const VOICE_BREADCRUMBS = [
+    { label: "Communication" },
+    { label: "Canaux" },
+    { label: "Vocal multilingue" },
+] as const;
+
 function VoiceNotifsContent() {
     const [lang, setLang] = useState<LangKey>("fon");
     const active = LANGS.find((l) => l.key === lang) ?? LANGS[0];
@@ -189,80 +196,39 @@ function VoiceNotifsContent() {
 
     if (isLoading) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Notifications vocales multilingues"
-                    sub="Chargement des campagnes…"
-                    breadcrumb={["Communication", "Canaux", "Vocal multilingue"]}
+                    title="Notifications vocales multilingues"
+                    description="Chargement des campagnes…"
+                    breadcrumbs={[...VOICE_BREADCRUMBS]}
                 />
-                <div
-                    style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}
-                    className="kpi-grid"
-                >
-                    {[0, 1, 2, 3].map((i) => (
-                        <div
-                            key={i}
-                            className="animate-pulse"
-                            style={{
-                                height: 96,
-                                borderRadius: 14,
-                                background: "var(--surface-sunken)",
-                            }}
-                        />
-                    ))}
-                </div>
-                <Card padding={24}>
-                    {[0, 1, 2].map((i) => (
-                        <div
-                            key={i}
-                            className="animate-pulse"
-                            style={{
-                                height: 48,
-                                borderRadius: 8,
-                                background: "var(--surface-sunken)",
-                                marginTop: i === 0 ? 0 : 12,
-                            }}
-                        />
-                    ))}
-                </Card>
-            </div>
+                <PageLoading label="Chargement des campagnes vocales…" />
+            </PageShell>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Notifications vocales multilingues"
-                    sub="Impossible de charger les campagnes"
-                    breadcrumb={["Communication", "Canaux", "Vocal multilingue"]}
+                    title="Notifications vocales multilingues"
+                    description="Impossible de charger les campagnes"
+                    breadcrumbs={[...VOICE_BREADCRUMBS]}
                 />
-                <Card
-                    padding={32}
-                    style={{
-                        background: "var(--danger-50)",
-                        border: "1px solid var(--danger-200)",
-                        textAlign: "center",
-                    }}
-                >
-                    <Icon name="warning" size={28} color="var(--danger-700)" />
-                    <p style={{ fontSize: 13, color: "var(--danger-800)", marginTop: 12 }}>
-                        Le service de notifications vocales est momentanément indisponible.
-                        Réessayez dans quelques instants ou contactez l&apos;administrateur.
-                    </p>
-                </Card>
-            </div>
+                <PageError message="Le service de notifications vocales est momentanément indisponible. Réessayez dans quelques instants ou contactez l'administrateur." />
+            </PageShell>
         );
     }
 
     const { kpis, campaigns } = data;
 
     return (
-        <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+        <>
+        <PageShell className="pb-12">
             <PageHeader
-                greeting="Notifications vocales multilingues"
-                sub="Atteindre les parents qui ne lisent pas couramment le français · Fɔn · Yorùbá · Bariba · Dendi"
-                breadcrumb={["Communication", "Canaux", "Vocal multilingue"]}
+                title="Notifications vocales multilingues"
+                description="Atteindre les parents qui ne lisent pas couramment le français · Fɔn · Yorùbá · Bariba · Dendi"
+                breadcrumbs={[...VOICE_BREADCRUMBS]}
                 actions={
                     <Badge variant="brand" icon="sparkle">
                         Différenciateur EduPilot
@@ -318,7 +284,7 @@ function VoiceNotifsContent() {
                 className="vn-grid"
             >
                 <Card padding={20}>
-                    <SubLabel>Langues & modèle de message</SubLabel>
+                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Langues & modèle de message</p>
                     <div
                         style={{
                             marginTop: 4,
@@ -409,7 +375,7 @@ function VoiceNotifsContent() {
                             border: "1px solid var(--border-subtle)",
                         }}
                     >
-                        <SubLabel>Aperçu · {active.label}</SubLabel>
+                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu · {active.label}</p>
                         <p
                             style={{
                                 fontSize: 13,
@@ -594,6 +560,7 @@ function VoiceNotifsContent() {
                     )}
                 </Card>
             </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {
@@ -605,6 +572,6 @@ function VoiceNotifsContent() {
                     }
                 }
             `}</style>
-        </div>
+        </>
     );
 }

@@ -7,7 +7,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@/components/layout/page-shell";
 import { fetcher } from "@/lib/fetcher";
 
 type InstallmentPayment = {
@@ -136,7 +136,7 @@ export function DebtRiskBoard() {
     );
 
     return (
-        <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
+        <div className="space-y-6">
             <PageHeader
                 title="Dettes & Impayés"
                 description="Consolidez les plans de paiement en retard critique et priorisez les dossiers à traiter."

@@ -12,6 +12,7 @@
             "db_error": "Une base de données a empêché l'opération. Veuillez réessayer.",
             "unexpected": "Une erreur inattendue est survenue.",
             "invalid_class_ownership": "Accès refusé : cette classe n'appartient pas à votre établissement.",
+            "cycle_not_offered": "Ce cycle n'est pas offert par votre établissement.",
             "quota_exceeded": "Quota de {resource} atteint ({limit}). Veuillez passer à un plan supérieur."
         },
         "errors": {
@@ -42,7 +43,7 @@
             "title": "L'excellence éducative simplifiée",
             "description": "Plateforme complète de gestion scolaire au Bénin propulsée par l'Intelligence Artificielle. Notes, présences, finances et orientation dans une interface sophistiquée.",
             "trainedStudents": "{count} élèves déjà formés",
-            "dashboardCta": "Accéder au dashboard"
+            "dashboardCta": "Accéder au tableau de bord"
         },
         "cta": {
             "access": "Accéder à l'espace",
@@ -55,6 +56,8 @@
             "subtitle": "Des résultats concrets dans les établissements du Bénin",
             "students": "Élèves suivis",
             "schools": "Établissements",
+            "classes": "Classes actives",
+            "teachers": "Enseignants",
             "grades": "Notes traitées",
             "uptime": "Disponibilité"
         },
@@ -83,7 +86,7 @@
                 "description": "Messages, annonces, rendez-vous parents-enseignants et notifications en temps réel."
             },
             "analytics": {
-                "title": "Analytics & IA",
+                "title": "Statistiques & IA",
                 "description": "Tableaux de bord prédictifs, détection du décrochage et aide à la décision basée sur les données."
             }
         },
@@ -109,13 +112,13 @@
                 "name": "Professionnel",
                 "price": "25 000",
                 "description": "Pour les établissements en croissance",
-                "features": ["Élèves illimités", "Toutes les fonctionnalités", "Finance & comptabilité", "Analytics avancés", "5 utilisateurs admin", "Support prioritaire"]
+                "features": ["Élèves illimités", "Toutes les fonctionnalités", "Finance & comptabilité", "Statistiques avancées", "5 utilisateurs administrateurs", "Assistance prioritaire"]
             },
             "enterprise": {
                 "name": "Entreprise",
                 "price": "Sur mesure",
                 "description": "Pour les réseaux d'établissements",
-                "features": ["Multi-établissements", "API personnalisée", "Prédictions IA", "Formation dédiée", "Utilisateurs illimités", "Support 24/7"]
+                "features": ["Multi-établissements", "API personnalisée", "Prédictions IA", "Formation dédiée", "Utilisateurs illimités", "Assistance 24h/24"]
             }
         },
         "faq": {
@@ -234,7 +237,7 @@
     },
     "analytics": {
         "actions": {
-            "syncing": "Sync...",
+            "syncing": "Synchronisation…",
             "syncAll": "Synchroniser tout"
         }
     },
@@ -242,7 +245,7 @@
         "toasts": {
             "savedTitle": "Appel enregistré",
             "savedDescription": "Les présences ont été sauvegardées avec succès.",
-            "viewAnalytics": "Voir analytics"
+            "viewAnalytics": "Voir les statistiques"
         }
     },
     "gradesEntry": {

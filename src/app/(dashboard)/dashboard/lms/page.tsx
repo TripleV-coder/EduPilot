@@ -17,7 +17,8 @@ import {
     Sparkline,
     Spinner,
 } from "@/components/edu";
-import { PageHeader, SubLabel } from "@/components/edu-homes/_shared";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 
 type Homework = {
     id: string;
@@ -159,11 +160,14 @@ export default function LMSPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <div className="eduflow-scope mx-auto flex max-w-6xl flex-col gap-4 pb-12">
+            <PageShell className="pb-12">
                 <PageHeader
-                    greeting="Devoirs & ressources"
-                    sub={`${homework.length} devoir${homework.length > 1 ? "s" : ""} publié${homework.length > 1 ? "s" : ""} ce trimestre`}
-                    breadcrumb={["Pédagogie", "LMS"]}
+                    title="Devoirs & ressources"
+                    description={`${homework.length} devoir${homework.length > 1 ? "s" : ""} publié${homework.length > 1 ? "s" : ""} ce trimestre`}
+                    breadcrumbs={[
+                        { label: "Pédagogie" },
+                        { label: "LMS" },
+                    ]}
                     actions={
                         <>
                             <Link href="/dashboard/resources" style={{ textDecoration: "none" }}>
@@ -178,14 +182,7 @@ export default function LMSPage() {
                     }
                 />
 
-                {isLoading ? (
-                    <div className="flex flex-col items-center gap-3 py-12">
-                        <Spinner size={28} color="var(--brand-600)" />
-                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                            Chargement des devoirs…
-                        </span>
-                    </div>
-                ) : null}
+                {isLoading ? <PageLoading label="Chargement des devoirs…" /> : null}
 
                 {!isLoading ? (
                     <div
@@ -384,7 +381,7 @@ export default function LMSPage() {
                             }}
                         >
                             <Card>
-                                <SubLabel>Activité élèves · 7 jours</SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Activité élèves · 7 jours</p>
                                 <div
                                     style={{
                                         display: "flex",
@@ -425,7 +422,7 @@ export default function LMSPage() {
                             </Card>
 
                             <Card>
-                                <SubLabel>Devoirs les plus rendus</SubLabel>
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Devoirs les plus rendus</p>
                                 {topResources.length === 0 ? (
                                     <div
                                         style={{
@@ -512,7 +509,7 @@ export default function LMSPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </PageShell>
 
             <style jsx global>{`
                 @media (max-width: 960px) {
