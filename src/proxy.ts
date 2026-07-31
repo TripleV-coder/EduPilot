@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { checkRateLimit, authLimiter, apiLimiter, strictLimiter } from "@/lib/rate-limit";
+import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
