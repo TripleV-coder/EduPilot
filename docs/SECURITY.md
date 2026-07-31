@@ -39,7 +39,41 @@ Document de référence pour l'équipe de sécurité, les auditeurs externes et 
 - **Secret chiffré** : AES-256-GCM en base via `TOTP_ENCRYPTION_KEY` (64 chars hex). Format DB : `iv:authTag:ciphertext`
 - **QR code** : généré à la volée via `qrcode`, jamais persisté
 - **Activation** : optionnelle pour STUDENT/PARENT, recommandée pour TEACHER, à imposer pour DIRECTOR+ en V2
-- **Récupération** : pas de codes de secours en V1 (admin doit désactiver MFA via `/dashboard/admin/users` après vérification d'identité)
+- **Récupération** : 10 codes de secours générés à l'activation, hachés en base
+  (`twoFactorBackupCodes`), affichés **une seule fois**, consommés à l'usage.
+  En dernier recours, un admin peut désactiver le MFA après vérification d'identité.
+
+#### Flux de connexion en deux temps
+
+`authorize()` délivre volontairement une session **pré-2FA** quand un compte
+protégé se connecte sans code : mot de passe vérifié,
+`isTwoFactorAuthenticated: false`. L'étape 2 passe par
+`update({ twoFactorCode })`, vérifiée dans le callback JWT.
+
+**L'enforcement est au middleware** (`src/proxy.ts`) et nulle part ailleurs :
+c'est le seul point d'étranglement couvrant à la fois les 283 routes d'API et
+les 174 pages, y compris les routes qui n'utilisent pas `createApiHandler`.
+
+| État | API | Page |
+|---|---|---|
+| 2FA activé, non validé | `403 { code: "MFA_REQUIRED" }` | redirection `/mfa-verify?callbackUrl=…` |
+| 2FA validé, ou désactivé | passe | passe |
+
+> ⚠️ Toute route ajoutée hérite automatiquement de ce garde. Ne jamais
+> reproduire la vérification route par route — un oubli y serait invisible.
+> Régression couverte par `tests/lib/auth/mfa-gate.test.ts`.
+
+#### Protection contre la force brute
+
+Un TOTP vaut 6 chiffres (10⁶ combinaisons) pour ~30 s de validité :
+
+- **Vérification (étape 2)** : `MFA_VERIFY_RATE_LIMIT` — 5 tentatives / 10 min
+  par utilisateur, remis à zéro au succès. Dépassement audité en
+  `MFA_VERIFY_RATE_LIMITED`.
+- **Code erroné dans `authorize()`** : incrémente le verrouillage de compte
+  (`recordFailedLoginAttempt`) au même titre qu'un mot de passe erroné, audité
+  en `LOGIN_FAILED_2FA`.
+- **Succès** : audité en `MFA_VERIFIED` / `MFA_VERIFIED_BACKUP_CODE`.
 
 ### 2.4 Verrouillage de compte
 - **Seuil** : 5 tentatives échouées

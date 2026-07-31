@@ -68,6 +68,13 @@ const PUBLIC_ROUTES = new Set([
   "/disabled",
 ]);
 
+/**
+ * Page de saisie du second facteur. Elle doit rester accessible à une session
+ * authentifiée par mot de passe mais dont le 2FA n'est pas encore validé —
+ * c'est le seul endroit où l'utilisateur peut sortir de cet état.
+ */
+const MFA_VERIFY_ROUTE = "/mfa-verify";
+
 const GUEST_ONLY_ROUTES = new Set([
   "/login",
   "/register",
@@ -202,6 +209,49 @@ export default async function proxy(request: NextRequest) {
       );
     }
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // ── SECOND FACTEUR NON VALIDÉ ──
+  // `authorize()` délivre volontairement une session « pré-2FA » (mot de passe
+  // vérifié, code TOTP pas encore fourni) : c'est l'étape 1 du flux en deux
+  // temps, l'étape 2 passant par `update({ twoFactorCode })` côté JWT.
+  // Sans ce garde, cette session intermédiaire est pleinement privilégiée.
+  // Le middleware est le seul point d'étranglement qui couvre à la fois les
+  // pages et les 283 routes d'API, y compris celles qui n'utilisent pas
+  // `createApiHandler`.
+  const isMfaPending =
+    session.user.isTwoFactorEnabled === true &&
+    session.user.isTwoFactorAuthenticated !== true;
+
+  if (isMfaPending && pathname !== MFA_VERIFY_ROUTE) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Vérification à deux facteurs requise", code: "MFA_REQUIRED" },
+        { status: 403 }
+      );
+    }
+    const mfaUrl = new URL(MFA_VERIFY_ROUTE, request.url);
+    mfaUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(mfaUrl);
+  }
+
+  // ── MODE MAINTENANCE ──
+  // `createApiHandler` impose déjà la maintenance, mais 208 des 283 routes ne
+  // l'utilisent pas et lui échappaient donc. Le middleware lit le miroir Redis
+  // (Edge-safe) plutôt que la base, qui est hors de portée de ce runtime.
+  // État inconnu (Redis absent ou en erreur) ⇒ on laisse passer : la
+  // maintenance est une mesure d'exploitation, pas de sécurité.
+  if (edgeMaintenanceBlocksRole(session.user.role)) {
+    const maintenance = await readEdgeMaintenanceState();
+    if (maintenance?.enabled) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: maintenance.message, code: "MAINTENANCE" },
+          { status: 503, headers: { "Retry-After": "120" } }
+        );
+      }
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
   }
 
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";

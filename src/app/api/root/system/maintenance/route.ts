@@ -9,6 +9,7 @@ import {
   getMaintenanceState,
   invalidateMaintenanceCache,
 } from "@/lib/system/maintenance";
+import { publishMaintenanceState } from "@/lib/system/maintenance-edge";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,11 @@ export async function POST(request: NextRequest) {
   invalidateMaintenanceCache();
 
   const state = await getMaintenanceState();
+
+  // Publier dans le miroir Edge : c'est ce qui permet au middleware d'imposer
+  // la maintenance aux routes qui n'utilisent pas `createApiHandler`.
+  await publishMaintenanceState(state);
+
   return NextResponse.json({
     enabled: state.enabled,
     message: state.message,
