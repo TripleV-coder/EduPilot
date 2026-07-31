@@ -187,18 +187,51 @@ fichiers, +8) · `next build` OK.
 
 ## [Unreleased]
 
-### Prévu pour v1.1.0
+### 🚀 Nouveautés majeures
 
-- 🤖 Integration IA pour l'assistant d'étude
-- 📱 Application mobile React Native
-- 🌍 Internationalisation (i18n) multi-langues
-- 📊 Tableaux de bord personnalisables
-- 🔗 API publique avec webhooks
-- 📧 Templates d'emails personnalisables
-- 📱 Notifications push
-- 💳 Intégration paiements Stripe/Paystack
-- 📄 Génération de bulletins PDF améliorée
-- 🎨 Thèmes personnalisables
+#### ✨ Ajouté
+
+- **Integration IA pour l'assistant d'étude** : l'assistant pourra répondre aux questions des étudiants, proposer des résumés de cours et aider à la préparation des examens.
+   - Génération d'explications adaptées au niveau de chaque utilisateur
+   - Citations et références vers les sources utilisées
+
+- **Application mobile React Native** : une application mobile iOS et Android pour accéder aux fonctionnalités de l'assistant depuis un téléphone ou une tablette.
+   - Consultation des cours et des ressources hors ligne
+   - Synchronisation automatique entre les appareils
+
+- **Internationalisation (i18n) multi-langues** : support de multiples langues pour l'interface utilisateur afin d'atteindre un public international.
+   - Français, anglais et espagnol disponibles au lancement
+   - Détection automatique de la langue du navigateur
+
+- **Tableaux de bord personnalisables** : chaque utilisateur pourra configurer ses tableaux de bord pour afficher les statistiques et les informations qui lui importent le plus.
+   - Choix des widgets et de leur disposition
+   - Export des données au format CSV
+
+- **API publique avec webhooks** : une API publique permettra aux développeurs d'intégrer l'assistant dans leurs propres applications.
+   - Documentation complète avec exemples de code
+   - Webhooks pour recevoir les événements en temps réel
+
+- **Templates d'emails personnalisables** : personnalisation des templates d'emails pour les notifications, les rappels et les communications aux utilisateurs.
+   - Éditeur visuel avec aperçu en direct
+   - Variables dynamiques intégrées
+
+- **Notifications push** : alertes en temps réel pour informer les utilisateurs des événements importants.
+   - Notifications de rappel de devoirs et d'examens
+   - Paramètres de notification par canal et par type
+
+- **Intégration paiements Stripe/Paystack** : intégration des paiements en ligne pour les abonnements et les achats intégrés.
+   - Abonnements mensuels et annuels
+   - Gestion des factures et reçus
+
+- **Génération de bulletins PDF améliorée** : génération de bulletins PDF avec des options de personnalisation supplémentaires.
+   - Choix des modèles et du format
+   - Ajout du logo de l'établissement
+
+- **Thèmes personnalisables** : choix de thèmes pour modifier l'apparence de l'application.
+   - Mode sombre et mode clair
+   - Thèmes de couleurs personnalisés
+
+À completer à la sortie de la version.
 
 ---
 
