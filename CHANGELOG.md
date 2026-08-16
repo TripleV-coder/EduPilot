@@ -5,7 +5,30 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [Non publié] - 2026-08-03
+## [1.2.0] - 2026-08-16
+
+### 🚀 Nouveautés majeures (juin–juillet 2026)
+
+- **RBAC réseau** : nouveau rôle `NETWORK_ADMIN` (héritage de `SCHOOL_ADMIN`,
+  périmètre multi-sites MAIN + annexes, matrice de permissions, gardes de
+  routes et de pages).
+- **Signatures électroniques** : bulletins et autorisations signés.
+- **RH** : gestion du personnel (présences, congés, paie) + comptabilité OHADA
+  (journaux, écritures en partie double, pièces comptables).
+- **IA** : socle autonome avec cascade de providers (GROQ/OpenAI → n8n),
+  prédiction de décrochage, alerte précoce, analyse comportementale et
+  orientation BEPC.
+- **Paiements** : FedaPay et MoMo Collection branchés (initiation, webhooks,
+  rapprochement).
+- **Vitrine publique** : site de présentation + annuaire des établissements.
+- **Élèves** : carte scolaire imprimable avec QR badge.
+- **Alumni** : annuaire des anciens élèves.
+- **Contrôle d'accès** : badges QR, points de scan et journal d'accès.
+- **Parents** : vérification du lien parent-enfant par code de liaison.
+- **UX** : auto-save, mises à jour optimistes, rétention des analytics,
+  accessibilité.
+- **Refactoring** : découpe des fichiers > 1 200 lignes, chrome commun des
+  pages (PageShell/PageHeader/PageStates), resolvers Zod typés.
 
 ### 🔒 Production-ready — remédiation post-audit
 
@@ -26,8 +49,6 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### 📊 État de la CI
 `tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 141+ tests verts**.
-
-## [Non publié] - 2026-07-30
 
 ### 🔒 Sécurité — le second facteur devient effectif
 
@@ -64,9 +85,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   sans le correctif**.
 - `TECH_DEBT.md` : registre de dette technique chiffré sur le dépôt réel.
 
-### 📊 État de la CI
-`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 129 tests verts** (115
-fichiers, +8) · `next build` OK.
+### 📊 État de la CI (2026-08-16)
+`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 169 tests verts** (126
+fichiers) · `next build` OK.
 
 ## [1.1.0] - 2025-03-23
 
