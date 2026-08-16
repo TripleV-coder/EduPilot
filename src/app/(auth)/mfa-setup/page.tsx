@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import { AuthShell } from "@/components/auth/AuthShell";
+import { OtpInput, OTP_LENGTH } from "@/components/auth/OtpInput";
 import { Button, Icon } from "@/components/edu";
 
-const CODE_LENGTH = 6;
+const ERROR_ID = "mfa-setup-error";
 
 export default function MfaSetupPage() {
     const router = useRouter();
@@ -17,8 +18,7 @@ export default function MfaSetupPage() {
     const [secret, setSecret] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
-    const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
-    const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+    const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(""));
 
     useEffect(() => {
         const generateMfa = async () => {
@@ -48,55 +48,10 @@ export default function MfaSetupPage() {
         generateMfa();
     }, [router]);
 
-    const focusInput = (index: number) => {
-        if (index >= 0 && index < CODE_LENGTH) {
-            inputsRef.current[index]?.focus();
-        }
-    };
-
-    const handleDigitChange = (index: number, value: string) => {
-        const digit = value.replace(/\D/g, "").slice(-1);
-        setCode((prev) => {
-            const next = [...prev];
-            next[index] = digit;
-            return next;
-        });
-        if (digit && index < CODE_LENGTH - 1) {
-            focusInput(index + 1);
-        }
-    };
-
-    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Backspace") {
-            if (!code[index] && index > 0) {
-                e.preventDefault();
-                focusInput(index - 1);
-                setCode((prev) => {
-                    const next = [...prev];
-                    next[index - 1] = "";
-                    return next;
-                });
-            }
-        } else if (e.key === "ArrowLeft") {
-            focusInput(index - 1);
-        } else if (e.key === "ArrowRight") {
-            focusInput(index + 1);
-        }
-    };
-
-    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-        e.preventDefault();
-        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, CODE_LENGTH);
-        if (!pasted) return;
-        const next = Array(CODE_LENGTH).fill("");
-        for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-        setCode(next);
-        focusInput(Math.min(pasted.length, CODE_LENGTH - 1));
-    };
-
     const submitCode = useCallback(
         async (token: string) => {
-            if (token.length !== CODE_LENGTH) {
+            if (isLoading || backupCodes) return;
+            if (token.length !== OTP_LENGTH) {
                 setError("Le code doit contenir 6 chiffres.");
                 return;
             }
@@ -119,8 +74,7 @@ export default function MfaSetupPage() {
                             result.error ||
                             "Code incorrect. Réessayez avec un nouveau code de votre application."
                     );
-                    setCode(Array(CODE_LENGTH).fill(""));
-                    focusInput(0);
+                    setCode(Array(OTP_LENGTH).fill(""));
                 } else {
                     setBackupCodes(result.backupCodes);
                 }
@@ -130,15 +84,8 @@ export default function MfaSetupPage() {
                 setIsLoading(false);
             }
         },
-        [secret, router]
+        [secret, router, isLoading, backupCodes]
     );
-
-    useEffect(() => {
-        const joined = code.join("");
-        if (joined.length === CODE_LENGTH && !isLoading && !backupCodes) {
-            void submitCode(joined);
-        }
-    }, [code, isLoading, backupCodes, submitCode]);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -304,6 +251,7 @@ export default function MfaSetupPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 {error ? (
                     <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+                        id={ERROR_ID}
                         role="alert"
                         style={{
                             display: "flex",
@@ -439,57 +387,13 @@ export default function MfaSetupPage() {
                     </div>
                 </div>
 
-                <div
-                    style={{
-                        display: "flex",
-                        gap: 8,
-                        justifyContent: "center",
-                        marginTop: 4,
-                    }}
-                    role="group"
-                    aria-label="Code à 6 chiffres"
-                >
-                    {code.map((digit, i) => (
-                        <input
-                            key={i}
-                            ref={(el) => {
-                                inputsRef.current[i] = el;
-                            }}
-                            inputMode="numeric"
-                            autoComplete={i === 0 ? "one-time-code" : "off"}
-                            pattern="[0-9]*"
-                            maxLength={1}
-                            value={digit}
-                            disabled={isLoading}
-                            onChange={(e) => handleDigitChange(i, e.target.value)}
-                            onKeyDown={(e) => handleKeyDown(i, e)}
-                            onPaste={i === 0 ? handlePaste : undefined}
-                            aria-label={`Chiffre ${i + 1}`}
-                            style={{
-                                width: 48,
-                                height: 56,
-                                textAlign: "center",
-                                fontSize: 22,
-                                fontWeight: 700,
-                                fontFamily: "var(--eduflow-font-mono)",
-                                color: "var(--eduflow-text-primary)",
-                                background: "var(--eduflow-surface-card)",
-                                border: `2px solid ${
-                                    digit
-                                        ? "var(--brand-600)"
-                                        : "var(--eduflow-border-default)"
-                                }`,
-                                borderRadius: 12,
-                                outline: "none",
-                                transition:
-                                    "border-color var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                                boxShadow: digit
-                                    ? "0 0 0 3px var(--brand-100)"
-                                    : "none",
-                            }}
-                        />
-                    ))}
-                </div>
+                <OtpInput
+                    value={code}
+                    onChange={setCode}
+                    onComplete={(token) => void submitCode(token)}
+                    disabled={isLoading}
+                    errorId={error ? ERROR_ID : undefined}
+                />
 
                 {isLoading ? (
                     <div
