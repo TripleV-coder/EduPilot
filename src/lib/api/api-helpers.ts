@@ -276,9 +276,16 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
         const t = defaultT;
         try {
             // ── RATE LIMITING ──
-            if (options.rateLimit !== false) {
-                const ip = request.headers.get("x-forwarded-for") || "anonymous";
-                const rlKey = `rl:api:${ip}:${request.nextUrl.pathname}`;
+            // Le middleware (`proxy.ts`) applique déjà un rate-limit Edge sur `/api/*`
+            // et pose `x-edupilot-edge-rl=1`. On saute alors le second round-trip Redis
+            // (latence x2). Les tests unitaires (Request sans middleware) gardent le
+            // chemin local. Forcer via `rateLimit: true` + absence du header.
+            const edgeAlreadyLimited =
+                request.headers?.get?.("x-edupilot-edge-rl") === "1";
+            if (options.rateLimit !== false && !edgeAlreadyLimited) {
+                const ip = request.headers?.get?.("x-forwarded-for") || "anonymous";
+                const pathname = request.nextUrl?.pathname || (request.url ? new URL(request.url).pathname : "/api");
+                const rlKey = `rl:api:${ip}:${pathname}`;
                 const limitCount = options.rateLimitCount || API_RATE_LIMIT.maxAttempts;
                 
                 const rl = await checkUnifiedRateLimit(rlKey, {
@@ -309,7 +316,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                     const activeSchoolId = getActiveSchoolId(session);
 
                     if (!activeSchoolId) {
-                        return NextResponse.json({ error: "Compte orphelin : aucun établissement associé." }, { status: 403 });
+                        return NextResponse.json({ error: "Compte orphelin : aucun établissement associé.", code: "NO_SCHOOL" }, { status: 403 });
                     }
 
                     if (querySchoolId && !canAccessSchool(session, querySchoolId)) {

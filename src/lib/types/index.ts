@@ -135,8 +135,9 @@ export interface ClassWithDetails extends Class {
 }
 
 export interface ClassSubjectWithTeacher extends ClassSubject {
-  teacher: { user: User };
+  teacher?: TeacherProfile | null;
   subject: Subject;
+  class: Class;
 }
 
 export type { AcademicYear, Period };
@@ -315,9 +316,9 @@ export interface PaymentPlanWithDetails {
   updatedAt: Date;
   studentId: string;
   feeId: string;
-  totalAmount: any;
+  totalAmount: number;
   installmentsCount: number;
-  paidAmount: any;
+  paidAmount: number;
   student: { user: User };
   fee: Fee;
   installmentPayments: InstallmentPayment[];

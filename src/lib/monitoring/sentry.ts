@@ -52,7 +52,7 @@ export function initSentry() {
 /**
  * Capture exception
  */
-export function captureException(error: Error, context?: Record<string, any>) {
+export function captureException(error: Error, context?: Record<string, unknown>) {
   Sentry.captureException(error, {
     extra: context,
   });
@@ -61,7 +61,7 @@ export function captureException(error: Error, context?: Record<string, any>) {
 /**
  * Capture message
  */
-export function captureMessage(message: string, level: Sentry.SeverityLevel = "info", context?: Record<string, any>) {
+export function captureMessage(message: string, level: Sentry.SeverityLevel = "info", context?: Record<string, unknown>) {
   Sentry.captureMessage(message, {
     level,
     extra: context,
@@ -89,7 +89,7 @@ export function clearUserContext() {
 /**
  * Add breadcrumb
  */
-export function addBreadcrumb(message: string, category: string, level: Sentry.SeverityLevel = "info", data?: Record<string, any>) {
+export function addBreadcrumb(message: string, category: string, level: Sentry.SeverityLevel = "info", data?: Record<string, unknown>) {
   Sentry.addBreadcrumb({
     message,
     category,

@@ -23,6 +23,7 @@ export const appEnv = {
   isTest: (getEnv("NODE_ENV") ?? "development") === "test",
 
   allowBackupApi: getEnv("ALLOW_BACKUP_API") === "true",
+  allowBackupApiInProduction: getEnv("ALLOW_BACKUP_API_IN_PRODUCTION") === "true",
 
   ai: {
     enabled: getEnv("AI_ENABLED") !== "false",

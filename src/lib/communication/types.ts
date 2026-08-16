@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 export type CommunicationChannel = 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
 export type CommunicationType = 'TRANSACTIONAL' | 'MARKETING' | 'ALERT';
 
@@ -11,7 +13,7 @@ export interface SendMessageOptions {
     userId?: string;
     schoolId: string;
     type?: CommunicationType; // Default: TRANSACTIONAL
-    metadata?: any;
+    metadata?: Prisma.InputJsonValue;
 }
 
 export interface CommunicationResult {

@@ -1,14 +1,19 @@
-import { TOTP } from 'otplib';
+import { TOTP, type TOTPOptions } from 'otplib';
 import QRCode from 'qrcode';
 import { randomInt } from 'crypto';
 import { logger } from '@/lib/utils/logger';
 export { encryptSecret, decryptSecret, isEncrypted } from './crypto';
 
+interface TotpAuthenticator {
+    generateSecret(): string;
+    verify(options: { token: string; secret: string }): boolean;
+}
+
 // Configure authenticator
 const authenticator = new TOTP({
     step: 30,
     window: 1
-} as any);
+} as unknown as TOTPOptions) as unknown as TotpAuthenticator;
 
 /**
  * Generate a new TOTP secret
@@ -37,7 +42,7 @@ export async function verifyToken(token: string, storedSecret: string): Promise<
         const secret = isEncrypted(storedSecret)
             ? (decryptSecret(storedSecret) ?? storedSecret)
             : storedSecret;
-        return await (authenticator as any).verify({ token, secret });
+        return await authenticator.verify({ token, secret });
     } catch (err) {
         logger.error('Token verification error', err instanceof Error ? err : new Error(String(err)), { module: 'auth/two-factor' });
         return false;

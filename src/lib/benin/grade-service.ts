@@ -22,13 +22,21 @@ export interface StudentReportCard {
     totalStudents?: number;
 }
 
+interface GradeMention {
+    code: string;
+    label: string;
+    minScore: number;
+    maxScore: number;
+    color: string;
+}
+
 export class GradeService {
     /**
      * Obtenir la mention pour une moyenne donnée en utilisant les paramètres globaux
      */
     private async getMentionFromConfig(average: number) {
-        const mentions = await configService.getGradeMentions();
-        return mentions.find((m: any) => average >= m.minScore && average <= m.maxScore) || null;
+        const mentions: GradeMention[] = await configService.getGradeMentions();
+        return mentions.find((m) => average >= m.minScore && average <= m.maxScore) || null;
     }
 
     /**
@@ -108,8 +116,8 @@ export class GradeService {
      */
     async getClassRanking(classId: string, periodId: string): Promise<StudentReportCard[]> {
         // Obtenir les mentions une seule fois pour tout le traitement
-        const mentions = await configService.getGradeMentions();
-        const getMention = (avg: number) => mentions.find((m: any) => avg >= m.minScore && avg <= m.maxScore) || null;
+        const mentions: GradeMention[] = await configService.getGradeMentions();
+        const getMention = (avg: number) => mentions.find((m) => avg >= m.minScore && avg <= m.maxScore) || null;
 
         // Batch query: get all enrollments + student data in one query
         const enrollments = await prisma.enrollment.findMany({

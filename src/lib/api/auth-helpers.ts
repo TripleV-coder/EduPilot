@@ -2,7 +2,7 @@
  * Helpers d'authentification pour les routes API
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { UserRole } from '@prisma/client';
 import { unauthorized, forbidden } from './error-response';
@@ -33,7 +33,7 @@ export interface AuthOptions {
 export async function authenticateRequest(
   request: NextRequest,
   options: AuthOptions = {}
-): Promise<{ user: AuthenticatedUser } | { error: any }> {
+): Promise<{ user: AuthenticatedUser } | { error: NextResponse }> {
   const {
     requiredRoles = [],
     requireSchoolAccess = false,

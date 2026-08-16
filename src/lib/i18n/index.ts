@@ -2,30 +2,33 @@ import fr from "@/lib/i18n/locales/fr.json";
 
 export type TranslationFn = (key: string, data?: Record<string, unknown>) => string;
 
-const translations: Record<string, any> = { fr };
+type TranslationNode = string | string[] | { [key: string]: TranslationNode };
 
-export const t = (key: string, data?: Record<string, unknown>): any => {
-    // Traverse the JSON object (e.g., "api.issues.forbidden")
-    const keys = key.split(".");
-    let value: any = translations["fr"]; // Default to FR for now
+const translations = {
+  fr: fr as unknown as TranslationNode,
+};
 
-    for (const k of keys) {
-        if (value && value[k]) {
-            value = value[k];
-        } else {
-            return key; // Return key if not found
-        }
+export const t: TranslationFn = (key, data) => {
+  const keys = key.split(".");
+  let value: TranslationNode | undefined = translations.fr;
+
+  for (const k of keys) {
+    if (value && typeof value === "object" && !Array.isArray(value) && k in value) {
+      value = value[k];
+    } else {
+      return key;
     }
+  }
 
-    if (typeof value === "string") {
-        // Replace variables like {entity}
-        if (data) {
-            Object.entries(data).forEach(([k, v]) => {
-                value = value.replace(`{${k}}`, String(v));
-            });
-        }
-        return value;
+  if (typeof value === "string") {
+    if (data) {
+      return Object.entries(data).reduce(
+        (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+        value
+      );
     }
-
     return value;
+  }
+
+  return key;
 };

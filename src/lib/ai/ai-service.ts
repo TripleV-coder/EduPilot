@@ -51,13 +51,21 @@ export interface GovernanceRequest {
   schoolId?: string | null;
   studentId?: string | null;
   classId?: string | null;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
-export interface GovernanceResponse {
+export interface OrientationRecommendation {
+  series: string;
+  justification: string;
+  alternatives?: string[];
+  synthesis?: string;
+  engine?: "external" | "template";
+}
+
+export interface GovernanceResponse<T = unknown> {
   success: boolean;
   action: string;
-  data: any;
+  data: T;
   confidence: number;
   executionTime: number;
   recommendations?: string[];
@@ -248,9 +256,9 @@ class AIService {
     return typeof data.response === "string" ? data.response : null;
   }
 
-  async executeGovernance(request: GovernanceRequest): Promise<GovernanceResponse> {
+  async executeGovernance<T = unknown>(request: GovernanceRequest): Promise<GovernanceResponse<T>> {
     await this.initialize();
-    return governanceService.execute(request, Date.now());
+    return governanceService.execute(request, Date.now()) as unknown as Promise<GovernanceResponse<T>>;
   }
 
   getStatus(): AIServiceStatus {
