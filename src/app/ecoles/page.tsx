@@ -127,14 +127,22 @@ function DirectoryInner() {
                                 <div style={{ height: 96, background: "var(--brand-50)", position: "relative" }}>
                                     {s.coverImage ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={s.coverImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                        <img
+                                            src={s.coverImage}
+                                            alt={`Bannière de l'établissement ${s.name}`}
+                                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                        />
                                     ) : null}
                                 </div>
                                 <div style={{ padding: 16 }}>
                                     <div className="flex items-center gap-2">
                                         {s.logo ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={s.logo} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }} />
+                                            <img
+                                                src={s.logo}
+                                                alt={`Logo de ${s.name}`}
+                                                style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }}
+                                            />
                                         ) : null}
                                         <span style={{ fontWeight: 700, fontSize: 15 }}>{s.name}</span>
                                     </div>
