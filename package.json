@@ -62,7 +62,7 @@
     "nanoid": "^5.1.6",
     "next": "^16.1.6",
     "next-auth": "^5.0.0-beta.30",
-    "nodemailer": "^7.0.7",
+    "nodemailer": "^9.0.5",
     "otplib": "^13.3.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
