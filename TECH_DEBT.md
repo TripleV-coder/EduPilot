@@ -31,7 +31,7 @@
 | TD-002 | Vérification TOTP sans plafond de tentatives | 0,5j | 4 | 5 | 40,0 | ✅ **Corrigé 2026-07-30** |
 | TD-003 | Code 2FA erroné n'incrémente pas le verrouillage de compte | 0,5j | 4 | 4 | 32,0 | ✅ **Corrigé 2026-07-30** |
 | TD-004 | Routes hors `createApiHandler` | 8j | 4 | 3 | 1,5 | ✅ **Corrigé 2026-08-03** (279/283) |
-| TD-005 | Couverture tests des routes API encore faible | 10j | 4 | 3 | 1,2 | 🟡 Ouvert (seuils API 10/8/8) |
+| TD-005 | Couverture tests des routes API encore faible | 10j | 4 | 3 | 1,2 | 🟡 En cours (seuils API 16/12/16) |
 | TD-006 | Seuils de couverture sous les cibles long terme | 6j | 3 | 2 | 1,0 | 🟡 Ouvert |
 | TD-007 | Occurrences de `any` résiduelles | 3j | 2 | 2 | 1,3 | ✅ **Corrigé 2026-08-04** (0 explicite) |
 | TD-008 | Logique OTP dupliquée `/mfa-setup` | 0,5j | 2 | 1 | 4,0 | ✅ **Corrigé** (`OtpInput` partagé) |
@@ -51,10 +51,24 @@ Le mode maintenance est couvert par `createApiHandler` + filet Edge Redis
 
 ---
 
-## TD-005 / TD-006 — Couverture *(ouvert)*
+## TD-005 / TD-006 — Couverture *(en cours)*
 
-`vitest.config.ts` inclut déjà `src/app/api/**/*.ts` avec seuils initiaux bas
-(5/5/5). Objectif : remonter lot par lot vers 40/30/40 API et 60/50/60 lib.
+`vitest.config.ts` inclut `src/app/api/**/*.ts` avec seuils remontés lot par
+lot. Objectif : 40/30/40 API et 60/50/60 lib.
+
+Progression 2026-08-16 : API **12→16 %** (lignes), branches 9→12, fonctions
+12→16 — seuils portés à 16/12/16. +68 tests : announcements (GET/POST + [id]
+PATCH/DELETE), events (GET/POST + [id] + participate), library books &
+borrowings, attendance stats & justifications, audit-logs/export, alumni/[id],
+benchmark/latest, plus wellbeing climate-report, telemetry UX et
+error-message. 1 251 tests verts.
+
+Bug corrigé au passage : le branche isZodError de `POST /api/announcements`
+renvoyait `NextResponse.json({ status: 400 })` (statut dans le body, HTTP 200)
+— corrigé en `{ error, details }, { status: 400 }`.
+
+Prochain lot : routes à fort volume restantes (announcements/events OK ;
+cagnottes, attendance/bulk, students, ai/*, analytics/*).
 
 ---
 

@@ -313,6 +313,7 @@ export const POST = createApiHandler(
     } catch (error) {
       if (isZodError(error)) {
         return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
           { status: 400 }
         );
       }
