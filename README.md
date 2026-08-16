@@ -64,7 +64,7 @@ L'expérience académique augmentée.
 * **Dashboard Premium :** Vue d'ensemble sur l'emploi du temps, les devoirs à venir, le classement et les performances.
 * **Learning Hub :** Accès aux cours en ligne, passage d'examens dématérialisés avec timer et auto-correction.
 * **Tickets Cantine & Emprunts :** Suivi des QR Codes de restauration et de la bibliothèque.
-* **IA Buddy :** Chatbot IA (Ollama / Local) pour aider aux révisions et réexpliquer les concepts complexes en temps réel.
+* **IA Buddy :** Chatbot IA (Cloud LLMs Multi-providers / n8n) pour aider aux révisions et réexpliquer les concepts complexes en temps réel.
 
 ### 5. 👨‍👩‍👧‍👦 Parents
 Implication totale sans friction.
@@ -310,10 +310,16 @@ EduPilot est optimisé pour des performances maximales :
 
 ### Métriques de performance
 
-- ⚡ **TTFB** : < 200ms
-- 🎨 **FCP** : < 1.8s
-- 🖼️ **LCP** : < 2.5s
-- ⚙️ **TTI** : < 3.8s
+Cibles produit (à re-mesurer sur chaque environnement de prod) :
+
+- ⚡ **TTFB** : cible < 200 ms (dépend de l’hébergeur / cold start)
+- 🎨 **FCP** : cible < 1,8 s
+- 🖼️ **LCP** : cible < 2,5 s
+- ⚙️ **TTI** : cible < 3,8 s
+
+Mesures de référence déjà observées en labo (build prod, dashboards seedés,
+Playwright + Performance API, 2026-06) : LCP dashboards ~116–160 ms, CLS 0,
+JS gzip dashboards ~345–459 Ko. Ces chiffres ne sont **pas** des garanties SLA.
 
 ### Optimisations implémentées
 
