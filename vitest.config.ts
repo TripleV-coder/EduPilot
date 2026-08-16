@@ -27,14 +27,15 @@ export default defineConfig({
       //  - src/components/** : primitives edu + messaging (baseline 2026-06-13 :
       //    edu 55/46/37.5 — Button/Card/Input/Badge/MetricCard/Spinner/Progress/
       //    Toast/ComposeDialog couverts ; charts/icônes encore à couvrir).
-      //  - src/app/api/**    : seuil TD-005 (16/12/16 au 2026-08-16, +68 tests :
-      //    announcements, events, library, attendance stats/justifications,
-      //    audit-logs/export, alumni, benchmark) — remonter lot par lot.
+      //  - src/app/api/**    : seuil TD-005 (18/14/18 au 2026-08-16, +99 tests :
+      //    announcements, events, library, attendance stats/justifications/bulk,
+      //    audit-logs/export, alumni, benchmark, cagnottes, admin/subjects) —
+      //    remonter lot par lot.
       // Cibles long terme : lib 60/50/60, components 70/60/60, api 40/30/40.
       thresholds: {
         'src/lib/**': { statements: 40, branches: 32, functions: 38 },
         'src/components/**': { statements: 50, branches: 40, functions: 35 },
-        'src/app/api/**': { statements: 16, branches: 12, functions: 16 },
+        'src/app/api/**': { statements: 18, branches: 14, functions: 18 },
       },
     },
     testTimeout: 10000,
