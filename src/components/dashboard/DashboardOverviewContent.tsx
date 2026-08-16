@@ -203,7 +203,7 @@ function SummaryTable({
   emptyHref,
   emptyLabel,
 }: {
-  rows: Array<Record<string, any>>;
+  rows: Array<Record<string, ReactNode>>;
   columns: Array<{ key: string; label: string; align?: "left" | "right" | "center" }>;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -240,7 +240,7 @@ function SummaryTable({
         </thead>
         <tbody className="divide-y divide-border/50">
           {rows.map((row, index) => (
-            <tr key={row.id || `${row.name || "row"}-${index}`} className="hover:bg-background/50 transition-colors">
+            <tr key={(row.id as string | number) || `${row.name || "row"}-${index}`} className="hover:bg-background/50 transition-colors">
               {columns.map((column) => (
                 <td
                   key={column.key}
@@ -374,7 +374,7 @@ function GlobalDashboard({ analytics }: { analytics: GlobalAnalytics }) {
 
 function AdminDashboard({ analytics }: { analytics: AdminAnalytics }) {
   const hasAnnexes = Number(analytics?.annexesCount || 0) > 0;
-  const hasSiteComparison = Array.isArray((analytics as any)?.siteComparison) && (analytics as any).siteComparison.length > 0;
+  const hasSiteComparison = Array.isArray(analytics.siteComparison) && analytics.siteComparison.length > 0;
 
   return (
     <>
@@ -399,7 +399,7 @@ function AdminDashboard({ analytics }: { analytics: AdminAnalytics }) {
           description="Lecture rapide des performances entre les sites accessibles dans le même réseau"
         >
           <SummaryTable
-            rows={((analytics as any).siteComparison || []).map((site: any) => ({
+            rows={(analytics.siteComparison || []).map((site) => ({
               id: site.id,
               name: site.name,
               city: site.city,
@@ -709,7 +709,7 @@ function StaffDashboard({ analytics }: { analytics: StaffAnalytics }) {
         <RecentActivityList items={analytics?.recentActivity} href="/dashboard/audit-logs" title="Activité opérationnelle" />
         <SectionCard title="Classes les plus chargées" description="Effectifs actifs par classe">
           <SummaryTable
-            rows={(analytics?.classSummary || []).map((classe: any) => ({
+            rows={(analytics?.classSummary || []).map((classe) => ({
               id: classe.name,
               name: classe.name,
               studentCount: formatCount(classe.studentCount),

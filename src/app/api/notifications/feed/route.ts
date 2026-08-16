@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import type { NotificationType, Prisma } from "@prisma/client";
 
@@ -136,13 +136,8 @@ function relativeTime(d: Date): string {
     return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
-export async function GET(request: Request) {
+export const GET = createApiHandler(async (request, { session }) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
         const cat = searchParams.get("category") ?? "all";
 
@@ -266,4 +261,4 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
-}
+});

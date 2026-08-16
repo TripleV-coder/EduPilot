@@ -1,27 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
+interface JsPdfWithAutoTable extends jsPDF {
+  lastAutoTable: { finalY: number };
+}
+
 /**
  * GET /api/payments/[id]/invoice
  * Generate payment invoice/receipt as PDF
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const session = context.session;
+    const { id } = await context.params;
 
-    // Get payment with all details
     const payment = await prisma.payment.findUnique({
       where: { id: id },
       include: {
@@ -65,7 +62,6 @@ export async function GET(
       );
     }
 
-    // Check access
     const userRole = session.user.role;
     if (userRole === "STUDENT") {
       const studentProfile = await prisma.studentProfile.findUnique({
@@ -94,13 +90,11 @@ export async function GET(
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    // Generate PDF
     const doc = new jsPDF();
     const school = payment.fee.school;
     const student = payment.student;
     const enrollment = student.enrollments[0];
 
-    // Header with school logo/info
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.text(school.name, 105, 20, { align: "center" });
@@ -117,16 +111,13 @@ export async function GET(
       doc.text(`Email: ${school.email}`, 105, 40, { align: "center" });
     }
 
-    // Horizontal line
     doc.setLineWidth(0.5);
     doc.line(20, 45, 190, 45);
 
-    // Invoice title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("REÇU DE PAIEMENT", 105, 55, { align: "center" });
 
-    // Invoice number and date
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`N° Reçu: ${payment.id.substring(0, 12).toUpperCase()}`, 20, 65);
@@ -139,7 +130,6 @@ export async function GET(
       doc.text(`Référence: ${payment.reference}`, 20, 77);
     }
 
-    // Student information box
     doc.setFillColor(240, 240, 240);
     doc.rect(20, 85, 170, 35, "F");
     doc.setFont("helvetica", "bold");
@@ -160,7 +150,6 @@ export async function GET(
       );
     }
 
-    // Payment details table
     const tableData = [
       [
         payment.fee.name,
@@ -192,8 +181,7 @@ export async function GET(
       },
     });
 
-    // Payment information
-    let finalY = (doc as any).lastAutoTable.finalY + 10;
+    let finalY = (doc as unknown as JsPdfWithAutoTable).lastAutoTable.finalY + 10;
 
     doc.setFont("helvetica", "bold");
     doc.text("INFORMATIONS DE PAIEMENT", 20, finalY);
@@ -229,7 +217,6 @@ export async function GET(
       finalY += 6 + splitNotes.length * 5;
     }
 
-    // Total box
     finalY += 5;
     doc.setFillColor(66, 139, 202);
     doc.rect(120, finalY, 70, 15, "F");
@@ -244,7 +231,6 @@ export async function GET(
       { align: "right" }
     );
 
-    // Footer
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
@@ -256,13 +242,11 @@ export async function GET(
       { align: "center" }
     );
 
-    // Signature area
     finalY += 15;
     doc.setFont("helvetica", "normal");
     doc.text("Le Comptable", 150, finalY);
     doc.line(140, finalY + 15, 180, finalY + 15);
 
-    // Watermark
     doc.setFontSize(50);
     doc.setTextColor(200, 200, 200);
     doc.setFont("helvetica", "bold");
@@ -271,7 +255,6 @@ export async function GET(
       angle: 45,
     });
 
-    // Convert to base64
     const pdfBase64 = doc.output("dataurlstring");
 
     return NextResponse.json({
@@ -286,4 +269,4 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});

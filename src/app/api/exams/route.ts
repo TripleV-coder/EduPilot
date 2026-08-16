@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +16,8 @@ const createExamSchema = z.object({
     isPublished: z.boolean().default(false),
 });
 
-export async function GET(request: NextRequest) {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    const session = context.session;
 
     const activeSchoolId = getActiveSchoolId(session);
 
@@ -44,10 +40,13 @@ export async function GET(request: NextRequest) {
                 select: { id: true },
             });
             if (teacherProfile) {
-                whereClause.classSubject = {
-                    ...(whereClause.classSubject as any),
-                    teacherId: teacherProfile.id,
-                };
+                const classSubjectFilter: Prisma.ClassSubjectWhereInput = {};
+                const currentFilter = whereClause.classSubject;
+                if (currentFilter && "class" in currentFilter) {
+                    classSubjectFilter.class = currentFilter.class;
+                }
+                classSubjectFilter.teacherId = teacherProfile.id;
+                whereClause.classSubject = classSubjectFilter;
             }
         }
 
@@ -75,18 +74,11 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});
 
-export async function POST(request: NextRequest) {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const POST = createApiHandler(
+    async (request, context) => {
+    const session = context.session;
 
     try {
         const body = await request.json();
@@ -148,4 +140,6 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+    },
+    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },
+);

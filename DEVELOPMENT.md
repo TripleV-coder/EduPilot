@@ -64,7 +64,7 @@ L'application sera accessible sur http://localhost:3000
 ├── scripts/                    # Scripts utilitaires
 │   ├── backup/                 # Scripts de sauvegarde DB
 │   └── create-test-data.ts     # Création de données de test
-└── test_reports/               # Rapports de tests automatisés
+└── e2e/                        # Specs Playwright (tests de bout en bout)
 ```
 
 ---
@@ -134,7 +134,8 @@ UPSTASH_REDIS_REST_TOKEN="xxx"
 ## 🧪 Tests
 
 ### Tests Automatisés
-Le projet utilise un agent de test automatisé pour les tests E2E. Les rapports sont dans `/app/test_reports/`.
+La suite Vitest couvre les tests unitaires et d'API ; Playwright couvre les parcours
+E2E (voir `e2e/`). Les rapports de couverture sont générés dans `coverage/`.
 
 ### Tests Manuels
 ```bash

@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getClassPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * POST /api/ai/predictions/class
  * Générer des prédictions IA pour une classe entière
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
     if (!roleSatisfies(session.user.role, allowedRoles)) {
@@ -48,25 +45,24 @@ export async function POST(request: NextRequest) {
     const result = await getClassPredictions(classId);
 
     return NextResponse.json(result);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" generating class predictions:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la génération des prédictions" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * GET /api/ai/predictions/class
  * Obtenir les prédictions pour une classe
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
     if (!roleSatisfies(session.user.role, allowedRoles)) {
@@ -99,8 +95,10 @@ export async function GET(request: NextRequest) {
     const result = await getClassPredictions(classId);
 
     return NextResponse.json(result);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching class predictions:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+});

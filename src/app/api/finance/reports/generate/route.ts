@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import {
   buildPaymentDateWhere,
   getEffectivePaymentDate,
@@ -14,13 +14,9 @@ import { logger } from "@/lib/utils/logger";
  * API Endpoint for generating financial reports
  */
 
-export async function GET(request: Request) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
+    const session = context.session;
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
     const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
@@ -107,15 +103,11 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
+    const session = context.session;
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
     const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
@@ -192,7 +184,7 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});
 
 // Report generation helper functions
 async function generateSummaryReport(

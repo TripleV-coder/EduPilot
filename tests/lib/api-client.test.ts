@@ -8,20 +8,20 @@ describe("api/client.apiFetch", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     fetchMock = vi.fn();
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
-  function mockResponse(body: any, init: { status?: number; headers?: Record<string, string> } = {}) {
+  function mockResponse(body: unknown, init: { status?: number; headers?: Record<string, string> } = {}) {
     return {
       ok: (init.status ?? 200) < 400,
       status: init.status ?? 200,
       headers: new Map(Object.entries(init.headers ?? {})),
       json: async () => body,
-    } as any;
+    } as unknown as Response;
   }
 
   it("returns parsed body and propagates requestId", async () => {

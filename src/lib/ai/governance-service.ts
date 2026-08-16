@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { averageNumbers, dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { analyticsService } from "@/lib/analytics/service";
@@ -24,11 +25,15 @@ import {
 } from "./ai-service";
 
 type GovernanceActionResult = {
-  data: any;
+  data: unknown;
   confidence?: number;
   recommendations?: string[];
   alerts?: Alert[];
 };
+
+type StudentAnalyticsRow = Prisma.StudentAnalyticsGetPayload<{
+  include: typeof schoolAnalyticsInclude;
+}>;
 
 const SCHOOL_WIDE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
 const STAFF_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] as const;
@@ -453,7 +458,7 @@ class GovernanceService {
     const uniqueStudentIds = uniq(studentIds);
     if (uniqueStudentIds.length === 0) return [];
 
-    const where: Record<string, any> = {
+    const where: Prisma.StudentAnalyticsWhereInput = {
       studentId: { in: uniqueStudentIds },
     };
 
@@ -896,7 +901,7 @@ class GovernanceService {
   async detectAtRiskStudents(request: GovernanceRequest): Promise<GovernanceActionResult> {
     const classId = this.resolveRequestedClassId(request);
 
-    let analyticsRows: Array<any> = [];
+    let analyticsRows: StudentAnalyticsRow[] = [];
     let scope: { type: "school" | "class"; schoolId?: string; classId?: string } = {
       type: "school",
     };
@@ -1173,7 +1178,12 @@ class GovernanceService {
     );
 
     const templateResult = generateOrientationSynthesis(templateCtx);
-    let result: any = {
+    let result: {
+      series: string;
+      justification: string;
+      alternatives: string[];
+      synthesis: string;
+    } = {
       series: templateResult.series,
       justification: templateResult.justification,
       alternatives: templateResult.alternatives,

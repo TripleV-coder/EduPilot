@@ -47,7 +47,7 @@ const TEMPLATES: WhatsAppTemplate[] = [
     {
         id: "absence-notify",
         title: "Notification absence enfant",
-        subtitle: "Auto · le jour même · 98% lecture cible",
+        subtitle: "Auto · le jour même",
         sentCount: null,
         accent: "danger",
     },
@@ -74,21 +74,26 @@ const TEMPLATES: WhatsAppTemplate[] = [
     },
 ];
 
-const CHANNEL_COMPARISON: {
+const CHANNEL_GUIDANCE: {
     label: string;
-    rate: number;
     sub: string;
-    color: "success" | "brand" | "info";
 }[] = [
     {
         label: "WhatsApp",
-        rate: 98,
-        sub: "Coût indicatif 12 FCFA/msg · BJ",
-        color: "success",
+        sub: "Canal principal parents · coût et taux de lecture mesurés après connexion Business",
     },
-    { label: "SMS", rate: 94, sub: "Coût indicatif 25 FCFA/msg · BJ", color: "brand" },
-    { label: "Email", rate: 32, sub: "Gratuit · réception variable", color: "info" },
-    { label: "App push", rate: 88, sub: "Gratuit · installation requise", color: "success" },
+    {
+        label: "SMS",
+        sub: "Secours hors data · tarification opérateur locale",
+    },
+    {
+        label: "Email",
+        sub: "Gratuit · utile pour pièces jointes (bulletins, reçus)",
+    },
+    {
+        label: "App push",
+        sub: "Gratuit · nécessite l'application installée",
+    },
 ];
 
 export default function WhatsAppPage() {
@@ -547,7 +552,7 @@ export default function WhatsAppPage() {
                                 </Card>
 
                                 <Card>
-                                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Comparaison canaux · indicatif</p>
+                                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
                                     <div
                                         style={{
                                             display: "flex",
@@ -556,20 +561,21 @@ export default function WhatsAppPage() {
                                             marginTop: 8,
                                         }}
                                     >
-                                        {CHANNEL_COMPARISON.map((c) => (
+                                        {CHANNEL_GUIDANCE.map((c) => (
                                             <div
                                                 key={c.label}
                                                 style={{
                                                     display: "flex",
-                                                    alignItems: "center",
+                                                    alignItems: "flex-start",
                                                     gap: 10,
                                                 }}
                                             >
                                                 <span
                                                     style={{
-                                                        width: 64,
+                                                        width: 72,
                                                         fontSize: 12,
                                                         fontWeight: 700,
+                                                        paddingTop: 1,
                                                     }}
                                                 >
                                                     {c.label}
@@ -577,45 +583,14 @@ export default function WhatsAppPage() {
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div
                                                         style={{
-                                                            height: 6,
-                                                            background:
-                                                                "var(--eduflow-neutral-200)",
-                                                            borderRadius: 3,
-                                                            overflow: "hidden",
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                height: "100%",
-                                                                width: `${c.rate}%`,
-                                                                background: `var(--eduflow-${c.color}-600)`,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: 10,
-                                                            color:
-                                                                "var(--eduflow-text-tertiary)",
-                                                            marginTop: 2,
+                                                            fontSize: 12,
+                                                            color: "var(--eduflow-text-secondary)",
+                                                            lineHeight: 1.45,
                                                         }}
                                                     >
                                                         {c.sub}
                                                     </div>
                                                 </div>
-                                                <span
-                                                    className="tabular"
-                                                    style={{
-                                                        fontSize: 13,
-                                                        fontWeight: 700,
-                                                        color: `var(--eduflow-${c.color}-700)`,
-                                                        width: 40,
-                                                        textAlign: "right",
-                                                        fontVariantNumeric: "tabular-nums",
-                                                    }}
-                                                >
-                                                    {c.rate}%
-                                                </span>
                                             </div>
                                         ))}
                                     </div>
@@ -627,7 +602,7 @@ export default function WhatsAppPage() {
                                             lineHeight: 1.5,
                                         }}
                                     >
-                                        Indicatif marché Bénin · les valeurs réelles seront calculées une fois ton compte WhatsApp Business connecté et l'historique d'envois disponible.
+                                        Les taux de lecture et coûts réels s&apos;afficheront ici dès que le compte WhatsApp Business est connecté et que l&apos;historique d&apos;envois est disponible.
                                     </p>
                                 </Card>
                             </div>

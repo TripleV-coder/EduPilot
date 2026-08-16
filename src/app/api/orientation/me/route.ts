@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { calculateWeightedAverage } from "@/lib/utils/grades";
 import { computeIndicativeRecommendations } from "@/lib/services/orientation";
 import { logger } from "@/lib/utils/logger";
 import type { RecommendedSeries } from "@prisma/client";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 function seriesLabel(s: RecommendedSeries | null | undefined): string | null {
     if (!s) return null;
@@ -34,18 +34,9 @@ function seriesLabel(s: RecommendedSeries | null | undefined): string | null {
     return map[s] ?? s.replace("SERIE_", "");
 }
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-        if (session.user.role !== "STUDENT") {
-            return NextResponse.json(
-                { error: "Réservé aux élèves" },
-                { status: 403 }
-            );
-        }
+        const session = context.session;
 
         const { searchParams } = new URL(request.url);
         const academicYearIdParam = searchParams.get("academicYearId");
@@ -223,6 +214,7 @@ export async function GET(request: NextRequest) {
             recommendations,
             subjectAverages,
         });
+    
     } catch (error) {
         logger.error("orientation me:", error as Error);
         return NextResponse.json(
@@ -230,4 +222,5 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+
+}, { allowedRoles: ["STUDENT"] });

@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { recommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const { id } = await params;
-        const session = await auth();
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const { id } = await context.params;
+        const session = context.session;
 
         const body = await request.json();
         const data = recommendationSchema.parse({ ...body, orientationId: id });
@@ -67,6 +60,7 @@ export async function POST(
         });
 
         return NextResponse.json(newRecommendation, { status: 201 });
+    
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
@@ -74,4 +68,5 @@ export async function POST(
         logger.error(" adding orientation recommendation:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });

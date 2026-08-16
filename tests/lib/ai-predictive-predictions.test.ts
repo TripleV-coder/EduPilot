@@ -15,13 +15,19 @@ import prisma from "@/lib/prisma";
 import { predictNextPeriodGrade } from "@/lib/services/ai-predictive/predict-grade";
 import { predictFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
 
+type GradeHistoryList = Awaited<ReturnType<typeof prisma.gradeHistory.findMany>>;
+type StudentAnalyticsList = Awaited<ReturnType<typeof prisma.studentAnalytics.findMany>>;
+type AttendanceList = Awaited<ReturnType<typeof prisma.attendance.findMany>>;
+type BehaviorIncidentList = Awaited<ReturnType<typeof prisma.behaviorIncident.findMany>>;
+type HomeworkSubmissionList = Awaited<ReturnType<typeof prisma.homeworkSubmission.findMany>>;
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("predictNextPeriodGrade", () => {
   it("retombe sur une baseline prudente sans historique", async () => {
-    vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([] as any);
+    vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([]);
 
     const result = await predictNextPeriodGrade("s1");
 
@@ -35,7 +41,7 @@ describe("predictNextPeriodGrade", () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([
       { average: 13, period: { sequence: 1 } },
       { average: 14, period: { sequence: 2 } },
-    ] as any);
+    ] as unknown as GradeHistoryList);
 
     const result = await predictNextPeriodGrade("s1");
 
@@ -51,7 +57,7 @@ describe("predictNextPeriodGrade", () => {
       [10, 11, 12, 13, 14].map((average, index) => ({
         average,
         period: { sequence: index + 1 },
-      })) as any
+      })) as unknown as GradeHistoryList
     );
 
     const result = await predictNextPeriodGrade("s1");
@@ -74,7 +80,7 @@ describe("predictNextPeriodGrade", () => {
       [16, 17.5, 19, 19.5, 20].map((average, index) => ({
         average,
         period: { sequence: index + 1 },
-      })) as any
+      })) as unknown as GradeHistoryList
     );
 
     const result = await predictNextPeriodGrade("s1");
@@ -114,17 +120,17 @@ describe("predictFailureRisk", () => {
                 subject: { name: `Matière ${i}` },
               }))
             : [],
-      })) as any
+      })) as unknown as StudentAnalyticsList
     );
     vi.mocked(prisma.attendance.findMany).mockResolvedValue(
       [
         ...Array.from({ length: presentDays }, () => ({ status: "PRESENT" })),
         ...Array.from({ length: absentDays }, () => ({ status: "ABSENT" })),
-      ] as any
+      ] as unknown as AttendanceList
     );
-    vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue(incidents as any);
+    vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue(incidents as unknown as BehaviorIncidentList);
     vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue(
-      Array.from({ length: submittedHomeworks }, () => ({})) as any
+      Array.from({ length: submittedHomeworks }, () => ({})) as unknown as HomeworkSubmissionList
     );
     vi.mocked(prisma.homework.count).mockResolvedValue(totalHomeworks);
   }

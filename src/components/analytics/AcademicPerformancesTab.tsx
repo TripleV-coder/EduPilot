@@ -23,21 +23,62 @@ import {
 } from "recharts";
 import { FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 
+type ClassOption = { id: string; name: string };
+
+type StudentRankRow = {
+    studentId?: string;
+    name: string;
+    average: number;
+    rank: number;
+};
+
+type SubjectSummaryRow = {
+    subjectId: string;
+    name: string;
+    average: number;
+};
+
+type ClassAnalytics = {
+    subjectSummary?: SubjectSummaryRow[];
+    studentRanking?: StudentRankRow[];
+    monthlyTrend?: Array<{ name: string; value: number }>;
+};
+
+type SubjectAnalytics = {
+    monthlyTrend?: Array<{ name: string; value: number }>;
+    gradeDistribution?: {
+        excellent: number;
+        veryGood: number;
+        good: number;
+        average: number;
+        insufficient: number;
+        weak: number;
+    };
+    teacherName?: string | null;
+};
+
+type ScatterPoint = {
+    name: string;
+    x: number;
+    y: number;
+    average: number;
+};
+
 interface AcademicPerformancesTabProps {
-    classes: any[];
+    classes: ClassOption[];
     academicYearId: string;
 }
 
-export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPerformancesTabProps) {
+export function AcademicPerformancesTab({ classes, academicYearId: _academicYearId }: AcademicPerformancesTabProps) {
     const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || "");
     const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
 
-    const { data: classData, isLoading: classLoading } = useSWR(
+    const { data: classData } = useSWR<ClassAnalytics>(
         selectedClassId ? `/api/analytics/class/${selectedClassId}` : null,
         fetcher
     );
 
-    const { data: subjectData, isLoading: subjectLoading } = useSWR(
+    const { data: subjectData } = useSWR<SubjectAnalytics>(
         selectedClassId && selectedSubjectId
             ? `/api/analytics/class/${selectedClassId}/subject/${selectedSubjectId}`
             : null,
@@ -45,7 +86,7 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
     );
 
     // Columns for progression table
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<StudentRankRow>[] = [
         {
             accessorKey: "name",
             header: "Élève",
@@ -64,7 +105,7 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
         {
             id: "action",
             header: "",
-            cell: ({ row }) => (
+            cell: () => (
                 <div className="flex justify-end">
                     <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -72,14 +113,14 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
         }
     ];
 
-    const scatterData = useMemo(() => {
+    const scatterData = useMemo((): ScatterPoint[] => {
         if (!classData?.studentRanking) return [];
         const cohortAverage =
             classData.studentRanking.length > 0
-                ? classData.studentRanking.reduce((sum: number, student: any) => sum + Number(student.average || 0), 0) /
+                ? classData.studentRanking.reduce((sum, student) => sum + Number(student.average || 0), 0) /
                   classData.studentRanking.length
                 : 0;
-        return classData.studentRanking.map((s: any) => ({
+        return classData.studentRanking.map((s) => ({
             name: s.name,
             x: Number(s.average || 0),
             y: Number((Number(s.average || 0) - cohortAverage).toFixed(2)),
@@ -152,7 +193,7 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                         <div className="h-px flex-1 bg-border" />
                         <Link href={`/dashboard/analytics/class/${selectedClassId}/subject/${selectedSubjectId}`}>
                             <Badge variant="secondary" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors gap-2">
-                                Focus Matière : {classData?.subjectSummary?.find((s:any) => s.subjectId === selectedSubjectId)?.name}
+                                Focus Matière : {classData?.subjectSummary?.find((s) => s.subjectId === selectedSubjectId)?.name}
                                 <ArrowRight className="w-3 h-3" />
                             </Badge>
                         </Link>
@@ -169,7 +210,18 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                         <Card className="dashboard-block border-border h-[300px]">
                             <CardHeader className="pb-2"><CardTitle className="text-[11px] uppercase font-black text-muted-foreground">Distribution des Notes</CardTitle></CardHeader>
                             <CardContent className="h-[220px]">
-                                <PerformanceBarChart data={subjectData?.gradeDistribution || []} />
+                                <PerformanceBarChart
+                                    data={
+                                        subjectData?.gradeDistribution ?? {
+                                            excellent: 0,
+                                            veryGood: 0,
+                                            good: 0,
+                                            average: 0,
+                                            insufficient: 0,
+                                            weak: 0,
+                                        }
+                                    }
+                                />
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
@@ -188,7 +240,7 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                                 </div>
                                 <div className="font-bold text-sm">{subjectData?.teacherName || "Non assigné"}</div>
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
-                                    {classData?.subjectSummary?.find((s:any) => s.subjectId === selectedSubjectId)?.name || "Matière"}
+                                    {classData?.subjectSummary?.find((s) => s.subjectId === selectedSubjectId)?.name || "Matière"}
                                 </p>
                                 <Badge variant="outline" className="mt-4 text-[9px] font-bold">
                                     Données backend
@@ -216,9 +268,9 @@ export function AcademicPerformancesTab({ classes, academicYearId }: AcademicPer
                             <XAxis type="number" dataKey="x" name="Moyenne" unit="/20" domain={[0, 20]} tick={{ fontSize: 10 }} />
                             <YAxis type="number" dataKey="y" name="Écart à la classe" unit="pts" domain={[-5, 5]} tick={{ fontSize: 10 }} />
                             <ZAxis type="number" dataKey="average" range={[50, 400]} />
-                            <Tooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} cursor={{ strokeDasharray: '3 3' }} />
+                            <Tooltip contentStyle={FR_TOOLTIP_STYLE.contentStyle} cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Élèves" data={scatterData}>
-                                {scatterData.map((entry: any, index: number) => (
+                                {scatterData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.y >= 0 ? "hsl(var(--primary))" : "hsl(var(--destructive))"} />
                                 ))}
                             </Scatter>

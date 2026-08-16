@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -8,7 +8,6 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateHomeworkSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -23,17 +22,12 @@ const updateHomeworkSchema = z.object({
  * GET /api/homework/[id]
  * Get homework details with submissions
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-    const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");
+    const { id } = await context.params;
+    const session = context.session;
+const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");
     if (guard) return guard;
 
     const homework = await prisma.homework.findUnique({
@@ -120,24 +114,20 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+
+  }
+);
 
 /**
  * PATCH /api/homework/[id]
  * Update homework (Teacher only)
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await context.params;
+    const session = context.session;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");
     if (guard) return guard;
 
@@ -214,24 +204,21 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);
 
 /**
  * DELETE /api/homework/[id]
  * Delete homework (Teacher only)
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await context.params;
+    const session = context.session;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const guard = await assertModelAccess(session, "homework", id, "Devoir non trouvé");
     if (guard) return guard;
 
@@ -281,4 +268,7 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);

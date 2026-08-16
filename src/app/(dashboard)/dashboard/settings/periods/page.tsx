@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import type { AcademicYear } from "@prisma/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
@@ -77,12 +78,12 @@ export default function AcademicPeriodsPage() {
     const [formEnd, setFormEnd] = useState("");
     const [formSequence, setFormSequence] = useState(1);
 
-    const { data: yearsData, isLoading: yearsLoading } = useSWR<any[]>("/api/academic-years", fetcher);
+    const { data: yearsData, isLoading: yearsLoading } = useSWR<AcademicYear[]>("/api/academic-years", fetcher);
     const academicYears = Array.isArray(yearsData) ? yearsData : [];
 
     // Auto-select current year
     if (!selectedYearId && academicYears.length > 0) {
-        const current = academicYears.find((y: any) => y.isCurrent);
+        const current = academicYears.find((y) => y.isCurrent);
         if (current) {
             setSelectedYearId(current.id);
         } else {
@@ -194,7 +195,7 @@ export default function AcademicPeriodsPage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {academicYears.map((y: any) => (
+                                {academicYears.map((y) => (
                                     <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
                                 ))}
                             </SelectContent>

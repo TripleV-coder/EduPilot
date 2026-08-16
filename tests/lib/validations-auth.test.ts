@@ -78,7 +78,7 @@ describe("validations/auth", () => {
     });
 
     it("rejects unknown role", () => {
-      const r = registerSchema.safeParse({ ...valid, role: "ROOT" as any });
+      const r = registerSchema.safeParse({ ...valid, role: "ROOT" as never });
       expect(r.success).toBe(false);
     });
 

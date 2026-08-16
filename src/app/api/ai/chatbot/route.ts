@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { chatWithAI } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+        const session = context.session;
 
         const identifier = `${session.user.id}:${getClientIdentifier(request)}`;
         const rl = await checkRateLimit(strictLimiter, `ai:chatbot:${identifier}`);
@@ -31,18 +28,20 @@ export async function POST(request: NextRequest) {
         }
 
         // Context for AI
-        const context = {
+        const aiContext = {
             userId: session.user.id,
             schoolId: getActiveSchoolId(session),
             role: session.user.role,
             history: history || []
         };
 
-        const result = await chatWithAI(message, context);
+        const result = await chatWithAI(message, aiContext);
         return NextResponse.json(result);
 
+    
     } catch (error) {
         logger.error("Error in Chatbot API:", error as Error);
         return NextResponse.json({ error: "Erreur lors de la communication avec l'assistant" }, { status: 500 });
     }
-}
+
+});

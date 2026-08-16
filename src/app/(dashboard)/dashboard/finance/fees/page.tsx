@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { AcademicYear, ClassLevel } from "@prisma/client";
 
 type Fee = {
     id: string;
@@ -29,8 +30,8 @@ type Fee = {
 
 export default function FeesManagementPage() {
     const [fees, setFees] = useState<Fee[]>([]);
-    const [academicYears, setAcademicYears] = useState<any[]>([]);
-    const [classLevels, setClassLevels] = useState<any[]>([]);
+    const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+    const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
 
     // UI State
     const [loading, setLoading] = useState(true);

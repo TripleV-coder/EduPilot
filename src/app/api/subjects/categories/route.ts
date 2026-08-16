@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const categorySchema = z.object({
     name: z.string().min(1),
@@ -15,13 +14,13 @@ const categorySchema = z.object({
     isActive: z.boolean().default(true),
 });
 
-export async function GET(req: NextRequest) {
-    try {
-        const session = await auth();
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
-        const schoolId = await getActiveSchoolId(session);
-        
+export const GET = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
+        const schoolId = getActiveSchoolId(session);
+
         const categories = await prisma.subjectCategory.findMany({
             where: {
                 OR: [
@@ -34,32 +33,30 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json(categories);
-    } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
-}
+    },
+);
 
-export async function POST(req: NextRequest) {
-    try {
-        const session = await auth();
-        if (!session || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
+
+        try {
+            const schoolId = getActiveSchoolId(session);
+            const body = await request.json();
+            const validated = categorySchema.parse(body);
+
+            const category = await prisma.subjectCategory.create({
+                data: {
+                    ...validated,
+                    schoolId: session.user.role === "SUPER_ADMIN" && !schoolId ? null : schoolId,
+                },
+            });
+
+            return NextResponse.json(category);
+        } catch (error) {
+            if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues }, { status: 400 });
+            throw error;
         }
-
-        const schoolId = await getActiveSchoolId(session);
-        const body = await req.json();
-        const validated = categorySchema.parse(body);
-
-        const category = await prisma.subjectCategory.create({
-            data: {
-                ...validated,
-                schoolId: session.user.role === "SUPER_ADMIN" && !schoolId ? null : schoolId,
-            },
-        });
-
-        return NextResponse.json(category);
-    } catch (error) {
-        if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues }, { status: 400 });
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
-}
+    },
+    { allowedRoles: MANAGE_ROLES },
+);

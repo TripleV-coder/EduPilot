@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const periodSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -15,16 +14,15 @@ const periodSchema = z.object({
   sequence: z.number().int().positive(),
 });
 
+const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+
 /**
  * GET /api/periods
  * List periods for an academic year
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
     const { searchParams } = new URL(request.url);
     let academicYearId = searchParams.get("academicYearId");
@@ -70,92 +68,81 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(periods);
-  } catch (error) {
-    logger.error(" fetching periods:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des périodes" },
-      { status: 500 }
-    );
-  }
-}
+  },
+);
 
 /**
  * POST /api/periods
  * Create a new period
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+    try {
+      const body = await request.json();
+      const validatedData = periodSchema.parse(body);
 
-    const body = await request.json();
-    const validatedData = periodSchema.parse(body);
-
-    // Verify academic year exists and belongs to user's school
+      // Verify academic year exists and belongs to user's school
 
 
-    // Get academic year with proper validation
-    const academicYearId = body.academicYearId;
-    if (!academicYearId) {
-      return NextResponse.json({ error: "Année scolaire requise" }, { status: 400 });
-    }
+      // Get academic year with proper validation
+      const academicYearId = body.academicYearId;
+      if (!academicYearId) {
+        return NextResponse.json({ error: "Année scolaire requise" }, { status: 400 });
+      }
 
-    const year = await prisma.academicYear.findUnique({
-      where: { id: academicYearId },
-    });
+      const year = await prisma.academicYear.findUnique({
+        where: { id: academicYearId },
+      });
 
-    if (!year) {
-      return NextResponse.json({ error: "Année scolaire non trouvée" }, { status: 404 });
-    }
+      if (!year) {
+        return NextResponse.json({ error: "Année scolaire non trouvée" }, { status: 404 });
+      }
 
-    // Verify school access
-    if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, year.schoolId)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+      // Verify school access
+      if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, year.schoolId)) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
 
-    // Check for duplicate sequence
-    const existingSequence = await prisma.period.findFirst({
-      where: { academicYearId, sequence: validatedData.sequence },
-    });
+      // Check for duplicate sequence
+      const existingSequence = await prisma.period.findFirst({
+        where: { academicYearId, sequence: validatedData.sequence },
+      });
 
-    if (existingSequence) {
+      if (existingSequence) {
+        return NextResponse.json(
+          { error: "Une période avec ce numéro existe déjà" },
+          { status: 400 }
+        );
+      }
+
+      const period = await prisma.period.create({
+        data: {
+          academicYearId,
+          name: validatedData.name,
+          type: validatedData.type,
+          startDate: validatedData.startDate,
+          endDate: validatedData.endDate,
+          sequence: validatedData.sequence,
+        },
+      });
+
+      return NextResponse.json(period, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+
+      logger.error(" creating period:", error as Error);
       return NextResponse.json(
-        { error: "Une période avec ce numéro existe déjà" },
-        { status: 400 }
+        { error: "Erreur lors de la création de la période" },
+        { status: 500 }
       );
     }
-
-    const period = await prisma.period.create({
-      data: {
-        academicYearId,
-        name: validatedData.name,
-        type: validatedData.type,
-        startDate: validatedData.startDate,
-        endDate: validatedData.endDate,
-        sequence: validatedData.sequence,
-      },
-    });
-
-    return NextResponse.json(period, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    logger.error(" creating period:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la création de la période" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: MANAGE_ROLES },
+);

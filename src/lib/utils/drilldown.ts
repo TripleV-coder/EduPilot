@@ -9,6 +9,11 @@ export interface DrilldownFilter {
   performanceLevel?: string;
 }
 
+interface RiskPieSegment {
+  name?: string;
+  payload?: { name?: string };
+}
+
 /**
  * Handle performance bar chart click
  * Filters by subject when a bar is clicked
@@ -26,7 +31,7 @@ export function handlePerformanceBarClick(
  * Filters by risk level when a segment is clicked
  */
 export function handleRiskPieClick(
-  segment: any,
+  segment: RiskPieSegment,
   onFilterChange: (filter: DrilldownFilter) => void
 ) {
   const riskLevel = segment.payload?.name || segment.name;

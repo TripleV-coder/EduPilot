@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
@@ -17,11 +17,8 @@ const STAFF = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"];
  * Crée une transaction FedaPay pour un `Payment` PENDING et renvoie l'URL de
  * paiement hébergée. Le rapprochement final se fait via le webhook (signé).
  */
-export async function POST(request: NextRequest) {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    const session = context.session;
 
     if (!isFedaPayConfigured()) {
         return NextResponse.json(
@@ -57,11 +54,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Paiement introuvable" }, { status: 404 });
     }
 
-    // Isolation tenant
     const accessError = ensureSchoolAccess(session, payment.student.schoolId);
     if (accessError) return accessError;
 
-    // Autorisation : staff, ou parent rattaché à l'élève
     if (!STAFF.includes(session.user.role)) {
         if (session.user.role !== "PARENT") {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -115,7 +110,6 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Marque le paiement comme FedaPay/MoMo + fige la référence de rapprochement
         await prisma.payment.update({
             where: { id: payment.id },
             data: { reference, method: "MOBILE_MONEY_MTN" },
@@ -137,4 +131,4 @@ export async function POST(request: NextRequest) {
             { status: 502 }
         );
     }
-}
+});

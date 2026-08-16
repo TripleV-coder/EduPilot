@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const participationSchema = z.object({
   studentId: z.string().cuid(),
@@ -13,16 +13,10 @@ const participationSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"];
     if (!roleSatisfies(session.user.role, allowedRoles)) {
@@ -136,8 +130,14 @@ export async function POST(
     });
 
     return NextResponse.json(participation, { status: 201 });
-  } catch (error) {
-    if ((error as any).message === "EVENT_FULL") {
+  
+    } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error &&
+      (error as { message: string }).message === "EVENT_FULL"
+    ) {
       return NextResponse.json({ error: "Événement complet" }, { status: 400 });
     }
     if (isZodError(error)) {
@@ -146,4 +146,5 @@ export async function POST(
     logger.error(" creating participation:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+
+});

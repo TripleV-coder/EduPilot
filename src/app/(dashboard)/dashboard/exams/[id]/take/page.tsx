@@ -54,7 +54,7 @@ export default function TakeExamPage() {
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
-    const [result, setIsResult] = useState<any>(null);
+    const [result, setIsResult] = useState<{ score: number; isPassed: boolean } | null>(null);
 
     // Initialize timer
     useEffect(() => {

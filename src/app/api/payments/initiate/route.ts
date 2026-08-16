@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { SupportedProvider } from "@/lib/finance/types";
 import { isMomoConfigured } from "@/lib/finance/providers/momo";
@@ -9,7 +9,6 @@ import { logger } from "@/lib/utils/logger";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const initiateSchema = z.object({
     amount: z.union([z.number(), z.string()]).transform(val => Number(val)),
@@ -32,166 +31,150 @@ function resolveProvider(requested: string): SupportedProvider {
     if (r === "MTN" || r === "MOOV" || r === "MOBILE_MONEY") {
         if (isMomoConfigured()) return "MOMO";
         if (isFedaPayConfigured()) return "FEDAPAY";
-        return "FEDAPAY"; // lèvera "non configuré" côté provider
+        return "FEDAPAY";
     }
     return r as SupportedProvider;
 }
 
-export async function POST(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
 
-    // 1. RBAC check
-    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"])) {
-        return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
-    }
+        try {
+            const body = await request.json();
 
-    // 2FA check explicitly on API level for sensitive routes
-    if (session.user.isTwoFactorEnabled && !session.user.isTwoFactorAuthenticated) {
-        return NextResponse.json({ error: "2FA authentication required" }, { status: 403 });
-    }
+            const parsed = initiateSchema.safeParse(body);
+            if (!parsed.success) {
+                return NextResponse.json({ error: "Invalid request data", details: parsed.error.format() }, { status: 400 });
+            }
 
-    try {
-        const body = await req.json();
+            const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
+            const resolvedProvider = resolveProvider(provider);
 
-        // 2. Validation
-        const parsed = initiateSchema.safeParse(body);
-        if (!parsed.success) {
-            return NextResponse.json({ error: "Invalid request data", details: parsed.error.format() }, { status: 400 });
-        }
+            const [studentProfile, fee] = await Promise.all([
+                prisma.studentProfile.findUnique({
+                    where: { id: studentId },
+                    select: { id: true, schoolId: true, userId: true }
+                }),
+                prisma.fee.findUnique({
+                    where: { id: feeId },
+                    select: { id: true, schoolId: true, amount: true }
+                }),
+            ]);
 
-        const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
-        const resolvedProvider = resolveProvider(provider);
-        // 3. Multi-tenant Check
-        const [studentProfile, fee] = await Promise.all([
-            prisma.studentProfile.findUnique({
-                where: { id: studentId },
-                select: { id: true, schoolId: true, userId: true }
-            }),
-            prisma.fee.findUnique({
-                where: { id: feeId },
-                select: { id: true, schoolId: true, amount: true }
-            }),
-        ]);
+            if (!studentProfile) {
+                return NextResponse.json({ error: "Student not found" }, { status: 404 });
+            }
 
-        if (!studentProfile) {
-            return NextResponse.json({ error: "Student not found" }, { status: 404 });
-        }
+            if (!fee) {
+                return NextResponse.json({ error: "Fee not found" }, { status: 404 });
+            }
 
-        if (!fee) {
-            return NextResponse.json({ error: "Fee not found" }, { status: 404 });
-        }
+            if (
+                session.user.role !== "SUPER_ADMIN" &&
+                (
+                    !canAccessSchool(session, studentProfile.schoolId) ||
+                    !canAccessSchool(session, fee.schoolId)
+                )
+            ) {
+                return NextResponse.json({ error: "Forbidden: cross-tenant access denied" }, { status: 403 });
+            }
 
-        if (
-            session.user.role !== "SUPER_ADMIN" &&
-            (
-                !canAccessSchool(session, studentProfile.schoolId) ||
-                !canAccessSchool(session, fee.schoolId)
-            )
-        ) {
-            return NextResponse.json({ error: "Forbidden: cross-tenant access denied" }, { status: 403 });
-        }
-
-        if (session.user.role === "PARENT") {
-            const parentProfile = await prisma.parentProfile.findUnique({
-                where: { userId: session.user.id },
-                select: {
-                    parentStudents: {
-                        select: { studentId: true },
+            if (session.user.role === "PARENT") {
+                const parentProfile = await prisma.parentProfile.findUnique({
+                    where: { userId: session.user.id },
+                    select: {
+                        parentStudents: {
+                            select: { studentId: true },
+                        },
                     },
-                },
-            });
+                });
 
-            const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
-            if (!childrenIds.includes(studentId)) {
-                return NextResponse.json({ error: "Forbidden: not your child" }, { status: 403 });
-            }
-        }
-
-        if (session.user.role === "STUDENT" && studentProfile.userId !== session.user.id) {
-            return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
-        }
-
-        // 4. Amount Integrity Check
-        if (amount <= 0 || amount > Number(fee.amount)) {
-            return NextResponse.json({ error: `Montant invalide. Le maximum autorisé est ${fee.amount}` }, { status: 400 });
-        }
-
-        // --- ATOMIC IDEMPOTENCY & CREATION ---
-        const newMethod = provider === "MOOV" ? "MOBILE_MONEY_MOOV" : "MOBILE_MONEY_MTN";
-
-        const paymentRecord = await prisma.$transaction(async (tx) => {
-            // Check for existing pending payment within the transaction
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-            const existing = await tx.payment.findFirst({
-                where: {
-                    studentId,
-                    feeId,
-                    status: "PENDING",
-                    createdAt: { gte: fiveMinutesAgo }
-                },
-                orderBy: { createdAt: "desc" }
-            });
-
-            if (existing) {
-                if (existing.method !== newMethod) {
-                    // Update method if provider changed
-                    return await tx.payment.update({
-                        where: { id: existing.id },
-                        data: { method: newMethod }
-                    });
+                const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
+                if (!childrenIds.includes(studentId)) {
+                    return NextResponse.json({ error: "Forbidden: not your child" }, { status: 403 });
                 }
-                return existing;
             }
 
-            // Create new record if none exists
-            return await tx.payment.create({
-                data: {
-                    amount,
-                    method: newMethod,
-                    feeId,
+            if (session.user.role === "STUDENT" && studentProfile.userId !== session.user.id) {
+                return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
+            }
+
+            if (amount <= 0 || amount > Number(fee.amount)) {
+                return NextResponse.json({ error: `Montant invalide. Le maximum autorisé est ${fee.amount}` }, { status: 400 });
+            }
+
+            const newMethod = provider === "MOOV" ? "MOBILE_MONEY_MOOV" : "MOBILE_MONEY_MTN";
+
+            const paymentRecord = await prisma.$transaction(async (tx) => {
+                const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                const existing = await tx.payment.findFirst({
+                    where: {
+                        studentId,
+                        feeId,
+                        status: "PENDING",
+                        createdAt: { gte: fiveMinutesAgo }
+                    },
+                    orderBy: { createdAt: "desc" }
+                });
+
+                if (existing) {
+                    if (existing.method !== newMethod) {
+                        return await tx.payment.update({
+                            where: { id: existing.id },
+                            data: { method: newMethod }
+                        });
+                    }
+                    return existing;
+                }
+
+                return await tx.payment.create({
+                    data: {
+                        amount,
+                        method: newMethod,
+                        feeId,
+                        studentId,
+                        status: "PENDING",
+                        reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
+                    },
+                });
+            });
+
+            const isIdempotent = paymentRecord.createdAt.getTime() < Date.now() - 1000;
+            if (isIdempotent) {
+                logger.info("Payment idempotency hit — returning/refreshing pending payment", {
+                    paymentId: paymentRecord.id,
                     studentId,
-                    status: "PENDING",
-                    reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
-                },
-            });
-        });
+                    feeId
+                });
+            }
 
-        const isIdempotent = paymentRecord.createdAt.getTime() < Date.now() - 1000; // Rough check if it was just created
-        if (isIdempotent) {
-            logger.info("Payment idempotency hit — returning/refreshing pending payment", {
-                paymentId: paymentRecord.id,
-                studentId,
-                feeId
+            const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
+            const result = await paymentProvider.initiatePayment(
+                Number(paymentRecord.amount),
+                currency || 'XOF',
+                session.user.email!,
+                paymentRecord.reference!,
+                { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
+            );
+
+            if (result.transactionId) {
+                await prisma.payment.update({
+                    where: { id: paymentRecord.id },
+                    data: { reference: result.transactionId }
+                });
+            }
+
+            return NextResponse.json({
+                paymentUrl: result.paymentUrl,
+                transactionId: result.transactionId,
+                paymentId: paymentRecord.id
             });
+
+        } catch (error) {
+            logger.error("Payment initiation failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/initiate" });
+            return NextResponse.json({ error: "Payment initiation failed" }, { status: 500 });
         }
-
-        // 2. Initiate with Provider
-        const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
-        const result = await paymentProvider.initiatePayment(
-            Number(paymentRecord.amount), // SECURITY: Use the record amount, not the request amount
-            currency || 'XOF',
-            session.user.email!,
-            paymentRecord.reference!,
-            { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
-        );
-
-        // 3. Update with Provider reference if returned as transactionId
-        if (result.transactionId) {
-            await prisma.payment.update({
-                where: { id: paymentRecord.id },
-                data: { reference: result.transactionId } // Using reference since transactionId is not in model
-            });
-        }
-
-        return NextResponse.json({
-            paymentUrl: result.paymentUrl,
-            transactionId: result.transactionId,
-            paymentId: paymentRecord.id
-        });
-
-    } catch (error) {
-        logger.error("Payment initiation failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/initiate" });
-        return NextResponse.json({ error: "Payment initiation failed" }, { status: 500 });
-    }
-}
+    },
+    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"] }
+);

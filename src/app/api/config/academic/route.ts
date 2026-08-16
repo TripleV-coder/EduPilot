@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import type { PeriodType } from "@prisma/client";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const WRITE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
@@ -21,12 +21,9 @@ function periodsCountFor(type: PeriodType): number {
     return 3;
 }
 
-export async function GET() {
+export const GET = createApiHandler(async (_request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
+        const session = context.session;
         const schoolId = getActiveSchoolId(session);
         if (!schoolId) {
             return NextResponse.json(
@@ -87,6 +84,7 @@ export async function GET() {
                     description: h.description,
                 })) ?? [],
         });
+    
     } catch (error) {
         logger.error("config/academic GET:", error as Error);
         return NextResponse.json(
@@ -94,14 +92,12 @@ export async function GET() {
             { status: 500 }
         );
     }
-}
 
-export async function PATCH(request: NextRequest) {
+});
+
+export const PATCH = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
+        const session = context.session;
         if (!WRITE_ROLES.includes(session.user.role)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
@@ -155,6 +151,7 @@ export async function PATCH(request: NextRequest) {
                 passingGrade: Number(config.passingGrade),
             },
         });
+    
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json(
@@ -168,4 +165,5 @@ export async function PATCH(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+
+});

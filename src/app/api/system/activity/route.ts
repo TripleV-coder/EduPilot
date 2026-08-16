@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { translateEntity, startsWithVowel } from "@/lib/utils/entity-translator";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -10,18 +10,10 @@ export const dynamic = "force-dynamic";
  * GET /api/system/activity
  * Get recent system activity logs (Super Admin only)
  */
-export async function GET(request: Request) {
-  try {
-    const session = await auth();
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    // Only SUPER_ADMIN can access system activity
-    if (session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -146,7 +138,8 @@ export async function GET(request: Request) {
       stats,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: unknown) {
+  
+    } catch (error: unknown) {
     logger.error("Error fetching system activity", error instanceof Error ? error : new Error(String(error)), { module: "api/system/activity" });
     return NextResponse.json(
       {
@@ -156,7 +149,8 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN"] });
 
 /**
  * Helper: Calculate time ago

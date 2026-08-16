@@ -1,0 +1,2275 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 4836
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F2 18 Tf
+20.6999999999999993 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(EduPilot — Dossier Projet \(version lisible\)) Tj
+ET
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0 g
+56.6929133858267775 728.5041732283464171 Td
+(EduPilot) Tj
+ET
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0 g
+56.6929133858267775 694.4884251968503577 Td
+(Sommaire) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 674.6459055118109518 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 674.6459055118109518 Td
+(01 Résumé exécutif \(avec preuves\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 657.0711023622046696 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 657.0711023622046696 Td
+(02 Problématique chiffrée — faits de marché) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 639.4962992125983874 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 639.4962992125983874 Td
+(03 Problèmes × causes × conséquences × réponse EduPilot) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 621.9214960629921052 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 621.9214960629921052 Td
+(04 Cas documentés & ordres de grandeur d’impact) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 604.346692913385823 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 604.346692913385823 Td
+(05 Modèle économique de pertinence \(école type\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 586.7718897637794271 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 586.7718897637794271 Td
+(06 Capacité de la solution — métriques produit réelles) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 569.1970866141731449 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 569.1970866141731449 Td
+(07 Architecture, sécurité, rôles \(synthèse\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 551.6222834645668627 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 551.6222834645668627 Td
+(08 Score qualité & roadmap) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 534.0474803149604668 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 534.0474803149604668 Td
+(09 Bibliographie des sources) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 516.4726771653541846 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 516.4726771653541846 Td
+(10 Annexes) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 498.8978740157479024 Td
+(Lecture des chiffres) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 472.8191338582675485 Td
+(00 Ce dossier \(mode lecture facile\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 452.9766141732281426 Td
+(Conçu pour être compris en 5 minutes, même sans connaître la tech. Objectif : expliquer le problème,) Tj
+T* (pourquoi il arrive, et comment EduPilot le résout — avec des chiffres quand c’est possible.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 409.3230708661415065 Td
+(En 3 questions) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 391.7482677165352811 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 391.7482677165352811 Td
+(Quel est le problème ? Des écoles peinent à suivre les notes, absences, paiements et documents — et) Tj
+T* (les parents n’ont pas toujours une vue claire.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 356.5986614173226599 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 356.5986614173226599 Td
+(Pourquoi ça bloque ? Outils fragmentés \(Excel / WhatsApp\), données dispersées, et paiements qui) Tj
+T* (dépendent d’un “rail” réel \(Mobile Money\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 321.4490551181099818 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 321.4490551181099818 Td
+(Pourquoi EduPilot est pertinent ? Un seul cockpit multi-établissement + fonctions RGPD + paiements) Tj
+T* (Mobile Money, déjà outillé et mesuré dans le dépôt.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 280.6301574803147787 Td
+(Mini-glossaire \(sans jargon\)) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 257.3860629921257441 Td
+(SaaS) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 239.8112598425194619 Td
+(Un logiciel “en ligne” : l’école n’installe pas, elle utilise.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 208.0632283464565262 Td
+(Multi-tenant) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 190.488425196850244 Td
+(Plusieurs écoles utilisent la même plateforme, mais leurs données restent isolées.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 158.7403937007873083 Td
+(Mobile Money) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 141.1655905511810261 Td
+(Le moyen de paiement le plus courant au quotidien \(paiement via téléphone\).) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 109.4175590551180903 Td
+(RGPD) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 4626
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(Des règles pour protéger les données personnelles et gérer droits + suppression.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 753.4490551181102092 Td
+(MFA) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 735.8742519685039269 Td
+(Une double vérification pour mieux sécuriser les comptes.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 704.1262204724408775 Td
+(RLS) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 686.5514173228345953 Td
+(Sécurité “dans la base” : chaque requête ne doit lire que les données de son école.) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 651.9687401574802834 Td
+(01 Résumé exécutif — avec preuves) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 632.1262204724408775 Td
+(Les écoles francophones, surtout en Afrique de l’Ouest, subissent une pression triple : explosion) Tj
+T* (démographique scolaire, exigences de transparence des parents, et retard d’outils de gestion unifiés. Le) Tj
+T* (marché EdTech africain reste sous-dimensionné face au besoin \(PNUD / UEMOA–Injini–EdTech Hub : 0,6–1) Tj
+T* (Md USD vs ~300 Md USD mondial\), alors que le marché EdTech africain au sens large est estimé à 7,33 Md) Tj
+T* (USD en 2025 avec une projection 19,25 Md USD en 2034 \(IMARC, CAGR 11,33 %\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 535.748267716535338 Td
+(Pendant ce temps, le Mobile Money est déjà le rail de paiement dominant : Afrique subsaharienne = 1,1) Tj
+T* (milliard de comptes et 1,1 trillion USD de transactions en 2024 \(GSMA State of the Industry 2025\). Une) Tj
+T* (solution scolaire qui n’intègre pas ce rail ignore le comportement réel des parents.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 474.5199212598424765 Td
+(Sources : Banque mondiale \(Learning Poverty, cité PNUD cartographie EdTech Afrique\) ; PNUD cartographie) Tj
+T* (; GSMA SOTIR 2025.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 430.8663779527558404 Td
+(Ce qu’EduPilot apporte \(légitimité produit\)) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 404.7876377952755433 Td
+(02 Problématique chiffrée — faits de marché) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 379.2758267716534988 Td
+(2.1 Un marché immense… mais un déficit d’outils de gestion) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 353.1970866141732017 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 333.3545669291338527 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 333.3545669291338527 Td
+(Indicateur: Marché EdTech mondial ; Valeur: ~300 Md USD ; Lecture: Référence d’échelle ; Source:) Tj
+T* (PNUD Cartographie EdTech Afrique \(estim. croisées UEMOA / Injini / EdTech Hub\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 298.2049606299212883 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 298.2049606299212883 Td
+(Indicateur: Marché EdTech africain \(estim. écosystème\) ; Valeur: 0,6 – 1 Md USD ; Lecture:) Tj
+T* (Sous-financé vs potentiel \(~0,2–0,3 % du mondial\) ; Source: Idem PNUD) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 263.0553543307086102 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 263.0553543307086102 Td
+(Indicateur: Croissance projetée écosystème ; Valeur: 15 – 20 % / an jusqu’en 2035 ; Lecture: Fenêtre) Tj
+T* (d’opportunité longue ; Source: PNUD Cartographie) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 227.9057480314960458 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 227.9057480314960458 Td
+( I n d i c a t e u r :   A f r i q u e   E d T e c h   \( t a i l l e   m a r c h é   I M A R C \)   ;   V a l e u r :   7 , 3 3   M d   U S D   \( 2 0 2 5 \)  !’   1 9 , 2 5   M d   U S D) Tj
+T* (\(2034\) ; Lecture: CAGR 11,33 % — définition plus large \(incl. infrastructure, services\) ; Source: IMARC) Tj
+T* (Group, Africa EdTech Market) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 175.1813385826770855 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 175.1813385826770855 Td
+(Indicateur: Priorité acteurs EdTech \(enquête\) ; Valeur: LMS / LXP cités par 63,9 % ; Lecture:) Tj
+T* (Apprentissage digital prioritaire… mais SIS/EMIS souvent angle mort ; Source: PNUD Cartographie) Tj
+T* (\(enquête répondants\)) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 113.9529921259843377 Td
+(Implication pour EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 90.7088976377953031 Td
+(2.2 Contraintes structurelles qui aggravent le problème) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 5593
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 776.69314960629913 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 756.8506299212598378 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 756.8506299212598378 Td
+(Contrainte: Learning poverty ; Chiffre: > 60 % des enfants de 10 ans ne peuvent lire/comprendre un) Tj
+T* (texte simple ; Cause sous-jacente: Qualité d’enseignement, suivi faible, manque de données) Tj
+T* (actionnables ; Source: Banque mondiale \(Learning Poverty\), cité PNUD) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 704.1262204724408775 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 704.1262204724408775 Td
+(Contrainte: Internet ménages SSA ; Chiffre: Seulement 24 % ; Cause sous-jacente: Coût data,) Tj
+T* (couverture, urbanisation inégale ; Source: PNUD Cartographie EdTech Afrique) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 668.9766141732283131 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 668.9766141732283131 Td
+(Contrainte: Électricité écoles primaires SSA ; Chiffre: < 50 % d’accès fiable ; Cause sous-jacente:) Tj
+T* (Infrastructure défaillante ; Source: PNUD Cartographie) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 633.827007874015635 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 633.827007874015635 Td
+( C o n t r a i n t e :   U r b a n i s a t i o n   A f r i q u e   ;   C h i f f r e :   3 1   %   \( 1 9 9 0 \)  !’   ~ 4 9   %   p r o j e t é   \( 2 0 3 5 \)   ;   C a u s e   s o u s - j a c e n t e :) Tj
+T* (Demande scolaire urbaine explosive & concurrentielle ; Source: CEA/UNECA Economic Report, cité) Tj
+T* (PNUD) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 566.9293700787401349 Td
+(2.3 Les parents paient déjà autrement — le rail Mobile Money) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 540.8506299212597241 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 521.0081102362204319 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 521.0081102362204319 Td
+(Indicateur Mobile Money: Comptes enregistrés ; 2024 \(Afrique subsaharienne\): 1,1 milliard \(+19 %) Tj
+T* (YoY\) — 53 % du mondial ; Source: GSMA SOTIR 2025) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 485.8585039370078107 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 485.8585039370078107 Td
+(Indicateur Mobile Money: Comptes actifs 30 jours ; 2024 \(Afrique subsaharienne\): 286 millions \(+12 %\)) Tj
+T* (; Source: GSMA SOTIR 2025) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 450.7088976377952463 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 450.7088976377952463 Td
+(Indicateur Mobile Money: Volume de transactions ; 2024 \(Afrique subsaharienne\): 81 milliards \(+22 %\)) Tj
+T* (; Source: GSMA SOTIR 2025) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 415.559291338582625 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 415.559291338582625 Td
+(Indicateur Mobile Money: Valeur des transactions ; 2024 \(Afrique subsaharienne\): 1,1 trillion USD \(+15) Tj
+T* (%\) — 66 % de la valeur mondiale ; Source: GSMA SOTIR 2025) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 380.4096850393700038 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 380.4096850393700038 Td
+(Indicateur Mobile Money: Afrique de l’Ouest ; 2024 \(Afrique subsaharienne\): 485 M comptes ; 97 M) Tj
+T* (actifs ; 22 Md txn ; 357 Md USD ; Source: GSMA / WeAreTech synthèse 2025) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 336.7561417322833677 Td
+(Si 1,1 trillion USD transitent déjà par Mobile Money, demander à un parent de « passer à la caisse) Tj
+T* (uniquement en cash » est un frottement économique et social — pas une préférence culturelle.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 287.4333070866140361 Td
+(2.4 Preuve d’appétit francophone pour l’éducation numérique) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 269.8585039370077538 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 269.8585039370077538 Td
+(Nomad Education : 1,8 million d’utilisateurs en Afrique francophone vs ~1,3 million en France —) Tj
+T* (l’Afrique génère plus d’activité que la France pour cet éditeur \(Les Échos\). Modèle adapté : paiement à) Tj
+T* (la semaine, Mobile Money, mode hors-ligne.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 217.1340944881889072 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 217.1340944881889072 Td
+(Cameroun : ~22 000 écoles primaires \(dont 8 000 privées\), ~4 500 secondaires \(dont 1 500 privés\) —) Tj
+T* (marché adressable large même hors « elite schools » \(Team France Export, fiche EdTech Cameroun) Tj
+T* (2025\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 164.4096850393699469 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 164.4096850393699469 Td
+(Sénégal — écoles privées : ~4 200 établissements ; 35 % des effectifs scolarisés dans le privé —) Tj
+T* (concurrence sur transparence notes/paiements \(Kolonell, analyse marché 2026\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 129.2600787401573825 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 129.2600787401573825 Td
+(Bénin : digitalisation publique via EducMaster \(gouvernance, faux bulletins, suivi enseignants\) ; budget) Tj
+T* ( e n s e i g n e m e n t   s e c o n d a i r e   t e c h n i q u e   6 1 , 6  !’   1 9 9 , 1   m i l l i a r d s   F C F A   \( 2 0 1 6 – 2 0 2 4 ,   + 2 2 3   % \)   \( L ’ É c o n o m i s t e) Tj
+T* (du Bénin / comptes publics\).) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 4976
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 776.69314960629913 Td
+(03 Problèmes × causes × conséquences × réponse) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 756.8506299212598378 Td
+(Cette section est le cœur argumentaire. Chaque problème est ancré dans un fait chiffré \(ou un cas) Tj
+T* (documenté\), relié à des causes opérationnelles, puis à la réponse EduPilot.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 707.5277952755905062 Td
+(P1 — Fragmentation des outils \(Excel + WhatsApp + caisse\)) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 689.952992125984224 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 666.7088976377951894 Td
+(P2 — Impayés de scolarité & trésorerie opaque) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 649.1340944881889072 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 625.8899999999999864 Td
+( P 3   —   P a r e n t s   s o u s - i n f o r m é s  !’   d é f i a n c e) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 608.3151968503937042 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 585.0711023622046696 Td
+(P4 — Suivi pédagogique faible dans un contexte de learning poverty) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 567.4962992125983874 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 544.2522047244093528 Td
+( P 5   —   C o n t r a i n t e   c o n n e c t i v i t é   /   é n e r g i e  !’   o u t i l s   «   c l o u d   o n l y   »   i n u t i l i s a b l e s) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 526.6774015748030706 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 503.4333070866140929 Td
+(P6 — Risques de gouvernance & fraude documentaire) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 485.8585039370077538 Td
+(Réponse EduPilot) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 462.614409448818833 Td
+(Synthèse en une matrice) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 436.5356692913385359 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 416.69314960629913 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 416.69314960629913 Td
+(ID: P1 ; Problème: Outils fragmentés ; Preuve chiffrée: Angle mort SIS vs LMS 63,9 % priorité) Tj
+T* (contenus \(PNUD\) ; Cause racine: Offre incomplète / chère ; Module EduPilot: Suite unifiée + import) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 381.5435433070865088 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 381.5435433070865088 Td
+( I D :   P 2   ;   P r o b l è m e :   I m p a y é s   ;   P r e u v e   c h i f f r é e :   3 8   %!’ 9   %   c a s   D a k a r   ;   M o M o   1 , 1   T $   ;   C a u s e   r a c i n e :) Tj
+T* (Cash + relances manuelles ; Module EduPilot: Finance + FedaPay/MoMo) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 346.3939370078739444 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 346.3939370078739444 Td
+( I D :   P 3   ;   P r o b l è m e :   P a r e n t s   c o u p é s   ;   P r e u v e   c h i f f r é e :   S a t .   6 , 2!’ 8 , 7   c a s   ;   d e m a n d e   e s p a c e   p a r e n t s   ;) Tj
+T* (Cause racine: WhatsApp informel ; Module EduPilot: Portail + notifs + SMS) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 311.2443307086613231 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 311.2443307086613231 Td
+(ID: P4 ; Problème: Décrochage tardif ; Preuve chiffrée: >60 % learning poverty ; Cause racine: Pas) Tj
+T* (d’alertes data ; Module EduPilot: Analytics + alerts + IA) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 276.094724409448645 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 276.094724409448645 Td
+(ID: P5 ; Problème: Infra faible ; Preuve chiffrée: 24 % net ; <50 % élec. ; Cause racine: Outils non) Tj
+T* (adaptés ; Module EduPilot: PWA / offline / mobile) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 223.9372440944880509 Td
+(04 Cas documentés & ordres de grandeur) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 204.094724409448645 Td
+(Attention méthodologique) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 180.8506299212597241 Td
+(4.1 Cas École Internationale Almadies \(Dakar\) — digitalisation globale) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 163.2758267716534419 Td
+(Source : Kolonell, « Digitaliser école privée Sénégal 2026 » \(retour d’expérience publié\).) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 128.69314960629913 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 108.8506299212597241 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 108.8506299212597241 Td
+(Indicateur: Effectifs ; Avant: 380 élèves ; Après \(~14 mois\): 720 élèves ; Écart: ×1,9) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 5939
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 785.1970866141732586 Td
+( I n d i c a t e u r :   R e t a r d s   d e   p a i e m e n t   s c o l a r i t é   ;   A v a n t :   3 8   %   ;   A p r è s   \( ~ 1 4   m o i s \) :   9   %   ;   É c a r t :  " 2 9   p t s) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 767.6222834645668627 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 767.6222834645668627 Td
+(Indicateur: Satisfaction parents ; Avant: 6,2 / 10 ; Après \(~14 mois\): 8,7 / 10 ; Écart: +2,5 pts) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 750.0474803149605805 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 750.0474803149605805 Td
+(Indicateur: Usage espace parents ; Avant: — ; Après \(~14 mois\): 85 % quotidien ; Écart: Adoption forte) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 732.4726771653542983 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 732.4726771653542983 Td
+( I n d i c a t e u r :   D é l a i   i n s c r i p t i o n   ;   A v a n t :   6   s e m a i n e s   ;   A p r è s   \( ~ 1 4   m o i s \) :   9   j o u r s   ;   É c a r t :  " 8 5   %   e n v i r o n) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 706.3939370078740012 Td
+(Lecture EduPilot : le levier « échéancier + paiement mobile + espace parents » est exactement le trio P2+P3.) Tj
+T* (EduPilot industrialise ces briques en SaaS multi-tenant \(pas un projet sur-mesure de 4–9 M FCFA par école) Tj
+T* (— ordre de grandeur custom cité par la même source\).) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 639.4962992125983874 Td
+(4.2 Nomad Education — preuve de demande francophone) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 621.9214960629921052 Td
+(Source : Les Échos \(théma\), interview Nomad Education.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 595.8427559055116944 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 595.8427559055116944 Td
+(1,8 M utilisateurs Afrique francophone > 1,3 M France.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 578.2679527559054122 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 578.2679527559054122 Td
+(Adaptation nécessaire : Mobile Money, abonnement hebdo, offline.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 560.69314960629913 Td
+(Lecture : le marché accepte de payer le digital éducatif si le modèle épouse les contraintes locales — ce) Tj
+T* (qu’EduPilot fait sur la gestion d’établissement.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 511.3703149606297984 Td
+(4.3 Bénin — digitalisation comme politique publique) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 493.7955118110235162 Td
+(Sources : Bénin Révélé ; L’Économiste du Bénin \(EducMaster, budgets\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 467.7167716535431623 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 467.7167716535431623 Td
+(SIGE / EducMaster : lutte faux bulletins, suivi présence enseignants, portail parents performances.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 450.1419685039368801 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 450.1419685039368801 Td
+(Budget secondaire technique : +223 % \(2016–2024\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 432.5671653543306547 Td
+(Lecture : même l’État priorise la donnée scolaire fiable. Le privé a besoin d’outils équivalents, plus UX et) Tj
+T* (finance locale — niche EduPilot.) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 380.4096850393700038 Td
+(05 Modèle de pertinence — école type \(hypothèses explicites\)) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 360.5671653543305979 Td
+(Modèle illustratif — pas une prévision client) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 337.323070866141677 Td
+(5.1 Hypothèses école privée type \(Afrique de l’Ouest\)) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 311.2443307086614368 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 291.4018110236220309 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 291.4018110236220309 Td
+(Paramètre: Effectif ; Valeur modèle: 500 élèves ; Justification: École moyenne / collège privé urbain) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 273.8270078740157487 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 273.8270078740157487 Td
+(Paramètre: Scolarité moyenne ; Valeur modèle: 600 000 FCFA / an ; Justification: Ordre de grandeur) Tj
+T* (segment intermédiaire \(à ajuster\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 238.6774015748030706 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 238.6774015748030706 Td
+(Paramètre: CA scolarité théorique ; Valeur modèle: 300 M FCFA / an ; Justification: 500 × 600 000) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 221.1025984251969021 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 221.1025984251969021 Td
+(Paramètre: Taux d’impayés / retards chroniques \(avant\) ; Valeur modèle: 25 % ; Justification:) Tj
+T* (Conservateur vs cas 38 % documenté) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 185.952992125984224 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 185.952992125984224 Td
+(Paramètre: Exposition trésorerie liée ; Valeur modèle: 75 M FCFA ; Justification: 25 % × 300 M) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 154.2049606299212883 Td
+(5.2 Lecture décisionnelle) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 136.6301574803150061 Td
+(Même avec des hypothèses prudentes, le seul levier « réduction d’impayés » domine le ROI. Le coût d’un) Tj
+T* (SIS custom \(4–9 M FCFA cités\) ou d’une licence type Pronote \(~11 k FCFA/élève/an × 500 = 5,5 M FCFA/an\)) Tj
+T* (se compare à dizaines de millions FCFA de trésorerie potentiellement sécurisée.) Tj
+ET
+endstream
+endobj
+13 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 14 0 R
+>>
+endobj
+14 0 obj
+<<
+/Length 4913
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(Référence prix Pronote ~11 k FCFA/élève/an : Kolonell. Ratio = modèle, pas engagement EduPilot.) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 750.614409448818833 Td
+(06 Capacité de la solution — métriques produit réelles) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 730.7718897637795408 Td
+(Toutes les valeurs ci-dessous : mesures sur le dépôt EduPilot, 4 août 2026.) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 696.1892125984251152 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 676.346692913385823 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 676.346692913385823 Td
+(Preuve de maturité: TypeScript strict ; Mesure: 0 erreur tsc ; Lien avec le problème: Fiabilité vs Excel) Tj
+T* (fragile) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 641.1970866141731449 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 641.1970866141731449 Td
+(Preuve de maturité: ESLint + no-explicit-any ; Mesure: 0 erreur / 0 any explicite ; Lien avec le) Tj
+T* (problème: Maintenabilité long terme) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 606.0474803149605805 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 606.0474803149605805 Td
+(Preuve de maturité: MFA middleware ; Mesure: Effectif API + pages ; Lien avec le problème: Répond à) Tj
+T* (P6 gouvernance) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 570.8978740157479024 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 570.8978740157479024 Td
+(Preuve de maturité: Paiements ; Mesure: FedaPay + MoMo webhooks ; Lien avec le problème:) Tj
+T* (Répond à P2 + fait GSMA) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 535.748267716535338 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 535.748267716535338 Td
+(Preuve de maturité: Fake data retirées ; Mesure: SMS/WhatsApp/GPS empty states ; Lien avec le) Tj
+T* (problème: Confiance \(pas de mensonge UI\)) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 486.4254330708660063 Td
+(Couverture fonctionnelle vs problèmes) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 460.3466929133857093 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 440.5041732283463602 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 440.5041732283463602 Td
+(Problème: P1 Fragmentation ; Modules EduPilot concernés: classes, students, grades, import,) Tj
+T* (settings, onboarding) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 405.354566929133739 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 405.354566929133739 Td
+(Problème: P2 Impayés ; Modules EduPilot concernés: finance, accounting, wallet, scholarships,) Tj
+T* (integrations fedapay/momo) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 370.2049606299211177 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 370.2049606299211177 Td
+(Problème: P3 Parents ; Modules EduPilot concernés: parents, notifications, messages, liaison,) Tj
+T* (appointments, sms, whatsapp) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 335.0553543307084965 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 335.0553543307084965 Td
+(Problème: P4 Décrochage ; Modules EduPilot concernés: analytics, alerts, performances, risks, ai,) Tj
+T* (orientation, bepc-prep, attendance) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 299.9057480314958184 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 299.9057480314958184 Td
+(Problème: P5 Infra ; Modules EduPilot concernés: offline, PWA Serwist, UI mobile) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 265.3230708661415065 Td
+(07 Architecture & sécurité \(synthèse\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 245.4805511811022143 Td
+(Stack : Next.js 16 · React 19 · TypeScript strict · Prisma/PostgreSQL 16 · Redis/Upstash · NextAuth v5 · Zod ·) Tj
+T* (Sentry · Docker. Multi-tenant par schoolId \(ADR-0008 ; RLS Postgres prévu V2\).) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 196.1577165354328827 Td
+(Rôles \(10\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 178.5829133858266005 Td
+(SUPER_ADMIN, NETWORK_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, STAFF,) Tj
+T* (PARENT, STUDENT \(+ hiérarchie canManageRole\).) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 129.2600787401572688 Td
+(Contrôles sécurité clés) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 111.6852755905509866 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 111.6852755905509866 Td
+(bcrypt cost 12 · lockout 5 essais / 30 min · MFA TOTP + backup codes) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 94.1104724409447044 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 94.1104724409447044 Td
+(Rate-limit Redis \(login, MFA, API\)) Tj
+ET
+endstream
+endobj
+15 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 6446
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 785.1970866141732586 Td
+(AuditLog before/after · RGPD export / oubli) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 767.6222834645668627 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 767.6222834645668627 Td
+(createApiHandler sur 281/285 routes \(~98 %\)) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 741.5435433070865656 Td
+(08 Score qualité & roadmap) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 713.1970866141732586 Td
+(Tableau \(résumé\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 693.3545669291338527 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 693.3545669291338527 Td
+(Dimension: Design/UX ; /10: 8,0 ; Dimension: Code quality ; /10: 8,5) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 675.7797637795274568 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 675.7797637795274568 Td
+(Dimension: Performance ; /10: 8,0 ; Dimension: Accessibilité ; /10: 7,5) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 658.2049606299212883 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 658.2049606299212883 Td
+(Dimension: Sécurité ; /10: 8,5 ; Dimension: Documentation ; /10: 8,0) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 640.6301574803148924 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 640.6301574803148924 Td
+(Dimension: Architecture ; /10: 8,5 ; Dimension: Prod ready ; /10: 8,0) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 623.0553543307086102 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 623.0553543307086102 Td
+(Dimension: Tests ; /10: 7,5 ; Dimension: Scalabilité / Maint. / Innov. ; /10: 8,0) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 596.9766141732283131 Td
+( G l o b a l   h o n n ê t e   :   8 , 5   /   1 0   \( p o n d é r é  "H   8 , 7 \) .   F r e i n s   :   c o u v e r t u r e   A P I   \( T D - 0 0 5 / 0 0 6 \) ,   a u d i t   W C A G .) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 565.2285826771652637 Td
+(Roadmap liée aux problèmes) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 547.6537795275589815 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 547.6537795275589815 Td
+(Court terme : couverture tests API ; MFA imposé DIRECTOR+ ; a11y parcours parents/paiement.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 530.0789763779525856 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 530.0789763779525856 Td
+(Moyen terme : RLS Postgres \(défense P6\) ; métriques SMS réelles ; Lighthouse CI.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 512.5041732283464171 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 512.5041732283464171 Td
+(Long terme : apps mobiles natives sur le rail REST déjà prêt.) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 486.4254330708660632 Td
+(09 Bibliographie des sources) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 466.5829133858266005 Td
+(Sources utilisées pour les chiffres de problématique \(accès web, 2026\) :) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 440.5041732283463602 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 440.5041732283463602 Td
+(PNUD — Cartographie EdTech Afrique \(estimations marché 0,6–1 Md USD ; mondial ~300 Md ;) Tj
+T* (croissance 15–20 % ; Internet ménages 24 % ; écoles électrifiées <50 % ; Learning Poverty >60 % ;) Tj
+T* (priorité LMS 63,9 % ; urbanisation CEA/UNECA\). URL : undp.org \(PDF cartographie EdTech Afrique\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 387.7797637795274568 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 387.7797637795274568 Td
+(IMARC Group — Africa EdTech Market : 7 326,29 M USD \(2025\) ; 19 245,25 M USD \(2034\) ; CAGR) Tj
+T* (11,33 % \(2026–2034\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 352.6301574803148355 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 352.6301574803148355 Td
+(GSMA — State of the Industry Report on Mobile Money 2025 : SSA 1,1 Md comptes ; 286 M actifs ; 81) Tj
+T* (Md transactions ; 1,1 T USD valeur \(2024\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 317.4805511811022143 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 317.4805511811022143 Td
+(WeAreTech Africa — synthèse régionale GSMA \(Ouest : 485 M comptes, 357 Md USD\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 299.9057480314959321 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 299.9057480314959321 Td
+(Les Échos — Nomad Education : 1,8 M utilisateurs Afrique francophone vs 1,3 M France ; Mobile) Tj
+T* (Money + offline.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 264.7561417322833677 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 264.7561417322833677 Td
+(Kolonell — Digitalisation école privée Sénégal 2026 : marché 4 200 établissements privés ; cas) Tj
+T* ( A l m a d i e s   3 8   %!’ 9   %   i m p a y é s   ;   s a t .   6 , 2!’ 8 , 7   ;   P r o n o t e   ~ 1 1   k   F C F A / é l è v e / a n   ;   c u s t o m   4 – 9   M   F C F A .) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 229.6065354330706896 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 229.6065354330706896 Td
+(Team France Export — Fiche EdTech Cameroun : ~22 000 écoles primaires, ~4 500 secondaires.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 212.0317322834644074 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 212.0317322834644074 Td
+(L’Économiste du Bénin / Bénin Révélé — EducMaster, faux bulletins, budget +223 % \(2016–2024\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 194.4569291338581252 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 194.4569291338581252 Td
+(Banque mondiale — indicateur Learning Poverty \(via citations PNUD\).) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 176.8821259842519567 Td
+(Traçabilité) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 150.8033858267716596 Td
+(10 Annexes) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 125.291574803149615 Td
+(A. Message clé en 5 lignes) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 107.7167716535432191 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 107.7167716535432191 Td
+(Le besoin de gestion scolaire digitale est massif ; l’offre SIS locale reste insuffisante.) Tj
+ET
+endstream
+endobj
+17 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 1248
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 785.1970866141732586 Td
+(Les causes sont structurelles \(infra, outils fragmentés, cash\) — pas un simple « manque de volonté ».) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 767.6222834645668627 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 767.6222834645668627 Td
+(Le Mobile Money prouve que les parents sont déjà numériques pour payer.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 750.0474803149605805 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 750.0474803149605805 Td
+(Des cas documentés montrent des baisses d’impayés et hausses de satisfaction mesurables.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+56.6929133858267775 732.4726771653542983 Td
+(•) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+85.0393700787401627 732.4726771653542983 Td
+(EduPilot existe déjà comme plateforme production-ready \(8,5/10\) alignée sur ces causes.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 709.2285826771653774 Td
+(B. Commandes de reproduction métriques produit) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0 g
+56.6929133858267775 685.9844881889763428 Td
+(C. Signatures) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R ]
+/Count 8
+>>
+endobj
+19 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+20 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+21 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+22 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+23 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+24 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+25 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+26 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+27 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+28 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+29 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+30 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+31 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+32 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 19 0 R
+/F2 20 0 R
+/F3 21 0 R
+/F4 22 0 R
+/F5 23 0 R
+/F6 24 0 R
+/F7 25 0 R
+/F8 26 0 R
+/F9 27 0 R
+/F10 28 0 R
+/F11 29 0 R
+/F12 30 0 R
+/F13 31 0 R
+/F14 32 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+33 0 obj
+<<
+/Producer (jsPDF 4.2.1)
+/CreationDate (D:20260804083449+01'00')
+>>
+endobj
+34 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 35
+0000000000 65535 f 
+0000040118 00000 n 
+0000041986 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000005040 00000 n 
+0000005177 00000 n 
+0000009855 00000 n 
+0000009992 00000 n 
+0000015637 00000 n 
+0000015775 00000 n 
+0000020804 00000 n 
+0000020943 00000 n 
+0000026935 00000 n 
+0000027074 00000 n 
+0000032040 00000 n 
+0000032179 00000 n 
+0000038678 00000 n 
+0000038817 00000 n 
+0000040221 00000 n 
+0000040347 00000 n 
+0000040478 00000 n 
+0000040612 00000 n 
+0000040750 00000 n 
+0000040874 00000 n 
+0000041003 00000 n 
+0000041135 00000 n 
+0000041271 00000 n 
+0000041399 00000 n 
+0000041526 00000 n 
+0000041655 00000 n 
+0000041788 00000 n 
+0000041890 00000 n 
+0000042239 00000 n 
+0000042325 00000 n 
+trailer
+<<
+/Size 35
+/Root 34 0 R
+/Info 33 0 R
+/ID [ <204BDDDB2F129C312D6BA667A226AF9A> <204BDDDB2F129C312D6BA667A226AF9A> ]
+>>
+startxref
+42429
+%%EOF

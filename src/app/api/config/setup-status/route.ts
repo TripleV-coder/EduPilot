@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/i18n";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET() {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: t("api.errors.unauthenticated") }, { status: 401 });
-    }
+export const GET = createApiHandler(async (_request, context) => {
+        const session = context.session;
 
     const schoolId = session.user.schoolId;
     if (!schoolId) {
@@ -41,4 +38,5 @@ export async function GET() {
             students: 0,
         });
     }
-}
+
+});

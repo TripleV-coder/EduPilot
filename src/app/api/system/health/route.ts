@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getRedisClient } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +10,10 @@ export const dynamic = "force-dynamic";
  * GET /api/system/health
  * Get system health metrics (Super Admin only)
  */
-export async function GET() {
-  try {
-    const session = await auth();
+export const GET = createApiHandler(async (_request, context) => {
+    try {
+        const session = context.session;
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    // Only SUPER_ADMIN can access system health
-    if (session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     // Calculate system health metrics
     const startTime = Date.now();
@@ -29,6 +22,17 @@ export async function GET() {
     const dbHealthStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;
     const dbResponseTime = Date.now() - dbHealthStart;
+
+    const redis = getRedisClient();
+    let cacheStatus: "healthy" | "warning" | "disabled" = "disabled";
+    if (redis) {
+      try {
+        await redis.ping();
+        cacheStatus = "healthy";
+      } catch {
+        cacheStatus = "warning";
+      }
+    }
 
     // Count active users (all active users since lastLoginAt field doesn't exist in schema)
     const activeUsers = await prisma.user.count({
@@ -77,9 +81,11 @@ export async function GET() {
       checks: {
         database: dbResponseTime < 500 ? "healthy" : dbResponseTime < 1000 ? "warning" : "critical",
         api: totalResponseTime < 200 ? "healthy" : totalResponseTime < 500 ? "warning" : "critical",
+        cache: cacheStatus,
       },
     });
-  } catch (error: unknown) {
+  
+    } catch (error: unknown) {
     logger.error("Error fetching system health", error instanceof Error ? error : new Error(String(error)), { module: "api/system/health" });
     return NextResponse.json(
       {
@@ -89,4 +95,5 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN"] });

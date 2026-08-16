@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
-
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import prisma from "@/lib/prisma";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const bulkInvoiceSchema = z.object({
   paymentIds: z.array(z.string().cuid()).min(1).max(100),
@@ -16,60 +14,52 @@ const bulkInvoiceSchema = z.object({
  * POST /api/payments/bulk-invoice
  * Generate multiple invoices (Admin/Accountant only)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
+export const POST = createApiHandler(
+  async (request, context) => {
+    try {
+      const session = context.session;
 
-    const allowedRoles = [
-      "SUPER_ADMIN",
-      "SCHOOL_ADMIN",
-      "DIRECTOR",
-      "ACCOUNTANT",
-    ];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+      const body = await request.json();
+      const validatedData = bulkInvoiceSchema.parse(body);
 
-    const body = await request.json();
-    const validatedData = bulkInvoiceSchema.parse(body);
+      if (session.user.role !== "SUPER_ADMIN") {
+        const payments = await prisma.payment.findMany({
+          where: { id: { in: validatedData.paymentIds } },
+          select: { id: true, fee: { select: { schoolId: true } } },
+        });
+        if (payments.length !== validatedData.paymentIds.length) {
+          return NextResponse.json({ error: "Paiements invalides" }, { status: 400 });
+        }
+        const outOfScope = payments.some((payment) => !canAccessSchool(session, payment.fee.schoolId));
+        if (outOfScope) {
+          return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+      }
 
-    if (session.user.role !== "SUPER_ADMIN") {
-      const payments = await prisma.payment.findMany({
-        where: { id: { in: validatedData.paymentIds } },
-        select: { id: true, fee: { select: { schoolId: true } } },
+      const invoiceUrls = validatedData.paymentIds.map((id) => ({
+        paymentId: id,
+        invoiceUrl: `/api/payments/${id}/invoice`,
+      }));
+
+      return NextResponse.json({
+        success: true,
+        count: invoiceUrls.length,
+        invoices: invoiceUrls,
       });
-      if (payments.length !== validatedData.paymentIds.length) {
-        return NextResponse.json({ error: "Paiements invalides" }, { status: 400 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
       }
-      const outOfScope = payments.some((payment) => !canAccessSchool(session, payment.fee.schoolId));
-      if (outOfScope) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    }
 
-    // Generate invoice URLs for each payment
-    const invoiceUrls = validatedData.paymentIds.map((id) => ({
-      paymentId: id,
-      invoiceUrl: `/api/payments/${id}/invoice`,
-    }));
-
-    return NextResponse.json({
-      success: true,
-      count: invoiceUrls.length,
-      invoices: invoiceUrls,
-    });
-  } catch (error) {
-    if (isZodError(error)) {
+      logger.error(" generating bulk invoices:", error as Error);
       return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
+        { error: "Erreur lors de la génération des factures" },
+        { status: 500 }
       );
     }
-
-    logger.error(" generating bulk invoices:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la génération des factures" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
+);

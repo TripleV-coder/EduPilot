@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const uxEventSchema = z.object({
   event: z.string().min(1).max(120),
@@ -20,8 +20,9 @@ const uxEventSchema = z.object({
  * Persistée dans TelemetryEvent ; le userId est attaché si une session
  * existe, sinon l'événement reste anonyme.
  */
-export async function POST(request: Request) {
-  try {
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
     const rl = await checkRateLimit(`rl:ux-events:${ip}`, API_RATE_LIMIT);
     if (!rl.allowed) {
@@ -36,8 +37,6 @@ export async function POST(request: Request) {
     }
 
     // sendBeacon n'envoie pas toujours les cookies de session : auth best-effort
-    const session = await auth().catch(() => null);
-
     await prisma.telemetryEvent.create({
       data: {
         event: parsed.data.event,
@@ -48,7 +47,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  
+    } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Malformed telemetry request" }, { status: 400 });
     }
@@ -59,4 +59,5 @@ export async function POST(request: Request) {
     // Best-effort : le client n'attend pas de garantie de livraison
     return NextResponse.json({ ok: false }, { status: 202 });
   }
-}
+
+}, { requireAuth: false });

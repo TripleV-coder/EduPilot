@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createModuleSchema = z.object({
   courseId: z.string().cuid(),
@@ -17,12 +16,10 @@ const createModuleSchema = z.object({
 
 
 // POST /api/modules - Create module
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const session = context.session;
 
     const body = await request.json();
     const validatedData = createModuleSchema.parse(body);
@@ -84,4 +81,6 @@ export async function POST(request: NextRequest) {
     logger.error(" creating module:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "TEACHER", "SCHOOL_ADMIN", "DIRECTOR"] },
+);

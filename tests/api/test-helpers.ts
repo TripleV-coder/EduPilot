@@ -6,6 +6,7 @@
  * simulées et les sessions typées par rôle.
  */
 import type { Session } from "next-auth";
+import type { NextRequest } from "next/server";
 
 /** CUID synthétique valide (regex ^c[a-z0-9]{24}$ d'api-helpers et z.cuid()). */
 export function cuid(seed: string): string {
@@ -38,7 +39,7 @@ export function makeRequest(
     json: () => Promise.resolve(init?.body ?? {}),
     nextUrl: parsedUrl,
      
-  } as any;
+  } as unknown as NextRequest;
 }
 
 interface SessionOverrides {
@@ -60,7 +61,7 @@ export function makeSession(role: string, overrides: SessionOverrides = {}): Ses
     },
     expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
      
-  } as any;
+  } as unknown as Session;
 }
 
 /** IDs de référence partagés entre les fixtures. */

@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/certificates/[id]
  * Get certificate details
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
     const guard = await assertModelAccess(session, "certificate", id, "Certificat non trouvé");
     if (guard) return guard;
 
@@ -79,31 +73,25 @@ export async function GET(
     }
 
     return NextResponse.json(certificate);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching certificate:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération du certificat" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * DELETE /api/certificates/[id]
  * Delete certificate (Admin only)
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const DELETE = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
     const guard = await assertModelAccess(session, "certificate", id, "Certificat non trouvé");
     if (guard) return guard;
 
@@ -139,11 +127,13 @@ export async function DELETE(
     return NextResponse.json({
       message: "Certificat supprimé avec succès",
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" deleting certificate:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la suppression du certificat" },
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/compliance/dashboard
  * Get compliance dashboard with GDPR/RGPD metrics (Admin only)
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const session = await auth();
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     // SUPER_ADMIN can see all data (no schoolId filter)
     const schoolId = session.user.role === "SUPER_ADMIN" ? null : getActiveSchoolId(session);
@@ -65,7 +59,7 @@ export async function GET(_request: NextRequest) {
         },
       }),
 
-      // Pending data access requests (scoped to the admin's school)
+      // Pending data access requests (scoped to the admin's school, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] })
       prisma.dataAccessRequest.count({
         where: {
           status: "PENDING",
@@ -235,11 +229,13 @@ export async function GET(_request: NextRequest) {
           : []),
       ],
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching compliance dashboard:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération du dashboard de conformité" },
       { status: 500 }
     );
   }
-}
+
+});

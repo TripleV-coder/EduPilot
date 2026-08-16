@@ -11,8 +11,46 @@ import { Shield, AlertCircle, CheckCircle, Database, Users, Activity, FileText, 
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 
+type ComplianceAlert = {
+    level: string;
+    message: string;
+    action: string;
+};
+
+type ComplianceDataRequest = {
+    id: string;
+    requestType: string;
+    status: string;
+    requestedAt: string;
+    user?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+    };
+};
+
+type ComplianceDashboardData = {
+    summary: {
+        complianceScore: number;
+        activeUsers: number;
+        totalUsers: number;
+        inactiveUsers: number;
+    };
+    dataRequests: {
+        pending: number;
+        recent: ComplianceDataRequest[];
+    };
+    dataManagement: {
+        retentionPolicies: number;
+    };
+    auditLogs: {
+        last7Days: number;
+    };
+    alerts: ComplianceAlert[];
+};
+
 export default function ComplianceDashboardPage() {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<ComplianceDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +150,7 @@ export default function ComplianceDashboardPage() {
                                 <CardContent>
                                     {data.alerts && data.alerts.length > 0 ? (
                                         <div className="space-y-3">
-                                            {data.alerts.map((alert: any, i: number) => (
+                                            {data.alerts.map((alert, i) => (
                                                 <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                                                     <div className="flex items-center gap-3">
                                                         {renderAlertIcon(alert.level)}
@@ -199,7 +237,7 @@ export default function ComplianceDashboardPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {data.dataRequests.recent.map((req: any) => (
+                                                {data.dataRequests.recent.map((req) => (
                                                     <tr key={req.id} className="border-b last:border-0 hover:bg-muted/10">
                                                         <td className="px-4 py-3">
                                                             <span className="font-medium">{req.user?.firstName} {req.user?.lastName}</span>

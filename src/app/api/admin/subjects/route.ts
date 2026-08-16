@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { primarySubjects, collegeSubjects } from "@/lib/benin/config";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 // GET: Liste des matières de l'école
-export async function GET(_req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.schoolId) {
+export const GET = createApiHandler(async (request, context) => {
+        const session = context.session;
+    if (!session.user.schoolId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -18,12 +18,13 @@ export async function GET(_req: NextRequest) {
     });
 
     return NextResponse.json(subjects);
-}
+
+});
 
 // POST: Ajouter une matière
-export async function POST(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.schoolId) {
+export const POST = createApiHandler(async (request, context) => {
+        const session = context.session;
+    if (!session.user.schoolId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const { name, code, category, coefficient } = body;
 
     if (!name || !code) {
@@ -59,12 +60,13 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(subject, { status: 201 });
-}
+
+});
 
 // PUT: Importer les matières standards Bénin
-export async function PUT(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.schoolId) {
+export const PUT = createApiHandler(async (request, context) => {
+        const session = context.session;
+    if (!session.user.schoolId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -72,7 +74,7 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const { type } = body; // "primary" or "college"
 
     const subjectsToImport = type === "primary" ? primarySubjects : collegeSubjects;
@@ -102,4 +104,5 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ created, skipped, total: subjectsToImport.length });
-}
+
+});

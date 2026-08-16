@@ -18,6 +18,7 @@ import { fetcher } from "@/lib/fetcher";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { t } from "@/lib/i18n";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
+import type { Class } from "@/lib/types";
 
 type AnalyticsStudent = {
   studentId: string;
@@ -96,7 +97,7 @@ function AlertsRisksContent() {
     window.sessionStorage.setItem("edupilot-student-transition", studentId);
   };
 
-  const { data: classesData } = useSWR("/api/classes?limit=200", fetcher);
+  const { data: classesData } = useSWR<{ data: Class[] }>("/api/classes?limit=200", fetcher);
   const classes = classesData?.data || [];
 
   const analyticsUrl = classId === "all"
@@ -178,7 +179,7 @@ function AlertsRisksContent() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les classes</SelectItem>
-              {classes.map((classItem: any) => (
+              {classes.map((classItem: Class) => (
                 <SelectItem key={classItem.id} value={classItem.id}>
                   {classItem.name}
                 </SelectItem>

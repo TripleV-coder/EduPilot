@@ -168,11 +168,11 @@ export function suggestMapping(
  * Apply mapping to raw data
  */
 export function applyMapping(
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     mapping: Record<string, string>
-): Record<string, any>[] {
+): Record<string, unknown>[] {
     return data.map((row) => {
-        const mapped: Record<string, any> = {};
+        const mapped: Record<string, unknown> = {};
         for (const [sourceKey, targetKey] of Object.entries(mapping)) {
             if (row[sourceKey] !== undefined) {
                 mapped[targetKey] = row[sourceKey];

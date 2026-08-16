@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -7,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const createScholarshipSchema = z.object({
   studentId: z.string().cuid(),
@@ -34,13 +34,9 @@ const _updateScholarshipSchema = z.object({
 });
 
 // GET /api/scholarships - List scholarships
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
+    const session = context.session;
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const isActive = searchParams.get("isActive");
@@ -125,105 +121,104 @@ export async function GET(request: NextRequest) {
     logger.error(" fetching scholarships:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+});
 
 // POST /api/scholarships - Create scholarship
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const POST = createApiHandler(
+  async (request, context) => {
+    try {
+      const session = context.session;
+      const body = await request.json();
+      const validatedData = createScholarshipSchema.parse(body);
 
-    const body = await request.json();
-    const validatedData = createScholarshipSchema.parse(body);
-
-    // Verify student exists and belongs to school
-    const student = await prisma.studentProfile.findFirst({
-      where: { id: validatedData.studentId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+      // Verify student exists and belongs to school
+      const student = await prisma.studentProfile.findFirst({
+        where: { id: validatedData.studentId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
           },
-        },
-        parentStudents: {
-          include: {
-            parent: {
-              include: {
-                user: {
-                  select: { id: true },
+          parentStudents: {
+            include: {
+              parent: {
+                include: {
+                  user: {
+                    select: { id: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!student) {
-      return NextResponse.json({ error: "Étudiant non trouvé" }, { status: 404 });
-    }
-    if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+      if (!student) {
+        return NextResponse.json({ error: "Étudiant non trouvé" }, { status: 404 });
+      }
+      if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
 
-    const scholarship = await prisma.scholarship.create({
-      data: {
-        studentId: validatedData.studentId,
-        name: validatedData.name,
-        type: validatedData.type,
-        amount: validatedData.amount || 0,
-        percentage: validatedData.percentage,
-        startDate: new Date(validatedData.startDate),
-        endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
-        isActive: validatedData.isActive,
-        notes: validatedData.notes,
-      },
-    });
+      const scholarship = await prisma.scholarship.create({
+        data: {
+          studentId: validatedData.studentId,
+          name: validatedData.name,
+          type: validatedData.type,
+          amount: validatedData.amount || 0,
+          percentage: validatedData.percentage,
+          startDate: new Date(validatedData.startDate),
+          endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+          isActive: validatedData.isActive,
+          notes: validatedData.notes,
+        },
+      });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: "CREATE",
-        entity: "Scholarship",
-        entityId: scholarship.id,
-      },
-    });
+      // Log audit
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "CREATE",
+          entity: "Scholarship",
+          entityId: scholarship.id,
+        },
+      });
 
-    // Notify student
-    await prisma.notification.create({
-      data: {
-        userId: student.user.id,
-        type: "SUCCESS",
-        title: "Bourse accordée",
-        message: `Vous avez reçu une bourse: ${scholarship.name} (${scholarship.percentage ? `${scholarship.percentage}%` : `${scholarship.amount}`})`,
-        link: `/scholarships/${scholarship.id}`,
-      },
-    });
-
-    // Notify parents
-    if (student.parentStudents.length > 0) {
-      await prisma.notification.createMany({
-        data: student.parentStudents.map(link => ({
-          userId: link.parent.user.id,
+      // Notify student
+      await prisma.notification.create({
+        data: {
+          userId: student.user.id,
           type: "SUCCESS",
           title: "Bourse accordée",
-          message: `${student.user.firstName} ${student.user.lastName} a reçu une bourse: ${scholarship.name}`,
+          message: `Vous avez reçu une bourse: ${scholarship.name} (${scholarship.percentage ? `${scholarship.percentage}%` : `${scholarship.amount}`})`,
           link: `/scholarships/${scholarship.id}`,
-        })),
+        },
       });
-    }
 
-    return NextResponse.json(scholarship, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
+      // Notify parents
+      if (student.parentStudents.length > 0) {
+        await prisma.notification.createMany({
+          data: student.parentStudents.map(link => ({
+            userId: link.parent.user.id,
+            type: "SUCCESS",
+            title: "Bourse accordée",
+            message: `${student.user.firstName} ${student.user.lastName} a reçu une bourse: ${scholarship.name}`,
+            link: `/scholarships/${scholarship.id}`,
+          })),
+        });
+      }
+
+      return NextResponse.json(scholarship, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
+      }
+      logger.error(" creating scholarship:", error as Error);
+      return NextResponse.json({ error: "Erreur" }, { status: 500 });
     }
-    logger.error(" creating scholarship:", error as Error);
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
+);

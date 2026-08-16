@@ -57,7 +57,7 @@ describe("parseDateRangeParams", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.response.status).toBe(400);
-      const body = await (result.response as any).json();
+      const body = await result.response.json();
       expect(body.error).toContain("Plage de dates invalide");
     }
   });

@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 // PUT: Modifier une matière
-export async function PUT(
-    req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.schoolId) {
+export const PUT = createApiHandler(async (request, context) => {
+        const { id } = await context.params;
+        const session = context.session;
+    if (!session.user.schoolId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,7 +25,7 @@ export async function PUT(
         return NextResponse.json({ error: "Subject not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const { name, category, coefficient, isActive } = body;
 
     const updated = await prisma.subject.update({
@@ -42,16 +39,14 @@ export async function PUT(
     });
 
     return NextResponse.json(updated);
-}
+
+});
 
 // DELETE: Supprimer une matière
-export async function DELETE(
-    _req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.schoolId) {
+export const DELETE = createApiHandler(async (request, context) => {
+        const { id } = await context.params;
+        const session = context.session;
+    if (!session.user.schoolId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -87,4 +82,5 @@ export async function DELETE(
 
     await prisma.subject.delete({ where: { id } });
     return NextResponse.json({ message: "Subject deleted", deleted: true });
-}
+
+});

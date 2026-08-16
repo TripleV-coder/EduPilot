@@ -55,6 +55,36 @@ const formSchema = z.object({
 
 type UserFormValues = z.infer<typeof formSchema>;
 
+type SchoolOption = {
+    id: string;
+    name: string;
+};
+
+type SchoolsResponse = {
+    data?: SchoolOption[];
+    schools?: SchoolOption[];
+};
+
+type CreateUserPayload = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    role: UserFormValues["role"];
+    password: string;
+    schoolId?: string;
+    school?: {
+        name: string;
+        address?: string;
+        city?: string;
+        phone?: string;
+        email?: string;
+        type?: string;
+        level?: string;
+        parentSchoolId?: string;
+    };
+};
+
 export default function NewUserPage() {
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
@@ -64,8 +94,8 @@ export default function NewUserPage() {
     const { user } = useRBAC();
     const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
-    const { data: schoolsData } = useSWR(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
-    const schools = Array.isArray(schoolsData)
+    const { data: schoolsData } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
+    const schools: SchoolOption[] = Array.isArray(schoolsData)
         ? schoolsData
         : schoolsData?.data || schoolsData?.schools || [];
 
@@ -106,7 +136,7 @@ export default function NewUserPage() {
                 throw new Error("Veuillez sélectionner un établissement.");
             }
 
-            const payload: any = {
+            const payload: CreateUserPayload = {
                 firstName: values.firstName,
                 lastName: values.lastName,
                 email: values.email,
@@ -346,7 +376,7 @@ export default function NewUserPage() {
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                                {schools.map((school: any) => (
+                                                                {schools.map((school) => (
                                                                     <SelectItem key={school.id} value={school.id}>
                                                                         {school.name}
                                                                     </SelectItem>
@@ -502,7 +532,7 @@ export default function NewUserPage() {
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                                {schools.map((school: any) => (
+                                                                {schools.map((school) => (
                                                                     <SelectItem key={school.id} value={school.id}>
                                                                         {school.name}
                                                                     </SelectItem>

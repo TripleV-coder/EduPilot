@@ -138,7 +138,7 @@ export const CACHE_TTL_LONG = 300;
 /**
  * Cache middleware for API routes
  */
-export function cacheMiddleware<T = any>(options: CacheOptions = {}) {
+export function cacheMiddleware<T = unknown>(options: CacheOptions = {}) {
   return async function (
     handler: () => Promise<NextResponse<T>>,
     request: Request,

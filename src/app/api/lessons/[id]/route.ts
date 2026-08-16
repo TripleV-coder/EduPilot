@@ -1,19 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "lesson", id, "Leçon non trouvée");
     if (guard) return guard;
 
@@ -69,4 +63,4 @@ export async function GET(
     logger.error("Error fetching lesson:", error as Error);
     return NextResponse.json({ error: "Erreur lors de la récupération de la leçon" }, { status: 500 });
   }
-}
+});

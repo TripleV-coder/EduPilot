@@ -63,7 +63,7 @@ describe("escapeCsvCell — anti formula injection", () => {
 
 describe("POST /api/import/students — garde-fous", () => {
   it("refuse un lot de plus de 500 lignes (anti-DoS)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
 
     const bigBatch = Array.from({ length: 501 }, (_, i) => ({
       firstName: `Élève${i}`,
@@ -83,7 +83,7 @@ describe("POST /api/import/students — garde-fous", () => {
   });
 
   it("refuse un TEACHER (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await IMPORT_STUDENTS(
       makeRequest("http://localhost:3000/api/import/students", {
@@ -95,7 +95,7 @@ describe("POST /api/import/students — garde-fous", () => {
   });
 
   it("refuse un payload non-tableau (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
 
     const response = await IMPORT_STUDENTS(
       makeRequest("http://localhost:3000/api/import/students", {
@@ -109,7 +109,7 @@ describe("POST /api/import/students — garde-fous", () => {
 
 describe("POST /api/import (endpoint massif) — cap anti-DoS", () => {
   it("refuse un lot de plus de 500 lignes avant toute écriture DB", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
 
     const bigBatch = Array.from({ length: 501 }, (_, i) => ({
       firstName: `Élève${i}`,
@@ -121,7 +121,7 @@ describe("POST /api/import (endpoint massif) — cap anti-DoS", () => {
       makeRequest("http://localhost:3000/api/import", {
         method: "POST",
         body: { type: "STUDENTS", data: bigBatch },
-      }) as any
+      })
     );
     const body = await response.json();
     expect(response.status).toBe(400);

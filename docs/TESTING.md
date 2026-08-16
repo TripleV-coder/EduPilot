@@ -2,21 +2,21 @@
 
 Guide complet de la stratégie de tests, des outils, et des bonnes pratiques.
 
-> **État actuel** (2026-05-16) : 46 fichiers de tests, **539 tests** unit/integration verts + 6 specs E2E Playwright.
+> **État actuel** (2026-08-04) : plus de **1 141 tests** sur la suite principale, environ **120 fichiers de tests Vitest** et **14 specs E2E Playwright**.
 
 ---
 
 ## 1. Pyramide de tests
 
 ```
-              ╱╲          E2E (Playwright)  — 6 specs
+              ╱╲          E2E (Playwright)  — 14 specs
              ╱──╲         Parcours critiques, multi-pages
             ╱────╲
            ╱──────╲       Integration (Vitest + Prisma mock)
-          ╱────────╲      ~15 fichiers — API helpers, services
+          ╱────────╲      API, services, garde-fous sécurité
          ╱──────────╲
         ╱────────────╲    Unit (Vitest)
-       ╱──────────────╲   ~30 fichiers — validations, utils, calculs
+       ╱──────────────╲   lib/, validations, sécurité, finance, analytics
       ╱────────────────╲
 ```
 
@@ -155,12 +155,20 @@ vi.mocked(prisma.user.findUnique).mockResolvedValue({
 
 ### 5.1 Configuration (`vitest.config.ts`)
 - Provider : **V8** (rapide, natif Node 20+)
-- Inclus : `src/lib/**/*.ts`
-- Exclus : `src/lib/types/**`, `*.d.ts`, `swagger.ts`
-- Seuils :
-  - Statements : 60 % (cible : 80 %)
-  - Branches : 50 % (cible : 70 %)
-  - Functions : 60 % (cible : 80 %)
+- Inclus :
+  - `src/lib/**/*.ts`
+  - `src/components/edu/**/*.tsx`
+  - `src/components/messaging/**/*.tsx`
+  - `src/app/api/**/*.ts`
+- Exclus : `src/lib/types/**`, `*.d.ts`, `src/lib/swagger.ts`
+- Seuils actuels par périmètre :
+  - `src/lib/**` : `40 / 32 / 38`
+  - `src/components/**` : `50 / 40 / 35`
+  - `src/app/api/**` : `10 / 8 / 8`
+- Cibles 9/10 :
+  - `src/lib/**` : `60 / 50 / 60`
+  - `src/components/**` : `70 / 60 / 60`
+  - `src/app/api/**` : `40 / 30 / 40`
 
 ### 5.2 Lire le rapport
 Après `npm run test:coverage` :
@@ -185,14 +193,19 @@ Après `npm run test:coverage` :
 | `auth-flow.spec.ts` | Login → dashboard → logout |
 | `auth.setup.ts` | Bootstrap session pour réutilisation |
 | `dashboard.spec.ts` | Navigation, RBAC visuel |
+| `finance-flow.spec.ts` | Paiements, finance dashboard |
+| `grades-flow.spec.ts` | Saisie / consultation des notes |
+| `attendance-flow.spec.ts` | Présences et contrôles associés |
+| `parent-flow.spec.ts` | Parcours parent et consultation |
+| `a11y.spec.ts` | Audit Axe sur routes publiques + dashboard |
 | `public-routes.spec.ts` | Pages publiques (/, /privacy, /terms) |
 | `security-anonymous.spec.ts` | Anonyme ne peut pas accéder aux pages protégées |
 | `security-rbac.spec.ts` | Un STUDENT ne voit pas la route Finance |
 | `security-tenant.spec.ts` | École A ne peut pas lire l'école B |
 
 ### 6.2 Configuration
-- `playwright.config.ts` : Chromium uniquement en CI (rapide), tous browsers en local
-- Base URL : `http://localhost:3000` (lancée par `webServer` du config)
+- `playwright.config.ts` : projet `setup` + projet `chromium`
+- Base URL locale par défaut : `http://localhost:3093`
 - Storage state : `e2e/.auth/<role>.json` pour réutiliser les sessions
 
 ### 6.3 Ajouter un test E2E
@@ -252,9 +265,8 @@ Lib à installer : `@axe-core/playwright` (cf. ADR à venir).
 
 ## 8. Performance
 
-À implémenter en V2 :
 - Tests **k6** pour charger les endpoints critiques (target : p95 < 500 ms à 50 RPS)
-- **Lighthouse CI** sur les 5 pages publiques + dashboard (déjà en place via `lighthouse-ci.yml`)
+- **Lighthouse CI** sur les pages publiques critiques (`/`, `/login`, `/register`, `/forgot-password`, `/privacy`, `/ecoles`)
 
 ---
 

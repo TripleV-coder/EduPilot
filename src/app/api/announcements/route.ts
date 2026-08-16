@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma, AnnouncementType, AnnouncementPriority } from "@prisma/client";
@@ -7,9 +6,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createAnnouncementSchema = z.object({
   title: z.string().min(3).max(200),
@@ -79,13 +77,8 @@ const createAnnouncementSchema = z.object({
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, { session }) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
     // Cache key based on user role, school, and query params
     const url = new URL(request.url);
     const searchParams = new URLSearchParams(url.searchParams);
@@ -200,140 +193,136 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/announcements
  * Create announcement (Admin/Director only)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
+export const POST = createApiHandler(
+  async (request, { session }) => {
+    try {
+      if (!getActiveSchoolId(session)) {
+        return NextResponse.json(
+          { error: "Utilisateur non associé à un établissement" },
+          { status: 400 }
+        );
+      }
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+      const body = await request.json();
+      const validatedData = createAnnouncementSchema.parse(body);
 
-    if (!getActiveSchoolId(session)) {
-      return NextResponse.json(
-        { error: "Utilisateur non associé à un établissement" },
-        { status: 400 }
-      );
-    }
+      const targetSchoolId = session.user.role === "SUPER_ADMIN" ? (body.schoolId || getActiveSchoolId(session)) : getActiveSchoolId(session);
 
-    const body = await request.json();
-    const validatedData = createAnnouncementSchema.parse(body);
+      if (!targetSchoolId) {
+        return NextResponse.json(
+          { error: "Établissement cible requis" },
+          { status: 400 }
+        );
+      }
 
-    const targetSchoolId = session.user.role === "SUPER_ADMIN" ? (body.schoolId || getActiveSchoolId(session)) : getActiveSchoolId(session);
-
-    if (!targetSchoolId) {
-      return NextResponse.json(
-        { error: "Établissement cible requis" },
-        { status: 400 }
-      );
-    }
-
-    const announcementData: Prisma.AnnouncementUncheckedCreateInput = {
-      schoolId: targetSchoolId,
-      title: validatedData.title,
-      content: validatedData.content,
-      type: validatedData.type as AnnouncementType,
-      priority: validatedData.priority as AnnouncementPriority,
-      targetRoles: validatedData.targetRoles || [],
-      isPublished: validatedData.isPublished,
-      attachments: validatedData.attachments || [],
-      authorId: session.user.id,
-    };
-
-    if (validatedData.publishedAt) {
-      announcementData.publishedAt = new Date(validatedData.publishedAt);
-    } else if (validatedData.isPublished) {
-      announcementData.publishedAt = new Date();
-    }
-
-    if (validatedData.expiresAt) {
-      announcementData.expiresAt = new Date(validatedData.expiresAt);
-    }
-
-    const announcement = await prisma.announcement.create({
-      data: announcementData,
-      include: {
-        author: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-        school: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-
-    // Create notifications if published
-    if (announcement.isPublished) {
-      // Get users to notify based on targetRoles
-      const targetWhere: Prisma.UserWhereInput = {
-        isActive: true,
-        schoolId: announcement.schoolId, // LIMIT TO CURRENT TENANT
+      const announcementData: Prisma.AnnouncementUncheckedCreateInput = {
+        schoolId: targetSchoolId,
+        title: validatedData.title,
+        content: validatedData.content,
+        type: validatedData.type as AnnouncementType,
+        priority: validatedData.priority as AnnouncementPriority,
+        targetRoles: validatedData.targetRoles || [],
+        isPublished: validatedData.isPublished,
+        attachments: validatedData.attachments || [],
+        authorId: session.user.id,
       };
 
-      if (validatedData.targetRoles && validatedData.targetRoles.length > 0) {
-        targetWhere.role = { in: validatedData.targetRoles as any };
+      if (validatedData.publishedAt) {
+        announcementData.publishedAt = new Date(validatedData.publishedAt);
+      } else if (validatedData.isPublished) {
+        announcementData.publishedAt = new Date();
       }
 
-      const usersToNotify = await prisma.user.findMany({
-        where: targetWhere,
-        select: { id: true },
+      if (validatedData.expiresAt) {
+        announcementData.expiresAt = new Date(validatedData.expiresAt);
+      }
+
+      const announcement = await prisma.announcement.create({
+        data: announcementData,
+        include: {
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+          school: {
+            select: {
+              name: true,
+            },
+          },
+        },
       });
 
-      if (usersToNotify.length > 0) {
-        const notifications: Prisma.NotificationCreateManyInput[] = usersToNotify.map((u) => ({
-          userId: u.id,
-          type: announcement.priority === "URGENT" ? "WARNING" : "INFO",
-          title: `Nouvelle annonce: ${announcement.title}`,
-          message: announcement.content.substring(0, 150) + (announcement.content.length > 150 ? "..." : ""),
-          link: `/announcements/${announcement.id}`,
-        }));
+      // Create notifications if published
+      if (announcement.isPublished) {
+        // Get users to notify based on targetRoles
+        const targetWhere: Prisma.UserWhereInput = {
+          isActive: true,
+          schoolId: announcement.schoolId, // LIMIT TO CURRENT TENANT
+        };
 
-        await prisma.notification.createMany({
-          data: notifications,
+        if (validatedData.targetRoles && validatedData.targetRoles.length > 0) {
+          targetWhere.role = { in: validatedData.targetRoles };
+        }
+
+        const usersToNotify = await prisma.user.findMany({
+          where: targetWhere,
+          select: { id: true },
         });
+
+        if (usersToNotify.length > 0) {
+          const notifications: Prisma.NotificationCreateManyInput[] = usersToNotify.map((u) => ({
+            userId: u.id,
+            type: announcement.priority === "URGENT" ? "WARNING" : "INFO",
+            title: `Nouvelle annonce: ${announcement.title}`,
+            message: announcement.content.substring(0, 150) + (announcement.content.length > 150 ? "..." : ""),
+            link: `/announcements/${announcement.id}`,
+          }));
+
+          await prisma.notification.createMany({
+            data: notifications,
+          });
+        }
       }
-    }
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: "CREATE_ANNOUNCEMENT",
-        entity: "Announcement",
-        entityId: announcement.id,
-        newValues: {
-          title: announcement.title,
-          type: announcement.type,
-          priority: announcement.priority,
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "CREATE_ANNOUNCEMENT",
+          entity: "Announcement",
+          entityId: announcement.id,
+          newValues: {
+            title: announcement.title,
+            type: announcement.type,
+            priority: announcement.priority,
+          },
         },
-      },
-    });
+      });
 
-    await invalidateByPath(CACHE_PATHS.announcements);
+      await invalidateByPath(CACHE_PATHS.announcements);
 
-    return NextResponse.json(announcement, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
+      return NextResponse.json(announcement, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { status: 400 }
+        );
+      }
+
+      logger.error(" creating announcement:", error as Error);
       return NextResponse.json(
-        { status: 400 }
+        { error: "Erreur lors de la création de l'annonce" },
+        { status: 500 }
       );
     }
-
-    logger.error(" creating announcement:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la création de l'annonce" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },
+);

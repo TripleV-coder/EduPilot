@@ -1,6 +1,15 @@
 "use client";
 
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  type PieLabel,
+  type PieProps,
+} from "recharts";
 import { FR_TOOLTIP_STYLE } from "./chart-theme";
 import React from "react";
 
@@ -8,7 +17,7 @@ export interface BasePieChartDataItem {
   name: string;
   value: number;
   color?: string;
-  [key: string]: any;
+  fill?: string;
 }
 
 export interface BasePieChartProps {
@@ -19,12 +28,12 @@ export interface BasePieChartProps {
   paddingAngle?: number;
   emptyMessage?: React.ReactNode;
   colors?: string[];
-  cx?: string | number;
-  cy?: string | number;
-  onClick?: (entry: any, index: number) => void;
+  cx?: PieProps["cx"];
+  cy?: PieProps["cy"];
+  onClick?: (entry: BasePieChartDataItem, index: number) => void;
   activeIndex?: number | null;
   labelLine?: boolean;
-  label?: any;
+  label?: PieLabel;
 }
 
 export function BasePieChart({
@@ -62,14 +71,17 @@ export function BasePieChart({
           data={data}
           dataKey="value"
           nameKey="name"
-          cx={cx as any}
-          cy={cy as any}
+          cx={cx}
+          cy={cy}
           innerRadius={innerRadius}
           outerRadius={outerRadius}
           paddingAngle={paddingAngle}
           labelLine={labelLine}
           label={label}
-          onClick={onClick}
+          onClick={(_data, index) => {
+            if (!onClick || index < 0 || index >= data.length) return;
+            onClick(data[index], index);
+          }}
         >
           {data.map((entry, index) => {
              const opacity = (activeIndex !== undefined && activeIndex !== null && activeIndex !== index) ? 0.5 : 1;
@@ -83,7 +95,7 @@ export function BasePieChart({
              );
           })}
         </Pie>
-        <Tooltip {...FR_TOOLTIP_STYLE as any} />
+        <Tooltip contentStyle={FR_TOOLTIP_STYLE.contentStyle} />
         <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
       </PieChart>
     </ResponsiveContainer>

@@ -45,6 +45,9 @@ const formatDateInput = (value?: string | Date) => {
     return local.toISOString().split("T")[0];
 };
 
+type ClassOption = { id: string; name: string };
+type AcademicYearOption = { id: string; name: string; isCurrent?: boolean };
+
 export default function NewStudentPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -52,13 +55,13 @@ export default function NewStudentPage() {
     const [showPassword, setShowPassword] = useState(false);
 
     // Fetch classes and academic years
-    const { data: classesData } = useSWR<any>("/api/classes", fetcher);
-    const { data: yearsData } = useSWR<any>("/api/academic-years", fetcher);
+    const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
+    const { data: yearsData } = useSWR<AcademicYearOption[] | { data?: AcademicYearOption[] }>("/api/academic-years", fetcher);
     const { data: nationalities } = useSWR("/api/reference/nationalities", fetcher);
 
-    const classes = Array.isArray(classesData) ? classesData : classesData?.data || [];
-    const academicYears = Array.isArray(yearsData) ? yearsData : yearsData?.data || [];
-    const currentYear = academicYears.find((y: any) => y.isCurrent)?.id || academicYears[0]?.id;
+    const classes: ClassOption[] = Array.isArray(classesData) ? classesData : classesData?.data || [];
+    const academicYears: AcademicYearOption[] = Array.isArray(yearsData) ? yearsData : yearsData?.data || [];
+    const currentYear = academicYears.find((y) => y.isCurrent)?.id || academicYears[0]?.id;
 
     // React Hook Form — dateOfBirth (coerce) et nationality (.default)
     // rendent le type d'entrée ≠ type de sortie : trois génériques au lieu
@@ -218,7 +221,7 @@ export default function NewStudentPage() {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {classes.map((c: any) => (
+                                                {classes.map((c) => (
                                                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -239,7 +242,7 @@ export default function NewStudentPage() {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {academicYears.map((y: any) => (
+                                                {academicYears.map((y) => (
                                                     <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
                                                 ))}
                                             </SelectContent>

@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { requireRoot } from "@/lib/security/require-root";
 import prisma from "@/lib/prisma";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/root/data-requests
  * Liste les demandes d'accès aux données en attente
  */
-export async function GET() {
-  const session = await auth();
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -25,15 +27,20 @@ export async function GET() {
   });
 
   return NextResponse.json({ data: requests });
-}
+    },
+    {},
+);
+
 
 /**
  * PATCH /api/root/data-requests
  * Approuve ou rejette une demande
  * Body: { id: string, action: "APPROVE" | "REJECT" }
  */
-export async function PATCH(request: NextRequest) {
-  const session = await auth();
+export const PATCH = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -54,4 +61,7 @@ export async function PATCH(request: NextRequest) {
   });
 
   return NextResponse.json({ data: updated });
-}
+    },
+    {},
+);
+

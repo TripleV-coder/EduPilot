@@ -20,17 +20,47 @@ import { TrendLineChart } from "@/components/charts/TrendLineChart";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
+type GradeRow = {
+    studentId: string;
+    studentName: string;
+    average: number;
+    rank: number;
+};
+
+type GradeDistribution = {
+    excellent: number;
+    veryGood: number;
+    good: number;
+    average: number;
+    insufficient: number;
+    weak: number;
+};
+
+type SubjectAnalyticsResponse = {
+    subjectName: string;
+    className: string;
+    teacherName: string;
+    average: number;
+    highest: number;
+    lowest: number;
+    median: number;
+    gradeDistribution: GradeDistribution | Array<{ subject?: string; subjectId?: string; grade: number; passRate: number; studentCount?: number }>;
+    studentGrades: GradeRow[];
+    monthlyTrend?: Array<{ name: string; value: number }>;
+    evaluations: Array<{ name: string; date: string; classAverage: number }>;
+};
+
 export default function SubjectAnalyticsPage() {
     const params = useParams();
     const classId = params.classId as string;
     const subjectId = params.subjectId as string;
 
-    const { data: subjectData, isLoading, error } = useSWR(
+    const { data: subjectData, isLoading, error } = useSWR<SubjectAnalyticsResponse>(
         classId && subjectId ? `/api/analytics/class/${classId}/subject/${subjectId}` : null,
         fetcher
     );
 
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<GradeRow>[] = [
         {
             accessorKey: "studentName",
             header: "Élève",
@@ -93,7 +123,7 @@ export default function SubjectAnalyticsPage() {
                                     <GraduationCap className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl metric-serif text-primary">{subjectData.average?.toFixed(2)}/20</div>
+                                    <div className="text-3xl metric-serif text-primary">{subjectData?.average?.toFixed(2)}/20</div>
                                 </CardContent>
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
@@ -103,9 +133,9 @@ export default function SubjectAnalyticsPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-2xl metric-serif text-success">{subjectData.highest?.toFixed(1)}</span>
+                                        <span className="text-2xl metric-serif text-success">{subjectData?.highest?.toFixed(1)}</span>
                                         <span className="text-muted-foreground text-xs">/</span>
-                                        <span className="text-2xl metric-serif text-destructive">{subjectData.lowest?.toFixed(1)}</span>
+                                        <span className="text-2xl metric-serif text-destructive">{subjectData?.lowest?.toFixed(1)}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -115,7 +145,7 @@ export default function SubjectAnalyticsPage() {
                                     <BarChart3 className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl metric-serif">{subjectData.median?.toFixed(2)}</div>
+                                    <div className="text-3xl metric-serif">{subjectData?.median?.toFixed(2)}</div>
                                 </CardContent>
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
@@ -125,7 +155,9 @@ export default function SubjectAnalyticsPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-3xl metric-serif text-warning">
-                                        {((subjectData.studentGrades.filter((s: any) => s.average >= 10).length / subjectData.studentGrades.length) * 100).toFixed(1)}%
+                                        {subjectData && subjectData.studentGrades.length > 0
+                                            ? ((subjectData.studentGrades.filter((s) => s.average >= 10).length / subjectData.studentGrades.length) * 100).toFixed(1)
+                                            : "0"}%
                                     </div>
                                 </CardContent>
                             </Card>
@@ -139,7 +171,7 @@ export default function SubjectAnalyticsPage() {
                                     <CardDescription className="text-[10px]">Répartition des élèves par tranche de performance.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
-                                    <InteractivePerformanceBarChart data={subjectData.gradeDistribution || []} />
+                                    <InteractivePerformanceBarChart data={subjectData ? (Array.isArray(subjectData.gradeDistribution) ? subjectData.gradeDistribution : []) : []} />
                                 </CardContent>
                             </Card>
 
@@ -150,7 +182,7 @@ export default function SubjectAnalyticsPage() {
                                     <CardDescription className="text-[10px]">Tendance mensuelle sur l&apos;année en cours.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
-                                    <TrendLineChart data={subjectData.monthlyTrend || []} />
+                                    <TrendLineChart data={subjectData?.monthlyTrend || []} />
                                 </CardContent>
                             </Card>
                         </div>
@@ -164,7 +196,7 @@ export default function SubjectAnalyticsPage() {
                             <CardContent className="p-0">
                                 <DataTable 
                                     columns={columns} 
-                                    data={subjectData.studentGrades || []} 
+                                    data={subjectData?.studentGrades || []} 
                                     searchKey="studentName"
                                     searchPlaceholder="Rechercher un élève..."
                                 />

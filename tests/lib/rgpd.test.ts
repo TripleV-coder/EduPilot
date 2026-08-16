@@ -146,8 +146,8 @@ describe('RGPD Compliance', () => {
             expect(data.personalInfo.role).toBe('STUDENT')
 
             // Should NOT include password
-            expect((data as any).password).toBeUndefined()
-            expect((data.personalInfo as any).password).toBeUndefined()
+            expect((data as { password?: unknown }).password).toBeUndefined()
+            expect((data.personalInfo as { password?: unknown }).password).toBeUndefined()
         })
 
         it('should include profiles', async () => {
@@ -215,7 +215,7 @@ describe('RGPD Compliance', () => {
     // ============================================
     describe('anonymizeUser', () => {
         it('should anonymize user PII', async () => {
-            mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(mockPrisma))
+            mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma))
 
             await anonymizeUser('user-1', 'admin-1')
 
@@ -225,7 +225,7 @@ describe('RGPD Compliance', () => {
         })
 
         it('should create security audit log', async () => {
-            mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(mockPrisma))
+            mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma))
             mockPrisma.studentProfile.findUnique.mockResolvedValue(null)
 
             await anonymizeUser('user-1', 'admin-1')
@@ -238,7 +238,7 @@ describe('RGPD Compliance', () => {
         })
 
         it('should return success with anonymized email', async () => {
-            mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(mockPrisma))
+            mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma))
             mockPrisma.studentProfile.findUnique.mockResolvedValue(null)
 
             const result = await anonymizeUser('user-1', 'admin-1')

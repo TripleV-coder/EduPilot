@@ -54,10 +54,10 @@ async function main() {
                     data: {
                         userId: adminUser.id,
                         schoolId: school.id,
-                        action: action.action as any,
-                        entityType: action.entity as any,
+                        action: action.action,
+                        entity: action.entity,
                         entityId: "system",
-                        details: { message: action.description },
+                        newValues: { message: action.description },
                         ipAddress: "127.0.0.1",
                         userAgent: "System Initializer",
                         createdAt: new Date(Date.now() - (i + 1) * 3600000) // 1 to 4 hours ago
@@ -76,9 +76,9 @@ async function main() {
             data: {
                 userId: superAdmin.id,
                 action: "UPDATE",
-                entityType: "SYSTEM",
+                entity: "SYSTEM",
                 entityId: "config",
-                details: { message: "Optimisation de la base de données terminée" },
+                newValues: { message: "Optimisation de la base de données terminée" },
                 ipAddress: "127.0.0.1",
                 userAgent: "System Initializer",
                 createdAt: new Date(Date.now() - 1800000) // 30 min ago

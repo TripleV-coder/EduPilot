@@ -1,14 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizeRichText } from "@/lib/sanitize";
-import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import {getPaginationParams, createPaginatedResponse, createApiHandler} from "@/lib/api/api-helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createCourseSchema = z.object({
   classSubjectId: z.string().cuid(),
@@ -33,14 +31,11 @@ const createCourseSchema = z.object({
 });
 
 // GET /api/courses - List courses
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié", code: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const classSubjectId = searchParams.get("classSubjectId");
     const isPublished = searchParams.get("isPublished");
     const search = searchParams.get("search");
@@ -121,15 +116,15 @@ export async function GET(request: NextRequest) {
     logger.error("Error fetching courses", error as Error);
     return NextResponse.json({ error: "Erreur lors de la récupération des cours", code: "FETCH_ERROR" }, { status: 500 });
   }
-}
+
+  }
+);
 
 // POST /api/courses - Create course with modules and lessons
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"])) {
-      return NextResponse.json({ error: "Accès refusé", code: "FORBIDDEN" }, { status: 403 });
-    }
+    const session = context.session;
 
     const body = await request.json();
     const sanitizedBody = sanitizeRequestBody(body);
@@ -287,4 +282,7 @@ export async function POST(request: NextRequest) {
     logger.error("Error creating course", error as Error);
     return NextResponse.json({ error: "Erreur lors de la création du cours", code: "CREATE_ERROR" }, { status: 500 });
   }
-}
+
+  },
+  { allowedRoles: ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"] }
+);

@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { normalizeGradeTo20, roundTo } from "@/lib/analytics/helpers";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // Types for report card data
 interface SubjectGrade {
@@ -331,14 +330,11 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
 }
 
 // GET /api/grades/report-cards - Get report card data
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const periodId = searchParams.get("periodId");
 
@@ -391,17 +387,16 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  }
+);
 
 // POST /api/grades/report-cards - Generate PDF report card
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const body = await request.json();
+    const session = context.session;
+const body = await request.json();
     const { studentId, periodId, format = "pdf" } = body;
 
     if (!studentId || !periodId) {
@@ -426,10 +421,6 @@ export async function POST(request: NextRequest) {
       return accessError;
     }
 
-    // Verify access
-    if (!roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     const reportCardData = await getReportCardData(studentId, periodId);
 
@@ -458,4 +449,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"] }
+);

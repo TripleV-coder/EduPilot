@@ -28,11 +28,10 @@ Voir `.env.example` pour la liste complète. Les **critiques** :
 | `UPSTASH_REDIS_REST_TOKEN` | secret | Auth Upstash |
 | `SENTRY_DSN` | URL | DSN frontend + backend |
 | `SENTRY_AUTH_TOKEN` | secret | Pour upload des sourcemaps en CI |
-| `RESEND_API_KEY` | secret | Emails transactionnels |
-| `GEMINI_API_KEY` | secret | Gemini pour bulletins / action plans |
-| `STRIPE_SECRET_KEY` | secret | Paiements internationaux (optionnel) |
-| `FLUTTERWAVE_SECRET_KEY` | secret | Mobile money Bénin |
-| `FLUTTERWAVE_WEBHOOK_SECRET` | secret | Validation HMAC des webhooks |
+| `EMAIL_API_KEY` | secret | Emails transactionnels |
+| `GOOGLE_AI_API_KEY` | secret | Gemini pour bulletins / action plans |
+| `STAGING_DEPLOY_COMMAND` | commande | Commande de déploiement staging exécutée par `ci-cd.yml` |
+| `PRODUCTION_DEPLOY_COMMAND` | commande | Commande de déploiement production exécutée par `ci-cd.yml` |
 
 > **Règle d'or** : aucun secret en clair dans le repo. Utiliser GitHub Actions Secrets / Vercel Env / un Vault.
 
@@ -101,9 +100,9 @@ curl https://app.edupilot.bj/api/health
 | Métriques DB | Postgres `pg_stat_*` + dashboard fournisseur | Connections, slow queries |
 
 ### 4.2 Health check endpoint
-`GET /api/health` (source : `src/lib/health/`)
-- 200 OK : DB reachable, cache reachable, app vivante
-- 503 : Au moins une dépendance KO (le détail est dans la réponse JSON)
+`GET /api/health` (source : `src/app/api/health/route.ts`)
+- 200 OK : DB reachable, app vivante ; cache `connected`, `degraded` ou `disabled`
+- 503 : base de données KO
 - Latence cible : < 100 ms
 
 ### 4.3 SLOs
@@ -253,7 +252,9 @@ Stockage : Vault (V2) ou GitHub Actions Secrets (V1). **Pas** d'AWS Secrets Mana
 | Domaine + SSL | annuel | ~15 USD |
 | **Total V1** | | **~110 USD/mois** |
 
-À ~500 écoles actives, ces coûts triplent environ. Voir [ADR-0009](./adr/0009-cost-scaling.md) pour le plan de scaling.
+À ~500 écoles actives, ces coûts triplent environ. Le scaling applicatif est désormais suivi via
+[`docs/adr/0008-multi-tenancy.md`](./adr/0008-multi-tenancy.md) pour l'isolation tenant
+et [`docs/adr/0007-cache-upstash.md`](./adr/0007-cache-upstash.md) pour la stratégie cache/rate limiting.
 
 ---
 

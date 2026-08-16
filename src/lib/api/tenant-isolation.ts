@@ -31,7 +31,7 @@ export function ensureSchoolAccess(session: Session | null, resourceSchoolId?: s
     // User must be attached to an active school
     if (!activeSchoolId) {
         return NextResponse.json(
-            { error: "Aucun établissement associé à ce compte" },
+            { error: "Aucun établissement associé à ce compte", code: "NO_SCHOOL" },
             { status: 403 }
         );
     }

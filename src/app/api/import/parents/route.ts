@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
@@ -7,18 +6,13 @@ import { importParentSchema } from "@/lib/import/schemas";
 import { hash } from "bcryptjs";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { generateImportPassword } from "@/lib/import/initial-password";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
-        if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+export const POST = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
 
         const body = await request.json();
         const { data, schoolId: bodySchoolId } = body;
@@ -37,7 +31,13 @@ export async function POST(request: NextRequest) {
 
         const results = {
             created: 0,
-            errors: [] as any[],
+            errors: [] as Array<{
+                row: number;
+                error: string;
+                details?: unknown;
+                data?: unknown;
+                email?: string;
+            }>,
         };
 
         let schoolId = getActiveSchoolId(session) || null;
@@ -169,8 +169,6 @@ export async function POST(request: NextRequest) {
             await invalidateByPath(CACHE_PATHS.users).catch(() => { });
         }
         return NextResponse.json(results);
-    } catch (error) {
-        logger.error("Error importing parents", error instanceof Error ? error : new Error(String(error)), { module: "api/import/parents" });
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
-}
+    },
+    { allowedRoles: ALLOWED_ROLES },
+);

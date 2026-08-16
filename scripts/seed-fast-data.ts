@@ -4,6 +4,7 @@
  */
 
 import prisma from '../src/lib/prisma';
+import type { IncidentSeverity, IncidentType, NotificationType, PaymentStatus } from '@prisma/client';
 
 async function seedEssentialData() {
   console.log('⚡ Début du seed rapide des données essentielles...\n');
@@ -97,9 +98,9 @@ async function seedEssentialData() {
               data: {
                 studentId: enrollment.studentId,
                 classId: cls.id,
-                recordedDate: attendanceDate,
+                date: attendanceDate,
                 status: isAbsent ? 'ABSENT' : 'PRESENT',
-                justificationNote: isExcused ? 'Congé autorisé' : null,
+                reason: isExcused ? 'Congé autorisé' : null,
               }
             });
 
@@ -133,7 +134,7 @@ async function seedEssentialData() {
                 amount: fee.amount,
                 method: Math.random() < 0.6 ? 'BANK_TRANSFER' : 'CASH',
                 reference: `PAY-${Date.now()}-${Math.random()}`,
-                status: status as any,
+                status: status as PaymentStatus,
                 paidAt: status !== 'PENDING' ? new Date() : null,
               }
             });
@@ -155,13 +156,13 @@ async function seedEssentialData() {
     for (const student of students_payment.slice(0, 20)) {
       if (Math.random() < 0.4) {
         try {
-          await prisma.incident.create({
+          await prisma.behaviorIncident.create({
             data: {
               studentId: student.id,
-              type: ['TARDINESS', 'ABSENCE', 'MISCONDUCT'][Math.floor(Math.random() * 3)],
+              incidentType: ['LATE', 'ABSENCE_UNEXCUSED', 'DISRUPTION'][Math.floor(Math.random() * 3)] as IncidentType,
               description: 'Incident enregistré',
-              severity: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)],
-              reportedAt: new Date(),
+              severity: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)] as IncidentSeverity,
+              date: new Date(),
             }
           });
 
@@ -222,7 +223,7 @@ async function seedEssentialData() {
         await prisma.notification.create({
           data: {
             userId: user.id,
-            type: ['GRADE', 'PAYMENT', 'ATTENDANCE', 'MESSAGE'][Math.floor(Math.random() * 4)],
+            type: ['GRADE', 'PAYMENT', 'ATTENDANCE', 'MESSAGE'][Math.floor(Math.random() * 4)] as NotificationType,
             title: 'Nouvelle notification',
             message: 'Vous avez une mise à jour',
             isRead: Math.random() < 0.7,

@@ -43,6 +43,11 @@ type MedicalRecord = {
     notes: string | null;
 };
 
+type MedicalRecordForm = Omit<Partial<MedicalRecord>, "medications" | "conditions"> & {
+    medications?: string[] | string;
+    conditions?: string[] | string;
+};
+
 type Student = {
     id: string;
     enrollmentNumber: string;
@@ -65,7 +70,7 @@ export default function MedicalRecordsPage() {
     const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
     const [loadingRecord, setLoadingRecord] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [formData, setFormData] = useState<Partial<MedicalRecord>>({});
+    const [formData, setFormData] = useState<MedicalRecordForm>({});
     const [saving, setSaving] = useState(false);
     const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
     const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
@@ -148,8 +153,8 @@ export default function MedicalRecordsPage() {
         const payload = {
             ...formData,
             studentId: selectedStudent.id,
-            medications: typeof (formData.medications as any) === "string" ? (formData.medications as any).split(",").map((s: string) => s.trim()).filter(Boolean) : formData.medications,
-            conditions: typeof (formData.conditions as any) === "string" ? (formData.conditions as any).split(",").map((s: string) => s.trim()).filter(Boolean) : formData.conditions,
+            medications: typeof formData.medications === "string" ? formData.medications.split(",").map((s: string) => s.trim()).filter(Boolean) : formData.medications,
+            conditions: typeof formData.conditions === "string" ? formData.conditions.split(",").map((s: string) => s.trim()).filter(Boolean) : formData.conditions,
         };
 
         try {
@@ -319,7 +324,7 @@ export default function MedicalRecordsPage() {
                                                                 aria-label="Allergies et conditions"
                                                                 placeholder="Ex: Asthme, Arachide, Épilepsie"
                                                                 value={Array.isArray(formData.conditions) ? formData.conditions.join(", ") : formData.conditions || ""}
-                                                                onChange={(e) => setFormData({ ...formData, conditions: e.target.value as any })}
+                                                                onChange={(e) => setFormData({ ...formData, conditions: e.target.value })}
                                                                 className="border-warning/30 focus-visible:ring-warning/30"
                                                             />
                                                             <p className="text-[11px] text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
@@ -334,7 +339,7 @@ export default function MedicalRecordsPage() {
                                                                 aria-label="Traitements médicaux réguliers"
                                                                 placeholder="Ex: Ventoline, Insuline"
                                                                 value={Array.isArray(formData.medications) ? formData.medications.join(", ") : formData.medications || ""}
-                                                                onChange={(e) => setFormData({ ...formData, medications: e.target.value as any })}
+                                                                onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
                                                             />
                                                         </div>
 

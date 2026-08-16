@@ -23,7 +23,7 @@ describe("validations/incident", () => {
   });
 
   it("rejects unknown incident type", () => {
-    const r = incidentCreateSchema.safeParse({ ...base, incidentType: "SOMETHING_ELSE" as any });
+    const r = incidentCreateSchema.safeParse({ ...base, incidentType: "SOMETHING_ELSE" as never });
     expect(r.success).toBe(false);
   });
 

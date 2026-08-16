@@ -4,20 +4,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { aiService } from '@/lib/ai/ai-service';
 import { checkN8nHealth } from '@/lib/ai/n8n-client';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     // Rate limiting harmonisé (même logique que strictLimiter / autres routes sensibles)
     const ipClean = getClientIdentifier(request);
@@ -39,7 +36,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
 
 
     // const isTechnicalQuery = technicalPatterns.some(pattern => lowerMessage.includes(pattern));
@@ -124,7 +120,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-  } catch (error) {
+  
+    } catch (error) {
     logger.error('Chat API error:', error as Error);
 
     return NextResponse.json(
@@ -132,15 +129,13 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});
 
 // Get service status (authenticated endpoint)
-export async function GET(_request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const status = aiService.getStatus();
     const n8nHealth = await checkN8nHealth();
@@ -164,7 +159,8 @@ export async function GET(_request: NextRequest) {
       },
     });
 
-  } catch (error) {
+  
+    } catch (error) {
     logger.error('Chat status error:', error as Error);
 
     return NextResponse.json(
@@ -172,4 +168,5 @@ export async function GET(_request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});

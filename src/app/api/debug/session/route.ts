@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/debug/session
  * Debug endpoint - DEVELOPMENT ONLY
  * Returns session information for debugging purposes
  */
-export async function GET() {
+export const GET = createApiHandler(async (_request, context) => {
+        const session = context.session;
   // SECURITY: Only allow in development environment
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json(
@@ -25,8 +26,6 @@ export async function GET() {
   }
 
   try {
-    const session = await auth();
-
     return NextResponse.json({
       authenticated: !!session,
       session: session ? {
@@ -48,4 +47,5 @@ export async function GET() {
       authenticated: false,
     }, { status: 500 });
   }
-}
+
+});

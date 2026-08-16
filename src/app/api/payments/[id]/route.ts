@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const paymentUpdateSchema = z.object({
   amount: z.coerce.number().positive().optional(),
@@ -16,218 +15,198 @@ const paymentUpdateSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-type RouteContext = { params: Promise<{ id: string }> };
+export const GET = createApiHandler(
+  async (_request, context) => {
+    try {
+      const session = context.session;
+      const { id } = await context.params;
 
-export async function GET(_request: Request, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    // Anti-IDOR : la contrainte de propriété fait partie du `where` — un
-    // paiement hors périmètre n'est jamais lu, la réponse est un 404
-    // indistinguable d'un id inexistant.
-    const ownershipFilter: Record<string, unknown> = {};
-    if (session.user.role === "PARENT") {
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-        select: {
-          parentStudents: {
-            select: { studentId: true },
-          },
-        },
-      });
-      const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
-      ownershipFilter.studentId = { in: childrenIds };
-    } else if (session.user.role === "STUDENT") {
-      ownershipFilter.student = { userId: session.user.id };
-    } else if (session.user.role !== "SUPER_ADMIN") {
-      ownershipFilter.student = {
-        user: { schoolId: { in: getAccessibleSchoolIds(session) } },
-      };
-    }
-
-    const payment = await prisma.payment.findFirst({
-      where: { id, ...ownershipFilter },
-      include: {
-        student: {
+      const ownershipFilter: Record<string, unknown> = {};
+      if (session.user.role === "PARENT") {
+        const parentProfile = await prisma.parentProfile.findUnique({
+          where: { userId: session.user.id },
           select: {
-            id: true,
-            userId: true,
-            user: {
-              select: { firstName: true, lastName: true, schoolId: true },
+            parentStudents: {
+              select: { studentId: true },
             },
           },
-        },
-        fee: {
-          include: {
-            academicYear: true,
-          },
-        },
-      },
-    });
+        });
+        const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
+        ownershipFilter.studentId = { in: childrenIds };
+      } else if (session.user.role === "STUDENT") {
+        ownershipFilter.student = { userId: session.user.id };
+      } else if (session.user.role !== "SUPER_ADMIN") {
+        ownershipFilter.student = {
+          user: { schoolId: { in: getAccessibleSchoolIds(session) } },
+        };
+      }
 
-    if (!payment) {
-      return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
-    }
-
-    return NextResponse.json(payment);
-  } catch (error) {
-    logger.error(" fetching payment:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération du paiement" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: Request, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    const existingPayment = await prisma.payment.findUnique({
-      where: { id },
-      include: {
-        student: {
-          include: {
-            user: true,
-          },
-        },
-      },
-    });
-
-    if (!existingPayment) {
-      return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
-    }
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      !canAccessSchool(session, existingPayment.student.user.schoolId)
-    ) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validatedData = paymentUpdateSchema.parse(body);
-
-    const updatedPayment = await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.update({
-        where: { id },
-        data: validatedData,
+      const payment = await prisma.payment.findFirst({
+        where: { id, ...ownershipFilter },
         include: {
           student: {
-            include: {
+            select: {
+              id: true,
+              userId: true,
               user: {
-                select: { firstName: true, lastName: true },
+                select: { firstName: true, lastName: true, schoolId: true },
               },
             },
           },
-          fee: true,
-        },
-      });
-
-      await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
-      return payment;
-    });
-
-    await Promise.all([
-      invalidateByPath(CACHE_PATHS.payments),
-      invalidateByPath("/api/payments"),
-      invalidateByPath("/api/finance/dashboard"),
-      invalidateByPath("/api/finance/stats"),
-      invalidateByPath("/api/finance/reports/generate"),
-    ]);
-
-    return NextResponse.json(updatedPayment);
-  } catch (error: unknown) {
-    logger.error(" updating payment:", error as Error);
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Erreur lors de la mise à jour du paiement" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(_request: Request, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    const existingPayment = await prisma.payment.findUnique({
-      where: { id },
-      include: {
-        student: {
-          include: {
-            user: true,
+          fee: {
+            include: {
+              academicYear: true,
+            },
           },
         },
-      },
-    });
-
-    if (!existingPayment) {
-      return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
-    }
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      !canAccessSchool(session, existingPayment.student.user.schoolId)
-    ) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id },
-        data: { status: "CANCELLED" },
       });
 
-      await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
-    });
+      if (!payment) {
+        return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
+      }
 
-    await Promise.all([
-      invalidateByPath(CACHE_PATHS.payments),
-      invalidateByPath("/api/payments"),
-      invalidateByPath("/api/finance/dashboard"),
-      invalidateByPath("/api/finance/stats"),
-      invalidateByPath("/api/finance/reports/generate"),
-    ]);
+      return NextResponse.json(payment);
+    } catch (error) {
+      logger.error(" fetching payment:", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de la récupération du paiement" },
+        { status: 500 }
+      );
+    }
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"] }
+);
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error(" deleting payment:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la suppression du paiement" },
-      { status: 500 }
-    );
-  }
-}
+export const PATCH = createApiHandler(
+  async (request, context) => {
+    try {
+      const session = context.session;
+      const { id } = await context.params;
+
+      const existingPayment = await prisma.payment.findUnique({
+        where: { id },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!existingPayment) {
+        return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
+      }
+
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        !canAccessSchool(session, existingPayment.student.user.schoolId)
+      ) {
+        return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+      }
+
+      const body = await request.json();
+      const validatedData = paymentUpdateSchema.parse(body);
+
+      const updatedPayment = await prisma.$transaction(async (tx) => {
+        const payment = await tx.payment.update({
+          where: { id },
+          data: validatedData,
+          include: {
+            student: {
+              include: {
+                user: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+            },
+            fee: true,
+          },
+        });
+
+        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
+        return payment;
+      });
+
+      await Promise.all([
+        invalidateByPath(CACHE_PATHS.payments),
+        invalidateByPath("/api/payments"),
+        invalidateByPath("/api/finance/dashboard"),
+        invalidateByPath("/api/finance/stats"),
+        invalidateByPath("/api/finance/reports/generate"),
+      ]);
+
+      return NextResponse.json(updatedPayment);
+    } catch (error: unknown) {
+      logger.error(" updating payment:", error as Error);
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Erreur lors de la mise à jour du paiement" },
+        { status: 500 }
+      );
+    }
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
+);
+
+export const DELETE = createApiHandler(
+  async (_request, context) => {
+    try {
+      const session = context.session;
+      const { id } = await context.params;
+
+      const existingPayment = await prisma.payment.findUnique({
+        where: { id },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!existingPayment) {
+        return NextResponse.json({ error: "Paiement non trouvé" }, { status: 404 });
+      }
+
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        !canAccessSchool(session, existingPayment.student.user.schoolId)
+      ) {
+        return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.update({
+          where: { id },
+          data: { status: "CANCELLED" },
+        });
+
+        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
+      });
+
+      await Promise.all([
+        invalidateByPath(CACHE_PATHS.payments),
+        invalidateByPath("/api/payments"),
+        invalidateByPath("/api/finance/dashboard"),
+        invalidateByPath("/api/finance/stats"),
+        invalidateByPath("/api/finance/reports/generate"),
+      ]);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      logger.error(" deleting payment:", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de la suppression du paiement" },
+        { status: 500 }
+      );
+    }
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] }
+);

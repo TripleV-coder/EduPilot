@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -68,4 +70,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+    },
+    {},
+);
+

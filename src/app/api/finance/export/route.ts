@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { escapeCsvCell } from "@/lib/utils/export";
@@ -11,13 +11,9 @@ import { logger } from "@/lib/utils/logger";
  * Supports CSV and Excel formats
  */
 
-export async function GET(request: Request) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
+    const session = context.session;
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
     const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
@@ -39,12 +35,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Build date filter
     const dateFilter: Record<string, unknown> = {};
     if (startDate) dateFilter.gte = startDate;
     if (endDate) dateFilter.lte = endDate;
 
-    // Build where clause
     const where: Record<string, unknown> = {
       fee: { schoolId },
     };
@@ -55,7 +49,6 @@ export async function GET(request: Request) {
       where.fee = { ...where.fee as object, academicYearId };
     }
 
-    // Fetch payments data
     const payments = await prisma.payment.findMany({
       where,
       include: {
@@ -69,7 +62,6 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Transform data for CSV/Excel
     const exportData = payments.map((payment) => ({
       ID: payment.id,
       Date: payment.createdAt.toISOString().split("T")[0],
@@ -94,8 +86,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // escapeCsvCell : neutralise l'injection de formule (= + - @) + échappe les
-    // guillemets — source unique partagée avec l'export analytics (cf. utils/export)
     const headers = Object.keys(exportData[0] || {})
       .map((cell) => escapeCsvCell(cell))
       .join(",");
@@ -119,4 +109,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});

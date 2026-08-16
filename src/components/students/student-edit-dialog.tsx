@@ -30,8 +30,24 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
+interface StudentEditDialogData {
+    id: string;
+    studentNumber?: string | null;
+    matricule?: string | null;
+    gender?: "MALE" | "FEMALE" | null;
+    nationality?: string | null;
+    address?: string | null;
+    user?: {
+        firstName?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        isActive?: boolean;
+    };
+}
+
 interface StudentEditDialogProps {
-    student: any;
+    student: StudentEditDialogData;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess: () => void;

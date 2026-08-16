@@ -100,9 +100,11 @@ export function AttendanceGradesScatter() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="attendance" type="number" name="Assiduité (%)" />
             <YAxis dataKey="averageGrade" type="number" name="Moyenne (sur 20)" />
-            <Tooltip cursor={{ strokeDasharray: "3 3" }} content={(props: any) => {
-              if (props.active && props.payload?.[0]) {
-                const data = props.payload[0].payload as ScatterDataPoint;
+            <Tooltip
+              cursor={{ strokeDasharray: "3 3" }}
+              content={({ active, payload }) => {
+              if (active && payload?.[0]) {
+                const data = payload[0].payload as ScatterDataPoint;
                 return (
                   <div className="bg-background border border-border rounded p-2 text-sm shadow-lg">
                     <p className="font-semibold">{data.studentName}</p>
@@ -114,12 +116,14 @@ export function AttendanceGradesScatter() {
                 );
               }
               return null;
-            }} />
+            }}
+            />
             <Scatter
               dataKey="averageGrade"
               cursor="pointer"
-              onClick={(point: any) => {
-                const studentId = point?.payload?.studentId ?? point?.studentId;
+              onClick={(point) => {
+                const payload = point as { payload?: ScatterDataPoint; studentId?: string };
+                const studentId = payload?.payload?.studentId ?? payload?.studentId;
                 if (studentId) {
                   router.push(`/dashboard/students/${studentId}`);
                 }

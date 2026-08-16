@@ -54,7 +54,7 @@ export function InteractiveRiskPieChart({
     );
   }
 
-  const handlePieClick = (entry: any, index: number) => {
+  const handlePieClick = (entry: { name: string }, index: number) => {
     setActiveIndex(index);
     if (onRiskClick) {
       onRiskClick(entry.name);
@@ -79,7 +79,7 @@ export function InteractiveRiskPieChart({
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, value }: any) => `${RISK_LABELS[name] ?? name}: ${value}`}
+            label={({ name, value }) => `${RISK_LABELS[String(name)] ?? name}: ${value}`}
             outerRadius={100}
             onClick={handlePieClick}
             activeIndex={activeIndex}

@@ -66,6 +66,24 @@ test.describe("Accessibility — public routes (anonymous)", () => {
         await settle(page);
         await audit(page);
     });
+
+    test("/forgot-password", async ({ page }) => {
+        await page.goto("/forgot-password");
+        await settle(page);
+        await audit(page);
+    });
+
+    test("/privacy", async ({ page }) => {
+        await page.goto("/privacy");
+        await settle(page);
+        await audit(page);
+    });
+
+    test("/ecoles", async ({ page }) => {
+        await page.goto("/ecoles");
+        await settle(page);
+        await audit(page);
+    });
 });
 
 test.describe("Accessibility — authenticated as SCHOOL_ADMIN", () => {
@@ -91,6 +109,12 @@ test.describe("Accessibility — authenticated as SCHOOL_ADMIN", () => {
 
     test("/dashboard/design-system", async ({ page }) => {
         await page.goto("/dashboard/design-system");
+        await settle(page);
+        await audit(page);
+    });
+
+    test("/dashboard/messages", async ({ page }) => {
+        await page.goto("/dashboard/messages");
         await settle(page);
         await audit(page);
     });

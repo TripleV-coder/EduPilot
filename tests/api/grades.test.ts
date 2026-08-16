@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Evaluation, Grade, Period } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
-  const prismaMock: Record<string, any> = {
+  const prismaMock: Record<string, unknown> = {
     evaluation: { findUnique: vi.fn() },
     enrollment: { count: vi.fn() },
     grade: { upsert: vi.fn(), findMany: vi.fn() },
@@ -86,7 +87,7 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("refuse un STUDENT (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
 
     const response = await POST_BATCH(
       makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
@@ -95,7 +96,7 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("retourne 404 si l'évaluation n'existe pas", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(null);
 
     const response = await POST_BATCH(
@@ -105,11 +106,11 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("refuse la saisie sur une période clôturée (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(
       evaluationRecord({
         period: { endDate: new Date("2025-12-31"), name: "Trimestre 1" },
-      }) as any
+      }) as unknown as Evaluation
     );
 
     const response = await POST_BATCH(
@@ -121,7 +122,7 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("bloque la saisie cross-tenant (évaluation d'une autre école)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(
       evaluationRecord({
         classSubject: {
@@ -129,7 +130,7 @@ describe("POST /api/grades/batch", () => {
           class: { schoolId: FIXTURES.schoolB },
           teacher: { userId: teacherUserId },
         },
-      }) as any
+      }) as unknown as Evaluation
     );
 
     const response = await POST_BATCH(
@@ -139,8 +140,8 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("un TEACHER ne peut noter que ses propres matières (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: cuid("autreprof") }) as any);
-    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: cuid("autreprof") }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
 
     const response = await POST_BATCH(
       makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
@@ -149,8 +150,8 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("anti-fraude : bloque les étudiants non inscrits dans la classe (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }) as any);
-    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
     // 2 étudiants soumis, mais 1 seul inscrit actif dans la classe
     vi.mocked(prisma.enrollment.count).mockResolvedValue(1);
 
@@ -163,8 +164,8 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("rejette une note supérieure au barème (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }) as any);
-    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
     vi.mocked(prisma.enrollment.count).mockResolvedValue(2);
 
     const response = await POST_BATCH(
@@ -182,10 +183,10 @@ describe("POST /api/grades/batch", () => {
   });
 
   it("upsert toutes les notes en transaction et synchronise les analytics (201)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }) as any);
-    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
     vi.mocked(prisma.enrollment.count).mockResolvedValue(2);
-    vi.mocked(prisma.grade.upsert).mockResolvedValue({ id: cuid("grade1") } as any);
+    vi.mocked(prisma.grade.upsert).mockResolvedValue({ id: cuid("grade1") } as unknown as Grade);
 
     const response = await POST_BATCH(
       makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
@@ -217,7 +218,7 @@ describe("GET /api/grades/statistics", () => {
   });
 
   it("refuse un compte sans établissement (403 NO_SCHOOL)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: null }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: null }));
 
     const response = await GET_STATISTICS(
       makeRequest("http://localhost:3000/api/grades/statistics")
@@ -229,14 +230,14 @@ describe("GET /api/grades/statistics", () => {
   });
 
   it("calcule moyenne, extrêmes, distribution et taux de réussite (notes normalisées sur 20)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.grade.findMany).mockResolvedValue([
       gradeRecord(18), // excellent
       gradeRecord(14), // good
       gradeRecord(12), // average
       gradeRecord(4), // poor
       gradeRecord(40, 50), // 16/20 après normalisation → excellent
-    ] as any);
+    ] as unknown as Grade[]);
 
     const response = await GET_STATISTICS(
       makeRequest("http://localhost:3000/api/grades/statistics")
@@ -260,11 +261,11 @@ describe("GET /api/grades/statistics", () => {
   });
 
   it("régression : supporte des dizaines de milliers de notes sans stack overflow", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     const manyGrades = Array.from({ length: 50000 }, (_, index) =>
       gradeRecord((index % 20) + 0.5)
     );
-    vi.mocked(prisma.grade.findMany).mockResolvedValue(manyGrades as any);
+    vi.mocked(prisma.grade.findMany).mockResolvedValue(manyGrades as unknown as Grade[]);
 
     const response = await GET_STATISTICS(
       makeRequest("http://localhost:3000/api/grades/statistics")
@@ -278,18 +279,18 @@ describe("GET /api/grades/statistics", () => {
   });
 
   it("classe les élèves et calcule le rang quand type=class", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const classId = cuid("classe6a");
     // 1er findMany : stats globales — 2e : notes du classement
     vi.mocked(prisma.grade.findMany)
-      .mockResolvedValueOnce([gradeRecord(12)] as any)
+      .mockResolvedValueOnce([gradeRecord(12)] as unknown as Grade[])
       .mockResolvedValueOnce([
         gradeRecord(12, 20, { studentId: FIXTURES.studentA }),
         gradeRecord(16, 20, {
           studentId: FIXTURES.studentB,
           student: { user: { firstName: "Bio", lastName: "Soglo" } },
         }),
-      ] as any);
+      ] as unknown as Grade[]);
 
     const response = await GET_STATISTICS(
       makeRequest(
@@ -306,20 +307,20 @@ describe("GET /api/grades/statistics", () => {
   });
 
   it("calcule la tendance par rapport à la période précédente", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const periodId = cuid("periode2");
     vi.mocked(prisma.grade.findMany)
       // Période courante : moyenne 14
-      .mockResolvedValueOnce([gradeRecord(14)] as any)
+      .mockResolvedValueOnce([gradeRecord(14)] as unknown as Grade[])
       // Période précédente : moyenne 10 → tendance "up"
       .mockResolvedValueOnce([
         { value: 10, evaluation: { maxGrade: 20 } },
-      ] as any);
+      ] as unknown as Grade[]);
     vi.mocked(prisma.period.findUnique).mockResolvedValue({
       academicYearId: cuid("annee2026"),
       sequence: 2,
-    } as any);
-    vi.mocked(prisma.period.findFirst).mockResolvedValue({ id: cuid("periode1") } as any);
+    } as unknown as Period);
+    vi.mocked(prisma.period.findFirst).mockResolvedValue({ id: cuid("periode1") } as unknown as Period);
 
     const response = await GET_STATISTICS(
       makeRequest(`http://localhost:3000/api/grades/statistics?periodId=${periodId}`)

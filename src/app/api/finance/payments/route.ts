@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
-import { Prisma } from "@prisma/client";
+import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import {
@@ -29,8 +29,8 @@ export const GET = createApiHandler(
 
         if (studentId) where.studentId = studentId;
         if (feeId) where.feeId = feeId;
-        if (method) where.method = method as any; // Cast to enum
-        if (status) where.status = status as any; // Cast to enum
+        if (method) where.method = method as PaymentMethod; // Cast to enum
+        if (status) where.status = status as PaymentStatus; // Cast to enum
 
         Object.assign(where, buildPaymentDateWhere({ startDate, endDate }));
 

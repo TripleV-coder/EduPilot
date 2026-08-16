@@ -44,7 +44,7 @@ describe("validations/orientation", () => {
     });
 
     it("rejects unknown series", () => {
-      const r = recommendationSchema.safeParse({ ...base, recommendedSeries: "SERIE_X" as any });
+      const r = recommendationSchema.safeParse({ ...base, recommendedSeries: "SERIE_X" as never });
       expect(r.success).toBe(false);
     });
 

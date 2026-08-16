@@ -5,7 +5,50 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [Non publié] - 2026-07-30
+## [1.2.0] - 2026-08-16
+
+### 🚀 Nouveautés majeures (juin–juillet 2026)
+
+- **RBAC réseau** : nouveau rôle `NETWORK_ADMIN` (héritage de `SCHOOL_ADMIN`,
+  périmètre multi-sites MAIN + annexes, matrice de permissions, gardes de
+  routes et de pages).
+- **Signatures électroniques** : bulletins et autorisations signés.
+- **RH** : gestion du personnel (présences, congés, paie) + comptabilité OHADA
+  (journaux, écritures en partie double, pièces comptables).
+- **IA** : socle autonome avec cascade de providers (GROQ/OpenAI → n8n),
+  prédiction de décrochage, alerte précoce, analyse comportementale et
+  orientation BEPC.
+- **Paiements** : FedaPay et MoMo Collection branchés (initiation, webhooks,
+  rapprochement).
+- **Vitrine publique** : site de présentation + annuaire des établissements.
+- **Élèves** : carte scolaire imprimable avec QR badge.
+- **Alumni** : annuaire des anciens élèves.
+- **Contrôle d'accès** : badges QR, points de scan et journal d'accès.
+- **Parents** : vérification du lien parent-enfant par code de liaison.
+- **UX** : auto-save, mises à jour optimistes, rétention des analytics,
+  accessibilité.
+- **Refactoring** : découpe des fichiers > 1 200 lignes, chrome commun des
+  pages (PageShell/PageHeader/PageStates), resolvers Zod typés.
+
+### 🔒 Production-ready — remédiation post-audit
+
+#### Corrigé
+- **Build** : 7 erreurs TS `medical-records/*` (handlers → `createApiHandler` +
+  retours `NextResponse` explicites).
+- **Tests** : garde `request.nextUrl?.pathname` dans `createApiHandler` → les 16
+  tests API (upload / fedapay / auth / grades) repassent ; suite **1 129 verts**.
+- **Latence API** : plus de CSP/nonce HTML sur les réponses `/api/*` authentifiées ;
+  skip du double rate-limit Redis via `x-edupilot-edge-rl`.
+- **Fake data** : métriques SMS inventées, barres WhatsApp inventées, carte GPS
+  transport factice → empty states honnêtes.
+- **Docs** : README IA (LLM cloud / n8n), métriques perf marquées comme cibles ;
+  ARCHITECTURE sans Three.js ; TECH_DEBT TD-004/008/009/010/011 à jour.
+- **Communication** : modèles SMS persistés (`CommunicationTemplate`) + seed auto
+  + UI load/save/create ; seuils couverture API remontés (10/8/8) ; typage charts
+  analytics ; **0 `any` explicite** + ESLint `no-explicit-any` en error.
+
+### 📊 État de la CI
+`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 141+ tests verts**.
 
 ### 🔒 Sécurité — le second facteur devient effectif
 
@@ -42,9 +85,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   sans le correctif**.
 - `TECH_DEBT.md` : registre de dette technique chiffré sur le dépôt réel.
 
-### 📊 État de la CI
-`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 129 tests verts** (115
-fichiers, +8) · `next build` OK.
+### 📊 État de la CI (2026-08-16)
+`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 169 tests verts** (126
+fichiers) · `next build` OK.
 
 ## [1.1.0] - 2025-03-23
 
@@ -187,18 +230,51 @@ fichiers, +8) · `next build` OK.
 
 ## [Unreleased]
 
-### Prévu pour v1.1.0
+### 🚀 Nouveautés majeures
 
-- 🤖 Integration IA pour l'assistant d'étude
-- 📱 Application mobile React Native
-- 🌍 Internationalisation (i18n) multi-langues
-- 📊 Tableaux de bord personnalisables
-- 🔗 API publique avec webhooks
-- 📧 Templates d'emails personnalisables
-- 📱 Notifications push
-- 💳 Intégration paiements Stripe/Paystack
-- 📄 Génération de bulletins PDF améliorée
-- 🎨 Thèmes personnalisables
+#### ✨ Ajouté
+
+- **Integration IA pour l'assistant d'étude** : l'assistant pourra répondre aux questions des étudiants, proposer des résumés de cours et aider à la préparation des examens.
+   - Génération d'explications adaptées au niveau de chaque utilisateur
+   - Citations et références vers les sources utilisées
+
+- **Application mobile React Native** : une application mobile iOS et Android pour accéder aux fonctionnalités de l'assistant depuis un téléphone ou une tablette.
+   - Consultation des cours et des ressources hors ligne
+   - Synchronisation automatique entre les appareils
+
+- **Internationalisation (i18n) multi-langues** : support de multiples langues pour l'interface utilisateur afin d'atteindre un public international.
+   - Français, anglais et espagnol disponibles au lancement
+   - Détection automatique de la langue du navigateur
+
+- **Tableaux de bord personnalisables** : chaque utilisateur pourra configurer ses tableaux de bord pour afficher les statistiques et les informations qui lui importent le plus.
+   - Choix des widgets et de leur disposition
+   - Export des données au format CSV
+
+- **API publique avec webhooks** : une API publique permettra aux développeurs d'intégrer l'assistant dans leurs propres applications.
+   - Documentation complète avec exemples de code
+   - Webhooks pour recevoir les événements en temps réel
+
+- **Templates d'emails personnalisables** : personnalisation des templates d'emails pour les notifications, les rappels et les communications aux utilisateurs.
+   - Éditeur visuel avec aperçu en direct
+   - Variables dynamiques intégrées
+
+- **Notifications push** : alertes en temps réel pour informer les utilisateurs des événements importants.
+   - Notifications de rappel de devoirs et d'examens
+   - Paramètres de notification par canal et par type
+
+- **Intégration paiements Stripe/Paystack** : intégration des paiements en ligne pour les abonnements et les achats intégrés.
+   - Abonnements mensuels et annuels
+   - Gestion des factures et reçus
+
+- **Génération de bulletins PDF améliorée** : génération de bulletins PDF avec des options de personnalisation supplémentaires.
+   - Choix des modèles et du format
+   - Ajout du logo de l'établissement
+
+- **Thèmes personnalisables** : choix de thèmes pour modifier l'apparence de l'application.
+   - Mode sombre et mode clair
+   - Thèmes de couleurs personnalisés
+
+À completer à la sortie de la version.
 
 ---
 

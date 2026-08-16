@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
   dedupeLatestAnalyticsByStudent,
@@ -8,27 +7,21 @@ import {
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/class/[classId]
  * Statistiques détaillées d'une classe
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ classId: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const { classId } = await context.params;
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
     if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
-
-    const { classId } = await params;
 
     const classData = await prisma.class.findUnique({
       where: { id: classId },
@@ -165,11 +158,13 @@ export async function GET(
       studentRanking,
       monthlyTrend,
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("fetching class analytics:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des analytics de classe" },
       { status: 500 }
     );
   }
-}
+
+});

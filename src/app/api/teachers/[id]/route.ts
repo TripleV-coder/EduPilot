@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
+import { SchoolLevel } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import {
     buildTeacherSchoolAssignments,
@@ -11,6 +11,7 @@ import {
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
 import { teacherUpdateSchema } from "@/lib/validations/user";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const READ_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
@@ -19,21 +20,10 @@ const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
  * GET /api/teachers/[id]
  * Get full teacher detail: profile, classes taught, subjects, schedule
  */
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
-
-        if (!READ_ROLES.includes(session.user.role)) {
-            return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-        }
-
-        const { id } = await params;
+export const GET = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
+        const { id } = await context.params;
         const activeSchoolId = getActiveSchoolId(session);
 
         const teacher = await prisma.teacherProfile.findUnique({
@@ -146,7 +136,12 @@ export async function GET(
         });
 
         // Deduplicate classes
-        const seenClasses = new Map<string, any>();
+        const seenClasses = new Map<string, {
+            id: string;
+            name: string;
+            classLevel: { id: string; name: string; level: SchoolLevel };
+            studentCount: number;
+        }>();
         visibleClassSubjects.forEach((cs) => {
             if (cs.class && !seenClasses.has(cs.class.id)) {
                 seenClasses.set(cs.class.id, {
@@ -189,294 +184,272 @@ export async function GET(
             schools: visibleSchools,
             schedules,
         });
-    } catch (error) {
-        logger.error("Error fetching teacher detail", error as Error);
-        return NextResponse.json(
-            { error: "Erreur lors de la récupération de l'enseignant" },
-            { status: 500 }
-        );
-    }
-}
+    },
+    { allowedRoles: READ_ROLES },
+);
 
 /**
  * PATCH /api/teachers/[id]
  * Update teacher profile and school assignments
  */
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+export const PATCH = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
+        const { id } = await context.params;
 
-        if (!MANAGE_ROLES.includes(session.user.role)) {
-            return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-        }
+        try {
+            const body = await request.json();
+            const validatedData = teacherUpdateSchema.parse(body);
+            const activeSchoolId = getActiveSchoolId(session);
 
-        const { id } = await params;
-        const body = await request.json();
-        const validatedData = teacherUpdateSchema.parse(body);
-        const activeSchoolId = getActiveSchoolId(session);
-
-        const teacher = await prisma.teacherProfile.findUnique({
-            where: { id },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                    },
-                },
-                classSubjects: {
-                    select: {
-                        id: true,
-                        class: {
-                            select: { schoolId: true, name: true },
-                        },
-                    },
-                },
-                mainClasses: {
-                    select: {
-                        id: true,
-                        name: true,
-                        schoolId: true,
-                    },
-                },
-                schoolAssignments: {
-                    where: { status: "ACTIVE" },
-                    select: { schoolId: true, isPrimary: true },
-                },
-            },
-        });
-
-        if (!teacher || teacher.deletedAt) {
-            return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
-        }
-
-        if (
-            session.user.role !== "SUPER_ADMIN" &&
-            (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
-        ) {
-            return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-        }
-
-        const normalizedSchools = normalizeTeacherSchoolIds({
-            primarySchoolId: validatedData.primarySchoolId ?? validatedData.schoolId ?? teacher.schoolId,
-            schoolId: validatedData.schoolId,
-            additionalSchoolIds: validatedData.additionalSchoolIds,
-        });
-
-        const currentSchoolIds = Array.from(new Set([
-            teacher.schoolId,
-            ...teacher.schoolAssignments.map((assignment) => assignment.schoolId),
-        ]));
-        const currentPrimarySchoolId =
-            teacher.schoolAssignments.find((assignment) => assignment.isPrimary)?.schoolId ?? teacher.schoolId;
-
-        if (
-            session.user.role !== "SUPER_ADMIN" &&
-            (
-                validatedData.schoolId !== undefined ||
-                validatedData.primarySchoolId !== undefined ||
-                validatedData.additionalSchoolIds !== undefined
-            )
-        ) {
-            return NextResponse.json({ error: "Seul le SUPER_ADMIN peut modifier les affectations multi-établissements" }, { status: 403 });
-        }
-
-        const assignedSchoolIds = session.user.role === "SUPER_ADMIN"
-            ? normalizedSchools.schoolIds
-            : currentSchoolIds;
-
-        const existingSchools = await prisma.school.findMany({
-            where: { id: { in: assignedSchoolIds } },
-            select: { id: true },
-        });
-
-        if (existingSchools.length !== assignedSchoolIds.length) {
-            return NextResponse.json({ error: "Un ou plusieurs établissements sélectionnés sont introuvables" }, { status: 400 });
-        }
-
-        const removedSchoolIds = currentSchoolIds.filter((schoolId) => !assignedSchoolIds.includes(schoolId));
-
-        if (removedSchoolIds.length > 0) {
-            const stillLinkedClass = teacher.classSubjects.find((classSubject) => removedSchoolIds.includes(classSubject.class.schoolId));
-            const stillLinkedMainClass = teacher.mainClasses.find((schoolClass) => removedSchoolIds.includes(schoolClass.schoolId));
-
-            if (stillLinkedClass || stillLinkedMainClass) {
-                return NextResponse.json(
-                    {
-                        error: "Impossible de retirer une école tant que l'enseignant y est encore affecté à des classes ou matières",
-                    },
-                    { status: 400 }
-                );
-            }
-        }
-
-        for (const schoolId of assignedSchoolIds.filter((schoolId) => !currentSchoolIds.includes(schoolId))) {
-            const quota = await checkTeacherQuota(schoolId);
-            if (!quota.allowed) {
-                return NextResponse.json({ error: `Quota d'enseignants atteint (${quota.limit}) pour l'établissement sélectionné.` }, { status: 403 });
-            }
-        }
-
-        if (validatedData.email && validatedData.email !== teacher.user.email) {
-            const emailOwner = await prisma.user.findUnique({
-                where: { email: validatedData.email },
-                select: { id: true },
-            });
-
-            if (emailOwner && emailOwner.id !== teacher.user.id) {
-                return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
-            }
-        }
-
-        const primarySchoolId =
-            session.user.role === "SUPER_ADMIN"
-                ? (normalizedSchools.primarySchoolId ?? assignedSchoolIds[0] ?? teacher.schoolId)
-                : currentPrimarySchoolId;
-
-        const updatedTeacher = await prisma.$transaction(async (tx) => {
-            await tx.user.update({
-                where: { id: teacher.userId },
-                data: {
-                    ...(validatedData.email ? { email: validatedData.email } : {}),
-                    ...(validatedData.firstName ? { firstName: validatedData.firstName } : {}),
-                    ...(validatedData.lastName ? { lastName: validatedData.lastName } : {}),
-                    ...(validatedData.phone !== undefined ? { phone: validatedData.phone || null } : {}),
-                    ...(validatedData.isActive !== undefined ? { isActive: validatedData.isActive } : {}),
-                    schoolId: primarySchoolId,
-                },
-            });
-
-            await tx.teacherProfile.update({
-                where: { id },
-                data: {
-                    schoolId: primarySchoolId,
-                    ...(validatedData.matricule !== undefined ? { matricule: validatedData.matricule || null } : {}),
-                    ...(validatedData.specialization !== undefined ? { specialization: validatedData.specialization || null } : {}),
-                    ...(validatedData.hireDate !== undefined ? { hireDate: validatedData.hireDate ? new Date(validatedData.hireDate) : null } : {}),
-                },
-            });
-
-            await tx.teacherSchoolAssignment.updateMany({
-                where: {
-                    teacherId: id,
-                    schoolId: { notIn: assignedSchoolIds },
-                    status: "ACTIVE",
-                },
-                data: {
-                    status: "INACTIVE",
-                    isPrimary: false,
-                    endDate: new Date(),
-                },
-            });
-
-            for (const schoolId of assignedSchoolIds) {
-                await tx.teacherSchoolAssignment.upsert({
-                    where: {
-                        teacherId_schoolId: {
-                            teacherId: id,
-                            schoolId,
-                        },
-                    },
-                    create: buildTeacherSchoolAssignments({
-                        teacherId: id,
-                        userId: teacher.userId,
-                        primarySchoolId,
-                        schoolIds: [schoolId],
-                    })[0],
-                    update: {
-                        status: "ACTIVE",
-                        isPrimary: schoolId === primarySchoolId,
-                        endDate: null,
-                    },
-                });
-            }
-
-            return tx.teacherProfile.findUnique({
+            const teacher = await prisma.teacherProfile.findUnique({
                 where: { id },
                 include: {
                     user: {
                         select: {
                             id: true,
-                            firstName: true,
-                            lastName: true,
                             email: true,
-                            phone: true,
-                            isActive: true,
                         },
                     },
-                    school: {
-                        select: { id: true, name: true, code: true },
+                    classSubjects: {
+                        select: {
+                            id: true,
+                            class: {
+                                select: { schoolId: true, name: true },
+                            },
+                        },
+                    },
+                    mainClasses: {
+                        select: {
+                            id: true,
+                            name: true,
+                            schoolId: true,
+                        },
                     },
                     schoolAssignments: {
                         where: { status: "ACTIVE" },
-                        include: {
-                            school: {
-                                select: { id: true, name: true, code: true },
-                            },
-                        },
-                        orderBy: [{ isPrimary: "desc" }, { school: { name: "asc" } }],
+                        select: { schoolId: true, isPrimary: true },
                     },
                 },
             });
-        });
 
-        if (!updatedTeacher) {
-            return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
-        }
+            if (!teacher || teacher.deletedAt) {
+                return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
+            }
 
-        if (session.user.role === "SUPER_ADMIN" || !activeSchoolId) {
-            return NextResponse.json(updatedTeacher);
-        }
+            if (
+                session.user.role !== "SUPER_ADMIN" &&
+                (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
+            ) {
+                return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+            }
 
-        return NextResponse.json({
-            ...updatedTeacher,
-            schoolAssignments: updatedTeacher.schoolAssignments.filter(
-                (assignment) => assignment.schoolId === activeSchoolId
-            ),
-            schools: updatedTeacher.schoolAssignments
-                .filter((assignment) => assignment.schoolId === activeSchoolId)
-                .map((assignment) => assignment.school),
-        });
-    } catch (error) {
-        logger.error("Error updating teacher", error as Error);
-        if (isZodError(error)) {
+            const normalizedSchools = normalizeTeacherSchoolIds({
+                primarySchoolId: validatedData.primarySchoolId ?? validatedData.schoolId ?? teacher.schoolId,
+                schoolId: validatedData.schoolId,
+                additionalSchoolIds: validatedData.additionalSchoolIds,
+            });
+
+            const currentSchoolIds = Array.from(new Set([
+                teacher.schoolId,
+                ...teacher.schoolAssignments.map((assignment) => assignment.schoolId),
+            ]));
+            const currentPrimarySchoolId =
+                teacher.schoolAssignments.find((assignment) => assignment.isPrimary)?.schoolId ?? teacher.schoolId;
+
+            if (
+                session.user.role !== "SUPER_ADMIN" &&
+                (
+                    validatedData.schoolId !== undefined ||
+                    validatedData.primarySchoolId !== undefined ||
+                    validatedData.additionalSchoolIds !== undefined
+                )
+            ) {
+                return NextResponse.json({ error: "Seul le SUPER_ADMIN peut modifier les affectations multi-établissements" }, { status: 403 });
+            }
+
+            const assignedSchoolIds = session.user.role === "SUPER_ADMIN"
+                ? normalizedSchools.schoolIds
+                : currentSchoolIds;
+
+            const existingSchools = await prisma.school.findMany({
+                where: { id: { in: assignedSchoolIds } },
+                select: { id: true },
+            });
+
+            if (existingSchools.length !== assignedSchoolIds.length) {
+                return NextResponse.json({ error: "Un ou plusieurs établissements sélectionnés sont introuvables" }, { status: 400 });
+            }
+
+            const removedSchoolIds = currentSchoolIds.filter((schoolId) => !assignedSchoolIds.includes(schoolId));
+
+            if (removedSchoolIds.length > 0) {
+                const stillLinkedClass = teacher.classSubjects.find((classSubject) => removedSchoolIds.includes(classSubject.class.schoolId));
+                const stillLinkedMainClass = teacher.mainClasses.find((schoolClass) => removedSchoolIds.includes(schoolClass.schoolId));
+
+                if (stillLinkedClass || stillLinkedMainClass) {
+                    return NextResponse.json(
+                        {
+                            error: "Impossible de retirer une école tant que l'enseignant y est encore affecté à des classes ou matières",
+                        },
+                        { status: 400 }
+                    );
+                }
+            }
+
+            for (const schoolId of assignedSchoolIds.filter((schoolId) => !currentSchoolIds.includes(schoolId))) {
+                const quota = await checkTeacherQuota(schoolId);
+                if (!quota.allowed) {
+                    return NextResponse.json({ error: `Quota d'enseignants atteint (${quota.limit}) pour l'établissement sélectionné.` }, { status: 403 });
+                }
+            }
+
+            if (validatedData.email && validatedData.email !== teacher.user.email) {
+                const emailOwner = await prisma.user.findUnique({
+                    where: { email: validatedData.email },
+                    select: { id: true },
+                });
+
+                if (emailOwner && emailOwner.id !== teacher.user.id) {
+                    return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
+                }
+            }
+
+            const primarySchoolId =
+                session.user.role === "SUPER_ADMIN"
+                    ? (normalizedSchools.primarySchoolId ?? assignedSchoolIds[0] ?? teacher.schoolId)
+                    : currentPrimarySchoolId;
+
+            const updatedTeacher = await prisma.$transaction(async (tx) => {
+                await tx.user.update({
+                    where: { id: teacher.userId },
+                    data: {
+                        ...(validatedData.email ? { email: validatedData.email } : {}),
+                        ...(validatedData.firstName ? { firstName: validatedData.firstName } : {}),
+                        ...(validatedData.lastName ? { lastName: validatedData.lastName } : {}),
+                        ...(validatedData.phone !== undefined ? { phone: validatedData.phone || null } : {}),
+                        ...(validatedData.isActive !== undefined ? { isActive: validatedData.isActive } : {}),
+                        schoolId: primarySchoolId,
+                    },
+                });
+
+                await tx.teacherProfile.update({
+                    where: { id },
+                    data: {
+                        schoolId: primarySchoolId,
+                        ...(validatedData.matricule !== undefined ? { matricule: validatedData.matricule || null } : {}),
+                        ...(validatedData.specialization !== undefined ? { specialization: validatedData.specialization || null } : {}),
+                        ...(validatedData.hireDate !== undefined ? { hireDate: validatedData.hireDate ? new Date(validatedData.hireDate) : null } : {}),
+                    },
+                });
+
+                await tx.teacherSchoolAssignment.updateMany({
+                    where: {
+                        teacherId: id,
+                        schoolId: { notIn: assignedSchoolIds },
+                        status: "ACTIVE",
+                    },
+                    data: {
+                        status: "INACTIVE",
+                        isPrimary: false,
+                        endDate: new Date(),
+                    },
+                });
+
+                for (const schoolId of assignedSchoolIds) {
+                    await tx.teacherSchoolAssignment.upsert({
+                        where: {
+                            teacherId_schoolId: {
+                                teacherId: id,
+                                schoolId,
+                            },
+                        },
+                        create: buildTeacherSchoolAssignments({
+                            teacherId: id,
+                            userId: teacher.userId,
+                            primarySchoolId,
+                            schoolIds: [schoolId],
+                        })[0],
+                        update: {
+                            status: "ACTIVE",
+                            isPrimary: schoolId === primarySchoolId,
+                            endDate: null,
+                        },
+                    });
+                }
+
+                return tx.teacherProfile.findUnique({
+                    where: { id },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                                phone: true,
+                                isActive: true,
+                            },
+                        },
+                        school: {
+                            select: { id: true, name: true, code: true },
+                        },
+                        schoolAssignments: {
+                            where: { status: "ACTIVE" },
+                            include: {
+                                school: {
+                                    select: { id: true, name: true, code: true },
+                                },
+                            },
+                            orderBy: [{ isPrimary: "desc" }, { school: { name: "asc" } }],
+                        },
+                    },
+                });
+            });
+
+            if (!updatedTeacher) {
+                return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
+            }
+
+            if (session.user.role === "SUPER_ADMIN" || !activeSchoolId) {
+                return NextResponse.json(updatedTeacher);
+            }
+
+            return NextResponse.json({
+                ...updatedTeacher,
+                schoolAssignments: updatedTeacher.schoolAssignments.filter(
+                    (assignment) => assignment.schoolId === activeSchoolId
+                ),
+                schools: updatedTeacher.schoolAssignments
+                    .filter((assignment) => assignment.schoolId === activeSchoolId)
+                    .map((assignment) => assignment.school),
+            });
+        } catch (error) {
+            logger.error("Error updating teacher", error as Error);
+            if (isZodError(error)) {
+                return NextResponse.json(
+                    { error: "Données invalides", details: error.issues },
+                    { status: 400 }
+                );
+            }
             return NextResponse.json(
-                { error: "Données invalides", details: error.issues },
-                { status: 400 }
+                { error: "Erreur lors de la mise à jour de l'enseignant" },
+                { status: 500 }
             );
         }
-        return NextResponse.json(
-            { error: "Erreur lors de la mise à jour de l'enseignant" },
-            { status: 500 }
-        );
-    }
-}
+    },
+    { allowedRoles: MANAGE_ROLES },
+);
 
 /**
  * DELETE /api/teachers/[id]
  * Soft delete teacher and archive school assignments
  */
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+export const DELETE = createApiHandler(
+    async (request, context) => {
+        const session = context.session;
+        const { id } = await context.params;
 
-        if (!MANAGE_ROLES.includes(session.user.role)) {
-            return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-        }
-
-        const { id } = await params;
         const teacher = await prisma.teacherProfile.findUnique({
             where: { id },
             include: {
@@ -557,11 +530,6 @@ export async function DELETE(
         });
 
         return NextResponse.json({ success: true });
-    } catch (error) {
-        logger.error("Error deleting teacher", error as Error);
-        return NextResponse.json(
-            { error: "Erreur lors de la suppression de l'enseignant" },
-            { status: 500 }
-        );
-    }
-}
+    },
+    { allowedRoles: MANAGE_ROLES },
+);

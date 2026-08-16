@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 /**
  * GET /api/public/schools/[code] — fiche publique d'un établissement (sans auth).
  * 404 (et non 403) si l'établissement n'existe pas OU n'est pas publié, afin de
  * ne pas révéler l'existence d'une école non publiée.
  */
-export async function GET(
-    _request: Request,
-    context: { params: Promise<{ code: string }> },
-) {
+export const GET = createApiHandler(
+    async (request, context) => {
+
     const { code } = await context.params;
 
     const school = await prisma.school.findFirst({
@@ -36,4 +36,7 @@ export async function GET(
     }
 
     return NextResponse.json({ school });
-}
+    },
+    { requireAuth: false },
+);
+

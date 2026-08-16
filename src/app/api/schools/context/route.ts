@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "@/lib/auth/school-access";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
+export const GET = createApiHandler(async (_request, context) => {
+        const session = context.session;
 
   const role = session.user.role;
   const primarySchoolId = session.user.primarySchoolId ?? null;
@@ -76,4 +73,5 @@ export async function GET() {
     schools,
     accessibleSchoolIds,
   });
-}
+
+});

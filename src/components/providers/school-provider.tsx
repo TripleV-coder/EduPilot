@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import type { AcademicYear, Period } from "@/lib/types";
 
 interface AccessibleSchool {
     id: string;
@@ -12,6 +13,16 @@ interface AccessibleSchool {
     code: string;
     city?: string | null;
     isActive: boolean;
+}
+
+interface SchoolInfoData {
+    name: string;
+    offeredLevels?: string[];
+    data?: { name?: string };
+}
+
+interface SchoolContextData {
+    schools: AccessibleSchool[];
 }
 
 interface SchoolContextType {
@@ -28,7 +39,7 @@ interface SchoolContextType {
     offeredLevels: string[];
     isLoading: boolean;
     isSwitchingSchool: boolean;
-    error: any;
+    error: unknown;
     isOffline: boolean;
 }
 
@@ -67,7 +78,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
 
     const isGlobalMode = session?.user?.role === "SUPER_ADMIN" && !session.user.schoolId;
 
-    const { data: schoolContextData } = useSWR(
+    const { data: schoolContextData } = useSWR<SchoolContextData>(
         session?.user ? "/api/schools/context" : null,
         fetcher,
         {
@@ -108,20 +119,20 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     }, [session?.user?.schoolId]);
 
     // Level 2: Fetch with SWR (Automatic Fallback to Cache)
-    const { data: schoolInfo, error: schoolError } = useSWR(
+    const { data: schoolInfo, error: schoolError } = useSWR<SchoolInfoData>(
         session?.user?.schoolId ? `/api/schools/${session.user.schoolId}` : null,
         fetcher,
         { 
             refreshInterval: 0, 
             revalidateOnFocus: false,
             onSuccess: (data) => {
-                const name = data.name || data.data?.name;
+                const name = data.name || data.data?.name || null;
                 if (name !== schoolName) setSchoolName(name);
             }
         }
     );
 
-    const { data: academicYears, error: yearsError } = useSWR(
+    const { data: academicYears, error: yearsError } = useSWR<AcademicYear[]>(
         isGlobalMode ? `/api/academic-years` : (session?.user?.schoolId ? `/api/academic-years?schoolId=${session.user.schoolId}` : null),
         fetcher,
         {
@@ -129,7 +140,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
                 if (data && Array.isArray(data) && !academicYearId) {
                     // Only auto-select if NOT in global mode
                     if (!isGlobalMode) {
-                        const current = data.find((y: any) => y.isCurrent);
+                        const current = data.find((y) => y.isCurrent);
                         const targetId = current?.id || data[0]?.id || null;
                         if (targetId) {
                             setAcademicYearId(targetId);
@@ -142,7 +153,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Fetch periods for the selected academic year
-    const { data: periods, error: periodsError } = useSWR(
+    const { data: periods, error: periodsError } = useSWR<Period[]>(
         academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null,
         fetcher,
         {

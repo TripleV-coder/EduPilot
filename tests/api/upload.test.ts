@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { NextRequest } from "next/server";
+import type { User } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeSession } from "./test-helpers";
 
@@ -49,7 +51,7 @@ function makeUploadRequest(file: unknown, type = "document") {
     url: "http://localhost:3000/api/upload",
     formData: async () => formData,
      
-  } as any;
+  } as unknown as NextRequest;
 }
 
 beforeEach(() => {
@@ -65,14 +67,14 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("retourne 400 sans fichier", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await POST(makeUploadRequest(null));
     expect(response.status).toBe(400);
   });
 
   it("rejette un fichier trop volumineux (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const file = makeFile({
       name: "gros.png",
       type: "image/png",
@@ -85,7 +87,7 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("rejette un type MIME non autorisé (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const file = makeFile({
       name: "script.svg",
       type: "image/svg+xml",
@@ -97,7 +99,7 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("anti-spoofing : rejette un exécutable déguisé en PNG (400, rien n'est écrit)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     // En-tête ELF, Content-Type menteur
     const file = makeFile({
       name: "innocent.png",
@@ -114,7 +116,7 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("anti-spoofing : rejette un PDF déclaré JPEG (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const file = makeFile({
       name: "photo.jpg",
       type: "image/jpeg",
@@ -127,7 +129,7 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("exige une image pour un avatar (400 si PDF)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const file = makeFile({
       name: "cv.pdf",
       type: "application/pdf",
@@ -140,8 +142,8 @@ describe("POST /api/upload — validation magic bytes", () => {
 
   it("accepte un vrai PNG en avatar (201) et met à jour le profil", async () => {
     const session = makeSession("TEACHER");
-    vi.mocked(auth).mockResolvedValue(session as any);
-    vi.mocked(prisma.user.update).mockResolvedValue({} as any);
+    vi.mocked(auth).mockResolvedValue(session);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as unknown as User);
     const file = makeFile({ name: "avatar.png", type: "image/png", bytes: PNG_MAGIC });
 
     const response = await POST(makeUploadRequest(file, "avatar"));
@@ -158,7 +160,7 @@ describe("POST /api/upload — validation magic bytes", () => {
   });
 
   it("neutralise un type d'upload inconnu vers 'general' (anti path traversal)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const file = makeFile({ name: "doc.png", type: "image/png", bytes: PNG_MAGIC });
 
     const response = await POST(makeUploadRequest(file, "../../etc"));

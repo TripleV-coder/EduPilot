@@ -28,9 +28,13 @@ EMAIL_PROVIDER="resend"  # ou "sendgrid"
 EMAIL_API_KEY="re_prod_xxxxxxxxxxxxxxxx"
 EMAIL_FROM="noreply@votredomaine.com"
 
-# Redis Cache & Rate Limiting (RECOMMANDÉ pour production)
+# Redis Cache & Rate Limiting (OBLIGATOIRE pour production multi-instance)
 UPSTASH_REDIS_REST_URL="https://xxx-xxx.upstash.io"
 UPSTASH_REDIS_REST_TOKEN="AYxxxx..."
+
+# Backup API : désactivée par défaut
+ALLOW_BACKUP_API="false"
+ALLOW_BACKUP_API_IN_PRODUCTION="false"
 ```
 
 ---
@@ -126,7 +130,7 @@ const dbUrl = "postgresql://user:pass@..."
 #### B. Rate Limiting
 ```bash
 # Vérifier que Redis Upstash est configuré
-# Sinon, le fallback in-memory ne scale pas en multi-instance
+# Le fallback in-memory n'est acceptable qu'en dev/test
 echo $UPSTASH_REDIS_REST_URL
 ```
 
@@ -172,8 +176,8 @@ const logger = pino({
 # Vérifier que l'endpoint existe
 curl https://edupilot.votredomaine.com/api/health
 
-# Devrait retourner
-{"status":"ok","timestamp":"2025-03-23T..."}
+# Devrait retourner au minimum
+{"status":"ok","database":"connected","cache":"connected|degraded|disabled","checks":{"database":"healthy","cache":"healthy|warning|disabled"}}
 ```
 
 ---

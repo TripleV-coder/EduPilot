@@ -15,6 +15,13 @@ import { toast } from "sonner";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
+import type { Class, ClassSubject, School, Subject } from "@prisma/client";
+import type { PaginatedResponse } from "@/lib/types";
+
+type CurriculumResponse = {
+    subjects: (ClassSubject & { subject: Subject })[];
+    totalCoefficients: number;
+};
 
 export default function RootCurriculumPage() {
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
@@ -22,25 +29,25 @@ export default function RootCurriculumPage() {
     const [isSaving, setIsSaving] = useState(false);
 
     // Fetch Schools
-    const { data: schoolsData } = useSWR("/api/root/schools?limit=100", fetcher);
+    const { data: schoolsData } = useSWR<School[] | PaginatedResponse<School>>("/api/root/schools?limit=100", fetcher);
     const schools = Array.isArray(schoolsData) ? schoolsData : schoolsData?.data || [];
 
     // Fetch Classes for selected school
-    const { data: classesData } = useSWR(
+    const { data: classesData } = useSWR<Class[] | { data?: Class[]; classes?: Class[] }>(
         selectedSchoolId ? `/api/classes?schoolId=${selectedSchoolId}&limit=100` : null, 
         fetcher
     );
     const classes = Array.isArray(classesData) ? classesData : classesData?.data || classesData?.classes || [];
 
     // Fetch All Subjects for the school
-    const { data: allSubjectsData, mutate: mutateAllSubjects } = useSWR(
+    const { data: allSubjectsData, mutate: mutateAllSubjects } = useSWR<Subject[] | { data?: Subject[] }>(
         selectedSchoolId ? `/api/subjects?schoolId=${selectedSchoolId}&limit=500` : null,
         fetcher
     );
     const allSubjects = Array.isArray(allSubjectsData) ? allSubjectsData : allSubjectsData?.data || [];
 
     // Fetch Subjects for selected class
-    const { data: curriculumData, mutate: mutateCurriculum } = useSWR(
+    const { data: curriculumData, mutate: mutateCurriculum } = useSWR<CurriculumResponse>(
         selectedClassId ? `/api/admin/curriculum-config?classId=${selectedClassId}` : null,
         fetcher
     );
@@ -144,7 +151,7 @@ export default function RootCurriculumPage() {
                                         <SelectValue placeholder="Choisir une école" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {schools.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                        {schools.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -155,7 +162,7 @@ export default function RootCurriculumPage() {
                                         <SelectValue placeholder="Choisir une classe" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                        {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -210,11 +217,11 @@ export default function RootCurriculumPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/50">
-                                    {(curriculumData?.subjects || []).map((cs: any) => (
+                                    {(curriculumData?.subjects || []).map((cs) => (
                                         <tr key={cs.id} className="hover:bg-muted/5 group">
                                             <td className="px-6 py-4 font-bold">{cs.subject.name}</td>
                                             <td className="px-6 py-4 text-center font-mono text-xs">{cs.subject.code}</td>
-                                            <td className="px-6 py-4 text-center font-black">{cs.coefficient}</td>
+                                            <td className="px-6 py-4 text-center font-black">{Number(cs.coefficient)}</td>
                                             <td className="px-6 py-4 text-right">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveSubject(cs.id)} className="h-11 w-11 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Retirer ${cs.subject.name}`}>
                                                     <Trash2 className="w-4 h-4" />
@@ -230,7 +237,7 @@ export default function RootCurriculumPage() {
                                                     <SelectValue placeholder="Ajouter une matière..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {allSubjects.map((s: any) => (
+                                                    {allSubjects.map((s) => (
                                                         <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>
                                                     ))}
                                                 </SelectContent>

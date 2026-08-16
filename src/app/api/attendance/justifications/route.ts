@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, AttendanceStatus } from "@prisma/client";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
@@ -14,14 +14,11 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
  * Returns absences with justification info for a class or student.
  * Uses the existing Attendance model which has justificationDocument field.
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const classId = searchParams.get("classId");
     const studentId = searchParams.get("studentId");
     const status = searchParams.get("status"); // ABSENT, EXCUSED, etc.
@@ -30,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (classId) where.classId = classId;
     if (studentId) where.studentId = studentId;
     if (status) {
-      where.status = status as any;
+      where.status = status as AttendanceStatus;
     } else {
       // Default: only absences (not PRESENT)
       where.status = { in: ["ABSENT", "EXCUSED", "LATE"] };
@@ -82,22 +79,18 @@ export async function GET(request: NextRequest) {
     logger.error("Error fetching justifications", error instanceof Error ? error : new Error(String(error)), { module: "api/attendance/justifications" });
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+  }
+);
 
 /**
  * POST /api/attendance/justifications
  * Adds a justification document to an existing attendance record.
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
-    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const session = context.session;
 
     const body = await request.json();
     const { attendanceId, reason, justificationDocument } = body;
@@ -142,4 +135,7 @@ export async function POST(request: NextRequest) {
     logger.error("Error submitting justification", error instanceof Error ? error : new Error(String(error)), { module: "api/attendance/justifications" });
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);

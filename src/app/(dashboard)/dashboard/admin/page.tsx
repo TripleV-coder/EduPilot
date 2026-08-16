@@ -16,10 +16,21 @@ type SystemStats = {
     auditLogCount: number;
 };
 
+type PendingAction = {
+    id: string;
+    type: string;
+    description: string;
+    count: number;
+    priority: "high" | "medium" | "low";
+    url: string;
+    icon: string;
+    status?: string;
+};
+
 export default function AdminPage() {
     const [stats, setStats] = useState<SystemStats | null>(null);
-    const [pendingActions, setPendingActions] = useState<any[] | null>(null);
-    const [systemInfo, setSystemInfo] = useState<Record<string, any> | null>(null);
+    const [pendingActions, setPendingActions] = useState<PendingAction[] | null>(null);
+    const [systemInfo, setSystemInfo] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -120,7 +131,7 @@ export default function AdminPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {pendingActions.map((action: any, i: number) => (
+                                {pendingActions.map((action, i) => (
                                     <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
                                         <span className="text-sm">{action.description || action.type}</span>
                                         <Badge variant="outline">{action.status || "En attente"}</Badge>
@@ -142,7 +153,7 @@ export default function AdminPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                {Object.entries(systemInfo).map(([key, value]: [string, any]) => (
+                                {Object.entries(systemInfo).map(([key, value]) => (
                                     <div key={key} className="space-y-1">
                                         <span className="text-muted-foreground">{key}</span>
                                         <div className="font-medium">{typeof value === "object" ? JSON.stringify(value) : String(value)}</div>

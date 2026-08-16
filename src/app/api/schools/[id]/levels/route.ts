@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { ensureRequestedSchoolAccess } from "@/lib/api/tenant-isolation";
 import { hasPermission } from "@/lib/rbac/permissions";
 import { Permission } from "@/lib/rbac/permissions";
 import { orderedCycles, normalizeOfferedLevels, type RealCycle } from "@/lib/benin/levels";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const REAL_CYCLES = ["PRIMARY", "SECONDARY_COLLEGE", "SECONDARY_LYCEE"] as const;
 const bodySchema = z.object({
@@ -17,11 +17,9 @@ const bodySchema = z.object({
  * GET /api/schools/[id]/levels — cycles offerts par l'école + référentiel.
  * PATCH — met à jour les cycles offerts (SCHOOL_ADMIN/SUPER_ADMIN).
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-
-  const { id } = await params;
+export const GET = createApiHandler(async (request, context) => {
+        const { id } = await context.params;
+        const session = context.session;
   const accessError = ensureRequestedSchoolAccess(session, id);
   if (accessError) return accessError;
 
@@ -47,13 +45,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       hasSeries: Boolean(c.series),
     })),
   });
-}
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+});
 
-  const { id } = await params;
+export const PATCH = createApiHandler(async (request, context) => {
+        const { id } = await context.params;
+        const session = context.session;
   const accessError = ensureRequestedSchoolAccess(session, id);
   if (accessError) return accessError;
 
@@ -61,7 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
+  const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Données invalides", details: parsed.error.issues },
@@ -112,4 +109,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   return NextResponse.json({ schoolId: id, offeredLevels: updated.offeredLevels });
-}
+
+});
+

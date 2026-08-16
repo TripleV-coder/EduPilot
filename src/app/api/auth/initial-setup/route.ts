@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
@@ -11,6 +11,7 @@ import {
   getClientIp,
   LOGIN_RATE_LIMIT,
 } from "@/lib/auth/rate-limiter";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const initialSetupSchema = z.object({
   // Informations administrateur - validations renforcées
@@ -49,145 +50,151 @@ const initialSetupSchema = z.object({
   path: ["confirmPassword"],
 });
 
-export async function POST(req: Request) {
-  try {
-    // Endpoint non authentifié : limiter les tentatives par IP
-    // (même fenêtre que le login : 5 essais / 15 min).
-    const rl = await checkRateLimit(
-      createRateLimitKey("initial-setup", getClientIp(req)),
-      LOGIN_RATE_LIMIT,
-    );
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Trop de tentatives. Veuillez réessayer plus tard." },
-        { status: 429, headers: { "Retry-After": "900" } },
+export const POST = createApiHandler(
+  async (req) => {
+    try {
+      // Endpoint non authentifié : limiter les tentatives par IP
+      // (même fenêtre que le login : 5 essais / 15 min).
+      const rl = await checkRateLimit(
+        createRateLimitKey("initial-setup", getClientIp(req)),
+        LOGIN_RATE_LIMIT,
       );
-    }
-
-    // Limite de taille du body pour éviter les attaques
-    const body = await req.json();
-
-    // Vérifier la taille du payload
-    const bodySize = JSON.stringify(body).length;
-    if (bodySize > 10000) { // 10KB max
-      return NextResponse.json(
-        { error: "Données trop volumineuses" },
-        { status: 413 }
-      );
-    }
-
-    const validatedData = initialSetupSchema.parse(body);
-
-    // Créer l'établissement et l'administrateur dans une transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const existingUserCount = await tx.user.count();
-
-      if (existingUserCount > 0) {
-        throw new Error("INITIAL_SETUP_ALREADY_DONE");
-      }
-
-      // Vérifier si l'email existe déjà (sécurité supplémentaire)
-      const existingUser = await tx.user.findUnique({
-        where: { email: validatedData.email },
-      });
-
-      if (existingUser) {
-        throw new Error("INITIAL_SETUP_EMAIL_TAKEN");
-      }
-
-      // Créer l'utilisateur super admin avec hash sécurisé
-      // Utiliser 12 rounds pour un meilleur équilibre sécurité/performance
-      const hashedPassword = await hash(validatedData.password, 12);
-      const user = await tx.user.create({
-        data: {
-          email: validatedData.email,
-          password: hashedPassword,
-          firstName: validatedData.firstName,
-          lastName: validatedData.lastName,
-          role: "SUPER_ADMIN",
-          isActive: true,
-        },
-      });
-
-      // Logger l'événement de sécurité
-      await tx.auditLog.create({
-        data: {
-          userId: user.id,
-          action: "INITIAL_SETUP_COMPLETED",
-          entity: "SYSTEM",
-          entityId: user.id,
-          newValues: {
-            adminEmail: user.email,
-            timestamp: new Date().toISOString(),
-          },
-        },
-      });
-
-      return { user };
-    }, {
-      maxWait: 10000, // Attendre max 10 secondes pour acquérir le lock
-      timeout: 20000, // Timeout total de 20 secondes
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-
-    return NextResponse.json(
-      {
-        message: "Configuration initiale réussie",
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-        },
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "INITIAL_SETUP_ALREADY_DONE") {
+      if (!rl.allowed) {
         return NextResponse.json(
-          { error: "Le système a déjà été configuré. Cette opération ne peut être effectuée qu'une seule fois." },
-          { status: 409 }
+          { error: "Trop de tentatives. Veuillez réessayer plus tard." },
+          { status: 429, headers: { "Retry-After": "900" } },
         );
       }
-      if (error.message === "INITIAL_SETUP_EMAIL_TAKEN") {
+
+      // Limite de taille du body pour éviter les attaques
+      const body = await req.json();
+
+      // Vérifier la taille du payload
+      const bodySize = JSON.stringify(body).length;
+      if (bodySize > 10000) { // 10KB max
         return NextResponse.json(
-          { error: "Cet email est déjà utilisé" },
+          { error: "Données trop volumineuses" },
+          { status: 413 }
+        );
+      }
+
+      const validatedData = initialSetupSchema.parse(body);
+
+      // Créer l'établissement et l'administrateur dans une transaction
+      const result = await prisma.$transaction(async (tx) => {
+        const existingUserCount = await tx.user.count();
+
+        if (existingUserCount > 0) {
+          throw new Error("INITIAL_SETUP_ALREADY_DONE");
+        }
+
+        // Vérifier si l'email existe déjà (sécurité supplémentaire)
+        const existingUser = await tx.user.findUnique({
+          where: { email: validatedData.email },
+        });
+
+        if (existingUser) {
+          throw new Error("INITIAL_SETUP_EMAIL_TAKEN");
+        }
+
+        // Créer l'utilisateur super admin avec hash sécurisé
+        // Utiliser 12 rounds pour un meilleur équilibre sécurité/performance
+        const hashedPassword = await hash(validatedData.password, 12);
+        const user = await tx.user.create({
+          data: {
+            email: validatedData.email,
+            password: hashedPassword,
+            firstName: validatedData.firstName,
+            lastName: validatedData.lastName,
+            role: "SUPER_ADMIN",
+            isActive: true,
+          },
+        });
+
+        // Logger l'événement de sécurité
+        await tx.auditLog.create({
+          data: {
+            userId: user.id,
+            action: "INITIAL_SETUP_COMPLETED",
+            entity: "SYSTEM",
+            entityId: user.id,
+            newValues: {
+              adminEmail: user.email,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+
+        return { user };
+      }, {
+        maxWait: 10000, // Attendre max 10 secondes pour acquérir le lock
+        timeout: 20000, // Timeout total de 20 secondes
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+
+      return NextResponse.json(
+        {
+          message: "Configuration initiale réussie",
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            firstName: result.user.firstName,
+            lastName: result.user.lastName,
+          },
+        },
+        { status: 201 }
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "INITIAL_SETUP_ALREADY_DONE") {
+          return NextResponse.json(
+            { error: "Le système a déjà été configuré. Cette opération ne peut être effectuée qu'une seule fois." },
+            { status: 409 }
+          );
+        }
+        if (error.message === "INITIAL_SETUP_EMAIL_TAKEN") {
+          return NextResponse.json(
+            { error: "Cet email est déjà utilisé" },
+            { status: 400 }
+          );
+        }
+      }
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
           { status: 400 }
         );
       }
-    }
-    if (isZodError(error)) {
+
+      logger.error("Erreur lors de la configuration initiale:", error);
       return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
+        { error: "Une erreur est survenue lors de la configuration" },
+        { status: 500 }
       );
     }
-
-    logger.error("Erreur lors de la configuration initiale:", error);
-    return NextResponse.json(
-      { error: "Une erreur est survenue lors de la configuration" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { requireAuth: false },
+);
 
 /**
  * GET - Vérifier si le système a besoin d'être initialisé
  * Retourne setupNeeded: true si aucun utilisateur n'existe
  */
-export async function GET(_req: NextRequest) {
-  try {
-    const userCount = await prisma.user.count();
-    return NextResponse.json(
-      { setupNeeded: userCount === 0 },
-      { status: 200 }
-    );
-  } catch (error) {
-    logger.error("Erreur lors de la vérification du statut:", error);
-    return NextResponse.json(
-      { error: "Impossible de vérifier le statut du système" },
-      { status: 500 }
-    );
-  }
-}
+export const GET = createApiHandler(
+  async () => {
+    try {
+      const userCount = await prisma.user.count();
+      return NextResponse.json(
+        { setupNeeded: userCount === 0 },
+        { status: 200 }
+      );
+    } catch (error) {
+      logger.error("Erreur lors de la vérification du statut:", error);
+      return NextResponse.json(
+        { error: "Impossible de vérifier le statut du système" },
+        { status: 500 }
+      );
+    }
+  },
+  { requireAuth: false },
+);

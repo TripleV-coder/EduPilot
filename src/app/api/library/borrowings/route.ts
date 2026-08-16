@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { libraryService } from "@/lib/library/service";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 // Helper to get studentProfileId from userId
 async function getStudentProfileId(userId: string): Promise<string | null> {
@@ -15,12 +15,10 @@ async function getStudentProfileId(userId: string): Promise<string | null> {
 }
 
 // Borrow a book
-export async function POST(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    try {
-        const { bookId, dueDate } = await req.json();
+export const POST = createApiHandler(async (request, context) => {
+try {
+        const session = context.session;
+        const { bookId, dueDate } = await request.json();
 
         const studentProfile = await prisma.studentProfile.findUnique({
             where: { userId: session.user.id },
@@ -50,15 +48,14 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Borrow failed" }, { status: 400 });
     }
-}
+
+});
 
 // Return a book
-export async function PUT(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    try {
-        const { recordId } = await req.json();
+export const PUT = createApiHandler(async (request, context) => {
+try {
+        const session = context.session;
+        const { recordId } = await request.json();
         const recordInfo = await prisma.borrowingRecord.findUnique({
             where: { id: recordId },
             include: { book: { select: { schoolId: true } }, student: { select: { userId: true, schoolId: true } } },
@@ -83,14 +80,13 @@ export async function PUT(req: NextRequest) {
     } catch (error) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Return failed" }, { status: 400 });
     }
-}
+
+});
 
 // Get user's borrowing history
-export async function GET(_req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    try {
+export const GET = createApiHandler(async (request, context) => {
+try {
+        const session = context.session;
         const studentId = await getStudentProfileId(session.user.id);
         if (!studentId) {
             const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT"];
@@ -117,4 +113,5 @@ export async function GET(_req: NextRequest) {
     } catch (error) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Error fetching borrowings" }, { status: 500 });
     }
-}
+
+});

@@ -9,12 +9,15 @@ import { logger } from "@/lib/utils/logger";
 import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 const resetPasswordSchema = z.object({
   token: z.string().min(1, "Token requis"),
   password: strongPasswordSchema,
 });
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+    async (request, context) => {
+
   try {
     const identifier = getClientIdentifier(request);
     const result = await checkRateLimit(authLimiter, identifier);
@@ -122,10 +125,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+    },
+    { requireAuth: false },
+);
+
 
 // Verify token validity
-export async function GET(request: Request) {
+export const GET = createApiHandler(
+    async (request, context) => {
+
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
@@ -157,4 +165,7 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+    },
+    { requireAuth: false },
+);
+

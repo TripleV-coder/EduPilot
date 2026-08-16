@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { calculateWeightedAverage } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 
@@ -96,12 +96,9 @@ function classifySubject(name: string): "lecture" | "calcul" | "dictee" | null {
     return null;
 }
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
+        const session = context.session;
         if (!ROLES.includes(session.user.role)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
@@ -262,6 +259,7 @@ export async function GET(request: NextRequest) {
                 },
             ],
         });
+    
     } catch (error) {
         logger.error("orientation cep:", error as Error);
         return NextResponse.json(
@@ -269,4 +267,5 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+
+});

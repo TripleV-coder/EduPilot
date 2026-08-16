@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { AuditLog, User } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
@@ -26,14 +27,14 @@ describe("GET /api/audit-logs", () => {
   });
 
   it("refuse un TEACHER (réservé aux admins)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await GET(makeRequest("http://localhost:3000/api/audit-logs"));
     expect(response.status).toBe(403);
   });
 
   it("rejette une plage de dates invalide (400) sans toucher la DB", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
 
     const response = await GET(
       makeRequest("http://localhost:3000/api/audit-logs?startDate=garbage")
@@ -46,7 +47,7 @@ describe("GET /api/audit-logs", () => {
   });
 
   it("rejette startDate postérieure à endDate (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
 
     const response = await GET(
       makeRequest(
@@ -57,10 +58,10 @@ describe("GET /api/audit-logs", () => {
   });
 
   it("filtre par plage de dates valide et pagine", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
       { id: cuid("log1"), action: "CREATE", entity: "Payment" },
-    ] as any);
+    ] as unknown as AuditLog[]);
     vi.mocked(prisma.auditLog.count).mockResolvedValue(1);
 
     const response = await GET(
@@ -80,10 +81,10 @@ describe("GET /api/audit-logs", () => {
   });
 
   it("un SCHOOL_ADMIN ne voit que les logs des utilisateurs de son école", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     const schoolUserId = cuid("userecolea");
-    vi.mocked(prisma.user.findMany).mockResolvedValue([{ id: schoolUserId }] as any);
-    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as any);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([{ id: schoolUserId }] as unknown as User[]);
+    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as unknown as AuditLog[]);
     vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
 
     const response = await GET(makeRequest("http://localhost:3000/api/audit-logs"));

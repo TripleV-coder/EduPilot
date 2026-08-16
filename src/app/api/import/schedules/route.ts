@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const DAY_MAP: Record<string, number> = {
   lundi: 1,
@@ -14,21 +12,15 @@ const DAY_MAP: Record<string, number> = {
   samedi: 6,
 };
 
+const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+
 /**
  * POST /api/import/schedules
  * Importer des emplois du temps pour une classe
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+export const POST = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
     const body = await request.json();
     const { classId, data, replaceExisting = false } = body;
@@ -147,11 +139,6 @@ export async function POST(request: NextRequest) {
       errors,
       replaced: Boolean(replaceExisting),
     });
-  } catch (error) {
-    logger.error("importing schedules:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de l'importation des emplois du temps" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ALLOWED_ROLES },
+);

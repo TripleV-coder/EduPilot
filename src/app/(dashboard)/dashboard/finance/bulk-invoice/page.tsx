@@ -12,6 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { ClassLevel, Fee } from "@prisma/client";
+
+type FeeOption = Fee & {
+    label?: string;
+};
 
 export default function BulkInvoicePage() {
     const router = useRouter();
@@ -19,8 +24,8 @@ export default function BulkInvoicePage() {
     const [selectedLevel, setSelectedLevel] = useState("");
     const [selectedFee, setSelectedFee] = useState("");
     const [selectedYear, setSelectedYear] = useState("");
-    const [classLevels, setClassLevels] = useState<any[]>([]);
-    const [fees, setFees] = useState<any[]>([]);
+    const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
+    const [fees, setFees] = useState<FeeOption[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
@@ -112,7 +117,7 @@ export default function BulkInvoicePage() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {classLevels.map((cl: any) => (
+                                                    {classLevels.map((cl) => (
                                                         <SelectItem key={cl.id} value={cl.id}>{cl.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -130,7 +135,7 @@ export default function BulkInvoicePage() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {fees.map((fee: any) => (
+                                                    {fees.map((fee) => (
                                                         <SelectItem key={fee.id} value={fee.id}>{fee.name ?? fee.label}</SelectItem>
                                                     ))}
                                                 </SelectContent>

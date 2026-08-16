@@ -49,11 +49,15 @@ export function PricingSection() {
                     </span>
                     <button
                         onClick={() => setIsAnnual(!isAnnual)}
+                        type="button"
                         className={cn(
                             "relative w-12 h-6 rounded-full transition-colors duration-200",
                             isAnnual ? "bg-primary" : "bg-muted"
                         )}
                         aria-label="Basculer la période de facturation"
+                        aria-pressed={isAnnual}
+                        aria-checked={isAnnual}
+                        role="switch"
                     >
                         <span className={cn(
                             "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-sm",

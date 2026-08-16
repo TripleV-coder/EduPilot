@@ -90,16 +90,14 @@ export default function TeacherDetailPage() {
     fetcher
   );
 
-  const { data: schoolsResponse } = useSWR<any>(
+  const { data: schoolsResponse } = useSWR<SchoolOption[] | { data: SchoolOption[]; pagination?: unknown }>(
     session?.user?.role === "SUPER_ADMIN" ? "/api/schools?limit=100" : null,
     fetcher
   );
 
-  const schoolOptions: SchoolOption[] = Array.isArray(schoolsResponse?.data)
-    ? schoolsResponse.data
-    : Array.isArray(schoolsResponse)
-      ? schoolsResponse
-      : [];
+  const schoolOptions: SchoolOption[] = Array.isArray(schoolsResponse)
+    ? schoolsResponse
+    : schoolsResponse?.data || [];
 
   // hireDate (coerce) rend le type d'entrée ≠ type de sortie : trois
   // génériques au lieu d'un cast.

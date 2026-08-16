@@ -45,14 +45,14 @@ function mockPredictors(options: {
     confidence: options.gradeConfidence ?? 80,
     range: { min: 11, max: 15 },
     modelUsed: "linear_regression",
-  } as any);
+  });
   vi.mocked(predictFailureRisk).mockResolvedValue({
     probability: options.failureProbability ?? 10,
     level: "FAIBLE",
     factors: [],
     recommendations: [],
     causalFactors: [],
-  } as any);
+  });
   vi.mocked(predictBehaviorRisk).mockResolvedValue({
     probability: options.behaviorProbability ?? 5,
     nextIncidentPrediction: "Comportement stable, risque très faible",
@@ -60,7 +60,7 @@ function mockPredictors(options: {
     recommendations: [],
     confidence: 60,
     dataQuality: "LOW",
-  } as any);
+  });
   vi.mocked(predictDropoutRisk).mockResolvedValue({
     probability: options.dropoutProbability ?? 5,
     level: "TRÈS FAIBLE",
@@ -68,9 +68,28 @@ function mockPredictors(options: {
     recommendations: [],
     confidence: 30,
     dataQuality: "LOW",
-  } as any);
-  vi.mocked(detectEarlyWarnings).mockResolvedValue([] as any);
+  });
+  vi.mocked(detectEarlyWarnings).mockResolvedValue([]);
 }
+
+type StudentAnalyticsResult = Awaited<
+  ReturnType<typeof prisma.studentAnalytics.findFirst>
+>;
+type EnrollmentListResult = Awaited<
+  ReturnType<typeof prisma.enrollment.findMany>
+>;
+type GradePredictionResult = Awaited<
+  ReturnType<typeof predictNextPeriodGrade>
+>;
+type FailurePredictionResult = Awaited<
+  ReturnType<typeof predictFailureRisk>
+>;
+type DropoutPredictionResult = Awaited<
+  ReturnType<typeof predictDropoutRisk>
+>;
+type EarlyWarningListResult = Awaited<
+  ReturnType<typeof detectEarlyWarnings>
+>;
 
 function subjectPerf(name: string, average: number, isStrength: boolean) {
   return { subject: { name }, average, isStrength };
@@ -90,7 +109,7 @@ describe("generateStudentPredictions", () => {
         subjectPerf("Français", 11, false),
         subjectPerf("EPS", 13, false),
       ],
-    } as any);
+    } as unknown as StudentAnalyticsResult);
 
     const result = await generateStudentPredictions("s1");
 
@@ -115,7 +134,7 @@ describe("generateStudentPredictions", () => {
         subjectPerf("Anglais", 12, false),
         subjectPerf("Maths", 8, false),
       ],
-    } as any);
+    } as unknown as StudentAnalyticsResult);
 
     const result = await generateStudentPredictions("s1");
 
@@ -128,7 +147,7 @@ describe("generateStudentPredictions", () => {
     mockPredictors({});
     vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue({
       subjectPerformances: [subjectPerf("EPS", 12, false)],
-    } as any);
+    } as unknown as StudentAnalyticsResult);
 
     const result = await generateStudentPredictions("s1");
 
@@ -150,7 +169,7 @@ describe("generateStudentPredictions", () => {
 
 describe("generateClassPredictions", () => {
   it("classe vide → prédictions neutres et message explicite", async () => {
-    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([] as any);
+    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([]);
 
     const result = await generateClassPredictions("cl1");
 
@@ -165,25 +184,25 @@ describe("generateClassPredictions", () => {
       { studentId: "s1" },
       { studentId: "s2" },
       { studentId: "s3" },
-    ] as any);
+    ] as unknown as EnrollmentListResult);
     vi.mocked(predictNextPeriodGrade)
-      .mockResolvedValueOnce({ predicted: 8 } as any)
-      .mockResolvedValueOnce({ predicted: 12 } as any)
-      .mockResolvedValueOnce({ predicted: 7 } as any);
+      .mockResolvedValueOnce({ predicted: 8 } as unknown as GradePredictionResult)
+      .mockResolvedValueOnce({ predicted: 12 } as unknown as GradePredictionResult)
+      .mockResolvedValueOnce({ predicted: 7 } as unknown as GradePredictionResult);
     vi.mocked(predictFailureRisk)
-      .mockResolvedValueOnce({ probability: 80 } as any)
-      .mockResolvedValueOnce({ probability: 20 } as any)
-      .mockResolvedValueOnce({ probability: 55 } as any);
+      .mockResolvedValueOnce({ probability: 80 } as unknown as FailurePredictionResult)
+      .mockResolvedValueOnce({ probability: 20 } as unknown as FailurePredictionResult)
+      .mockResolvedValueOnce({ probability: 55 } as unknown as FailurePredictionResult);
     // Décrochage réel : moyenne (60 + 0 + 30) / 3 = 30
     vi.mocked(predictDropoutRisk)
-      .mockResolvedValueOnce({ probability: 60 } as any)
-      .mockResolvedValueOnce({ probability: 0 } as any)
-      .mockResolvedValueOnce({ probability: 30 } as any);
+      .mockResolvedValueOnce({ probability: 60 } as unknown as DropoutPredictionResult)
+      .mockResolvedValueOnce({ probability: 0 } as unknown as DropoutPredictionResult)
+      .mockResolvedValueOnce({ probability: 30 } as unknown as DropoutPredictionResult);
     // 1 élève avec alerte précoce
     vi.mocked(detectEarlyWarnings)
-      .mockResolvedValueOnce([{ type: "ATTENDANCE_CLIFF" }] as any)
-      .mockResolvedValueOnce([] as any)
-      .mockResolvedValueOnce([] as any);
+      .mockResolvedValueOnce([{ type: "ATTENDANCE_CLIFF" }] as unknown as EarlyWarningListResult)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     const result = await generateClassPredictions("cl1");
 
@@ -203,11 +222,11 @@ describe("generateClassPredictions", () => {
     vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
       { studentId: "s1" },
       { studentId: "s2" },
-    ] as any);
-    vi.mocked(predictNextPeriodGrade).mockResolvedValue({ predicted: 13 } as any);
-    vi.mocked(predictFailureRisk).mockResolvedValue({ probability: 10 } as any);
-    vi.mocked(predictDropoutRisk).mockResolvedValue({ probability: 0 } as any);
-    vi.mocked(detectEarlyWarnings).mockResolvedValue([] as any);
+    ] as unknown as EnrollmentListResult);
+    vi.mocked(predictNextPeriodGrade).mockResolvedValue({ predicted: 13 } as unknown as GradePredictionResult);
+    vi.mocked(predictFailureRisk).mockResolvedValue({ probability: 10 } as unknown as FailurePredictionResult);
+    vi.mocked(predictDropoutRisk).mockResolvedValue({ probability: 0 } as unknown as DropoutPredictionResult);
+    vi.mocked(detectEarlyWarnings).mockResolvedValue([]);
 
     const result = await generateClassPredictions("cl1");
 

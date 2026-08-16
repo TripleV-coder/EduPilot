@@ -35,6 +35,11 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
+import type { Sanction } from "@/lib/types";
+
+type SanctionWithAssignedBy = Sanction & {
+  assignedBy?: { firstName: string; lastName: string } | null;
+};
 
 const SANCTION_TYPES = [
     { value: "WARNING", label: "Avertissement" },
@@ -113,7 +118,7 @@ export default function IncidentDetailsPage() {
     const handleAddSanction = async () => {
         setIsSubmitting(true);
         try {
-            const bodyData: any = {
+            const bodyData: { type: string; startDate: string; description?: string; endDate?: string } = {
                 type: sanctionType,
                 startDate: new Date(sanctionStartDate).toISOString(),
                 description: sanctionDescription || undefined
@@ -314,7 +319,7 @@ export default function IncidentDetailsPage() {
                                     <p className="text-sm text-center text-muted-foreground py-4">Aucune sanction assignée à ce jour pour cet incident.</p>
                                 ) : (
                                     <div className="space-y-4">
-                                        {incident.sanctions?.map((sanction: any) => (
+                                        {incident.sanctions?.map((sanction: SanctionWithAssignedBy) => (
                                             <div key={sanction.id} className="p-3 border rounded-lg bg-card text-sm space-y-2">
                                                 <div className="flex items-center justify-between font-medium">
                                                     <span>{SANCTION_TYPES.find(t => t.value === sanction.type)?.label || sanction.type}</span>

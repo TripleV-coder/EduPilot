@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Prisma } from "@prisma/client";
+import type { Period, StudentProfile, Grade, Enrollment, Attendance } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
@@ -26,15 +28,15 @@ function setupNominalStudent(periodId: string) {
     academicYearId: cuid("annee2026"),
     startDate: new Date("2026-01-01"),
     endDate: new Date("2026-03-31"),
-  } as any);
+  } as unknown as Period);
 
   // 1er appel (contrôle d'accès) : forme simple — 2e (bulletin) : include complet
-  vi.mocked(prisma.studentProfile.findUnique).mockImplementation(async (args: any) => {
+  vi.mocked(prisma.studentProfile.findUnique).mockImplementation(async (args: Prisma.StudentProfileFindUniqueArgs) => {
     if (!args?.include && !args?.select) {
-      return { id: FIXTURES.studentA, schoolId: FIXTURES.schoolA, userId: cuid("userawa") } as any;
+      return { id: FIXTURES.studentA, schoolId: FIXTURES.schoolA, userId: cuid("userawa") } as unknown as StudentProfile;
     }
     if (args?.select) {
-      return { schoolId: FIXTURES.schoolA } as any;
+      return { schoolId: FIXTURES.schoolA } as unknown as StudentProfile;
     }
     return {
       id: FIXTURES.studentA,
@@ -47,7 +49,7 @@ function setupNominalStudent(periodId: string) {
           academicYear: { name: "2025-2026" },
         },
       ],
-    } as any;
+    } as unknown as StudentProfile;
   });
 
   function gradeRow(subject: string, code: string, subjectCoeff: number, value: number, coeff: number) {
@@ -70,14 +72,14 @@ function setupNominalStudent(periodId: string) {
     };
   }
 
-  vi.mocked(prisma.grade.findMany).mockImplementation(async (args: any) => {
+  vi.mocked(prisma.grade.findMany).mockImplementation(async (args: Prisma.GradeFindManyArgs) => {
     if (args?.include) {
       // Notes du bulletin : Maths coeff 3 (15 coeff 2, 10 coeff 1), Français coeff 2 (8)
       return [
         gradeRow("Mathématiques", "math", 3, 15, 2),
         gradeRow("Mathématiques", "math", 3, 10, 1),
         gradeRow("Français", "fr", 2, 8, 1),
-      ] as any;
+      ] as unknown as Grade[];
     }
     // Notes du classement : notre élève (moyenne ~11.2) et un meilleur élève
     return [
@@ -101,19 +103,19 @@ function setupNominalStudent(periodId: string) {
           classSubject: { coefficient: 1 },
         },
       },
-    ] as any;
+    ] as unknown as Grade[];
   });
 
   vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
     { studentId: FIXTURES.studentA },
     { studentId: FIXTURES.studentB },
-  ] as any);
+  ] as unknown as Enrollment[]);
   vi.mocked(prisma.attendance.findMany).mockResolvedValue([
     { status: "PRESENT" },
     { status: "PRESENT" },
     { status: "ABSENT" },
     { status: "LATE" },
-  ] as any);
+  ] as unknown as Attendance[]);
 }
 
 beforeEach(() => {
@@ -125,17 +127,17 @@ describe("GET /api/grades/report-cards", () => {
     vi.mocked(auth).mockResolvedValue(null);
     expect((await GET(makeRequest("http://localhost:3000/api/grades/report-cards"))).status).toBe(401);
 
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     expect((await GET(makeRequest("http://localhost:3000/api/grades/report-cards"))).status).toBe(400);
   });
 
   it("bloque l'accès cross-tenant au bulletin (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentB,
       schoolId: FIXTURES.schoolB,
       userId: cuid("userautre"),
-    } as any);
+    } as unknown as StudentProfile);
 
     const response = await GET(
       makeRequest(
@@ -146,12 +148,12 @@ describe("GET /api/grades/report-cards", () => {
   });
 
   it("un STUDENT ne peut pas lire le bulletin d'un autre élève (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
       schoolId: FIXTURES.schoolA,
       userId: cuid("unautreuser"),
-    } as any);
+    } as unknown as StudentProfile);
 
     const response = await GET(
       makeRequest(
@@ -162,12 +164,12 @@ describe("GET /api/grades/report-cards", () => {
   });
 
   it("un PARENT non lié à l'élève est refusé (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("PARENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
       schoolId: FIXTURES.schoolA,
       userId: cuid("userawa"),
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.parentProfile.findFirst).mockResolvedValue(null);
 
     const response = await GET(
@@ -180,7 +182,7 @@ describe("GET /api/grades/report-cards", () => {
 
   it("calcule le bulletin : moyennes pondérées par coefficients, rang, assiduité, commentaires", async () => {
     const periodId = cuid("periodeget");
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     setupNominalStudent(periodId);
 
     const response = await GET(
@@ -195,8 +197,8 @@ describe("GET /api/grades/report-cards", () => {
     expect(bulletin.className).toContain("6e A");
 
     // Maths : (15×2 + 10×1) / 3 = 13.33 — Français : 8
-    const maths = bulletin.subjects.find((s: any) => s.subject === "Mathématiques");
-    const francais = bulletin.subjects.find((s: any) => s.subject === "Français");
+    const maths = bulletin.subjects.find((s: { subject: string }) => s.subject === "Mathématiques");
+    const francais = bulletin.subjects.find((s: { subject: string }) => s.subject === "Français");
     expect(maths.average20).toBe(13.33);
     expect(maths.passed).toBe(true);
     expect(francais.average20).toBe(8);
@@ -216,10 +218,10 @@ describe("GET /api/grades/report-cards", () => {
 
 describe("POST /api/grades/report-cards", () => {
   it("refuse un PARENT (génération réservée aux équipes pédagogiques)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("PARENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       schoolId: FIXTURES.schoolA,
-    } as any);
+    } as unknown as StudentProfile);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/grades/report-cards", {
@@ -232,7 +234,7 @@ describe("POST /api/grades/report-cards", () => {
 
   it("génère le bulletin PDF : succès + downloadUrl + traçabilité", async () => {
     const periodId = cuid("periodepost");
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     setupNominalStudent(periodId);
 
     const response = await POST(
@@ -252,7 +254,7 @@ describe("POST /api/grades/report-cards", () => {
 
   it("format=json renvoie les données brutes du bulletin", async () => {
     const periodId = cuid("periodejson");
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     setupNominalStudent(periodId);
 
     const response = await POST(

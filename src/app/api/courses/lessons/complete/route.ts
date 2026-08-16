@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -9,12 +9,9 @@ import { assertModelAccess } from "@/lib/security/tenant";
  * Marks a lesson as completed for the current student.
  * Uses the existing LessonCompletion model.
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
+    const session = context.session;
 
     const body = await request.json();
     const { lessonId } = body;
@@ -143,4 +140,4 @@ export async function POST(request: NextRequest) {
     logger.error("Error completing lesson", error instanceof Error ? error : new Error(String(error)), { module: "api/courses/lessons/complete" });
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+});

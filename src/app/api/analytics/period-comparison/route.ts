@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/period-comparison
  * Compare performance across multiple periods for same class
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get("academicYearId");
@@ -101,11 +98,13 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(comparisons);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Error fetching period comparison:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la comparaison" },
       { status: 500 }
     );
   }
-}
+
+});

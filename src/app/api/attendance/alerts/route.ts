@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { ensureRequestedSchoolAccess } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
@@ -11,12 +11,9 @@ import { logger } from "@/lib/utils/logger";
 /**
  * GET - Fetch absence alerts
  */
-export async function GET(request: Request) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
@@ -111,4 +108,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});

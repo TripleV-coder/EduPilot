@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { exportUserData } from "@/lib/security/rgpd";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * POST /api/compliance/data-requests/[id]/fulfill
  * Trigger the actual fulfillment of a data request (e.g., generate export)
  */
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const { id } = await params;
-        const session = await auth();
-
-        const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-        if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const { id } = await context.params;
+        const session = context.session;
 
         const dataRequest = await prisma.dataAccessRequest.findUnique({
             where: { id: id },
@@ -70,8 +62,10 @@ export async function POST(
         }
 
         return NextResponse.json({ error: "Type de demande non supporté pour l'automatisation" }, { status: 400 });
+    
     } catch (error) {
         logger.error("RGPD Fulfillment error:", error as Error);
         return NextResponse.json({ error: "Erreur lors du traitement de la demande" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

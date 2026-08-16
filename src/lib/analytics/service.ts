@@ -3,6 +3,7 @@
  * Used by analytics API routes and AI context enrichment
  */
 
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { normalizeGradeTo20 } from "@/lib/analytics/helpers";
 import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
@@ -29,7 +30,7 @@ export const analyticsService = {
      * Get student performance analytics for a period
      */
     async getStudentPerformance(studentId: string, periodId?: string) {
-        const where: any = { studentId };
+        const where: Prisma.StudentAnalyticsWhereInput = { studentId };
         if (periodId) where.periodId = periodId;
 
         const analytics = await prisma.studentAnalytics.findFirst({

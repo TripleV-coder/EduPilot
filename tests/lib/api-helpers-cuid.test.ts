@@ -57,7 +57,7 @@ describe("api/api-helpers — pure helpers", () => {
   });
 
   function mockReq(url: string): NextRequest {
-    return { url, nextUrl: new URL(url) } as any;
+    return { url, nextUrl: new URL(url) } as unknown as NextRequest;
   }
 
   describe("getSearchParam", () => {

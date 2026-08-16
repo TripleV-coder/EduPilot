@@ -9,7 +9,7 @@ import { z } from "zod";
 const reformUpdateSchema = z.object({
     category: z.enum(["NATIONAL_EXAMS", "GRADE_SETTINGS"]),
     code: z.string(),
-    metadata: z.any(),
+    metadata: z.unknown(),
     label: z.string().optional(),
 });
 
@@ -19,7 +19,7 @@ export const GET = createApiHandler(
         const category = searchParams.get("category");
 
         const where: Prisma.ConfigOptionWhereInput = {};
-        if (category) where.category = category as any;
+        if (category) where.category = category;
 
         const configs = await prisma.configOption.findMany({
             where: {
@@ -46,7 +46,7 @@ export const POST = createApiHandler(
         const existing = await prisma.configOption.findFirst({
             where: {
                 schoolId: null,
-                category: validated.category as any,
+                category: validated.category,
                 code: validated.code,
             },
         });
@@ -55,17 +55,17 @@ export const POST = createApiHandler(
             ? await prisma.configOption.update({
                 where: { id: existing.id },
                 data: {
-                    metadata: validated.metadata,
+                    metadata: validated.metadata as Prisma.InputJsonValue,
                     label: validated.label || validated.code,
                 },
             })
             : await prisma.configOption.create({
                 data: {
                     schoolId: null,
-                    category: validated.category as any,
+                    category: validated.category,
                     code: validated.code,
                     label: validated.label || validated.code,
-                    metadata: validated.metadata,
+                    metadata: validated.metadata as Prisma.InputJsonValue,
                 },
             });
 

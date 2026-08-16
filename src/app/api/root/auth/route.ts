@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual, createHash } from "node:crypto";
-import { auth } from "@/lib/auth";
 import { isRootUserEmail } from "@/lib/security/root-access";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 function safeCompare(a: string, b: string): boolean {
   const hashA = createHash("sha256").update(a).digest();
   const hashB = createHash("sha256").update(b).digest();
@@ -16,8 +16,10 @@ export const dynamic = "force-dynamic";
  * Authentification root additionnelle via secret (double vérification)
  * Le client envoie { secret: string }
  */
-export async function POST(request: NextRequest) {
-  const session = await auth();
+export const POST = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
 
   if (!session?.user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -40,4 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, isRoot: true });
-}
+    },
+    {},
+);
+

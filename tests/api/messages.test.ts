@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Prisma } from "@prisma/client";
+import type { User, Message, Class, Enrollment } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
@@ -59,7 +61,7 @@ describe("POST /api/messages — envoi durci", () => {
 
   it("refuse l'auto-envoi (400)", async () => {
     const session = makeSession("TEACHER");
-    vi.mocked(auth).mockResolvedValue(session as any);
+    vi.mocked(auth).mockResolvedValue(session);
 
     const response = await postMessage({
       recipientId: session.user!.id,
@@ -73,12 +75,12 @@ describe("POST /api/messages — envoi durci", () => {
   });
 
   it("refuse un destinataire d'une autre école (cross-tenant)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: RECIPIENT_ID,
       schoolId: FIXTURES.schoolB,
       isActive: true,
-    } as any);
+    } as unknown as User);
 
     const response = await postMessage({
       recipientId: RECIPIENT_ID,
@@ -90,12 +92,12 @@ describe("POST /api/messages — envoi durci", () => {
   });
 
   it("refuse un destinataire inactif (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: RECIPIENT_ID,
       schoolId: FIXTURES.schoolA,
       isActive: false,
-    } as any);
+    } as unknown as User);
 
     const response = await postMessage({
       recipientId: RECIPIENT_ID,
@@ -106,13 +108,13 @@ describe("POST /api/messages — envoi durci", () => {
   });
 
   it("neutralise le HTML dans subject et content (anti-XSS stocké)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: RECIPIENT_ID,
       schoolId: FIXTURES.schoolA,
       isActive: true,
-    } as any);
-    vi.mocked(prisma.message.create).mockResolvedValue({ id: cuid("msg1") } as any);
+    } as unknown as User);
+    vi.mocked(prisma.message.create).mockResolvedValue({ id: cuid("msg1") } as unknown as Message);
 
     const response = await postMessage({
       recipientId: RECIPIENT_ID,
@@ -128,13 +130,13 @@ describe("POST /api/messages — envoi durci", () => {
   });
 
   it("crée le message + notification avec lien /dashboard/messages", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: RECIPIENT_ID,
       schoolId: FIXTURES.schoolA,
       isActive: true,
-    } as any);
-    vi.mocked(prisma.message.create).mockResolvedValue({ id: cuid("msg2") } as any);
+    } as unknown as User);
+    vi.mocked(prisma.message.create).mockResolvedValue({ id: cuid("msg2") } as unknown as Message);
 
     const response = await postMessage({
       recipientId: RECIPIENT_ID,
@@ -153,11 +155,11 @@ describe("POST /api/messages — envoi durci", () => {
   });
 
   it("refuse une réponse à un fil dont on ne fait pas partie (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.message.findUnique).mockResolvedValue({
       senderId: cuid("other1"),
       recipientId: cuid("other2"),
-    } as any);
+    } as unknown as Message);
 
     const response = await postMessage({
       recipientId: RECIPIENT_ID,
@@ -183,18 +185,18 @@ describe("POST /api/messages/broadcast — envoi groupé durci", () => {
   }
 
   it("refuse un STUDENT (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     const response = await broadcast({ classId: CLASS_ID, subject: "x", content: "y" });
     expect(response.status).toBe(403);
   });
 
   it("refuse un TEACHER qui n'enseigne pas dans la classe (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({
       id: CLASS_ID,
       name: "6e A",
       schoolId: FIXTURES.schoolA,
-    } as any);
+    } as unknown as Class);
     vi.mocked(prisma.classSubject.findFirst).mockResolvedValue(null);
 
     const response = await broadcast({
@@ -208,12 +210,12 @@ describe("POST /api/messages/broadcast — envoi groupé durci", () => {
   });
 
   it("refuse une classe d'une autre école (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({
       id: CLASS_ID,
       name: "6e B",
       schoolId: FIXTURES.schoolB,
-    } as any);
+    } as unknown as Class);
 
     const response = await broadcast({
       classId: CLASS_ID,
@@ -224,20 +226,20 @@ describe("POST /api/messages/broadcast — envoi groupé durci", () => {
   });
 
   it("envoie aux parents uniques de la classe + notifications bulk", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({
       id: CLASS_ID,
       name: "6e A",
       schoolId: FIXTURES.schoolA,
-    } as any);
+    } as unknown as Class);
     const parent1 = cuid("parentu1");
     const parent2 = cuid("parentu2");
     vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
       { student: { parentStudents: [{ parent: { userId: parent1 } }] } },
       // le même parent1 a deux enfants dans la classe → dédupliqué
       { student: { parentStudents: [{ parent: { userId: parent1 } }, { parent: { userId: parent2 } }] } },
-    ] as any);
-    vi.mocked(prisma.message.createMany).mockResolvedValue({ count: 2 } as any);
+    ] as unknown as Enrollment[]);
+    vi.mocked(prisma.message.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
 
     const response = await broadcast({
       classId: CLASS_ID,
@@ -259,13 +261,13 @@ describe("POST /api/messages/broadcast — envoi groupé durci", () => {
   });
 
   it("retourne 400 si aucun parent dans la classe", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({
       id: CLASS_ID,
       name: "6e A",
       schoolId: FIXTURES.schoolA,
-    } as any);
-    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([] as any);
+    } as unknown as Class);
+    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([] as unknown as Enrollment[]);
 
     const response = await broadcast({
       classId: CLASS_ID,

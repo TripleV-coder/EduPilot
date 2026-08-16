@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { verifyFedaPayEvent } from "@/lib/payments/fedapay";
 
@@ -17,7 +18,7 @@ const APPROVED = new Set(["transaction.approved"]);
 const CANCELLED = new Set(["transaction.canceled", "transaction.declined"]);
 const FEDAPAY_METHODS = ["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"] as const;
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request) => {
     if (!process.env.FEDAPAY_WEBHOOK_SECRET) {
         logger.warn("FedaPay webhook appelé sans FEDAPAY_WEBHOOK_SECRET");
         return NextResponse.json({ error: "Intégration non configurée" }, { status: 503 });
@@ -83,4 +84,4 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
     }
-}
+}, { requireAuth: false });

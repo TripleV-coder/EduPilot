@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -43,7 +44,7 @@ function verifySignature(body: string, signature: string | null, secret: string)
     return mismatch === 0;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request) => {
     const secret = process.env.MOMO_WEBHOOK_SECRET;
     if (!secret) {
         logger.warn("MoMo webhook called but MOMO_WEBHOOK_SECRET not configured");
@@ -103,4 +104,4 @@ export async function POST(request: NextRequest) {
         logger.error("MoMo webhook processing error", error as Error);
         return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
     }
-}
+}, { requireAuth: false });

@@ -11,11 +11,18 @@ import { fetcher } from "@/lib/fetcher";
 import type { UserRole } from "@prisma/client";
 import { trackUxEvent } from "@/lib/ux/telemetry";
 
+interface SetupStatus {
+    academicYears?: number;
+    teachers?: number;
+    classes?: number;
+    students?: number;
+}
+
 interface ChecklistItem {
     id: string;
     label: string;
     href: string;
-    check?: (data: any) => boolean;
+    check?: (data: SetupStatus | undefined) => boolean;
 }
 
 const STORAGE_PREFIX = "edupilot_onboarding";
@@ -93,7 +100,7 @@ export function OnboardingChecklist() {
     const usesSetupStatus = role === "SCHOOL_ADMIN" || role === "DIRECTOR";
 
     // Fetch quick counts to determine completion for school admins/directors
-    const { data: setupData } = useSWR(
+    const { data: setupData } = useSWR<SetupStatus>(
         usesSetupStatus ? "/api/config/setup-status" : null,
         fetcher,
         { revalidateOnFocus: false, dedupingInterval: 60000 }

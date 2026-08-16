@@ -20,11 +20,28 @@ import {
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
+type ClassSubjectRow = {
+    id: string;
+    classId: string;
+    subjectId: string;
+    teacherId?: string | null;
+    coefficient?: number;
+    weeklyHours?: number | null;
+    subject?: { name?: string };
+    teacher?: { id?: string };
+};
+
+type ClassRow = { id: string; name: string };
+type TeacherRow = {
+    id: string;
+    user?: { firstName?: string; lastName?: string };
+};
+
 export default function ClassSubjectsPage() {
-    const { data: classes, isLoading: classesLoading } = useSWR("/api/classes", fetcher);
+    const { data: classes, isLoading: classesLoading } = useSWR<ClassRow[]>("/api/classes", fetcher);
     const { isLoading: subjectsLoading } = useSWR("/api/subjects", fetcher);
-    const { data: teachers, isLoading: teachersLoading } = useSWR("/api/teachers", fetcher);
-    const { data: classSubjects, mutate: mutateClassSubjects } = useSWR("/api/class-subjects", fetcher);
+    const { data: teachers, isLoading: teachersLoading } = useSWR<TeacherRow[]>("/api/teachers", fetcher);
+    const { data: classSubjects, mutate: mutateClassSubjects } = useSWR<ClassSubjectRow[]>("/api/class-subjects", fetcher);
 
     const [selectedClassId, setSelectedClassId] = useState<string>("");
     type EditableAssignment = {
@@ -50,8 +67,8 @@ export default function ClassSubjectsPage() {
     // Load assignments for selected class
     useEffect(() => {
         if (selectedClassId && classSubjects) {
-            const classAssignments = classSubjects.filter((cs: any) => cs.classId === selectedClassId);
-            const toEditable = (cs: any): EditableAssignment => ({
+            const classAssignments = classSubjects.filter((cs) => cs.classId === selectedClassId);
+            const toEditable = (cs: ClassSubjectRow): EditableAssignment => ({
                 id: cs.id,
                 classId: cs.classId,
                 subjectId: cs.subjectId,
@@ -91,7 +108,7 @@ export default function ClassSubjectsPage() {
         }
     };
 
-    const selectedClass = classes?.find((c: any) => c.id === selectedClassId);
+    const selectedClass = classes?.find((c) => c.id === selectedClassId);
     const isLoading = classesLoading || subjectsLoading || teachersLoading;
 
     const updateAssignment = (id: string, patch: Partial<EditableAssignment>) => {
@@ -144,7 +161,7 @@ export default function ClassSubjectsPage() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {classes.map((c: any) => (
+                                            {classes.map((c) => (
                                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -214,7 +231,7 @@ export default function ClassSubjectsPage() {
                                                                 <SelectItem value="unassigned" className="text-muted-foreground italic">
                                                                     Non assigné
                                                                 </SelectItem>
-                                                                {(teachers ?? []).map((t: any) => (
+                                                                {(teachers ?? []).map((t) => (
                                                                     <SelectItem key={t.id} value={t.id}>
                                                                         {t.user?.firstName} {t.user?.lastName}
                                                                     </SelectItem>

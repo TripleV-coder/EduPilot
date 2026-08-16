@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -15,6 +14,7 @@ import {
   getParentStudentIds,
   requireHealthRole,
 } from "@/lib/health/access";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const vaccinationSchema = z.object({
   medicalRecordId: z.string().cuid(),
@@ -105,249 +105,278 @@ async function getVaccinationStats({
   };
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    const roleError = requireHealthRole(session, HEALTH_READ_ROLES);
-    if (roleError) return roleError;
+export const GET = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const roleError = requireHealthRole(session, HEALTH_READ_ROLES);
+      if (roleError) return roleError;
 
-    const { searchParams } = new URL(request.url);
-    const medicalRecordId = searchParams.get("medicalRecordId");
-    const studentId = searchParams.get("studentId");
-    const includeOverdue = searchParams.get("includeOverdue") === "true";
+      const { searchParams } = new URL(request.url);
+      const medicalRecordId = searchParams.get("medicalRecordId");
+      const studentId = searchParams.get("studentId");
+      const includeOverdue = searchParams.get("includeOverdue") === "true";
 
-    const vaccinationWhere: Prisma.VaccinationWhereInput = {};
-    const medicalRecordWhere: Prisma.MedicalRecordWhereInput = {};
+      const vaccinationWhere: Prisma.VaccinationWhereInput = {};
+      const medicalRecordWhere: Prisma.MedicalRecordWhereInput = {};
 
-    if (medicalRecordId) {
-      const access = await ensureMedicalRecordHealthAccess(session, medicalRecordId);
-      if ("response" in access) return access.response;
-      vaccinationWhere.medicalRecordId = medicalRecordId;
-      medicalRecordWhere.id = medicalRecordId;
-    } else if (studentId) {
-      const access = await ensureStudentHealthAccess(session, studentId);
-      if ("response" in access) return access.response;
-      vaccinationWhere.medicalRecord = { studentId };
-      medicalRecordWhere.studentId = studentId;
-    } else if (session!.user.role === "PARENT") {
-      const childIds = await getParentStudentIds(session!.user.id);
-      vaccinationWhere.medicalRecord = { studentId: { in: childIds } };
-      medicalRecordWhere.studentId = { in: childIds };
-    } else if (session!.user.role === "STUDENT") {
-      const ownStudentProfile = await getOwnStudentProfile(session!.user.id);
-      if (!ownStudentProfile) {
-        return NextResponse.json({ error: "Profil étudiant non trouvé" }, { status: 404 });
+      if (medicalRecordId) {
+        const access = await ensureMedicalRecordHealthAccess(session, medicalRecordId);
+        if ("response" in access) {
+          if (!access.response) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+          }
+          return access.response;
+        }
+        vaccinationWhere.medicalRecordId = medicalRecordId;
+        medicalRecordWhere.id = medicalRecordId;
+      } else if (studentId) {
+        const access = await ensureStudentHealthAccess(session, studentId);
+        if ("response" in access) {
+          if (!access.response) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+          }
+          return access.response;
+        }
+        vaccinationWhere.medicalRecord = { studentId };
+        medicalRecordWhere.studentId = studentId;
+      } else if (session.user.role === "PARENT") {
+        const childIds = await getParentStudentIds(session.user.id);
+        vaccinationWhere.medicalRecord = { studentId: { in: childIds } };
+        medicalRecordWhere.studentId = { in: childIds };
+      } else if (session.user.role === "STUDENT") {
+        const ownStudentProfile = await getOwnStudentProfile(session.user.id);
+        if (!ownStudentProfile) {
+          return NextResponse.json({ error: "Profil étudiant non trouvé" }, { status: 404 });
+        }
+        vaccinationWhere.medicalRecord = { studentId: ownStudentProfile.id };
+        medicalRecordWhere.studentId = ownStudentProfile.id;
+      } else if (session.user.role !== "SUPER_ADMIN") {
+        vaccinationWhere.medicalRecord = { student: { schoolId: session.user.schoolId! } };
+        medicalRecordWhere.student = { schoolId: session.user.schoolId! };
       }
-      vaccinationWhere.medicalRecord = { studentId: ownStudentProfile.id };
-      medicalRecordWhere.studentId = ownStudentProfile.id;
-    } else if (session!.user.role !== "SUPER_ADMIN") {
-      vaccinationWhere.medicalRecord = { student: { schoolId: session!.user.schoolId! } };
-      medicalRecordWhere.student = { schoolId: session!.user.schoolId! };
-    }
 
-    const vaccinations = await prisma.vaccination.findMany({
-      where: vaccinationWhere,
-      include: {
-        medicalRecord: {
-          include: {
-            student: {
-              include: {
-                user: { select: { firstName: true, lastName: true } },
+      const vaccinations = await prisma.vaccination.findMany({
+        where: vaccinationWhere,
+        include: {
+          medicalRecord: {
+            include: {
+              student: {
+                include: {
+                  user: { select: { firstName: true, lastName: true } },
+                },
               },
             },
           },
         },
-      },
-      orderBy: { dateGiven: "desc" },
-    });
+        orderBy: { dateGiven: "desc" },
+      });
 
-    const vaccinationStats = await getVaccinationStats({
-      medicalRecordWhere,
-      vaccinationWhere,
-      includeOverdue,
-    });
+      const vaccinationStats = await getVaccinationStats({
+        medicalRecordWhere,
+        vaccinationWhere,
+        includeOverdue,
+      });
 
-    return NextResponse.json({
-      vaccinations,
-      stats: vaccinationStats,
-    });
-  } catch (error) {
-    logger.error("Error fetching vaccinations", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des vaccinations" },
-      { status: 500 }
-    );
-  }
-}
+      return NextResponse.json({
+        vaccinations,
+        stats: vaccinationStats,
+      });
+    } catch (error) {
+      logger.error("Error fetching vaccinations", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de la récupération des vaccinations" },
+        { status: 500 }
+      );
+    }
+  },
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
-    if (roleError) return roleError;
+export const POST = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
+      if (roleError) return roleError;
 
-    const body = await request.json();
-    const validatedData = vaccinationSchema.parse(body);
+      const body = await request.json();
+      const validatedData = vaccinationSchema.parse(body);
 
-    const access = await ensureMedicalRecordHealthAccess(session, validatedData.medicalRecordId);
-    if ("response" in access) return access.response;
+      const access = await ensureMedicalRecordHealthAccess(session, validatedData.medicalRecordId);
+      if ("response" in access) {
+          if (!access.response) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+          }
+          return access.response;
+        }
 
-    const vaccination = await prisma.vaccination.create({
-      data: {
+      const vaccination = await prisma.vaccination.create({
+        data: {
+          medicalRecordId: validatedData.medicalRecordId,
+          vaccineName: validatedData.vaccineName,
+          dateGiven: new Date(validatedData.dateGiven),
+          administeredBy: validatedData.administeredBy,
+          batchNumber: validatedData.batchNumber,
+          nextDueDate: validatedData.nextDueDate ? new Date(validatedData.nextDueDate) : null,
+        },
+        include: {
+          medicalRecord: {
+            include: {
+              student: {
+                include: {
+                  user: { select: { firstName: true, lastName: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "CREATE",
+          entity: "Vaccination",
+          entityId: vaccination.id,
+          newValues: { medicalRecordId: validatedData.medicalRecordId, vaccineName: validatedData.vaccineName },
+        },
+      });
+
+      logger.info("Vaccination record created", {
+        vaccinationId: vaccination.id,
         medicalRecordId: validatedData.medicalRecordId,
-        vaccineName: validatedData.vaccineName,
-        dateGiven: new Date(validatedData.dateGiven),
-        administeredBy: validatedData.administeredBy,
-        batchNumber: validatedData.batchNumber,
-        nextDueDate: validatedData.nextDueDate ? new Date(validatedData.nextDueDate) : null,
-      },
-      include: {
-        medicalRecord: {
-          include: {
-            student: {
-              include: {
-                user: { select: { firstName: true, lastName: true } },
+      });
+
+      return NextResponse.json({ vaccination }, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+
+      logger.error("Error creating vaccination record", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de l'enregistrement de la vaccination" },
+        { status: 500 }
+      );
+    }
+  },
+);
+
+export const PUT = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
+      if (roleError) return roleError;
+
+      const body = await request.json();
+      const { id, medicalRecordId: _medicalRecordId, ...updateData } = body;
+
+      if (!id) {
+        return NextResponse.json({ error: "ID requis" }, { status: 400 });
+      }
+
+      const access = await ensureVaccinationHealthAccess(session, id);
+      if ("response" in access) {
+          if (!access.response) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+          }
+          return access.response;
+        }
+
+      const vaccination = await prisma.vaccination.update({
+        where: { id },
+        data: {
+          ...updateData,
+          dateGiven: updateData.dateGiven ? new Date(updateData.dateGiven) : undefined,
+          nextDueDate: updateData.nextDueDate ? new Date(updateData.nextDueDate) : undefined,
+        },
+        include: {
+          medicalRecord: {
+            include: {
+              student: {
+                include: {
+                  user: { select: { firstName: true, lastName: true } },
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session!.user.id,
-        action: "CREATE",
-        entity: "Vaccination",
-        entityId: vaccination.id,
-        newValues: { medicalRecordId: validatedData.medicalRecordId, vaccineName: validatedData.vaccineName },
-      },
-    });
-
-    logger.info("Vaccination record created", {
-      vaccinationId: vaccination.id,
-      medicalRecordId: validatedData.medicalRecordId,
-    });
-
-    return NextResponse.json({ vaccination }, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    logger.error("Error creating vaccination record", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de l'enregistrement de la vaccination" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await auth();
-    const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
-    if (roleError) return roleError;
-
-    const body = await request.json();
-    const { id, medicalRecordId: _medicalRecordId, ...updateData } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "ID requis" }, { status: 400 });
-    }
-
-    const access = await ensureVaccinationHealthAccess(session, id);
-    if ("response" in access) return access.response;
-
-    const vaccination = await prisma.vaccination.update({
-      where: { id },
-      data: {
-        ...updateData,
-        dateGiven: updateData.dateGiven ? new Date(updateData.dateGiven) : undefined,
-        nextDueDate: updateData.nextDueDate ? new Date(updateData.nextDueDate) : undefined,
-      },
-      include: {
-        medicalRecord: {
-          include: {
-            student: {
-              include: {
-                user: { select: { firstName: true, lastName: true } },
-              },
-            },
-          },
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "UPDATE",
+          entity: "Vaccination",
+          entityId: id,
+          newValues: updateData,
         },
-      },
-    });
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session!.user.id,
-        action: "UPDATE",
-        entity: "Vaccination",
-        entityId: id,
-        newValues: updateData,
-      },
-    });
+      logger.info("Vaccination record updated", { vaccinationId: id });
 
-    logger.info("Vaccination record updated", { vaccinationId: id });
+      return NextResponse.json({ vaccination });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
 
-    return NextResponse.json({ vaccination });
-  } catch (error) {
-    if (isZodError(error)) {
+      logger.error("Error updating vaccination record", error as Error);
       return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
+        { error: "Erreur lors de la mise à jour de la vaccination" },
+        { status: 500 }
       );
     }
+  },
+);
 
-    logger.error("Error updating vaccination record", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la mise à jour de la vaccination" },
-      { status: 500 }
-    );
-  }
-}
+export const DELETE = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
+      if (roleError) return roleError;
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const session = await auth();
-    const roleError = requireHealthRole(session, HEALTH_VACCINATION_WRITE_ROLES);
-    if (roleError) return roleError;
+      const { searchParams } = new URL(request.url);
+      const id = searchParams.get("id");
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+      if (!id) {
+        return NextResponse.json({ error: "ID requis" }, { status: 400 });
+      }
 
-    if (!id) {
-      return NextResponse.json({ error: "ID requis" }, { status: 400 });
+      const access = await ensureVaccinationHealthAccess(session, id);
+      if ("response" in access) {
+          if (!access.response) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+          }
+          return access.response;
+        }
+
+      await prisma.vaccination.delete({
+        where: { id },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "DELETE",
+          entity: "Vaccination",
+          entityId: id,
+        },
+      });
+
+      logger.info("Vaccination record deleted", { vaccinationId: id });
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      logger.error("Error deleting vaccination record", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de la suppression de la vaccination" },
+        { status: 500 }
+      );
     }
-
-    const access = await ensureVaccinationHealthAccess(session, id);
-    if ("response" in access) return access.response;
-
-    await prisma.vaccination.delete({
-      where: { id },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        userId: session!.user.id,
-        action: "DELETE",
-        entity: "Vaccination",
-        entityId: id,
-      },
-    });
-
-    logger.info("Vaccination record deleted", { vaccinationId: id });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error("Error deleting vaccination record", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la suppression de la vaccination" },
-      { status: 500 }
-    );
-  }
-}
+  },
+);

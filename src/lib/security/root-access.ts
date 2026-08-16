@@ -2,12 +2,15 @@
  * Root user access control utilities
  */
 
+import type { Session } from "next-auth";
+
 const ROOT_EMAILS = (process.env.ROOT_USER_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
 
 /**
  * Check if an email belongs to a root user
  */
-export function isRootUserEmail(email: string): boolean {
+export function isRootUserEmail(email: string | null | undefined): boolean {
+    if (!email) return false;
     if (ROOT_EMAILS.length === 0) return false;
     return ROOT_EMAILS.includes(email);
 }
@@ -16,7 +19,7 @@ export function isRootUserEmail(email: string): boolean {
  * Validate the current session has root access
  * Returns true if the user has SUPER_ADMIN role
  */
-export function hasValidRootSession(session: any): boolean {
+export function hasValidRootSession(session: Session | null): boolean {
     if (!session?.user) return false;
     if (session.user.role !== "SUPER_ADMIN") return false;
     if (ROOT_EMAILS.length > 0 && !isRootUserEmail(session.user.email)) return false;

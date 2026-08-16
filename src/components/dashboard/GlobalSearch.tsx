@@ -16,6 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
 import { t } from "@/lib/i18n";
+import type { UserRole } from "@prisma/client";
 
 type QuickCommand = {
   id: string;
@@ -26,7 +27,7 @@ type QuickCommand = {
   group: "actions" | "navigation" | "settings" | "context";
   keywords?: string[];
   contextPrefixes?: string[];
-  roles?: Array<"SUPER_ADMIN" | "SCHOOL_ADMIN" | "DIRECTOR" | "TEACHER" | "ACCOUNTANT" | "PARENT" | "STUDENT">;
+  roles?: UserRole[];
 };
 
 const COMMAND_USAGE_KEY = "edupilot_command_usage_v1";
@@ -208,7 +209,7 @@ export function GlobalSearch() {
     return commands.filter((command) => {
       if (!command.roles || command.roles.length === 0) return true;
       if (!userRole) return false;
-      return command.roles.includes(userRole as any);
+      return command.roles.includes(userRole);
     });
   }, [commands, userRole]);
 

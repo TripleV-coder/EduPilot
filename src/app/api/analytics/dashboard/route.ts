@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
   getAdminDashboardData,
@@ -14,17 +13,15 @@ import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/dashboard
  * Tableau de bord analytique basé sur le rôle de l'utilisateur
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const role = session.user.role as string;
@@ -123,11 +120,13 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ error: "Rôle non supporté" }, { status: 403 });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("fetching dashboard analytics:", error as Error);
     return NextResponse.json(
       { error: (error as Error).message || "Erreur lors de la récupération des analytics" },
       { status: 500 }
     );
   }
-}
+
+});

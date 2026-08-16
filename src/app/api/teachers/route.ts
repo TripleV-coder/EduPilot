@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { Prisma } from "@prisma/client";
@@ -22,6 +21,7 @@ import {
 } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 const DEFAULT_PASSWORD = "00000000";
@@ -30,16 +30,9 @@ const DEFAULT_PASSWORD = "00000000";
  * GET /api/teachers
  * Liste les enseignants de l'école de l'utilisateur connecté
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    if (!ALLOWED_ROLES.includes(session.user.role)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+export const GET = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
     const searchParams = new URL(request.url).searchParams;
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
@@ -136,168 +129,158 @@ export async function GET(request: NextRequest) {
       });
     };
 
-    const response = await withCache(handler as any, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
+    const response = await withCache(handler, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
     return withHttpCache(response, request, { private: true, maxAge: CACHE_TTL_MEDIUM, staleWhileRevalidate: 30 });
-  } catch (error) {
-    logger.error("Error fetching teachers", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des enseignants" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ALLOWED_ROLES },
+);
 
 /**
  * POST /api/teachers
  * Créé un nouvel enseignant
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
-    if (!ALLOWED_ROLES.includes(session.user.role)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    const actorSchoolId = getActiveSchoolId(session) ?? session.user.primarySchoolId ?? getActiveSchoolId(session);
-    if (!actorSchoolId && session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Aucun établissement associé" }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const validatedData = teacherCreateSchema.parse(body);
-    const normalizedSchools = normalizeTeacherSchoolIds({
-      primarySchoolId: validatedData.primarySchoolId,
-      schoolId: validatedData.schoolId,
-      additionalSchoolIds: validatedData.additionalSchoolIds,
-    });
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      (
-        (validatedData.additionalSchoolIds?.length || 0) > 0 ||
-        (!!validatedData.primarySchoolId && validatedData.primarySchoolId !== actorSchoolId) ||
-        (!!validatedData.schoolId && validatedData.schoolId !== actorSchoolId)
-      )
-    ) {
-      return NextResponse.json({ error: "Seul le SUPER_ADMIN peut créer un enseignant multi-établissements" }, { status: 403 });
-    }
-
-    const targetSchoolId =
-      session.user.role === "SUPER_ADMIN"
-        ? normalizedSchools.primarySchoolId
-        : actorSchoolId;
-
-    if (!targetSchoolId) {
-      return NextResponse.json({ error: "School ID is required" }, { status: 400 });
-    }
-
-    const assignedSchoolIds =
-      session.user.role === "SUPER_ADMIN"
-        ? normalizeTeacherSchoolIds({
-            primarySchoolId: targetSchoolId,
-            additionalSchoolIds: normalizedSchools.additionalSchoolIds,
-          }).schoolIds
-        : [targetSchoolId];
-
-    const existingSchools = await prisma.school.findMany({
-      where: { id: { in: assignedSchoolIds } },
-      select: { id: true },
-    });
-
-    if (existingSchools.length !== assignedSchoolIds.length) {
-      return NextResponse.json({ error: "Un ou plusieurs établissements sélectionnés sont introuvables" }, { status: 400 });
-    }
-
-    for (const scopedSchoolId of assignedSchoolIds) {
-      const quota = await checkTeacherQuota(scopedSchoolId);
-      if (!quota.allowed) {
-        return NextResponse.json({ error: `Quota d'enseignants atteint (${quota.limit}) pour un des établissements sélectionnés.` }, { status: 403 });
+    try {
+      const actorSchoolId = getActiveSchoolId(session) ?? session.user.primarySchoolId ?? getActiveSchoolId(session);
+      if (!actorSchoolId && session.user.role !== "SUPER_ADMIN") {
+        return NextResponse.json({ error: "Aucun établissement associé" }, { status: 400 });
       }
-    }
 
-    // Check if email is unique
-    const existingEmail = await prisma.user.findUnique({
-      where: { email: validatedData.email }
-    });
+      const body = await request.json();
+      const validatedData = teacherCreateSchema.parse(body);
+      const normalizedSchools = normalizeTeacherSchoolIds({
+        primarySchoolId: validatedData.primarySchoolId,
+        schoolId: validatedData.schoolId,
+        additionalSchoolIds: validatedData.additionalSchoolIds,
+      });
 
-    if (existingEmail) {
-      return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
-    }
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        (
+          (validatedData.additionalSchoolIds?.length || 0) > 0 ||
+          (!!validatedData.primarySchoolId && validatedData.primarySchoolId !== actorSchoolId) ||
+          (!!validatedData.schoolId && validatedData.schoolId !== actorSchoolId)
+        )
+      ) {
+        return NextResponse.json({ error: "Seul le SUPER_ADMIN peut créer un enseignant multi-établissements" }, { status: 403 });
+      }
 
-    const hashedPassword = await bcrypt.hash(validatedData.password || DEFAULT_PASSWORD, 10);
+      const targetSchoolId =
+        session.user.role === "SUPER_ADMIN"
+          ? normalizedSchools.primarySchoolId
+          : actorSchoolId;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email: validatedData.email,
-          firstName: validatedData.firstName,
-          lastName: validatedData.lastName,
-          password: hashedPassword,
-          role: "TEACHER",
-          roles: ["TEACHER"],
-          schoolId: targetSchoolId,
-          phone: validatedData.phone,
-          mustChangePassword: !validatedData.password,
+      if (!targetSchoolId) {
+        return NextResponse.json({ error: "School ID is required" }, { status: 400 });
+      }
+
+      const assignedSchoolIds =
+        session.user.role === "SUPER_ADMIN"
+          ? normalizeTeacherSchoolIds({
+              primarySchoolId: targetSchoolId,
+              additionalSchoolIds: normalizedSchools.additionalSchoolIds,
+            }).schoolIds
+          : [targetSchoolId];
+
+      const existingSchools = await prisma.school.findMany({
+        where: { id: { in: assignedSchoolIds } },
+        select: { id: true },
+      });
+
+      if (existingSchools.length !== assignedSchoolIds.length) {
+        return NextResponse.json({ error: "Un ou plusieurs établissements sélectionnés sont introuvables" }, { status: 400 });
+      }
+
+      for (const scopedSchoolId of assignedSchoolIds) {
+        const quota = await checkTeacherQuota(scopedSchoolId);
+        if (!quota.allowed) {
+          return NextResponse.json({ error: `Quota d'enseignants atteint (${quota.limit}) pour un des établissements sélectionnés.` }, { status: 403 });
         }
+      }
+
+      // Check if email is unique
+      const existingEmail = await prisma.user.findUnique({
+        where: { email: validatedData.email }
       });
 
-      const profile = await tx.teacherProfile.create({
-        data: {
-          userId: user.id,
-          schoolId: targetSchoolId,
-          matricule: validatedData.matricule || null,
-          specialization: validatedData.specialization || null,
-          hireDate: validatedData.hireDate ? new Date(validatedData.hireDate) : null,
-        },
-        select: {
-          id: true,
-          userId: true,
-          schoolId: true,
-          matricule: true,
-          specialization: true,
-          hireDate: true,
-        },
+      if (existingEmail) {
+        return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
+      }
+
+      const hashedPassword = await bcrypt.hash(validatedData.password || DEFAULT_PASSWORD, 10);
+
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: validatedData.email,
+            firstName: validatedData.firstName,
+            lastName: validatedData.lastName,
+            password: hashedPassword,
+            role: "TEACHER",
+            roles: ["TEACHER"],
+            schoolId: targetSchoolId,
+            phone: validatedData.phone,
+            mustChangePassword: !validatedData.password,
+          }
+        });
+
+        const profile = await tx.teacherProfile.create({
+          data: {
+            userId: user.id,
+            schoolId: targetSchoolId,
+            matricule: validatedData.matricule || null,
+            specialization: validatedData.specialization || null,
+            hireDate: validatedData.hireDate ? new Date(validatedData.hireDate) : null,
+          },
+          select: {
+            id: true,
+            userId: true,
+            schoolId: true,
+            matricule: true,
+            specialization: true,
+            hireDate: true,
+          },
+        });
+
+        await tx.teacherSchoolAssignment.createMany({
+          data: buildTeacherSchoolAssignments({
+            teacherId: profile.id,
+            userId: user.id,
+            primarySchoolId: targetSchoolId,
+            schoolIds: assignedSchoolIds,
+          }),
+          skipDuplicates: true,
+        });
+
+        return {
+          user,
+          profile
+        };
       });
 
-      await tx.teacherSchoolAssignment.createMany({
-        data: buildTeacherSchoolAssignments({
-          teacherId: profile.id,
-          userId: user.id,
-          primarySchoolId: targetSchoolId,
-          schoolIds: assignedSchoolIds,
-        }),
-        skipDuplicates: true,
-      });
+      logger.info("Teacher created", { teacherId: result.profile.id, createdBy: session.user.id });
 
-      return {
-        user,
-        profile
-      };
-    });
+      await invalidateByPath(CACHE_PATHS.teachers).catch(() => {});
+      return NextResponse.json(result, { status: 201 });
+    } catch (error) {
+      logger.error("Error creating teacher", error);
 
-    logger.info("Teacher created", { teacherId: result.profile.id, createdBy: session.user.id });
+      // Zod Validation Error handling
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
 
-    await invalidateByPath(CACHE_PATHS.teachers).catch(() => {});
-    return NextResponse.json(result, { status: 201 });
-
-  } catch (error) {
-    logger.error("Error creating teacher", error);
-
-    // Zod Validation Error handling
-    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
+        { error: (error as Error).message || "Erreur lors de la création de l'enseignant" },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json(
-      { error: (error as Error).message || "Erreur lors de la création de l'enseignant" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ALLOWED_ROLES },
+);

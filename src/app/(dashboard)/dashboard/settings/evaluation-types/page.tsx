@@ -50,6 +50,13 @@ type FormData = {
     maxCount: string;
 };
 
+type EvaluationTypePayload = {
+    name: string;
+    code: string;
+    weight: number;
+    maxCount?: number;
+};
+
 const EMPTY_FORM: FormData = { name: "", code: "", weight: "1", maxCount: "" };
 
 export default function EvaluationTypesPage() {
@@ -102,7 +109,7 @@ export default function EvaluationTypesPage() {
         if (!validate()) return;
         setSaving(true);
         try {
-            const payload: any = {
+            const payload: EvaluationTypePayload = {
                 name: form.name.trim(),
                 code: form.code.trim(),
                 weight: Number(form.weight),

@@ -50,7 +50,7 @@ export const GET = createApiHandler(
             return NextResponse.json(subjects);
         };
 
-        const response = await withCache(handler as any, { ttl: CACHE_TTL_LONG, key: cacheKey });
+        const response = await withCache(handler, { ttl: CACHE_TTL_LONG, key: cacheKey });
         return withHttpCache(response, request, { private: true, maxAge: CACHE_TTL_LONG, staleWhileRevalidate: 60 });
     },
     {

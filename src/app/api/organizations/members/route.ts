@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +19,8 @@ const addMemberSchema = z.object({
  * P17: Organization membership management endpoint.
  * Allows organization owners/managers to invite co-managers to their organization.
  */
-export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
+export const POST = createApiHandler(async (request, context) => {
+        const session = context.session;
 
   try {
     const body = await request.json();
@@ -139,4 +136,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});

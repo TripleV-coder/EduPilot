@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma, AppointmentStatus } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const createAppointmentSchema = z.object({
   teacherId: z.string().cuid(),
@@ -24,94 +23,261 @@ const createAppointmentSchema = z.object({
  * GET /api/appointments
  * List appointments (filtered by role)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const { searchParams } = new URL(request.url);
+      const status = searchParams.get("status");
+      const teacherId = searchParams.get("teacherId");
+      const parentId = searchParams.get("parentId");
+      const studentId = searchParams.get("studentId");
+      const upcoming = searchParams.get("upcoming") === "true";
+      const page = parseInt(searchParams.get("page") || "1");
+      const limit = parseInt(searchParams.get("limit") || "20");
+      const skip = (page - 1) * limit;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+      const where: Prisma.AppointmentWhereInput = {};
 
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
-    const teacherId = searchParams.get("teacherId");
-    const parentId = searchParams.get("parentId");
-    const studentId = searchParams.get("studentId");
-    const upcoming = searchParams.get("upcoming") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+      // Role-based filtering
+      const userRole = session.user.role;
 
-    const where: Prisma.AppointmentWhereInput = {};
+      // Protection Multi-Tenant pour les admins
+      const activeSchoolId = getActiveSchoolId(session);
+      if (userRole !== "SUPER_ADMIN" && activeSchoolId) {
+        where.teacher = {
+          OR: [
+            { schoolId: activeSchoolId },
+            {
+              schoolAssignments: {
+                some: {
+                  schoolId: activeSchoolId,
+                  status: "ACTIVE",
+                },
+              },
+            },
+          ],
+        };
+      }
 
-    // Role-based filtering
-    const userRole = session.user.role;
+      if (userRole === "TEACHER") {
+        const teacherProfile = await prisma.teacherProfile.findUnique({
+          where: { userId: session.user.id },
+        });
+        if (teacherProfile) {
+          where.teacherId = teacherProfile.id;
+        }
+      } else if (userRole === "PARENT") {
+        const parentProfile = await prisma.parentProfile.findUnique({
+          where: { userId: session.user.id },
+        });
+        if (parentProfile) {
+          where.parentId = parentProfile.id;
+        }
+      } else if (userRole === "STUDENT") {
+        const studentProfile = await prisma.studentProfile.findUnique({
+          where: { userId: session.user.id },
+        });
+        if (studentProfile) {
+          where.studentId = studentProfile.id;
+        }
+      }
+      // Admins can see all (filtered by school above)
 
-    // Protection Multi-Tenant pour les admins
-    const activeSchoolId = getActiveSchoolId(session);
-    if (userRole !== "SUPER_ADMIN" && activeSchoolId) {
-      where.teacher = {
-        OR: [
-          { schoolId: activeSchoolId },
-          {
-            schoolAssignments: {
-              some: {
-                schoolId: activeSchoolId,
-                status: "ACTIVE",
+      // Additional filters
+      if (status) where.status = status as AppointmentStatus;
+      if (teacherId && userRole !== "TEACHER") where.teacherId = teacherId;
+      if (parentId && userRole !== "PARENT") where.parentId = parentId;
+      if (studentId && userRole !== "STUDENT") where.studentId = studentId;
+
+      if (upcoming) {
+        where.scheduledAt = { gte: new Date() };
+        where.status = { in: ["PENDING", "CONFIRMED"] };
+      }
+
+      const [appointments, total] = await Promise.all([
+        prisma.appointment.findMany({
+          where,
+          include: {
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+            parent: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+            student: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
               },
             },
           },
-        ],
-      };
-    }
+          orderBy: { scheduledAt: "asc" },
+          skip,
+          take: limit,
+        }),
+        prisma.appointment.count({ where }),
+      ]);
 
-    if (userRole === "TEACHER") {
-      const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: session.user.id },
+      return NextResponse.json({
+        appointments,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       });
-      if (teacherProfile) {
-        where.teacherId = teacherProfile.id;
-      }
-    } else if (userRole === "PARENT") {
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (parentProfile) {
-        where.parentId = parentProfile.id;
-      }
-    } else if (userRole === "STUDENT") {
-      const studentProfile = await prisma.studentProfile.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (studentProfile) {
-        where.studentId = studentProfile.id;
-      }
+    } catch (error) {
+      logger.error(" fetching appointments:", error as Error);
+      return NextResponse.json(
+        { error: "Erreur lors de la récupération des rendez-vous" },
+        { status: 500 }
+      );
     }
-    // Admins can see all (filtered by school above)
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"] },
+);
 
-    // Additional filters
-    if (status) where.status = status as AppointmentStatus;
-    if (teacherId && userRole !== "TEACHER") where.teacherId = teacherId;
-    if (parentId && userRole !== "PARENT") where.parentId = parentId;
-    if (studentId && userRole !== "STUDENT") where.studentId = studentId;
+/**
+ * POST /api/appointments
+ * Create appointment (Parents and Admins)
+ */
+export const POST = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const body = await request.json();
+      const validatedData = createAppointmentSchema.parse(body);
 
-    if (upcoming) {
-      where.scheduledAt = { gte: new Date() };
-      where.status = { in: ["PENDING", "CONFIRMED"] };
-    }
+      // Verify teacher exists and school check
+      const teacher = await prisma.teacherProfile.findUnique({
+        where: { id: validatedData.teacherId },
+        include: {
+          user: { select: { schoolId: true } },
+          schoolAssignments: {
+            where: { status: "ACTIVE" },
+            select: { schoolId: true },
+          },
+        },
+      });
 
-    const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({
-        where,
+      if (!teacher) {
+        return NextResponse.json({ error: "Enseignant non trouvé" }, { status: 404 });
+      }
+
+      const student = await prisma.studentProfile.findUnique({
+        where: { id: validatedData.studentId },
+        select: { id: true, schoolId: true, userId: true },
+      });
+
+      if (!student) {
+        return NextResponse.json({ error: "Élève non trouvé" }, { status: 404 });
+      }
+
+      if (!canAccessSchool(session, student.schoolId)) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
+
+      if (!(await isTeacherAssignedToSchool(teacher.id, student.schoolId))) {
+        return NextResponse.json(
+          { error: "Cet enseignant n'est pas affecté à l'établissement de l'élève" },
+          { status: 400 }
+        );
+      }
+
+      if (session.user.role === "PARENT") {
+        const parentProfile = await prisma.parentProfile.findUnique({
+          where: { userId: session.user.id },
+          select: { id: true },
+        });
+
+        if (!parentProfile || parentProfile.id !== validatedData.parentId) {
+          return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+      }
+
+      // Verify parent has access to student
+      const parentStudent = await prisma.parentStudent.findFirst({
+        where: {
+          parentId: validatedData.parentId,
+          studentId: validatedData.studentId,
+        },
+      });
+
+      if (!parentStudent) {
+        return NextResponse.json(
+          { error: "Ce parent n'est pas lié à cet élève" },
+          { status: 400 }
+        );
+      }
+
+      // Check if teacher is available at this time
+      const scheduledDate = new Date(validatedData.scheduledAt);
+      // const dayOfWeek = scheduledDate.getDay();
+      // const timeString = scheduledDate.toTimeString().slice(0, 5);
+
+      // Check for conflicting appointments
+      const conflictingAppointment = await prisma.appointment.findFirst({
+        where: {
+          teacherId: validatedData.teacherId,
+          scheduledAt: {
+            gte: scheduledDate,
+            lt: new Date(scheduledDate.getTime() + validatedData.duration * 60000),
+          },
+          status: {
+            in: ["PENDING", "CONFIRMED"],
+          },
+        },
+      });
+
+      if (conflictingAppointment) {
+        return NextResponse.json(
+          { error: "L'enseignant a déjà un rendez-vous à ce créneau" },
+          { status: 400 }
+        );
+      }
+
+      // Generate meeting link if VIDEO_CALL
+      const meetingLink = validatedData.type === "VIDEO_CALL"
+        ? `https://meet.edupilot.app/${crypto.randomUUID()}`
+        : undefined;
+
+      const appointment = await prisma.appointment.create({
+        data: {
+          teacherId: validatedData.teacherId,
+          parentId: validatedData.parentId,
+          studentId: validatedData.studentId,
+          scheduledAt: scheduledDate,
+          duration: validatedData.duration,
+          type: validatedData.type,
+          location: validatedData.location,
+          notes: validatedData.notes,
+          meetingLink,
+          createdById: session.user.id,
+        },
         include: {
           teacher: {
             include: {
               user: {
                 select: {
+                  id: true,
                   firstName: true,
                   lastName: true,
                 },
@@ -122,6 +288,7 @@ export async function GET(request: NextRequest) {
             include: {
               user: {
                 select: {
+                  id: true,
                   firstName: true,
                   lastName: true,
                 },
@@ -139,229 +306,47 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { scheduledAt: "asc" },
-        skip,
-        take: limit,
-      }),
-      prisma.appointment.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      appointments,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    logger.error(" fetching appointments:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des rendez-vous" },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * POST /api/appointments
- * Create appointment (Parents and Admins)
- */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validatedData = createAppointmentSchema.parse(body);
-
-    // Verify teacher exists and school check
-    const teacher = await prisma.teacherProfile.findUnique({
-      where: { id: validatedData.teacherId },
-      include: {
-        user: { select: { schoolId: true } },
-        schoolAssignments: {
-          where: { status: "ACTIVE" },
-          select: { schoolId: true },
-        },
-      },
-    });
-
-    if (!teacher) {
-      return NextResponse.json({ error: "Enseignant non trouvé" }, { status: 404 });
-    }
-
-    const student = await prisma.studentProfile.findUnique({
-      where: { id: validatedData.studentId },
-      select: { id: true, schoolId: true, userId: true },
-    });
-
-    if (!student) {
-      return NextResponse.json({ error: "Élève non trouvé" }, { status: 404 });
-    }
-
-    if (!canAccessSchool(session, student.schoolId)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    if (!(await isTeacherAssignedToSchool(teacher.id, student.schoolId))) {
-      return NextResponse.json(
-        { error: "Cet enseignant n'est pas affecté à l'établissement de l'élève" },
-        { status: 400 }
-      );
-    }
-
-    if (session.user.role === "PARENT") {
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
       });
 
-      if (!parentProfile || parentProfile.id !== validatedData.parentId) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      // Create notifications
+      await Promise.all([
+        // Notify teacher
+        prisma.notification.create({
+          data: {
+            userId: appointment.teacher.user.id,
+            type: "INFO",
+            title: "Nouveau rendez-vous",
+            message: `${appointment.parent.user.firstName} ${appointment.parent.user.lastName} souhaite un rendez-vous concernant ${appointment.student.user.firstName} ${appointment.student.user.lastName}`,
+            link: `/appointments/${appointment.id}`,
+          },
+        }),
+        // Notify parent
+        prisma.notification.create({
+          data: {
+            userId: appointment.parent.user.id,
+            type: "SUCCESS",
+            title: "Rendez-vous demandé",
+            message: `Votre demande de rendez-vous avec ${appointment.teacher.user.firstName} ${appointment.teacher.user.lastName} a été envoyée`,
+            link: `/appointments/${appointment.id}`,
+          },
+        }),
+      ]);
+
+      return NextResponse.json(appointment, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
       }
-    }
 
-    // Verify parent has access to student
-    const parentStudent = await prisma.parentStudent.findFirst({
-      where: {
-        parentId: validatedData.parentId,
-        studentId: validatedData.studentId,
-      },
-    });
-
-    if (!parentStudent) {
+      logger.error(" creating appointment:", error as Error);
       return NextResponse.json(
-        { error: "Ce parent n'est pas lié à cet élève" },
-        { status: 400 }
+        { error: "Erreur lors de la création du rendez-vous" },
+        { status: 500 }
       );
     }
-
-    // Check if teacher is available at this time
-    const scheduledDate = new Date(validatedData.scheduledAt);
-    // const dayOfWeek = scheduledDate.getDay();
-    // const timeString = scheduledDate.toTimeString().slice(0, 5);
-
-    // Check for conflicting appointments
-    const conflictingAppointment = await prisma.appointment.findFirst({
-      where: {
-        teacherId: validatedData.teacherId,
-        scheduledAt: {
-          gte: scheduledDate,
-          lt: new Date(scheduledDate.getTime() + validatedData.duration * 60000),
-        },
-        status: {
-          in: ["PENDING", "CONFIRMED"],
-        },
-      },
-    });
-
-    if (conflictingAppointment) {
-      return NextResponse.json(
-        { error: "L'enseignant a déjà un rendez-vous à ce créneau" },
-        { status: 400 }
-      );
-    }
-
-    // Generate meeting link if VIDEO_CALL
-    const meetingLink = validatedData.type === "VIDEO_CALL"
-      ? `https://meet.edupilot.app/${crypto.randomUUID()}`
-      : undefined;
-
-    const appointment = await prisma.appointment.create({
-      data: {
-        teacherId: validatedData.teacherId,
-        parentId: validatedData.parentId,
-        studentId: validatedData.studentId,
-        scheduledAt: scheduledDate,
-        duration: validatedData.duration,
-        type: validatedData.type,
-        location: validatedData.location,
-        notes: validatedData.notes,
-        meetingLink,
-        createdById: session.user.id,
-      },
-      include: {
-        teacher: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-        parent: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-        student: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Create notifications
-    await Promise.all([
-      // Notify teacher
-      prisma.notification.create({
-        data: {
-          userId: appointment.teacher.user.id,
-          type: "INFO",
-          title: "Nouveau rendez-vous",
-          message: `${appointment.parent.user.firstName} ${appointment.parent.user.lastName} souhaite un rendez-vous concernant ${appointment.student.user.firstName} ${appointment.student.user.lastName}`,
-          link: `/appointments/${appointment.id}`,
-        },
-      }),
-      // Notify parent
-      prisma.notification.create({
-        data: {
-          userId: appointment.parent.user.id,
-          type: "SUCCESS",
-          title: "Rendez-vous demandé",
-          message: `Votre demande de rendez-vous avec ${appointment.teacher.user.firstName} ${appointment.teacher.user.lastName} a été envoyée`,
-          link: `/appointments/${appointment.id}`,
-        },
-      }),
-    ]);
-
-    return NextResponse.json(appointment, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    logger.error(" creating appointment:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la création du rendez-vous" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT"] },
+);

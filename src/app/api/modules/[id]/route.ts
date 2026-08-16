@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const updateModuleSchema = z.object({
   title: z.string().min(3).max(200).optional(),
@@ -14,16 +13,10 @@ const updateModuleSchema = z.object({
 });
 
 // GET /api/modules/[id] - Get module details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "module", id, "Module non trouvé");
     if (guard) return guard;
 
@@ -59,19 +52,14 @@ export async function GET(
     logger.error(" fetching module:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+});
 
 // PATCH /api/modules/[id] - Update module
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "module", id, "Module non trouvé");
     if (guard) return guard;
 
@@ -137,19 +125,16 @@ export async function PATCH(
     logger.error(" updating module:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"] },
+);
 
 // DELETE /api/modules/[id] - Delete module
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "module", id, "Module non trouvé");
     if (guard) return guard;
 
@@ -203,4 +188,6 @@ export async function DELETE(
     logger.error(" deleting module:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"] },
+);

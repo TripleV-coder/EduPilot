@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -9,16 +9,10 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
  * GET /api/exams/[id]
  * Get exam details with questions
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
     if (guard) return guard;
 
@@ -64,27 +58,17 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/exams/[id]
  * Delete an exam template
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
     if (guard) return guard;
 
@@ -131,4 +115,6 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },
+);
