@@ -4,6 +4,7 @@
  */
 
 import prisma from '../src/lib/prisma';
+import type { IncidentSeverity, IncidentType, NotificationType, PaymentStatus } from '@prisma/client';
 
 async function seedCompleteData() {
   console.log('🌱 Début du seed complet de données...\n');
@@ -100,7 +101,7 @@ async function seedCompleteData() {
           const existingAttendance = await prisma.attendance.findFirst({
             where: {
               studentId: enrollment.studentId,
-              recordedDate: attendanceDate,
+              date: attendanceDate,
             }
           });
 
@@ -109,10 +110,9 @@ async function seedCompleteData() {
               data: {
                 studentId: enrollment.studentId,
                 classId: cls.id,
-                recordedDate: attendanceDate,
+                date: attendanceDate,
                 status: isAbsent ? 'ABSENT' : 'PRESENT',
-                justificationNote: isExcused ? 'Congé autorisé' : null,
-                recordedBy: null,
+                reason: isExcused ? 'Congé autorisé' : null,
               }
             });
 
@@ -145,7 +145,7 @@ async function seedCompleteData() {
               amount: fee.amount,
               method: Math.random() < 0.6 ? 'BANK_TRANSFER' : 'CASH',
               reference: `PAY-${Date.now()}-${Math.random()}`,
-              status: status as any,
+              status: status as PaymentStatus,
               paidAt: status !== 'PENDING' ? new Date() : null,
               notes: status === 'PENDING' ? 'En attente de confirmation' : undefined,
             }
@@ -164,15 +164,14 @@ async function seedCompleteData() {
 
     for (const student of students_payment.slice(0, 30)) {
       if (Math.random() < 0.3) { // 30% des étudiants ont des incidents
-        const incident = await prisma.incident.create({
+        const incident = await prisma.behaviorIncident.create({
           data: {
             studentId: student.id,
-            type: ['TARDINESS', 'ABSENCE', 'MISCONDUCT', 'OTHER'][Math.floor(Math.random() * 4)],
+            incidentType: ['LATE', 'ABSENCE_UNEXCUSED', 'DISRUPTION', 'OTHER'][Math.floor(Math.random() * 4)] as IncidentType,
             description: 'Incident enregistré',
-            severity: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)],
-            reportedAt: new Date(),
-            reportedBy: null,
-            resolutionNote: Math.random() < 0.5 ? 'Résolu' : undefined,
+            severity: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)] as IncidentSeverity,
+            date: new Date(),
+            followUpNotes: Math.random() < 0.5 ? 'Résolu' : undefined,
           }
         });
 
@@ -272,7 +271,7 @@ async function seedCompleteData() {
       const notification = await prisma.notification.create({
         data: {
           userId: user.id,
-          type: ['GRADE', 'PAYMENT', 'ATTENDANCE', 'MESSAGE'][Math.floor(Math.random() * 4)],
+          type: ['GRADE', 'PAYMENT', 'ATTENDANCE', 'MESSAGE'][Math.floor(Math.random() * 4)] as NotificationType,
           title: 'Nouvelle notification',
           message: 'Vous avez une mise à jour',
           isRead: Math.random() < 0.7,

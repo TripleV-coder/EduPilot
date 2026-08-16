@@ -3,7 +3,7 @@
  * Usage: npx tsx scripts/create-test-users.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type SchoolLevel } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -114,7 +114,7 @@ async function main() {
                 schoolId: school.id,
                 name: levelData.name,
                 code: levelData.code,
-                level: levelData.level as any,
+                level: levelData.level as SchoolLevel,
                 sequence: levelData.sequence,
             },
         });
