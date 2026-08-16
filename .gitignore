@@ -57,3 +57,16 @@ EduPilot (1)/
 
 # E2E tour recordings (generated artifacts)
 e2e/tour/output/
+
+# Editor lock files (broken symlinks left by interrupted sessions)
+.#*
+
+# Specs / prompts d'agents IA (hors périmètre applicatif)
+prompt.json
+
+# Artéfacts de rapports de tests tiers
+test_reports/
+
+# Prototypes de design (tokens portés dans src/styles, sources dans l'historique)
+design-handoff/
+design_handoff_edupilot/
