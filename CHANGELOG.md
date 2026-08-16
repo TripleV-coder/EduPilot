@@ -5,6 +5,28 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [Non publié] - 2026-08-03
+
+### 🔒 Production-ready — remédiation post-audit
+
+#### Corrigé
+- **Build** : 7 erreurs TS `medical-records/*` (handlers → `createApiHandler` +
+  retours `NextResponse` explicites).
+- **Tests** : garde `request.nextUrl?.pathname` dans `createApiHandler` → les 16
+  tests API (upload / fedapay / auth / grades) repassent ; suite **1 129 verts**.
+- **Latence API** : plus de CSP/nonce HTML sur les réponses `/api/*` authentifiées ;
+  skip du double rate-limit Redis via `x-edupilot-edge-rl`.
+- **Fake data** : métriques SMS inventées, barres WhatsApp inventées, carte GPS
+  transport factice → empty states honnêtes.
+- **Docs** : README IA (LLM cloud / n8n), métriques perf marquées comme cibles ;
+  ARCHITECTURE sans Three.js ; TECH_DEBT TD-004/008/009/010/011 à jour.
+- **Communication** : modèles SMS persistés (`CommunicationTemplate`) + seed auto
+  + UI load/save/create ; seuils couverture API remontés (10/8/8) ; typage charts
+  analytics ; **0 `any` explicite** + ESLint `no-explicit-any` en error.
+
+### 📊 État de la CI
+`tsc --noEmit` 0 erreur · `eslint src` 0 erreur · **1 141+ tests verts**.
+
 ## [Non publié] - 2026-07-30
 
 ### 🔒 Sécurité — le second facteur devient effectif
