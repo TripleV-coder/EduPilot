@@ -16,6 +16,7 @@ import { fetcher } from "@/lib/fetcher";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { Class, ClassSubjectWithTeacher, EvaluationType, Period } from "@/lib/types";
 
 const evaluationSchema = z.object({
   classSubjectId: z.string().min(1, "La matière est requise"),
@@ -40,9 +41,9 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
   const { academicYearId } = useSchool();
   const [loading, setLoading] = useState(false);
 
-  const { data: classes } = useSWR("/api/classes", fetcher);
-  const { data: periods } = useSWR(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
-  const { data: evalTypes } = useSWR("/api/evaluation-types", fetcher);
+  const { data: classes } = useSWR<Class[]>("/api/classes", fetcher);
+  const { data: periods } = useSWR<Period[]>(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
+  const { data: evalTypes } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
 
   // z.coerce + .default rendent le type d'entrée ≠ type de sortie : les
   // trois génériques remplacent le cast du resolver.
@@ -56,7 +57,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
   });
 
   const [pickedClassId, setPickedClassId] = useState<string>("");
-  const { data: classSubjects } = useSWR(pickedClassId ? `/api/class-subjects?classId=${pickedClassId}` : null, fetcher);
+  const { data: classSubjects } = useSWR<ClassSubjectWithTeacher[]>(pickedClassId ? `/api/class-subjects?classId=${pickedClassId}` : null, fetcher);
 
   async function onSubmit(values: EvaluationFormValues) {
     setLoading(true);
@@ -106,7 +107,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {classes?.map((c: any) => (
+                        {classes?.map((c) => (
                           <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -126,7 +127,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {classSubjects?.map((cs: any) => (
+                            {classSubjects?.map((cs) => (
                               <SelectItem key={cs.id} value={cs.id} className="text-xs">{cs.subject?.name}</SelectItem>
                             ))}
                           </SelectContent>
@@ -155,7 +156,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {evalTypes?.map((t: any) => (
+                        {evalTypes?.map((t) => (
                           <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -178,7 +179,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {periods?.map((p: any) => (
+                        {periods?.map((p) => (
                           <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
                         ))}
                       </SelectContent>

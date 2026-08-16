@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import type { Grade } from "@/lib/types";
 
 interface Evaluation {
   id: string;
@@ -22,7 +23,7 @@ interface Evaluation {
     class: { name: string };
     subject: { name: string };
   };
-  grades: any[];
+  grades: Grade[];
 }
 
 export function EvaluationList({ evaluations, isLoading }: { evaluations: Evaluation[], isLoading: boolean }) {

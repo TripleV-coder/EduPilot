@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Scale, GitCompare, Calendar } from "lucide-react";
 
 interface AnalyticsComparisonsTabProps {
-    classes: any[];
+    classes: Array<{ id: string; name: string }>;
     academicYearId: string;
-    periods: any[];
+    periods: Array<{ id: string; name: string }>;
 }
 
 export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: AnalyticsComparisonsTabProps) {

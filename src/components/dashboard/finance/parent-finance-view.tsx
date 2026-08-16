@@ -7,8 +7,23 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
 
+interface ParentPayment {
+    id: string;
+    feeName: string;
+    amount: number;
+    date: string;
+    method: string;
+}
+
+interface ParentFinanceData {
+    totalPending: number;
+    totalPaid: number;
+    nextDueDate?: string | null;
+    payments?: ParentPayment[];
+}
+
 export function ParentFinanceView() {
-    const { data, error, isLoading } = useSWR<any>("/api/finance/my-payments", fetcher);
+    const { data, error, isLoading } = useSWR<ParentFinanceData>("/api/finance/my-payments", fetcher);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("fr-BJ", {
@@ -18,7 +33,7 @@ export function ParentFinanceView() {
         }).format(amount);
     };
 
-    const generateReceipt = async (payment: any) => {
+    const generateReceipt = async (payment: ParentPayment) => {
         const { jsPDF } = await import("jspdf");
         // API fonctionnelle d'autotable v5 : typée, sans patch du prototype jsPDF
         const { default: autoTable } = await import("jspdf-autotable");
@@ -123,7 +138,7 @@ export function ParentFinanceView() {
                         {data?.payments?.length === 0 ? (
                             <p className="text-center py-8 text-muted-foreground">Aucun paiement enregistré.</p>
                         ) : (
-                            data?.payments?.map((payment: any) => (
+                            data?.payments?.map((payment) => (
                                 <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 rounded-full bg-secondary/10">

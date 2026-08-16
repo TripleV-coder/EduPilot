@@ -10,8 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 
+type FinanceAnalyticsData = {
+    totalRevenue?: number | string;
+    totalPending?: number | string;
+    revenueByMonth?: Array<{ month: string; amount?: number | string }>;
+    debtAgingBuckets?: Array<{ range: string; amount: number }>;
+    revenueByCycle?: Array<{ name: string; value?: number | string }>;
+};
+
 interface FinanceAnalyticsTabProps {
-    data: any;
+    data: FinanceAnalyticsData | null | undefined;
 }
 
 export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
@@ -100,7 +108,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {(data?.revenueByCycle || []).map((row: any, i: number) => {
+                            {(data?.revenueByCycle || []).map((row, i) => {
                                 const value = Number(row.value || 0);
                                 const share = totalRevenue > 0 ? (value / totalRevenue) * 100 : 0;
                                 return (

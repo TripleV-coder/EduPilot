@@ -12,10 +12,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
+type NamedOption = { id: string; name: string };
+type ClassOption = NamedOption & { level?: string | null; classLevel?: { name?: string | null } | null };
+type YearOption = NamedOption & { periods?: NamedOption[] };
+type SubjectOption = NamedOption;
+
 export function AnalyticsContextBar() {
     const { schoolId, accessibleSchools, setActiveSchoolId } = useSchool();
     const {
-        establishmentId, setEstablishmentId,
         academicYearId, setAcademicYearId,
         periodId, setPeriodId,
         levelIds, setLevelIds,
@@ -25,16 +29,21 @@ export function AnalyticsContextBar() {
         resetFilters
     } = useAnalytics();
 
-    // Data for filters
     const { data: years } = useSWR(schoolId ? `/api/academic-years?schoolId=${schoolId}` : "/api/academic-years", fetcher);
     const { data: classes } = useSWR(schoolId ? `/api/classes?schoolId=${schoolId}&limit=100` : null, fetcher);
     const { data: subjects } = useSWR(schoolId ? `/api/subjects?schoolId=${schoolId}&limit=100` : null, fetcher);
 
-    const yearOptions = Array.isArray(years) ? years : years?.data || [];
-    const classOptions = Array.isArray(classes) ? classes : classes?.data || classes?.classes || [];
-    const subjectOptions = Array.isArray(subjects) ? subjects : subjects?.data || [];
+    const yearOptions: YearOption[] = Array.isArray(years) ? years : years?.data || [];
+    const classOptions: ClassOption[] = Array.isArray(classes) ? classes : classes?.data || classes?.classes || [];
+    const subjectOptions: SubjectOption[] = Array.isArray(subjects) ? subjects : subjects?.data || [];
 
-    const levelOptions = Array.from(new Set(classOptions.map((c: any) => c.level || c.classLevel?.name).filter(Boolean)));
+    const levelOptions = Array.from(
+        new Set(
+            classOptions
+                .map((c) => c.level || c.classLevel?.name || null)
+                .filter((level): level is string => Boolean(level))
+        )
+    );
 
     const handleToggle = (id: string, current: string[], setter: (ids: string[]) => void) => {
         if (current.includes(id)) setter(current.filter(i => i !== id));
@@ -75,7 +84,6 @@ export function AnalyticsContextBar() {
 
             <div className="flex flex-wrap items-center gap-3">
 
-            {/* Establishment (Super Admin) */}
             {accessibleSchools.length > 1 && (
                 <Select value={schoolId || "ALL"} onValueChange={(v) => setActiveSchoolId(v === "ALL" ? null : v)}>
                     <SelectTrigger className="h-10 w-[200px] text-xs">
@@ -90,57 +98,51 @@ export function AnalyticsContextBar() {
                 </Select>
             )}
 
-            {/* Academic Year */}
             <Select value={academicYearId} onValueChange={setAcademicYearId}>
                 <SelectTrigger className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Année" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="ALL">Toutes les années</SelectItem>
-                    {yearOptions.map((y: any) => (
+                    {yearOptions.map((y) => (
                         <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
 
-            {/* Period */}
             <Select value={periodId} onValueChange={setPeriodId}>
                 <SelectTrigger className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Période" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="ALL">Toutes les périodes</SelectItem>
-                    {yearOptions.find((y: any) => y.id === academicYearId)?.periods?.map((p: any) => (
+                    {yearOptions.find((y) => y.id === academicYearId)?.periods?.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
 
-            {/* Levels (Multi) */}
             <MultiSelectPopover 
                 label="Niveaux" 
-                options={levelOptions.map(l => ({ id: l as string, name: l as string }))} 
+                options={levelOptions.map((l) => ({ id: l, name: l }))} 
                 selected={levelIds} 
                 onToggle={(id) => handleToggle(id, levelIds, setLevelIds)} 
             />
 
-            {/* Classes (Multi) */}
             <MultiSelectPopover 
                 label="Classes" 
-                options={classOptions.map((c: any) => ({ id: c.id, name: c.name }))} 
+                options={classOptions.map((c) => ({ id: c.id, name: c.name }))} 
                 selected={classIds} 
                 onToggle={(id) => handleToggle(id, classIds, setClassIds)} 
             />
 
-            {/* Subjects (Multi) */}
             <MultiSelectPopover 
                 label="Matières" 
-                options={subjectOptions.map((s: any) => ({ id: s.id, name: s.name }))} 
+                options={subjectOptions.map((s) => ({ id: s.id, name: s.name }))} 
                 selected={subjectIds} 
                 onToggle={(id) => handleToggle(id, subjectIds, setSubjectIds)} 
             />
 
-            {/* Student Segment */}
             <Select value={studentSegment} onValueChange={(v) => setStudentSegment(v as StudentSegment)}>
                 <SelectTrigger className="h-10 w-[190px] text-xs">
                     <SelectValue placeholder="Segment" />

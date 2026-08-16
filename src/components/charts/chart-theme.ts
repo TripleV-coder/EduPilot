@@ -20,7 +20,9 @@ export const CHART_COLORS = {
   excused: "#3b82f6",
 };
 
-export const FR_TOOLTIP_STYLE = {
+import type { CSSProperties } from "react";
+
+export const FR_TOOLTIP_STYLE: { contentStyle: CSSProperties } = {
   contentStyle: {
     backgroundColor: "hsl(var(--card))",
     border: "1px solid hsl(var(--border))",

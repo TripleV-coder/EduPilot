@@ -57,9 +57,9 @@ export function InteractivePerformanceBarChart({
     fill: filterSubjectId === item.subjectId ? "#8b5cf6" : COLORS[index % COLORS.length],
   }));
 
-  const handleBarClick = (entry: any) => {
+  const handleBarClick = (entry: PerformanceData) => {
     if (onSubjectClick && entry.subjectId) {
-      onSubjectClick(entry.subjectId, entry.subject);
+      onSubjectClick(entry.subjectId, entry.subject ?? entry.subjectId);
     }
   };
 
@@ -77,7 +77,16 @@ export function InteractivePerformanceBarChart({
             <YAxis label={{ value: "Moyenne / Taux (%)", angle: -90, position: "insideLeft" }} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="grade" name="Moyenne" radius={[8, 8, 0, 0]} onClick={(entry) => handleBarClick(entry)}>
+            <Bar
+              dataKey="grade"
+              name="Moyenne"
+              radius={[8, 8, 0, 0]}
+              onClick={(data) => {
+                const raw = data as unknown as PerformanceData & { payload?: PerformanceData };
+                const entry = raw.payload ?? raw;
+                if (entry?.subjectId) handleBarClick(entry);
+              }}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} cursor="pointer" />
               ))}

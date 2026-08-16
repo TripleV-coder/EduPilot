@@ -13,11 +13,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 
 interface SubjectRadarData {
+  subject?: string;
+  name?: string;
+  subjectId?: string;
+  id?: string;
+  grade?: number;
+  average?: number;
+  passRate?: number;
+}
+
+type NormalizedRadarPoint = {
   subject: string;
   subjectId: string;
   grade: number;
   passRate: number;
-}
+};
 
 interface InteractiveSubjectRadarChartProps {
   data: SubjectRadarData[];
@@ -35,14 +45,14 @@ export function InteractiveSubjectRadarChart({
   filterSubjectId,
 }: InteractiveSubjectRadarChartProps) {
   // Normalize data to handle both formats (API vs expected)
-  const normalizedData = data.map((item, index) => ({
-    subject: item.subject || (item as any).name || "Indisponible",
-    subjectId: item.subjectId || (item as any).id || `subject-${index}`,
-    grade: item.grade !== undefined ? item.grade : (item as any).average || 0,
+  const normalizedData: NormalizedRadarPoint[] = data.map((item, index) => ({
+    subject: item.subject || item.name || "Indisponible",
+    subjectId: item.subjectId || item.id || `subject-${index}`,
+    grade: item.grade !== undefined ? item.grade : item.average || 0,
     passRate: item.passRate !== undefined ? item.passRate : 0,
   }));
 
-  const handleRadarClick = (entry: any, index: number) => {
+  const handleRadarClick = (entry: NormalizedRadarPoint) => {
     if (onSubjectClick && entry.subjectId) {
       onSubjectClick(entry.subjectId, entry.subject);
     }
@@ -60,7 +70,10 @@ export function InteractiveSubjectRadarChart({
             <PolarGrid />
             <PolarAngleAxis
               dataKey="subject"
-              onClick={(entry, index) => handleRadarClick(entry, index)}
+              onClick={(_entry, index) => {
+                const point = normalizedData[index];
+                if (point) handleRadarClick(point);
+              }}
               style={{ cursor: "pointer" }}
             />
             <PolarRadiusAxis angle={90} domain={[0, 20]} />
@@ -98,7 +111,7 @@ export function InteractiveSubjectRadarChart({
                     ? "bg-purple-100 dark:bg-purple-950"
                     : "bg-muted hover:bg-muted/80"
                 }`}
-                onClick={() => handleRadarClick(item, index)}
+                onClick={() => handleRadarClick(item)}
               >
                 <p className="text-xs font-medium">{item.subject}</p>
                 <p className="text-xs text-muted-foreground">
