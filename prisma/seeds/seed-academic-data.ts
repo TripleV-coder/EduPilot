@@ -12,13 +12,21 @@ import {
     randomInt,
     generatePhone,
 } from "./utils";
+import type {
+    AttendanceStatus,
+    Homework,
+    IncidentSeverity,
+    IncidentType,
+    PaymentMethod,
+    SanctionType,
+} from "@prisma/client";
 
 export async function seedAcademicData(ctx: SeedContext): Promise<void> {
     // 12. Evaluations & Grades
     console.log("📊 Création des évaluations et notes...\n");
 
     for (const cs of ctx.classSubjects) {
-        const classStudents = ctx.students.filter((s: any) => s.class.id === cs.class.id);
+        const classStudents = ctx.students.filter((s: SeedContext["students"][number]) => s.class.id === cs.class.id);
 
         for (const period of ctx.periods) {
             const evaluationsForPeriod = [
@@ -96,7 +104,7 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
                     studentId: student.profile.id,
                     classId: student.class.id,
                     date: day,
-                    status: isExcused ? "EXCUSED" : status as any,
+                    status: isExcused ? "EXCUSED" : status as AttendanceStatus,
                     reason: isExcused ? randomElement(["Maladie", "Rendez-vous médical", "Raison familiale", "Transport"]) : null,
                     recordedById: ctx.teachers[0].user.id,
                 },
@@ -108,7 +116,7 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
 
     // 14. Homework
     console.log("📝 Création des devoirs...\n");
-    const homeworks: any[] = [];
+    const homeworks: Homework[] = [];
     for (const cs of ctx.classSubjects.slice(0, 20)) {
         const hw = await prisma.homework.create({
             data: {
@@ -123,7 +131,7 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
         });
         homeworks.push(hw);
 
-        for (const student of ctx.students.filter((s: any) => s.class.id === cs.class.id)) {
+        for (const student of ctx.students.filter((s: SeedContext["students"][number]) => s.class.id === cs.class.id)) {
             if (Math.random() < 0.7) {
                 const [minG, maxG] = student.scenario.gradeRange;
                 await prisma.homeworkSubmission.create({
@@ -157,8 +165,8 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
             const incident = await prisma.behaviorIncident.create({
                 data: {
                     studentId: student.profile.id,
-                    incidentType: randomElement(incidentTypes) as any,
-                    severity: randomElement(incidentSeverities) as any,
+                    incidentType: randomElement(incidentTypes) as IncidentType,
+                    severity: randomElement(incidentSeverities) as IncidentSeverity,
                     description: randomElement(["Retard répété en classe", "Bavardage pendant le cours", "Non-respect du règlement intérieur", "Perturbation du cours", "Oubli répété du matériel scolaire", "Comportement inapproprié en classe"]),
                     date: randomDate(new Date(2024, 8, 16), new Date(2024, 11, 20)),
                     location: randomElement(["Salle de classe", "Cour de récréation", "Cantine", "Couloir"]),
@@ -173,7 +181,7 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
                 await prisma.sanction.create({
                     data: {
                         incidentId: incident.id,
-                        type: randomElement(["WARNING", "DETENTION", "PARENT_CONFERENCE", "COUNSELING"]) as any,
+                        type: randomElement(["WARNING", "DETENTION", "PARENT_CONFERENCE", "COUNSELING"]) as SanctionType,
                         description: "Suite à l'incident signalé",
                         startDate: new Date(),
                         isServed: Math.random() < 0.8,
@@ -242,14 +250,14 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
             const hasPaid = fee.isRequired ? Math.random() < 0.8 : Math.random() < 0.5;
             if (hasPaid) {
                 await prisma.payment.create({
-                    data: { studentId: student.profile.id, feeId: fee.id, amount: fee.amount, paidAt: randomDate(new Date(2024, 8, 1), new Date(2024, 10, 30)), method: randomElement(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER"]) as any, status: "VERIFIED", reference: `PAY-${sIdx}-${fIdx}-${randomInt(10000, 99999)}` },
+                    data: { studentId: student.profile.id, feeId: fee.id, amount: fee.amount, paidAt: randomDate(new Date(2024, 8, 1), new Date(2024, 10, 30)), method: randomElement(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER"]) as PaymentMethod, status: "VERIFIED", reference: `PAY-${sIdx}-${fIdx}-${randomInt(10000, 99999)}` },
                 });
                 ctx.paymentCount++;
             }
         }
     }
 
-    const excellentStudents = ctx.students.filter((s: any) => s.scenario.type === "excellent");
+    const excellentStudents = ctx.students.filter((s: SeedContext["students"][number]) => s.scenario.type === "excellent");
     for (const student of excellentStudents.slice(0, 5)) {
         await prisma.scholarship.create({
             data: { studentId: student.profile.id, name: "Bourse d'excellence", type: "MERIT", amount: 50000, percentage: 30, startDate: new Date(2024, 8, 16), endDate: new Date(2025, 7, 15), isActive: true, notes: "Attribuée pour excellents résultats académiques" },

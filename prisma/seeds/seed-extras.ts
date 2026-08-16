@@ -11,6 +11,25 @@ import {
     randomGrade,
     randomInt,
 } from "./utils";
+import type {
+    Achievement,
+    AnnouncementPriority,
+    AppointmentStatus,
+    AppointmentType,
+    Book,
+    CalendarEventType,
+    CertificateType,
+    EventParticipationStatus,
+    LessonType,
+    NotificationType,
+    OrientationStatus,
+    PerformanceLevel,
+    PerformanceTrend,
+    PublicHolidayType,
+    RecommendedSeries,
+    ResourceType,
+    RiskLevel,
+} from "@prisma/client";
 
 export async function seedExtras(ctx: SeedContext): Promise<void> {
     // 18. Schedules
@@ -23,7 +42,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
     ];
     let scheduleCount = 0;
     for (const cls of ctx.collegeClasses) {
-        const csForClass = ctx.classSubjects.filter((cs: any) => cs.class.id === cls.id);
+        const csForClass = ctx.classSubjects.filter((cs: SeedContext["classSubjects"][number]) => cs.class.id === cls.id);
         for (let day = 1; day <= 5; day++) {
             let idx = 0;
             for (const slot of timeSlots.slice(0, 6)) {
@@ -54,7 +73,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         const student = randomElement(ctx.students);
         const teacher = randomElement(ctx.teachers);
         await prisma.appointment.create({
-            data: { teacherId: teacher.profile.id, parentId: student.parents[0].id, studentId: student.profile.id, scheduledAt: randomDate(new Date(2024, 10, 1), new Date(2025, 1, 28)), duration: randomElement([15, 30, 45]), type: randomElement(["IN_PERSON", "VIDEO_CALL", "PHONE_CALL"]) as any, status: randomElement(["PENDING", "CONFIRMED", "COMPLETED"]) as any, location: "Bureau des enseignants", notes: randomElement(["Discussion sur les résultats scolaires", "Suivi comportemental", "Orientation scolaire", "Bilan de mi-trimestre", null]), createdById: student.parents[0].userId || teacher.user.id },
+            data: { teacherId: teacher.profile.id, parentId: student.parents[0].id, studentId: student.profile.id, scheduledAt: randomDate(new Date(2024, 10, 1), new Date(2025, 1, 28)), duration: randomElement([15, 30, 45]), type: randomElement(["IN_PERSON", "VIDEO_CALL", "PHONE_CALL"]) as AppointmentType, status: randomElement(["PENDING", "CONFIRMED", "COMPLETED"]) as AppointmentStatus, location: "Bureau des enseignants", notes: randomElement(["Discussion sur les résultats scolaires", "Suivi comportemental", "Orientation scolaire", "Bilan de mi-trimestre", null]), createdById: student.parents[0].userId || teacher.user.id },
         });
         appointmentCount++;
     }
@@ -76,7 +95,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
             const participants = ctx.students.sort(() => Math.random() - 0.5).slice(0, Math.min(event.maxParticipants, randomInt(20, 50)));
             for (const student of participants) {
                 await prisma.eventParticipation.create({
-                    data: { eventId: event.id, studentId: student.profile.id, status: randomElement(["REGISTERED", "CONFIRMED"]) as any, permissionGiven: event.requiresPermission ? Math.random() < 0.8 : true, permissionBy: student.parents[0].id, paymentStatus: event.fee ? (Math.random() < 0.7 ? "VERIFIED" : "PENDING") : null },
+                    data: { eventId: event.id, studentId: student.profile.id, status: randomElement(["REGISTERED", "CONFIRMED"]) as EventParticipationStatus, permissionGiven: event.requiresPermission ? Math.random() < 0.8 : true, permissionBy: student.parents[0].id, paymentStatus: event.fee ? (Math.random() < 0.7 ? "VERIFIED" : "PENDING") : null },
                 });
             }
         }
@@ -93,10 +112,10 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
     ];
 
     for (const courseData of coursesData) {
-        const subject = ctx.subjects.find((s: any) => s.name === courseData.subject);
-        const teacher = ctx.teachers.find((t: any) => t.data.subject === courseData.subject);
+        const subject = ctx.subjects.find((s: SeedContext["subjects"][number]) => s.name === courseData.subject);
+        const teacher = ctx.teachers.find((t: SeedContext["teachers"][number]) => t.data.subject === courseData.subject);
         if (!subject || !teacher) continue;
-        const cs = ctx.classSubjects.find((c: any) => c.subject.id === subject.id);
+        const cs = ctx.classSubjects.find((c: SeedContext["classSubjects"][number]) => c.subject.id === subject.id);
         if (!cs) continue;
 
         const course = await prisma.course.create({ data: { classSubjectId: cs.id, title: courseData.title, description: `Cours complet sur ${courseData.title}`, isPublished: true, createdById: teacher.user.id } });
@@ -107,11 +126,11 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
             const courseModule = await prisma.courseModule.create({ data: { courseId: course.id, title: moduleData.title, order: moduleOrder++ } });
             let lessonOrder = 1;
             for (const lessonTitle of moduleData.lessons) {
-                await prisma.lesson.create({ data: { moduleId: courseModule.id, title: lessonTitle, content: `Ce module couvre les aspects essentiels de la leçon : ${lessonTitle}. Les étudiants doivent réviser attentivement ces notions.`, type: randomElement(["TEXT", "VIDEO", "PDF"]) as any, duration: randomInt(15, 45), order: lessonOrder++ } });
+                await prisma.lesson.create({ data: { moduleId: courseModule.id, title: lessonTitle, content: `Ce module couvre les aspects essentiels de la leçon : ${lessonTitle}. Les étudiants doivent réviser attentivement ces notions.`, type: randomElement(["TEXT", "VIDEO", "PDF"]) as LessonType, duration: randomInt(15, 45), order: lessonOrder++ } });
             }
         }
 
-        const courseStudents = ctx.students.filter((s: any) => ctx.classSubjects.some((c: any) => c.class.id === s.class.id && c.subject.id === subject.id)).slice(0, 30);
+        const courseStudents = ctx.students.filter((s: SeedContext["students"][number]) => ctx.classSubjects.some((c: SeedContext["classSubjects"][number]) => c.class.id === s.class.id && c.subject.id === subject.id)).slice(0, 30);
         for (const student of courseStudents) {
             await prisma.courseEnrollment.create({ data: { courseId: course.id, studentId: student.profile.id, progress: randomInt(0, 100), completedAt: Math.random() < 0.2 ? new Date() : null } });
         }
@@ -126,10 +145,10 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
     ];
 
     for (const examData of examsData) {
-        const subject = ctx.subjects.find((s: any) => s.name === examData.subject);
-        const teacher = ctx.teachers.find((t: any) => t.data.subject === examData.subject);
+        const subject = ctx.subjects.find((s: SeedContext["subjects"][number]) => s.name === examData.subject);
+        const teacher = ctx.teachers.find((t: SeedContext["teachers"][number]) => t.data.subject === examData.subject);
         if (!subject || !teacher) continue;
-        const cs = ctx.classSubjects.find((c: any) => c.subject.id === subject.id);
+        const cs = ctx.classSubjects.find((c: SeedContext["classSubjects"][number]) => c.subject.id === subject.id);
         if (!cs) continue;
 
         const exam = await prisma.examTemplate.create({ data: { classSubjectId: cs.id, title: examData.title, description: `Examen de ${examData.subject}`, duration: 30, totalPoints: examData.questions.length * 4, passingScore: Math.floor(examData.questions.length * 4 * 0.5), isPublished: true, createdById: teacher.user.id } });
@@ -140,7 +159,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
             await prisma.question.create({ data: { examTemplateId: exam.id, type: "MCQ", question: qData.q, options: qData.options, correctAnswer: qData.correct, points: 4, order: qOrder++ } });
         }
 
-        const examStudents = ctx.students.filter((s: any) => ctx.classSubjects.some((c: any) => c.class.id === s.class.id && c.subject.id === subject.id)).slice(0, 20);
+        const examStudents = ctx.students.filter((s: SeedContext["students"][number]) => ctx.classSubjects.some((c: SeedContext["classSubjects"][number]) => c.class.id === s.class.id && c.subject.id === subject.id)).slice(0, 20);
         for (const student of examStudents) {
             if (Math.random() < 0.6) {
                 const score = randomInt(0, examData.questions.length * 4);
@@ -164,10 +183,10 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { title: "Histoire du Bénin - Chronologie", subject: "Histoire-Géographie", type: "DOCUMENT" },
     ];
     for (const resData of resourcesData) {
-        const subject = ctx.subjects.find((s: any) => s.name === resData.subject);
-        const teacher = ctx.teachers.find((t: any) => t.data.subject === resData.subject);
+        const subject = ctx.subjects.find((s: SeedContext["subjects"][number]) => s.name === resData.subject);
+        const teacher = ctx.teachers.find((t: SeedContext["teachers"][number]) => t.data.subject === resData.subject);
         if (subject && teacher) {
-            await prisma.resource.create({ data: { schoolId: ctx.school1.id, title: resData.title, description: `Ressource pour ${resData.subject}`, type: resData.type as any, category: resData.subject, subjectId: subject.id, fileUrl: `/resources/${resData.title.toLowerCase().replace(/ /g, "-")}.pdf`, fileType: "application/pdf", fileSize: randomInt(100000, 5000000), isPublic: true, uploadedById: teacher.user.id } });
+            await prisma.resource.create({ data: { schoolId: ctx.school1.id, title: resData.title, description: `Ressource pour ${resData.subject}`, type: resData.type as ResourceType, category: resData.subject, subjectId: subject.id, fileUrl: `/resources/${resData.title.toLowerCase().replace(/ /g, "-")}.pdf`, fileType: "application/pdf", fileSize: randomInt(100000, 5000000), isPublic: true, uploadedById: teacher.user.id } });
         }
     }
     console.log(`   ✅ ${resourcesData.length} ressources créées\n`);
@@ -175,7 +194,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
     // 25. Certificates
     console.log("📜 Création des certificats...\n");
     for (const student of ctx.students.slice(0, 30)) {
-        await prisma.certificate.create({ data: { studentId: student.profile.id, type: randomElement(["ENROLLMENT", "ATTENDANCE", "CONDUCT"]) as any, academicYearId: ctx.academicYear1.id, issuedById: ctx.director1.id, certificateNumber: `CERT${ctx.academicYear1.name.replace("-", "")}${String(ctx.certCount + 1).padStart(4, "0")}`, validUntil: new Date(2025, 7, 31) } });
+        await prisma.certificate.create({ data: { studentId: student.profile.id, type: randomElement(["ENROLLMENT", "ATTENDANCE", "CONDUCT"]) as CertificateType, academicYearId: ctx.academicYear1.id, issuedById: ctx.director1.id, certificateNumber: `CERT${ctx.academicYear1.name.replace("-", "")}${String(ctx.certCount + 1).padStart(4, "0")}`, validUntil: new Date(2025, 7, 31) } });
         ctx.certCount++;
     }
     console.log(`   ✅ ${ctx.certCount} certificats créés\n`);
@@ -190,7 +209,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { title: "Inscriptions activités parascolaires", content: "Les inscriptions aux activités sont ouvertes.", priority: "LOW" },
     ];
     for (const ann of ctx.announcements) {
-        await prisma.announcement.create({ data: { schoolId: ctx.school1.id, title: ann.title, content: ann.content, type: "GENERAL", priority: ann.priority as any, isPublished: true, publishedAt: new Date(), authorId: ctx.director1.id } });
+        await prisma.announcement.create({ data: { schoolId: ctx.school1.id, title: ann.title, content: ann.content, type: "GENERAL", priority: ann.priority, isPublished: true, publishedAt: new Date(), authorId: ctx.director1.id } });
     }
     console.log(`   ✅ ${ctx.announcements.length} annonces créées\n`);
 
@@ -215,7 +234,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
             { type: "MESSAGE", title: "Nouveau message", message: "Vous avez un nouveau message" },
         ];
         const notif = randomElement(notifTypes);
-        await prisma.notification.create({ data: { userId: student.user.id, type: notif.type as any, title: notif.title, message: notif.message, isRead: Math.random() < 0.3 } });
+        await prisma.notification.create({ data: { userId: student.user.id, type: notif.type as NotificationType, title: notif.title, message: notif.message, isRead: Math.random() < 0.3 } });
         ctx.notifCount++;
     }
     console.log(`   ✅ ${ctx.notifCount} notifications créées\n`);
@@ -231,7 +250,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { name: "Ascension", date: new Date("2025-05-29"), type: "RELIGIOUS" },
     ];
     for (const h of publicHolidays) {
-        await prisma.publicHoliday.create({ data: { name: h.name, date: h.date, type: h.type as any, isRecurring: true } });
+        await prisma.publicHoliday.create({ data: { name: h.name, date: h.date, type: h.type as PublicHolidayType, isRecurring: true } });
     }
     await prisma.schoolHoliday.create({ data: { schoolId: ctx.school1.id, academicYearId: ctx.academicYear1.id, name: "Vacances de Noël", type: "CHRISTMAS", startDate: new Date("2024-12-21"), endDate: new Date("2025-01-05") } });
     await prisma.schoolHoliday.create({ data: { schoolId: ctx.school1.id, academicYearId: ctx.academicYear1.id, name: "Vacances de Pâques", type: "EASTER", startDate: new Date("2025-04-18"), endDate: new Date("2025-04-28") } });
@@ -244,7 +263,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { name: "Remise des bulletins", type: "REMISE_BULLETINS", date: new Date("2024-12-21") },
     ];
     for (const ev of calendarEvents) {
-        await prisma.schoolCalendarEvent.create({ data: { schoolId: ctx.school1.id, academicYearId: ctx.academicYear1.id, name: ev.name, type: ev.type as any, startDate: ev.date, isAllDay: true, isPublic: true } });
+        await prisma.schoolCalendarEvent.create({ data: { schoolId: ctx.school1.id, academicYearId: ctx.academicYear1.id, name: ev.name, type: ev.type as CalendarEventType, startDate: ev.date, isAllDay: true, isPublic: true } });
     }
     console.log("   ✅ Calendrier scolaire créé\n");
 
@@ -256,7 +275,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         const performanceLevel = avgGrade >= 16 ? "EXCELLENT" : avgGrade >= 14 ? "VERY_GOOD" : avgGrade >= 12 ? "GOOD" : avgGrade >= 10 ? "AVERAGE" : avgGrade >= 8 ? "INSUFFICIENT" : "WEAK";
         const riskLevel = avgGrade >= 12 ? "NONE" : avgGrade >= 10 ? "LOW" : avgGrade >= 8 ? "MEDIUM" : "HIGH";
 
-        const studentAnalytic = await prisma.studentAnalytics.create({ data: { studentId: student.profile.id, periodId: ctx.periods[0].id, academicYearId: ctx.academicYear1.id, generalAverage: avgGrade, classRank: randomInt(1, 30), classSize: 30, performanceLevel: performanceLevel as any, progressionRate: randomInt(-10, 15), consistencyRate: randomInt(60, 95), riskLevel: riskLevel as any, riskFactors: riskLevel !== "NONE" ? ["Notes en baisse", "Absences fréquentes"] : [] } });
+        const studentAnalytic = await prisma.studentAnalytics.create({ data: { studentId: student.profile.id, periodId: ctx.periods[0].id, academicYearId: ctx.academicYear1.id, generalAverage: avgGrade, classRank: randomInt(1, 30), classSize: 30, performanceLevel: performanceLevel as PerformanceLevel, progressionRate: randomInt(-10, 15), consistencyRate: randomInt(60, 95), riskLevel: riskLevel as RiskLevel, riskFactors: riskLevel !== "NONE" ? ["Notes en baisse", "Absences fréquentes"] : [] } });
 
         // Create SubjectPerformance for each subject
         for (const subject of ctx.subjects) {
@@ -273,17 +292,17 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
                     standardDev: Math.round((1 + Math.random() * 3) * 100) / 100,
                     isStrength: subjectAvg >= avgGrade + 2,
                     isWeakness: subjectAvg <= avgGrade - 2,
-                    trend: randomElement(["INCREASE", "STABLE", "DECREASE", "STRONG_INCREASE"]) as any,
+                    trend: randomElement(["INCREASE", "STABLE", "DECREASE", "STRONG_INCREASE"]) as PerformanceTrend,
                     progressionRate: Math.round((Math.random() * 20 - 10) * 100) / 100,
                 },
             });
         }
 
         if (student.class.levelName === "3ème") {
-            const orientation = await prisma.studentOrientation.create({ data: { studentId: student.profile.id, academicYearId: ctx.academicYear1.id, classLevelId: student.class.level.id, status: randomElement(["PENDING", "ANALYZED", "RECOMMENDED"]) as any } });
+            const orientation = await prisma.studentOrientation.create({ data: { studentId: student.profile.id, academicYearId: ctx.academicYear1.id, classLevelId: student.class.level.id, status: randomElement(["PENDING", "ANALYZED", "RECOMMENDED"]) as OrientationStatus } });
             const series = avgGrade >= 14 ? ["SERIE_C", "SERIE_D"] : avgGrade >= 12 ? ["SERIE_D", "SERIE_B"] : ["SERIE_A1", "SERIE_G2"];
             for (let i = 0; i < series.length; i++) {
-                await prisma.orientationRecommendation.create({ data: { orientationId: orientation.id, recommendedSeries: series[i] as any, rank: i + 1, score: randomInt(60, 95), justification: "Recommandation basée sur les performances", strengths: ["Bons résultats dans les matières principales"] } });
+                await prisma.orientationRecommendation.create({ data: { orientationId: orientation.id, recommendedSeries: series[i] as RecommendedSeries, rank: i + 1, score: randomInt(60, 95), justification: "Recommandation basée sur les performances", strengths: ["Bons résultats dans les matières principales"] } });
             }
         }
     }
@@ -348,7 +367,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { title: "Annales BEPC Bénin 2024", author: "Éditions Star", category: "Annales", isbn: "978-99919-0-456-7" },
     ];
 
-    const books: any[] = [];
+    const books: Book[] = [];
     for (const bookData of booksData) {
         const qty = randomInt(3, 15);
         const borrowed = randomInt(0, Math.min(qty - 1, 5));
@@ -442,7 +461,7 @@ export async function seedExtras(ctx: SeedContext): Promise<void> {
         { code: "GOOD_BEHAVIOR_MONTH", name: "Bon comportement", description: "Aucun incident sur un mois", points: 40, category: "Comportement" },
     ];
 
-    const achievements: any[] = [];
+    const achievements: Achievement[] = [];
     for (const achData of achievementsData) {
         const ach = await prisma.achievement.create({ data: achData });
         achievements.push(ach);

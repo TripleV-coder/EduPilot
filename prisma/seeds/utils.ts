@@ -3,7 +3,24 @@
  * Used by all seed modules.
  */
 
-import { PrismaClient } from "@prisma/client";
+import {
+    PrismaClient,
+    type AcademicYear,
+    type AnnouncementPriority,
+    type Class,
+    type ClassLevel,
+    type ClassSubject,
+    type EvaluationType,
+    type ParentProfile,
+    type Period,
+    type School,
+    type SchoolEvent,
+    type StudentProfile,
+    type Subject,
+    type TeacherProfile,
+    type User,
+    type UserRole,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -60,7 +77,7 @@ export async function createUser(
     email: string,
     firstName: string,
     lastName: string,
-    role: string,
+    role: UserRole,
     schoolId: string | null,
     password: string = "Password123!"
 ) {
@@ -71,7 +88,7 @@ export async function createUser(
             password: hashedPassword,
             firstName,
             lastName,
-            role: role as any,
+            role,
             schoolId: schoolId || undefined,
             phone: await generatePhone(),
         },
@@ -102,30 +119,80 @@ export const studentScenarios: StudentScenario[] = [
 // ============================================
 // SEED CONTEXT — Shared mutable state for modules
 // ============================================
+export interface SeedClass extends Class {
+    level: ClassLevel;
+    levelName: string;
+}
+
+export interface SeedTeacher {
+    user: User;
+    profile: TeacherProfile;
+    data: { firstName: string; lastName: string; subject: string; email: string };
+}
+
+export type SeedClassSubject = ClassSubject & {
+    class: SeedClass;
+    subject: Subject;
+    teacher: SeedTeacher;
+};
+
+export interface SeedStudent {
+    user: User;
+    profile: StudentProfile;
+    class: SeedClass;
+    scenario: StudentScenario;
+    parents: ParentProfile[];
+}
+
+export interface SeedParent {
+    user: User;
+    profile: ParentProfile;
+    relationship: string;
+}
+
+export interface SeedSubjectData {
+    name: string;
+    code: string;
+    category: string;
+    coef: number;
+}
+
+export interface SeedLevelData {
+    name: string;
+    code: string;
+    sequence: number;
+}
+
+export interface SeedAnnouncement {
+    title: string;
+    content: string;
+    priority: AnnouncementPriority;
+}
+
 export interface SeedContext {
     // Schools
-    school1: any;
-    school2: any;
-    school3: any;
+    school1: School;
+    school2: School;
+    school3: School;
     // Users
-    superAdmin: any;
-    schoolAdmin1: any;
-    director1: any;
+    superAdmin: User;
+    schoolAdmin1: User;
+    director1: User;
     // Academic
-    academicYear1: any;
-    periods: any[];
-    evalTypes: any[];
-    subjects: any[];
-    subjectsData: any[];
-    collegeLevels: any[];
-    collegeClasses: any[];
-    classLevelRecords: any[];
+    academicYear1: AcademicYear;
+    periods: Period[];
+    evalTypes: EvaluationType[];
+    subjects: Subject[];
+    subjectsData: SeedSubjectData[];
+    collegeLevels: SeedLevelData[];
+    collegeClasses: SeedClass[];
+    classLevelRecords: ClassLevel[];
     // Teachers
-    teachers: any[];
-    classSubjects: any[];
+    teachers: SeedTeacher[];
+    classSubjects: SeedClassSubject[];
     // Families
-    students: any[];
-    parents: any[];
+    students: SeedStudent[];
+    parents: SeedParent[];
     // Counters
     totalGrades: number;
     gradesByStudent: Map<string, number[]>;
@@ -136,19 +203,19 @@ export interface SeedContext {
     certCount: number;
     notifCount: number;
     // Events
-    events: any[];
-    announcements: any[];
+    events: SchoolEvent[];
+    announcements: SeedAnnouncement[];
 }
 
 export function createEmptyContext(): SeedContext {
     return {
-        school1: null,
-        school2: null,
-        school3: null,
-        superAdmin: null,
-        schoolAdmin1: null,
-        director1: null,
-        academicYear1: null,
+        school1: null!,
+        school2: null!,
+        school3: null!,
+        superAdmin: null!,
+        schoolAdmin1: null!,
+        director1: null!,
+        academicYear1: null!,
         periods: [],
         evalTypes: [],
         subjects: [],

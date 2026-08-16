@@ -19,6 +19,7 @@ import {
     professions,
     studentScenarios,
 } from "./utils";
+import type { Gender } from "@prisma/client";
 
 /**
  * Seed teachers, class-subject assignments, parents, and students
@@ -68,7 +69,7 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
 
             if (subject.code === "PHILO" && (cls.levelName === "6ème" || cls.levelName === "5ème")) continue;
 
-            const teacher = ctx.teachers.find((t: any) => t.data.subject === subject.name);
+            const teacher = ctx.teachers.find((t: SeedContext["teachers"][number]) => t.data.subject === subject.name);
             if (teacher) {
                 const cs = await prisma.classSubject.create({
                     data: {
@@ -232,7 +233,7 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
                     schoolId: ctx.school1.id,
                     matricule: generateMatricule("ELV", studentIndex),
                     dateOfBirth: randomDate(new Date(birthYear, 0, 1), new Date(birthYear, 11, 31)),
-                    gender: gender as any,
+                    gender: gender as Gender,
                     birthPlace: randomElement(cities),
                     nationality: randomElement(nationalities),
                     address: `Quartier ${randomElement(["Akpakpa", "Cadjèhoun", "Fidjrossè", "Gbégamey", "Kouhounou", "Mènontin", "Zogbo"])}, Cotonou`,

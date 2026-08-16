@@ -11,6 +11,7 @@ import {
     randomInt,
 } from "./utils";
 import { seedBeninReferenceData } from "../seed-reference-data";
+import type { SchoolLevel } from "@prisma/client";
 
 /**
  * Clean the entire database (reverse dependency order)
@@ -207,7 +208,7 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
         { name: "Arts Plastiques", code: "ART", category: "Arts", coef: 1 },
     ];
     ctx.subjects = await Promise.all(
-        ctx.subjectsData.map((s: any) => prisma.subject.create({
+        ctx.subjectsData.map((s: SeedContext["subjectsData"][number]) => prisma.subject.create({
             data: { schoolId: ctx.school1.id, name: s.name, code: s.code, category: s.category }
         }))
     );
@@ -227,7 +228,7 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
 
     for (const level of ctx.collegeLevels) {
         const levelRecord = await prisma.classLevel.create({
-            data: { schoolId: ctx.school1.id, name: level.name, code: level.code, sequence: level.sequence, level: level.sequence > 4 ? "SECONDARY_LYCEE" as any : "SECONDARY_COLLEGE" as any }
+            data: { schoolId: ctx.school1.id, name: level.name, code: level.code, sequence: level.sequence, level: level.sequence > 4 ? "SECONDARY_LYCEE" as SchoolLevel : "SECONDARY_COLLEGE" as SchoolLevel }
         });
         ctx.classLevelRecords.push(levelRecord);
 
