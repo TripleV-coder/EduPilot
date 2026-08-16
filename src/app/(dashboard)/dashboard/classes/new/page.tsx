@@ -31,6 +31,14 @@ import { useSchool } from "@/components/providers/school-provider";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
+type ClassLevelOption = { id: string; name: string; level: string };
+type TeacherOption = {
+    id: string;
+    user?: { firstName?: string; lastName?: string };
+    firstName?: string;
+    lastName?: string;
+};
+
 export default function NewClassPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -40,19 +48,25 @@ export default function NewClassPage() {
     const [success, setSuccess] = useState(false);
 
     // Fetch options for the selects
-    const { data: levelsResponse } = useSWR<any>("/api/class-levels", fetcher);
-    const { data: teachersResponse } = useSWR<any>("/api/teachers", fetcher);
+    const { data: levelsResponse } = useSWR<ClassLevelOption[] | { data?: ClassLevelOption[] }>("/api/class-levels", fetcher);
+    const { data: teachersResponse } = useSWR<
+        TeacherOption[] | { teachers?: TeacherOption[]; data?: TeacherOption[] }
+    >("/api/teachers", fetcher);
 
     // Safety fallback
-    const allClassLevels = Array.isArray(levelsResponse) ? levelsResponse : levelsResponse?.data || [];
-    const teachers = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.teachers || teachersResponse?.data || [];
+    const allClassLevels: ClassLevelOption[] = Array.isArray(levelsResponse)
+        ? levelsResponse
+        : levelsResponse?.data || [];
+    const teachers: TeacherOption[] = Array.isArray(teachersResponse)
+        ? teachersResponse
+        : teachersResponse?.teachers || teachersResponse?.data || [];
 
     // N'autoriser que les niveaux des cycles offerts par l'établissement.
     // Défaut sûr : tant que offeredLevels est vide (chargement / non configuré),
     // on affiche tous les niveaux — on ne masque jamais hâtivement.
     const { offeredLevels } = useSchool();
     const classLevels = offeredLevels && offeredLevels.length > 0
-        ? allClassLevels.filter((lvl: any) => offeredLevels.includes(lvl.level))
+        ? allClassLevels.filter((lvl) => offeredLevels.includes(lvl.level))
         : allClassLevels;
 
     // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
@@ -184,7 +198,7 @@ export default function NewClassPage() {
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {classLevels.map((lvl: any) => (
+                                                        {classLevels.map((lvl) => (
                                                             <SelectItem key={lvl.id} value={lvl.id}>
                                                                 {lvl.name}
                                                             </SelectItem>
@@ -233,9 +247,11 @@ export default function NewClassPage() {
                                                         </FormControl>
                                                         <SelectContent>
                                                             <SelectItem value="">Aucun</SelectItem>
-                                                            {teachers.map((t: any) => (
+                                                            {teachers.map((t) => (
                                                                 <SelectItem key={t.id} value={t.id}>
-                                                                    {t.user.lastName} {t.user.firstName}
+                                                                    {t.user
+                                                                        ? `${t.user.lastName} ${t.user.firstName}`
+                                                                        : `${t.lastName ?? ""} ${t.firstName ?? ""}`.trim() || t.id}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>

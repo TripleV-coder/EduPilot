@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { ClassSubjectWithTeacher } from "@/lib/types";
 
 const lessonSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
@@ -74,12 +75,13 @@ const courseSchema = z.object({
 });
 
 type CourseFormValues = z.infer<typeof courseSchema>;
+type CourseFormControl = Control<z.input<typeof courseSchema>, unknown, CourseFormValues>;
 
 export default function NewCoursePage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [mySubjects, setMySubjects] = useState<any[]>([]);
+    const [mySubjects, setMySubjects] = useState<ClassSubjectWithTeacher[]>([]);
     const [expandedModule, setExpandedModule] = useState<number | null>(0);
 
     // z.coerce rend le type d'entrée ≠ type de sortie : les trois génériques
@@ -331,7 +333,7 @@ export default function NewCoursePage() {
 }
 
 // Helper component for lessons to keep main component clean
-function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: any }) {
+function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: CourseFormControl }) {
     const { fields, remove } = useFieldArray({
         control,
         name: `modules.${moduleIndex}.lessons`
@@ -396,7 +398,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: a
     );
 }
 
-function LessonUrlFields({ moduleIndex, lessonIndex, control }: { moduleIndex: number, lessonIndex: number, control: any }) {
+function LessonUrlFields({ moduleIndex, lessonIndex, control }: { moduleIndex: number, lessonIndex: number, control: CourseFormControl }) {
     // Watch lesson type
     const lessonType = control._formValues.modules[moduleIndex].lessons[lessonIndex].type;
 
@@ -433,7 +435,7 @@ function LessonUrlFields({ moduleIndex, lessonIndex, control }: { moduleIndex: n
     return null;
 }
 
-function LessonAppender({ moduleIndex, control }: { moduleIndex: number, control: any }) {
+function LessonAppender({ moduleIndex, control }: { moduleIndex: number, control: CourseFormControl }) {
     const { append } = useFieldArray({
         control,
         name: `modules.${moduleIndex}.lessons`

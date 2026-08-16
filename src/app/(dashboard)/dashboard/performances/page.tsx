@@ -20,6 +20,7 @@ import {
     CartesianGrid,
     Cell
 } from "recharts";
+import type { AcademicYear } from "@/lib/types";
 
 
 type PerformanceStats = {
@@ -39,7 +40,7 @@ export default function PerformancesPage() {
     const [error, setError] = useState<string | null>(null);
 
     // Filters
-    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>("ALL");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
 
@@ -49,7 +50,7 @@ export default function PerformancesPage() {
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
                     setAcademicYears(data);
-                    const currentYear = data.find((y: any) => y.isCurrent);
+                    const currentYear = data.find((y: AcademicYear) => y.isCurrent);
                     if (currentYear) setSelectedAcademicYearId(currentYear.id);
                 }
             })
@@ -152,7 +153,7 @@ export default function PerformancesPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">Toutes les années</SelectItem>
-                                    {academicYears.map((year: any) => (
+                                    {academicYears.map((year: AcademicYear) => (
                                         <SelectItem key={year.id} value={year.id}>
                                             {year.name}
                                         </SelectItem>
@@ -170,7 +171,7 @@ export default function PerformancesPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">Toute l'année</SelectItem>
-                                    {stats?.terms?.map((period: any) => (
+                                    {stats?.terms?.map((period) => (
                                         <SelectItem key={period.id} value={period.id}>
                                             {period.name}
                                         </SelectItem>

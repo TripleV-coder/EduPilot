@@ -20,6 +20,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { ClassSubjectWithTeacher } from "@/lib/types";
 
 export default function NewHomeworkPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function NewHomeworkPage() {
   const [coefficient, setCoefficient] = useState(1);
   const [isPublished, setIsPublished] = useState(true);
 
-  const { data: classSubjects } = useSWR<any[]>("/api/class-subjects", fetcher);
+  const { data: classSubjects } = useSWR<ClassSubjectWithTeacher[]>("/api/class-subjects", fetcher);
   const subjects = Array.isArray(classSubjects) ? classSubjects : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +122,7 @@ export default function NewHomeworkPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((cs: any) => (
+                    {subjects.map((cs: ClassSubjectWithTeacher) => (
                       <SelectItem key={cs.id} value={cs.id}>
                         {cs.class?.name} — {cs.subject?.name}
                       </SelectItem>

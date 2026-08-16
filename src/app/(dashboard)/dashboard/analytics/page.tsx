@@ -36,6 +36,59 @@ import { AnalyticsReportsTab } from "@/components/analytics/AnalyticsReportsTab"
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";
+import type { AcademicYear, Class, Period } from "@prisma/client";
+import type { PaginatedResponse } from "@/lib/types";
+
+type AcademicYearWithPeriods = AcademicYear & { periods: Period[] };
+
+type SubjectSummaryItem = {
+    subject?: string;
+    subjectId?: string;
+    grade: number;
+    passRate: number;
+    studentCount?: number;
+};
+
+type SchoolOverviewResponse = {
+    overview?: {
+        totalStudents: number;
+        activeStudents: number;
+        averageGrade: string;
+        totalAnalytics: number;
+        failureRate: number;
+        dropoutRiskCount: number;
+        atRiskCount: number;
+    };
+    riskDistribution?: { low: number; medium: number; high: number; critical: number };
+    attendanceDistribution?: { present: number; absent: number; late: number; excused: number };
+    subjectSummary?: SubjectSummaryItem[];
+    atRiskStudents?: Array<{
+        student: {
+            id: string;
+            user: { firstName: string; lastName: string };
+            class: { name: string };
+        };
+        generalAverage: number;
+        period: { id: string; name: string };
+        riskLevel?: string;
+    }>;
+    heatmap?: {
+        classes: { id: string; name: string }[];
+        subjects: { id: string; name: string }[];
+        matrix: Record<string, Record<string, number>>;
+    };
+    temporalTrend?: Array<{ name: string; value: number }>;
+    attendanceCalendar?: Record<string, number>;
+};
+
+type FinanceStatsResponse = {
+    totalRevenue?: number;
+    totalPending?: number;
+    collectionRate?: number;
+    revenueByMonth?: Array<{ month: string; amount?: number | string }>;
+    debtAgingBuckets?: Array<{ range: string; amount: number }>;
+    revenueByCycle?: Array<{ name: string; value?: number | string }>;
+};
 
 function AnalyticsContent() {
     const { schoolId: activeSchoolId } = useSchool();
@@ -48,12 +101,12 @@ function AnalyticsContent() {
     const classesEndpoint = activeSchoolId
         ? `/api/classes?limit=100&schoolId=${encodeURIComponent(activeSchoolId)}`
         : "/api/classes?limit=100";
-    const { data: classesData } = useSWR(classesEndpoint, fetcher);
-    const classes = classesData?.data ?? classesData ?? [];
+    const { data: classesData } = useSWR<Class[] | PaginatedResponse<Class>>(classesEndpoint, fetcher);
+    const classes = Array.isArray(classesData) ? classesData : classesData?.data ?? [];
 
-    const { data: academicYears } = useSWR("/api/academic-years", fetcher);
+    const { data: academicYears } = useSWR<AcademicYearWithPeriods[]>("/api/academic-years", fetcher);
     const activeYear = useMemo(() => 
-        Array.isArray(academicYears) ? academicYears.find((y: any) => y.id === academicYearId) : null
+        Array.isArray(academicYears) ? academicYears.find((y) => y.id === academicYearId) : null
     , [academicYears, academicYearId]);
     const periods = activeYear?.periods || [];
 
@@ -95,11 +148,11 @@ function AnalyticsContent() {
         data: overview,
         isLoading: overviewLoading,
         error: overviewError,
-    } = useSWR(`/api/analytics/school/overview${analyticsQuery ? `?${analyticsQuery}` : ""}`, fetcher);
+    } = useSWR<SchoolOverviewResponse>(`/api/analytics/school/overview${analyticsQuery ? `?${analyticsQuery}` : ""}`, fetcher);
 
     const { 
         data: financeStats 
-    } = useSWR(activeSchoolId ? `/api/finance/stats?schoolId=${encodeURIComponent(activeSchoolId)}&period=academic` : null, fetcher);
+    } = useSWR<FinanceStatsResponse>(activeSchoolId ? `/api/finance/stats?schoolId=${encodeURIComponent(activeSchoolId)}&period=academic` : null, fetcher);
 
     const attendanceRate = useMemo(() => {
         const stats = overview?.attendanceDistribution;

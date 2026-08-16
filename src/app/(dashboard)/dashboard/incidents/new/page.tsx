@@ -36,6 +36,12 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
 
+type StudentOption = {
+    id: string;
+    matricule: string;
+    user: { firstName: string; lastName: string };
+};
+
 const INCIDENT_TYPES = [
     { value: "LATE", label: "Retard" },
     { value: "ABSENCE_UNEXCUSED", label: "Absence Injustifiée" },
@@ -66,7 +72,7 @@ export default function NewIncidentPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fetch students list
-    const { data: studentsData, isLoading: isLoadingStudents } = useSWR("/api/students?limit=200", fetcher);
+    const { data: studentsData, isLoading: isLoadingStudents } = useSWR<{ students: StudentOption[] }>("/api/students?limit=200", fetcher);
     const students = studentsData?.students || [];
 
     // severity (.default) rend le type d'entrée ≠ type de sortie : trois
@@ -157,7 +163,7 @@ export default function NewIncidentPage() {
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {students.map((student: any) => (
+                                                        {students.map((student: StudentOption) => (
                                                             <SelectItem key={student.id} value={student.id}>
                                                                 {student.user.firstName} {student.user.lastName} ({student.matricule})
                                                             </SelectItem>

@@ -13,9 +13,29 @@ import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
+type StudentOption = {
+    id: string;
+    matricule: string;
+    user?: {
+        firstName?: string;
+        lastName?: string;
+    };
+    class?: { name?: string } | null;
+};
+
+type FeeOption = {
+    id: string;
+    name: string;
+    amount: number;
+};
+
+type PaymentRecord = {
+    id: string;
+};
+
 export default function NewPaymentPage() {
-    const [students, setStudents] = useState<any[]>([]);
-    const [fees, setFees] = useState<any[]>([]);
+    const [students, setStudents] = useState<StudentOption[]>([]);
+    const [fees, setFees] = useState<FeeOption[]>([]);
 
     const [selectedStudentId, setSelectedStudentId] = useState("");
     const [selectedFeeId, setSelectedFeeId] = useState("");
@@ -110,7 +130,7 @@ export default function NewPaymentPage() {
             // Route to the appropriate API based on payment method
             const isMobileMoney = method === "MOBILE_MONEY_MTN" || method === "MOBILE_MONEY_MOOV";
 
-            let payment: any;
+            let payment: PaymentRecord;
 
             if (isMobileMoney) {
                 // Initiate mobile money payment via provider

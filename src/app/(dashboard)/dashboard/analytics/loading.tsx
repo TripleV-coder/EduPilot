@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, Variants } from "framer-motion";
+import { motion, Variants, type TargetAndTransition } from "framer-motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,7 +27,7 @@ const itemVariants: Variants = {
   },
 };
 
-const pulseAnimation: any = {
+const pulseAnimation: TargetAndTransition = {
   background: ["hsl(var(--muted))", "hsl(var(--muted-foreground) / 0.3)", "hsl(var(--muted))"],
   transition: {
     duration: 1.5,

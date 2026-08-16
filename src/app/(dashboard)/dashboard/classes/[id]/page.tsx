@@ -40,6 +40,54 @@ type ClassSubject = {
 type Teacher = { id: string, user: { firstName: string, lastName: string } };
 type Subject = { id: string, name: string, code: string, coefficient: number };
 
+type ScheduleSlot = {
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    room?: string | null;
+    classSubject?: { subject?: { name?: string } | null } | null;
+};
+
+type StudentRank = { studentId?: string; name: string; average: number; rank?: number };
+
+type GradeDistribution = {
+    excellent: number;
+    veryGood: number;
+    good: number;
+    average: number;
+    insufficient: number;
+    weak: number;
+};
+
+type ClassAnalytics = {
+    studentRanking?: StudentRank[];
+    subjectSummary?: Array<{ subjectId: string; name: string; average: number }>;
+    monthlyTrend?: Array<{ name: string; value: number }>;
+    averageGrade?: number;
+    studentCount?: number;
+    performanceDistribution?: GradeDistribution;
+};
+
+type SubjectAnalytics = {
+    studentGrades?: SubjectGradeRow[];
+    monthlyTrend?: Array<{ name: string; value: number }>;
+    teacherName?: string | null;
+    average?: number;
+    highest?: number;
+    lowest?: number;
+    median?: number;
+    gradeDistribution?: GradeDistribution;
+};
+
+type SubjectGradeRow = {
+    studentId?: string;
+    name?: string;
+    studentName?: string;
+    average: number;
+    rank?: number;
+};
+
 export default function ClassDetailsPage() {
     const params = useParams();
     const classId = params.id as string;
@@ -56,9 +104,9 @@ export default function ClassDetailsPage() {
     const [assigningLoading, setAssigningLoading] = useState(false);
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
-    const { data: schedules } = useSWR(classId ? `/api/schedules?classId=${classId}` : null, fetcher);
-    const { data: classStats } = useSWR(classId ? `/api/analytics/class/${classId}` : null, fetcher);
-    const { data: subjectStats } = useSWR(
+    const { data: schedules } = useSWR<ScheduleSlot[]>(classId ? `/api/schedules?classId=${classId}` : null, fetcher);
+    const { data: classStats } = useSWR<ClassAnalytics>(classId ? `/api/analytics/class/${classId}` : null, fetcher);
+    const { data: subjectStats } = useSWR<SubjectAnalytics>(
       classId && selectedSubjectId ? `/api/analytics/class/${classId}/subject/${selectedSubjectId}` : null, fetcher
     );
 
@@ -389,8 +437,8 @@ export default function ClassDetailsPage() {
                                     { day: 5, label: "Vendredi" },
                                     { day: 6, label: "Samedi" },
                                 ].map(({ day, label }) => {
-                                    const daySchedules = schedules.filter((s: any) => s.dayOfWeek === day)
-                                        .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+                                    const daySchedules = schedules.filter((s) => s.dayOfWeek === day)
+                                        .sort((a, b) => a.startTime.localeCompare(b.startTime));
                                     return (
                                         <Card key={day}>
                                             <CardHeader className="py-3 px-4">
@@ -400,7 +448,7 @@ export default function ClassDetailsPage() {
                                                 {daySchedules.length === 0 ? (
                                                     <p className="text-xs text-muted-foreground">Aucun cours</p>
                                                 ) : (
-                                                    daySchedules.map((s: any) => (
+                                                    daySchedules.map((s) => (
                                                         <div key={s.id} className="p-2 rounded-md bg-primary/5 border border-primary/10 text-xs">
                                                             <div className="font-semibold">{s.classSubject?.subject?.name || "—"}</div>
                                                             <div className="text-muted-foreground">{s.startTime} - {s.endTime}</div>
@@ -434,7 +482,7 @@ export default function ClassDetailsPage() {
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Nombre d&apos;élèves</CardTitle></CardHeader>
                                         <CardContent><div className="text-2xl font-bold">{classStats.studentCount ?? 0}</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Taux de réussite</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold">{classStats.studentRanking ? ((classStats.studentRanking.filter((s: any) => s.average >= 10).length / classStats.studentRanking.length * 100) || 0).toFixed(1) : "—"}%</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold">{classStats.studentRanking ? ((classStats.studentRanking.filter((s) => s.average >= 10).length / classStats.studentRanking.length * 100) || 0).toFixed(1) : "—"}%</div></CardContent></Card>
                                 </div>
                                 {/* Charts */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -454,7 +502,7 @@ export default function ClassDetailsPage() {
                                                 <table className="w-full text-sm">
                                                     <thead><tr className="border-b"><th className="text-left py-2 px-3">Rang</th><th className="text-left py-2 px-3">Nom</th><th className="text-right py-2 px-3">Moyenne</th></tr></thead>
                                                     <tbody>
-                                                        {classStats.studentRanking.map((s: any, i: number) => (
+                                                        {classStats.studentRanking.map((s, i) => (
                                                             <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
                                                                 <td className="py-2 px-3 font-medium">{s.rank || i + 1}</td>
                                                                 <td className="py-2 px-3">{s.name}</td>
@@ -516,10 +564,10 @@ export default function ClassDetailsPage() {
                                                 <table className="w-full text-sm">
                                                     <thead><tr className="border-b"><th className="text-left py-2 px-3">Rang</th><th className="text-left py-2 px-3">Nom</th><th className="text-right py-2 px-3">Moyenne</th></tr></thead>
                                                     <tbody>
-                                                        {subjectStats.studentGrades.map((s: any, i: number) => (
+                                                        {subjectStats.studentGrades.map((s, i) => (
                                                             <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
                                                                 <td className="py-2 px-3 font-medium">{s.rank || i + 1}</td>
-                                                                <td className="py-2 px-3">{s.studentName}</td>
+                                                                <td className="py-2 px-3">{s.studentName ?? s.name ?? "—"}</td>
                                                                 <td className="py-2 px-3 text-right font-semibold">{Number(s.average).toFixed(1)}/20</td>
                                                             </tr>
                                                         ))}

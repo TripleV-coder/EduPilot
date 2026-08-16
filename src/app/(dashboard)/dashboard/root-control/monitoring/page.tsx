@@ -12,6 +12,16 @@ import { formatTime } from "@/lib/utils/formatters";
 
 
 
+type RecentError = {
+    id: string;
+    action: string;
+    entity: string;
+    entityId: string | null;
+    createdAt: string;
+    userId: string | null;
+    user: { email: string | null; firstName: string | null; lastName: string | null } | null;
+};
+
 type MonitoringData = {
     timestamp: string;
     database: {
@@ -31,7 +41,7 @@ type MonitoringData = {
     };
     errors: {
         last24h: number;
-        recent: any[];
+        recent: RecentError[];
         byType: { type: string; count: number }[];
     };
     alerts: {

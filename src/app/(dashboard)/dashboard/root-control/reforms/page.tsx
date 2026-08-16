@@ -61,7 +61,7 @@ type ConfigOption = {
     category: string;
     code: string;
     label: string;
-    metadata: any;
+    metadata: Record<string, unknown>;
 };
 
 export default function ReformsPage() {
@@ -90,10 +90,10 @@ export default function ReformsPage() {
             setConfigs(data);
 
             // Extract values
-            const cep = data.find(c => c.code === "CEP")?.metadata?.subjects || [];
-            const bepc = data.find(c => c.code === "BEPC")?.metadata?.subjects || [];
-            const bac = data.find(c => c.code === "BAC")?.metadata?.subjects || [];
-            const m = data.find(c => c.code === "MENTIONS")?.metadata?.mentions || [];
+            const cep = (data.find(c => c.code === "CEP")?.metadata?.subjects as ExamSubject[]) || [];
+            const bepc = (data.find(c => c.code === "BEPC")?.metadata?.subjects as ExamSubject[]) || [];
+            const bac = (data.find(c => c.code === "BAC")?.metadata?.subjects as ExamSubject[]) || [];
+            const m = (data.find(c => c.code === "MENTIONS")?.metadata?.mentions as Mention[]) || [];
  
             setCepSubjects(cep);
             setBepcSubjects(bepc);
@@ -106,7 +106,7 @@ export default function ReformsPage() {
         }
     };
 
-    const handleSave = async (code: string, metadata: any) => {
+    const handleSave = async (code: string, metadata: Record<string, unknown>) => {
         setSaving(true);
         setError(null);
         try {
@@ -146,7 +146,7 @@ export default function ReformsPage() {
         set(prev => prev.filter((_, i) => i !== index));
     };
  
-    const updateSubject = (type: "CEP" | "BEPC" | "BAC", index: number, field: keyof ExamSubject, value: any) => {
+    const updateSubject = (type: "CEP" | "BEPC" | "BAC", index: number, field: keyof ExamSubject, value: string | number) => {
         let set;
         if (type === "CEP") set = setCepSubjects;
         else if (type === "BEPC") set = setBepcSubjects;

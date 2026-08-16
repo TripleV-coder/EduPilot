@@ -25,26 +25,42 @@ import { SectionToolbar } from "@/components/ui/section-toolbar";
 import { MetricCardPro } from "@/components/ui/metric-card-pro";
 import { EmptyStateAction } from "@/components/ui/empty-state";
 
+type PendingPayment = {
+    id: string;
+    amount: number;
+    status: string;
+    reference?: string | null;
+    createdAt: string;
+    label?: string | null;
+    description?: string | null;
+    date?: string | null;
+};
+
+type PendingPaymentsResponse = {
+    data?: PendingPayment[];
+    payments?: PendingPayment[];
+};
+
 export default function FinanceReconciliationPage() {
     const [reconcilingId, setReconcilingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
-    const { data: paymentsData, isLoading } = useSWR(
+    const { data: paymentsData, isLoading } = useSWR<PendingPaymentsResponse>(
         "/api/finance/payments?status=PENDING&limit=50",
         fetcher
     );
 
-    const pendingPayments = paymentsData?.payments ?? paymentsData?.data ?? [];
+    const pendingPayments: PendingPayment[] = paymentsData?.payments ?? paymentsData?.data ?? [];
     const filteredPayments = useMemo(() => {
         if (!search.trim()) return pendingPayments;
         const q = search.toLowerCase();
-        return pendingPayments.filter((payment: any) =>
+        return pendingPayments.filter((payment) =>
             String(payment.label ?? payment.description ?? "").toLowerCase().includes(q) ||
             String(payment.reference ?? "").toLowerCase().includes(q) ||
             String(payment.amount ?? "").toLowerCase().includes(q)
         );
     }, [pendingPayments, search]);
     const pendingCount = pendingPayments.length;
-    const pendingTotalAmount = pendingPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
+    const pendingTotalAmount = pendingPayments.reduce((sum: number, payment) => sum + Number(payment.amount || 0), 0);
 
     const handleReconcile = async (paymentId: string) => {
         setReconcilingId(paymentId);
@@ -165,7 +181,7 @@ export default function FinanceReconciliationPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {(
-                                            filteredPayments.map((payment: any) => (
+                                            filteredPayments.map((payment) => (
                                                 <TableRow key={payment.id} className={payment.status === "RECONCILED" ? "bg-muted/10" : "hover:bg-muted/30 transition-colors"}>
                                                     <TableCell className="text-sm text-foreground">
                                                         {new Date(payment.date ?? payment.createdAt).toLocaleDateString("fr-FR")}

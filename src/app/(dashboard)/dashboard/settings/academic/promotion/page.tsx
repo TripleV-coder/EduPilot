@@ -45,6 +45,14 @@ type AcademicYearOption = {
   startDate: string;
 };
 
+type ClassOption = {
+  id: string;
+  name: string;
+  classLevel?: {
+    level: string;
+  } | null;
+};
+
 export default function PromotionEnginePage() {
   return (
     <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
@@ -59,7 +67,8 @@ function PromotionEngineContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, PromotionStatus>>({});
 
-  const { data: classes } = useSWR("/api/classes", fetcher);
+  const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
+  const classes: ClassOption[] = Array.isArray(classesData) ? classesData : classesData?.data || [];
   const { data: academicYears } = useSWR<AcademicYearOption[]>("/api/academic-years", fetcher);
 
   // Effectif complet de la classe (année courante), y compris les élèves sans
@@ -217,7 +226,7 @@ function PromotionEngineContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-2">
-              {classes?.map((c: any) => (
+              {classes.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => {

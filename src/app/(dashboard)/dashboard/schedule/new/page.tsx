@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import type { Class, ClassSubjectWithTeacher } from "@/lib/types";
 
 type TeacherAvailability = {
     id: string;
@@ -38,9 +39,9 @@ export default function NewSchedulePage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [classes, setClasses] = useState<any[]>([]);
+    const [classes, setClasses] = useState<Class[]>([]);
     const [selectedClassId, setSelectedClassId] = useState("");
-    const [classSubjects, setClassSubjects] = useState<any[]>([]);
+    const [classSubjects, setClassSubjects] = useState<ClassSubjectWithTeacher[]>([]);
 
     const [selectedSubjectId, setSelectedSubjectId] = useState("");
     const [dayOfWeek, setDayOfWeek] = useState(1);

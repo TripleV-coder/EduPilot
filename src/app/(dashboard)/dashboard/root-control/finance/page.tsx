@@ -13,8 +13,19 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 import { fetcher } from "@/lib/fetcher";
 
+type RootFinanceSummary = {
+    summary: {
+        totalMonthlyRevenue: number;
+        activeTenants: number;
+        averageRevenuePerTenant: number;
+        collectionRate: number;
+    };
+    distribution: { name: string; count: number }[];
+    recentPayments: { id: string; schoolName: string; amount: number; paidAt: string | null }[];
+};
+
 export default function RootFinancePage() {
-    const { data } = useSWR("/api/root/finance/summary", fetcher);
+    const { data } = useSWR<RootFinanceSummary>("/api/root/finance/summary", fetcher);
 
     const summary = data?.summary || { totalMonthlyRevenue: 0, activeTenants: 0, averageRevenuePerTenant: 0, collectionRate: 0 };
     const distribution = data?.distribution || [];
@@ -88,7 +99,7 @@ export default function RootFinancePage() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="space-y-4">
-                                {distribution.map((item: any, i: number) => (
+                                {distribution.map((item, i) => (
                                     <div key={i} className="space-y-2">
                                         <div className="flex justify-between items-center text-sm font-bold">
                                             <span>{item.name}</span>
@@ -120,7 +131,7 @@ export default function RootFinancePage() {
                                     <div className="p-6 text-sm text-muted-foreground">
                                         Aucune transaction récente disponible.
                                     </div>
-                                ) : recentPayments.map((payment: any) => (
+                                ) : recentPayments.map((payment) => (
                                     <div key={payment.id} className="p-4 flex items-center justify-between hover:bg-background/40 transition-colors">
                                         <div className="flex gap-3 items-center">
                                             <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center">

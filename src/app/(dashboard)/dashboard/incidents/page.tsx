@@ -28,6 +28,7 @@ import { PageCallout } from "@/components/layout/page-callout";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
 import { getIncidentSeverityClass } from "@/lib/ui/status-styles";
+import type { Period } from "@/lib/types";
 
 type Incident = {
     id: string;
@@ -46,6 +47,19 @@ type Incident = {
     };
 };
 
+type IncidentStats = {
+    statistics: {
+        totalIncidents: number;
+        bySeverity: { LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number };
+        resolvedCount: number;
+        unresolvedCount: number;
+        averageResolutionTime: number;
+    };
+    trend: "up" | "down" | "stable";
+    topIncidentTypes: [string, number][];
+    dailyTrend: Record<string, number>;
+};
+
 export default function IncidentsPage() {
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
@@ -57,7 +71,7 @@ export default function IncidentsPage() {
     const [selectedSeverity, setSelectedSeverity] = useState<string>("ALL");
     const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
-    const [periods, setPeriods] = useState<any[]>([]);
+    const [periods, setPeriods] = useState<Period[]>([]);
     const activeFiltersCount = useMemo(() => {
         let count = 0;
         if (selectedPeriodId !== "ALL") count += 1;
@@ -81,7 +95,7 @@ export default function IncidentsPage() {
     };
 
     // Fetch incident statistics
-    const { data: statsData } = useSWR<any>("/api/incidents/statistics?period=month", fetcher);
+    const { data: statsData } = useSWR<IncidentStats>("/api/incidents/statistics?period=month", fetcher);
 
     useEffect(() => {
         // Fetch current academic year periods
@@ -393,7 +407,7 @@ export default function IncidentsPage() {
                                 <CardTitle className="text-sm font-semibold">Tendance journalière</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <TrendLineChart data={trendData} label="Incidents" domain={[0, Math.max(10, ...trendData.map((d: any) => d.value))]} />
+                                <TrendLineChart data={trendData} label="Incidents" domain={[0, Math.max(10, ...trendData.map((d) => d.value))]} />
                             </CardContent>
                         </Card>
                     </div>

@@ -57,6 +57,17 @@ type StudentRecord = {
     enrollments: { academicYearId: string; classLevelId: string; }[];
 };
 
+type BatchResult = {
+    studentId: string;
+    studentName: string;
+    series?: string;
+    justification?: string;
+    alternatives?: string[];
+    confidence?: number;
+    success: boolean;
+    error?: string;
+};
+
 const POST_BEPC_SERIES = [
     { value: "SERIE_A1", label: "Seconde Littéraire: Lettres - Langues (A1)" },
     { value: "SERIE_A2", label: "Seconde Littéraire: Sciences Humaines (A2)" },
@@ -102,7 +113,7 @@ export default function OrientationPage() {
     const [justification, setJustification] = useState("");
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
-    const [batchResults, setBatchResults] = useState<any[]>([]);
+    const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
     const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
     const { toast } = useToast();
 
@@ -201,8 +212,7 @@ export default function OrientationPage() {
             setBatchResults(data.results || []);
             setIsBatchDialogOpen(true);
             
-            if (data.results.length === 0) {
-                toast({ title: "Analyse terminée", description: "Tous les étudiants ont déjà une orientation." });
+            if (data.results.length === 0) {                toast({ title: "Analyse terminée", description: "Tous les étudiants ont déjà une orientation." });
             } else {
                 toast({ title: "Analyse terminée", description: `${data.results.length} recommandations générées.` });
             }

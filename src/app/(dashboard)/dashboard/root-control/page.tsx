@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Users,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -46,7 +47,13 @@ type RootSummary = {
   recentActivity: RootRecentActivity[];
 };
 
-function InfraStatCard({ title, value, subValue, icon: Icon, color }: any) {
+function InfraStatCard({ title, value, subValue, icon: Icon, color }: {
+  title: string;
+  value: string | number;
+  subValue?: string;
+  icon: LucideIcon;
+  color: string;
+}) {
   return (
     <Card className="relative overflow-hidden border border-border/60 bg-foreground text-background shadow-xl group">
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-10", color)} />

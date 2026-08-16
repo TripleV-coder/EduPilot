@@ -168,8 +168,8 @@ export default function TransportPage() {
                             }}
                             className="transport-grid"
                         >
-                            {/* Map mock */}
-                            <Card padding={0} style={{ overflow: "hidden", position: "relative" }}>
+                            {/* Zone carte GPS — pas de carte factice */}
+                            <Card padding={0} style={{ overflow: "hidden", position: "relative", minHeight: 420 }}>
                                 <div
                                     style={{
                                         padding: "12px 18px",
@@ -214,101 +214,49 @@ export default function TransportPage() {
                                 </div>
                                 <div
                                     style={{
-                                        position: "absolute",
-                                        inset: "60px 0 0 0",
-                                        background:
-                                            "radial-gradient(circle at 30% 20%, rgba(16,185,129,0.10), transparent 40%), radial-gradient(circle at 70% 60%, rgba(245,158,11,0.10), transparent 40%), linear-gradient(135deg, #f0f7f5, #f3f6fc)",
-                                        overflow: "hidden",
+                                        display: "grid",
+                                        placeItems: "center",
+                                        padding: 32,
+                                        minHeight: 340,
+                                        background: "var(--eduflow-surface-sunken)",
+                                        textAlign: "center",
                                     }}
                                 >
-                                    <svg
-                                        width="100%"
-                                        height="100%"
-                                        style={{ position: "absolute", inset: 0 }}
-                                        viewBox="0 0 800 500"
-                                        preserveAspectRatio="xMidYMid slice"
-                                    >
-                                        <path
-                                            d="M0 200 Q 200 150 400 230 T 800 250"
-                                            stroke="rgba(15,23,42,0.12)"
-                                            strokeWidth="6"
-                                            fill="none"
-                                        />
-                                        <path
-                                            d="M100 0 Q 200 200 350 300 T 500 500"
-                                            stroke="rgba(15,23,42,0.10)"
-                                            strokeWidth="4"
-                                            fill="none"
-                                        />
-                                        <path
-                                            d="M0 400 Q 250 380 500 430 T 800 410"
-                                            stroke="rgba(15,23,42,0.10)"
-                                            strokeWidth="5"
-                                            fill="none"
-                                        />
-                                        <circle cx="400" cy="260" r="14" fill="var(--brand-700)" />
-                                        <text
-                                            x="400"
-                                            y="290"
-                                            textAnchor="middle"
-                                            fill="var(--eduflow-text-primary)"
-                                            fontSize="11"
-                                            fontWeight="700"
-                                        >
-                                            École
-                                        </text>
-                                    </svg>
-                                    {!data.configured ? (
+                                    <div style={{ maxWidth: 380 }}>
                                         <div
                                             style={{
-                                                position: "absolute",
-                                                inset: 0,
+                                                width: 56,
+                                                height: 56,
+                                                borderRadius: 14,
+                                                background: "var(--brand-50)",
                                                 display: "grid",
                                                 placeItems: "center",
-                                                background: "rgba(255,255,255,0.55)",
-                                                backdropFilter: "blur(2px)",
-                                                padding: 20,
-                                                textAlign: "center",
+                                                margin: "0 auto 12px",
                                             }}
                                         >
-                                            <div style={{ maxWidth: 360 }}>
-                                                <div
-                                                    style={{
-                                                        width: 56,
-                                                        height: 56,
-                                                        borderRadius: 14,
-                                                        background: "var(--brand-50)",
-                                                        display: "grid",
-                                                        placeItems: "center",
-                                                        margin: "0 auto 12px",
-                                                    }}
-                                                >
-                                                    <Icon name="school" size={26} color="var(--brand-700)" />
-                                                </div>
-                                                <h3
-                                                    className="eduflow-display"
-                                                    style={{
-                                                        fontSize: 18,
-                                                        margin: "0 0 6px",
-                                                    }}
-                                                >
-                                                    Module GPS à configurer
-                                                </h3>
-                                                <p
-                                                    style={{
-                                                        fontSize: 12,
-                                                        color: "var(--eduflow-text-secondary)",
-                                                        lineHeight: 1.55,
-                                                        margin: 0,
-                                                    }}
-                                                >
-                                                    Activez le suivi en déclarant vos bus, lignes et chauffeurs,
-                                                    puis connectez les balises GPS. Les positions, retards et
-                                                    alertes SMS s'afficheront ici en temps réel.
-                                                </p>
-                                            </div>
+                                            <Icon name="school" size={26} color="var(--brand-700)" />
                                         </div>
-                                    ) : null}
+                                        <h3
+                                            className="eduflow-display"
+                                            style={{ fontSize: 18, margin: "0 0 6px" }}
+                                        >
+                                            {data.configured
+                                                ? "Carte GPS non branchée"
+                                                : "Module GPS à configurer"}
+                                        </h3>
+                                        <p
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--eduflow-text-secondary)",
+                                                lineHeight: 1.55,
+                                                margin: 0,
+                                            }}
+                                        >
+                                            {data.configured
+                                                ? "Les lignes et bus sont déclarés, mais aucun fournisseur de géolocalisation n'est encore connecté. Les positions en direct s'afficheront ici après intégration des balises."
+                                                : "Déclarez vos bus, lignes et chauffeurs, puis connectez les balises GPS. Les positions, retards et alertes s'afficheront ici en temps réel."}
+                                        </p>
+                                    </div>
                                 </div>
                             </Card>
 
