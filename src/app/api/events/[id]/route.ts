@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { EventType } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
-import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -28,13 +29,10 @@ const eventSchema = z.object({
   isPublic: z.boolean().optional(),
 });
 
-export async function GET(request: Request, context: RouteContext) {
-  try {
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
 
     const event = await prisma.schoolEvent.findUnique({
       where: { id },
@@ -72,22 +70,21 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json(event);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Error fetching event:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération de l'événement" },
       { status: 500 }
     );
   }
-}
 
-export async function PATCH(request: Request, context: RouteContext) {
-  try {
+});
+
+export const PATCH = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
     if (!roleSatisfies(session.user.role as string, allowedRoles)) {
@@ -123,11 +120,19 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const updatedEvent = await prisma.schoolEvent.update({
       where: { id },
-      data: validatedData as any,
+      data: {
+        ...(validatedData.title !== undefined ? { title: validatedData.title } : {}),
+        ...(validatedData.description !== undefined ? { description: validatedData.description } : {}),
+        ...(validatedData.startDate !== undefined ? { startDate: new Date(validatedData.startDate) } : {}),
+        ...(validatedData.endDate !== undefined ? { endDate: new Date(validatedData.endDate) } : {}),
+        ...(validatedData.location !== undefined ? { location: validatedData.location } : {}),
+        ...(validatedData.type !== undefined ? { type: validatedData.type as EventType } : {}),
+      },
     });
 
     return NextResponse.json(updatedEvent);
-  } catch (error: unknown) {
+  
+    } catch (error: unknown) {
     logger.error("Error updating event:", error as Error);
     if (isZodError(error)) {
       return NextResponse.json(
@@ -140,15 +145,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
 
-export async function DELETE(request: Request, context: RouteContext) {
-  try {
+});
+
+export const DELETE = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
     if (!roleSatisfies(session.user.role as string, allowedRoles)) {
@@ -186,11 +189,13 @@ export async function DELETE(request: Request, context: RouteContext) {
     });
 
     return NextResponse.json({ success: true, archived: true });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Error deleting event:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la suppression de l'événement" },
       { status: 500 }
     );
   }
-}
+
+});

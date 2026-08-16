@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const gradeSubmissionSchema = z.object({
   grade: z.number().min(0).max(100),
@@ -16,18 +15,12 @@ const gradeSubmissionSchema = z.object({
  * POST /api/homework/submissions/[id]/grade
  * Grade a homework submission (Teachers only)
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await context.params;
+    const session = context.session;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const guard = await assertModelAccess(session, "homeworkSubmission", id, "Soumission non trouvée");
     if (guard) return guard;
 
@@ -147,4 +140,7 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);

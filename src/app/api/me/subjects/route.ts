@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
 
     if (session.user.role !== "TEACHER") {
         return NextResponse.json([]);
@@ -36,7 +33,5 @@ export async function GET() {
     });
 
     return NextResponse.json(subjects);
-  } catch (error) {
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
+  },
+);

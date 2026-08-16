@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { calculateWeightedAverage, getAppreciation, getRank } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -8,14 +8,11 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const _BULLETIN_ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"];
 
-export async function GET(request: Request) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const periodId = searchParams.get("periodId");
 
@@ -408,4 +405,6 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+
+  }
+);

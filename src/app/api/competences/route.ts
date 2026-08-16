@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -49,15 +49,10 @@ function bucket(value: number | null | undefined, max = 20): "A" | "EC" | "NA" |
     return "NA";
 }
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-        if (!ROLES.includes(session.user.role)) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+    const session = context.session;
 
         const { searchParams } = new URL(request.url);
         const classId = searchParams.get("classId");
@@ -210,4 +205,7 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+
+  },
+  { allowedRoles: ROLES },
+);

@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
+        const session = context.session;
         // Allow access to school administrators, directors and teachers
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
 
         const url = new URL(request.url);
         const periodId = url.searchParams.get("periodId");
@@ -155,8 +151,10 @@ export async function GET(request: NextRequest) {
             performanceByClass,
             performanceBySubject
         });
+    
     } catch (error) {
         logger.error(" fetching performance stats:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });

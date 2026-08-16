@@ -1,32 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
 import { logger } from "@/lib/utils/logger";
 import { appEnv } from "@/lib/config/env";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const execAsync = promisify(exec);
+
+function isBackupApiAllowed(): boolean {
+  if (!appEnv.allowBackupApi) return false;
+  if (appEnv.isProduction && !appEnv.allowBackupApiInProduction) return false;
+  return true;
+}
 
 /**
  * POST /api/system/backup
  * Déclencher une sauvegarde manuelle de la base de données
  */
-export async function POST(_request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
-    // Seuls les super admins peuvent déclencher des sauvegardes
-    if (session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     // Garde-fou supplémentaire : cette API peut être entièrement désactivée par configuration
-    if (!appEnv.allowBackupApi) {
+    if (!isBackupApiAllowed()) {
       return NextResponse.json(
         { error: "Endpoint de sauvegarde désactivé par la configuration de la plateforme" },
         { status: 403 }
@@ -68,7 +67,8 @@ export async function POST(_request: NextRequest) {
       timestamp: new Date().toISOString(),
       logs: stdout,
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" creating backup:", error as Error);
     return NextResponse.json(
       {
@@ -78,26 +78,20 @@ export async function POST(_request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN"] });
 
 /**
  * GET /api/system/backup
  * Lister les sauvegardes disponibles
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
-    // Seuls les super admins peuvent voir les sauvegardes
-    if (session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     // Même garde-fou que pour POST : possibilité de désactiver totalement la surface backup via config
-    if (!appEnv.allowBackupApi) {
+    if (!isBackupApiAllowed()) {
       return NextResponse.json(
         { error: "Listing des sauvegardes désactivé par la configuration de la plateforme" },
         { status: 403 }
@@ -154,8 +148,10 @@ export async function GET(_request: NextRequest) {
         message: "Aucune sauvegarde trouvée",
       });
     }
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" listing backups:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN"] });

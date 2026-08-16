@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const updateMessageSchema = z.object({
   isRead: z.boolean().optional(),
@@ -16,16 +16,9 @@ const updateMessageSchema = z.object({
  * GET /api/messages/[id]
  * Get single message with thread
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
 
     const message = await prisma.message.findUnique({
       where: { id },
@@ -92,14 +85,14 @@ export async function GET(
 
     // Check access
     if (
-      message.senderId !== session.user.id &&
-      message.recipientId !== session.user.id
+      message.senderId !== context.session.user.id &&
+      message.recipientId !== context.session.user.id
     ) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Mark as read if recipient is viewing
-    if (message.recipientId === session.user.id && !message.isRead) {
+    if (message.recipientId === context.session.user.id && !message.isRead) {
       await prisma.message.update({
         where: { id: id },
         data: { isRead: true, readAt: new Date() },
@@ -115,22 +108,15 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PATCH /api/messages/[id]
  * Update message status (read/archived)
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
 
     const body = await request.json();
     const validatedData = updateMessageSchema.parse(body);
@@ -148,7 +134,7 @@ export async function PATCH(
     }
 
     // Only recipient can update message status
-    if (message.recipientId !== session.user.id) {
+    if (message.recipientId !== context.session.user.id) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -183,22 +169,15 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/messages/[id]
  * Soft delete message
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
 
     const message = await prisma.message.findUnique({
       where: { id: id },
@@ -214,10 +193,10 @@ export async function DELETE(
 
     // Soft delete based on role
     const updateData: Prisma.MessageUpdateInput = {};
-    if (message.senderId === session.user.id) {
+    if (message.senderId === context.session.user.id) {
       updateData.deletedBySender = true;
     }
-    if (message.recipientId === session.user.id) {
+    if (message.recipientId === context.session.user.id) {
       updateData.deletedByRecipient = true;
     }
 
@@ -261,4 +240,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});

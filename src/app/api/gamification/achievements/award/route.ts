@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { gamificationService } from "@/lib/gamification/service";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+        const session = context.session;
 
     try {
-        const body = await req.json();
+        const body = await request.json();
         const { userId, achievementCode } = body;
 
         if (!userId || !achievementCode) {
@@ -45,13 +41,11 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         );
     }
-}
 
-export async function GET(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });
 
-    try {
+export const GET = createApiHandler(async (request, context) => {
+try {
         const achievements = await prisma.achievement.findMany({
             where: { isActive: true },
             orderBy: { points: "desc" }
@@ -60,4 +54,5 @@ export async function GET(req: NextRequest) {
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch achievements" }, { status: 500 });
     }
-}
+
+});

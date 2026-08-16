@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { canteenService } from "@/lib/canteen/service";
 import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = createApiHandler(async (request, context) => {
+        const session = context.session;
+    if (!session.user.schoolId) return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
 
-    const url = new URL(req.url);
+    const url = new URL(request.url);
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
 
     try {
@@ -24,7 +23,7 @@ export async function GET(req: NextRequest) {
             },
             { ttl: CACHE_TTL_MEDIUM, key: cacheKey }
         );
-        return withHttpCache(response, req, { private: true, maxAge: CACHE_TTL_MEDIUM, staleWhileRevalidate: 30 });
+        return withHttpCache(response, request, { private: true, maxAge: CACHE_TTL_MEDIUM, staleWhileRevalidate: 30 });
     } catch (error) {
         logger.error("Menu fetch failed", error instanceof Error ? error : new Error(String(error)), {
             module: "api/canteen/menu",
@@ -32,16 +31,17 @@ export async function GET(req: NextRequest) {
         });
         return NextResponse.json({ error: "Failed to fetch menu" }, { status: 500 });
     }
-}
 
-export async function POST(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.schoolId || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+});
+
+export const POST = createApiHandler(async (request, context) => {
+        const session = context.session;
+    if (!session.user.schoolId) {
+      return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
     }
 
     try {
-        const body = await req.json();
+        const body = await request.json();
         const { date, starter, mainCourse, dessert } = body;
 
         if (!date) return NextResponse.json({ error: "Date is required" }, { status: 400 });
@@ -60,4 +60,5 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ error: "Failed to update menu" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

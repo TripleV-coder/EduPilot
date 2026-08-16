@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { SupportedProvider } from "@/lib/finance/types";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
@@ -40,7 +41,7 @@ function verifyPaystackSignature(rawBody: string, signature: string): boolean {
     }
 }
 
-export async function POST(req: NextRequest) {
+export const POST = createApiHandler(async (req) => {
     try {
         const rawBody = await req.text();
         const provider = req.headers.get("x-payment-provider") as SupportedProvider;
@@ -143,4 +144,4 @@ export async function POST(req: NextRequest) {
         logger.error("Webhook processing failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/webhook" });
         return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
     }
-}
+}, { requireAuth: false });

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -221,13 +221,8 @@ async function resolveBulkRecipients(
  * POST /api/notifications/sms
  * Send SMS notifications (single or type-based)
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, { session }) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
-
         const schoolId = getActiveSchoolId(session);
         if (!schoolId && session.user.role !== "SUPER_ADMIN") {
             return NextResponse.json({ error: "Contexte école requis" }, { status: 400 });
@@ -379,4 +374,4 @@ export async function POST(request: NextRequest) {
         logger.error("SMS API error:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
+});

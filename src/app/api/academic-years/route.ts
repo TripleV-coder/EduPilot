@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { withTenantRls } from "@/lib/db/tenant-rls";
 import { academicYearSchema } from "@/lib/validations/school";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
@@ -29,17 +30,20 @@ export const GET = createApiHandler(
       }
       return NextResponse.json(translateError(API_ERRORS.MISSING_PERMISSIONS, t), { status: 400 });
     }
-    const academicYears = await prisma.academicYear.findMany({
-      where: { schoolId },
-      include: {
-        periods: {
-          orderBy: { sequence: "asc" },
+
+    const academicYears = await withTenantRls(schoolId, async (tx) => {
+      return tx.academicYear.findMany({
+        where: { schoolId },
+        include: {
+          periods: {
+            orderBy: { sequence: "asc" },
+          },
+          _count: {
+            select: { enrollments: true },
+          },
         },
-        _count: {
-          select: { enrollments: true },
-        },
-      },
-      orderBy: { startDate: "desc" },
+        orderBy: { startDate: "desc" },
+      });
     });
 
     return NextResponse.json(academicYears);
@@ -65,84 +69,88 @@ export const POST = createApiHandler(
 
     const validatedData = academicYearSchema.parse(body);
 
-    // Check if year name already exists for this school
-    const existing = await prisma.academicYear.findFirst({
-      where: { schoolId, name: validatedData.name },
-    });
-
-    if (existing) {
-      return NextResponse.json(translateError(API_ERRORS.ALREADY_EXISTS("Année scolaire"), t), { status: 409 });
-    }
-
-    // Get academic config for periods
-    const academicConfig = await prisma.academicConfig.findFirst({
-      where: { schoolId },
-    });
-
-    // If this year is set as current, unset others
-    if (validatedData.isCurrent) {
-      await prisma.academicYear.updateMany({
-        where: { schoolId, isCurrent: true },
-        data: { isCurrent: false },
+    const result = await withTenantRls(schoolId, async (tx) => {
+      const existing = await tx.academicYear.findFirst({
+        where: { schoolId, name: validatedData.name },
       });
-    }
 
-    const academicYear = await prisma.academicYear.create({
-      data: {
-        schoolId,
-        name: validatedData.name,
-        startDate: validatedData.startDate,
-        endDate: validatedData.endDate,
-        isCurrent: validatedData.isCurrent,
-      },
-    });
+      if (existing) {
+        return { error: translateError(API_ERRORS.ALREADY_EXISTS("Année scolaire"), t), status: 409 };
+      }
 
-    // Auto-create periods based on config
-    if (academicConfig) {
-      const periodType = academicConfig.periodType;
-      const periodsCount = academicConfig.periodsCount;
-      const periodLabels = periodType === "SEMESTER"
-        ? ["1er Semestre", "2ème Semestre"]
-        : ["1er Trimestre", "2ème Trimestre", "3ème Trimestre"];
+      const academicConfig = await tx.academicConfig.findFirst({
+        where: { schoolId },
+      });
 
-      const totalDays = Math.floor(
-        (validatedData.endDate.getTime() - validatedData.startDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const daysPerPeriod = Math.floor(totalDays / periodsCount);
-
-      for (let i = 0; i < periodsCount; i++) {
-        const periodStart = new Date(validatedData.startDate);
-        periodStart.setDate(periodStart.getDate() + i * daysPerPeriod);
-
-        const periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodEnd.getDate() + daysPerPeriod - 1);
-
-        await prisma.period.create({
-          data: {
-            academicYearId: academicYear.id,
-            name: periodLabels[i] || `Période ${i + 1}`,
-            type: periodType,
-            startDate: periodStart,
-            endDate: i === periodsCount - 1 ? validatedData.endDate : periodEnd,
-            sequence: i + 1,
-          },
+      if (validatedData.isCurrent) {
+        await tx.academicYear.updateMany({
+          where: { schoolId, isCurrent: true },
+          data: { isCurrent: false },
         });
       }
-    }
 
-    const result = await prisma.academicYear.findUnique({
-      where: { id: academicYear.id },
-      include: {
-        periods: {
-          orderBy: { sequence: "asc" },
+      const academicYear = await tx.academicYear.create({
+        data: {
+          schoolId,
+          name: validatedData.name,
+          startDate: validatedData.startDate,
+          endDate: validatedData.endDate,
+          isCurrent: validatedData.isCurrent,
         },
-      },
+      });
+
+      if (academicConfig) {
+        const periodType = academicConfig.periodType;
+        const periodsCount = academicConfig.periodsCount;
+        const periodLabels = periodType === "SEMESTER"
+          ? ["1er Semestre", "2ème Semestre"]
+          : ["1er Trimestre", "2ème Trimestre", "3ème Trimestre"];
+
+        const totalDays = Math.floor(
+          (validatedData.endDate.getTime() - validatedData.startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const daysPerPeriod = Math.floor(totalDays / periodsCount);
+
+        for (let i = 0; i < periodsCount; i++) {
+          const periodStart = new Date(validatedData.startDate);
+          periodStart.setDate(periodStart.getDate() + i * daysPerPeriod);
+
+          const periodEnd = new Date(periodStart);
+          periodEnd.setDate(periodEnd.getDate() + daysPerPeriod - 1);
+
+          await tx.period.create({
+            data: {
+              academicYearId: academicYear.id,
+              name: periodLabels[i] || `Période ${i + 1}`,
+              type: periodType,
+              startDate: periodStart,
+              endDate: i === periodsCount - 1 ? validatedData.endDate : periodEnd,
+              sequence: i + 1,
+            },
+          });
+        }
+      }
+
+      const created = await tx.academicYear.findUnique({
+        where: { id: academicYear.id },
+        include: {
+          periods: {
+            orderBy: { sequence: "asc" },
+          },
+        },
+      });
+
+      return { data: created, status: 201 };
     });
 
-    return NextResponse.json(result, { status: 201 });
+    if (result.error) {
+      return NextResponse.json(result.error, { status: result.status });
+    }
+    return NextResponse.json(result.data, { status: result.status });
   },
   {
     requireAuth: true,
     requiredPermissions: [Permission.ACADEMIC_YEAR_CREATE],
   }
 );
+

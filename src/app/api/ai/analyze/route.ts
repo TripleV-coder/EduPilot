@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { analyzeStudentPerformance } from "@/lib/ai/n8n-client";
 import { studentAlias } from "@/lib/ai/pii";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+        const session = context.session;
 
         const body = await request.json();
         const { studentId, periodId } = body;
@@ -85,8 +82,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(result);
 
+    
     } catch (error) {
         logger.error("Error in AI analysis:", error as Error);
         return NextResponse.json({ error: "Erreur lors de l'analyse IA" }, { status: 500 });
     }
-}
+
+});

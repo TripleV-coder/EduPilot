@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { calculateWeightedAverage, getRank } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -41,14 +41,11 @@ function pickStatus(
   return { status: "Validé", variant: "success" };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const classId = searchParams.get("classId");
     const periodId = searchParams.get("periodId");
 
@@ -57,10 +54,6 @@ export async function GET(request: NextRequest) {
         { error: "classId et periodId sont requis" },
         { status: 400 }
       );
-    }
-
-    if (!COUNCIL_ROLES.includes(session.user.role)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Class context (school, level, subjects, main teacher)
@@ -310,4 +303,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: COUNCIL_ROLES },
+);

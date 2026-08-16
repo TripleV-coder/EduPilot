@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, RiskLevel } from "@prisma/client";
 import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -9,17 +8,15 @@ import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/students
  * Obtenir les analytics des élèves
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const url = new URL(request.url);
     const { searchParams } = url;
@@ -123,7 +120,7 @@ export async function GET(request: NextRequest) {
 
     if (periodId) where.periodId = periodId;
     if (academicYearId) where.academicYearId = academicYearId;
-    if (riskLevel) where.riskLevel = riskLevel as any;
+    if (riskLevel) where.riskLevel = riskLevel as RiskLevel;
 
     const analytics = await prisma.studentAnalytics.findMany({
       where,
@@ -243,24 +240,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
     };
 
-    const response = await withCache(handler as any, { ttl: CACHE_TTL_SHORT, key: cacheKey });
+    const response = await withCache(handler, { ttl: CACHE_TTL_SHORT, key: cacheKey });
     return withHttpCache(response, request, { private: true, maxAge: CACHE_TTL_SHORT, staleWhileRevalidate: 15 });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching analytics:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+});
 
 /**
  * POST /api/analytics/students
  * Générer les analytics pour un élève sur une période
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
     if (!roleSatisfies(session.user.role, allowedRoles)) {
@@ -296,8 +292,10 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(fullAnalytics, { status: 201 });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" generating analytics:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+});

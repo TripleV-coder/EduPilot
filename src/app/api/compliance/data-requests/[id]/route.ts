@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -7,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const updateRequestSchema = z.object({
   status: z.enum(["IN_PROGRESS", "COMPLETED", "REJECTED"]),
@@ -18,16 +18,10 @@ const updateRequestSchema = z.object({
  * GET /api/compliance/data-requests/[id]
  * Get specific data request details
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
 
     const dataRequest = await prisma.dataAccessRequest.findUnique({
       where: { id: id },
@@ -73,31 +67,25 @@ export async function GET(
     }
 
     return NextResponse.json(dataRequest);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching data request:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération de la demande" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * PATCH /api/compliance/data-requests/[id]
  * Update data request status (Admin only)
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const PATCH = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
 
     const body = await request.json();
     const validatedData = updateRequestSchema.parse(body);
@@ -205,7 +193,8 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedRequest);
-  } catch (error) {
+  
+    } catch (error) {
     if (isZodError(error)) {
       return NextResponse.json(
         { error: "Données invalides", details: error.issues },
@@ -219,4 +208,5 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

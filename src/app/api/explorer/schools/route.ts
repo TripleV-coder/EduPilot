@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,9 +35,9 @@ function latLngToVector3(lat: number, lng: number, radius: number) {
  * GET /api/explorer/schools
  * Liste des établissements avec coordonnées pour le globe (auth optionnelle).
  */
-export async function GET(request: Request) {
-  try {
-    const session = await auth();
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     let where: { isActive: boolean; id?: string } = { isActive: true };
     if (session?.user?.role !== "SUPER_ADMIN" && session?.user?.schoolId) {
       where = { ...where, id: getActiveSchoolId(session) };
@@ -91,7 +91,8 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({ schools: items });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Explorer schools error", error as Error, {
       endpoint: "/api/explorer/schools",
     });
@@ -100,4 +101,5 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+
+});

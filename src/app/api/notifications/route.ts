@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import type { NotificationWhereFilter } from "@/lib/types/api";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createNotificationSchema = z.object({
   userId: z.string().cuid(),
@@ -16,13 +15,8 @@ const createNotificationSchema = z.object({
   link: z.string().url().optional().or(z.literal("")),
 });
 
-export async function GET(request: Request) {
+export const GET = createApiHandler(async (request, { session }) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unread") === "true";
     const limitParam = searchParams.get("limit");
@@ -61,81 +55,68 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(
+  async (request, { session }) => {
+    try {
+      const body = await request.json();
+      const validatedData = createNotificationSchema.parse(body);
 
-    // Only admins can create notifications for others
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+      // CRITICAL: Verify target user belongs to same school (multi-tenant security)
+      const targetUser = await prisma.user.findUnique({
+        where: { id: validatedData.userId },
+        select: { id: true, schoolId: true },
+      });
 
-    const body = await request.json();
-    const validatedData = createNotificationSchema.parse(body);
-
-    // CRITICAL: Verify target user belongs to same school (multi-tenant security)
-    const targetUser = await prisma.user.findUnique({
-      where: { id: validatedData.userId },
-      select: { id: true, schoolId: true },
-    });
-
-    if (!targetUser) {
-      return NextResponse.json(
-        { error: "Utilisateur non trouvé" },
-        { status: 404 }
-      );
-    }
-
-    // SUPER_ADMIN can send to anyone, others only to their school
-    if (session.user.role !== "SUPER_ADMIN") {
-      if (targetUser.schoolId !== getActiveSchoolId(session)) {
+      if (!targetUser) {
         return NextResponse.json(
-          { error: "Vous ne pouvez envoyer des notifications qu'aux utilisateurs de votre établissement" },
-          { status: 403 }
+          { error: "Utilisateur non trouvé" },
+          { status: 404 }
         );
       }
-    }
 
-    const notification = await prisma.notification.create({
-      data: {
-        userId: validatedData.userId,
-        type: validatedData.type,
-        title: validatedData.title,
-        message: validatedData.message,
-        link: validatedData.link || null,
-      },
-    });
+      // SUPER_ADMIN can send to anyone, others only to their school
+      if (session.user.role !== "SUPER_ADMIN") {
+        if (targetUser.schoolId !== getActiveSchoolId(session)) {
+          return NextResponse.json(
+            { error: "Vous ne pouvez envoyer des notifications qu'aux utilisateurs de votre établissement" },
+            { status: 403 }
+          );
+        }
+      }
 
-    return NextResponse.json(notification, { status: 201 });
-  } catch (error: unknown) {
-    logger.error(" creating notification:", error as Error);
-    if (isZodError(error)) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: validatedData.userId,
+          type: validatedData.type,
+          title: validatedData.title,
+          message: validatedData.message,
+          link: validatedData.link || null,
+        },
+      });
+
+      return NextResponse.json(notification, { status: 201 });
+    } catch (error: unknown) {
+      logger.error(" creating notification:", error as Error);
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
+        { error: "Erreur lors de la création de la notification" },
+        { status: 500 }
       );
     }
-    return NextResponse.json(
-      { error: "Erreur lors de la création de la notification" },
-      { status: 500 }
-    );
-  }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] },
+);
 
 // Mark all as read
-export async function PATCH(_request: Request) {
+export const PATCH = createApiHandler(async (_request, { session }) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
     await prisma.notification.updateMany({
       where: {
         userId: session.user.id,
@@ -154,4 +135,4 @@ export async function PATCH(_request: Request) {
       { status: 500 }
     );
   }
-}
+});

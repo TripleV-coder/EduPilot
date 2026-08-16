@@ -1,30 +1,22 @@
 import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { AttendanceStatus } from "@prisma/client";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * API Endpoint for bulk attendance recording
  */
 
-export async function POST(request: Request) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    // Only teachers and admins can record attendance
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
-
-    const body = await request.json();
+    const session = context.session;
+// Only teachers and admins can record attendance
+const body = await request.json();
     const { records, classId, date } = body;
 
     if (!records || !Array.isArray(records) || records.length === 0) {
@@ -108,7 +100,7 @@ export async function POST(request: Request) {
               tx.attendance.update({
                 where: { id: existing.id },
                 data: {
-                  status: record.status as any,
+                  status: record.status as AttendanceStatus,
                   reason: record.notes,
                   recordedById: session.user.id,
                 },
@@ -121,7 +113,7 @@ export async function POST(request: Request) {
                   studentId: record.studentId,
                   classId,
                   date: new Date(date),
-                  status: record.status as any,
+                  status: record.status as AttendanceStatus,
                   reason: record.notes,
                   recordedById: session.user.id,
                 },
@@ -156,17 +148,17 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);
 
 // GET endpoint to fetch bulk attendance data for a class
-export async function GET(request: Request) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const classId = searchParams.get("classId");
     const date = searchParams.get("date");
 
@@ -214,4 +206,6 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+
+  }
+);

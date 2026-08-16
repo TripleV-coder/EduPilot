@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { aiService } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
+import { getErrorMessage } from "@/lib/utils/error-message";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { studentId, academicYearId } = await request.json();
 
@@ -21,17 +19,23 @@ export async function POST(request: NextRequest) {
       action: "analyze-risk",
       studentId,
       userId: session.user.id,
-      userRole: session.user.role as any,
+      userRole: session.user.role,
       schoolId: getActiveSchoolId(session),
       data: { academicYearId },
     });
 
     return NextResponse.json(result);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Error in AI risk analysis:", error);
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? (error as { status: unknown }).status
+        : undefined;
     return NextResponse.json(
-      { error: (error as any).message || "Erreur lors de l'analyse de risque" },
-      { status: (error as any).status || 500 }
+      { error: getErrorMessage(error, "Erreur lors de l'analyse de risque") },
+      { status: typeof status === "number" && status ? status : 500 }
     );
   }
-}
+
+});

@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -34,13 +34,8 @@ function fromIncidentSeverity(severity: string): {
     return { label: "Vigilance", variant: "warning" };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, { session }) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
         const studentIdParam = searchParams.get("studentId");
 
@@ -352,7 +347,7 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});
 
 function roleLabel(role: string): string {
     switch (role) {

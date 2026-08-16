@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const session = context.session;
 
         const body = await request.json();
         const { documentType, studentId, academicYearId } = body;
@@ -109,8 +105,10 @@ export async function POST(request: NextRequest) {
             url: pdfBase64,
             filename: `${documentType}_${student.matricule}.pdf`
         });
+    
     } catch (error) {
         logger.error(" generating document:", error as Error);
         return NextResponse.json({ error: "Erreur lors de la génération" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });

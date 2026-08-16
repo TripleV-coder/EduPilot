@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -7,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const availabilitySchema = z.object({
   dayOfWeek: z.number().min(0).max(6),
@@ -19,16 +19,10 @@ const availabilitySchema = z.object({
  * GET /api/teachers/[id]/availability
  * Get teacher availability slots
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(
+  async (request, context) => {
+    const { id } = await context.params;
+    const session = context.session;
 
     const teacherProfile = await prisma.teacherProfile.findUnique({
       where: { id },
@@ -84,131 +78,115 @@ export async function GET(
       availabilities,
       bookedSlots,
     });
-  } catch (error) {
-    logger.error(" fetching availability:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des disponibilités" },
-      { status: 500 }
-    );
-  }
-}
+  },
+);
 
 /**
  * POST /api/teachers/[id]/availability
  * Set teacher availability (Teacher or Admin only)
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(
+  async (request, context) => {
+    const { id } = await context.params;
+    const session = context.session;
 
-    // Check authorization
-    const teacherProfile = await prisma.teacherProfile.findUnique({
-      where: { id: id },
-      select: { userId: true, schoolId: true },
-    });
+    try {
+      // Check authorization
+      const teacherProfile = await prisma.teacherProfile.findUnique({
+        where: { id: id },
+        select: { userId: true, schoolId: true },
+      });
 
-    if (!teacherProfile) {
+      if (!teacherProfile) {
+        return NextResponse.json(
+          { error: "Profil enseignant non trouvé" },
+          { status: 404 }
+        );
+      }
+
+      const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
+      const isOwner = teacherProfile.userId === session.user.id;
+      const activeSchoolId = getActiveSchoolId(session);
+
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
+      ) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
+
+      if (!isAdmin && !isOwner) {
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
+
+      const body = await request.json();
+      const validatedData = availabilitySchema.parse(body);
+
+      // Check for overlapping availability
+      const existing = await prisma.teacherAvailability.findFirst({
+        where: {
+          teacherId: id,
+          dayOfWeek: validatedData.dayOfWeek,
+          OR: [
+            {
+              AND: [
+                { startTime: { lte: validatedData.startTime } },
+                { endTime: { gt: validatedData.startTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { lt: validatedData.endTime } },
+                { endTime: { gte: validatedData.endTime } },
+              ],
+            },
+          ],
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json(
+          { error: "Ce créneau chevauche une disponibilité existante" },
+          { status: 400 }
+        );
+      }
+
+      const availability = await prisma.teacherAvailability.create({
+        data: {
+          teacherId: id,
+          dayOfWeek: validatedData.dayOfWeek,
+          startTime: validatedData.startTime,
+          endTime: validatedData.endTime,
+          isActive: validatedData.isActive,
+        },
+      });
+
+      return NextResponse.json(availability, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+
+      logger.error(" creating availability:", error as Error);
       return NextResponse.json(
-        { error: "Profil enseignant non trouvé" },
-        { status: 404 }
+        { error: "Erreur lors de la création de la disponibilité" },
+        { status: 500 }
       );
     }
-
-    const isAdmin = roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]);
-    const isOwner = teacherProfile.userId === session.user.id;
-    const activeSchoolId = getActiveSchoolId(session);
-
-    if (
-      session.user.role !== "SUPER_ADMIN" &&
-      (!activeSchoolId || !(await isTeacherAssignedToSchool(id, activeSchoolId)))
-    ) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    if (!isAdmin && !isOwner) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validatedData = availabilitySchema.parse(body);
-
-    // Check for overlapping availability
-    const existing = await prisma.teacherAvailability.findFirst({
-      where: {
-        teacherId: id,
-        dayOfWeek: validatedData.dayOfWeek,
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: validatedData.startTime } },
-              { endTime: { gt: validatedData.startTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { lt: validatedData.endTime } },
-              { endTime: { gte: validatedData.endTime } },
-            ],
-          },
-        ],
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Ce créneau chevauche une disponibilité existante" },
-        { status: 400 }
-      );
-    }
-
-    const availability = await prisma.teacherAvailability.create({
-      data: {
-        teacherId: id,
-        dayOfWeek: validatedData.dayOfWeek,
-        startTime: validatedData.startTime,
-        endTime: validatedData.endTime,
-        isActive: validatedData.isActive,
-      },
-    });
-
-    return NextResponse.json(availability, { status: 201 });
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json(
-        { error: "Données invalides", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    logger.error(" creating availability:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la création de la disponibilité" },
-      { status: 500 }
-    );
-  }
-}
+  },
+);
 
 /**
  * DELETE /api/teachers/[id]/availability
  * Delete availability slot
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const DELETE = createApiHandler(
+  async (request, context) => {
+    const { id } = await context.params;
+    const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const availabilityId = searchParams.get("availabilityId");
@@ -254,11 +232,5 @@ export async function DELETE(
     return NextResponse.json({
       message: "Disponibilité supprimée avec succès",
     });
-  } catch (error) {
-    logger.error(" deleting availability:", error as Error);
-    return NextResponse.json(
-      { error: "Erreur lors de la suppression de la disponibilité" },
-      { status: 500 }
-    );
-  }
-}
+  },
+);

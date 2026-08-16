@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * Get meal tickets for current user or their children
  */
-export async function GET(req: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const schoolId = getActiveSchoolId(session);
+        const session = context.session;
+const schoolId = getActiveSchoolId(session);
         if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
 
         let userIds = [session.user.id];
@@ -56,22 +54,22 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json(summary);
+    
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
-}
+
+});
 
 /**
  * Purchase a new ticket
  */
-export async function POST(req: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const schoolId = getActiveSchoolId(session);
+        const session = context.session;
+const schoolId = getActiveSchoolId(session);
         if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
-        const { userId, amount } = await req.json();
+        const { userId, amount } = await request.json();
         const normalizedAmount = Number(amount ?? 10);
 
         if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
@@ -89,7 +87,9 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json(ticket);
+    
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
-}
+
+});

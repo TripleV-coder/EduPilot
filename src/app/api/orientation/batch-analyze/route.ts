@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { aiService } from "@/lib/ai/ai-service";
+import { aiService, OrientationRecommendation } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
+import { getErrorMessage } from "@/lib/utils/error-message";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const session = context.session;
 
         const { academicYearId, classId } = await request.json();
 
@@ -50,7 +47,7 @@ export async function POST(request: NextRequest) {
                     return e.student.studentOrientations[0].status === "PENDING";
                 }
                 return true;
-            })
+            }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] })
             .map(e => e.student);
 
         if (studentsToAnalyze.length === 0) {
@@ -68,7 +65,7 @@ export async function POST(request: NextRequest) {
         const results = [];
         for (const student of analysisBatch) {
             try {
-                const recommendation = await aiService.executeGovernance({
+                const recommendation = await aiService.executeGovernance<OrientationRecommendation>({
                     action: "recommend-orientation",
                     userId: session.user.id,
                     userRole: session.user.role,
@@ -86,7 +83,7 @@ export async function POST(request: NextRequest) {
                     success: true
                 });
             } catch (err) {
-                logger.warn(`AI Analysis failed for student ${student.id}:`, (err as any).message);
+                logger.warn(`AI Analysis failed for student ${student.id}: ${getErrorMessage(err)}`);
                 results.push({
                     studentId: student.id,
                     studentName: `${student.user.firstName} ${student.user.lastName}`,
@@ -103,8 +100,10 @@ export async function POST(request: NextRequest) {
             results
         });
 
+    
     } catch (error) {
         logger.error("Batch Orientation Analysis:", error);
         return NextResponse.json({ error: "Erreur lors de l'analyse globale" }, { status: 500 });
     }
-}
+
+});

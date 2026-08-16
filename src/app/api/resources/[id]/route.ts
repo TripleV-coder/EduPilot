@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { softDelete } from "@/lib/db/soft-delete";
@@ -23,17 +23,12 @@ const updateResourceSchema = z.object({
  * GET /api/resources/[id]
  * Get resource details
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-    const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
+    const { id } = await context.params;
+    const session = context.session;
+const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
     if (guard) return guard;
 
     const resource = await prisma.resource.findUnique({
@@ -78,29 +73,20 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+
+  }
+);
 
 /**
  * PATCH /api/resources/[id]
  * Update resource (Uploader or Admin only)
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await context.params;
+    const session = context.session;
 
-    const allowedRoles = [
-      "SUPER_ADMIN",
-      "SCHOOL_ADMIN",
-      "DIRECTOR",
-      "TEACHER",
-    ];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
     if (guard) return guard;
 
@@ -174,29 +160,21 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: [ "SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", ] }
+);
 
 /**
  * DELETE /api/resources/[id]
  * Delete resource (Uploader or Admin only)
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await context.params;
+    const session = context.session;
 
-    const allowedRoles = [
-      "SUPER_ADMIN",
-      "SCHOOL_ADMIN",
-      "DIRECTOR",
-      "TEACHER",
-    ];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
     const guard = await assertModelAccess(session, "resource", id, "Ressource non trouvée");
     if (guard) return guard;
 
@@ -246,4 +224,7 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: [ "SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", ] }
+);

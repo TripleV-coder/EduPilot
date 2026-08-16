@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
@@ -7,20 +6,16 @@ import { translateEntity } from "@/lib/utils/entity-translator";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/audit-logs/export
  * Export audit logs as CSV (Admin only)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     // Only SUPER_ADMIN and SCHOOL_ADMIN can export audit logs
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -136,11 +131,13 @@ export async function GET(request: NextRequest) {
         "Content-Disposition": `attachment; filename="audit_logs_${new Date().toISOString().split("T")[0]}.csv"`,
       },
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" exporting audit logs:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de l'export des logs d'audit" },
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

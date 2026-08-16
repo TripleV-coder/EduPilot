@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(request: Request, context: RouteContext) {
+export const GET = createApiHandler(async (_request, { session, params }) => {
   try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await params;
 
     const notification = await prisma.notification.findUnique({
       where: { id },
@@ -33,16 +27,12 @@ export async function GET(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+});
 
 // Mark as read
-export async function PATCH(request: Request, context: RouteContext) {
+export const PATCH = createApiHandler(async (_request, { session, params }) => {
   try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await params;
 
     const notification = await prisma.notification.findUnique({
       where: { id },
@@ -69,15 +59,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(request: Request, context: RouteContext) {
+export const DELETE = createApiHandler(async (_request, { session, params }) => {
   try {
-    const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await params;
 
     const notification = await prisma.notification.findUnique({
       where: { id },
@@ -103,4 +89,4 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+});

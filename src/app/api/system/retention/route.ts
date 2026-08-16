@@ -15,14 +15,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
 import { logger } from "@/lib/utils/logger";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(req: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
+        const session = context.session;
     // Authentification : session SUPER_ADMIN OU CRON_SECRET
     const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get("authorization");
+    const authHeader = request.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
     let authorized = false;
@@ -30,7 +31,6 @@ export async function POST(req: NextRequest) {
     if (cronSecret && bearerToken === cronSecret) {
         authorized = true;
     } else {
-        const session = await auth();
         if (session?.user?.role === "SUPER_ADMIN") {
             authorized = true;
         }
@@ -67,4 +67,5 @@ export async function POST(req: NextRequest) {
         );
         return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
     }
-}
+
+});

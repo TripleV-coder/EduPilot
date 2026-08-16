@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -16,16 +16,11 @@ const submitExamSchema = z.object({
   ),
 });
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || session.user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "examSession", id, "Session non trouvée");
     if (guard) return guard;
 
@@ -85,11 +80,11 @@ export async function POST(
         isCorrect: (question.type === "MCQ" || question.type === "TRUE_FALSE") ? isCorrect : null,
         pointsEarned,
       };
-    }).filter(Boolean);
+    }).filter((record): record is NonNullable<typeof record> => Boolean(record));
 
     // Create answers
     await prisma.examAnswer.createMany({
-      data: answerRecords as any,
+      data: answerRecords,
     });
 
     // Update session
@@ -136,4 +131,6 @@ export async function POST(
     logger.error(" submitting exam:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["STUDENT"] },
+);

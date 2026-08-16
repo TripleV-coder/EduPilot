@@ -5,23 +5,17 @@ import { Session } from "next-auth";
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { AIServiceError, aiService } from '@/lib/ai/ai-service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
     // Authentication
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Non autorisé', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
 
     // Rate limiting (AI is considered sensitive)
     const identifier = `${session.user.id}:${getClientIdentifier(request)}`;
@@ -52,7 +46,8 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch (error) {
+  
+    } catch (error) {
     if (error instanceof AIServiceError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -67,7 +62,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});
 
 interface ChatRequestBody {
   message: string;
@@ -138,15 +134,9 @@ async function handleGovernance(session: Session, body: GovernanceRequestBody) {
   return NextResponse.json(result);
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Non autorisé', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const endpoint = searchParams.get('endpoint') || 'status';
@@ -194,7 +184,8 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch (error) {
+  
+    } catch (error) {
     if (error instanceof AIServiceError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -209,4 +200,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});

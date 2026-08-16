@@ -18,13 +18,13 @@ const promoteSchema = z.object({
 });
 
 /**
- * POST /api/classes/[classId]/promote
+ * POST /api/classes/[id]/promote
  * Applique les décisions de fin d'année (promotion / redoublement / départ)
  * pour une classe, en créant les inscriptions de l'année académique cible.
  */
 export const POST = createApiHandler(
   async (request, { session, params }) => {
-    const { classId } = await params;
+    const { id: classId } = await params;
     if (!isValidCuid(classId)) {
       return NextResponse.json({ error: "Identifiant de classe invalide" }, { status: 400 });
     }

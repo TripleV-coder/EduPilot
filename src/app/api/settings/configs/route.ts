@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const configSchema = z.object({
     category: z.string().min(1),
@@ -12,13 +11,12 @@ const configSchema = z.object({
     description: z.string().optional(),
     order: z.number().int().default(0),
     isActive: z.boolean().default(true),
-    metadata: z.any().optional(),
+    metadata: z.unknown().optional(),
 });
 
-export async function GET(req: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const session = context.session;
 
         const schoolId = await getActiveSchoolId(session);
         
@@ -28,20 +26,19 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json(configs);
+    
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
-}
 
-export async function POST(req: NextRequest) {
+});
+
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN"])) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = context.session;
 
         const schoolId = await getActiveSchoolId(session);
-        const body = await req.json();
+        const body = await request.json();
         const validated = configSchema.parse(body);
 
         // Since there is no unique constraint on schoolId + code, we use findFirst
@@ -73,8 +70,10 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json(config);
+    
     } catch (error) {
         if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues }, { status: 400 });
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

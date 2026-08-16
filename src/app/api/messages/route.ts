@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
@@ -74,16 +73,11 @@ const createMessageSchema = z.object({
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
     // Cache key based on user and query params
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey("/api/messages", url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey("/api/messages", url.searchParams, context.session.user.id);
 
     const cachedHandler = cacheMiddleware({ ttl: 30, key: cacheKey }); // 30s cache for messages
 
@@ -105,16 +99,16 @@ export async function GET(request: NextRequest) {
       const where: MessageWhereFilter = {};
 
       if (type === "inbox") {
-        where.recipientId = session.user.id;
+        where.recipientId = context.session.user.id;
         where.deletedByRecipient = false;
         if (unreadOnly) {
           where.isRead = false;
         }
       } else if (type === "sent") {
-        where.senderId = session.user.id;
+        where.senderId = context.session.user.id;
         where.deletedBySender = false;
       } else if (type === "archived") {
-        where.recipientId = session.user.id;
+        where.recipientId = context.session.user.id;
         where.isArchived = true;
       }
 
@@ -166,7 +160,7 @@ export async function GET(request: NextRequest) {
         type === "inbox"
           ? prisma.message.count({
             where: {
-              recipientId: session.user.id,
+              recipientId: context.session.user.id,
               isRead: false,
               deletedByRecipient: false,
             },
@@ -195,21 +189,16 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/messages
  * Send a new message
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
     // Anti-spam : 20 messages / minute par utilisateur
-    const rate = await checkRateLimit(strictLimiter, `messages:${session.user.id}`);
+    const rate = await checkRateLimit(strictLimiter, `messages:${context.session.user.id}`);
     if (!rate.success) {
       return NextResponse.json(
         { error: "Trop de messages envoyés. Réessayez dans une minute." },
@@ -220,7 +209,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createMessageSchema.parse(body);
 
-    if (validatedData.recipientId === session.user.id) {
+    if (validatedData.recipientId === context.session.user.id) {
       return NextResponse.json(
         { error: "Impossible de s'envoyer un message à soi-même" },
         { status: 400 }
@@ -234,7 +223,7 @@ export async function POST(request: NextRequest) {
         select: { senderId: true, recipientId: true },
       });
 
-      if (!parentMessage || (parentMessage.senderId !== session.user.id && parentMessage.recipientId !== session.user.id)) {
+      if (!parentMessage || (parentMessage.senderId !== context.session.user.id && parentMessage.recipientId !== context.session.user.id)) {
         return NextResponse.json(
           { error: "Message parent invalide ou accès refusé" },
           { status: 403 }
@@ -256,7 +245,7 @@ export async function POST(request: NextRequest) {
     }
 
     // School isolation check
-    const accessError = ensureSchoolAccess(session, recipient.schoolId);
+    const accessError = ensureSchoolAccess(context.session, recipient.schoolId);
     if (accessError) {
       return accessError;
     }
@@ -269,7 +258,7 @@ export async function POST(request: NextRequest) {
     // Create message
     const message = await prisma.message.create({
       data: {
-        senderId: session.user.id,
+        senderId: context.session.user.id,
         recipientId: validatedData.recipientId,
         subject,
         content,
@@ -301,7 +290,7 @@ export async function POST(request: NextRequest) {
       userId: validatedData.recipientId,
       type: "MESSAGE",
       title: "Nouveau message",
-      message: `${session.user.firstName} ${session.user.lastName} vous a envoyé un message: "${subject}"`,
+      message: `${context.session.user.firstName} ${context.session.user.lastName} vous a envoyé un message: "${subject}"`,
       link: "/dashboard/messages",
     });
 
@@ -328,4 +317,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

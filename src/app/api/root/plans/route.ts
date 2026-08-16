@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
 
 import { Prisma } from "@prisma/client";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -26,10 +28,15 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+    },
+    {},
+);
 
-export async function POST(request: NextRequest) {
-  const session = await auth();
+
+export const POST = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -68,10 +75,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+    },
+    {},
+);
 
-export async function PATCH(request: NextRequest) {
-  const session = await auth();
+
+export const PATCH = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -107,4 +119,7 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+    },
+    {},
+);
+

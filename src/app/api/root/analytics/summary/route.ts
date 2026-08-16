@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { getGlobalDashboardData } from "@/lib/services/analytics-dashboard";
 import { requireRoot } from "@/lib/security/require-root";
 
-export async function GET() {
-  const session = await auth();
+import { createApiHandler } from "@/lib/api/api-helpers";
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -17,4 +19,7 @@ export async function GET() {
     recentSchools: data.recentSchools,
     recentActivity: data.recentActivity,
   });
-}
+    },
+    {},
+);
+

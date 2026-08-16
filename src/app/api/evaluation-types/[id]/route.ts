@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const evaluationTypeUpdateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -15,15 +14,10 @@ const evaluationTypeUpdateSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(request: Request, context: RouteContext) {
+export const GET = createApiHandler(async (request, context) => {
   try {
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const session = context.session;
 
     const evaluationType = await prisma.evaluationType.findUnique({
       where: { id },
@@ -61,20 +55,13 @@ export async function GET(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PATCH(request: Request, context: RouteContext) {
+export const PATCH = createApiHandler(
+  async (request, context) => {
   try {
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+    const session = context.session;
 
     const existingType = await prisma.evaluationType.findUnique({
       where: { id },
@@ -113,20 +100,15 @@ export async function PATCH(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] },
+);
 
-export async function DELETE(request: Request, context: RouteContext) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
     const { id } = await context.params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-    if (!roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
+    const session = context.session;
 
     const existingType = await prisma.evaluationType.findUnique({
       where: { id },
@@ -155,4 +137,6 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 500 }
     );
   }
-}
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] },
+);

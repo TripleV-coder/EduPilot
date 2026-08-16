@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { getErrorMessage } from "@/lib/utils/error-message";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { academicYearId } = await request.json();
     const activeSchoolId = getActiveSchoolId(session);
@@ -41,11 +39,13 @@ export async function POST(request: NextRequest) {
       success: true,
       ...result
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Error in global sync:", error);
     return NextResponse.json(
-      { error: (error as any).message || "Erreur lors de la synchronisation globale" },
+      { error: getErrorMessage(error, "Erreur lors de la synchronisation globale") },
       { status: 500 }
     );
   }
-}
+
+});

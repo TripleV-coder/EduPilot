@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma, EventType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const createEventSchema = z.object({
   title: z.string().min(3),
@@ -21,12 +20,9 @@ const createEventSchema = z.object({
   isPublished: z.boolean().default(false),
 });
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -68,19 +64,17 @@ export async function GET(request: NextRequest) {
       events,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching events:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+});
+
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const body = await request.json();
     const validatedData = createEventSchema.parse(body);
@@ -130,11 +124,13 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(event, { status: 201 });
-  } catch (error) {
+  
+    } catch (error) {
     if (isZodError(error)) {
       return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
     }
     logger.error(" creating event:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

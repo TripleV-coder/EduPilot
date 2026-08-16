@@ -1,29 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { Prisma } from "@prisma/client";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
  * GET /api/grades/cahier
  * Returns all evaluations with grades for a given class, with optional filters.
  * Query params: classId (required), periodId, classSubjectId, typeId
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-
-        const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-        if (!roleSatisfies(session.user.role, allowedRoles)) {
-            return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-        }
-
-        const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
         const classId = searchParams.get("classId");
         const periodId = searchParams.get("periodId");
         const classSubjectId = searchParams.get("classSubjectId");
@@ -159,4 +150,7 @@ export async function GET(request: NextRequest) {
         logger.error("Error fetching cahier de notes:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);

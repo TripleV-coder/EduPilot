@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { roundTo } from "@/lib/analytics/helpers";
 import {
   buildPaymentDateWhere,
@@ -56,7 +57,7 @@ export const GET = createApiHandler(
     }
 
     // Build base where clause
-    const paymentWhere: any = {
+    const paymentWhere: Prisma.PaymentWhereInput = {
       fee: feeScope,
     };
     Object.assign(paymentWhere, buildPaymentDateWhere(periodRange));

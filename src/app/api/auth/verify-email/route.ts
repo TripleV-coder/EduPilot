@@ -8,138 +8,143 @@
  * Il est mis à jour lors du premier login (first-login/route.ts) ET ici.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/utils/logger";
 import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 heures
 
 // ---------------------------------------------------------------------------
 // GET — Validation du token
 // ---------------------------------------------------------------------------
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token");
+export const GET = createApiHandler(
+  async (req) => {
+    const token = req.nextUrl.searchParams.get("token");
 
-  if (!token) {
-    return NextResponse.json({ error: "Token manquant" }, { status: 400 });
-  }
+    if (!token) {
+      return NextResponse.json({ error: "Token manquant" }, { status: 400 });
+    }
 
-  const record = await prisma.verificationToken.findUnique({
-    where: { token },
-  });
+    const record = await prisma.verificationToken.findUnique({
+      where: { token },
+    });
 
-  if (!record) {
-    return NextResponse.json({ error: "Token invalide ou expiré" }, { status: 404 });
-  }
+    if (!record) {
+      return NextResponse.json({ error: "Token invalide ou expiré" }, { status: 404 });
+    }
 
-  if (record.expires < new Date()) {
+    if (record.expires < new Date()) {
+      await prisma.verificationToken.delete({ where: { token } });
+      return NextResponse.json({ error: "Token expiré. Veuillez en demander un nouveau." }, { status: 410 });
+    }
+
+    // Marquer l'email comme vérifié
+    await prisma.user.updateMany({
+      where: { email: record.identifier },
+      data: { emailVerified: new Date() },
+    });
+
+    // Supprimer le token utilisé
     await prisma.verificationToken.delete({ where: { token } });
-    return NextResponse.json({ error: "Token expiré. Veuillez en demander un nouveau." }, { status: 410 });
-  }
 
-  // Marquer l'email comme vérifié
-  await prisma.user.updateMany({
-    where: { email: record.identifier },
-    data: { emailVerified: new Date() },
-  });
-
-  // Supprimer le token utilisé
-  await prisma.verificationToken.delete({ where: { token } });
-
-  // Rediriger vers le dashboard avec message de succès
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return NextResponse.redirect(`${appUrl}/login?verified=1`);
-}
+    // Rediriger vers le dashboard avec message de succès
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    return NextResponse.redirect(`${appUrl}/login?verified=1`);
+  },
+  { requireAuth: false },
+);
 
 // ---------------------------------------------------------------------------
 // POST — Envoi/renvoi du lien de vérification
 // ---------------------------------------------------------------------------
-export async function POST(req: NextRequest) {
-  try {
-    const identifier = getClientIdentifier(req);
-    const rateLimitResult = await checkRateLimit(authLimiter, identifier);
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: "Trop de requêtes. Veuillez réessayer plus tard." }, { status: 429 });
-    }
-
-    // Authentification requise OU email passé en body (pour le renvoi depuis login)
-    const session = await auth();
-    let userEmail: string | null = session?.user?.email ?? null;
-
-    if (!userEmail) {
-      const body = await req.json().catch(() => ({}));
-      if (typeof body.email === "string") {
-        userEmail = body.email.toLowerCase().trim();
+export const POST = createApiHandler(
+  async (req, context) => {
+    try {
+      const identifier = getClientIdentifier(req);
+      const rateLimitResult = await checkRateLimit(authLimiter, identifier);
+      if (!rateLimitResult.success) {
+        return NextResponse.json({ error: "Trop de requêtes. Veuillez réessayer plus tard." }, { status: 429 });
       }
-    }
 
-    if (!userEmail) {
-      return NextResponse.json({ error: "Email requis" }, { status: 400 });
-    }
+      // Authentification optionnelle OU email passé en body (pour le renvoi depuis login)
+      let userEmail: string | null = context.session?.user?.email ?? null;
 
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: { id: true, email: true, firstName: true, emailVerified: true, isActive: true },
-    });
+      if (!userEmail) {
+        const body = await req.json().catch(() => ({}));
+        if (typeof body.email === "string") {
+          userEmail = body.email.toLowerCase().trim();
+        }
+      }
 
-    if (!user || !user.isActive) {
-      // Réponse identique pour éviter l'énumération
+      if (!userEmail) {
+        return NextResponse.json({ error: "Email requis" }, { status: 400 });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: userEmail },
+        select: { id: true, email: true, firstName: true, emailVerified: true, isActive: true },
+      });
+
+      if (!user || !user.isActive) {
+        // Réponse identique pour éviter l'énumération
+        return NextResponse.json({
+          success: true,
+          message: "Si votre compte existe, un email de vérification a été envoyé.",
+        });
+      }
+
+      if (user.emailVerified) {
+        return NextResponse.json({ success: true, message: "Email déjà vérifié." });
+      }
+
+      // Supprimer l'ancien token si existant
+      await prisma.verificationToken.deleteMany({
+        where: { identifier: userEmail },
+      });
+
+      // Créer un nouveau token
+      const token = randomBytes(32).toString("hex");
+      await prisma.verificationToken.create({
+        data: {
+          identifier: userEmail,
+          token,
+          expires: new Date(Date.now() + TOKEN_TTL_MS),
+        },
+      });
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
+
+      // Envoyer l'email
+      await sendEmail({
+        to: userEmail,
+        subject: "Vérifiez votre adresse email — EduPilot",
+        html: buildVerificationEmailHtml(user.firstName, verifyUrl),
+        text: `Bonjour ${user.firstName},\n\nVérifiez votre email en cliquant sur ce lien (valide 24h) :\n${verifyUrl}\n\nSi vous n'avez pas créé de compte EduPilot, ignorez cet email.`,
+      });
+
+      logger.info("Email de vérification envoyé", { module: "api/auth/verify-email", email: userEmail });
+
       return NextResponse.json({
         success: true,
-        message: "Si votre compte existe, un email de vérification a été envoyé.",
+        message: "Email de vérification envoyé. Vérifiez votre boîte mail.",
       });
+    } catch (error) {
+      logger.error(
+        "Erreur envoi email de vérification",
+        error instanceof Error ? error : new Error(String(error)),
+        { module: "api/auth/verify-email" }
+      );
+      return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
     }
-
-    if (user.emailVerified) {
-      return NextResponse.json({ success: true, message: "Email déjà vérifié." });
-    }
-
-    // Supprimer l'ancien token si existant
-    await prisma.verificationToken.deleteMany({
-      where: { identifier: userEmail },
-    });
-
-    // Créer un nouveau token
-    const token = randomBytes(32).toString("hex");
-    await prisma.verificationToken.create({
-      data: {
-        identifier: userEmail,
-        token,
-        expires: new Date(Date.now() + TOKEN_TTL_MS),
-      },
-    });
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
-
-    // Envoyer l'email
-    await sendEmail({
-      to: userEmail,
-      subject: "Vérifiez votre adresse email — EduPilot",
-      html: buildVerificationEmailHtml(user.firstName, verifyUrl),
-      text: `Bonjour ${user.firstName},\n\nVérifiez votre email en cliquant sur ce lien (valide 24h) :\n${verifyUrl}\n\nSi vous n'avez pas créé de compte EduPilot, ignorez cet email.`,
-    });
-
-    logger.info("Email de vérification envoyé", { module: "api/auth/verify-email", email: userEmail });
-
-    return NextResponse.json({
-      success: true,
-      message: "Email de vérification envoyé. Vérifiez votre boîte mail.",
-    });
-  } catch (error) {
-    logger.error(
-      "Erreur envoi email de vérification",
-      error instanceof Error ? error : new Error(String(error)),
-      { module: "api/auth/verify-email" }
-    );
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
-  }
-}
+  },
+  { requireAuth: false },
+);
 
 // ---------------------------------------------------------------------------
 // Template HTML

@@ -381,3 +381,4 @@ export const DELETE = createApiHandler(
   },
   { requireAuth: true, allowedRoles: ["SUPER_ADMIN"] }
 );
+

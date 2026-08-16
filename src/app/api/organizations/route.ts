@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
-import { createPaginatedResponse, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler, createPaginatedResponse, getPaginationParams } from "@/lib/api/api-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
+export const GET = createApiHandler(async (request, context) => {
+        const session = context.session;
 
   const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
   const search = new URL(request.url).searchParams.get("search") || "";
@@ -88,4 +84,5 @@ export async function GET(request: NextRequest) {
     total,
     { page, limit, skip }
   );
-}
+
+});

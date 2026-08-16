@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { studentOrientationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+        const session = context.session;
 
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get("studentId");
@@ -50,18 +46,17 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json(orientations);
+    
     } catch (error) {
         logger.error(" fetching orientations:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
 
-export async function POST(request: NextRequest) {
+});
+
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const session = context.session;
 
         const body = await request.json();
         const data = studentOrientationSchema.parse(body);
@@ -92,6 +87,7 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json(orientation, { status: 201 });
+    
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
@@ -99,4 +95,6 @@ export async function POST(request: NextRequest) {
         logger.error(" creating orientation:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });
+

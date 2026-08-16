@@ -6,10 +6,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AIServiceError, aiService } from "@/lib/ai/ai-service";
 import { isZodError } from "@/lib/is-zod-error";
-import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 // Chat schema
 const chatSchema = z.object({
@@ -52,15 +52,9 @@ const modelSchema = z.object({
  * GET /api/ai/local
  * Get AI status and capabilities
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized - please sign in" },
-        { status: 401 }
-      );
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const status = aiService.getStatus();
 
@@ -85,28 +79,24 @@ export async function GET(_request: NextRequest) {
         ],
       },
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("AI status error:", error as Error);
     return NextResponse.json(
       { error: "Failed to get AI status" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * POST /api/ai/local
  * Handle AI requests
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized - please sign in" },
-        { status: 401 }
-      );
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const query = request.nextUrl.searchParams.get("endpoint");
     let body;
@@ -183,7 +173,8 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json(result);
     }
-  } catch (error) {
+  
+    } catch (error) {
     if (error instanceof AIServiceError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -204,4 +195,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});

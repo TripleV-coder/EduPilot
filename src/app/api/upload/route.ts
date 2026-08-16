@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { writeFile, mkdir, readFile, appendFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -7,6 +6,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const UPLOAD_MANIFEST_PATH = path.join(UPLOAD_DIR, ".upload-manifest.json");
@@ -106,12 +106,9 @@ async function readUploadManifest(): Promise<UploadManifestEntry[]> {
  * POST /api/upload
  * Upload files (images, documents)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -218,25 +215,24 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" uploading file:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors du téléchargement du fichier" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * GET /api/upload
  * List user's uploaded files
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const manifestEntries = await readUploadManifest();
     const files = manifestEntries
@@ -246,11 +242,14 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({
       files,
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching files:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des fichiers" },
       { status: 500 }
     );
   }
-}
+
+});
+

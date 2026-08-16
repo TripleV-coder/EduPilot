@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
   dedupeLatestAnalyticsByStudent,
@@ -7,7 +6,7 @@ import {
 } from "@/lib/analytics/helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
   const scoredAnalytics = analytics
@@ -23,17 +22,10 @@ function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
  * GET /api/analytics/school/overview
  * Obtenir une vue d'ensemble des analytics de l'établissement
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!session?.user || !roleSatisfies(session.user.role as string, allowedRoles)) {
-      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
@@ -273,11 +265,13 @@ export async function GET(request: NextRequest) {
       academicYearId: yearId,
       periods,
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching school analytics overview:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des analytics" },
       { status: 500 }
     );
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });

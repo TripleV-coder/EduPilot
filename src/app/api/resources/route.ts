@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { Prisma, ResourceType } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createResourceSchema = z.object({
   title: z.string().min(3).max(200),
@@ -27,14 +26,11 @@ const createResourceSchema = z.object({
  * GET /api/resources
  * List educational resources
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
+    const session = context.session;
+const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const subjectId = searchParams.get("subjectId");
     const classLevelId = searchParams.get("classLevelId");
@@ -140,25 +136,19 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  }
+);
 
 /**
  * POST /api/resources
  * Create educational resource (Teachers and Admins)
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
+    const session = context.session;
 
-    const allowedRoles = [
-      "SUPER_ADMIN",
-      "SCHOOL_ADMIN",
-      "DIRECTOR",
-      "TEACHER",
-    ];
-    if (!session?.user || !roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
 
     const activeSchoolId = getActiveSchoolId(session);
     if (!activeSchoolId) {
@@ -237,4 +227,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: [ "SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", ] }
+);

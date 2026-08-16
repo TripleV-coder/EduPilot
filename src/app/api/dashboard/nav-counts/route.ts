@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,9 @@ export const dynamic = "force-dynamic";
  * Chaque rôle ne calcule que les compteurs affichés par sa navigation
  * (voir src/components/edu-shell/role-nav.ts).
  */
-export async function GET() {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({}, { status: 401 });
-
-    const role = session.user.role;
+export const GET = createApiHandler(async (_request, context) => {
+        const session = context.session;
+const role = session.user.role;
     const userId = session.user.id;
     const schoolId = getActiveSchoolId(session) ?? null;
 
@@ -131,4 +129,5 @@ export async function GET() {
     }
 
     return NextResponse.json(counts);
-}
+
+});

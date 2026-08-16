@@ -32,7 +32,6 @@ const updateSchoolSchema = z.object({
 export const GET = createApiHandler(
   async (_request, { params, session }) => {
     const { id } = await params;
-
     if (!canAccessSchool(session, id)) {
       return NextResponse.json({ error: "Accès refusé à cet établissement" }, { status: 403 });
     }
@@ -119,7 +118,6 @@ export const PATCH = createApiHandler(
 export const DELETE = createApiHandler(
   async (_request, { params }) => {
     const { id } = await params;
-
     await prisma.school.delete({
       where: { id },
     });

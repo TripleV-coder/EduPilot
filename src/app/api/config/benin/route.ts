@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { primarySubjects, collegeSubjects, gradeMentions } from "@/lib/benin/config";
 import { LEVEL_CYCLES } from "@/lib/benin/levels";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 // GET: Récupérer la configuration Bénin (matières, coefficients, mentions)
-export async function GET(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+        const session = context.session;
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
 
     switch (type) {
@@ -46,4 +43,5 @@ export async function GET(req: NextRequest) {
                 mentions: gradeMentions,
             });
     }
-}
+
+});

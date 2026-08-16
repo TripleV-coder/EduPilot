@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getStudentPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * POST /api/ai/predictions/student
  * Générer des prédictions IA pour un élève
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const body = await request.json();
     const { studentId } = body;
@@ -78,25 +75,24 @@ export async function POST(request: NextRequest) {
     const result = await getStudentPredictions(studentId);
 
     return NextResponse.json(result);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" generating student predictions:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la génération des prédictions" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * GET /api/ai/predictions/student
  * Obtenir les prédictions existantes (si sauvegardées)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
@@ -140,8 +136,10 @@ export async function GET(request: NextRequest) {
     const result = await getStudentPredictions(studentId);
 
     return NextResponse.json(result);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching predictions:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+});

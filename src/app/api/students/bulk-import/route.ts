@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Gender } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
@@ -156,7 +157,7 @@ export const POST = createApiHandler(
               matricule: matricule!,
               schoolId,
               dateOfBirth,
-              gender: student.gender as any, // Cast to Schema Enum
+              gender: student.gender as unknown as Gender,
               birthPlace: student.birthPlace,
               address: student.address,
             },

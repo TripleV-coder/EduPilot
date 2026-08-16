@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
@@ -9,16 +9,10 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
  * POST /api/resources/[id]/download
  * Increment download counter and return download URL
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
 
     const resource = await prisma.resource.findUnique({
       where: { id: id },
@@ -87,4 +81,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+});

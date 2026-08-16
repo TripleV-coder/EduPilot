@@ -1,23 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 // POST /api/lessons/[id]/complete - Mark lesson as completed
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || session.user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    const studentProfile = await prisma.studentProfile.findUnique({
+    const { id } = await context.params;
+    const session = context.session;
+const studentProfile = await prisma.studentProfile.findUnique({
       where: { userId: session.user.id },
     });
 
@@ -181,19 +174,17 @@ export async function POST(
     logger.error(" completing lesson:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+
+  },
+  { allowedRoles: ["STUDENT"] }
+);
 
 // DELETE /api/lessons/[id]/complete - Unmark lesson completion (for teachers/admins)
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
@@ -303,4 +294,7 @@ export async function DELETE(
     logger.error(" removing lesson completion:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+
+  },
+  { allowedRoles: ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"] }
+);

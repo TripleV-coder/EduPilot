@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
@@ -12,14 +12,11 @@ import { parseDateRangeParams } from "@/lib/validations/date-range";
  * GET /api/attendance/stats
  * Get attendance statistics
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const url = new URL(request.url);
+    const session = context.session;
+const url = new URL(request.url);
     const { searchParams } = url;
     const studentId = searchParams.get("studentId");
     const classId = searchParams.get("classId");
@@ -29,7 +26,7 @@ export async function GET(request: NextRequest) {
     const activeSchoolId = getActiveSchoolId(session);
 
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
-    const handler = async () => {
+    const handler = async (): Promise<NextResponse> => {
       const where: Prisma.AttendanceWhereInput = {};
 
       if (studentId) where.studentId = studentId;
@@ -160,7 +157,7 @@ export async function GET(request: NextRequest) {
       });
     };
 
-    const response = await withCache(handler as any, { ttl: CACHE_TTL_SHORT, key: cacheKey });
+    const response = await withCache(handler, { ttl: CACHE_TTL_SHORT, key: cacheKey });
     return withHttpCache(response, request, { private: true, maxAge: CACHE_TTL_SHORT, staleWhileRevalidate: 15 });
   } catch (error) {
     logger.error(" fetching attendance stats:", error as Error);
@@ -169,4 +166,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  }
+);

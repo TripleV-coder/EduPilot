@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { automationService } from "@/lib/services/automation.service";
 import { logger } from "@/lib/utils/logger";
 
@@ -41,5 +42,11 @@ async function handleMaintenance(req: NextRequest) {
 }
 
 // Vercel Cron uses GET; manual/external triggers may use POST.
-export const GET = handleMaintenance;
-export const POST = handleMaintenance;
+export const GET = createApiHandler(
+    async (request) => handleMaintenance(request),
+    { requireAuth: false },
+);
+export const POST = createApiHandler(
+    async (request) => handleMaintenance(request),
+    { requireAuth: false },
+);

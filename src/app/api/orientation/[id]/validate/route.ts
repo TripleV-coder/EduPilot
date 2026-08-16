@@ -1,31 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { validateRecommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * POST /api/orientation/[id]/validate
  * Valider ou rejeter une recommandation d'orientation
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const { id } = await context.params;
+        const session = context.session;
 
     const body = await request.json();
     const data = validateRecommendationSchema.parse(body);
@@ -79,7 +67,8 @@ export async function POST(
     }
 
     return NextResponse.json(updated);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" validating recommendation:", error as Error);
     if (isZodError(error)) {
       return NextResponse.json(
@@ -89,4 +78,5 @@ export async function POST(
     }
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

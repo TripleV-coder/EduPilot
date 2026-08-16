@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/root/session
  * Vérifie si l'utilisateur courant a une session root valide
  */
-export async function GET() {
-  const session = await auth();
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
 
   if (!session?.user) {
     return NextResponse.json({ isRoot: false });
@@ -21,4 +23,7 @@ export async function GET() {
     hasValidRootSession(session);
 
   return NextResponse.json({ isRoot });
-}
+    },
+    {},
+);
+

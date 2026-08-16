@@ -65,7 +65,7 @@ export const GET = createApiHandler(
   async (request, { session }, t) => {
     const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, session.user.id);
 
-    const cachedHandler = cacheMiddleware<any>({ ttl: 60, key: cacheKey });
+    const cachedHandler = cacheMiddleware({ ttl: 60, key: cacheKey });
 
     const handler = async () => {
       const { searchParams } = new URL(request.url);

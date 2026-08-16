@@ -1,13 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/rbac/api-guard";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const createHomeworkSchema = z.object({
   classSubjectId: z.string().cuid(),
@@ -75,12 +73,10 @@ const createHomeworkSchema = z.object({
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!requireAuth(session)) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const session = context.session;
 
     const searchParams = request.nextUrl?.searchParams ?? new URL(request.url).searchParams;
     const classSubjectId = searchParams.get("classSubjectId");
@@ -279,27 +275,20 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  }
+);
 
 /**
  * POST /api/homework
  * Create homework assignment (Teachers only)
  */
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    // Only teachers and admins can create homework
-    const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-    if (!roleSatisfies(session.user.role, allowedRoles)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    const body = await request.json();
+    const session = context.session;
+// Only teachers and admins can create homework
+const body = await request.json();
     const validatedData = createHomeworkSchema.parse(body);
     // Verify teacher has access to this classSubject
     if (session.user.role === "TEACHER") {
@@ -413,4 +402,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);

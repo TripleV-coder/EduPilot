@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -7,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const updateScholarshipSchema = z.object({
   name: z.string().min(3).max(200).optional(),
@@ -20,16 +20,10 @@ const updateScholarshipSchema = z.object({
 });
 
 // GET /api/scholarships/[id] - Get scholarship details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = createApiHandler(async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
     const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
     if (guard) return guard;
 
@@ -101,43 +95,39 @@ export async function GET(
     logger.error(" fetching scholarship:", error as Error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
-}
+});
 
 // PATCH /api/scholarships/[id] - Update scholarship
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-    const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
-    if (guard) return guard;
+export const PATCH = createApiHandler(
+  async (request, context) => {
+    try {
+      const { id } = await context.params;
+      const session = context.session;
+      const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
+      if (guard) return guard;
 
-    const body = await request.json();
-    const validatedData = updateScholarshipSchema.parse(body);
+      const body = await request.json();
+      const validatedData = updateScholarshipSchema.parse(body);
 
-    const scholarship = await prisma.scholarship.findUnique({
-      where: { id: id },
-      include: {
-        student: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
+      const scholarship = await prisma.scholarship.findUnique({
+        where: { id: id },
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
               },
-            },
-            parentStudents: {
-              include: {
-                parent: {
-                  include: {
-                    user: {
-                      select: { id: true },
+              parentStudents: {
+                include: {
+                  parent: {
+                    include: {
+                      user: {
+                        select: { id: true },
+                      },
                     },
                   },
                 },
@@ -145,54 +135,144 @@ export async function PATCH(
             },
           },
         },
-      },
-    });
+      });
 
-    if (!scholarship) {
-      return NextResponse.json({ error: "Bourse non trouvée" }, { status: 404 });
+      if (!scholarship) {
+        return NextResponse.json({ error: "Bourse non trouvée" }, { status: 404 });
+      }
+
+      const wasActive = scholarship.isActive;
+
+      const updateData: Prisma.ScholarshipUpdateInput = {};
+      if (validatedData.name !== undefined) updateData.name = validatedData.name;
+      if (validatedData.type !== undefined) updateData.type = validatedData.type as Prisma.ScholarshipUpdateInput["type"];
+      if (validatedData.amount !== undefined) updateData.amount = validatedData.amount;
+      if (validatedData.percentage !== undefined) updateData.percentage = validatedData.percentage;
+      if (validatedData.startDate !== undefined) updateData.startDate = new Date(validatedData.startDate);
+      if (validatedData.endDate !== undefined) {
+        updateData.endDate = validatedData.endDate ? new Date(validatedData.endDate) : null;
+      }
+      if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
+      if (validatedData.notes !== undefined) updateData.notes = validatedData.notes;
+
+      const updatedScholarship = await prisma.scholarship.update({
+        where: { id: id },
+        data: updateData,
+      });
+
+      // Log audit
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "UPDATE",
+          entity: "Scholarship",
+          entityId: id,
+        },
+      });
+
+      // Notify if status changed
+      if (wasActive !== updatedScholarship.isActive) {
+        const status = updatedScholarship.isActive ? "activée" : "désactivée";
+
+        // Notify student
+        await prisma.notification.create({
+          data: {
+            userId: scholarship.student.user.id,
+            type: updatedScholarship.isActive ? "INFO" : "WARNING",
+            title: `Bourse ${status}`,
+            message: `Votre bourse "${updatedScholarship.name}" a été ${status}`,
+            link: `/scholarships/${id}`,
+          },
+        });
+
+        // Notify parents
+        if (scholarship.student.parentStudents.length > 0) {
+          await prisma.notification.createMany({
+            data: scholarship.student.parentStudents.map(link => ({
+              userId: link.parent.user.id,
+              type: updatedScholarship.isActive ? "INFO" : "WARNING",
+              title: `Bourse ${status}`,
+              message: `La bourse "${updatedScholarship.name}" de ${scholarship.student.user.firstName} a été ${status}`,
+              link: `/scholarships/${id}`,
+            })),
+          });
+        }
+      }
+
+      return NextResponse.json(updatedScholarship);
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
+      }
+      logger.error(" updating scholarship:", error as Error);
+      return NextResponse.json({ error: "Erreur" }, { status: 500 });
     }
+  },
+  { allowedRoles: ["SCHOOL_ADMIN", "DIRECTOR"] }
+);
 
-    const wasActive = scholarship.isActive;
+// DELETE /api/scholarships/[id] - Delete scholarship
+export const DELETE = createApiHandler(
+  async (request, context) => {
+    try {
+      const { id } = await context.params;
+      const session = context.session;
+      const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
+      if (guard) return guard;
 
-    const updateData: Prisma.ScholarshipUpdateInput = {};
-    if (validatedData.name !== undefined) updateData.name = validatedData.name;
-    if (validatedData.type !== undefined) updateData.type = validatedData.type as any;
-    if (validatedData.amount !== undefined) updateData.amount = validatedData.amount;
-    if (validatedData.percentage !== undefined) updateData.percentage = validatedData.percentage;
-    if (validatedData.startDate !== undefined) updateData.startDate = new Date(validatedData.startDate);
-    if (validatedData.endDate !== undefined) {
-      updateData.endDate = validatedData.endDate ? new Date(validatedData.endDate) : null;
-    }
-    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
-    if (validatedData.notes !== undefined) updateData.notes = validatedData.notes;
+      const scholarship = await prisma.scholarship.findUnique({
+        where: { id: id },
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+              parentStudents: {
+                include: {
+                  parent: {
+                    include: {
+                      user: {
+                        select: { id: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
 
-    const updatedScholarship = await prisma.scholarship.update({
-      where: { id: id },
-      data: updateData,
-    });
+      if (!scholarship) {
+        return NextResponse.json({ error: "Bourse non trouvée" }, { status: 404 });
+      }
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: "UPDATE",
-        entity: "Scholarship",
-        entityId: id,
-      },
-    });
+      await prisma.scholarship.delete({
+        where: { id: id },
+      });
 
-    // Notify if status changed
-    if (wasActive !== updatedScholarship.isActive) {
-      const status = updatedScholarship.isActive ? "activée" : "désactivée";
+      // Log audit
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "DELETE",
+          entity: "Scholarship",
+          entityId: id,
+        },
+      });
 
       // Notify student
       await prisma.notification.create({
         data: {
           userId: scholarship.student.user.id,
-          type: updatedScholarship.isActive ? "INFO" : "WARNING",
-          title: `Bourse ${status}`,
-          message: `Votre bourse "${updatedScholarship.name}" a été ${status}`,
-          link: `/scholarships/${id}`,
+          type: "WARNING",
+          title: "Bourse supprimée",
+          message: `Votre bourse "${scholarship.name}" a été supprimée`,
         },
       });
 
@@ -201,110 +281,18 @@ export async function PATCH(
         await prisma.notification.createMany({
           data: scholarship.student.parentStudents.map(link => ({
             userId: link.parent.user.id,
-            type: updatedScholarship.isActive ? "INFO" : "WARNING",
-            title: `Bourse ${status}`,
-            message: `La bourse "${updatedScholarship.name}" de ${scholarship.student.user.firstName} a été ${status}`,
-            link: `/scholarships/${id}`,
+            type: "WARNING",
+            title: "Bourse supprimée",
+            message: `La bourse "${scholarship.name}" de ${scholarship.student.user.firstName} a été supprimée`,
           })),
         });
       }
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      logger.error(" deleting scholarship:", error as Error);
+      return NextResponse.json({ error: "Erreur" }, { status: 500 });
     }
-
-    return NextResponse.json(updatedScholarship);
-  } catch (error) {
-    if (isZodError(error)) {
-      return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
-    }
-    logger.error(" updating scholarship:", error as Error);
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
-
-// DELETE /api/scholarships/[id] - Delete scholarship
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user || !roleSatisfies(session.user.role, ["SCHOOL_ADMIN", "DIRECTOR"])) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-    const guard = await assertModelAccess(session, "scholarship", id, "Bourse non trouvée");
-    if (guard) return guard;
-
-    const scholarship = await prisma.scholarship.findUnique({
-      where: { id: id },
-      include: {
-        student: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-            parentStudents: {
-              include: {
-                parent: {
-                  include: {
-                    user: {
-                      select: { id: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!scholarship) {
-      return NextResponse.json({ error: "Bourse non trouvée" }, { status: 404 });
-    }
-
-    await prisma.scholarship.delete({
-      where: { id: id },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: "DELETE",
-        entity: "Scholarship",
-        entityId: id,
-      },
-    });
-
-    // Notify student
-    await prisma.notification.create({
-      data: {
-        userId: scholarship.student.user.id,
-        type: "WARNING",
-        title: "Bourse supprimée",
-        message: `Votre bourse "${scholarship.name}" a été supprimée`,
-      },
-    });
-
-    // Notify parents
-    if (scholarship.student.parentStudents.length > 0) {
-      await prisma.notification.createMany({
-        data: scholarship.student.parentStudents.map(link => ({
-          userId: link.parent.user.id,
-          type: "WARNING",
-          title: "Bourse supprimée",
-          message: `La bourse "${scholarship.name}" de ${scholarship.student.user.firstName} a été supprimée`,
-        })),
-      });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error(" deleting scholarship:", error as Error);
-    return NextResponse.json({ error: "Erreur" }, { status: 500 });
-  }
-}
+  },
+  { allowedRoles: ["SCHOOL_ADMIN", "DIRECTOR"] }
+);

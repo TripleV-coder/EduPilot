@@ -136,7 +136,7 @@ export const GET = createApiHandler(
       return createPaginatedResponse(classes, total, { page, limit, skip });
     };
 
-    const response = await withCache(handler as any, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
+    const response = await withCache(handler, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
     return withHttpCache(response, request, {
       private: true,
       maxAge: CACHE_TTL_MEDIUM,

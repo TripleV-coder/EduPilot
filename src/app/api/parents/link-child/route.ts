@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { verifyLinkCode } from "@/lib/parents/link-code";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const schema = z.object({
     matricule: z.string().min(1, "Matricule requis").trim(),
@@ -14,18 +14,9 @@ const schema = z.object({
     relationship: z.string().default("PARENT"),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-        }
-        if (session.user.role !== "PARENT") {
-            return NextResponse.json(
-                { error: "Réservé aux comptes parents" },
-                { status: 403 }
-            );
-        }
+        const session = context.session;
 
         const body = await request.json();
         const data = schema.parse(body);
@@ -158,6 +149,7 @@ export async function POST(request: NextRequest) {
             },
             { status: 201 }
         );
+    
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json(
@@ -171,4 +163,5 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+
+}, { allowedRoles: ["PARENT"] });

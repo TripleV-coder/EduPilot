@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { predictFailureRisk } from "@/lib/ai/n8n-client";
@@ -7,13 +6,11 @@ import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-        }
+        const session = context.session;
 
         const identifier = `${session.user.id}:${getClientIdentifier(request)}`;
         const rl = await checkRateLimit(strictLimiter, `ai:predict-failure:${identifier}`);
@@ -73,8 +70,10 @@ export async function POST(request: NextRequest) {
         const result = await predictFailureRisk(predictionPayload);
         return NextResponse.json(result);
 
+    
     } catch (error) {
         logger.error("Error in AI prediction:", error as Error);
         return NextResponse.json({ error: "Erreur lors de la prédiction" }, { status: 500 });
     }
-}
+
+});

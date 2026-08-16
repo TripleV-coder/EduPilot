@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { requireRoot } from "@/lib/security/require-root";
 import { getRootSystemMap } from "@/lib/services/root-system-map";
 import { logger } from "@/lib/utils/logger";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await auth();
+export const GET = createApiHandler(
+    async (request, context) => {
+
+  const session = context.session;
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
@@ -21,4 +23,7 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+    },
+    {},
+);
+

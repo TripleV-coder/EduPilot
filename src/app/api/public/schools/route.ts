@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, type SchoolType, type SchoolLevel } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
+import { createApiHandler } from "@/lib/api/api-helpers";
 /** Champs strictement publics exposés dans l'annuaire (jamais d'effectifs/finances). */
 const PUBLIC_SELECT = {
     id: true,
@@ -25,7 +26,9 @@ const PAGE_SIZE = 12;
  * GET /api/public/schools — annuaire public filtrable (aucune authentification).
  * Ne renvoie que les établissements publiés (isPublic) et actifs.
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+    async (request, context) => {
+
     const url = new URL(request.url);
     const q = url.searchParams.get("q")?.trim() ?? "";
     const region = url.searchParams.get("region")?.trim() ?? "";
@@ -70,4 +73,7 @@ export async function GET(request: NextRequest) {
         regions: regions.map((r) => r.region).filter(Boolean),
         schools,
     });
-}
+    },
+    { requireAuth: false },
+);
+

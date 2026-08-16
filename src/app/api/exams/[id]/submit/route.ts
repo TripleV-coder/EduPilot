@@ -1,22 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = createApiHandler(
+  async (request, context) => {
   try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    if (session.user.role !== "STUDENT") {
-        return NextResponse.json({ error: "Seuls les élèves peuvent passer des examens" }, { status: 403 });
-    }
+    const { id } = await context.params;
+    const session = context.session;
 
     const body = await request.json();
     const { answers } = body; // Map of questionId -> answer string
@@ -102,4 +93,6 @@ export async function POST(
     logger.error("Error submitting exam:", error as Error);
     return NextResponse.json({ error: "Erreur lors de la soumission de l'examen" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["STUDENT"] },
+);

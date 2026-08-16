@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import { aiService } from "@/lib/ai/ai-service";
+import { aiService, OrientationRecommendation } from "@/lib/ai/ai-service";
 import { SubjectGroup } from "@prisma/client";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const SUBJECT_MAPPING: Record<string, SubjectGroup> = {
     "mathématiques": "SCIENTIFIQUE",
@@ -29,12 +28,9 @@ const SUBJECT_MAPPING: Record<string, SubjectGroup> = {
     "allemand": "LANGUES",
 };
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = await auth();
-        if (!session?.user || !roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        const session = context.session;
 
         const body = await request.json();
         const { studentId, academicYearId } = body;
@@ -43,7 +39,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "studentId et academicYearId requis" }, { status: 400 });
         }
 
-        const result = await aiService.executeGovernance({
+        const result = await aiService.executeGovernance<OrientationRecommendation>({
             action: "recommend-orientation",
             userId: session.user.id,
             userRole: session.user.role,
@@ -72,10 +68,12 @@ export async function POST(request: NextRequest) {
             engine: result.data.engine // optional flag
         });
 
+    
     } catch (error) {
         logger.error("AI Orientation Generation:", error);
         return NextResponse.json({ 
             error: error instanceof Error ? error.message : "Erreur lors de la génération de l'avis IA" 
         }, { status: 500 });
     }
-}
+
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });

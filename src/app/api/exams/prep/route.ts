@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { examPrepService } from "@/lib/benin/exam-prep-service";
 import { logger } from "@/lib/utils/logger";
 import prisma from "@/lib/prisma";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 // GET: Analyser la préparation d'un élève ou d'une classe
-export async function GET(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (req, context) => {
+    const session = context.session;
 
     const { searchParams } = new URL(req.url);
     const examType = (searchParams.get("exam") || "CEP") as "CEP" | "BEPC";
@@ -62,4 +59,4 @@ export async function GET(req: NextRequest) {
         logger.error("Exam prep failed", error instanceof Error ? error : new Error(String(error)), { module: "api/exams/prep" });
         return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
     }
-}
+});

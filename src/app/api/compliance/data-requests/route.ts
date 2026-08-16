@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma, DataAccessStatus } from "@prisma/client";
-import { auth } from "@/lib/auth";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -17,12 +17,9 @@ const createDataRequestSchema = z.object({
  * GET /api/compliance/data-requests
  * List data access requests
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -88,25 +85,24 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error(" fetching data requests:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des demandes" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * POST /api/compliance/data-requests
  * Create a new data access request (GDPR right)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const body = await request.json();
     const validatedData = createDataRequestSchema.parse(body);
@@ -186,7 +182,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(dataRequest, { status: 201 });
-  } catch (error) {
+  
+    } catch (error) {
     if (isZodError(error)) {
       return NextResponse.json(
         { error: "Données invalides", details: error.issues },
@@ -200,4 +197,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});
+

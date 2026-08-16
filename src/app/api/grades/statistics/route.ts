@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import {
   averageNumbers,
@@ -22,9 +22,10 @@ function mergeClassSubjectWhere(
 }
 
 // GET /api/grades/statistics - Get grade statistics
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
+    const session = context.session;
     if (!session?.user) {
       return NextResponse.json(
         { error: "Non authentifié", code: "UNAUTHORIZED" },
@@ -380,4 +381,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+  }
+);

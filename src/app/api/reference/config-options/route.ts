@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
-import { auth } from "@/lib/auth";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-// Removed authOptions import
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/reference/config-options
@@ -14,12 +13,9 @@ import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant
  * - category: RELATIONSHIP_TYPE, ALLERGY_SEVERITY, BLOOD_TYPE, etc.
  * - schoolId: Filtre par école (optionnel, retourne aussi options globales)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
@@ -63,25 +59,24 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(options);
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Erreur lors de la récupération des options:", error);
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }
     );
   }
-}
+
+});
 
 /**
  * POST /api/reference/config-options
  * Créer une nouvelle option de configuration
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const POST = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
 
     // Seuls SUPER_ADMIN peut créer des options globales
     // Les admins d'école peuvent créer des options pour leur école
@@ -118,7 +113,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(option, { status: 201 });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("Erreur lors de la création de l'option:", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -133,4 +129,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+
+});

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/lib/auth";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 
@@ -9,15 +9,10 @@ import { logger } from "@/lib/utils/logger";
  * Returns the progress for a student across all enrolled courses.
  * Uses the existing CourseEnrollment and LessonCompletion models.
  */
-export async function GET(request: NextRequest) {
+export const GET = createApiHandler(
+  async (request, context) => {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-    if (session.user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get("courseId");
@@ -99,4 +94,6 @@ export async function GET(request: NextRequest) {
     logger.error("Error fetching course progress", error instanceof Error ? error : new Error(String(error)), { module: "api/courses/progress" });
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-}
+  },
+  { allowedRoles: ["STUDENT"] },
+);

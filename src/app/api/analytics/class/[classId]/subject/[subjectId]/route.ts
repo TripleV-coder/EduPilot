@@ -1,31 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { createApiHandler } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/class/[classId]/subject/[subjectId]
  * Statistiques d'une matière dans une classe
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ classId: string; subjectId: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const { classId, subjectId } = await context.params;
+        const session = context.session;
 
     const allowedRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
     if (!roleSatisfies(session.user.role as string, allowedRoles)) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
-
-    const { classId, subjectId } = await params;
 
     // Find the classSubject
     const classSubject = await prisma.classSubject.findUnique({
@@ -189,11 +182,13 @@ export async function GET(
       studentGrades,
       evaluations,
     });
-  } catch (error) {
+  
+    } catch (error) {
     logger.error("fetching subject analytics:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des analytics de matière" },
       { status: 500 }
     );
   }
-}
+
+});
