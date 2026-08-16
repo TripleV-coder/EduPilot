@@ -16,13 +16,13 @@ describe("utils/drilldown", () => {
 
   it("handleRiskPieClick reads payload.name first", () => {
     const cb = vi.fn();
-    handleRiskPieClick({ payload: { name: "HIGH" }, name: "ignored" } as any, cb);
+    handleRiskPieClick({ payload: { name: "HIGH" }, name: "ignored" }, cb);
     expect(cb).toHaveBeenCalledWith({ riskLevel: "HIGH" });
   });
 
   it("handleRiskPieClick falls back to segment.name", () => {
     const cb = vi.fn();
-    handleRiskPieClick({ name: "MEDIUM" } as any, cb);
+    handleRiskPieClick({ name: "MEDIUM" }, cb);
     expect(cb).toHaveBeenCalledWith({ riskLevel: "MEDIUM" });
   });
 

@@ -17,6 +17,7 @@ import {
   resolvePreviousFinanceDateRange,
   syncPaymentPlanLedger,
 } from "@/lib/finance/helpers";
+import type { AcademicYear } from "@prisma/client";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -134,7 +135,7 @@ describe("resolveFinanceDateRange", () => {
   it("résout l'année académique courante depuis la DB", async () => {
     const startDate = new Date("2025-09-01");
     const endDate = new Date("2026-06-30");
-    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ startDate, endDate } as any);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ startDate, endDate } as unknown as AcademicYear);
 
     const range = await resolveFinanceDateRange("school1", "academic");
 
@@ -186,7 +187,10 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
     return {
       paymentPlan: {
         findFirst: vi.fn().mockResolvedValue(options.plan),
-        update: vi.fn().mockImplementation(async (args: any) => ({ id: "plan1", ...args.data })),
+        update: vi.fn().mockImplementation(async (args: Prisma.PaymentPlanUpdateArgs) => ({
+          id: "plan1",
+          ...args.data,
+        })),
       },
       payment: {
         findMany: vi.fn().mockResolvedValue(options.payments ?? []),
@@ -195,8 +199,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
         update: vi.fn().mockResolvedValue({}),
         findMany: vi.fn().mockResolvedValue(options.refreshedInstallments ?? []),
       },
-       
-    } as any;
+    } as unknown as Parameters<typeof syncPaymentPlanLedger>[0];
   }
 
   const pastDue = new Date(Date.now() - 10 * 24 * 3600 * 1000);
@@ -234,10 +237,12 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
 
     const result = await syncPaymentPlanLedger(db, "student1", "fee1");
 
-    const updates = db.installmentPayment.update.mock.calls.map((call: any) => ({
-      id: call[0].where.id,
-      ...call[0].data,
-    }));
+    const updates = db.installmentPayment.update.mock.calls.map(
+      (call: [{ where: { id: string }; data: Record<string, unknown> }]) => ({
+        id: call[0].where.id,
+        ...call[0].data,
+      })
+    );
     expect(updates).toEqual([
       { id: "i1", status: "PAID", paidAt },
       { id: "i2", status: "OVERDUE", paidAt: null },
@@ -278,7 +283,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
 
     // L'échéance annulée n'est jamais mise à jour
     const updatedIds = db.installmentPayment.update.mock.calls.map(
-      (call: any) => call[0].where.id
+      (call: [{ where: { id: string }; data: Record<string, unknown> }]) => call[0].where.id
     );
     expect(updatedIds).toEqual(["i2", "i3"]);
 
@@ -313,10 +318,12 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
 
     await syncPaymentPlanLedger(db, "student1", "fee1");
 
-    const updates = db.installmentPayment.update.mock.calls.map((call: any) => ({
-      id: call[0].where.id,
-      status: call[0].data.status,
-    }));
+    const updates = db.installmentPayment.update.mock.calls.map(
+      (call: [{ where: { id: string }; data: Record<string, unknown> }]) => ({
+        id: call[0].where.id,
+        status: call[0].data.status,
+      })
+    );
     expect(updates).toEqual([
       { id: "i1", status: "PAID" },
       { id: "i2", status: "PAID" },

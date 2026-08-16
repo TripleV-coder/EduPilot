@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/auth/register/route";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -10,7 +11,7 @@ function makeJsonRequest(url: string, body: unknown) {
     url,
     method: "POST",
     headers: new Headers({ "Content-Type": "application/json" }),
-  } as any;
+  } as unknown as NextRequest;
 }
 
 describe("POST /api/auth/register (deprecated)", () => {

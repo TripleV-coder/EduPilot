@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Session } from "next-auth";
+import type { NextRequest } from "next/server";
+import type { TeacherProfile, Homework } from "@prisma/client";
 import { GET, POST } from "@/app/api/homework/route";
 import { auth } from "@/lib/auth";
 
@@ -47,7 +50,7 @@ function makeMockRequest(url: string, init?: { method?: string; body?: unknown }
     headers: new Headers({ "Content-Type": "application/json" }),
     json: init?.body ? () => Promise.resolve(init.body) : undefined,
     nextUrl: parsedUrl,
-  } as any;
+  } as unknown as NextRequest;
 }
 
 describe("GET /api/homework", () => {
@@ -76,18 +79,18 @@ describe("GET /api/homework", () => {
       },
     };
 
-    vi.mocked(auth).mockResolvedValue(mockSession as any);
+    vi.mocked(auth).mockResolvedValue(mockSession as unknown as Session);
     vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({
       id: "tp1",
       classSubjects: [{ id: "cs1" }],
-    } as any);
+    } as unknown as TeacherProfile);
     vi.mocked(prisma.homework.findMany).mockResolvedValue([
       {
         id: "hw1",
         title: "Devoir 1",
         isPublished: true,
       },
-    ] as any);
+    ] as unknown as Homework[]);
     vi.mocked(prisma.homework.count).mockResolvedValue(1);
 
     const request = makeMockRequest("http://localhost:3000/api/homework");
@@ -132,7 +135,7 @@ describe("POST /api/homework", () => {
       },
     };
 
-    vi.mocked(auth).mockResolvedValue(mockSession as any);
+    vi.mocked(auth).mockResolvedValue(mockSession as unknown as Session);
 
     const request = makeMockRequest("http://localhost:3000/api/homework", {
       method: "POST",

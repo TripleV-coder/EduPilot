@@ -40,7 +40,7 @@ describe("validations/school", () => {
         schoolSchema.safeParse({
           name: "OK",
           code: "C1",
-          type: "GOV" as any,
+          type: "GOV" as never,
           level: "PRIMARY",
         }).success
       ).toBe(false);

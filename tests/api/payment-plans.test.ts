@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Prisma } from "@prisma/client";
+import type { PaymentPlan, InstallmentPayment, StudentProfile, Fee, Payment, Scholarship } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
-  const prismaMock: Record<string, any> = {
+  const prismaMock: Record<string, unknown> = {
     paymentPlan: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -48,11 +50,11 @@ describe("GET /api/payment-plans", () => {
 
   it("restreint un STUDENT à ses propres plans", async () => {
     const session = makeSession("STUDENT");
-    vi.mocked(auth).mockResolvedValue(session as any);
+    vi.mocked(auth).mockResolvedValue(session);
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
-    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as any);
+    } as unknown as StudentProfile);
+    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as unknown as PaymentPlan[]);
 
     const response = await GET(makeRequest("http://localhost:3000/api/payment-plans"));
 
@@ -63,8 +65,8 @@ describe("GET /api/payment-plans", () => {
   });
 
   it("restreint un SCHOOL_ADMIN à son école", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
-    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as unknown as PaymentPlan[]);
 
     const response = await GET(makeRequest("http://localhost:3000/api/payment-plans"));
 
@@ -75,7 +77,7 @@ describe("GET /api/payment-plans", () => {
   });
 
   it("refuse un TEACHER (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await GET(makeRequest("http://localhost:3000/api/payment-plans"));
     expect(response.status).toBe(403);
@@ -95,17 +97,17 @@ describe("POST /api/payment-plans", () => {
       id: FIXTURES.studentA,
       schoolId: FIXTURES.schoolA,
       user: { id: cuid("userstudenta"), firstName: "Awa", lastName: "Dossou" },
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.fee.findFirst).mockResolvedValue({
       id: FIXTURES.feeA,
       schoolId: FIXTURES.schoolA,
       name: "Scolarité",
       amount: feeAmount,
-    } as any);
+    } as unknown as Fee);
   }
 
   it("refuse un PARENT (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("PARENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
@@ -114,7 +116,7 @@ describe("POST /api/payment-plans", () => {
   });
 
   it("rejette un body invalide (400 Zod) — 13 échéances", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", {
@@ -126,12 +128,12 @@ describe("POST /api/payment-plans", () => {
   });
 
   it("bloque la création cross-tenant (élève d'une autre école)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.studentProfile.findFirst).mockResolvedValue({
       id: FIXTURES.studentB,
       schoolId: FIXTURES.schoolB,
       user: { id: cuid("userstudentb"), firstName: "X", lastName: "Y" },
-    } as any);
+    } as unknown as StudentProfile);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", {
@@ -145,9 +147,9 @@ describe("POST /api/payment-plans", () => {
   });
 
   it("refuse un doublon de plan actif (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: planId } as any);
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: planId } as unknown as PaymentPlan);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
@@ -158,14 +160,14 @@ describe("POST /api/payment-plans", () => {
   });
 
   it("crée le plan : 4 échéances mensuelles égales, bourse déduite, notifications émises", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee(120000);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
     // Bourse active de 25% → total dû = 90 000, soit 22 500 par échéance
     vi.mocked(prisma.scholarship.findMany).mockResolvedValue([
       { percentage: 25, amount: null },
-    ] as any);
-    vi.mocked(prisma.paymentPlan.create).mockImplementation(async (args: any) => ({
+    ] as unknown as Scholarship[]);
+    vi.mocked(prisma.paymentPlan.create).mockImplementation(async (args: Prisma.PaymentPlanCreateArgs) => ({
       id: planId,
       ...args.data,
       installmentPayments: args.data.installmentPayments.create,
@@ -174,7 +176,7 @@ describe("POST /api/payment-plans", () => {
         parentStudents: [{ parent: { user: { id: cuid("userparenta") } } }],
       },
       fee: { id: FIXTURES.feeA, name: "Scolarité" },
-    }) as any);
+    }) as unknown as PaymentPlan);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
@@ -183,7 +185,7 @@ describe("POST /api/payment-plans", () => {
 
     expect(response.status).toBe(201);
 
-    const createArgs = vi.mocked(prisma.paymentPlan.create).mock.calls[0][0] as any;
+    const createArgs = vi.mocked(prisma.paymentPlan.create).mock.calls[0][0];
     expect(createArgs.data.totalAmount).toBe(90000);
     expect(createArgs.data.status).toBe("ACTIVE");
 
@@ -198,7 +200,7 @@ describe("POST /api/payment-plans", () => {
     expect(new Date(installments[3].dueDate).getMonth()).toBe(11); // décembre
 
     // Cohérence du total : somme des échéances = total dû
-    const sum = installments.reduce((acc: number, i: any) => acc + i.amount, 0);
+    const sum = installments.reduce((acc: number, i: { amount: number }) => acc + i.amount, 0);
     expect(sum).toBe(body.totalAmount);
 
     // Audit + notifications élève et parents
@@ -242,21 +244,21 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
    * (select imbriqué schoolId) puis par la route (include complet).
    */
   function mockInstallmentLookups(record: ReturnType<typeof installmentRecord> | null) {
-    vi.mocked(prisma.installmentPayment.findUnique).mockImplementation(async (args: any) => {
+    vi.mocked(prisma.installmentPayment.findUnique).mockImplementation(async (args: Prisma.InstallmentPaymentFindUniqueArgs) => {
       if (args?.select) {
         if (!record) return null;
         return {
           paymentPlan: {
-            student: { schoolId: (record.paymentPlan as any).student.schoolId },
+            student: { schoolId: record.paymentPlan.student.schoolId },
           },
-        } as any;
+        } as unknown as InstallmentPayment;
       }
-      return record as any;
+      return record as unknown as InstallmentPayment;
     });
   }
 
   it("refuse un PARENT (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("PARENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
 
     const response = await POST_PAY(
       makeRequest("http://localhost:3000/api/payment-plans/x/installments/y/pay", {
@@ -269,7 +271,7 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
   });
 
   it("retourne 404 si la mensualité est introuvable (ou hors tenant)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(null);
 
     const response = await POST_PAY(
@@ -283,9 +285,9 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
   });
 
   it("bloque l'accès cross-tenant à une mensualité d'une autre école (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     const record = installmentRecord();
-    (record.paymentPlan as any).student.schoolId = FIXTURES.schoolB;
+    record.paymentPlan.student.schoolId = FIXTURES.schoolB;
     mockInstallmentLookups(record);
 
     const response = await POST_PAY(
@@ -301,7 +303,7 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
   });
 
   it("rejette une mensualité déjà payée (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(installmentRecord({ status: "PAID" }));
 
     const response = await POST_PAY(
@@ -315,7 +317,7 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
   });
 
   it("rejette si la mensualité n'appartient pas au plan de l'URL (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(installmentRecord({ paymentPlanId: cuid("autreplan") }));
 
     const response = await POST_PAY(
@@ -329,19 +331,19 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
   });
 
   it("encaisse la mensualité : statut PAID, montant cumulé, payment créé, notification", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(installmentRecord());
     vi.mocked(prisma.installmentPayment.update).mockResolvedValue({
       id: installmentId,
       status: "PAID",
-    } as any);
+    } as unknown as InstallmentPayment);
     vi.mocked(prisma.paymentPlan.update).mockResolvedValue({
       id: planId,
       status: "ACTIVE",
       installments: 4,
       installmentPayments: [{ status: "PAID" }],
-    } as any);
-    vi.mocked(prisma.payment.create).mockResolvedValue({ id: cuid("pay1") } as any);
+    } as unknown as PaymentPlan);
+    vi.mocked(prisma.payment.create).mockResolvedValue({ id: cuid("pay1") } as unknown as Payment);
     // syncPaymentPlanLedger : plan toujours actif après ce versement (90 000 / 120 000)
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({
       id: planId,
@@ -349,12 +351,12 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       paidAmount: 60000,
       fee: { dueDate: null },
       installmentPayments: [],
-    } as any);
+    } as unknown as PaymentPlan);
     vi.mocked(prisma.payment.findMany).mockResolvedValue([
       { amount: 60000, paidAt: new Date("2026-08-01"), createdAt: new Date("2026-08-01") },
       { amount: 30000, paidAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") },
-    ] as any);
-    vi.mocked(prisma.installmentPayment.findMany).mockResolvedValue([] as any);
+    ] as unknown as Payment[]);
+    vi.mocked(prisma.installmentPayment.findMany).mockResolvedValue([] as unknown as InstallmentPayment[]);
 
     const response = await POST_PAY(
       makeRequest("http://localhost:3000/api/payment-plans/x/installments/y/pay", {

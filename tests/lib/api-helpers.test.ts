@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { Permission } from "@/lib/rbac/permissions";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn().mockResolvedValue(null) }));
@@ -15,7 +15,7 @@ describe("API helpers", () => {
   /** Helper to build mock request with nextUrl for vitest */
   function mockReq(url: string) {
     const parsedUrl = new URL(url);
-    return { url, nextUrl: parsedUrl } as any;
+    return { url, nextUrl: parsedUrl } as unknown as NextRequest;
   }
 
   describe("getPaginationParams", () => {

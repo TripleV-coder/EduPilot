@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Session } from "next-auth";
 import { resolveActiveSchoolId } from "@/lib/auth/school-access";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 
@@ -40,7 +41,7 @@ describe("school access helpers", () => {
       const { prisma } = await import("@/lib/prisma");
 
       // Mock school response
-      (prisma.school.findUnique as any).mockResolvedValueOnce({
+      (prisma.school.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         id: "main-school",
         siteType: "MAIN",
         childSchools: [{ id: "annexe-1" }, { id: "annexe-2" }],
@@ -62,7 +63,7 @@ describe("school access helpers", () => {
       const { getAccessibleSchoolIdsForUser } = await import("@/lib/auth/school-access");
       const { prisma } = await import("@/lib/prisma");
 
-      (prisma.school.findUnique as any).mockResolvedValueOnce({
+      (prisma.school.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         id: "annexe-school",
         siteType: "ANNEXE",
         childSchools: [],
@@ -82,10 +83,10 @@ describe("school access helpers", () => {
       const { prisma } = await import("@/lib/prisma");
 
       // Mock assignments
-      (prisma.classSubject.findMany as any).mockResolvedValueOnce([
+      (prisma.classSubject.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
         { class: { schoolId: "school-a" } }
       ]);
-      (prisma.class.findMany as any).mockResolvedValueOnce([
+      (prisma.class.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
         { schoolId: "school-b" }
       ]);
 
@@ -109,7 +110,7 @@ describe("school access helpers", () => {
         schoolId: "school-1",
         accessibleSchoolIds: ["school-1", "school-2"],
       },
-    } as any;
+    } as unknown as Session;
 
     it("returns accessible school ids from session when available", () => {
       expect(getAccessibleSchoolIds(session)).toEqual(["school-1", "school-2"]);

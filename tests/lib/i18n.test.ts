@@ -25,9 +25,8 @@ describe("i18n.t", () => {
     expect(msg).toContain("100");
   });
 
-  it("returns nested object when path stops at object", () => {
-    const node = t("api.issues");
-    expect(typeof node).toBe("object");
-    expect(node.unauthorized).toBe("Non authentifié");
+  it("returns the key when path stops on a non-string node", () => {
+    // `t` is typed to always return a string for UI/API usage.
+    expect(t("api.issues")).toBe("api.issues");
   });
 });

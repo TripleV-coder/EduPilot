@@ -30,7 +30,7 @@ describe("validations/user", () => {
     });
 
     it("rejects unknown role", () => {
-      const r = userSchema.safeParse({ ...validUserBase, role: "ROOT" as any });
+      const r = userSchema.safeParse({ ...validUserBase, role: "ROOT" as never });
       expect(r.success).toBe(false);
     });
 

@@ -29,7 +29,7 @@ describe("auth/rate-limiter", () => {
   describe("getClientIp", () => {
     function mockReq(headers: Record<string, string>): Request {
       const h = new Headers(headers);
-      return { headers: h } as any;
+      return { headers: h } as unknown as Request;
     }
 
     it("reads X-Forwarded-For first IP", () => {

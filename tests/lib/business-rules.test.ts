@@ -18,6 +18,20 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import prisma from "@/lib/prisma";
+import type {
+  PaymentPlan,
+  InstallmentPayment,
+  Course,
+  Enrollment,
+  CourseEnrollment,
+  AcademicConfig,
+  Evaluation,
+  Grade,
+  Schedule,
+  TeacherAvailability,
+  Appointment,
+  ExamTemplate,
+} from "@prisma/client";
 import {
   ValidationError,
   paymentPlanValidations,
@@ -54,7 +68,7 @@ describe("paymentPlanValidations.validatePaymentPlanCreation", () => {
   });
 
   it("rejette un doublon de plan actif", async () => {
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: "plan1" } as any);
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: "plan1" } as unknown as PaymentPlan);
     await expect(paymentPlanValidations.validatePaymentPlanCreation(base)).rejects.toThrow(
       /existe déjà/
     );
@@ -89,7 +103,7 @@ describe("paymentPlanValidations.validateInstallmentPayment", () => {
     vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue({
       status: "PAID",
       paymentPlan: { status: "ACTIVE" },
-    } as any);
+    } as unknown as InstallmentPayment);
     await expect(
       paymentPlanValidations.validateInstallmentPayment("i1", new Date())
     ).rejects.toThrow(/déjà été payée/);
@@ -97,7 +111,7 @@ describe("paymentPlanValidations.validateInstallmentPayment", () => {
     vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue({
       status: "PENDING",
       paymentPlan: { status: "CANCELLED" },
-    } as any);
+    } as unknown as InstallmentPayment);
     await expect(
       paymentPlanValidations.validateInstallmentPayment("i1", new Date())
     ).rejects.toThrow(/pas actif/);
@@ -109,7 +123,7 @@ describe("paymentPlanValidations.validateInstallmentPayment", () => {
       paymentPlanId: "p1",
       dueDate: new Date(),
       paymentPlan: { status: "ACTIVE" },
-    } as any);
+    } as unknown as InstallmentPayment);
     vi.mocked(prisma.installmentPayment.count).mockResolvedValue(2);
 
     await expect(
@@ -120,14 +134,14 @@ describe("paymentPlanValidations.validateInstallmentPayment", () => {
 
 describe("courseValidations", () => {
   it("publication : exige au moins un module et des leçons partout", async () => {
-    vi.mocked(prisma.course.findUnique).mockResolvedValue({ modules: [] } as any);
+    vi.mocked(prisma.course.findUnique).mockResolvedValue({ modules: [] } as unknown as Course);
     await expect(courseValidations.validateCoursePublication("c1")).rejects.toThrow(
       /au moins un module/
     );
 
     vi.mocked(prisma.course.findUnique).mockResolvedValue({
       modules: [{ title: "Module vide", order: 0, lessons: [] }],
-    } as any);
+    } as unknown as Course);
     await expect(courseValidations.validateCoursePublication("c1")).rejects.toThrow(
       /pas de leçons/
     );
@@ -139,7 +153,7 @@ describe("courseValidations", () => {
         { title: "A", order: 0, lessons: [{}] },
         { title: "B", order: 2, lessons: [{}] },
       ],
-    } as any);
+    } as unknown as Course);
     await expect(courseValidations.validateCoursePublication("c1")).rejects.toThrow(/continu/);
   });
 
@@ -149,7 +163,7 @@ describe("courseValidations", () => {
         { title: "A", order: 0, lessons: [{}] },
         { title: "B", order: 1, lessons: [{}] },
       ],
-    } as any);
+    } as unknown as Course);
     await expect(courseValidations.validateCoursePublication("c1")).resolves.toBeUndefined();
   });
 
@@ -157,7 +171,7 @@ describe("courseValidations", () => {
     vi.mocked(prisma.course.findUnique).mockResolvedValue({
       isPublished: false,
       classSubject: { classId: "cl1", class: {} },
-    } as any);
+    } as unknown as Course);
     await expect(courseValidations.validateCourseEnrollment("c1", "s1")).rejects.toThrow(
       /pas encore disponible/
     );
@@ -165,7 +179,7 @@ describe("courseValidations", () => {
     vi.mocked(prisma.course.findUnique).mockResolvedValue({
       isPublished: true,
       classSubject: { classId: "cl1", class: {} },
-    } as any);
+    } as unknown as Course);
     vi.mocked(prisma.enrollment.findFirst).mockResolvedValue(null);
     await expect(courseValidations.validateCourseEnrollment("c1", "s1")).rejects.toThrow(
       /inscrit à cette classe/
@@ -176,10 +190,10 @@ describe("courseValidations", () => {
     vi.mocked(prisma.course.findUnique).mockResolvedValue({
       isPublished: true,
       classSubject: { classId: "cl1", class: {} },
-    } as any);
-    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "e1" } as any);
+    } as unknown as Course);
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "e1" } as unknown as Enrollment);
 
-    vi.mocked(prisma.courseEnrollment.findUnique).mockResolvedValue({ id: "ce1" } as any);
+    vi.mocked(prisma.courseEnrollment.findUnique).mockResolvedValue({ id: "ce1" } as unknown as CourseEnrollment);
     await expect(courseValidations.validateCourseEnrollment("c1", "s1")).rejects.toThrow(
       /déjà inscrit/
     );
@@ -191,12 +205,12 @@ describe("courseValidations", () => {
 
 describe("gradeValidations", () => {
   it("borne la note par la config école puis par le barème de l'évaluation", async () => {
-    vi.mocked(prisma.academicConfig.findUnique).mockResolvedValue({ maxGrade: 20 } as any);
+    vi.mocked(prisma.academicConfig.findUnique).mockResolvedValue({ maxGrade: 20 } as unknown as AcademicConfig);
     await expect(gradeValidations.validateGradeValue(25, "e1", "school1")).rejects.toThrow(
       /entre 0 et 20/
     );
 
-    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue({ maxGrade: 10 } as any);
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue({ maxGrade: 10 } as unknown as Evaluation);
     await expect(gradeValidations.validateGradeValue(15, "e1", "school1")).rejects.toThrow(
       /dépasser 10/
     );
@@ -205,7 +219,7 @@ describe("gradeValidations", () => {
   });
 
   it("refuse une note en doublon (sauf exclusion explicite)", async () => {
-    vi.mocked(prisma.grade.findFirst).mockResolvedValue({ id: "g1" } as any);
+    vi.mocked(prisma.grade.findFirst).mockResolvedValue({ id: "g1" } as unknown as Grade);
     await expect(gradeValidations.validateDuplicateGrade("e1", "s1")).rejects.toThrow(
       /existe déjà/
     );
@@ -238,7 +252,7 @@ describe("scheduleValidations.validateScheduleConflict", () => {
   });
 
   it("détecte un conflit de classe puis d'enseignant", async () => {
-    vi.mocked(prisma.schedule.findFirst).mockResolvedValueOnce({ id: "sc1" } as any);
+    vi.mocked(prisma.schedule.findFirst).mockResolvedValueOnce({ id: "sc1" } as unknown as Schedule);
     await expect(
       scheduleValidations.validateScheduleConflict({
         classId: "cl1",
@@ -250,7 +264,7 @@ describe("scheduleValidations.validateScheduleConflict", () => {
 
     vi.mocked(prisma.schedule.findFirst)
       .mockResolvedValueOnce(null) // pas de conflit classe
-      .mockResolvedValueOnce({ id: "sc2" } as any); // conflit enseignant
+      .mockResolvedValueOnce({ id: "sc2" } as unknown as Schedule); // conflit enseignant
     await expect(
       scheduleValidations.validateScheduleConflict({
         classId: "cl1",
@@ -295,8 +309,8 @@ describe("appointmentValidations.validateAppointmentScheduling", () => {
       })
     ).rejects.toThrow(/pas disponible/);
 
-    vi.mocked(prisma.teacherAvailability.findFirst).mockResolvedValue({ id: "av1" } as any);
-    vi.mocked(prisma.appointment.findFirst).mockResolvedValue({ id: "rdv1" } as any);
+    vi.mocked(prisma.teacherAvailability.findFirst).mockResolvedValue({ id: "av1" } as unknown as TeacherAvailability);
+    vi.mocked(prisma.appointment.findFirst).mockResolvedValue({ id: "rdv1" } as unknown as Appointment);
     await expect(
       appointmentValidations.validateAppointmentScheduling({
         teacherId: "t1",
@@ -307,7 +321,7 @@ describe("appointmentValidations.validateAppointmentScheduling", () => {
   });
 
   it("accepte un créneau disponible et libre", async () => {
-    vi.mocked(prisma.teacherAvailability.findFirst).mockResolvedValue({ id: "av1" } as any);
+    vi.mocked(prisma.teacherAvailability.findFirst).mockResolvedValue({ id: "av1" } as unknown as TeacherAvailability);
     vi.mocked(prisma.appointment.findFirst).mockResolvedValue(null);
     await expect(
       appointmentValidations.validateAppointmentScheduling({
@@ -358,7 +372,7 @@ describe("examValidations.validateExamPublication", () => {
     vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue({
       totalPoints: 20,
       questions: [],
-    } as any);
+    } as unknown as ExamTemplate);
     await expect(examValidations.validateExamPublication("ex1")).rejects.toThrow(
       /au moins une question/
     );
@@ -366,7 +380,7 @@ describe("examValidations.validateExamPublication", () => {
     vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue({
       totalPoints: 20,
       questions: [{ type: "MCQ", points: 10, correctAnswer: "A", options: ["A", "B"] }],
-    } as any);
+    } as unknown as ExamTemplate);
     await expect(examValidations.validateExamPublication("ex1")).rejects.toThrow(
       /ne correspond pas au total/
     );
@@ -377,7 +391,7 @@ describe("examValidations.validateExamPublication", () => {
         { type: "MCQ", points: 10, correctAnswer: "", options: ["A", "B"] },
         { type: "OPEN", points: 10, correctAnswer: null, options: [] },
       ],
-    } as any);
+    } as unknown as ExamTemplate);
     await expect(examValidations.validateExamPublication("ex1")).rejects.toThrow(
       /réponse correcte/
     );
@@ -388,7 +402,7 @@ describe("examValidations.validateExamPublication", () => {
         { type: "MCQ", points: 10, correctAnswer: "A", options: ["A"] },
         { type: "OPEN", points: 10, correctAnswer: null, options: [] },
       ],
-    } as any);
+    } as unknown as ExamTemplate);
     await expect(examValidations.validateExamPublication("ex1")).rejects.toThrow(
       /au moins 2 options/
     );
@@ -401,7 +415,7 @@ describe("examValidations.validateExamPublication", () => {
         { type: "MCQ", points: 12, correctAnswer: "B", options: ["A", "B", "C"] },
         { type: "TRUE_FALSE", points: 8, correctAnswer: "true", options: [] },
       ],
-    } as any);
+    } as unknown as ExamTemplate);
     await expect(examValidations.validateExamPublication("ex1")).resolves.toBeUndefined();
   });
 });

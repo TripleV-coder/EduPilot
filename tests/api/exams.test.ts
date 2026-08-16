@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Prisma } from "@prisma/client";
+import type { ExamTemplate, ExamSession, StudentProfile, Enrollment } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
-  const prismaMock: Record<string, any> = {
+  const prismaMock: Record<string, unknown> = {
     examTemplate: { findUnique: vi.fn() },
     examSession: { findFirst: vi.fn(), create: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     examAnswer: { deleteMany: vi.fn(), createMany: vi.fn() },
@@ -47,16 +48,16 @@ function examTemplate(overrides: Record<string, unknown> = {}) {
  * puis à la route (include questions).
  */
 function mockExamLookups(record: ReturnType<typeof examTemplate> | null) {
-  vi.mocked(prisma.examTemplate.findUnique).mockImplementation(async (args: any) => {
+  vi.mocked(prisma.examTemplate.findUnique).mockImplementation(async (args: Prisma.ExamTemplateFindUniqueArgs) => {
     if (args?.select) {
       if (!record) return null;
       return {
         classSubject: {
-          class: { schoolId: (record.classSubject as any).class.schoolId },
+          class: { schoolId: record.classSubject.class.schoolId },
         },
-      } as any;
+      } as unknown as ExamTemplate;
     }
-    return record as any;
+    return record as unknown as ExamTemplate;
   });
 }
 
@@ -66,7 +67,7 @@ beforeEach(() => {
 
 describe("POST /api/exams/[id]/start", () => {
   it("refuse tout rôle non STUDENT (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await POST_START(
       makeRequest(`http://localhost:3000/api/exams/${examId}/start`, { method: "POST" }),
@@ -76,7 +77,7 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("masque un examen d'une autre école (404 via guard tenant)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(
       examTemplate({ classSubject: { class: { id: cuid("classeb"), schoolId: FIXTURES.schoolB } } })
     );
@@ -89,12 +90,12 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("rejette un examen déjà commencé (400)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
-    vi.mocked(prisma.examSession.findFirst).mockResolvedValue({ id: examSessionId } as any);
+    } as unknown as StudentProfile);
+    vi.mocked(prisma.examSession.findFirst).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
 
     const response = await POST_START(
       makeRequest(`http://localhost:3000/api/exams/${examId}/start`, { method: "POST" }),
@@ -106,11 +107,11 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("masque un examen non publié (404)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate({ isPublished: false }));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.examSession.findFirst).mockResolvedValue(null);
 
     const response = await POST_START(
@@ -121,11 +122,11 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("exige une inscription active dans la classe (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.examSession.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.enrollment.findFirst).mockResolvedValue(null);
 
@@ -137,18 +138,18 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("démarre la session (201) sans exposer les bonnes réponses", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.examSession.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as any);
-    vi.mocked(prisma.examSession.create).mockImplementation(async (args: any) => ({
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as unknown as Enrollment);
+    vi.mocked(prisma.examSession.create).mockImplementation(async (args: Prisma.ExamSessionCreateArgs) => ({
       id: examSessionId,
       ...args.data,
       examTemplate: { questions: [{ id: questionA }, { id: questionB }] },
-    }) as any);
+    }) as unknown as ExamSession);
 
     const response = await POST_START(
       makeRequest(`http://localhost:3000/api/exams/${examId}/start`, { method: "POST" }),
@@ -156,7 +157,7 @@ describe("POST /api/exams/[id]/start", () => {
     );
 
     expect(response.status).toBe(201);
-    const createArgs = vi.mocked(prisma.examSession.create).mock.calls[0][0] as any;
+    const createArgs = vi.mocked(prisma.examSession.create).mock.calls[0][0];
     expect(createArgs.data).toMatchObject({
       examTemplateId: examId,
       studentId: FIXTURES.studentA,
@@ -169,13 +170,13 @@ describe("POST /api/exams/[id]/start", () => {
   });
 
   it("convertit un conflit P2002 (double clic) en 400 « déjà commencé »", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.examSession.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as any);
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as unknown as Enrollment);
     vi.mocked(prisma.examSession.create).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002" })
     );
@@ -206,7 +207,7 @@ describe("POST /api/exams/[id]/submit", () => {
   });
 
   it("refuse un TEACHER (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await POST_SUBMIT(
       makeRequest(`http://localhost:3000/api/exams/${examId}/submit`, {
@@ -219,18 +220,18 @@ describe("POST /api/exams/[id]/submit", () => {
   });
 
   it("score la copie : points des bonnes réponses, réussite à la moitié des points", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
-    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as any);
-    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as any);
-    vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as any);
-    vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as any);
-    vi.mocked(prisma.examSession.update).mockImplementation(async (args: any) => ({
+    } as unknown as StudentProfile);
+    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as unknown as ExamTemplate);
+    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
+    vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
+    vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
+    vi.mocked(prisma.examSession.update).mockImplementation(async (args: Prisma.ExamSessionUpdateArgs) => ({
       id: examSessionId,
       ...args.data,
-    }) as any);
+    }) as unknown as ExamSession);
 
     // Q1 correcte (12 pts), Q2 fausse (0 pt) → 12/20, admis (≥ 10)
     const response = await POST_SUBMIT(
@@ -259,18 +260,18 @@ describe("POST /api/exams/[id]/submit", () => {
   });
 
   it("échoue sous la moitié des points (isPassed=false)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
-    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as any);
-    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as any);
-    vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as any);
-    vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as any);
-    vi.mocked(prisma.examSession.update).mockImplementation(async (args: any) => ({
+    } as unknown as StudentProfile);
+    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as unknown as ExamTemplate);
+    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
+    vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
+    vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
+    vi.mocked(prisma.examSession.update).mockImplementation(async (args: Prisma.ExamSessionUpdateArgs) => ({
       id: examSessionId,
       ...args.data,
-    }) as any);
+    }) as unknown as ExamSession);
 
     // Seule Q2 correcte (8 pts) → 8/20, recalé (< 10)
     const response = await POST_SUBMIT(
@@ -288,10 +289,10 @@ describe("POST /api/exams/[id]/submit", () => {
   });
 
   it("retourne 404 si l'examen n'existe pas", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
-    } as any);
+    } as unknown as StudentProfile);
     vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(null);
 
     const response = await POST_SUBMIT(

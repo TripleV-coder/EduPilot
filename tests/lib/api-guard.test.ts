@@ -3,6 +3,8 @@
  * Tests authorization functions, school isolation, and role-specific checks.
  */
 import { describe, it, expect, vi } from 'vitest'
+import type { Session } from 'next-auth'
+import type { UserRole } from '@prisma/client'
 
 vi.mock('@/lib/rbac/permissions', () => {
     const Permission = {
@@ -59,7 +61,7 @@ function mockSession(
             email: 'test@test.com',
         },
         expires: new Date(Date.now() + 86400000).toISOString(),
-    } as any
+    } as unknown as Session
 }
 
 describe('API Guard - RBAC', () => {
@@ -78,7 +80,7 @@ describe('API Guard - RBAC', () => {
         })
 
         it('should return false for session without user', () => {
-            expect(requireAuth({ expires: '' } as any)).toBe(false)
+            expect(requireAuth({ expires: '' } as unknown as Session)).toBe(false)
         })
     })
 
@@ -88,19 +90,19 @@ describe('API Guard - RBAC', () => {
     describe('requireRoles', () => {
         it('should authorize user with matching role', () => {
             const session = mockSession('SUPER_ADMIN')
-            const result = requireRoles(session, ['SUPER_ADMIN', 'SCHOOL_ADMIN'] as any)
+            const result = requireRoles(session, ['SUPER_ADMIN', 'SCHOOL_ADMIN'] as UserRole[])
             expect(result.authorized).toBe(true)
         })
 
         it('should deny user without matching role', () => {
             const session = mockSession('STUDENT')
-            const result = requireRoles(session, ['SUPER_ADMIN'] as any)
+            const result = requireRoles(session, ['SUPER_ADMIN'] as UserRole[])
             expect(result.authorized).toBe(false)
             expect(result.response).toBeDefined()
         })
 
         it('should deny unauthenticated requests', () => {
-            const result = requireRoles(null, ['SUPER_ADMIN'] as any)
+            const result = requireRoles(null, ['SUPER_ADMIN'] as UserRole[])
             expect(result.authorized).toBe(false)
         })
     })
@@ -283,7 +285,7 @@ describe('API Guard - RBAC', () => {
     // ============================================
     describe('forbiddenForRole', () => {
         it('should return a 403 response with role info', () => {
-            const response = forbiddenForRole('TEACHER' as any, "créer une école")
+            const response = forbiddenForRole('TEACHER' as UserRole, "créer une école")
             expect(response.status).toBe(403)
         })
     })

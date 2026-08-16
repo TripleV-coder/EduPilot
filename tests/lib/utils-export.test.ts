@@ -6,40 +6,50 @@ import { exportToCSV, ExportData } from "@/lib/utils/export";
  */
 
 describe("utils/export.exportToCSV", () => {
-  const originalDocument = (globalThis as any).document;
-  const originalURL = (globalThis as any).URL;
-  const originalBlob = (globalThis as any).Blob;
+  const originalDocument = globalThis.document;
+  const originalURL = globalThis.URL;
+  const originalBlob = globalThis.Blob;
 
-  let appendedLink: any;
+  interface MockLink {
+    setAttribute: ReturnType<typeof vi.fn>;
+    style: Record<string, unknown>;
+    click: ReturnType<typeof vi.fn>;
+  }
+
+  let appendedLink: MockLink | undefined;
 
   beforeEach(() => {
     appendedLink = {
       setAttribute: vi.fn(),
-      style: {} as any,
+      style: {},
       click: vi.fn(),
     };
 
-    (globalThis as any).document = {
+    globalThis.document = {
       createElement: vi.fn(() => appendedLink),
       body: {
         appendChild: vi.fn(),
         removeChild: vi.fn(),
       },
-    };
-    (globalThis as any).URL = {
+    } as unknown as typeof globalThis.document;
+    globalThis.URL = {
       createObjectURL: vi.fn(() => "blob:url"),
       revokeObjectURL: vi.fn(),
-    };
-    (globalThis as any).Blob = vi.fn().mockImplementation(function (this: any, parts: any, options: any) {
+    } as unknown as typeof globalThis.URL;
+    globalThis.Blob = vi.fn().mockImplementation(function (
+      this: { parts: unknown[]; options: unknown },
+      parts: unknown,
+      options: unknown
+    ) {
       this.parts = parts;
       this.options = options;
-    });
+    }) as unknown as typeof globalThis.Blob;
   });
 
   afterEach(() => {
-    (globalThis as any).document = originalDocument;
-    (globalThis as any).URL = originalURL;
-    (globalThis as any).Blob = originalBlob;
+    globalThis.document = originalDocument;
+    globalThis.URL = originalURL;
+    globalThis.Blob = originalBlob;
   });
 
   it("creates a download link with proper filename", () => {
@@ -64,23 +74,25 @@ describe("utils/export.exportToCSV", () => {
 
   it("appends and removes the link from DOM", () => {
     exportToCSV({ title: "x", headers: ["A"], rows: [["1"]] });
-    const doc: any = (globalThis as any).document;
+    const doc = globalThis.document as {
+      body: { appendChild: ReturnType<typeof vi.fn>; removeChild: ReturnType<typeof vi.fn> };
+    };
     expect(doc.body.appendChild).toHaveBeenCalled();
     expect(doc.body.removeChild).toHaveBeenCalled();
   });
 
   it("creates a Blob with text/csv mime type", () => {
     exportToCSV({ title: "t", headers: ["A"], rows: [["1"]] });
-    const BlobMock = (globalThis as any).Blob as unknown as ReturnType<typeof vi.fn>;
+    const BlobMock = globalThis.Blob as unknown as ReturnType<typeof vi.fn>;
     expect(BlobMock).toHaveBeenCalled();
-    const args = BlobMock.mock.calls[0];
-    expect(args[1].type).toContain("text/csv");
+    const args = BlobMock.mock.calls[0] as unknown[];
+    expect((args[1] as { type: string }).type).toContain("text/csv");
   });
 
   it("includes the title and headers in the CSV body", () => {
     exportToCSV({ title: "Bulletins", headers: ["Élève", "Moyenne"], rows: [["A", 14]] });
-    const BlobMock = (globalThis as any).Blob as unknown as ReturnType<typeof vi.fn>;
-    const csvBody = String(BlobMock.mock.calls[0][0][0]);
+    const BlobMock = globalThis.Blob as unknown as ReturnType<typeof vi.fn>;
+    const csvBody = String((BlobMock.mock.calls[0][0] as unknown[])[0]);
     expect(csvBody).toContain("Bulletins");
     expect(csvBody).toContain("Élève");
     expect(csvBody).toContain("Moyenne");

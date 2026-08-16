@@ -17,16 +17,21 @@ import { predictDropoutRisk } from "@/lib/services/ai-predictive/predict-dropout
 import { detectEarlyWarnings, EARLY_WARNING_THRESHOLDS } from "@/lib/services/ai-predictive/detect-early-warning";
 import { predictBehaviorRisk } from "@/lib/services/ai-predictive/predict-behavior";
 
+type GradeHistoryList = Awaited<ReturnType<typeof prisma.gradeHistory.findMany>>;
+type AttendanceList = Awaited<ReturnType<typeof prisma.attendance.findMany>>;
+type BehaviorIncidentList = Awaited<ReturnType<typeof prisma.behaviorIncident.findMany>>;
+type HomeworkSubmissionList = Awaited<ReturnType<typeof prisma.homeworkSubmission.findMany>>;
+
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
 
 beforeEach(() => {
   vi.clearAllMocks();
   // Défauts vides pour toutes les sources (évite les undefined)
-  vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([] as any);
-  vi.mocked(prisma.attendance.findMany).mockResolvedValue([] as any);
-  vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue([] as any);
-  vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue([] as any);
+  vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.attendance.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue([]);
   vi.mocked(prisma.homework.count).mockResolvedValue(0);
 });
 
@@ -70,13 +75,13 @@ describe("RNG déterministe", () => {
 describe("predictDropoutRisk", () => {
   it("élève engagé → risque TRÈS FAIBLE, aucun signal", async () => {
     vi.mocked(prisma.attendance.findMany).mockResolvedValue(
-      Array.from({ length: 40 }, (_, i) => ({ status: "PRESENT", date: daysAgo(i + 1) })) as any
+      Array.from({ length: 40 }, (_, i) => ({ status: "PRESENT", date: daysAgo(i + 1) })) as unknown as AttendanceList
     );
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([
       { average: 13 }, { average: 13.5 }, { average: 14 },
-    ] as any);
+    ] as unknown as GradeHistoryList);
     vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue(
-      Array.from({ length: 10 }, (_, i) => ({ createdAt: daysAgo(i + 1) })) as any
+      Array.from({ length: 10 }, (_, i) => ({ createdAt: daysAgo(i + 1) })) as unknown as HomeworkSubmissionList
     );
     vi.mocked(prisma.homework.count).mockResolvedValue(5);
 
@@ -98,7 +103,7 @@ describe("predictDropoutRisk", () => {
       status: "PRESENT",
       date: daysAgo(i + 31),
     }));
-    vi.mocked(prisma.attendance.findMany).mockResolvedValue([...recent, ...prior] as any);
+    vi.mocked(prisma.attendance.findMany).mockResolvedValue([...recent, ...prior] as unknown as AttendanceList);
 
     const result = await predictDropoutRisk("s1");
 
@@ -121,7 +126,7 @@ describe("predictDropoutRisk", () => {
   it("est déterministe (même entrée → même sortie)", async () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([
       { average: 14 }, { average: 12 }, { average: 9 },
-    ] as any);
+    ] as unknown as GradeHistoryList);
     const a = await predictDropoutRisk("s1");
     const b = await predictDropoutRisk("s1");
     expect(a).toEqual(b);
@@ -140,7 +145,7 @@ describe("detectEarlyWarnings", () => {
   it("GRADE_DROP : chute brutale de la dernière moyenne", async () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([
       { average: 14 }, { average: 14 }, { average: 13.5 }, { average: 8 },
-    ] as any);
+    ] as unknown as GradeHistoryList);
 
     const result = await detectEarlyWarnings("s1");
     const gradeDrop = result.find((w) => w.type === "GRADE_DROP");
@@ -154,7 +159,7 @@ describe("detectEarlyWarnings", () => {
       { status: "ABSENT", date: daysAgo(5) },
       { status: "ABSENT", date: daysAgo(4) },
       { status: "ABSENT", date: daysAgo(3) },
-    ] as any);
+    ] as unknown as AttendanceList);
 
     const result = await detectEarlyWarnings("s1");
     const cliff = result.find((w) => w.type === "ATTENDANCE_CLIFF");
@@ -168,14 +173,14 @@ describe("detectEarlyWarnings", () => {
       { status: "ABSENT", date: daysAgo(4) },
       { status: "ABSENT", date: daysAgo(3) },
       { status: "PRESENT", date: daysAgo(2) },
-    ] as any);
+    ] as unknown as AttendanceList);
 
     const result = await detectEarlyWarnings("s1");
     expect(result.find((w) => w.type === "ATTENDANCE_CLIFF")).toBeUndefined();
   });
 
   it("HOMEWORK_STOP : 0 rendu alors que des devoirs étaient dus", async () => {
-    vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue([] as any);
+    vi.mocked(prisma.homeworkSubmission.findMany).mockResolvedValue([]);
     vi.mocked(prisma.homework.count).mockResolvedValue(3);
 
     const result = await detectEarlyWarnings("s1");
@@ -188,7 +193,7 @@ describe("detectEarlyWarnings", () => {
     vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue([
       { severity: "HIGH", date: daysAgo(5) },
       { severity: "CRITICAL", date: daysAgo(2) },
-    ] as any);
+    ] as unknown as BehaviorIncidentList);
 
     const result = await detectEarlyWarnings("s1");
     const spike = result.find((w) => w.type === "BEHAVIOR_SPIKE");
@@ -214,7 +219,7 @@ describe("predictBehaviorRisk", () => {
       { severity: "CRITICAL", date: daysAgo(2) },
       { severity: "CRITICAL", date: daysAgo(5) },
       { severity: "HIGH", date: daysAgo(10) },
-    ] as any);
+    ] as unknown as BehaviorIncidentList);
 
     const result = await predictBehaviorRisk("s1");
 
@@ -231,7 +236,7 @@ describe("predictBehaviorRisk", () => {
     vi.mocked(prisma.behaviorIncident.findMany).mockResolvedValue([
       { severity: "HIGH", date: daysAgo(3) },
       { severity: "MEDIUM", date: daysAgo(20) },
-    ] as any);
+    ] as unknown as BehaviorIncidentList);
     const a = await predictBehaviorRisk("s1");
     const b = await predictBehaviorRisk("s1");
     expect(a).toEqual(b);

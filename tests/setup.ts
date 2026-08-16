@@ -17,7 +17,8 @@ vi.mock("@prisma/client", () => {
   const mockPrisma = {
     $disconnect: vi.fn(),
     $connect: vi.fn(),
-    $transaction: vi.fn(),
+    $transaction: vi.fn((cb: any) => typeof cb === "function" ? cb(mockPrisma) : Promise.resolve(cb)),
+    $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
     user: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     school: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
     class: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
@@ -29,8 +30,9 @@ vi.mock("@prisma/client", () => {
     auditLog: { create: vi.fn(), findMany: vi.fn() },
     payment: { aggregate: vi.fn(), groupBy: vi.fn(), findMany: vi.fn() },
     attendance: { groupBy: vi.fn(), findMany: vi.fn() },
-    academicYear: { findFirst: vi.fn(), findUnique: vi.fn() },
-    period: { findMany: vi.fn() },
+    academicYear: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    academicConfig: { findFirst: vi.fn(), findMany: vi.fn() },
+    period: { findMany: vi.fn(), create: vi.fn() },
     organizationMembership: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
     organization: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   };
@@ -81,9 +83,9 @@ vi.mock("@prisma/client", () => {
 // Le mock expose json/text/clone/headers pour supporter les middlewares de
 // cache (withHttpCache lit response.clone().text(), withCache lit headers.entries()).
 vi.mock("next/server", () => {
-  function makeResponse(body: any, init?: any) {
+  function makeResponse(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
     const headers = new Map<string, string>(
-      init?.headers ? Object.entries(init.headers as Record<string, string>) : []
+      init?.headers ? Object.entries(init.headers) : []
     );
     const response = {
       status: init?.status || 200,
@@ -97,7 +99,7 @@ vi.mock("next/server", () => {
 
   return {
     NextResponse: {
-      json: (body: any, init?: any) => makeResponse(body, init),
+      json: (body: unknown, init?: { status?: number; headers?: Record<string, string> }) => makeResponse(body, init),
       next: () => makeResponse(null),
       redirect: (url: string) => makeResponse(null, { status: 302, headers: { location: url } }),
     },

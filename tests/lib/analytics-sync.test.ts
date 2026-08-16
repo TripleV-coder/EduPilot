@@ -24,6 +24,27 @@ import {
   syncAnalyticsForClassPeriod,
   syncAllStudentsForSchool,
 } from "@/lib/services/analytics-sync";
+import type {
+  Prisma,
+  StudentAnalytics,
+  SubjectPerformance,
+  GradeHistory,
+  Evaluation,
+  Enrollment,
+  Period,
+} from "@prisma/client";
+
+type AnalyticsUpsertResult = Awaited<ReturnType<typeof prisma.studentAnalytics.upsert>>;
+type AnalyticsFindUniqueResult = Awaited<ReturnType<typeof prisma.studentAnalytics.findUnique>>;
+type AnalyticsListResult = Awaited<ReturnType<typeof prisma.studentAnalytics.findMany>>;
+type BatchResult = Awaited<ReturnType<typeof prisma.subjectPerformance.deleteMany>>;
+type SubjectPerfUpsertResult = Awaited<ReturnType<typeof prisma.subjectPerformance.upsert>>;
+type GradeHistoryCreateResult = Awaited<ReturnType<typeof prisma.gradeHistory.create>>;
+type GradeHistoryUpsertResult = Awaited<ReturnType<typeof prisma.gradeHistory.upsert>>;
+type AnalyticsSnapshotResult = Awaited<ReturnType<typeof generateStudentAnalytics>>;
+type EvaluationFindUniqueResult = Awaited<ReturnType<typeof prisma.evaluation.findUnique>>;
+type EnrollmentListResult = Awaited<ReturnType<typeof prisma.enrollment.findMany>>;
+type PeriodListResult = Awaited<ReturnType<typeof prisma.period.findMany>>;
 
 function snapshot(overrides: Record<string, unknown> = {}) {
   return {
@@ -58,24 +79,24 @@ function snapshot(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(prisma.studentAnalytics.upsert).mockResolvedValue({ id: "an1" } as any);
-  vi.mocked(prisma.studentAnalytics.findUnique).mockResolvedValue({ id: "an1" } as any);
-  vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([] as any);
-  vi.mocked(prisma.subjectPerformance.deleteMany).mockResolvedValue({ count: 0 } as any);
-  vi.mocked(prisma.subjectPerformance.upsert).mockResolvedValue({} as any);
-  vi.mocked(prisma.gradeHistory.deleteMany).mockResolvedValue({ count: 0 } as any);
-  vi.mocked(prisma.gradeHistory.create).mockResolvedValue({} as any);
-  vi.mocked(prisma.gradeHistory.upsert).mockResolvedValue({} as any);
+  vi.mocked(prisma.studentAnalytics.upsert).mockResolvedValue({ id: "an1" } as unknown as StudentAnalytics);
+  vi.mocked(prisma.studentAnalytics.findUnique).mockResolvedValue({ id: "an1" } as unknown as StudentAnalytics);
+  vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([] as unknown as StudentAnalytics[]);
+  vi.mocked(prisma.subjectPerformance.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
+  vi.mocked(prisma.subjectPerformance.upsert).mockResolvedValue({} as unknown as SubjectPerformance);
+  vi.mocked(prisma.gradeHistory.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
+  vi.mocked(prisma.gradeHistory.create).mockResolvedValue({} as unknown as GradeHistory);
+  vi.mocked(prisma.gradeHistory.upsert).mockResolvedValue({} as unknown as GradeHistory);
 });
 
 describe("persistStudentAnalyticsSnapshot", () => {
   it("upsert le snapshot, les performances matière et l'historique de notes", async () => {
-    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as any);
+    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as unknown as AnalyticsSnapshotResult);
 
     const result = await persistStudentAnalyticsSnapshot("s1", "p1", "y1");
 
     // Snapshot principal
-    const upsertArgs = vi.mocked(prisma.studentAnalytics.upsert).mock.calls[0][0] as any;
+    const upsertArgs = vi.mocked(prisma.studentAnalytics.upsert).mock.calls[0][0];
     expect(upsertArgs.where).toEqual({ studentId_periodId: { studentId: "s1", periodId: "p1" } });
     expect(upsertArgs.create).toMatchObject({ generalAverage: 12.5, riskLevel: "LOW" });
 
@@ -102,7 +123,7 @@ describe("persistStudentAnalyticsSnapshot", () => {
 
   it("sans moyenne générale : pas de ligne d'historique générale", async () => {
     vi.mocked(generateStudentAnalytics).mockResolvedValue(
-      snapshot({ generalAverage: null, subjectPerformances: [] }) as any
+      snapshot({ generalAverage: null, subjectPerformances: [] }) as unknown as AnalyticsSnapshotResult
     );
 
     await persistStudentAnalyticsSnapshot("s1", "p1", "y1");
@@ -131,12 +152,12 @@ describe("syncAnalyticsAfterGradeChange", () => {
     vi.mocked(prisma.evaluation.findUnique).mockResolvedValue({
       periodId: "p1",
       period: { academicYearId: "y1", sequence: 1 },
-    } as any);
-    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as any);
+    } as unknown as Evaluation);
+    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as unknown as AnalyticsSnapshotResult);
     // Une analytics future existante pour s1 → re-synchronisée
     vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValueOnce([
       { studentId: "s1", periodId: "p2" },
-    ] as any);
+    ] as unknown as StudentAnalytics[]);
 
     await syncAnalyticsAfterGradeChange("ev1", ["s1", "s2", "s1"]);
 
@@ -162,8 +183,8 @@ describe("syncAnalyticsForClassPeriod", () => {
     vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
       { studentId: "s1" },
       { studentId: "s2" },
-    ] as any);
-    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as any);
+    ] as unknown as Enrollment[]);
+    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as unknown as AnalyticsSnapshotResult);
 
     await syncAnalyticsForClassPeriod("cl1", "p1", "y1");
 
@@ -180,10 +201,10 @@ describe("syncAllStudentsForSchool", () => {
     vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
       { studentId: "s1", classId: "cl1" },
       { studentId: "s2", classId: "cl1" },
-    ] as any);
-    vi.mocked(prisma.period.findMany).mockResolvedValue([{ id: "p1" }] as any);
+    ] as unknown as Enrollment[]);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([{ id: "p1" }] as unknown as Period[]);
     vi.mocked(generateStudentAnalytics)
-      .mockResolvedValueOnce(snapshot() as any)
+      .mockResolvedValueOnce(snapshot() as unknown as AnalyticsSnapshotResult)
       .mockRejectedValueOnce(new Error("boom"));
 
     const result = await syncAllStudentsForSchool("school1", "y1");

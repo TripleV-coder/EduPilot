@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { PerformanceMetric, TelemetryEvent, TransportLine } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
@@ -25,7 +26,7 @@ beforeEach(() => {
 
 describe("POST /api/analytics/web-vitals", () => {
   it("persiste une métrique valide avec le pathname du referer (201)", async () => {
-    vi.mocked(prisma.performanceMetric.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.performanceMetric.create).mockResolvedValue({} as unknown as PerformanceMetric);
 
     const response = await POST_VITALS(
       makeRequest("http://localhost:3000/api/analytics/web-vitals", {
@@ -79,8 +80,8 @@ describe("POST /api/analytics/web-vitals", () => {
 describe("POST /api/ux/events", () => {
   it("persiste l'événement avec le userId de session", async () => {
     const session = makeSession("TEACHER");
-    vi.mocked(auth).mockResolvedValue(session as any);
-    vi.mocked(prisma.telemetryEvent.create).mockResolvedValue({} as any);
+    vi.mocked(auth).mockResolvedValue(session);
+    vi.mocked(prisma.telemetryEvent.create).mockResolvedValue({} as unknown as TelemetryEvent);
 
     const response = await POST_UX(
       makeRequest("http://localhost:3000/api/ux/events", {
@@ -106,7 +107,7 @@ describe("POST /api/ux/events", () => {
 
   it("accepte un événement anonyme (sendBeacon sans cookies)", async () => {
     vi.mocked(auth).mockResolvedValue(null);
-    vi.mocked(prisma.telemetryEvent.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.telemetryEvent.create).mockResolvedValue({} as unknown as TelemetryEvent);
 
     const response = await POST_UX(
       makeRequest("http://localhost:3000/api/ux/events", {
@@ -154,8 +155,8 @@ describe("GET /api/transport/lines", () => {
   });
 
   it("configured=false quand l'école n'a ni ligne ni bus", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
-    vi.mocked(prisma.transportLine.findMany).mockResolvedValue([] as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.transportLine.findMany).mockResolvedValue([] as unknown as TransportLine[]);
     vi.mocked(prisma.transportLine.count).mockResolvedValue(0);
     vi.mocked(prisma.bus.count).mockResolvedValue(0);
     vi.mocked(prisma.studentTransport.count).mockResolvedValue(0);
@@ -170,7 +171,7 @@ describe("GET /api/transport/lines", () => {
   });
 
   it("mappe lignes, statuts FR, chauffeur, effectifs et notifications", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.transportLine.findMany).mockResolvedValue([
       transportLine(),
       transportLine({
@@ -180,7 +181,7 @@ describe("GET /api/transport/lines", () => {
         note: "Embouteillage pont de Calavi",
         _count: { students: 30 },
       }),
-    ] as any);
+    ] as unknown as TransportLine[]);
     vi.mocked(prisma.bus.count).mockResolvedValueOnce(3).mockResolvedValueOnce(2);
     vi.mocked(prisma.studentTransport.count).mockResolvedValue(58);
     vi.mocked(prisma.transportLine.count).mockResolvedValue(0);
@@ -216,7 +217,7 @@ describe("GET /api/transport/lines", () => {
   });
 
   it("bloque la consultation cross-tenant via ?schoolId (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
 
     const response = await GET_TRANSPORT(
       makeRequest(`http://localhost:3000/api/transport/lines?schoolId=${FIXTURES.schoolB}`)
@@ -228,13 +229,13 @@ describe("GET /api/transport/lines", () => {
 
 describe("GET /api/performance/dashboard", () => {
   it("refuse les rôles non admin (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const response = await GET_PERF(makeRequest("http://localhost:3000/api/performance/dashboard"));
     expect(response.status).toBe(403);
   });
 
   it("agrège le p75 des web vitals réels avec les seuils officiels", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }) as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     vi.mocked(prisma.performanceMetric.findMany).mockResolvedValue([
       // LCP : p75 = 3000 → needs-improvement
       ...[1000, 2000, 3000, 3500].map((value) => ({ metric: "LCP", value })),
@@ -242,7 +243,7 @@ describe("GET /api/performance/dashboard", () => {
       ...[0.01, 0.03, 0.05, 0.05].map((value) => ({ metric: "CLS", value })),
       // INP : p75 = 600 → poor
       ...[100, 300, 600, 700].map((value) => ({ metric: "INP", value })),
-    ] as any);
+    ] as unknown as PerformanceMetric[]);
 
     const response = await GET_PERF(makeRequest("http://localhost:3000/api/performance/dashboard"));
     const body = await response.json();

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { FiscalYear, OhadaAccount, JournalEntry } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
@@ -40,14 +41,14 @@ describe("GET /api/accounting/overview", () => {
   });
 
   it("refuse un TEACHER (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
 
     const response = await GET(makeRequest("http://localhost:3000/api/accounting/overview"));
     expect(response.status).toBe(403);
   });
 
   it("bloque la consultation cross-tenant via ?schoolId (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
 
     const response = await GET(
       makeRequest(`http://localhost:3000/api/accounting/overview?schoolId=${FIXTURES.schoolB}`)
@@ -58,7 +59,7 @@ describe("GET /api/accounting/overview", () => {
   });
 
   it("retourne des KPIs à zéro sans exercice fiscal", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.fiscalYear.findFirst).mockResolvedValue(null);
 
     const response = await GET(makeRequest("http://localhost:3000/api/accounting/overview"));
@@ -77,12 +78,12 @@ describe("GET /api/accounting/overview", () => {
   });
 
   it("calcule les soldes caisse/banque/momo et le résultat d'exercice (produits - charges)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.fiscalYear.findFirst).mockResolvedValue({
       id: fiscalYearId,
       label: "Exercice 2026",
       status: "OPEN",
-    } as any);
+    } as unknown as FiscalYear);
     vi.mocked(prisma.ohadaAccount.findMany).mockResolvedValue([
       ohadaAccount("571", "ASSET", BigInt(250000)), // caisse
       ohadaAccount("521", "ASSET", BigInt(1200000)), // banque
@@ -90,7 +91,7 @@ describe("GET /api/accounting/overview", () => {
       ohadaAccount("701", "INCOME", BigInt(2000000)), // produits scolarité
       ohadaAccount("661", "EXPENSE", BigInt(900000)), // salaires
       ohadaAccount("605", "EXPENSE", BigInt(300000)), // fournitures
-    ] as any);
+    ] as unknown as OhadaAccount[]);
     vi.mocked(prisma.journalEntry.findMany).mockResolvedValue([
       {
         id: cuid("je1"),
@@ -107,7 +108,7 @@ describe("GET /api/accounting/overview", () => {
           },
         ],
       },
-    ] as any);
+    ] as unknown as JournalEntry[]);
     vi.mocked(prisma.journalEntry.count).mockResolvedValue(42);
 
     const response = await GET(makeRequest("http://localhost:3000/api/accounting/overview"));
@@ -129,7 +130,7 @@ describe("GET /api/accounting/overview", () => {
     expect(line.amountFcfa).toBe("150000");
 
     // Top dépenses trié décroissant avec pourcentages cohérents (somme = 100)
-    expect(body.expenseAccounts.map((a: any) => a.code)).toEqual(["661", "605"]);
+    expect(body.expenseAccounts.map((a: { code: string }) => a.code)).toEqual(["661", "605"]);
     expect(body.expenseAccounts[0].pct).toBe(75);
     expect(body.expenseAccounts[1].pct).toBe(25);
     expect(body.expenseTotalFcfa).toBe("1200000");
@@ -143,14 +144,14 @@ describe("GET /api/accounting/overview", () => {
   });
 
   it("borne txLimit entre 1 et 100", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT") as any);
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.fiscalYear.findFirst).mockResolvedValue({
       id: fiscalYearId,
       label: "Exercice 2026",
       status: "OPEN",
-    } as any);
-    vi.mocked(prisma.ohadaAccount.findMany).mockResolvedValue([] as any);
-    vi.mocked(prisma.journalEntry.findMany).mockResolvedValue([] as any);
+    } as unknown as FiscalYear);
+    vi.mocked(prisma.ohadaAccount.findMany).mockResolvedValue([] as unknown as OhadaAccount[]);
+    vi.mocked(prisma.journalEntry.findMany).mockResolvedValue([] as unknown as JournalEntry[]);
     vi.mocked(prisma.journalEntry.count).mockResolvedValue(0);
 
     await GET(makeRequest("http://localhost:3000/api/accounting/overview?txLimit=5000"));
