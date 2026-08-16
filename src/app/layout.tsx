@@ -24,6 +24,8 @@ import { SessionProvider } from "@/components/providers/session-provider";
 import { SchoolProvider } from "@/components/providers/school-provider";
 import { SWRProvider } from "@/components/providers/swr-provider";
 import { CookieBanner } from "@/components/gdpr/CookieBanner";
+import { SkipToContent } from "@/components/a11y/skip-to-content";
+import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
 import { Toaster as SonnerToaster } from "sonner";
 
 // Rendu dynamique forcé : indispensable pour la CSP à nonce par requête
@@ -81,10 +83,14 @@ export default function RootLayout({
     return (
         <html lang="fr" className={`${inter.variable} ${eduflowMono.variable}`}>
             <body className="font-body antialiased">
+                <SkipToContent />
                 <SessionProvider>
                     <SWRProvider>
                         <SchoolProvider>
-                            {children}
+                            <div id="main-content">
+                                {children}
+                            </div>
+                            <WebVitalsReporter />
                             <CookieBanner />
                             <Toaster />
                             <SonnerToaster position="top-right" richColors closeButton />
