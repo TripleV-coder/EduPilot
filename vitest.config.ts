@@ -27,8 +27,9 @@ export default defineConfig({
       //  - src/components/** : primitives edu + messaging (baseline 2026-06-13 :
       //    edu 55/46/37.5 — Button/Card/Input/Badge/MetricCard/Spinner/Progress/
       //    Toast/ComposeDialog couverts ; charts/icônes encore à couvrir).
-      //  - src/app/api/**    : seuil TD-005 (25/20/25 au 2026-08-16, +55
-      //    tests : health/emergency-contacts, vaccinations, medical-records +
+      //  - src/app/api/**    : seuil TD-005 (27/22/27 au 2026-08-16, +74
+      //    tests : incidents/statistics, bulletins +
+      //    health/emergency-contacts, vaccinations, medical-records +
       //    teachers/[id], payments/[id]/invoice, grades/councils +
       //    alumni, benchmark, cagnottes, admin/subjects, appointments,
       //    accounting/entries, curriculum-config) — remonter lot par lot.
@@ -36,7 +37,7 @@ export default defineConfig({
       thresholds: {
         'src/lib/**': { statements: 40, branches: 32, functions: 38 },
         'src/components/**': { statements: 50, branches: 40, functions: 35 },
-        'src/app/api/**': { statements: 25, branches: 20, functions: 25 },
+        'src/app/api/**': { statements: 27, branches: 22, functions: 27 },
       },
     },
     testTimeout: 10000,
