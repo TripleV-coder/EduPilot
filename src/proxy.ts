@@ -139,12 +139,27 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+/** Marqueur interne : le rate-limit Edge a déjà été appliqué (évite le double hit Redis dans createApiHandler). */
+const EDGE_RL_HEADER = "x-edupilot-edge-rl";
+
+function apiPassthrough(request: NextRequest, remaining?: number): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(EDGE_RL_HEADER, "1");
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  if (remaining !== undefined) {
+    res.headers.set("X-RateLimit-Remaining", String(remaining));
+  }
+  return res;
+}
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
   const isGuestOnly = GUEST_ONLY_ROUTES.has(pathname);
+  const isApi = pathname.startsWith("/api/");
+  let apiRateLimitRemaining: number | undefined;
 
-  if (pathname.startsWith("/api/")) {
+  if (isApi) {
     const ip = getClientIp(request);
     let limiter = apiLimiter;
 
@@ -155,6 +170,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     const { success, remaining } = await checkRateLimit(limiter, ip);
+    apiRateLimitRemaining = remaining;
     if (!success) {
       return NextResponse.json(
         { error: "Trop de requêtes. Veuillez patienter." },
@@ -169,9 +185,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     if (isPublic) {
-      const res = NextResponse.next();
-      res.headers.set("X-RateLimit-Remaining", String(remaining));
-      return res;
+      return apiPassthrough(request, remaining);
     }
   }
 
@@ -237,15 +251,12 @@ export default async function proxy(request: NextRequest) {
   }
 
   // ── MODE MAINTENANCE ──
-  // `createApiHandler` impose déjà la maintenance, mais 208 des 283 routes ne
-  // l'utilisent pas et lui échappaient donc. Le middleware lit le miroir Redis
-  // (Edge-safe) plutôt que la base, qui est hors de portée de ce runtime.
-  // État inconnu (Redis absent ou en erreur) ⇒ on laisse passer : la
-  // maintenance est une mesure d'exploitation, pas de sécurité.
+  // Filet Edge pour les rares routes hors `createApiHandler` + pages.
+  // Miroir Redis (Edge-safe) ; état inconnu ⇒ on laisse passer (mesure d'exploitation).
   if (edgeMaintenanceBlocksRole(session.user.role)) {
     const maintenance = await readEdgeMaintenanceState();
     if (maintenance?.enabled) {
-      if (pathname.startsWith("/api/")) {
+      if (isApi) {
         return NextResponse.json(
           { error: maintenance.message, code: "MAINTENANCE" },
           { status: 503, headers: { "Retry-After": "120" } }
@@ -262,13 +273,19 @@ export default async function proxy(request: NextRequest) {
       pathname.startsWith("/api/root/")) &&
     !isSuperAdmin
   ) {
-    if (pathname.startsWith("/api/")) {
+    if (isApi) {
       return NextResponse.json(
         { error: "Accès réservé aux super-administrateurs" },
         { status: 403 }
       );
     }
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Les réponses API n'ont pas besoin de CSP/nonce HTML — éviter ce coût sur
+  // chaque requête authentifiée (source majeure de latence perçue).
+  if (isApi) {
+    return apiPassthrough(request, apiRateLimitRemaining);
   }
 
   return pageResponse(request);
