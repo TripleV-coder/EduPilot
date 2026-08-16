@@ -8,7 +8,8 @@ const eslintConfig = [
   ...nextTypescript,
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
+      // Verrou anti-régression : 0 `any` explicite mesuré dans src/ (2026-08-04).
+      "@typescript-eslint/no-explicit-any": "error",
       // Objectif projet: lint zéro-bruit (aucun warning) en CI.
       // Les points ci-dessous sont gérés via TypeScript, tests, et revue de code.
       "@typescript-eslint/no-unused-vars": "off",
