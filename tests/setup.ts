@@ -1,5 +1,7 @@
 import { beforeAll, afterAll, beforeEach, vi } from "vitest";
 
+process.env.ROOT_USER_EMAILS = process.env.ROOT_USER_EMAILS || "root@edupilot.app";
+
 // Mocks globaux pour éviter le chargement de next-auth (dépend de next/server)
 vi.mock("next-auth", () => ({
   default: vi.fn(() => ({

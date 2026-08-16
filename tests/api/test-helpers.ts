@@ -44,6 +44,7 @@ export function makeRequest(
 
 interface SessionOverrides {
   id?: string;
+  email?: string;
   schoolId?: string | null;
   accessibleSchoolIds?: string[];
 }
@@ -53,6 +54,7 @@ export function makeSession(role: string, overrides: SessionOverrides = {}): Ses
   return {
     user: {
       id: overrides.id ?? cuid(`user${role}`),
+      email: overrides.email ?? `${role.toLowerCase()}@school.bj`,
       role,
       schoolId,
       accessibleSchoolIds: overrides.accessibleSchoolIds ?? (schoolId ? [schoolId] : []),
