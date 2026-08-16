@@ -257,12 +257,16 @@ export const PATCH = createApiHandler(
             const currentPrimarySchoolId =
                 teacher.schoolAssignments.find((assignment) => assignment.isPrimary)?.schoolId ?? teacher.schoolId;
 
+            // Ne traite comme réaffectation que ce que le client envoie réellement :
+            // `additionalSchoolIds` a un `.default([])` dans le schéma (toujours
+            // défini après parse) et ne doit donc pas déclencher ce garde-fou.
+            const rawBody = body as { schoolId?: unknown; primarySchoolId?: unknown; additionalSchoolIds?: unknown };
             if (
                 session.user.role !== "SUPER_ADMIN" &&
                 (
-                    validatedData.schoolId !== undefined ||
-                    validatedData.primarySchoolId !== undefined ||
-                    validatedData.additionalSchoolIds !== undefined
+                    rawBody.schoolId !== undefined ||
+                    rawBody.primarySchoolId !== undefined ||
+                    rawBody.additionalSchoolIds !== undefined
                 )
             ) {
                 return NextResponse.json({ error: "Seul le SUPER_ADMIN peut modifier les affectations multi-établissements" }, { status: 403 });
