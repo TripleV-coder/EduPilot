@@ -11,7 +11,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['src/lib/**/*.ts', 'src/components/edu/**/*.tsx', 'src/components/messaging/**/*.tsx'],
+      include: [
+        'src/lib/**/*.ts',
+        'src/components/edu/**/*.tsx',
+        'src/components/messaging/**/*.tsx',
+        'src/app/api/**/*.ts',
+      ],
       exclude: [
         'src/lib/types/**',
         '**/*.d.ts',
@@ -22,10 +27,12 @@ export default defineConfig({
       //  - src/components/** : primitives edu + messaging (baseline 2026-06-13 :
       //    edu 55/46/37.5 — Button/Card/Input/Badge/MetricCard/Spinner/Progress/
       //    Toast/ComposeDialog couverts ; charts/icônes encore à couvrir).
-      // Cibles long terme : lib 60/50/60, components 70/60/60.
+      //  - src/app/api/**    : seuil initial (TD-005/006) — remonter lot par lot.
+      // Cibles long terme : lib 60/50/60, components 70/60/60, api 40/30/40.
       thresholds: {
         'src/lib/**': { statements: 40, branches: 32, functions: 38 },
         'src/components/**': { statements: 50, branches: 40, functions: 35 },
+        'src/app/api/**': { statements: 12, branches: 9, functions: 12 },
       },
     },
     testTimeout: 10000,
