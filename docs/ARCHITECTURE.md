@@ -16,7 +16,7 @@ EduPilot est une application SaaS (Software as a Service) de gestion scolaire co
 - **State Management**: React Hooks + Server Components
 - **Forms**: React Hook Form + Zod validation
 - **Graphiques**: Recharts
-- **3D**: Three.js + React Three Fiber
+- **PWA**: Serwist (service worker)
 
 ### Backend
 - **Runtime**: Node.js 20 LTS

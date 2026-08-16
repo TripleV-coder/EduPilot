@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"/>
+<title>EduPilot — Dossier de présentation</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  @page { @bottom-center {
+    content: "EduPilot  ·  p. " counter(page);
+    font-size: 8pt; color: #64748b; font-family: "Segoe UI", system-ui, sans-serif;
+  }}
+  :root {
+    --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --accent:#0b3d5c;
+    --gold:#b8860b; --soft:#f8fafc; --ok:#166534; --warn:#a16207;
+  }
+  *{box-sizing:border-box}
+  html{font-size:11pt}
+  body{margin:0;color:var(--ink);font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;line-height:1.6}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif;color:var(--accent);line-height:1.3;page-break-after:avoid}
+  h1{font-size:22pt;margin:0 0 .4em}
+  h2{font-size:14pt;margin:1.4em 0 .5em;padding-bottom:.25em;border-bottom:2px solid var(--accent)}
+  h3{font-size:11.5pt;margin:1.1em 0 .35em;color:#123a52}
+  p{margin:.4em 0 .65em;text-align:justify}
+  ul,ol{margin:.3em 0 .8em;padding-left:1.3em} li{margin:.22em 0}
+  strong{color:#0b2540} .muted{color:var(--muted)} .small{font-size:9pt}
+  .page-break{page-break-before:always}
+  .cover{min-height:250mm;display:flex;flex-direction:column;justify-content:space-between;
+    padding:12mm 4mm 8mm;border:1.5pt solid var(--accent);position:relative}
+  .cover::before{content:"";position:absolute;inset:4mm;border:.4pt solid var(--gold);pointer-events:none}
+  .cover-top{text-align:center;padding-top:28mm;position:relative}
+  .brand-mark{display:inline-block;width:64px;height:64px;border-radius:14px;
+    background:linear-gradient(145deg,#0b3d5c,#1a5f82);color:#f8e7b0;
+    font:700 22pt Georgia,serif;line-height:64px;margin-bottom:12px}
+  .cover h1{font-size:34pt;letter-spacing:.04em;margin:.15em 0}
+  .tagline{font-size:12pt;color:var(--muted);margin-top:.4em}
+  .cover-meta{margin:2.2em auto 0;max-width:380px;text-align:left;font-size:10pt}
+  .cover-meta table{width:100%;border-collapse:collapse}
+  .cover-meta td{padding:.4em 0;border-bottom:.5pt solid var(--line)}
+  .cover-meta td:first-child{width:38%;color:var(--muted);font-weight:600}
+  .cover-bottom{text-align:center;font-size:9pt;color:var(--muted);padding-bottom:8mm;position:relative}
+  .callout{background:var(--soft);border-left:3.5pt solid var(--accent);padding:.75em 1em;margin:.8em 0 1em;page-break-inside:avoid}
+  .callout.ok{border-left-color:var(--ok);background:#f0fdf4}
+  .callout.warn{border-left-color:var(--warn);background:#fffbeb}
+  .callout .label{font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--accent);margin-bottom:.2em}
+  .callout.ok .label{color:var(--ok)}
+  .callout.warn .label{color:#92400e}
+  table.data{width:100%;border-collapse:collapse;margin:.5em 0 1em;font-size:9.5pt}
+  table.data th,table.data td{border:.55pt solid #cbd5e1;padding:.45em .55em;text-align:left;vertical-align:top}
+  table.data th{background:#0b3d5c;color:#fff;font-weight:600}
+  table.data tr:nth-child(even) td{background:#f8fafc}
+  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:.8em 0 1.1em}
+  .kpi{border:.8pt solid var(--line);padding:.7em .5em;text-align:center;page-break-inside:avoid;background:#fff}
+  .kpi .v{font-size:16pt;font-weight:700;color:var(--accent);font-family:Georgia,serif}
+  .kpi .l{font-size:8pt;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin-top:.15em}
+  .src{font-size:8pt;color:#64748b;font-style:italic}
+  .quote{font-family:Georgia,serif;font-style:italic;font-size:11.5pt;color:#334155;
+    border-left:3pt solid var(--gold);padding:.4em 0 .4em .9em;margin:1em 0 1.2em}
+  .footer-note{margin-top:1.6em;padding-top:.7em;border-top:.8pt solid var(--line);font-size:8.5pt;color:var(--muted)}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:.6em 0 1em}
+  .card{border:.7pt solid var(--line);padding:.75em .85em;page-break-inside:avoid}
+  .card h3{margin-top:0;font-size:11pt}
+</style></head><body>
+
+<!-- COUVERTURE -->
+<section class="cover">
+  <div class="cover-top">
+    <div class="brand-mark">EP</div>
+    <div class="small muted" style="letter-spacing:.2em;text-transform:uppercase;font-weight:700">Dossier de présentation</div>
+    <h1>EduPilot</h1>
+    <div class="tagline">Le logiciel de gestion scolaire<br/>pensé pour l’Afrique francophone</div>
+    <div class="cover-meta"><table>
+      <tr><td>Version</td><td>4.0 — Document simple &amp; professionnel</td></tr>
+      <tr><td>Date</td><td>4 août 2026</td></tr>
+      <tr><td>Destinataire</td><td>Investisseur / partenaire stratégique</td></tr>
+      <tr><td>Objectif</td><td>Comprendre le problème, la solution et le potentiel</td></tr>
+    </table></div>
+  </div>
+  <div class="cover-bottom">
+    <strong style="color:var(--accent)">EduPilot</strong><br/>
+    Un seul outil pour gérer notes, absences, paiements et communication parents
+  </div>
+</section>
+
+<!-- 1. EN BREF -->
+<section class="page-break">
+  <h2>1. En bref</h2>
+
+  <p>
+    <strong>EduPilot</strong> est un logiciel en ligne qui aide les écoles à tout gérer
+    au même endroit : notes, absences, paiements, bulletins et communication avec les parents.
+  </p>
+
+  <div class="callout ok">
+    <div class="label">L’idée en une phrase</div>
+    Remplacer Excel + WhatsApp + caisse manuelle par un outil unique,
+    adapté aux écoles d’Afrique de l’Ouest — y compris les paiements par téléphone.
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="v">285</div><div class="l">Fonctions applicatives</div></div>
+    <div class="kpi"><div class="v">158</div><div class="l">Écrans métier</div></div>
+    <div class="kpi"><div class="v">1 169</div><div class="l">Tests automatiques verts</div></div>
+  </div>
+  <p class="src">Chiffres mesurés sur le code au 4 août 2026.</p>
+
+  <h3>Pour qui ?</h3>
+  <ul>
+    <li>Écoles privées et réseaux d’établissements (Afrique francophone)</li>
+    <li>Directeurs, enseignants, comptables, parents</li>
+    <li>Première cible : Bénin, Sénégal, Côte d’Ivoire, Cameroun</li>
+  </ul>
+</section>
+
+<!-- 2. LE PROBLÈME -->
+<section class="page-break">
+  <h2>2. Le problème</h2>
+
+  <p>
+    Aujourd’hui, beaucoup d’écoles gèrent encore avec des outils dispersés :
+    fichiers Excel, groupes WhatsApp, cahiers papier et paiements en espèces.
+    Le résultat : erreurs, retards, parents mal informés, et une trésorerie difficile à suivre.
+  </p>
+
+  <h3>Trois réalités du marché</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>Résultats scolaires</h3>
+      <p>
+        Plus de <strong>60 %</strong> des enfants de 10 ans
+        en Afrique subsaharienne ne savent pas lire un texte simple.
+        Sans suivi régulier, les difficultés restent invisibles trop longtemps.
+      </p>
+      <p class="src">Banque mondiale / PNUD</p>
+    </div>
+    <div class="card">
+      <h3>Paiements</h3>
+      <p>
+        Les parents paient déjà par téléphone :
+        <strong>1,1 trillion USD</strong> de transactions Mobile Money
+        en Afrique subsaharienne en 2024.
+        Une école qui n’accepte que le cash freine ses encaissements.
+      </p>
+      <p class="src">GSMA 2025</p>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <h3>Connectivité</h3>
+      <p>
+        Seulement <strong>24 %</strong> des ménages ont Internet.
+        Moins de <strong>50 %</strong> des écoles primaires ont une électricité fiable.
+        Un outil trop lourd ou purement « bureau » ne marche pas.
+      </p>
+      <p class="src">PNUD — Cartographie EdTech Afrique</p>
+    </div>
+    <div class="card">
+      <h3>Marché en croissance</h3>
+      <p>
+        Le marché des technologies éducatives en Afrique est estimé à
+        <strong>7,3 Md USD</strong> en 2025, avec une projection de
+        <strong>19 Md USD</strong> en 2034.
+      </p>
+      <p class="src">IMARC Group</p>
+    </div>
+  </div>
+
+  <p class="quote">
+    Le problème n’est pas un manque de volonté. C’est un manque d’outil adapté :
+    simple, local, et capable de suivre vraiment les élèves et l’argent.
+  </p>
+</section>
+
+<!-- 3. SUIVI ACADÉMIQUE -->
+<section class="page-break">
+  <h2>3. Pourquoi le faible suivi fait chuter les résultats</h2>
+
+  <p>
+    Quand une école ne suit pas correctement notes et absences, les difficultés
+    d’un élève restent invisibles jusqu’au conseil de classe — souvent trop tard
+    pour rattraper l’année.
+  </p>
+
+  <h3>Ce qui se passe concrètement</h3>
+  <ol>
+    <li><strong>Absences non consolidées</strong> — l’élève rate des cours, personne ne relance les parents à temps.</li>
+    <li><strong>Notes dispersées</strong> — Excel, cahiers, messages WhatsApp : aucune vue d’ensemble.</li>
+    <li><strong>Aucune alerte</strong> — le directeur découvre le problème en fin de trimestre.</li>
+    <li><strong>Parents coupés</strong> — ils ne peuvent pas aider à la maison s’ils ne savent pas.</li>
+  </ol>
+
+  <div class="callout">
+    <div class="label">Conséquence</div>
+    Décrochage silencieux, redoublements, échecs aux examens,
+    et perte de confiance des familles envers l’école.
+  </div>
+
+  <h3>Ce qu’EduPilot change</h3>
+  <table class="data">
+    <thead><tr><th>Avant</th><th>Avec EduPilot</th></tr></thead>
+    <tbody>
+      <tr><td>Notes dans Excel / cahiers</td><td>Saisie unique → bulletins générés automatiquement</td></tr>
+      <tr><td>Absences oubliées ou tardives</td><td>Pointage + alertes visibles pour la direction</td></tr>
+      <tr><td>Conseil de classe « à l’aveugle »</td><td>Historique élève, tendances, signaux de risque</td></tr>
+      <tr><td>Parents informés trop tard</td><td>Portail parents : notes, absences, messages</td></tr>
+      <tr><td>Orientation improvisée</td><td>Parcours structurés (orientation, préparation BEPC)</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    <strong>Objectif concret :</strong> intervenir
+    <strong>4 à 8 semaines plus tôt</strong> qu’avec Excel et WhatsApp,
+    dès que notes et absences sont saisies régulièrement.
+  </p>
+</section>
+
+<!-- 4. LA SOLUTION -->
+<section class="page-break">
+  <h2>4. La solution EduPilot</h2>
+
+  <p>
+    EduPilot regroupe dans un seul logiciel ce dont une école a besoin au quotidien.
+  </p>
+
+  <div class="two-col">
+    <div class="card">
+      <h3>Vie scolaire</h3>
+      <ul>
+        <li>Élèves, classes, enseignants</li>
+        <li>Notes et bulletins</li>
+        <li>Absences et alertes</li>
+        <li>Devoirs et examens</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Finance</h3>
+      <ul>
+        <li>Frais de scolarité et échéanciers</li>
+        <li>Paiement par téléphone (FedaPay, MTN MoMo)</li>
+        <li>Caisse, bourses, rapports</li>
+        <li>Suivi des impayés</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Parents</h3>
+      <ul>
+        <li>Espace dédié multi-enfants</li>
+        <li>Notes et absences en ligne</li>
+        <li>Messages et carnet de liaison</li>
+        <li>Notifications SMS / e-mail</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Pilotage</h3>
+      <ul>
+        <li>Tableaux de bord direction</li>
+        <li>Détection des élèves à risque</li>
+        <li>Orientation et préparation examens</li>
+        <li>Aide intelligente (sur demande)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Ce qui est déjà prêt — et ce qui ne l’est pas encore</h3>
+  <table class="data">
+    <thead><tr><th>Fonction</th><th>Statut</th></tr></thead>
+    <tbody>
+      <tr><td>Notes, bulletins, absences, analytics</td><td><strong style="color:#166534">Prêt</strong></td></tr>
+      <tr><td>Paiements Mobile Money (FedaPay / MoMo)</td><td><strong style="color:#166534">Prêt</strong></td></tr>
+      <tr><td>Portail parents, messagerie, SMS</td><td><strong style="color:#166534">Prêt</strong></td></tr>
+      <tr><td>Sécurité (rôles, double vérification, protection des données)</td><td><strong style="color:#166534">Prêt</strong></td></tr>
+      <tr><td>WhatsApp Business (envoi automatique)</td><td><strong style="color:#a16207">Partiel</strong> — à brancher chez le client</td></tr>
+      <tr><td>GPS transport scolaire</td><td><strong style="color:#a16207">Non livré</strong> — lignes/bus oui, GPS non</td></tr>
+      <tr><td>Applications mobiles natives</td><td>Roadmap — le site fonctionne déjà sur mobile</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="label">Honnêteté produit</div>
+    EduPilot n’est pas une maquette. C’est une plateforme réelle, testée (1 169 tests).
+    Les parties incomplètes sont affichées clairement dans l’application —
+    pas de fausses données pour « faire joli ».
+  </div>
+</section>
+
+<!-- 5. PREUVES -->
+<section class="page-break">
+  <h2>5. Preuves que ça marche ailleurs</h2>
+
+  <p>
+    Des écoles qui ont digitalisé leur gestion ont déjà mesuré des gains concrets.
+    Ces chiffres ne garantissent pas le même résultat avec EduPilot —
+    ils montrent que le problème est solvable et rentable.
+  </p>
+
+  <h3>Cas — École Internationale Almadies (Dakar)</h3>
+  <p class="src">Source : Kolonell, retour d’expérience 2026</p>
+
+  <table class="data">
+    <thead><tr><th>Indicateur</th><th>Avant</th><th>Après (~14 mois)</th></tr></thead>
+    <tbody>
+      <tr><td>Effectifs</td><td>380 élèves</td><td>720 élèves</td></tr>
+      <tr><td>Retards de paiement</td><td>38 %</td><td>9 %</td></tr>
+      <tr><td>Satisfaction parents</td><td>6,2 / 10</td><td>8,7 / 10</td></tr>
+      <tr><td>Usage espace parents</td><td>—</td><td>85 % chaque jour</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Le levier principal : <strong>échéancier + paiement mobile + espace parents</strong>.
+    C’est exactement ce qu’EduPilot propose, en logiciel partagé (moins cher qu’un projet sur-mesure).
+  </p>
+
+  <h3>Ordre de grandeur — école de 500 élèves</h3>
+  <div class="callout">
+    <div class="label">Modèle illustratif (hypothèses affichées)</div>
+    Scolarité moyenne 600 000 FCFA/an → CA théorique 300 M FCFA.<br/>
+    Si 25 % de retards chroniques = 75 M FCFA exposés.<br/>
+    Réduire de 15 points les retards → environ <strong>45 M FCFA</strong> de trésorerie sécurisée par an.<br/>
+    <span class="src">Hypothèses prudentes vs le cas documenté (−29 points). Pas une garantie client.</span>
+  </div>
+</section>
+
+<!-- 6. POTENTIEL -->
+<section class="page-break">
+  <h2>6. Pourquoi le projet a du potentiel</h2>
+
+  <ol>
+    <li>
+      <strong>Le besoin est quotidien et payant.</strong>
+      Chaque école a des notes, des absences et des frais à encaisser — tous les jours de l’année scolaire.
+    </li>
+    <li>
+      <strong>Le rail de paiement existe déjà.</strong>
+      Les parents utilisent le Mobile Money. EduPilot s’y branche au lieu de forcer le cash.
+    </li>
+    <li>
+      <strong>L’offre locale est insuffisante.</strong>
+      Beaucoup d’outils se concentrent sur les cours en ligne.
+      Peu proposent une vraie gestion d’école + finance locale + portail parents.
+    </li>
+    <li>
+      <strong>Le produit est déjà construit.</strong>
+      285 fonctions, 158 écrans, 1 169 tests. On ne part pas d’une idée sur papier.
+    </li>
+    <li>
+      <strong>Modèle multi-écoles.</strong>
+      Un même logiciel pour plusieurs établissements, avec données séparées —
+      adapté aux réseaux et franchises scolaires.
+    </li>
+  </ol>
+
+  <div class="callout ok">
+    <div class="label">Différenciation</div>
+    Un seul cockpit : vie scolaire + paiements téléphone + parents + alertes pédagogiques.
+    Conçu pour les contraintes locales (mobile, connectivité faible, Mobile Money).
+  </div>
+</section>
+
+<!-- 7. ÉTAT ACTUEL -->
+<section class="page-break">
+  <h2>7. Où en est le projet aujourd’hui</h2>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="v">8,5 / 10</div><div class="l">Note qualité actuelle</div></div>
+    <div class="kpi"><div class="v">9 / 10</div><div class="l">Objectif cible</div></div>
+    <div class="kpi"><div class="v">V1</div><div class="l">Plateforme opérationnelle</div></div>
+  </div>
+
+  <h3>Prochaines étapes</h3>
+  <ul>
+    <li><strong>Court terme</strong> — renforcer les tests, accessibilité, parcours parents/paiement</li>
+    <li><strong>Moyen terme</strong> — isolation renforcée des données entre écoles ; métriques WhatsApp/SMS réelles</li>
+    <li><strong>Long terme</strong> — applications mobiles natives ; GPS transport si partenaire</li>
+  </ul>
+
+  <h3>Risques assumés</h3>
+  <ul>
+    <li>Certaines intégrations (WhatsApp, GPS) restent à finaliser chez le client</li>
+    <li>Le succès pédagogique dépend de la saisie régulière des données par l’école</li>
+    <li>Le marché demande du temps commercial (écoles, réseaux, partenaires locaux)</li>
+  </ul>
+</section>
+
+<!-- 8. CONCLUSION -->
+<section class="page-break">
+  <h2>8. Message clé</h2>
+
+  <ol>
+    <li>Les écoles manquent d’un outil unique pour suivre élèves et argent.</li>
+    <li>Le faible suivi académique nuit directement aux résultats — trop tard, trop opaque.</li>
+    <li>Les parents paient déjà par téléphone : la solution doit suivre.</li>
+    <li>Des écoles digitalisées ont déjà montré des gains mesurables (impayés, satisfaction).</li>
+    <li>EduPilot existe : produit réel, testé, adapté au terrain — pas une présentation PowerPoint.</li>
+  </ol>
+
+  <div class="callout ok">
+    <div class="label">Invitation</div>
+    Échanger sur un pilote école, un partenariat réseau, ou un investissement
+    pour accélérer la commercialisation en Afrique de l’Ouest.
+  </div>
+
+  <div class="footer-note">
+    © 2026 EduPilot — Dossier v4.0. Document de présentation.<br/>
+    Sources marché : PNUD, IMARC, GSMA, Banque mondiale, Kolonell, Les Échos.<br/>
+    Métriques produit mesurées sur le code au 4 août 2026. Les modèles économiques sont illustratifs.
+  </div>
+</section>
+
+</body></html>
