@@ -171,7 +171,6 @@ jobs:
         run: npx --yes @lhci/cli autorun --upload.target=temporary-public-storage
         env:
           LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
-        continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────
   # 4. Deploy to staging (auto) — production needs manual approval
@@ -198,16 +197,20 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
 
-      - name: Deploy image (placeholder — customise per target)
+      - name: Deploy image
         run: |
-          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }} to STAGING"
-          # Examples by target:
-          #   Vercel:    vercel deploy --prod --token=$VERCEL_TOKEN
-          #   Railway:   railway up --service edupilot
-          #   K8s:       kubectl set image deploy/edupilot app=$IMAGE && kubectl rollout status
-          #   Compose:   ssh staging "docker pull $IMAGE && docker compose up -d"
+          set -euo pipefail
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}"
+          if [[ -z "${STAGING_DEPLOY_COMMAND:-}" ]]; then
+            echo "::error::STAGING_DEPLOY_COMMAND n'est pas défini"
+            exit 1
+          fi
+          echo "Deploying ${IMAGE} to STAGING"
+          export IMAGE
+          bash -lc "$STAGING_DEPLOY_COMMAND"
         env:
           DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+          STAGING_DEPLOY_COMMAND: ${{ vars.STAGING_DEPLOY_COMMAND }}
 
       - name: Smoke test (health endpoint)
         run: |
@@ -248,9 +251,18 @@ jobs:
 
       - name: Deploy image
         run: |
-          echo "Deploying ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }} to PRODUCTION"
+          set -euo pipefail
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}"
+          if [[ -z "${PRODUCTION_DEPLOY_COMMAND:-}" ]]; then
+            echo "::error::PRODUCTION_DEPLOY_COMMAND n'est pas défini"
+            exit 1
+          fi
+          echo "Deploying ${IMAGE} to PRODUCTION"
+          export IMAGE
+          bash -lc "$PRODUCTION_DEPLOY_COMMAND"
         env:
           DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
+          PRODUCTION_DEPLOY_COMMAND: ${{ vars.PRODUCTION_DEPLOY_COMMAND }}
 
       - name: Smoke test
         run: |
