@@ -98,7 +98,7 @@ import { t as defaultT, type TranslationFn } from "@/lib/i18n";
 export { type TranslationFn };
 export const t = defaultT;
 
-type PrismaErrorShape = { code?: string; name?: string; message?: string; meta?: { target?: string[] } };
+type PrismaErrorShape = { code?: string; name?: string; message?: string; error?: string; key?: string; params?: unknown; meta?: { target?: string[] } };
 
 export function translateError(error: unknown, t?: TranslationFn): { error: string; code?: string } {
     const translate = t || defaultT;
@@ -111,7 +111,9 @@ export function translateError(error: unknown, t?: TranslationFn): { error: stri
     if (e.code === "P2025") return { error: translate("Enregistrement non trouvé.") };
     if (e.code === "P2003") return { error: translate("Référence invalide : un enregistrement lié n'existe pas.") };
     if (e.name === "ZodError") return { error: translate("Données invalides.") };
+    if (e.key) return { error: translate(e.key, e.params as Record<string, unknown> | undefined), code: e.code };
     if (e.message) return { error: translate(e.message), code: e.code };
+    if (e.error) return { error: translate(String(e.error)), code: e.code };
     return { error: translate("Erreur inattendue.") };
 }
 

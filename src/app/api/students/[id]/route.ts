@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { isZodError } from "@/lib/is-zod-error";
 import { strongPasswordSchema } from "@/lib/validations/auth";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -132,7 +133,18 @@ export const PATCH = createApiHandler(
     }
 
     const body = await request.json();
-    const validatedData = studentUpdateSchema.parse(body);
+    let validatedData: z.infer<typeof studentUpdateSchema>;
+    try {
+      validatedData = studentUpdateSchema.parse(body);
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     if (validatedData.classId) {
       const targetClass = await prisma.class.findUnique({

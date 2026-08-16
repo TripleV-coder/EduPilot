@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { studentCreateSchema } from "@/lib/validations/user";
+import { isZodError } from "@/lib/is-zod-error";
+import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
@@ -249,7 +251,18 @@ export const POST = createApiHandler(
     const activeSchoolId = getActiveSchoolId(session);
 
     const body = await request.json();
-    const validatedData = studentCreateSchema.parse(body);
+    let validatedData: z.infer<typeof studentCreateSchema>;
+    try {
+      validatedData = studentCreateSchema.parse(body);
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json(
+          { error: "Données invalides", details: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
     let targetSchoolId = activeSchoolId;
 
     // Validate Class ID if provided

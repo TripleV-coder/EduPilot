@@ -29,13 +29,14 @@ export default defineConfig({
       //    Toast/ComposeDialog couverts ; charts/icônes encore à couvrir).
       //  - src/app/api/**    : seuil TD-005 (20/16/20 au 2026-08-16, +149
       //    tests : announcements, events, library, attendance, audit-logs,
+      //    students +
       //    alumni, benchmark, cagnottes, admin/subjects, appointments,
       //    accounting/entries, curriculum-config) — remonter lot par lot.
       // Cibles long terme : lib 60/50/60, components 70/60/60, api 40/30/40.
       thresholds: {
         'src/lib/**': { statements: 40, branches: 32, functions: 38 },
         'src/components/**': { statements: 50, branches: 40, functions: 35 },
-        'src/app/api/**': { statements: 20, branches: 16, functions: 20 },
+        'src/app/api/**': { statements: 21, branches: 17, functions: 20 },
       },
     },
     testTimeout: 10000,
