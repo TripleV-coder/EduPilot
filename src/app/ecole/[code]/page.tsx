@@ -70,7 +70,11 @@ export default async function SchoolPublicPage({
             <div style={{ height: 200, background: band, position: "relative", overflow: "hidden" }}>
                 {school.coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={school.coverImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img
+                        src={school.coverImage}
+                        alt={`Bannière de l'établissement ${school.name}`}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                 ) : null}
             </div>
 
@@ -92,7 +96,11 @@ export default async function SchoolPublicPage({
                     >
                         {school.logo ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={school.logo} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+                            <img
+                                src={school.logo}
+                                alt={`Logo de ${school.name}`}
+                                style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }}
+                            />
                         ) : (
                             <span style={{ fontSize: 34, fontWeight: 800, color: "var(--brand-700)" }}>
                                 {school.name.charAt(0)}
