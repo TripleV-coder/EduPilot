@@ -26,6 +26,7 @@ import { SWRProvider } from "@/components/providers/swr-provider";
 import { CookieBanner } from "@/components/gdpr/CookieBanner";
 import { SkipToContent } from "@/components/a11y/skip-to-content";
 import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { Toaster as SonnerToaster } from "sonner";
 
 // Rendu dynamique forcé : indispensable pour la CSP à nonce par requête
@@ -94,6 +95,7 @@ export default function RootLayout({
                             <CookieBanner />
                             <Toaster />
                             <SonnerToaster position="top-right" richColors closeButton />
+                            <ServiceWorkerRegister />
                         </SchoolProvider>
                     </SWRProvider>
                 </SessionProvider>

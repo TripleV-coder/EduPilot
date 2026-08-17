@@ -55,7 +55,6 @@ export function PricingSection() {
                             isAnnual ? "bg-primary" : "bg-muted"
                         )}
                         aria-label="Basculer la période de facturation"
-                        aria-pressed={isAnnual}
                         aria-checked={isAnnual}
                         role="switch"
                     >

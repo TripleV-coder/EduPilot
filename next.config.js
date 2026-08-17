@@ -3,6 +3,9 @@
  * Inclut les optimisations de performance et de sécurité
  */
 
+const { withSerwist } = require("@serwist/turbopack");
+const { withSentryConfig } = require("@sentry/nextjs");
+
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
 
@@ -196,14 +199,22 @@ const nextConfig = {
   // ─────────────────────────────────────────────────────────────
   // LOGGING & MONITORING
   // ─────────────────────────────────────────────────────────────
-  
-  // Sentry (si configuré)
-  ...(process.env.SENTRY_DSN && {
-    sentry: {
-      hideSourceMaps: true,
-      widenClientFileUpload: true,
-    },
-  }),
 };
 
-module.exports = nextConfig;
+// ─────────────────────────────────────────────────────────────
+// PWA (Serwist, mode Turbopack) — le worker est compilé à la volée
+// par le route handler app/serwist/[path]/route.ts et servi en /serwist/sw.js
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// SENTRY — SDK actif dès que SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN
+// est présent. Source maps non uploadées : aucun token CI requis.
+// ─────────────────────────────────────────────────────────────
+const withSentry = (config) =>
+  withSentryConfig(config, {
+    hideSourceMaps: true,
+    widenClientFileUpload: true,
+    sourcemaps: { disable: true },
+  });
+
+module.exports = withSentry(withSerwist(nextConfig));

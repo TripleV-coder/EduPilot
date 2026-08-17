@@ -1,51 +1,82 @@
 /**
  * Sentry Monitoring Configuration
  * Error tracking and performance monitoring
+ * — init séparé par runtime (serveur nodejs / edge) ; l'initialisation
+ *   client vit dans ./sentry-client.ts.
  */
 
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/utils/logger";
 
 /**
- * Initialize Sentry
+ * Configuration partagée (DSN + filtrage des données sensibles).
  */
-export function initSentry() {
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+export const buildSentryConfig = {
+  dsn(client = false): string | null {
+    const dsn = client
+      ? process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN
+      : process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
+    return dsn || null;
+  },
 
+  base(dsn: string) {
+    return {
+      dsn,
+      environment: process.env.NODE_ENV || "development",
+      tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+      beforeSend: buildBeforeSend(),
+    };
+  },
+};
+
+/**
+ * Filtre les données sensibles avant envoi à Sentry.
+ */
+function buildBeforeSend() {
+  return (event: unknown, _hint: unknown) => {
+    const ev = event as { request?: { headers?: Record<string, string>; query_string?: string } };
+    if (ev.request) {
+      if (ev.request.headers) {
+        delete ev.request.headers["authorization"];
+        delete ev.request.headers["cookie"];
+      }
+      if (ev.request.query_string) {
+        const params = new URLSearchParams(ev.request.query_string);
+        params.delete("token");
+        params.delete("password");
+        ev.request.query_string = params.toString();
+      }
+    }
+    return event;
+  };
+}
+
+/**
+ * Initialise Sentry côté serveur Node.js (route handlers, instrumentation).
+ */
+export function initSentryServer() {
+  const dsn = buildSentryConfig.dsn();
   if (!dsn) {
-    logger.warn("Sentry DSN not configured, monitoring disabled", { module: "monitoring/sentry" });
+    logger.warn("Sentry DSN not configured, server monitoring disabled", { module: "monitoring/sentry" });
     return;
   }
 
   Sentry.init({
-    dsn,
-    environment: process.env.NODE_ENV || "development",
-    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+    ...buildSentryConfig.base(dsn),
     profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-    beforeSend(event: unknown, _hint: unknown) {
-      // Filter out sensitive data
-      const ev = event as { request?: { headers?: Record<string, string>; query_string?: string } };
-      if (ev.request) {
-        if (ev.request.headers) {
-          delete ev.request.headers["authorization"];
-          delete ev.request.headers["cookie"];
-        }
-        if (ev.request.query_string) {
-          const params = new URLSearchParams(ev.request.query_string);
-          params.delete("token");
-          params.delete("password");
-          ev.request.query_string = params.toString();
-        }
-      }
-      return event;
-    },
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
+  });
+}
+
+/**
+ * Initialise Sentry côté runtime Edge (proxy / middleware).
+ */
+export function initSentryEdge() {
+  const dsn = buildSentryConfig.dsn();
+  if (!dsn) return;
+
+  Sentry.init({
+    ...buildSentryConfig.base(dsn),
+    profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   });
 }
 

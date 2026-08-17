@@ -67,6 +67,8 @@ const PUBLIC_ROUTES = new Set([
   "/terms",
   "/explorer",
   "/disabled",
+  // Page hors-ligne servie par le service worker (fallback navigation)
+  "/offline",
 ]);
 
 /**
@@ -88,16 +90,9 @@ const GUEST_ONLY_ROUTES = new Set([
 
 const PUBLIC_PREFIXES = [
   "/api/auth",
-  "/api/auth/register",
-  "/api/auth/forgot-password",
-  "/api/auth/reset-password",
-  "/api/auth/first-login",
-  "/api/auth/initial-setup",
-  "/api/auth/verify-email",
   "/api/setup",
   "/api/explorer",
   "/api/docs",
-  "/api/system/health",
   "/api/payments/webhook",
   "/api/payments/fedapay/webhook",
   "/api/payments/momo/webhook",
