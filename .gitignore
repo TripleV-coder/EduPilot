@@ -27,6 +27,7 @@ db_dump_*.sql
 tsconfig.tsbuildinfo
 
 # Test/coverage artifacts
+.quality-tmp/
 e2e/.auth/
 coverage/
 playwright-report/
