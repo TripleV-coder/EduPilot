@@ -146,6 +146,15 @@ GET /api/<liste>?limit=20&cursor=<opaque>        (défaut 20, plafond 100)
 - Les 13 routes au format `page/limit` actuel migrent vers ce format, consommateurs front mis à jour dans le même commit. Rétrocompatibilité transitoire (règle 8) : `?page=` reste accepté (offset, déprécié) jusqu'au Lot 8, puis retiré.
 - Index composites `(schoolId, <champ de tri>, id)` ajoutés **uniquement** si `EXPLAIN ANALYZE` le justifie.
 
+**Ajustement du propriétaire (2026-09-11) : « garde la pagination mais elle ne doit pas peser sur le fonctionnement de l'app ».** Traduit en règles vérifiables pour le Lot 3 :
+
+1. **Aucune troncature fonctionnelle.** Avant de paginer une route, recenser ses consommateurs front. Un écran qui a besoin de l'ensemble (sélecteurs, saisie de notes d'une classe, bulletins, exports) ne reçoit jamais une liste coupée silencieusement : soit la route reste complète parce que bornée par nature (commentaire justificatif + `select` minimal), soit l'écran reçoit un endpoint filtré adapté à son besoin (ex. évaluations d'une classe et d'une période), soit l'export est produit côté serveur.
+2. **Aucun surcoût.** Pas d'`OFFSET` (keyset indexé) ; `count()` exécuté **uniquement sur la première page** (sans curseur) puis conservé par le hook client — les pages suivantes n'en paient pas.
+3. **Aucun changement de comportement visible** : mêmes écrans, mêmes contrôles, mêmes libellés (design gelé).
+4. **Preuve** : E2E des parcours concernés verts (`grades-flow`, `finance-flow`, `attendance-flow`) et smoke sans 400 nouveau sur les GET existants.
+
+**Plan validé avec cet ajustement → Lot 1 lancé.**
+
 ### Proposition initiale (offset) — non retenue
 
 Format dominant existant, produit par `getPaginationParams` + `createPaginatedResponse` (`src/lib/api/api-helpers.ts:168-220`), utilisé par 13 routes (2 seulement utilisent `pageSize`, 0 curseur) :
