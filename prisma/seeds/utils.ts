@@ -70,7 +70,10 @@ export function generateMatricule(prefix: string, index: number, year: number = 
 }
 
 export async function hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12);
+    // Cost 4 (et non 12) : données de test uniquement — le seed crée ~3 000
+    // comptes ; à cost 12, bcrypt seul prenait ~15 min (CI timeouts).
+    // Les comptes E2E critiques sont re-hashés à cost 12 par e2e/global-setup.ts.
+    return bcrypt.hash(password, 4);
 }
 
 export async function createUser(

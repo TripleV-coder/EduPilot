@@ -37,7 +37,7 @@ export default defineConfig({
       thresholds: {
         'src/lib/**': { statements: 40, branches: 32, functions: 38 },
         'src/components/**': { statements: 50, branches: 40, functions: 35 },
-        'src/app/api/**': { statements: 27, branches: 22, functions: 27 },
+        'src/app/api/**': { statements: 40, branches: 30, functions: 40 },
       },
     },
     testTimeout: 10000,

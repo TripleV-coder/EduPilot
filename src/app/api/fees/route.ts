@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
+import { isZodError } from "@/lib/is-zod-error";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -62,36 +63,43 @@ export const GET = createApiHandler(
  */
 export const POST = createApiHandler(
   async (request, { session }, t) => {
-    const body = await request.json() as Record<string, unknown>;
-    const data = feeSchema.parse(body);
-    const requestedSchoolId = body.schoolId as string | undefined;
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
+    try {
+      const body = await request.json() as Record<string, unknown>;
+      const data = feeSchema.parse(body);
+      const requestedSchoolId = body.schoolId as string | undefined;
+      const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+      if (schoolAccess) return schoolAccess;
 
-    // Determine schoolId
-    let schoolId = getActiveSchoolId(session);
-    if (requestedSchoolId) {
-      schoolId = requestedSchoolId;
+      // Determine schoolId
+      let schoolId = getActiveSchoolId(session);
+      if (requestedSchoolId) {
+        schoolId = requestedSchoolId;
+      }
+
+      if (!schoolId) {
+        return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
+      }
+
+      const fee = await prisma.fee.create({
+        data: {
+          schoolId,
+          name: data.name,
+          description: data.description,
+          amount: data.amount,
+          academicYearId: data.academicYearId,
+          classLevelCode: data.classLevelCode,
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          isRequired: data.isRequired,
+        },
+      });
+
+      return NextResponse.json(fee, { status: 201 });
+    } catch (error) {
+      if (isZodError(error)) {
+        return NextResponse.json({ error: error.issues }, { status: 400 });
+      }
+      throw error;
     }
-
-    if (!schoolId) {
-      return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
-    }
-
-    const fee = await prisma.fee.create({
-      data: {
-        schoolId,
-        name: data.name,
-        description: data.description,
-        amount: data.amount,
-        academicYearId: data.academicYearId,
-        classLevelCode: data.classLevelCode,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-        isRequired: data.isRequired,
-      },
-    });
-
-    return NextResponse.json(fee, { status: 201 });
   },
   {
     requireAuth: true,
