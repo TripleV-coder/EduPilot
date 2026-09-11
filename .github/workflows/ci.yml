@@ -114,6 +114,58 @@ jobs:
         continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────
+  # 2b. Intégration sur vrai PostgreSQL : migrations versionnées + dérive
+  #     schéma (C1) + suite tests/integration-db (isolation, volume, API).
+  # ─────────────────────────────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests (PostgreSQL réel)
+    runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: edupilot
+          POSTGRES_PASSWORD: edupilot
+          POSTGRES_DB: edupilot_test
+        # Port ≠ 5432 : la suite refuse 5432 (garde-fou base locale).
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://edupilot:edupilot@localhost:5439/edupilot_test
+      TEST_DATABASE_URL: postgresql://edupilot:edupilot@localhost:5439/edupilot_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Migrations — application sur base vide (clone neuf)
+        run: npx prisma migrate deploy
+
+      - name: Migrations — aucune dérive avec schema.prisma
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script --exit-code
+
+      - name: Integration tests
+        run: npm run test:integration
+
+  # ─────────────────────────────────────────────────────────────────────────
   # 3. Next.js Build
   # ─────────────────────────────────────────────────────────────────────────
   build:
@@ -217,7 +269,7 @@ jobs:
       - name: Prepare database
         run: |
           npx prisma generate
-          npx prisma db push --skip-generate
+          npx prisma migrate deploy
 
       - name: Seed test data
         run: npm run db:seed
@@ -343,7 +395,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, build, e2e, codeql, dependency-audit, trivy]
+    needs: [lint, unit-tests, integration-tests, build, e2e, codeql, dependency-audit, trivy]
     if: always()
     steps:
       - name: Verify all required checks passed
@@ -361,6 +413,7 @@ jobs:
           }
           check lint "${{ needs.lint.result }}"
           check unit-tests "${{ needs.unit-tests.result }}"
+          check integration-tests "${{ needs.integration-tests.result }}"
           check build "${{ needs.build.result }}"
           check e2e "${{ needs.e2e.result }}"
           check codeql "${{ needs.codeql.result }}"
