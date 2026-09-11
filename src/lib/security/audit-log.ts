@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { logger } from "@/lib/utils/logger";
+import { getClientIp } from "@/lib/security/client-ip";
 
 export type AuditValue = Record<string, unknown> | unknown[] | null | undefined;
 
@@ -45,9 +46,7 @@ function sanitizeAuditData(data: AuditValue): AuditValue {
 
 export async function createAuditLog(data: AuditLogData) {
     const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for")?.split(",")[0] ||
-        headersList.get("x-real-ip") ||
-        "unknown";
+    const ip = getClientIp(headersList);
     const userAgent = headersList.get("user-agent") || "unknown";
 
     try {

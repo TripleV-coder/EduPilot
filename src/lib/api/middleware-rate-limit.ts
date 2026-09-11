@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkRateLimit, apiLimiter, authLimiter, strictLimiter } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/security/client-ip";
 
 /**
  * Get rate limiter based on route type
@@ -36,20 +37,8 @@ export function getLimiterForRoute(pathname: string): typeof apiLimiter | typeof
  * Get client identifier from request
  */
 export function getClientIdentifier(request: NextRequest): string {
-  // Try to get IP from various headers
-  const forwarded = request.headers.get("x-forwarded-for");
-  const realIp = request.headers.get("x-real-ip");
-
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
-
-  if (realIp) {
-    return realIp;
-  }
-
-  // Fallback for server-side requests
-  return "server";
+  // Source unique de l'IP de confiance (audit H3) : jamais un en-tête du client.
+  return getClientIp(request.headers);
 }
 
 /**

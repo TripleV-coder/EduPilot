@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import {
   LOGIN_RATE_LIMIT,
   FORGOT_PASSWORD_RATE_LIMIT,
@@ -26,20 +26,34 @@ describe("auth/rate-limiter", () => {
     });
   });
 
+  // Audit H3 : ces tests exigeaient auparavant le premier élément de
+  // X-Forwarded-For puis X-Real-IP — deux en-têtes choisis par le client, ce
+  // qui permettait de contourner tout rate-limit (130 requêtes à XFF tournant
+  // → 0×429). getClientIp délègue désormais à `@/lib/security/client-ip`.
   describe("getClientIp", () => {
+    const TOKEN = "d".repeat(64);
+
+    beforeEach(() => {
+      vi.stubEnv("EDUPILOT_PEER_TOKEN", TOKEN);
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
     function mockReq(headers: Record<string, string>): Request {
       const h = new Headers(headers);
       return { headers: h } as unknown as Request;
     }
 
-    it("reads X-Forwarded-For first IP", () => {
-      const req = mockReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" });
-      expect(getClientIp(req)).toBe("1.2.3.4");
+    it("ignores client-supplied X-Forwarded-For and X-Real-IP", () => {
+      expect(getClientIp(mockReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" }))).toBe("unknown");
+      expect(getClientIp(mockReq({ "x-real-ip": "9.9.9.9" }))).toBe("unknown");
     });
 
-    it("falls back to X-Real-IP", () => {
-      const req = mockReq({ "x-real-ip": "9.9.9.9" });
-      expect(getClientIp(req)).toBe("9.9.9.9");
+    it("reads the socket address appended by the server preload", () => {
+      const req = mockReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8", "x-edupilot-peer-token": TOKEN });
+      expect(getClientIp(req)).toBe("5.6.7.8");
     });
 
     it("returns 'unknown' when nothing", () => {

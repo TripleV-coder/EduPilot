@@ -59,6 +59,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Préchargement : IP client fiable pour le rate-limit (audit H3, voir CMD)
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/client-ip-preload.cjs ./client-ip-preload.cjs
+
 # Copier le schéma Prisma pour les migrations runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
@@ -72,4 +75,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-CMD ["node", "server.js"]
+# Sans reverse proxy : TRUSTED_PROXY_HOPS=0 (défaut). Derrière nginx/Caddy : 1.
+CMD ["node", "--require", "./client-ip-preload.cjs", "server.js"]

@@ -27,8 +27,14 @@ DATABASE_URL="$QUALITY_DATABASE_URL" npm run db:seed          # ~8 min, 125 000 
 npm run build
 DATABASE_URL="$QUALITY_DATABASE_URL" AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 \
   UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= SKIP_ENV_VALIDATION=true \
-  PORT=3100 npx next start -p 3100
+  PORT=3100 npm run start -- -p 3100
 ```
+
+`npm run start` charge `scripts/server/client-ip-preload.cjs` (adresse client fiable, audit H3). Sans lui,
+toutes les requêtes partagent l'IP `unknown` et `security.mjs xff` ne mesure plus le vrai comportement.
+
+Base jetable sans PostgreSQL installé : `node scripts/quality/disposable-pg.mjs edupilot_audit` (port 5433,
+données dans `.quality-tmp/pg`, reste au premier plan).
 
 - `security.mjs` : serveur **sans** `RATE_LIMIT_RELAXED` (limites de production).
 - `smoke.mjs`, `latency.mjs`, `load.mjs` : ajouter `RATE_LIMIT_RELAXED=true` pour ne pas mesurer le rate-limit.

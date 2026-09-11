@@ -11,6 +11,7 @@ import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
+import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 
 // ============================================
 // CUID VALIDATION
@@ -285,7 +286,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             const edgeAlreadyLimited =
                 request.headers?.get?.("x-edupilot-edge-rl") === "1";
             if (options.rateLimit !== false && !edgeAlreadyLimited) {
-                const ip = request.headers?.get?.("x-forwarded-for") || "anonymous";
+                const ip = request.headers ? getClientIp(request.headers) : UNKNOWN_IP;
                 const pathname = request.nextUrl?.pathname || (request.url ? new URL(request.url).pathname : "/api");
                 const rlKey = `rl:api:${ip}:${pathname}`;
                 const limitCount = options.rateLimitCount || API_RATE_LIMIT.maxAttempts;

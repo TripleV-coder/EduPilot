@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { checkRateLimit, authLimiter, apiLimiter, strictLimiter } from "@/lib/rate-limit";
 import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -121,14 +122,6 @@ const AUTH_RATE_LIMIT_PREFIXES = [
   "/api/auth/forgot-password",
 ];
 
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_ROUTES.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -155,7 +148,7 @@ export default async function proxy(request: NextRequest) {
   let apiRateLimitRemaining: number | undefined;
 
   if (isApi) {
-    const ip = getClientIp(request);
+    const ip = getClientIp(request.headers);
     let limiter = apiLimiter;
 
     if (AUTH_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))) {

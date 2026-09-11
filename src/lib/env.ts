@@ -50,6 +50,13 @@ const ENV_VARS: EnvVar[] = [
         description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
     },
     {
+        name: "EDUPILOT_PEER_TOKEN",
+        required: "production",
+        description:
+            "Posé automatiquement par le préchargement de l'IP client : démarrer le serveur avec " +
+            "`node --require ./scripts/server/client-ip-preload.cjs` (sans lui, le rate-limit ne peut pas identifier les clients)",
+    },
+    {
         name: "UPSTASH_REDIS_REST_URL",
         required: "production",
         description: "URL Upstash Redis pour le rate limiting distribué",

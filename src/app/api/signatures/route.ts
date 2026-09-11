@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { computeContentHash, hashIp, canSignDocType } from "@/lib/signatures/signature";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const DOC_TYPES = ["REPORT_CARD", "CERTIFICATE", "PARENT_AUTHORIZATION", "STAFF_CONTRACT"] as const;
 
@@ -17,7 +18,7 @@ const createSchema = z.object({
 });
 
 function clientIp(request: Request): string {
-    return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    return getClientIp(request.headers);
 }
 
 /**
