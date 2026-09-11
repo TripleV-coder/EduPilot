@@ -117,6 +117,10 @@ const STRICT_RATE_LIMIT_PREFIXES = [
   "/api/root",
 ];
 
+// La connexion NextAuth (`/api/auth/callback/credentials`) n'est pas ici : ce
+// limiteur compte aussi les succès (5 / 15 min), ce qui bloquerait une école
+// entière derrière une même IP publique. Ses ÉCHECS sont limités par IP dans
+// `app/api/auth/[...nextauth]/route.ts` (audit H4).
 const AUTH_RATE_LIMIT_PREFIXES = [
   "/api/auth/login",
   "/api/auth/forgot-password",

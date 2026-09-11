@@ -193,9 +193,42 @@ export async function resetRateLimit(identifier: string): Promise<void> {
     memoryStore.delete(identifier);
 }
 
+/**
+ * Rend une unité consommée par `checkRateLimit` (ex. connexion réussie :
+ * seuls les échecs doivent compter). Compter AVANT puis rendre en cas de
+ * succès évite qu'une rafale parallèle dépasse la limite.
+ */
+export async function releaseRateLimit(identifier: string): Promise<void> {
+    const redis = getRedis();
+    if (redis) {
+        try {
+            const remaining = await redis.decr(identifier);
+            if (remaining <= 0) await redis.del(identifier);
+            return;
+        } catch {
+            // Redis indisponible : même dégradation que checkRateLimitRedis.
+        }
+    }
+    const entry = memoryStore.get(identifier);
+    if (!entry) return;
+    entry.count -= 1;
+    if (entry.count <= 0) memoryStore.delete(identifier);
+    else memoryStore.set(identifier, entry);
+}
+
 // ---------------------------------------------------------------------------
 // Configurations prédéfinies
 // ---------------------------------------------------------------------------
+
+/**
+ * Échecs de connexion par IP (audit H4). Seuls les échecs comptent : une
+ * école derrière une même IP publique, ou des mobiles derrière le NAT de
+ * l'opérateur, peuvent se connecter en nombre sans être bloqués.
+ */
+export const LOGIN_FAILURE_RATE_LIMIT: RateLimitConfig = {
+    maxAttempts: 10,
+    windowMs: 15 * 60 * 1000,
+};
 
 export const LOGIN_RATE_LIMIT: RateLimitConfig = {
     maxAttempts: 5,
