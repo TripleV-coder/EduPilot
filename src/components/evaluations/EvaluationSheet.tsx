@@ -104,14 +104,15 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
               <div className="space-y-2">
                 <Label className="text-[11px] font-bold uppercase text-muted-foreground">Étape 1 : Classe & Matière</Label>
                 <div className="space-y-3">
+                  {/* N26 : la classe est un état local, hors du formulaire — Label et
+                      SelectTrigger simples : FormLabel/FormControl exigent un <FormField>
+                      et faisaient planter la fiche à l'ouverture. */}
                   <FormItem>
-                    <FormLabel className="text-xs">Classe</FormLabel>
+                    <Label htmlFor="evaluation-class" className="text-xs">Classe</Label>
                     <Select onValueChange={setPickedClassId} value={pickedClassId}>
-                      <FormControl>
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger id="evaluation-class" className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {classes?.map((c) => (
                           <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
