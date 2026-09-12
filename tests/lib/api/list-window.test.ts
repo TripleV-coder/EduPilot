@@ -50,6 +50,36 @@ describe("getListWindow — mode curseur (défaut)", () => {
   });
 });
 
+describe("getListWindow — curseur positionnel (tri composé ou colonne nullable)", () => {
+  const positional = { positional: true as const, orderBy: [{ priority: "desc" }, { publishedAt: "desc" }, { id: "desc" }] };
+
+  it("première page : ordre de la route, aucune condition ajoutée, total demandé", () => {
+    const list = getListWindow(request("limit=2"), positional);
+
+    expect(list).toMatchObject({ offset: null, limit: 2, skip: 0, take: 3, needsTotal: true });
+    expect(list.orderBy).toEqual(positional.orderBy);
+    expect(list.where({ schoolId: "s1" })).toEqual({ schoolId: "s1" });
+  });
+
+  it("le curseur suivant porte la position de la page suivante", () => {
+    const first = getListWindow(request("limit=2"), positional);
+    const rows = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const page = first.page(rows, () => 0, 5);
+
+    expect(page.data.map((row) => row.id)).toEqual(["a", "b"]);
+    expect(page.pagination).toMatchObject({ hasNextPage: true, total: 5 });
+
+    const second = getListWindow(request(`limit=2&cursor=${page.pagination.nextCursor}`), positional);
+    expect(second).toMatchObject({ skip: 2, take: 3, needsTotal: false });
+  });
+
+  it("refuse un curseur de valeur (non positionnel) : 400 via InvalidCursorError", () => {
+    const valueCursor = encodeCursor({ value: new Date("2026-03-01T00:00:00.000Z"), id: "c1" });
+    expect(() => getListWindow(request(`cursor=${valueCursor}`), positional)).toThrow("Curseur de pagination invalide.");
+    expect(() => getListWindow(request(`cursor=${encodeCursor({ value: -4, id: "c1" })}`), positional)).toThrow();
+  });
+});
+
 describe("getListWindow — ancien mode ?page= (toléré jusqu'au Lot 8)", () => {
   it("offset classique, filtre inchangé, count() toujours exécuté", () => {
     const list = getListWindow(request("page=3&limit=10"), sort);

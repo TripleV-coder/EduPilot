@@ -5,7 +5,8 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizeRichText } from "@/lib/sanitize";
-import {getPaginationParams, createPaginatedResponse, createApiHandler} from "@/lib/api/api-helpers";
+import { createPaginatedResponse, createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createCourseSchema = z.object({
@@ -41,7 +42,8 @@ const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const activeSchoolId = getActiveSchoolId(session);
 
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 50 });
+    // Lot 3 : curseur sur la date de création par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 50 });
 
     const where: Prisma.CourseWhereInput = {};
 
@@ -80,7 +82,7 @@ const { searchParams } = new URL(request.url);
 
     const [courses, total] = await Promise.all([
       prisma.course.findMany({
-        where,
+        where: list.where(where),
         include: {
           classSubject: {
             include: {
@@ -104,14 +106,15 @@ const { searchParams } = new URL(request.url);
             select: { enrollments: true },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.course.count({ where }),
+      list.needsTotal ? prisma.course.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return createPaginatedResponse(courses, total, { page, limit, skip });
+    if (list.offset) return createPaginatedResponse(courses, total ?? 0, list.offset);
+    return NextResponse.json(list.page(courses, (course) => course.createdAt, total));
   } catch (error) {
     logger.error("Error fetching courses", error as Error);
     return NextResponse.json({ error: "Erreur lors de la récupération des cours", code: "FETCH_ERROR" }, { status: 500 });

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
 import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import {
     buildPaymentDateWhere,
@@ -23,7 +24,9 @@ export const GET = createApiHandler(
         if (!dateRange.success) return dateRange.response;
         const { startDate, endDate } = dateRange;
         // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-        const { page, limit: pageSize } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100, limitParam: "pageSize" });
+        // Lot 3 : curseur sur la date de création par défaut (?limit=) ; l'ancien mode
+        // ?page=&pageSize= reste toléré avec son format { data, meta }.
+        const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100, limitParam: "pageSize" });
 
         const where: Prisma.PaymentWhereInput = {};
 
@@ -50,7 +53,7 @@ export const GET = createApiHandler(
 
         const [payments, total] = await Promise.all([
             prisma.payment.findMany({
-                where,
+                where: list.where(where),
                 include: {
                     student: {
                         include: {
@@ -60,22 +63,25 @@ export const GET = createApiHandler(
                     fee: { select: { id: true, name: true, amount: true } },
                     // receiver info?
                 },
-                skip: (page - 1) * pageSize,
-                take: pageSize,
-                orderBy: { createdAt: "desc" },
+                skip: list.skip,
+                take: list.take,
+                orderBy: list.orderBy,
             }),
-            prisma.payment.count({ where }),
+            list.needsTotal ? prisma.payment.count({ where }) : Promise.resolve(undefined),
         ]);
 
-        return NextResponse.json({
-            data: payments,
-            meta: {
-                total,
-                page,
-                pageSize,
-                totalPages: Math.ceil(total / pageSize),
-            }
-        });
+        if (list.offset) {
+            return NextResponse.json({
+                data: payments,
+                meta: {
+                    total,
+                    page: list.offset.page,
+                    pageSize: list.limit,
+                    totalPages: Math.ceil((total ?? 0) / list.limit),
+                }
+            });
+        }
+        return NextResponse.json(list.page(payments, (payment) => payment.createdAt, total));
     }
     , { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] });
 

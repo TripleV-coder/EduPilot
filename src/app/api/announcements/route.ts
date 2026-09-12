@@ -6,7 +6,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createAnnouncementSchema = z.object({
@@ -97,7 +98,14 @@ export const GET = createApiHandler(async (request, { session }) => {
       const type = searchParams.get("type");
       const priority = searchParams.get("priority");
       const includeExpired = searchParams.get("includeExpired") === "true";
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // Lot 3 : format curseur par défaut, ?page= toléré (ancien format). Tri composé
+      // (priorité puis date de publication, nullable) : curseur positionnel.
+      const list = getListWindow(request, {
+        positional: true,
+        orderBy: [{ priority: "desc" }, { publishedAt: "desc" }, { id: "desc" }],
+        defaultLimit: 20,
+        maxLimit: 100,
+      });
 
       const where: Prisma.AnnouncementWhereInput = {
         isPublished: true,
@@ -137,7 +145,7 @@ export const GET = createApiHandler(async (request, { session }) => {
 
       const [announcements, total] = await Promise.all([
         prisma.announcement.findMany({
-          where,
+          where: list.where(where),
           select: {
             id: true,
             title: true,
@@ -163,25 +171,25 @@ export const GET = createApiHandler(async (request, { session }) => {
               },
             },
           },
-          orderBy: [
-            { priority: "desc" },
-            { publishedAt: "desc" },
-          ],
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.announcement.count({ where }),
+        list.needsTotal ? prisma.announcement.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return NextResponse.json({
-        announcements,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      if (list.offset) {
+        return NextResponse.json({
+          announcements,
+          pagination: {
+            page: list.offset.page,
+            limit: list.limit,
+            total,
+            totalPages: Math.ceil((total ?? 0) / list.limit),
+          },
+        });
+      }
+      return NextResponse.json(list.page(announcements, () => 0, total));
     };
 
     const response = await cachedHandler(handler, request);

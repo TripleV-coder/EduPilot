@@ -6,7 +6,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const createAppointmentSchema = z.object({
   teacherId: z.string().cuid(),
@@ -34,7 +35,8 @@ export const GET = createApiHandler(
       const upcoming = searchParams.get("upcoming") === "true";
       // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 200 :
       // l'écran des rendez-vous charge ?limit=200 et filtre côté navigateur.
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 200 });
+      // Lot 3 : curseur sur la date du rendez-vous par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "scheduledAt", direction: "asc", defaultLimit: 20, maxLimit: 200 });
 
       const where: Prisma.AppointmentWhereInput = {};
 
@@ -96,7 +98,7 @@ export const GET = createApiHandler(
 
       const [appointments, total] = await Promise.all([
         prisma.appointment.findMany({
-          where,
+          where: list.where(where),
           include: {
             teacher: {
               include: {
@@ -129,22 +131,25 @@ export const GET = createApiHandler(
               },
             },
           },
-          orderBy: { scheduledAt: "asc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.appointment.count({ where }),
+        list.needsTotal ? prisma.appointment.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return NextResponse.json({
-        appointments,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      if (list.offset) {
+        return NextResponse.json({
+          appointments,
+          pagination: {
+            page: list.offset.page,
+            limit: list.limit,
+            total,
+            totalPages: Math.ceil((total ?? 0) / list.limit),
+          },
+        });
+      }
+      return NextResponse.json(list.page(appointments, (appointment) => appointment.scheduledAt, total));
     } catch (error) {
       logger.error(" fetching appointments:", error as Error);
       return NextResponse.json(

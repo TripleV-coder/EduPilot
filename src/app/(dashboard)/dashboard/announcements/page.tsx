@@ -104,7 +104,8 @@ export default function AnnouncementsPage() {
             const res = await fetch("/api/announcements");
             if (!res.ok) throw new Error("Erreur de récupération des annonces");
             const data = await res.json();
-            setAnnouncements(data.announcements || []);
+            // Format paginé du projet : { data, pagination }
+            setAnnouncements(data.data || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
