@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -83,7 +84,8 @@ export const GET = createApiHandler(
     const studentId = searchParams.get("studentId");
     const upcoming = searchParams.get("upcoming") === "true";
     // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur sur l'échéance par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "dueDate", direction: "asc", defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     interface HomeworkWhereFilter {
@@ -192,7 +194,7 @@ export const GET = createApiHandler(
 
     const [homeworks, total] = await Promise.all([
       prisma.homework.findMany({
-        where,
+        where: list.where(where),
         include: {
           classSubject: {
             include: {
@@ -241,11 +243,11 @@ export const GET = createApiHandler(
             },
           }),
         },
-        orderBy: { dueDate: "asc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.homework.count({ where }),
+      list.needsTotal ? prisma.homework.count({ where }) : Promise.resolve(undefined),
     ]);
 
     // Map submissions if included (response shape: mySubmission + omit submissions from payload)
@@ -258,15 +260,18 @@ export const GET = createApiHandler(
       }) as unknown as typeof homeworks;
     }
 
-    return NextResponse.json({
-      homeworks: homeworksWithSubmissions,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    if (list.offset) {
+      return NextResponse.json({
+        homeworks: homeworksWithSubmissions,
+        pagination: {
+          page: list.offset.page,
+          limit: list.limit,
+          total,
+          totalPages: Math.ceil((total ?? 0) / list.limit),
+        },
+      });
+    }
+    return NextResponse.json(list.page(homeworksWithSubmissions, (hw) => hw.dueDate, total));
   } catch (error) {
     logger.error(" fetching homework:", error as Error);
     return NextResponse.json(

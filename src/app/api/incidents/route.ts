@@ -7,7 +7,8 @@ import type { NotificationType, Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { incidentCreateSchema } from "@/lib/validations/incident";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 /**
  * GET /api/incidents
@@ -24,7 +25,8 @@ export const GET = createApiHandler(
       const periodId = searchParams.get("periodId");
       // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 200 :
       // le tableau des risques et la page des alertes chargent ?limit=200.
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 200 });
+      // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "date", direction: "desc", defaultLimit: 20, maxLimit: 200 });
 
       const where: Prisma.BehaviorIncidentWhereInput = {};
 
@@ -82,7 +84,7 @@ export const GET = createApiHandler(
 
       const [incidents, total] = await Promise.all([
         prisma.behaviorIncident.findMany({
-          where,
+          where: list.where(where),
           include: {
             student: {
               include: {
@@ -103,22 +105,25 @@ export const GET = createApiHandler(
             },
             sanctions: true,
           },
-          orderBy: { date: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.behaviorIncident.count({ where }),
+        list.needsTotal ? prisma.behaviorIncident.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return NextResponse.json({
-        incidents,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      if (list.offset) {
+        return NextResponse.json({
+          incidents,
+          pagination: {
+            page: list.offset.page,
+            limit: list.limit,
+            total,
+            totalPages: Math.ceil((total ?? 0) / list.limit),
+          },
+        });
+      }
+      return NextResponse.json(list.page(incidents, (incident) => incident.date, total));
     } catch (error) {
       logger.error(" fetching incidents:", error as Error);
       return NextResponse.json(

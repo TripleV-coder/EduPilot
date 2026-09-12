@@ -131,7 +131,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
 
     const analytics = Array.isArray(analyticsPayload) ? analyticsPayload : [];
     const students = extractCollection<StudentDirectoryItem>(studentsPayload, ["students", "data"]);
-    const incidents = extractCollection<BehaviorIncidentItem>(incidentsPayload, ["incidents"]);
+    const incidents = extractCollection<BehaviorIncidentItem>(incidentsPayload, ["data", "incidents"]);
 
     const allRows = useMemo<RiskRow[]>(() => {
         const incidentsByStudent = incidents.reduce<Record<string, number>>((accumulator, incident) => {

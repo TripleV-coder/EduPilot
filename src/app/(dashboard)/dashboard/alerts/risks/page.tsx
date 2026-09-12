@@ -110,11 +110,12 @@ function AlertsRisksContent() {
     : `/api/incidents?limit=200&classId=${classId}`;
 
   const { data: analyticsData, isLoading: analyticsLoading } = useSWR<AnalyticsStudent[]>(analyticsUrl, fetcher);
-  const { data: incidentsData, isLoading: incidentsLoading } = useSWR<{ incidents: IncidentApiItem[] }>(incidentsUrl, fetcher);
+  // Format paginé du projet : { data, pagination }
+  const { data: incidentsData, isLoading: incidentsLoading } = useSWR<{ data?: IncidentApiItem[] }>(incidentsUrl, fetcher);
 
   const riskRows = useMemo<RiskRow[]>(() => {
     const analytics = Array.isArray(analyticsData) ? analyticsData : [];
-    const incidents = incidentsData?.incidents || [];
+    const incidents = incidentsData?.data || [];
 
     const incidentsByStudent = incidents.reduce<Record<string, number>>((acc, item) => {
       acc[item.studentId] = (acc[item.studentId] || 0) + 1;

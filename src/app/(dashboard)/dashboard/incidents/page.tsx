@@ -126,7 +126,8 @@ export default function IncidentsPage() {
             if (res.ok) {
                 const data = await res.json();
 
-                let filtered = data.incidents || [];
+                // Format paginé du projet : { data, pagination }
+                let filtered = data.data || [];
                 if (debouncedSearch) {
                     const l = debouncedSearch.toLowerCase();
                     filtered = filtered.filter((i: Incident) =>

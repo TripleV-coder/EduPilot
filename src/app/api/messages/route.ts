@@ -5,7 +5,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
@@ -85,7 +86,8 @@ export const GET = createApiHandler(async (request, context) => {
       const { searchParams } = new URL(request.url);
       const type = searchParams.get("type") || "inbox"; // inbox | sent | archived
       const unreadOnly = searchParams.get("unreadOnly") === "true";
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
       interface MessageWhereFilter {
         senderId?: string;
@@ -114,7 +116,7 @@ export const GET = createApiHandler(async (request, context) => {
 
       const [messages, total, unreadCount] = await Promise.all([
         prisma.message.findMany({
-          where,
+          where: list.where(where),
           select: {
             id: true,
             subject: true,
@@ -152,11 +154,11 @@ export const GET = createApiHandler(async (request, context) => {
               },
             },
           },
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.message.count({ where }),
+        list.needsTotal ? prisma.message.count({ where }) : Promise.resolve(undefined),
         type === "inbox"
           ? prisma.message.count({
             where: {
@@ -168,16 +170,19 @@ export const GET = createApiHandler(async (request, context) => {
           : Promise.resolve(0),
       ]);
 
-      return NextResponse.json({
-        messages,
-        unreadCount,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      if (list.offset) {
+        return NextResponse.json({
+          messages,
+          unreadCount,
+          pagination: {
+            page: list.offset.page,
+            limit: list.limit,
+            total,
+            totalPages: Math.ceil((total ?? 0) / list.limit),
+          },
+        });
+      }
+      return NextResponse.json({ ...list.page(messages, (message) => message.createdAt, total), unreadCount });
     };
 
     const response = await cachedHandler(handler, request);

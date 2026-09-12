@@ -98,7 +98,9 @@ describe("GET /api/homework", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.homeworks).toBeDefined();
+    // Lot 3 : format unique du projet par défaut ({ data, pagination }) ; l'ancien
+    // format (homeworks) reste servi avec ?page= (list-cursor-activity.test.ts).
+    expect(data.data).toBeDefined();
   });
 });
 
