@@ -21,8 +21,9 @@ export const GET = createApiHandler(
     if (!dateRange.success) return dateRange.response;
     const { startDate, endDate } = dateRange;
     const search = searchParams.get("search");
-    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 100 });
+    // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 500 :
+    // l'écran du journal affiche les 500 dernières entrées (?limit=500) et les filtre.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 500 });
 
     const where: Prisma.AuditLogWhereInput = {};
 

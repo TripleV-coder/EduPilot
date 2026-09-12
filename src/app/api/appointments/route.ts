@@ -32,8 +32,9 @@ export const GET = createApiHandler(
       const parentId = searchParams.get("parentId");
       const studentId = searchParams.get("studentId");
       const upcoming = searchParams.get("upcoming") === "true";
-      // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 200 :
+      // l'écran des rendez-vous charge ?limit=200 et filtre côté navigateur.
+      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 200 });
 
       const where: Prisma.AppointmentWhereInput = {};
 

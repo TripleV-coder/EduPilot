@@ -22,8 +22,9 @@ export const GET = createApiHandler(
       const severity = searchParams.get("severity");
       const resolved = searchParams.get("resolved");
       const periodId = searchParams.get("periodId");
-      // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 200 :
+      // le tableau des risques et la page des alertes chargent ?limit=200.
+      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 200 });
 
       const where: Prisma.BehaviorIncidentWhereInput = {};
 
