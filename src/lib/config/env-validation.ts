@@ -108,6 +108,17 @@ export function validateEnvironment(): void {
     return;
   }
 
+  // N5 : ce module s'exécute à l'import de Prisma, donc aussi pendant
+  // `next build` (collecte des pages). Les secrets ne servent pas à construire
+  // — l'étape de build du Dockerfile n'en a aucun — et sont vérifiés au
+  // démarrage. SKIP_ENV_VALIDATION est respecté comme dans lib/env.ts.
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.SKIP_ENV_VALIDATION === "true"
+  ) {
+    return;
+  }
+
   const errors: EnvValidationError[] = [];
 
   // Validate critical variables
