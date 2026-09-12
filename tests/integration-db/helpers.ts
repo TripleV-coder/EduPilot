@@ -54,14 +54,18 @@ export async function callRoute(
     path: string;
     params?: Record<string, string>;
     body?: unknown;
-    /** Corps envoyé tel quel (JSON invalide, très gros corps…). */
+    /** Corps envoyé tel quel (JSON invalide, très gros corps, webhook signé…). */
     rawBody?: string;
+    headers?: Record<string, string>;
   },
 ): Promise<{ status: number; body: unknown }> {
   const payload = options.rawBody ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined);
   const request = new NextRequest(new URL(options.path, "http://localhost:3000"), {
     method: options.method ?? "GET",
-    headers: payload !== undefined ? { "content-type": "application/json" } : undefined,
+    headers: {
+      ...(payload !== undefined ? { "content-type": "application/json" } : {}),
+      ...options.headers,
+    },
     body: payload,
   });
 

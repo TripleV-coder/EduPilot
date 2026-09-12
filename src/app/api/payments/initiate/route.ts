@@ -158,12 +158,18 @@ export const POST = createApiHandler(
                 { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
             );
 
-            if (result.transactionId) {
-                await prisma.payment.update({
-                    where: { id: paymentRecord.id },
-                    data: { reference: result.transactionId }
-                });
-            }
+            // N7 : `reference` est NOTRE clé de rapprochement, transmise au
+            // fournisseur (MoMo externalId, FedaPay merchant_reference) et
+            // renvoyée par ses webhooks. Elle ne doit jamais être remplacée par
+            // l'identifiant du fournisseur — sinon le paiement devient
+            // introuvable et reste PENDING. Elle est déjà en base avant l'appel
+            // (transaction ci-dessus) : un arrêt brutal ici ne perd rien.
+            logger.info("Paiement initié chez le fournisseur", {
+                paymentId: paymentRecord.id,
+                reference: paymentRecord.reference,
+                provider: resolvedProvider,
+                providerTransactionId: result.transactionId,
+            });
 
             return NextResponse.json({
                 paymentUrl: result.paymentUrl,
