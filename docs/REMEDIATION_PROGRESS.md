@@ -67,20 +67,56 @@ Conditions : i7-1355U, 15 Go, Node 22.22.3, build de production (47 s), `next st
 
 ---
 
+## Lot 1 — Intégrité et sécurité critiques (terminé, en attente du feu vert)
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `a5d258e` | test(infra) : suite d'intégration sur vrai PostgreSQL (`npm run test:integration`, embedded-postgres, garde-fou port 5432 / suffixe `_test`/`_it`) |
+| `f4c709e` | fix(db) **[C1]** : 34 migrations versionnées (dont `offeredLevels`), job CI `integration-tests` avec `migrate diff --exit-code`, E2E sur `migrate deploy`, `scripts/db/baseline-migrations.sh` + `docs/MIGRATIONS.md` |
+| `eaa9645` | test(quality) : `scripts/quality/disposable-pg.mjs` (PostgreSQL jetable persistant, port 5433) |
+| `3192078` | fix(security) **[H3]** : `getClientIp()` unique + préchargement `client-ip-preload.cjs`, `TRUSTED_PROXY_HOPS` (défaut 0), refus de démarrer en prod sans préchargement |
+| `e2b1751` | fix(security) **[H4]** : limite des **échecs** de connexion par IP (10 / 15 min), 429 lisible par next-auth/react, message d'écran juste |
+| `0fd0302` | fix(deps) **[C2][M7]** : next 16.3.5, eslint-config-next 16.3.5, nodemailer 9.1.1, sharp 0.35.4, `npm audit fix` |
+| `563ccb6` | fix(security) **[H5][N3]** : isolation de `subjects/categories/[id]` (404 hors école, catégories communes réservées au super-admin) |
+
+### Écart assumé avec la consigne (H4)
+
+La consigne demandait `authLimiter` sur `/api/auth/callback/credentials`. Ce limiteur compte **aussi les succès** : 5 connexions par 15 min et par IP. Une école derrière une seule IP publique, ou des téléphones derrière le NAT de l'opérateur (CGNAT), seraient bloqués dès la 6e connexion légitime. Le correctif limite donc les **échecs** : 10 par 15 min et par IP. La tentative est comptée avant la vérification (pas de dépassement par rafale), puis rendue si elle réussit. Le critère est tenu (12 échecs → 2×429) et 30 connexions réussies depuis une même IP ne sont jamais refusées. À valider par le propriétaire.
+
+### Mode d'exploitation introduit (H3)
+
+Le serveur doit être lancé avec `node --require ./scripts/server/client-ip-preload.cjs …`. `npm run start` et l'image Docker le font. En production, `validateEnv` refuse de démarrer sans ce préchargement (`EDUPILOT_PEER_TOKEN`). Derrière un reverse proxy, définir `TRUSTED_PROXY_HOPS=1` et n'exposer le port de l'application qu'au proxy. Documenté dans `.env.example`, et à reprendre dans `docs/EXPLOITATION.md` au Lot 7. `next dev` n'utilise pas le préchargement : en développement, toutes les requêtes partagent l'IP `unknown`, avec les limites de développement.
+
+### Tests existants modifiés (règle 4)
+
+- `tests/lib/auth-rate-limiter.test.ts` : exigeait le premier élément de XFF puis `X-Real-IP`, c'est-à-dire le comportement vulnérable H3. Le test vérifie désormais que ces en-têtes sont ignorés et que l'adresse signée par le préchargement est lue.
+- `tests/api/test-helpers.ts` : fabriquait un XFF différent à chaque requête pour isoler le rate-limit, soit le contournement H3 lui-même. Chaque requête reste un client distinct, via une chaîne signée par un jeton de test. Sans cela, `root-schools` recevait un 429 à sa 6e écriture.
+- `vitest.config.ts` : exclut `tests/integration-db/**`, suite distincte dont le setup n'est pas compatible avec le mock global de `@prisma/client`. Aucun test existant n'a été retiré ni ignoré.
+
+### Constats de la batterie
+
+- Le build d'un clone neuf **sans `.env`** échoue : `src/lib/config/env-validation.ts` lève une erreur dès l'import et ignore `SKIP_ENV_VALIDATION`, contrairement à `lib/env.ts`. Il réussit avec un `.env` minimal d'exploitant (secrets générés). → N5, rattaché à M6 et L3.
+- Premier essai de clone avec `node_modules` en lien symbolique : Turbopack le refuse (lien sortant de la racine). C'est un artefact du montage de test, pas un défaut du dépôt. Le clone a été refait avec `npm ci`.
+- `next start` sur `output: standalone` affiche un avertissement : lancement par `node .next/standalone/server.js` à traiter au Lot 7.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
 
 | ID | Sév. | Intitulé | Lot | Statut | Commit | Test de preuve | Avant | Après |
 |---|---|---|---|---|---|---|---|---|
-| C1 | Critique | Migrations Prisma non versionnées + dérive `offeredLevels` | 1 | Confirmé | — | clone neuf → `migrate deploy` → démarrage sans seed ; CI `migrate diff --exit-code` | P2021 table users absente | — |
-| C2 | Critique | Next.js 16.3.1 (RCE Image Optimization AVIF) | 1 | Confirmé | — | `npm audit --omit=dev --audit-level=high` = 0 | 1 critique | — |
+| C1 | Critique | Migrations Prisma non versionnées + dérive `offeredLevels` | 1 | Corrigé | `f4c709e` | `tests/integration-db/migrations.test.ts` (PG réel) ; CI `integration-tests` (`migrate deploy` + `migrate diff --exit-code`) ; baseline testée sur base `db push` ; clone neuf | P2021 table users absente ; 0 migration suivie ; dérive `offeredLevels` | clone neuf (`npm ci` 46 s, build, 34 migrations, **sans seed**) : `/login` 200, `/setup` 200, `/api/setup` `{"setupNeeded":true}`, 0 utilisateur ; diff = 0 |
+| C2 | Critique | Next.js 16.3.1 (RCE Image Optimization AVIF) | 1 | Corrigé | `0fd0302` | `npm audit --omit=dev --audit-level=high` → code 0 | 1 critique (next 16.3.1) | next 16.3.5 ; 0 vulnérabilité prod |
 | C3 | Critique | Endpoints non paginés (évaluations, statistiques, schedules, fees, health, scholarships, analytics) + N1 | 3 | Confirmé | — | smoke seuils 1 Mo/1 s, latency, Lighthouse, RSS | 35 violations ; 100 Mo ; 8,7 Go | — |
 | H1 | Élevée | `/api/health` non public → healthcheck Docker en échec | 2 | Confirmé | — | `security.mjs health` + test préfixes publics | 401 | — |
 | H2 | Élevée | Crons bloqués (middleware + N2) | 2 | Confirmé | — | `security.mjs cron` avec/sans secret | 401 ×4 | — |
-| H3 | Élevée | Rate-limit contournable via XFF | 1 | Confirmé | — | `security.mjs xff` | 0×429 | — |
-| H4 | Élevée | Pas de limite IP sur `/api/auth/callback/credentials` | 1 | Confirmé | — | `security.mjs bruteforce` | 0×429 | — |
-| H5 | Élevée | IDOR `subjects/categories/[id]` (+ N3) | 1 | Confirmé | — | intégration PG inter-école + `security.mjs idor` | 200/200/200 | — |
+| H3 | Élevée | Rate-limit contournable via XFF | 1 | Corrigé | `3192078` | `tests/lib/security/client-ip*.test.ts` (14), `tests/lib/proxy-rate-limit.test.ts` ; `security.mjs xff` sur build de prod | 130×200, 0×429 | `{"200":93,"429":37}` |
+| H4 | Élevée | Pas de limite IP sur `/api/auth/callback/credentials` | 1 | Corrigé (échecs seulement — voir Lot 1) | `e2b1751` | `tests/api/auth-login-rate-limit.test.ts` (5) ; `security.mjs bruteforce` sur build de prod | 12×302, 0×429 | `{"302":10,"429":2}` ; 30 succès même IP : 0×429 |
+| H5 | Élevée | IDOR `subjects/categories/[id]` (+ N3) | 1 | Corrigé | `563ccb6` | `tests/integration-db/subject-categories-isolation.test.ts` (7, PG réel) ; `security.mjs idor` | GET/PATCH/DELETE 200 (persisté) | 404/404/404, rien persisté |
 | H6 | Élevée | Redis injoignable : +4,3 s par requête | 2 | Confirmé | — | `redis-outage.mjs` | p95 4 360 ms | — |
 | M1 | Moyenne | `mustChangePassword` jamais imposé | 4 | Constat audit | — | E2E premier login forcé | — | — |
 | M2 | Moyenne | RLS inerte | 4 | Constat audit | — | selon option retenue (a/b) | — | — |
@@ -88,7 +124,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | M4 | Moyenne | Croissance mémoire (aggravée : N1) | 3 | Confirmé | — | RSS après série < 500 Mo | 8 746 Mo | — |
 | M5 | Moyenne | 163/231 `findMany` sans `take` | 3 | Constat audit | — | revue + plafond helper | 163 | — |
 | M6 | Moyenne | `.env.example` incohérent (18 variables, Upstash, `AUTH_TRUST_HOST`) | 2 | Constat audit | — | test de cohérence env ↔ `lib/env.ts` | 18 non documentées | — |
-| M7 | Moyenne | Dépendances vulnérables (nodemailer, sharp) | 1 | Confirmé | — | `npm audit` | 4 prod | — |
+| M7 | Moyenne | Dépendances vulnérables (nodemailer, sharp) | 1 | Corrigé (prod) | `0fd0302` | `npm audit --omit=dev --audit-level=high` | 4 prod, 15 total | 0 prod ; 8 total, outils de dev uniquement (correctif = majeure/`--force`) |
 | M8 | Moyenne | 3 E2E en échec | 5 | Constat audit | — | `npm run test:e2e` | 78/81 | — |
 | M9 | Moyenne | Documentation d'API obsolète | 8 | Constat audit | — | OpenAPI généré | 33/452 | — |
 | M10 | Moyenne | Panne DB indiscernable d'identifiants invalides | 2 | Constat audit | — | test API + UI | — | — |
@@ -103,7 +139,10 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | L9 | Faible | Artefacts hors périmètre à la racine | 8 (liste à valider) | Constat audit | — | — | — | — |
 | N1 | Critique | Épuisement mémoire (voir ci-dessus) | 3 | Confirmé | — | RSS | 8 746 Mo | — |
 | N2 | Élevée | Retention : `requireAuth` par défaut + comparaison non constante | 2 | Confirmé | — | `security.mjs cron` | 401 | — |
-| N3 | Élevée | Désactivation inter-école via DELETE | 1 | Confirmé | — | `security.mjs idor` | 200 | — |
+| N3 | Élevée | Désactivation inter-école via DELETE | 1 | Corrigé | `563ccb6` | `subject-categories-isolation.test.ts` (N3) ; `security.mjs idor` | 200, `isActive=false` | 404, catégorie toujours active |
+| N4 | Moyenne | `e2e/global-setup.ts` code en dur les identifiants d'écoles et de classe d'un seed précis (`E2E_SCHOOLS`) : sur une base reseedée, `security-tenant` peut passer sans rien prouver (ressource inexistante) | 5 | Constat Lot 1 | — | comptes et données E2E dédiés, identifiants lus en base | — | — |
+| N5 | Faible | `lib/config/env-validation.ts` lève à l'import et ignore `SKIP_ENV_VALIDATION` (2e module de validation, incohérent avec `lib/env.ts`) : build d'un clone neuf sans `.env` en échec | 2 (M6) / 8 (L3) | Constat Lot 1 | — | test de cohérence env | build KO sans `.env` | — |
+| N6 | Faible | `nodemailer` 9 hors de la plage peer de `next-auth` (`^7 \|\| ^8`) — préexistant (9.0.5), masqué par `legacy-peer-deps` | 8 | Constat Lot 1 | — | vérification de l'envoi d'email (Lot 5/7) | — | — |
 
 ---
 
@@ -176,3 +215,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | Lot | tsc | lint | vitest | build | intégration réelle | E2E | Notes |
 |---|---|---|---|---|---|---|---|
 | 0 | ✅ 0 erreur (11 s, cache incrémental) | ✅ 0 erreur (60 s) | ✅ 2 703/2 703, 240 fichiers (36 s) | ✅ 47 s | n/a (suite inexistante) | non rejoués (aucun code applicatif modifié) | Base : `88215e5` |
+| 1 | ✅ 0 erreur (46 s) | ✅ 0 erreur (41 s) | ✅ 2 729/2 729, 246 fichiers (33 s) | ✅ 87 s (next 16.3.5) ; clone neuf ✅ | ✅ 9/9 (`npm run test:integration`, PG réel) | ✅ 40/40 (`auth-flow`, `security-anonymous`, `security-rbac`, `security-tenant` ; build de prod, base seedée) | `security.mjs` : H3, H4, H5 ×3, TENANT → 6/6 PASS ; `npm audit --omit=dev --audit-level=high` → 0 ; base d'audit : 3 écoles, 2 698 utilisateurs, 994 élèves, 131 208 notes |
