@@ -198,6 +198,8 @@ Décisions appliquées : pagination par curseur (keyset), `total` sur la premiè
 | `a812b42` | fix(api) **[N19]** : effectif complet d'une classe (plafond 1 000 avec `?classId=`) |
 | `3f8913c` | fix(front) **[N18]** : listes d'élèves vides sur cinq écrans (appel, incident, paiement, médical, documents) |
 | `6d40e3e` | test(quality) : scripts de mesure respectant les 429 (`Retry-After`) |
+| `6911d97` | perf(finance) **[M5]** : statistiques financières agrégées en SQL (plans de toutes les années et encaissements) |
+| `b428aed` | perf(grades) **[C3]** : statistiques de notes en un parcours (`GROUPING SETS`), 578 → 271 ms ; `EXPLAIN` : aucun index justifié |
 
 ### Mesures (base de l'audit, build de production, serveur local 3100, base jetable 5433)
 
@@ -307,6 +309,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N19 | Élevée | `/api/students?classId=…` plafonné à 100 : appel, saisie de notes, bulletins et promotion perdaient sans erreur les élèves au-delà du 100e d'une classe (effectifs courants dans le public au Bénin) | 3 | Corrigé | `a812b42` | `tests/integration-db/class-roster.test.ts` (2, PG réel) | classe de 120 : 100 renvoyés | 120 renvoyés ; listes de l'établissement toujours plafonnées à 100 |
 | N20 | Moyenne | Sélecteurs d'élèves à l'échelle de l'établissement tronqués sans indication (antérieur) : documents (20 premiers), médical (100), déclaration d'incident et tableau des risques (200 demandés → 100), gamification et orientation (100). Correction propre : recherche côté serveur dans les sélecteurs (changement d'interface, design gelé) | Suivi — décision du propriétaire | Constat Lot 3 | — | — | — | — |
 | N21 | Faible | Recherche d'élève du paiement et écran médical : la classe s'affiche « Aucune classe » (les écrans lisent `class`, l'API fournit `enrollments`) | Suivi | Constat Lot 3 | — | — | — | — |
+| N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
 
