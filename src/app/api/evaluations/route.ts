@@ -7,6 +7,7 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
+import { getOwnStudentIds } from "@/lib/auth/family-scope";
 
 /** Champs strictement nécessaires aux écrans de liste : aucune note individuelle. */
 const EVALUATION_LIST_SELECT = {
@@ -40,20 +41,8 @@ function parseDay(value: string | null): Date | null {
  * inscriptions actives de ses enfants / de lui-même. `null` = pas de restriction de classe.
  */
 async function visibleClassIds(role: string, userId: string): Promise<string[] | null> {
-  if (role !== "PARENT" && role !== "STUDENT") return null;
-
-  let studentIds: string[];
-  if (role === "PARENT") {
-    const parent = await prisma.parentProfile.findUnique({
-      where: { userId },
-      select: { parentStudents: { select: { studentId: true } } },
-    });
-    studentIds = parent?.parentStudents.map((link) => link.studentId) ?? [];
-  } else {
-    const student = await prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
-    studentIds = student ? [student.id] : [];
-  }
-
+  const studentIds = await getOwnStudentIds(role, userId);
+  if (studentIds === null) return null;
   if (studentIds.length === 0) return [];
   const enrollments = await prisma.enrollment.findMany({
     where: { studentId: { in: studentIds }, status: "ACTIVE", deletedAt: null },
