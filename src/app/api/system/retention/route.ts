@@ -18,25 +18,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { verifyCronSecret } from "@/lib/security/cron-auth";
 
+// requireAuth: false (audit N2) : un cron n'a pas de session ; le garde par
+// défaut répondait 401 avant même le contrôle du secret. La route étant aussi
+// ouverte au middleware (H2), le second facteur est vérifié ici.
 export const POST = createApiHandler(async (request, context) => {
-        const session = context.session;
-    // Authentification : session SUPER_ADMIN OU CRON_SECRET
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = request.headers.get("authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const session = context.session;
+    const cronAuthorized = verifyCronSecret(request.headers.get("authorization")) === "ok";
+    const superAdminAuthorized =
+        session?.user?.role === "SUPER_ADMIN" &&
+        (!session.user.isTwoFactorEnabled || session.user.isTwoFactorAuthenticated === true);
 
-    let authorized = false;
-
-    if (cronSecret && bearerToken === cronSecret) {
-        authorized = true;
-    } else {
-        if (session?.user?.role === "SUPER_ADMIN") {
-            authorized = true;
-        }
-    }
-
-    if (!authorized) {
+    if (!cronAuthorized && !superAdminAuthorized) {
         return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
@@ -67,5 +61,4 @@ export const POST = createApiHandler(async (request, context) => {
         );
         return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
     }
-
-});
+}, { requireAuth: false });

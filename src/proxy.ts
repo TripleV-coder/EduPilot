@@ -126,8 +126,19 @@ const AUTH_RATE_LIMIT_PREFIXES = [
   "/api/auth/forgot-password",
 ];
 
+/**
+ * Routes d'API ouvertes au middleware par chemin EXACT (audit H1/H2) : le
+ * healthcheck (Docker, supervision) et les crons, qui vérifient eux-mêmes
+ * CRON_SECRET. Pas de préfixe : /api/health/* contient des données de santé.
+ */
+const PUBLIC_API_ROUTES = new Set([
+  "/api/health",
+  "/api/system/automation",
+  "/api/system/retention",
+]);
+
 function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_ROUTES.has(pathname)) return true;
+  if (PUBLIC_ROUTES.has(pathname) || PUBLIC_API_ROUTES.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

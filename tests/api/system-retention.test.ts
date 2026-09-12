@@ -27,11 +27,41 @@ afterEach(() => {
 });
 
 describe("POST /api/system/retention", () => {
-  it("should return 401 without session", async () => {
+  // Audit N2 : ce test exigeait « Non authentifié », le refus du garde de
+  // session par défaut de createApiHandler. Ce garde passait AVANT le contrôle
+  // du CRON_SECRET : un cron (sans session) ne pouvait jamais s'exécuter. Le
+  // refus vient désormais du contrôle de la route elle-même.
+  it("should return 401 without session nor bearer token", async () => {
     vi.mocked(auth).mockResolvedValue(null);
     const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
     expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Non authentifié");
+    expect((await res.json()).error).toBe("Non autorisé");
+    expect(enforceDataRetentionPolicies).not.toHaveBeenCalled();
+  });
+
+  it("should run enforcement for a cron call carrying the secret and no session (N2)", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
+    process.env.CRON_SECRET = CRON_SECRET;
+    const res = await POST(makeRequest("http://localhost/api/system/retention", {
+      method: "POST",
+      body: {},
+      headers: { Authorization: `Bearer ${CRON_SECRET}` },
+    }));
+
+    expect(res.status).toBe(200);
+    expect(enforceDataRetentionPolicies).toHaveBeenCalledTimes(1);
+  });
+
+  it("should refuse a SUPER_ADMIN session whose second factor is pending", async () => {
+    const root = makeSession("SUPER_ADMIN", { id: "root2", email: "root@edupilot.app" });
+    vi.mocked(auth).mockResolvedValue({
+      ...root,
+      user: { ...root.user, isTwoFactorEnabled: true, isTwoFactorAuthenticated: false },
+    });
+    const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
+
+    expect(res.status).toBe(401);
+    expect(enforceDataRetentionPolicies).not.toHaveBeenCalled();
   });
 
   it("should refuse a non-super-admin session without a valid bearer token", async () => {

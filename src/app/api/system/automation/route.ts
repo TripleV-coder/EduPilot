@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { automationService } from "@/lib/services/automation.service";
 import { logger } from "@/lib/utils/logger";
+import { verifyCronSecret } from "@/lib/security/cron-auth";
 
 /**
  * API Trigger for Automated Maintenance Tasks
@@ -17,15 +18,14 @@ import { logger } from "@/lib/utils/logger";
 export const maxDuration = 300;
 
 async function handleMaintenance(req: NextRequest) {
-    const authHeader = req.headers.get("Authorization");
-    const cronSecret = process.env.CRON_SECRET;
+    const cronAuth = verifyCronSecret(req.headers.get("Authorization"));
 
-    if (!cronSecret) {
+    if (cronAuth === "not-configured") {
         logger.error("CRON_SECRET is not defined in environment variables");
         return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
     }
 
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (cronAuth !== "ok") {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
