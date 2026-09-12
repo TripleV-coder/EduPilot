@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { fetcher } from "@/lib/fetcher";
+import { fetchStudentList } from "@/lib/api/student-list";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
@@ -103,21 +104,17 @@ export default function AttendancePage() {
         const fetchData = async () => {
             setIsFetchingData(true);
             try {
-                const [stuRes, attRes] = await Promise.all([
-                    fetch(`/api/students?classId=${selectedClassId}&limit=1000`),
+                const [studentsList, attRes] = await Promise.all([
+                    fetchStudentList<RawStudent>(`classId=${selectedClassId}&limit=1000`),
                     fetch(
                         `/api/attendance/bulk?classId=${selectedClassId}&date=${selectedDate}`
                     ),
                 ]);
 
-                const stuData = await stuRes.json();
                 const existingRecords: { studentId: string; status: string; reason?: string }[] = attRes.ok
                     ? await attRes.json()
                     : [];
 
-                const studentsList: RawStudent[] = Array.isArray(stuData)
-                    ? stuData
-                    : stuData.students || [];
                 const newAttrMap: Record<string, AttendanceRecord> = {};
                 const orderedIds: string[] = [];
 

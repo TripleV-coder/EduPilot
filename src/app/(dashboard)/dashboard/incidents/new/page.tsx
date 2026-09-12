@@ -32,8 +32,7 @@ import { incidentCreateSchema, IncidentFormValues } from "@/lib/validations/inci
 import { AlertCircle, Save, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { useStudentList } from "@/hooks/use-student-list";
 import { t } from "@/lib/i18n";
 
 type StudentOption = {
@@ -72,8 +71,7 @@ export default function NewIncidentPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fetch students list
-    const { data: studentsData, isLoading: isLoadingStudents } = useSWR<{ students: StudentOption[] }>("/api/students?limit=200", fetcher);
-    const students = studentsData?.students || [];
+    const { students, isLoading: isLoadingStudents } = useStudentList<StudentOption>("limit=200");
 
     // severity (.default) rend le type d'entrée ≠ type de sortie : trois
     // génériques au lieu d'un cast du resolver.
