@@ -98,6 +98,15 @@ export const POST = createApiHandler(async (request, context) => {
     const origin = new URL(request.url).origin;
 
     try {
+        // Référence enregistrée AVANT la création chez FedaPay : si le
+        // processus s'arrête juste après, le webhook (merchant_reference)
+        // retrouve quand même le paiement. Référence déterministe et paiement
+        // toujours PENDING : sans effet si l'appel échoue.
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: { reference, method: "MOBILE_MONEY_MTN" },
+        });
+
         const checkout = await createFedaPayCheckout({
             amount,
             description: payment.fee?.name ? `Frais : ${payment.fee.name}` : "Frais scolaires",
@@ -108,11 +117,6 @@ export const POST = createApiHandler(async (request, context) => {
                 lastname: payer.lastName ?? "EduPilot",
                 email: payer.email,
             },
-        });
-
-        await prisma.payment.update({
-            where: { id: payment.id },
-            data: { reference, method: "MOBILE_MONEY_MTN" },
         });
 
         logger.info("FedaPay: transaction initiée", {

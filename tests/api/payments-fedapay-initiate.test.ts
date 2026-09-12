@@ -178,9 +178,34 @@ describe("POST /api/payments/fedapay/initiate", () => {
       data: { reference: string; method: string };
     };
     expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
+    expect(updateArgs.data.reference).toBe("EDU-ref1");
   });
 
-  it("retourne 502 quand FedaPay échoue", async () => {
+  it("enregistre la référence AVANT de créer la transaction chez FedaPay (arrêt brutal)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(paymentRecord());
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      firstName: "Awa",
+      lastName: "Dossou",
+      email: "awa@school.bj",
+    } as never);
+    vi.mocked(prisma.payment.update).mockResolvedValue({ id: paymentId } as never);
+
+    await post({ paymentId });
+
+    // Si le processus s'arrête juste après la création chez FedaPay, le
+    // webhook (merchant_reference) doit déjà retrouver le paiement.
+    const updateOrder = vi.mocked(prisma.payment.update).mock.invocationCallOrder[0];
+    const checkoutOrder = vi.mocked(createFedaPayCheckout).mock.invocationCallOrder[0];
+    expect(updateOrder).toBeLessThan(checkoutOrder);
+  });
+
+  // Audit (arrêts brutaux) : ce test exigeait qu'aucune référence ne soit
+  // enregistrée quand FedaPay échoue — l'ordre « appel puis écriture » qui
+  // rend irrécupérable un arrêt survenant entre les deux. La référence est
+  // déterministe et le paiement reste PENDING : l'enregistrer d'abord est sans
+  // effet si l'appel échoue, et garantit le rapprochement s'il réussit.
+  it("retourne 502 quand FedaPay échoue, paiement toujours en attente", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.payment.findUnique).mockResolvedValue(paymentRecord());
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
@@ -196,6 +221,9 @@ describe("POST /api/payments/fedapay/initiate", () => {
     expect((await res.json()).error).toBe(
       "Échec de l'initialisation du paiement. Réessayez."
     );
-    expect(prisma.payment.update).not.toHaveBeenCalled();
+    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0]?.[0] as
+      | { data: Record<string, unknown> }
+      | undefined;
+    expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN" });
   });
 });
