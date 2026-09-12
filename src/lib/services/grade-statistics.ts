@@ -75,7 +75,16 @@ function whereClause(scope: GradeStatsScope): Prisma.Sql {
     return Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
 }
 
-type OverallRow = {
+/**
+ * Une ligne par ensemble de regroupement : `gSubject`/`gType` valent 1 quand la
+ * colonne n'est PAS regroupée (GROUPING) — (1, 1) global, (0, 1) par matière,
+ * (1, 0) par type d'évaluation.
+ */
+type AggregateRow = {
+    gSubject: number;
+    gType: number;
+    subject: string | null;
+    type: string | null;
     total: number;
     average: number | null;
     highest: number | null;
@@ -87,41 +96,44 @@ type OverallRow = {
     poor: number;
 };
 
-type BucketRow = { name: string; average: number; count: number };
-
-function buckets(rows: BucketRow[]): Record<string, GradeBucket> {
-    return Object.fromEntries(rows.map((row) => [row.name, { average: row.average, count: row.count }]));
+function buckets(rows: AggregateRow[], key: "subject" | "type"): Record<string, GradeBucket> {
+    return Object.fromEntries(
+        rows.map((row) => [row[key] ?? "", { average: row.average ?? 0, count: row.total }]),
+    );
 }
 
+/**
+ * Agrégats globaux, par matière et par type en UN seul parcours des notes
+ * (GROUPING SETS) : les trois requêtes parallèles d'origine parcouraient
+ * chacune toutes les notes du périmètre (578 → 271 ms sur la base de l'audit,
+ * 129 575 notes ; EXPLAIN : parcours déjà indexés, coût = l'agrégation).
+ */
 export async function aggregateGradeStatistics(scope: GradeStatsScope): Promise<GradeAggregate> {
-    const where = whereClause(scope);
+    const rows = await prisma.$queryRaw<AggregateRow[]>`
+        WITH n AS (
+            SELECT ${NORMALIZED} AS "v", s."name" AS "subject", t."name" AS "type"
+            ${FROM}
+            JOIN "subjects" s ON s."id" = cs."subjectId"
+            JOIN "evaluation_types" t ON t."id" = e."typeId"
+            ${whereClause(scope)}
+        )
+        SELECT
+            GROUPING("subject")::int AS "gSubject",
+            GROUPING("type")::int AS "gType",
+            "subject", "type",
+            COUNT(*)::int AS "total",
+            AVG("v")::float8 AS "average",
+            MAX("v")::float8 AS "highest",
+            MIN("v")::float8 AS "lowest",
+            COUNT(*) FILTER (WHERE "v" >= 10)::int AS "passed",
+            COUNT(*) FILTER (WHERE "v" >= 16)::int AS "excellent",
+            COUNT(*) FILTER (WHERE "v" >= 14 AND "v" < 16)::int AS "good",
+            COUNT(*) FILTER (WHERE "v" >= 10 AND "v" < 14)::int AS "fair",
+            COUNT(*) FILTER (WHERE "v" < 10)::int AS "poor"
+        FROM n
+        GROUP BY GROUPING SETS ((), ("subject"), ("type"))`;
 
-    const [overallRows, subjectRows, typeRows] = await Promise.all([
-        prisma.$queryRaw<OverallRow[]>`
-            SELECT
-                COUNT(*)::int AS "total",
-                AVG(${NORMALIZED})::float8 AS "average",
-                MAX(${NORMALIZED})::float8 AS "highest",
-                MIN(${NORMALIZED})::float8 AS "lowest",
-                COUNT(*) FILTER (WHERE ${NORMALIZED} >= 10)::int AS "passed",
-                COUNT(*) FILTER (WHERE ${NORMALIZED} >= 16)::int AS "excellent",
-                COUNT(*) FILTER (WHERE ${NORMALIZED} >= 14 AND ${NORMALIZED} < 16)::int AS "good",
-                COUNT(*) FILTER (WHERE ${NORMALIZED} >= 10 AND ${NORMALIZED} < 14)::int AS "fair",
-                COUNT(*) FILTER (WHERE ${NORMALIZED} < 10)::int AS "poor"
-            ${FROM} ${where}`,
-        prisma.$queryRaw<BucketRow[]>`
-            SELECT s."name" AS "name", AVG(${NORMALIZED})::float8 AS "average", COUNT(*)::int AS "count"
-            ${FROM} JOIN "subjects" s ON s."id" = cs."subjectId"
-            ${where}
-            GROUP BY s."name"`,
-        prisma.$queryRaw<BucketRow[]>`
-            SELECT t."name" AS "name", AVG(${NORMALIZED})::float8 AS "average", COUNT(*)::int AS "count"
-            ${FROM} JOIN "evaluation_types" t ON t."id" = e."typeId"
-            ${where}
-            GROUP BY t."name"`,
-    ]);
-
-    const overall = overallRows[0];
+    const overall = rows.find((row) => row.gSubject === 1 && row.gType === 1);
     const total = overall?.total ?? 0;
     return {
         totalGrades: total,
@@ -135,8 +147,8 @@ export async function aggregateGradeStatistics(scope: GradeStatsScope): Promise<
             average: overall?.fair ?? 0,
             poor: overall?.poor ?? 0,
         },
-        bySubject: buckets(subjectRows),
-        byType: buckets(typeRows),
+        bySubject: buckets(rows.filter((row) => row.gSubject === 0), "subject"),
+        byType: buckets(rows.filter((row) => row.gType === 0), "type"),
     };
 }
 
