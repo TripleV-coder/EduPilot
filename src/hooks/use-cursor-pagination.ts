@@ -26,7 +26,14 @@ function withPageParams(baseUrl: string, limit: number, cursor: string | null): 
     return `${url.pathname}${url.search}`;
 }
 
-export function useCursorPagination<T>(baseUrl: string | null, options: { limit?: number } = {}) {
+/**
+ * `Extra` : champs annexes de la réponse (ex. régions de l'annuaire), lus
+ * via `response`.
+ */
+export function useCursorPagination<T, Extra extends object = object>(
+    baseUrl: string | null,
+    options: { limit?: number } = {},
+) {
     const limit = options.limit ?? 20;
     const [cursors, setCursors] = useState<Array<string | null>>([null]);
     const [total, setTotal] = useState<number | undefined>(undefined);
@@ -39,7 +46,7 @@ export function useCursorPagination<T>(baseUrl: string | null, options: { limit?
 
     const cursor = cursors[cursors.length - 1];
     const key = baseUrl ? withPageParams(baseUrl, limit, cursor) : null;
-    const { data, error, isLoading, mutate } = useSWR<CursorPageResponse<T>>(key, fetcher, {
+    const { data, error, isLoading, mutate } = useSWR<CursorPageResponse<T> & Extra>(key, fetcher, {
         keepPreviousData: true,
     });
 
@@ -57,6 +64,7 @@ export function useCursorPagination<T>(baseUrl: string | null, options: { limit?
 
     return {
         items: data?.data ?? [],
+        response: data,
         isLoading,
         error: error as Error | undefined,
         page: cursors.length,

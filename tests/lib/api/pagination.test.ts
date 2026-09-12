@@ -90,6 +90,19 @@ describe("keyset", () => {
     it("n'ajoute aucune condition sur la première page", () => {
         expect(keysetWhere("date", "desc", null)).toEqual({});
     });
+
+    // Migration des listes par offset : tri sur un champ d'une relation (élèves par nom).
+    it("accepte une clé de tri portée par une relation (chemin pointé)", () => {
+        const name = { value: "Dossou", id: "stu7" };
+
+        expect(keysetOrderBy("user.lastName", "asc")).toEqual([{ user: { lastName: "asc" } }, { id: "asc" }]);
+        expect(keysetWhere("user.lastName", "asc", name)).toEqual({
+            OR: [
+                { user: { lastName: { gt: "Dossou" } } },
+                { user: { lastName: "Dossou" }, id: { gt: "stu7" } },
+            ],
+        });
+    });
 });
 
 describe("buildCursorPage", () => {

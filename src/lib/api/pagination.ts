@@ -100,18 +100,26 @@ export function getCursorParams(
     return { limit, cursor, withTotal };
 }
 
-export function keysetOrderBy(field: string, direction: "asc" | "desc") {
-    return [{ [field]: direction }, { id: direction }];
+/**
+ * Clé de tri éventuellement portée par une relation : "user.lastName" →
+ * { user: { lastName: <valeur> } } (Prisma, relation 1-1 ou N-1).
+ */
+function nestAtPath(path: string, leaf: unknown): Record<string, unknown> {
+    return path.split(".").reduceRight<unknown>((inner, key) => ({ [key]: inner }), leaf) as Record<string, unknown>;
+}
+
+export function keysetOrderBy(field: string, direction: "asc" | "desc"): object[] {
+    return [nestAtPath(field, direction), { id: direction }];
 }
 
 /** Condition « strictement après le curseur » pour l'ordre (field, id). */
-export function keysetWhere(field: string, direction: "asc" | "desc", cursor: DecodedCursor | null) {
+export function keysetWhere(field: string, direction: "asc" | "desc", cursor: DecodedCursor | null): { OR?: object[] } {
     if (!cursor) return {};
     const op = direction === "desc" ? "lt" : "gt";
     return {
         OR: [
-            { [field]: { [op]: cursor.value } },
-            { [field]: cursor.value, id: { [op]: cursor.id } },
+            nestAtPath(field, { [op]: cursor.value }),
+            { ...nestAtPath(field, cursor.value), id: { [op]: cursor.id } },
         ],
     };
 }

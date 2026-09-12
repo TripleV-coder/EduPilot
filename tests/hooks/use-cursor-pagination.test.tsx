@@ -80,6 +80,17 @@ describe("useCursorPagination", () => {
         expect(result.current).toMatchObject({ page: 1, totalPages: 3, hasPreviousPage: false });
     });
 
+    // Annuaire public : la réponse porte aussi les régions du filtre.
+    it("expose la réponse complète pour ses champs annexes", async () => {
+        const { result } = renderHook(
+            () => useCursorPagination<Row, { regions?: string[] }>("/api/public/schools", { limit: 2 }),
+            { wrapper },
+        );
+
+        await waitFor(() => expect(result.current.response?.pagination.total).toBe(5));
+        expect(result.current.response?.data).toHaveLength(2);
+    });
+
     it("repart de la première page quand l'adresse de base change (filtre)", async () => {
         const { result, rerender } = renderHook(
             ({ url }) => useCursorPagination<Row>(url, { limit: 2 }),
