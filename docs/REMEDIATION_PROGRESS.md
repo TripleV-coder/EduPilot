@@ -67,7 +67,7 @@ Conditions : i7-1355U, 15 Go, Node 22.22.3, build de production (47 s), `next st
 
 ---
 
-## Lot 1 — Intégrité et sécurité critiques (terminé, en attente du feu vert)
+## Lot 1 — Intégrité et sécurité critiques (terminé ; feu vert reçu le 2026-09-12)
 
 ### Commits
 
@@ -103,6 +103,59 @@ Le serveur doit être lancé avec `node --require ./scripts/server/client-ip-pre
 
 ---
 
+## Lot 2 — Robustesse (feu vert du 2026-09-12 : « Allons-y, finalise ce qui est demandé »)
+
+Interprétation consignée : enchaîner les lots sans arrêt intermédiaire, sauf pour les décisions réservées au propriétaire (règle 11). L'écart H4 du Lot 1 n'a pas été contesté et reste en place.
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `c749ec8` | fix(ops) **[H1][H2][N2]** : routes publiques par chemin **exact** (`/api/health`, `/api/system/automation`, `/api/system/retention`), `/api/health/*` reste protégé ; `verifyCronSecret` à comparaison en temps constant ; `retention` sans session obligatoire, SUPER_ADMIN avec second facteur validé |
+| `1fe4a19` | fix(resilience) **[H6]** : `RedisCircuit` (délai 200 ms, circuit ouvert 30 s, un journal par épisode) sur les 4 clients Upstash |
+| `6cd4595` | fix(api) **[M3]** : 413 au-delà de `maxBodyBytes` (1 Mo par défaut, upload 5 Mo + 256 Ko), 400 `INVALID_JSON` avant le handler, 400 `VALIDATION_ERROR` détaillé |
+| `fc28606` | fix(auth) **[M10]** : panne de base → `code=service_unavailable`, 2FA erronée → `invalid_2fa`, messages justes à l'écran, pannes non comptées par la limite H4 |
+| `828a6f8` | fix(build) **[N5]** : pas de validation d'environnement pendant `next build` |
+| `2851521` | fix(config) **[M6][L4]** : `.env.example` = exactement les 65 variables lues, validation de production réaliste (SMTP), `SIGNATURE_SALT` obligatoire |
+| `cdbd443` | chore(build) : télémétrie du plugin Sentry désactivée au build |
+| `8a34de6` | fix(payments) **[N7]** : la référence de rapprochement n'est plus écrasée par l'identifiant du fournisseur |
+| `4df6b0e` | fix(payments) : référence FedaPay écrite avant la création de la transaction (arrêt brutal) |
+
+### Arrêts brutaux — vérification
+
+| Parcours | Constat | Preuve | Verdict |
+|---|---|---|---|
+| Saisie de notes (`grades/batch`) | Validation complète **avant** `prisma.$transaction([...upserts])` (atomique). Après la transaction : recalcul des analyses dérivées et invalidation des caches | lecture `src/app/api/grades/batch/route.ts:96-133` | Pas de note partielle. Arrêt après la transaction : analyses dérivées en retard jusqu'à la saisie suivante (voir risques) |
+| Saisie en cours côté client | Brouillon auto-sauvegardé en `localStorage` (`useAutoSave`), supprimé seulement après un succès (`dashboard/grades/entry/page.tsx:287,320-343`) ; renvoi idempotent (`upsert`) | `tests/hooks/use-autosave.test.tsx` | Récupérable |
+| Imports CSV (5 routes) | Une transaction **par ligne** : aucune ligne incohérente, mais un arrêt en cours d'import laisse un import partiel | lecture `api/import/students/route.ts:94-213` | Rattaché au **Lot 5** (« aucun import partiel silencieux », doublons) |
+| Paiement Mobile Money (`payments/initiate`) | Paiement `PENDING` + référence commités **avant** l'appel au fournisseur ; plus d'écrasement de la référence (N7) | `tests/integration-db/payment-momo-flow.test.ts` (PG réel) | Rapprochable quel que soit le moment de l'arrêt |
+| Paiement FedaPay direct | Référence désormais écrite **avant** la création chez FedaPay | `payments-fedapay-initiate.test.ts` (ordre d'appel) | Corrigé (`4df6b0e`) |
+| Webhooks de paiement | `updateMany` conditionnel `status: PENDING` : rejeu sans effet | `payment-momo-flow.test.ts` (rejeu → `updatedAt` inchangé) | Idempotents |
+
+### Tests existants modifiés (règle 4)
+
+- `tests/api/system-retention.test.ts` : exigeait le message « Non authentifié » du garde de session par défaut, c'est-à-dire N2 lui-même.
+- 8 tests (`class-subjects` ×2, `evaluation-types`, `evaluations`, `finance-payments`, `schedules`, `subject-categories`, `subjects`) exigeaient « 500 sur corps invalide (ZodError non interceptée) », c'est-à-dire M3 lui-même. Ils exigent désormais 400 `VALIDATION_ERROR`.
+- `tests/api/payments-initiate.test.ts` : exigeait `reference = "TXN-1"` après l'appel au fournisseur, c'est-à-dire N7 lui-même.
+- `tests/api/payments-fedapay-initiate.test.ts` : exigeait qu'aucune référence ne soit écrite quand FedaPay échoue, soit l'ordre qui rend un arrêt brutal irrécupérable.
+
+### Décision en attente du propriétaire — Upstash (M6)
+
+La validation de démarrage exige Upstash en production. Deux faits relèvent pourtant de la règle 11 :
+
+- **Architecture.** PM2 tourne en mode `cluster` avec `instances: 'max'`. Sans magasin partagé, chaque processus a ses propres compteurs, et les limites sont multipliées par le nombre de cœurs.
+- **Données personnelles.** Upstash est un service cloud tiers, et les clés de rate-limit contiennent des adresses IP.
+
+Options :
+
+- (a) conserver Upstash (cloud) ;
+- (b) Redis auto-hébergé, exposé en REST compatible Upstash sur la machine locale ;
+- (c) PM2 en mode `fork` avec 1 instance et le repli mémoire, en retirant l'exigence Upstash.
+
+`.env.example` documente l'état actuel sans le changer.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -112,37 +165,40 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | C1 | Critique | Migrations Prisma non versionnées + dérive `offeredLevels` | 1 | Corrigé | `f4c709e` | `tests/integration-db/migrations.test.ts` (PG réel) ; CI `integration-tests` (`migrate deploy` + `migrate diff --exit-code`) ; baseline testée sur base `db push` ; clone neuf | P2021 table users absente ; 0 migration suivie ; dérive `offeredLevels` | clone neuf (`npm ci` 46 s, build, 34 migrations, **sans seed**) : `/login` 200, `/setup` 200, `/api/setup` `{"setupNeeded":true}`, 0 utilisateur ; diff = 0 |
 | C2 | Critique | Next.js 16.3.1 (RCE Image Optimization AVIF) | 1 | Corrigé | `0fd0302` | `npm audit --omit=dev --audit-level=high` → code 0 | 1 critique (next 16.3.1) | next 16.3.5 ; 0 vulnérabilité prod |
 | C3 | Critique | Endpoints non paginés (évaluations, statistiques, schedules, fees, health, scholarships, analytics) + N1 | 3 | Confirmé | — | smoke seuils 1 Mo/1 s, latency, Lighthouse, RSS | 35 violations ; 100 Mo ; 8,7 Go | — |
-| H1 | Élevée | `/api/health` non public → healthcheck Docker en échec | 2 | Confirmé | — | `security.mjs health` + test préfixes publics | 401 | — |
-| H2 | Élevée | Crons bloqués (middleware + N2) | 2 | Confirmé | — | `security.mjs cron` avec/sans secret | 401 ×4 | — |
+| H1 | Élevée | `/api/health` non public → healthcheck Docker en échec | 2 | Corrigé (conteneur `healthy` à vérifier au Lot 7) | `c749ec8` | `tests/lib/proxy-public-routes.test.ts` (10) ; `security.mjs health` sur build de prod | 401 | 200 `{"status":"ok"}` ; `/api/health/*` toujours 401 sans session |
+| H2 | Élevée | Crons bloqués (middleware + N2) | 2 | Corrigé (accès) — durée du traitement : voir N8 | `c749ec8` | `proxy-public-routes.test.ts`, `cron-auth.test.ts` (4), `system-retention.test.ts` ; `security.mjs cron` | 401 ×4 (middleware) | secret invalide → 401 de la route elle-même ; secret valide → traitement lancé (maintenance > 300 s, N8) |
 | H3 | Élevée | Rate-limit contournable via XFF | 1 | Corrigé | `3192078` | `tests/lib/security/client-ip*.test.ts` (14), `tests/lib/proxy-rate-limit.test.ts` ; `security.mjs xff` sur build de prod | 130×200, 0×429 | `{"200":93,"429":37}` |
 | H4 | Élevée | Pas de limite IP sur `/api/auth/callback/credentials` | 1 | Corrigé (échecs seulement — voir Lot 1) | `e2b1751` | `tests/api/auth-login-rate-limit.test.ts` (5) ; `security.mjs bruteforce` sur build de prod | 12×302, 0×429 | `{"302":10,"429":2}` ; 30 succès même IP : 0×429 |
 | H5 | Élevée | IDOR `subjects/categories/[id]` (+ N3) | 1 | Corrigé | `563ccb6` | `tests/integration-db/subject-categories-isolation.test.ts` (7, PG réel) ; `security.mjs idor` | GET/PATCH/DELETE 200 (persisté) | 404/404/404, rien persisté |
-| H6 | Élevée | Redis injoignable : +4,3 s par requête | 2 | Confirmé | — | `redis-outage.mjs` | p95 4 360 ms | — |
+| H6 | Élevée | Redis injoignable : +4,3 s par requête | 2 | Corrigé | `1fe4a19` | `tests/lib/redis/circuit.test.ts` (5), `tests/lib/redis/outage.test.ts` (3, vrai port fermé) ; `redis-outage.mjs` sur build de prod | `/api/auth/csrf` p50 4 319 / p95 4 360 ms | 10×200, p50 14 / p95 24 ms ; `/api/health` 14–97 ms |
 | M1 | Moyenne | `mustChangePassword` jamais imposé | 4 | Constat audit | — | E2E premier login forcé | — | — |
 | M2 | Moyenne | RLS inerte | 4 | Constat audit | — | selon option retenue (a/b) | — | — |
-| M3 | Moyenne | JSON invalide / ZodError → 500 | 2 | Confirmé | — | intégration PG + `security.mjs json` | 500 ×2 | — |
+| M3 | Moyenne | JSON invalide / ZodError → 500 | 2 | Corrigé | `6cd4595` | `tests/lib/api/api-handler-body.test.ts` (7) ; `tests/integration-db/api-body-validation.test.ts` (3, PG réel) ; `security.mjs json` | `{}` → 500, `{bad` → 500 ; corps de 5 Mo lu en entier | 400 `VALIDATION_ERROR` / 400 `INVALID_JSON` ; > 1 Mo → 413 ; rien écrit |
 | M4 | Moyenne | Croissance mémoire (aggravée : N1) | 3 | Confirmé | — | RSS après série < 500 Mo | 8 746 Mo | — |
 | M5 | Moyenne | 163/231 `findMany` sans `take` | 3 | Constat audit | — | revue + plafond helper | 163 | — |
-| M6 | Moyenne | `.env.example` incohérent (18 variables, Upstash, `AUTH_TRUST_HOST`) | 2 | Constat audit | — | test de cohérence env ↔ `lib/env.ts` | 18 non documentées | — |
+| M6 | Moyenne | `.env.example` incohérent (18 variables, Upstash, `AUTH_TRUST_HOST`) | 2 | Corrigé (statut Upstash : décision en attente, voir Lot 2) | `2851521` | `tests/lib/config/env-documentation.test.ts` (2), `tests/lib/env-production.test.ts` (4) | 18 lues non documentées, 3 documentées jamais lues ; `EMAIL_API_KEY` exigée même en SMTP | 0 / 0 ; `SMTP_HOST` exigé en SMTP, `EMAIL_API_KEY` hors SMTP |
 | M7 | Moyenne | Dépendances vulnérables (nodemailer, sharp) | 1 | Corrigé (prod) | `0fd0302` | `npm audit --omit=dev --audit-level=high` | 4 prod, 15 total | 0 prod ; 8 total, outils de dev uniquement (correctif = majeure/`--force`) |
 | M8 | Moyenne | 3 E2E en échec | 5 | Constat audit | — | `npm run test:e2e` | 78/81 | — |
 | M9 | Moyenne | Documentation d'API obsolète | 8 | Constat audit | — | OpenAPI généré | 33/452 | — |
-| M10 | Moyenne | Panne DB indiscernable d'identifiants invalides | 2 | Constat audit | — | test API + UI | — | — |
+| M10 | Moyenne | Panne DB indiscernable d'identifiants invalides | 2 | Corrigé | `fc28606` | `tests/integration-db/login-db-outage.test.ts` (3, vraies erreurs Prisma) ; `login-errors.test.ts` (5) ; `auth-login-rate-limit.test.ts` (+1) | `error=Configuration` → « Email ou mot de passe incorrect » | `code=service_unavailable` → « Service momentanément indisponible… » ; panne non comptée par la limite H4 |
 | L1 | Faible | CSP `style-src 'unsafe-inline'` | 7 | Constat audit | — | en-tête | — | — |
 | L2 | Faible | `X-XSS-Protection` obsolète | 7 | Constat audit | — | en-tête | — | — |
 | L3 | Faible | Code mort / modules dupliqués | 8 | Constat audit | — | grep imports | 4 rate-limit | — |
-| L4 | Faible | `SIGNATURE_SALT` avec repli codé | 2 | Constat audit | — | validation env prod | — | — |
+| L4 | Faible | `SIGNATURE_SALT` avec repli codé | 2 | Corrigé | `2851521` | `tests/lib/signatures/signature-salt.test.ts` (3) ; `env-production.test.ts` | repli codé « edupilot » | obligatoire en production (démarrage refusé sinon) |
 | L5 | Faible | `/api/system/backup` expose chemin + stdout | 7 | Constat audit | — | test de réponse | — | — |
 | L6 | Faible | Fichiers géants | 8 (inventaire) | Constat audit | — | — | — | — |
 | L7 | Faible | Données de cache servies pendant panne DB sans indicateur | 2 | Constat audit | — | — | — | — |
 | L8 | Faible | `/api/setup` expose `setupNeeded` | 5 | Constat audit (probablement accepté : nécessaire au démarrage à vide) | — | — | — | — |
 | L9 | Faible | Artefacts hors périmètre à la racine | 8 (liste à valider) | Constat audit | — | — | — | — |
 | N1 | Critique | Épuisement mémoire (voir ci-dessus) | 3 | Confirmé | — | RSS | 8 746 Mo | — |
-| N2 | Élevée | Retention : `requireAuth` par défaut + comparaison non constante | 2 | Confirmé | — | `security.mjs cron` | 401 | — |
+| N2 | Élevée | Retention : `requireAuth` par défaut + comparaison non constante | 2 | Corrigé | `c749ec8` | `system-retention.test.ts` (+2), `cron-auth.test.ts` (4) | 401 avec secret valide ; comparaison `===` | cron sans session → 200 ; `timingSafeEqual` ; SUPER_ADMIN pré-2FA refusé |
 | N3 | Élevée | Désactivation inter-école via DELETE | 1 | Corrigé | `563ccb6` | `subject-categories-isolation.test.ts` (N3) ; `security.mjs idor` | 200, `isActive=false` | 404, catégorie toujours active |
 | N4 | Moyenne | `e2e/global-setup.ts` code en dur les identifiants d'écoles et de classe d'un seed précis (`E2E_SCHOOLS`) : sur une base reseedée, `security-tenant` peut passer sans rien prouver (ressource inexistante) | 5 | Constat Lot 1 | — | comptes et données E2E dédiés, identifiants lus en base | — | — |
-| N5 | Faible | `lib/config/env-validation.ts` lève à l'import et ignore `SKIP_ENV_VALIDATION` (2e module de validation, incohérent avec `lib/env.ts`) : build d'un clone neuf sans `.env` en échec | 2 (M6) / 8 (L3) | Constat Lot 1 | — | test de cohérence env | build KO sans `.env` | — |
+| N5 | Élevée | `lib/config/env-validation.ts` lève à l'import (y compris pendant `next build`) et ignore `SKIP_ENV_VALIDATION` : build d'un clone neuf sans `.env` en échec, **et étape de build du Dockerfile impossible** (aucun secret) | 2 | Corrigé (fusion des 2 modules : Lot 8, L3) | `828a6f8` | `tests/lib/config/env-validation.test.ts` (3) | build KO sans `.env` | build sans secret OK ; démarrage sans secret toujours refusé |
 | N6 | Faible | `nodemailer` 9 hors de la plage peer de `next-auth` (`^7 \|\| ^8`) — préexistant (9.0.5), masqué par `legacy-peer-deps` | 8 | Constat Lot 1 | — | vérification de l'envoi d'email (Lot 5/7) | — | — |
+| N9 | Élevée (données personnelles) | `GET /api/evaluations` ne filtre que par école ; seul TEACHER est restreint à ses matières. Un PARENT ou un STUDENT reçoit toutes les évaluations de l'établissement **avec les notes et les noms de tous les élèves** (notes de mineurs exposées à d'autres familles) | 3 (avec C3, même route) | Constat Lot 2 | — | test d'intégration par rôle (parent : ses enfants seulement) | lecture `src/app/api/evaluations/route.ts:24-32,79-105` [LU] | — |
+| N8 | Élevée | Maintenance quotidienne (`runDailyMaintenance`) exécutée de façon synchrone dans la requête du cron : recalcul séquentiel de ~3 000 instantanés d'analyse (élève × période), CPU du serveur 100–126 % pendant toute la durée (l'application ralentit pour tous) ; **aucune exclusion mutuelle** : un planificateur qui réessaie après expiration lance une 2e exécution concurrente (observé : 2 exécutions simultanées) | 3 (analytics) / 7 (crons) | Constat Lot 2 | — | durée du cron sur base seedée ; test d'exclusion mutuelle | 11 min 49 s pour 2 982 instantanés (mesure perturbée : 2e exécution concurrente + suite E2E) ; client expiré à 300 s | — |
+| N7 | Élevée | `payments/initiate` écrasait la référence de rapprochement (« PAY-… ») par l'identifiant du fournisseur ; les webhooks MoMo et FedaPay rapprochent par notre référence : paiements Mobile Money encaissés mais jamais rapprochés (restent PENDING), sans aucune panne | 2 | Corrigé | `8a34de6` | `tests/integration-db/payment-momo-flow.test.ts` (3, PG réel, fournisseur simulé) | PENDING après webhook signé | VERIFIED ; rejeu sans effet ; signature forgée → 401 |
 
 ---
 
@@ -216,3 +272,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 |---|---|---|---|---|---|---|---|
 | 0 | ✅ 0 erreur (11 s, cache incrémental) | ✅ 0 erreur (60 s) | ✅ 2 703/2 703, 240 fichiers (36 s) | ✅ 47 s | n/a (suite inexistante) | non rejoués (aucun code applicatif modifié) | Base : `88215e5` |
 | 1 | ✅ 0 erreur (46 s) | ✅ 0 erreur (41 s) | ✅ 2 729/2 729, 246 fichiers (33 s) | ✅ 87 s (next 16.3.5) ; clone neuf ✅ | ✅ 9/9 (`npm run test:integration`, PG réel) | ✅ 40/40 (`auth-flow`, `security-anonymous`, `security-rbac`, `security-tenant` ; build de prod, base seedée) | `security.mjs` : H3, H4, H5 ×3, TENANT → 6/6 PASS ; `npm audit --omit=dev --audit-level=high` → 0 ; base d'audit : 3 écoles, 2 698 utilisateurs, 994 élèves, 131 208 notes |
+| 2 | ✅ 0 erreur | ✅ 0 erreur (`npm run lint` complet) | ✅ 2 776/2 776, 255 fichiers | ✅ 36 s ; 0 ligne de télémétrie Sentry | ✅ 18/18 (5 fichiers, PG réel) | ✅ 78/81 : exactement les 3 échecs connus de l'audit (M8 : a11y `/ecoles`, a11y `/dashboard/grades` TEACHER, `grades-flow` CTA) — aucune régression | `security.mjs` : H1, H2 ×2, M3 ×2, H5 ×3, TENANT → 9/9 PASS ; `redis-outage.mjs` PASS (10×200, p95 24 ms) ; cron valide : voir N8 |
