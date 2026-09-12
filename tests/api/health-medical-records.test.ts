@@ -7,7 +7,7 @@ import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    medicalRecord: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    medicalRecord: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
@@ -86,12 +86,23 @@ describe("GET /api/health/medical-records", () => {
     expect(res.status).toBe(404);
   });
 
-  it("should scope SCHOOL_ADMIN to their school", async () => {
+  // Audit C3 (minimisation des données de santé) : ce test exigeait, pour la
+  // liste de l'équipe sans élève précis, un findMany de TOUS les dossiers de
+  // l'école avec allergies, vaccins et contacts. Ce mode est désormais paginé
+  // et minimal ; le périmètre de l'école reste vérifié.
+  it("should scope SCHOOL_ADMIN to their school (paginated list mode)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.medicalRecord.findMany).mockResolvedValue([makeRecord()]);
+    vi.mocked(prisma.medicalRecord.count).mockResolvedValue(1 as never);
     const res = await GET(makeRequest("http://localhost/api/health/medical-records"), { session: makeSession("SCHOOL_ADMIN") });
     expect(res.status).toBe(200);
-    expect(prisma.medicalRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { student: { schoolId: FIXTURES.schoolA } } }));
+    const args = vi.mocked(prisma.medicalRecord.findMany).mock.calls[0][0] as unknown as {
+      where: { AND: unknown[] };
+      take: number;
+    };
+    expect(args.where.AND[0]).toEqual({ student: { schoolId: FIXTURES.schoolA } });
+    expect(args.take).toBe(21);
+    expect((await res.json()).pagination).toMatchObject({ limit: 20, total: 1 });
   });
 });
 
