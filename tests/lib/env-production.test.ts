@@ -52,6 +52,14 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).toThrow(/EMAIL_API_KEY/);
     });
 
+    it("démarre sans Upstash : instance unique, repli mémoire (décision du 2026-09-12)", () => {
+        vi.stubEnv("EMAIL_PROVIDER", "resend");
+        vi.stubEnv("EMAIL_API_KEY", "cle");
+        vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+        vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+        expect(() => validateEnv()).not.toThrow();
+    });
+
     it("exige SIGNATURE_SALT (L4)", () => {
         vi.stubEnv("EMAIL_PROVIDER", "resend");
         vi.stubEnv("EMAIL_API_KEY", "cle");

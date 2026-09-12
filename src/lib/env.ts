@@ -72,16 +72,8 @@ const ENV_VARS: EnvVar[] = [
             "Posé automatiquement par le préchargement de l'IP client : démarrer le serveur avec " +
             "`node --require ./scripts/server/client-ip-preload.cjs` (sans lui, le rate-limit ne peut pas identifier les clients)",
     },
-    {
-        name: "UPSTASH_REDIS_REST_URL",
-        required: "production",
-        description: "URL Upstash Redis pour le rate limiting distribué",
-    },
-    {
-        name: "UPSTASH_REDIS_REST_TOKEN",
-        required: "production",
-        description: "Token Upstash Redis pour le rate limiting distribué",
-    },
+    // Upstash n'est plus exigé (décision du 2026-09-12) : un seul processus,
+    // rate-limit et cache en mémoire, aucune adresse IP envoyée hors machine.
 ];
 
 /**

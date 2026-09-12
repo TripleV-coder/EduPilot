@@ -66,10 +66,11 @@ function checkFallbackRateLimit(
 const hasUpstash = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 
 if (!hasUpstash && process.env.NODE_ENV === "production") {
-  logger.warn(
-    "[RateLimit] ⚠️  UPSTASH_REDIS_REST_URL is not configured. " +
-    "Rate limiting will use in-memory fallback which does NOT work across multiple instances. " +
-    "This is a SECURITY RISK in production."
+  // Déploiement retenu : un seul processus (ecosystem.config.js, image Docker).
+  // Le repli mémoire est alors exact ; il ne le serait plus avec plusieurs instances.
+  logger.info(
+    "[RateLimit] Limites en mémoire (instance unique). Ne pas lancer plusieurs " +
+    "instances sans magasin partagé : les limites seraient multipliées."
   );
 }
 

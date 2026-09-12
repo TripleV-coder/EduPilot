@@ -7,9 +7,15 @@ module.exports = {
   apps: [
     {
       name: 'edupilot',
-      script: './server.js',
-      instances: 'max', // Use all available CPU cores
-      exec_mode: 'cluster',
+      // Serveur standalone produit par `next build` (output: standalone).
+      script: '.next/standalone/server.js',
+      // Adresse client fiable pour le rate-limit (audit H3).
+      node_args: '--require ./scripts/server/client-ip-preload.cjs',
+      // UN SEUL processus (décision du 2026-09-12) : rate-limit, compteur
+      // d'échecs de connexion et cache sont en mémoire — exacts avec une
+      // instance unique, faux en cluster (limites multipliées par processus).
+      instances: 1,
+      exec_mode: 'fork',
 
       // Environment variables
       env: {
