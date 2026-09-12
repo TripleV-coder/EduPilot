@@ -13,7 +13,8 @@ const schema = z.object({
 /**
  * POST /api/access-control/badges/regenerate
  * (Ré)émet un badge unique pour chaque élève actif d'une classe. Idempotent :
- * un upsert par élève (nouveau code à chaque régénération).
+ * un upsert par élève (nouveau code à chaque régénération), tous dans une seule
+ * transaction (audit M5 : une erreur au milieu laissait la classe à moitié régénérée).
  */
 export const POST = createApiHandler(
     async (request, context) => {
@@ -38,15 +39,16 @@ export const POST = createApiHandler(
         });
         const studentIds = [...new Set(enrollments.map((e) => e.studentId))];
 
-        let count = 0;
-        for (const studentId of studentIds) {
-            await prisma.badge.upsert({
-                where: { studentId },
-                update: { code: makeBadgeCode(), validUntil: validUntil ?? null, revokedAt: null, schoolId },
-                create: { schoolId, studentId, code: makeBadgeCode(), validUntil: validUntil ?? null },
-            });
-            count += 1;
-        }
+        await prisma.$transaction(
+            studentIds.map((studentId) =>
+                prisma.badge.upsert({
+                    where: { studentId },
+                    update: { code: makeBadgeCode(), validUntil: validUntil ?? null, revokedAt: null, schoolId },
+                    create: { schoolId, studentId, code: makeBadgeCode(), validUntil: validUntil ?? null },
+                })
+            )
+        );
+        const count = studentIds.length;
 
         await prisma.auditLog.create({
             data: {
