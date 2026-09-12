@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, POST, PUT as PUT_BULK } from "@/app/api/admin/subjects/route";
 import { PUT } from "@/app/api/admin/subjects/[id]/route";
+import { primarySubjects } from "@/lib/benin/config";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
@@ -13,6 +14,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
+      createMany: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
@@ -78,10 +80,13 @@ describe("POST /api/admin/subjects", () => {
 describe("PUT /api/admin/subjects (import)", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  // Audit M5 : l'import ne lit plus chaque matière (findUnique) ni ne la crée
+  // une à une (create) ; il lit les codes existants (findMany) et insère le
+  // reste en une fois (createMany). Même scénario : une matière déjà présente.
   it("should import primary subjects and skip existing ones", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.subject.findUnique).mockResolvedValueOnce({ id: "s1" } as never).mockResolvedValueOnce(null);
-    vi.mocked(prisma.subject.create).mockResolvedValue({ id: "s2" } as never);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ code: primarySubjects[0].code }] as never);
+    vi.mocked(prisma.subject.createMany).mockResolvedValue({ count: primarySubjects.length - 1 } as never);
 
     const res = await PUT_BULK(makeRequest("http://localhost/api/admin/subjects", { method: "PUT", body: { type: "primary" } }));
     expect(res.status).toBe(200);
@@ -89,6 +94,24 @@ describe("PUT /api/admin/subjects (import)", () => {
     expect(body.created).toBeGreaterThan(0);
     expect(body.skipped).toBeGreaterThan(0);
     expect(body.total).toBe(body.created + body.skipped);
+  });
+
+  // Audit M5 (N+1) : une lecture puis une création par matière du référentiel.
+  it("should import with one lookup and one bulk insert (audit M5)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ code: primarySubjects[0].code }] as never);
+    vi.mocked(prisma.subject.createMany).mockResolvedValue({ count: primarySubjects.length - 1 } as never);
+
+    const res = await PUT_BULK(makeRequest("http://localhost/api/admin/subjects", { method: "PUT", body: { type: "primary" } }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ created: primarySubjects.length - 1, skipped: 1, total: primarySubjects.length });
+    expect(prisma.subject.findUnique).not.toHaveBeenCalled();
+    expect(prisma.subject.create).not.toHaveBeenCalled();
+    expect(prisma.subject.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.subject.createMany).toHaveBeenCalledTimes(1);
+    const insert = vi.mocked(prisma.subject.createMany).mock.calls[0][0] as { data: Array<{ code: string }>; skipDuplicates: boolean };
+    expect(insert.skipDuplicates).toBe(true);
+    expect(insert.data.map((row) => row.code)).not.toContain(primarySubjects[0].code);
   });
 });
 

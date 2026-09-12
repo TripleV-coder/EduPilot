@@ -78,31 +78,31 @@ export const PUT = createApiHandler(async (request, context) => {
     const { type } = body; // "primary" or "college"
 
     const subjectsToImport = type === "primary" ? primarySubjects : collegeSubjects;
-    let created = 0;
-    let skipped = 0;
+    const schoolId = getActiveSchoolId(session) as string;
 
-    for (const subj of subjectsToImport) {
-        const existing = await prisma.subject.findUnique({
-            where: { schoolId_code: { schoolId: getActiveSchoolId(session) as string, code: subj.code } },
-        });
+    // Audit M5 (N+1) : une lecture des codes existants et une insertion groupée,
+    // au lieu d'une lecture puis d'une création par matière. skipDuplicates
+    // absorbe un import concurrent (contrainte schoolId + code).
+    const existing = await prisma.subject.findMany({
+        where: { schoolId, code: { in: subjectsToImport.map((subj) => subj.code) } },
+        select: { code: true },
+    });
+    const existingCodes = new Set(existing.map((subject) => subject.code));
+    const missing = subjectsToImport.filter((subj) => !existingCodes.has(subj.code));
 
-        if (existing) {
-            skipped++;
-            continue;
-        }
-
-        await prisma.subject.create({
-            data: {
-                schoolId: getActiveSchoolId(session) as string,
+    const { count: created } = missing.length > 0
+        ? await prisma.subject.createMany({
+            data: missing.map((subj) => ({
+                schoolId,
                 name: subj.name,
                 code: subj.code,
                 category: subj.category,
                 coefficient: subj.defaultCoefficient,
-            },
-        });
-        created++;
-    }
+            })),
+            skipDuplicates: true,
+        })
+        : { count: 0 };
 
-    return NextResponse.json({ created, skipped, total: subjectsToImport.length });
+    return NextResponse.json({ created, skipped: subjectsToImport.length - created, total: subjectsToImport.length });
 
 });
