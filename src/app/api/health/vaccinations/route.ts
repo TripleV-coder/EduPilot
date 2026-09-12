@@ -73,11 +73,16 @@ async function getVaccinationStats({
             { nextDueDate: { lt: now } },
           ],
         },
-        include: {
+        // Seuls l'identifiant, le vaccin, l'échéance et le nom de l'élève sont
+        // renvoyés : pas de dossier médical ni de profil élève complet en mémoire.
+        select: {
+          id: true,
+          vaccineName: true,
+          nextDueDate: true,
           medicalRecord: {
-            include: {
+            select: {
               student: {
-                include: {
+                select: {
                   user: { select: { firstName: true, lastName: true } },
                 },
               },
