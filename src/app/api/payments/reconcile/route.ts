@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -137,6 +138,12 @@ export const POST = createApiHandler(
   { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
 );
 
+const PAYMENT_STATUSES: readonly PaymentStatus[] = ["PENDING", "VERIFIED", "RECONCILED", "CANCELLED"];
+
+function isPaymentStatus(value: string): value is PaymentStatus {
+  return (PAYMENT_STATUSES as readonly string[]).includes(value);
+}
+
 export const GET = createApiHandler(async (request, context) => {
   try {
     const session = context.session;
@@ -144,6 +151,9 @@ export const GET = createApiHandler(async (request, context) => {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
     const status = searchParams.get("status") || "VERIFIED";
+    if (!isPaymentStatus(status)) {
+      return NextResponse.json({ error: "Statut de paiement invalide" }, { status: 400 });
+    }
     const activeSchoolId = getActiveSchoolId(session);
     const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
     if (schoolAccess) return schoolAccess;
@@ -159,32 +169,42 @@ export const GET = createApiHandler(async (request, context) => {
       ? schoolId
       : schoolId || activeSchoolId;
 
-    const payments = await prisma.payment.findMany({
-      where: {
-        status: status as PaymentStatus,
-        reconciledAt: null,
-        fee: { schoolId: targetSchoolId || undefined },
-      },
-      include: {
-        student: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
-          },
-        },
-        fee: { select: { name: true, amount: true } },
-      },
-      orderBy: { paidAt: "desc" },
-    });
+    const where = {
+      status,
+      reconciledAt: null,
+      fee: { schoolId: targetSchoolId || undefined },
+    };
 
-    const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    // Audit M5 : liste paginée par curseur (createdAt : paidAt peut être nul)
+    // et résumé calculé par PostgreSQL sur tout le périmètre, au lieu de
+    // charger tous les paiements en attente pour les compter en mémoire.
+    const page = getCursorParams(searchParams);
+    const [rows, totals] = await Promise.all([
+      prisma.payment.findMany({
+        where: page.cursor ? { AND: [where, keysetWhere("createdAt", "desc", page.cursor)] } : where,
+        include: {
+          student: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+          fee: { select: { name: true, amount: true } },
+        },
+        orderBy: keysetOrderBy("createdAt", "desc"),
+        take: page.limit + 1,
+      }),
+      prisma.payment.aggregate({ where, _count: { _all: true }, _sum: { amount: true } }),
+    ]);
+    const { data: payments, pagination } = buildCursorPage(rows, page.limit, (row) => row.createdAt);
 
     return NextResponse.json({
       payments,
       summary: {
-        count: payments.length,
-        totalAmount,
+        count: totals._count._all,
+        totalAmount: Number(totals._sum.amount ?? 0),
         status,
       },
+      pagination,
     });
   } catch (error) {
     logger.error("Fetching unreconciled payments error:", error as Error);

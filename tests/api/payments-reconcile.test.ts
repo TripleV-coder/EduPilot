@@ -5,7 +5,7 @@ import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    payment: { findMany: vi.fn(), update: vi.fn() },
+    payment: { findMany: vi.fn(), update: vi.fn(), aggregate: vi.fn() },
     $transaction: vi.fn((promises: unknown[]) =>
       Promise.all(promises as Promise<unknown>[])
     ),
@@ -213,12 +213,17 @@ describe("GET /api/payments/reconcile", () => {
     expect((await res.json()).error).toBe("ID d'établissement requis");
   });
 
+  // Audit M5 : le résumé (nombre, montant total) était calculé sur la liste
+  // complète chargée en mémoire ; la liste est désormais paginée et le résumé
+  // calculé par PostgreSQL sur tout le périmètre (aggregate). Mêmes valeurs
+  // simulées (2 paiements, 20 000), mêmes assertions.
   it("liste les paiements non réconciliés de l'école active", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     vi.mocked(prisma.payment.findMany).mockResolvedValue([
       verifiedPayment(p1),
       verifiedPayment(p2),
     ]);
+    vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _count: { _all: 2 }, _sum: { amount: 20000 } } as never);
 
     const res = await GET(
       makeRequest("http://localhost:3000/api/payments/reconcile?schoolId=" + FIXTURES.schoolA)
@@ -240,6 +245,7 @@ describe("GET /api/payments/reconcile", () => {
       makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" })
     );
     vi.mocked(prisma.payment.findMany).mockResolvedValue([verifiedPayment(p1)]);
+    vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _count: { _all: 1 }, _sum: { amount: 10000 } } as never);
 
     const res = await GET(
       makeRequest("http://localhost:3000/api/payments/reconcile?schoolId=" + FIXTURES.schoolB)
@@ -250,6 +256,35 @@ describe("GET /api/payments/reconcile", () => {
       where: { fee: { schoolId: string } };
     };
     expect(where.where.fee.schoolId).toBe(FIXTURES.schoolB);
+  });
+
+  // Audit M5 : liste non bornée (tous les paiements en attente de l'école,
+  // avec élève et frais) et résumé calculé en mémoire sur cette liste.
+  it("borne la liste et calcule le résumé sur tout le périmètre (audit M5)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([verifiedPayment(p1)]);
+    vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _count: { _all: 57 }, _sum: { amount: 570000 } } as never);
+
+    const res = await GET(
+      makeRequest("http://localhost:3000/api/payments/reconcile?schoolId=" + FIXTURES.schoolA)
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const args = vi.mocked(prisma.payment.findMany).mock.calls[0][0] as { take: number; orderBy: unknown };
+    expect(args.take).toBe(21);
+    expect(args.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    expect(body.summary).toEqual({ count: 57, totalAmount: 570000, status: "VERIFIED" });
+    expect(body.pagination).toMatchObject({ limit: 20, hasNextPage: false, nextCursor: null });
+  });
+
+  it("rejette un statut inconnu (400) sans interroger la base", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    const res = await GET(
+      makeRequest("http://localhost:3000/api/payments/reconcile?status=PAYE&schoolId=" + FIXTURES.schoolA)
+    );
+    expect(res.status).toBe(400);
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
   });
 
   it("retourne 500 sur erreur de base de données", async () => {
