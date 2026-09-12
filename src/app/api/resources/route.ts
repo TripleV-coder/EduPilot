@@ -7,6 +7,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { buildCursorPage, getCursorParams, InvalidCursorError, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 const createResourceSchema = z.object({
   title: z.string().min(3).max(200),
@@ -39,6 +40,9 @@ const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
+    // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
+    // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
+    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     const where: Prisma.ResourceWhereInput = {
@@ -88,7 +92,7 @@ const { searchParams } = new URL(request.url);
 
     const [resources, total] = await Promise.all([
       prisma.resource.findMany({
-        where,
+        where: cursorPage?.cursor ? { AND: [where, keysetWhere("createdAt", "desc", cursorPage.cursor)] } : where,
         include: {
           subject: {
             select: {
@@ -113,23 +117,29 @@ const { searchParams } = new URL(request.url);
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: cursorPage ? keysetOrderBy("createdAt", "desc") : { createdAt: "desc" },
+        skip: cursorPage ? undefined : skip,
+        take: cursorPage ? cursorPage.limit + 1 : limit,
       }),
-      prisma.resource.count({ where }),
+      !cursorPage || cursorPage.withTotal ? prisma.resource.count({ where }) : Promise.resolve(undefined),
     ]);
+
+    if (cursorPage) {
+      const { data, pagination } = buildCursorPage(resources, cursorPage.limit, (resource) => resource.createdAt);
+      return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
+    }
 
     return NextResponse.json({
       resources,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: total ?? 0,
+        totalPages: Math.ceil((total ?? 0) / limit),
       },
     });
   } catch (error) {
+    if (error instanceof InvalidCursorError) throw error; // 400 INVALID_CURSOR (createApiHandler)
     logger.error(" fetching resources:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des ressources" },

@@ -3,12 +3,13 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { userSchema } from "@/lib/validations/user";
 import type { UserWhereFilter } from "@/lib/types/api";
-import type { UserRole } from "@prisma/client";
+import type { Prisma, UserRole } from "@prisma/client";
 import { SchoolLevel, SchoolType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { checkStudentQuota, checkTeacherQuota } from "@/lib/saas/quotas";
 import { canCreateRole, roleSatisfies } from "@/lib/rbac/permissions";
@@ -43,6 +44,9 @@ export const GET = createApiHandler(
 
     // Pagination parameters
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
+    // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
+    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
 
     // Build where clause based on user role with proper typing
     const where: UserWhereFilter = {};
@@ -68,7 +72,9 @@ export const GET = createApiHandler(
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
-        where,
+        where: cursorPage?.cursor
+          ? { AND: [where as Prisma.UserWhereInput, keysetWhere("createdAt", "desc", cursorPage.cursor)] }
+          : where,
         select: {
           id: true,
           email: true,
@@ -101,14 +107,18 @@ export const GET = createApiHandler(
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: cursorPage ? keysetOrderBy("createdAt", "desc") : { createdAt: "desc" },
+        skip: cursorPage ? undefined : skip,
+        take: cursorPage ? cursorPage.limit + 1 : limit,
       }),
-      prisma.user.count({ where }),
+      !cursorPage || cursorPage.withTotal ? prisma.user.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return createPaginatedResponse(users, total, { page, limit, skip });
+    if (cursorPage) {
+      const { data, pagination } = buildCursorPage(users, cursorPage.limit, (user) => user.createdAt);
+      return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
+    }
+    return createPaginatedResponse(users, total ?? 0, { page, limit, skip });
   },
   {
     requireAuth: true,

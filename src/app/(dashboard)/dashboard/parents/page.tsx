@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 import { fetcher } from "@/lib/fetcher";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -38,19 +39,12 @@ type ParentUser = {
     createdAt: string;
 };
 
-type ParentsResponse = {
-    data?: ParentUser[];
-    users?: ParentUser[];
-    pagination?: { total?: number; totalPages?: number };
-};
-
 const PAGE_SIZE = 30;
 
 export default function ParentsPage() {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
     const debouncedSearch = useDebounce(searchTerm, 300);
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -63,24 +57,22 @@ export default function ParentsPage() {
 
     const searchParams = new URLSearchParams();
     searchParams.set("role", "PARENT");
-    searchParams.set("limit", String(PAGE_SIZE));
-    searchParams.set("page", String(currentPage));
     if (debouncedSearch) searchParams.set("search", debouncedSearch);
     const url = `/api/users?${searchParams.toString()}`;
 
-    const {
-        data: response,
-        error,
-        isLoading: loading,
-        mutate: mutateParents,
-    } = useSWR<ParentsResponse | ParentUser[]>(url, fetcher);
+    // Lot 3 : pagination par curseur ; le hook repart de la première page dès
+    // que la recherche change l'adresse et garde « Page X / Y » sans count() répété.
+    const parentsPage = useCursorPagination<ParentUser>(url, { limit: PAGE_SIZE });
+    const { error, isLoading: loading, mutate: mutateParents } = parentsPage;
+    const currentPage = parentsPage.page;
+    const goToPage = (target: number) => {
+        if (target > currentPage) parentsPage.next();
+        else if (target < currentPage) parentsPage.prev();
+    };
 
-    const parents: ParentUser[] = Array.isArray(response)
-        ? response
-        : response?.data ?? response?.users ?? [];
-    const pagination = !Array.isArray(response) ? response?.pagination : undefined;
-    const totalParents = pagination?.total ?? parents.length;
-    const totalPages = pagination?.totalPages ?? 1;
+    const parents: ParentUser[] = parentsPage.items;
+    const totalParents = parentsPage.total ?? parents.length;
+    const totalPages = parentsPage.totalPages ?? 1;
 
     const requestDelete = (
         e: React.MouseEvent,
@@ -112,7 +104,7 @@ export default function ParentsPage() {
                 title: "Succès",
                 description: data?.message || "Le compte parent a été anonymisé.",
             });
-            mutate(url);
+            void mutateParents();
         } catch (err) {
             toast({
                 title: "Erreur",
@@ -213,7 +205,6 @@ export default function ParentsPage() {
                             value={searchTerm}
                             onChange={(v) => {
                                 setSearchTerm(v);
-                                setCurrentPage(1);
                             }}
                             placeholder="Nom, prénom, email…"
                         />
@@ -224,7 +215,6 @@ export default function ParentsPage() {
                                 icon="x"
                                 onClick={() => {
                                     setSearchTerm("");
-                                    setCurrentPage(1);
                                 }}
                             >
                                 Effacer
@@ -259,7 +249,6 @@ export default function ParentsPage() {
                                           label: "Effacer la recherche",
                                           onClick: () => {
                                               setSearchTerm("");
-                                              setCurrentPage(1);
                                           },
                                       },
                                   ]
@@ -301,7 +290,7 @@ export default function ParentsPage() {
                         getRowKey={(parent) => parent.id}
                         page={currentPage}
                         totalPages={totalPages}
-                        onPageChange={setCurrentPage}
+                        onPageChange={goToPage}
                         columns={[
                             {
                                 id: "parent",
@@ -423,8 +412,8 @@ export default function ParentsPage() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                disabled={currentPage <= 1}
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={!parentsPage.hasPreviousPage}
+                                onClick={parentsPage.prev}
                             >
                                 Précédent
                             </Button>
@@ -432,8 +421,8 @@ export default function ParentsPage() {
                                 variant="secondary"
                                 size="sm"
                                 iconRight="chevron"
-                                disabled={currentPage >= totalPages}
-                                onClick={() => setCurrentPage((p) => p + 1)}
+                                disabled={!parentsPage.hasNextPage}
+                                onClick={parentsPage.next}
                             >
                                 Suivant
                             </Button>

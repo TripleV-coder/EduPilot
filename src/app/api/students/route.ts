@@ -8,6 +8,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { Permission } from "@/lib/rbac/permissions";
 import { checkStudentQuota } from "@/lib/saas/quotas";
 
@@ -80,6 +81,16 @@ export const GET = createApiHandler(
     const status = searchParams.get("status");
 
     const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
+    // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
+    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
+    const emptyList = () =>
+      cursorPage
+        ? NextResponse.json({
+            data: [],
+            pagination: { limit: cursorPage.limit, nextCursor: null, hasNextPage: false, ...(cursorPage.withTotal ? { total: 0 } : {}) },
+          })
+        : createPaginatedResponse([], 0, { page, limit, skip });
 
     if (!academicYearId && session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       const currentYear = await prisma.academicYear.findFirst({
@@ -106,7 +117,7 @@ export const GET = createApiHandler(
 
       const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
       if (childrenIds.length === 0) {
-        return createPaginatedResponse([], 0, { page, limit, skip });
+        return emptyList();
       }
 
       where.id = { in: childrenIds };
@@ -117,7 +128,7 @@ export const GET = createApiHandler(
       });
       
       if (!studentProfile) {
-        return createPaginatedResponse([], 0, { page, limit, skip });
+        return emptyList();
       }
       
       where.id = studentProfile.id;
@@ -157,7 +168,7 @@ export const GET = createApiHandler(
 
     const [students, total] = await Promise.all([
       prisma.studentProfile.findMany({
-        where,
+        where: cursorPage?.cursor ? { AND: [where, keysetWhere("user.lastName", "asc", cursorPage.cursor)] } : where,
         select: {
           id: true,
           matricule: true,
@@ -199,11 +210,11 @@ export const GET = createApiHandler(
             take: 1, // Only need first active enrollment
           }
         },
-        skip,
-        take: limit,
-        orderBy: { user: { lastName: "asc" } }
+        orderBy: cursorPage ? keysetOrderBy("user.lastName", "asc") : { user: { lastName: "asc" } },
+        skip: cursorPage ? undefined : skip,
+        take: cursorPage ? cursorPage.limit + 1 : limit,
       }),
-      prisma.studentProfile.count({ where })
+      !cursorPage || cursorPage.withTotal ? prisma.studentProfile.count({ where }) : Promise.resolve(undefined),
     ]);
 
     interface StudentRowWithUser {
@@ -220,7 +231,8 @@ export const GET = createApiHandler(
         academicYear: { id: string; name: string; isCurrent: boolean; }
       }>;
     }
-    const formattedStudents = students.map((student) => {
+    const cursorResult = cursorPage ? buildCursorPage(students, cursorPage.limit, (student) => student.user.lastName) : null;
+    const formattedStudents = (cursorResult ? cursorResult.data : students).map((student) => {
       const row = student as unknown as StudentRowWithUser;
       return {
         ...row,
@@ -235,7 +247,13 @@ export const GET = createApiHandler(
       };
     });
 
-    return createPaginatedResponse(formattedStudents, total, { page, limit, skip });
+    if (cursorResult) {
+      return NextResponse.json({
+        data: formattedStudents,
+        pagination: { ...cursorResult.pagination, ...(total !== undefined ? { total } : {}) },
+      });
+    }
+    return createPaginatedResponse(formattedStudents, total ?? 0, { page, limit, skip });
   },
   {
     allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT"],

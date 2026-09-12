@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useSWR from "swr";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 import { Badge, Button, Card, Icon, Input, type IconName } from "@/components/edu";
-import { fetcher } from "@/lib/fetcher";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { formatDateShort, formatFileSize } from "@/lib/utils/formatters";
 
 const RESOURCE_TYPES = [
@@ -33,6 +32,17 @@ function resourceIcon(type: string): IconName {
     }
 }
 
+type ResourceItem = {
+    id: string;
+    title: string;
+    type: string;
+    createdAt: string;
+    fileSize?: number;
+    fileUrl: string;
+    subject?: { name: string };
+    classLevel?: { name: string };
+};
+
 function useDebounce<T>(value: T, delay: number): T {
     const [debounced, setDebounced] = useState(value);
     useEffect(() => {
@@ -45,28 +55,20 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function ResourcesPage() {
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
-    const [page, setPage] = useState(1);
     const limit = 20;
 
     const debouncedSearch = useDebounce(search, 400);
 
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch, typeFilter]);
-
     const params = new URLSearchParams();
-    params.set("page", String(page));
-    params.set("limit", String(limit));
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (typeFilter) params.set("type", typeFilter);
 
-    const { data, error, isLoading, mutate } = useSWR(
-        `/api/resources?${params.toString()}`,
-        fetcher
-    );
-
-    const resources = data?.resources ?? [];
-    const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
+    // Lot 3 : pagination par curseur ; le hook repart de la première page dès
+    // qu'un filtre change l'adresse et garde « Page X / Y » sans count() répété.
+    const resourcesPage = useCursorPagination<ResourceItem>(`/api/resources?${params.toString()}`, { limit });
+    const { error, isLoading, mutate } = resourcesPage;
+    const resources = resourcesPage.items;
+    const totalPages = resourcesPage.totalPages ?? 1;
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}>
@@ -192,24 +194,24 @@ export default function ResourcesPage() {
                             ))}
                         </div>
 
-                        {pagination.totalPages > 1 ? (
+                        {totalPages > 1 ? (
                             <div className="flex items-center justify-center gap-3">
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    disabled={page <= 1}
-                                    onClick={() => setPage((current) => current - 1)}
+                                    disabled={!resourcesPage.hasPreviousPage}
+                                    onClick={resourcesPage.prev}
                                 >
                                     Précédent
                                 </Button>
                                 <span className="text-sm" style={{ color: "var(--eduflow-text-secondary)" }}>
-                                    Page {pagination.page} / {pagination.totalPages}
+                                    Page {resourcesPage.page} / {totalPages}
                                 </span>
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    disabled={page >= pagination.totalPages}
-                                    onClick={() => setPage((current) => current + 1)}
+                                    disabled={!resourcesPage.hasNextPage}
+                                    onClick={resourcesPage.next}
                                 >
                                     Suivant
                                 </Button>

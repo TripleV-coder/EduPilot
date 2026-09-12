@@ -5,6 +5,7 @@ import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 
 import { fetcher } from "@/lib/fetcher";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -44,12 +45,6 @@ type Student = {
 
 type ClassOption = { id: string; name: string };
 
-type StudentResponse = {
-    data?: Student[];
-    students?: Student[];
-    pagination?: { total?: number; totalPages?: number };
-};
-
 type ClassesResponse = { data?: ClassOption[]; classes?: ClassOption[] };
 
 const PAGE_SIZE = 30;
@@ -60,7 +55,6 @@ export default function StudentsPage() {
     const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
     const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-    const [currentPage, setCurrentPage] = useState(1);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(
         null
@@ -68,19 +62,20 @@ export default function StudentsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const queryParams = new URLSearchParams();
-    queryParams.set("limit", String(PAGE_SIZE));
-    queryParams.set("page", String(currentPage));
     if (selectedClassId !== "ALL") queryParams.set("classId", selectedClassId);
     if (selectedStatus !== "ALL") queryParams.set("status", selectedStatus);
     if (debouncedSearch) queryParams.set("search", debouncedSearch);
 
     const studentsUrl = `/api/students?${queryParams.toString()}`;
-    const {
-        data: response,
-        error,
-        isLoading: loading,
-        mutate: mutateStudents,
-    } = useSWR<StudentResponse | Student[]>(studentsUrl, fetcher);
+    // Lot 3 : pagination par curseur ; le hook repart de la première page dès
+    // qu'un filtre change l'adresse et garde « Page X / Y » sans count() répété.
+    const studentsPage = useCursorPagination<Student>(studentsUrl, { limit: PAGE_SIZE });
+    const { error, isLoading: loading, mutate: mutateStudents } = studentsPage;
+    const currentPage = studentsPage.page;
+    const goToPage = (target: number) => {
+        if (target > currentPage) studentsPage.next();
+        else if (target < currentPage) studentsPage.prev();
+    };
     const { data: classesData } = useSWR<ClassesResponse | ClassOption[]>(
         "/api/classes",
         fetcher
@@ -89,12 +84,9 @@ export default function StudentsPage() {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
 
-    const students: Student[] = Array.isArray(response)
-        ? response
-        : response?.data ?? response?.students ?? [];
-    const pagination = !Array.isArray(response) ? response?.pagination : undefined;
-    const totalStudents = pagination?.total ?? students.length;
-    const totalPages = pagination?.totalPages ?? 1;
+    const students: Student[] = studentsPage.items;
+    const totalStudents = studentsPage.total ?? students.length;
+    const totalPages = studentsPage.totalPages ?? 1;
     const classes: ClassOption[] = Array.isArray(classesData)
         ? classesData
         : classesData?.data ?? classesData?.classes ?? [];
@@ -107,14 +99,12 @@ export default function StudentsPage() {
 
     const handleFilterChange = (setter: (val: string) => void) => (val: string) => {
         setter(val);
-        setCurrentPage(1);
     };
 
     const resetFilters = () => {
         setSearchTerm("");
         setSelectedClassId("ALL");
         setSelectedStatus("ALL");
-        setCurrentPage(1);
     };
 
     const handleExportCSV = () => {
@@ -258,7 +248,6 @@ export default function StudentsPage() {
                             value={searchTerm}
                             onChange={(v) => {
                                 setSearchTerm(v);
-                                setCurrentPage(1);
                             }}
                             placeholder="Nom, prénom, matricule…"
                         />
@@ -352,7 +341,7 @@ export default function StudentsPage() {
                         getRowKey={(student) => student.id}
                         page={currentPage}
                         totalPages={totalPages}
-                        onPageChange={setCurrentPage}
+                        onPageChange={goToPage}
                         columns={[
                             {
                                 id: "matricule",
@@ -490,8 +479,8 @@ export default function StudentsPage() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                disabled={currentPage <= 1}
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={!studentsPage.hasPreviousPage}
+                                onClick={studentsPage.prev}
                             >
                                 <span style={{ transform: "scaleX(-1)" }}>
                                     <Icon name="chevron" size={13} />
@@ -502,8 +491,8 @@ export default function StudentsPage() {
                                 variant="secondary"
                                 size="sm"
                                 iconRight="chevron"
-                                disabled={currentPage >= totalPages}
-                                onClick={() => setCurrentPage((p) => p + 1)}
+                                disabled={!studentsPage.hasNextPage}
+                                onClick={studentsPage.next}
                             >
                                 Suivant
                             </Button>
