@@ -23,8 +23,12 @@ interface Evaluation {
     class: { name: string };
     subject: { name: string };
   };
-  grades: Grade[];
+  /** Nombre de notes saisies (GET /api/evaluations ne renvoie plus le détail des notes). */
+  gradeCount?: number;
+  grades?: Grade[];
 }
+
+export type EvaluationListItem = Evaluation;
 
 export function EvaluationList({ evaluations, isLoading }: { evaluations: Evaluation[], isLoading: boolean }) {
   if (isLoading) {
@@ -50,7 +54,7 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
   return (
     <div className="space-y-4">
       {evaluations.map((ev) => {
-        const gradeCount = ev.grades?.length || 0;
+        const gradeCount = ev.gradeCount ?? ev.grades?.length ?? 0;
         // Logic for status
         const status = gradeCount === 0 ? "Brouillon" : "Clôturée"; // Simplified for now
         const statusColor = gradeCount === 0 ? "bg-muted text-muted-foreground" : "bg-blue-500/10 text-blue-600";

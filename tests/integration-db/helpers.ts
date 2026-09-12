@@ -10,10 +10,10 @@ export function actAs(session: Session | null): void {
   sessionState.__integrationSession = session;
 }
 
-export function sessionFor(role: UserRole, schoolId: string | null): Session {
+export function sessionFor(role: UserRole, schoolId: string | null, userId?: string): Session {
   return {
     user: {
-      id: `it-${role.toLowerCase()}-${schoolId ?? "global"}`,
+      id: userId ?? `it-${role.toLowerCase()}-${schoolId ?? "global"}`,
       email: `${role.toLowerCase()}@integration.test`,
       role,
       primaryOrganizationId: null,

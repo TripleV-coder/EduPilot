@@ -2,109 +2,137 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { evaluationSchema } from "@/lib/validations/evaluation";
 
+import type { Prisma } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
-import type { EvaluationWhereFilter } from "@/lib/types/api";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
+/** Champs strictement nécessaires aux écrans de liste : aucune note individuelle. */
+const EVALUATION_LIST_SELECT = {
+  id: true,
+  title: true,
+  date: true,
+  maxGrade: true,
+  coefficient: true,
+  type: { select: { id: true, name: true, code: true } },
+  period: { select: { id: true, name: true } },
+  classSubject: {
+    select: {
+      id: true,
+      classId: true,
+      class: { select: { id: true, name: true } },
+      subject: { select: { id: true, name: true } },
+    },
+  },
+  _count: { select: { grades: true } },
+} satisfies Prisma.EvaluationSelect;
+
+/** Bornes d'un filtre `from`/`to` (AAAA-MM-JJ, jours inclus). */
+function parseDay(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const day = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(day.getTime()) ? null : day;
+}
+
+/**
+ * Classes dont un parent ou un élève peut voir les évaluations (N9) :
+ * inscriptions actives de ses enfants / de lui-même. `null` = pas de restriction de classe.
+ */
+async function visibleClassIds(role: string, userId: string): Promise<string[] | null> {
+  if (role !== "PARENT" && role !== "STUDENT") return null;
+
+  let studentIds: string[];
+  if (role === "PARENT") {
+    const parent = await prisma.parentProfile.findUnique({
+      where: { userId },
+      select: { parentStudents: { select: { studentId: true } } },
+    });
+    studentIds = parent?.parentStudents.map((link) => link.studentId) ?? [];
+  } else {
+    const student = await prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    studentIds = student ? [student.id] : [];
+  }
+
+  if (studentIds.length === 0) return [];
+  const enrollments = await prisma.enrollment.findMany({
+    where: { studentId: { in: studentIds }, status: "ACTIVE", deletedAt: null },
+    select: { classId: true },
+  });
+  return [...new Set(enrollments.map((e) => e.classId))];
+}
+
+/**
+ * GET /api/evaluations — liste paginée par curseur (C3/N1), sans notes
+ * individuelles, périmètre par rôle (N9).
+ *
+ * Filtres : classSubjectId, periodId, classId, type (code exact ou fragment du
+ * nom, insensible à la casse), from / to (AAAA-MM-JJ, inclus).
+ */
 export const GET = createApiHandler(
   async (request, { session }, _t) => {
     const { searchParams } = new URL(request.url);
+    const pageParams = getCursorParams(searchParams);
+
+    const filters: Prisma.EvaluationWhereInput[] = [];
     const classSubjectId = searchParams.get("classSubjectId");
     const periodId = searchParams.get("periodId");
     const classId = searchParams.get("classId");
-
-    const where: EvaluationWhereFilter = {};
-    if (classSubjectId) where.classSubjectId = classSubjectId;
-    if (periodId) where.periodId = periodId;
-    if (classId) {
-      where.classSubject = { classId };
+    const type = searchParams.get("type")?.trim();
+    if (classSubjectId) filters.push({ classSubjectId });
+    if (periodId) filters.push({ periodId });
+    if (classId) filters.push({ classSubject: { classId } });
+    if (type) {
+      filters.push({
+        type: {
+          OR: [
+            { code: { equals: type, mode: "insensitive" } },
+            { name: { contains: type, mode: "insensitive" } },
+          ],
+        },
+      });
     }
+    const from = parseDay(searchParams.get("from"));
+    const to = parseDay(searchParams.get("to"));
+    if (from) filters.push({ date: { gte: from } });
+    if (to) filters.push({ date: { lt: new Date(to.getTime() + 24 * 60 * 60 * 1000) } });
 
-    // Multi-tenant security: filter by school
+    // Isolation multi-tenant
     const activeSchoolId = getActiveSchoolId(session);
     if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
-      if (where.classSubject) {
-        where.classSubject.class = { schoolId: activeSchoolId };
-      } else {
-        where.classSubject = { class: { schoolId: activeSchoolId } };
-      }
+      filters.push({ classSubject: { class: { schoolId: activeSchoolId } } });
     }
 
-    // TEACHER can only see their own class subjects evaluations
+    // Périmètre par rôle
     if (session.user.role === "TEACHER") {
-      const teacherProfile = await prisma.teacherProfile.findFirst({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
-
-      if (teacherProfile) {
-        const teacherClassSubjects = await prisma.classSubject.findMany({
-          where: { teacherId: teacherProfile.id },
-          select: { id: true },
-        });
-
-        if (teacherClassSubjects.length > 0) {
-          const csIds = teacherClassSubjects.map((cs) => cs.id);
-          const evaluations = await prisma.evaluation.findMany({
-            where: {
-              classSubjectId: { in: csIds },
-              ...where,
-            },
-            include: {
-              classSubject: {
-                include: {
-                  class: { include: { classLevel: true } },
-                  subject: true,
-                },
-              },
-              period: true,
-              type: true,
-              grades: {
-                include: {
-                  student: {
-                    include: { user: { select: { firstName: true, lastName: true } } },
-                  },
-                },
-              },
-            },
-            orderBy: { date: "desc" },
-          });
-          return NextResponse.json(evaluations);
-        }
+      filters.push({ classSubject: { teacher: { userId: session.user.id } } });
+    }
+    const classIds = await visibleClassIds(session.user.role, session.user.id);
+    if (classIds !== null) {
+      if (classIds.length === 0) {
+        return NextResponse.json({ data: [], pagination: { limit: pageParams.limit, nextCursor: null, hasNextPage: false, total: 0 } });
       }
-      return NextResponse.json([]);
+      filters.push({ classSubject: { classId: { in: classIds } } });
     }
 
-    const evaluations = await prisma.evaluation.findMany({
-      where,
-      include: {
-        classSubject: {
-          include: {
-            class: {
-              include: { classLevel: true },
-            },
-            subject: true,
-          },
-        },
-        period: true,
-        type: true,
-        grades: {
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: { firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { date: "desc" },
-    });
+    const where: Prisma.EvaluationWhereInput = { AND: filters };
+    const [rows, total] = await Promise.all([
+      prisma.evaluation.findMany({
+        where: { AND: [where, keysetWhere("date", "desc", pageParams.cursor)] },
+        select: EVALUATION_LIST_SELECT,
+        orderBy: keysetOrderBy("date", "desc"),
+        take: pageParams.limit + 1,
+      }),
+      pageParams.withTotal ? prisma.evaluation.count({ where }) : Promise.resolve(undefined),
+    ]);
 
-    return NextResponse.json(evaluations);
+    const page = buildCursorPage(rows, pageParams.limit, (row) => row.date);
+    const data = page.data.map(({ _count, ...evaluation }) => ({ ...evaluation, gradeCount: _count.grades }));
+
+    return NextResponse.json({
+      data,
+      pagination: total === undefined ? page.pagination : { ...page.pagination, total },
+    });
   },
   {
     requireAuth: true,

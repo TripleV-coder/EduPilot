@@ -8,7 +8,9 @@ import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { t } from "@/lib/i18n";
-import { EvaluationList } from "@/components/evaluations/EvaluationList";
+import { EvaluationList, type EvaluationListItem } from "@/components/evaluations/EvaluationList";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
+import { exportEvaluationsCsv } from "@/lib/evaluations/evaluations-csv";
 import { EvaluationSheet } from "@/components/evaluations/EvaluationSheet";
 import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
 import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
@@ -38,26 +40,7 @@ const TABS = [
     { id: "stats", label: "Statistiques & analyse", icon: "chart" as const },
 ];
 
-function exportEvaluationsCsv(evaluations: unknown) {
-    const rows = Array.isArray(evaluations) ? evaluations : [];
-    if (rows.length === 0) return;
-    const headers = ["Titre", "Type", "Date", "Classe", "Matière"];
-    const lines = rows.map((item: Record<string, unknown>) => [
-        String(item.title ?? ""),
-        String(item.type ?? ""),
-        item.date ? new Date(String(item.date)).toLocaleDateString("fr-FR") : "",
-        String((item.class as { name?: string } | undefined)?.name ?? ""),
-        String((item.subject as { name?: string } | undefined)?.name ?? ""),
-    ]);
-    const csv = [headers, ...lines].map((line) => line.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "evaluations.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
-}
+const EVALUATIONS_PAGE_SIZE = 20;
 
 export default function GradesPage() {
     return (
@@ -73,12 +56,14 @@ function GradesContent() {
     const [activeTab, setActiveTab] = useState<"list" | "stats">("list");
     const [activeFilter, setActiveFilter] = useState<"all" | "devoir" | "interro" | "compo">("all");
 
-    const { data: evaluations, isLoading: evalsLoading } = useSWR(
+    const evaluationsBaseUrl =
         activeFilter === "all"
             ? "/api/evaluations"
-            : `/api/evaluations?type=${activeFilter.toUpperCase()}`,
-        fetcher
-    );
+            : `/api/evaluations?type=${activeFilter.toUpperCase()}`;
+    const evaluationsPage = useCursorPagination<EvaluationListItem>(evaluationsBaseUrl, {
+        limit: EVALUATIONS_PAGE_SIZE,
+    });
+    const evalsLoading = evaluationsPage.isLoading;
     const { data: statsData, isLoading: statsLoading } = useSWR<StatsResponse>(
         "/api/grades/statistics",
         fetcher
@@ -102,7 +87,7 @@ function GradesContent() {
                 ]}
                 actions={
                     <>
-                        <Button variant="ghost" icon="download" onClick={() => exportEvaluationsCsv(evaluations)}>
+                        <Button variant="ghost" icon="download" onClick={() => void exportEvaluationsCsv(evaluationsBaseUrl)}>
                             {t("common.export")}
                         </Button>
                         <Link href="/dashboard/grades/bulletins">
@@ -186,7 +171,30 @@ function GradesContent() {
                     {evalsLoading ? (
                         <PageLoading label="Chargement des évaluations…" />
                     ) : (
-                        <EvaluationList evaluations={evaluations || []} isLoading={false} />
+                        <>
+                            <EvaluationList evaluations={evaluationsPage.items} isLoading={false} />
+                            {evaluationsPage.totalPages && evaluationsPage.totalPages > 1 ? (
+                                <div className="flex items-center justify-end gap-3 px-4 py-3">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={evaluationsPage.prev}
+                                        disabled={!evaluationsPage.hasPreviousPage}
+                                    >
+                                        Précédent
+                                    </Button>
+                                    <span className="eduflow-tabular text-sm">
+                                        Page {evaluationsPage.page} / {evaluationsPage.totalPages}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={evaluationsPage.next}
+                                        disabled={!evaluationsPage.hasNextPage}
+                                    >
+                                        Suivant
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </>
                     )}
                 </Card>
             ) : null}

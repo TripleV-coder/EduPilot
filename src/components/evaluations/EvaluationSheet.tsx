@@ -74,7 +74,9 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
       }
 
       toast({ title: "Succès", description: "L'évaluation a été créée." });
-      mutate("/api/evaluations");
+      // La liste est paginée (clés /api/evaluations?limit=…&cursor=…) : on
+      // revalide toutes ses variantes, filtres compris.
+      mutate((key) => typeof key === "string" && key.startsWith("/api/evaluations"));
       onOpenChange(false);
       form.reset();
     } catch (error) {
