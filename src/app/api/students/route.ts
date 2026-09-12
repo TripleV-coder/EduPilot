@@ -72,6 +72,9 @@ const DEFAULT_PASSWORD = "00000000";
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
+/** Plafond de sécurité d'un effectif de classe (?classId=) : aucune classe réelle ne l'atteint. */
+const CLASS_ROSTER_MAX = 1000;
+
 export const GET = createApiHandler(
   async (request, { session }) => {
     const { searchParams } = new URL(request.url);
@@ -80,10 +83,14 @@ export const GET = createApiHandler(
     const search = searchParams.get("search");
     const status = searchParams.get("status");
 
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // N19 : l'effectif d'une classe est borné par nature et ne doit jamais être
+    // tronqué (appel, saisie de notes, bulletins, promotion) : plafond de sécurité
+    // CLASS_ROSTER_MAX avec ?classId=, 100 pour les listes de l'établissement.
+    const listLimits = { defaultLimit: 20, maxLimit: classId ? CLASS_ROSTER_MAX : 100 };
+    const { page, limit, skip } = getPaginationParams(request, listLimits);
     // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
     // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
-    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
+    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, listLimits);
     const emptyList = () =>
       cursorPage
         ? NextResponse.json({

@@ -77,7 +77,8 @@ function PromotionEngineContent() {
     data: rosterData,
     isLoading: rosterLoading,
   } = useSWR<{ data: RosterStudent[] }>(
-    selectedClassId ? `/api/students?classId=${selectedClassId}&limit=100` : null,
+    // Effectif complet de la classe (N19) : la route accepte jusqu'à 1000 avec ?classId=
+    selectedClassId ? `/api/students?classId=${selectedClassId}&limit=1000` : null,
     fetcher
   );
 

@@ -140,7 +140,8 @@ export default function GradesEntryPage() {
             try {
                 const [subjRes, stuRes] = await Promise.all([
                     fetch(`/api/class-subjects?classId=${selectedClass}`),
-                    fetch(`/api/students?classId=${selectedClass}&limit=100`),
+                    // Effectif complet de la classe (N19) : jusqu'à 1000 avec ?classId=
+                    fetch(`/api/students?classId=${selectedClass}&limit=1000`),
                 ]);
                 if (subjRes.ok) {
                     const d = await subjRes.json();
