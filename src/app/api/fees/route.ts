@@ -31,21 +31,13 @@ export const GET = createApiHandler(
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
     }
 
+    // C3 : les paiements de chaque frais (avec le nom de l'élève) étaient
+    // inclus — 2,8 Mo sur la base de l'audit — alors qu'aucun écran ne les lit.
+    // Liste bornée par nature : les frais actifs d'un établissement.
     const fees = await prisma.fee.findMany({
       where: { schoolId, isActive: true },
       include: {
-        academicYear: true,
-        payments: {
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: { firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
+        academicYear: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
     });
