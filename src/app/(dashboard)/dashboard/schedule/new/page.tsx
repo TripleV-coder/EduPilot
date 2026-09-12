@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import type { Class, ClassSubjectWithTeacher } from "@/lib/types";
+import { listFrom } from "@/lib/api/list-payload";
 
 type TeacherAvailability = {
     id: string;
@@ -61,7 +62,8 @@ export default function NewSchedulePage() {
                 const res = await fetch("/api/classes");
                 if (res.ok) {
                     const data = await res.json();
-                    setClasses(Array.isArray(data) ? data : data.classes || []);
+                    // N25 : { data, pagination } — la clé `classes` n'existait pas (sélecteur vide).
+                    setClasses(listFrom<Class>(data));
                 }
             } catch {
                 setError("Erreur lors du chargement des classes.");

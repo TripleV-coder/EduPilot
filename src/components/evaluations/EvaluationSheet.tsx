@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSchool } from "@/components/providers/school-provider";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { listFrom } from "@/lib/api/list-payload";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
@@ -41,7 +42,10 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
   const { academicYearId } = useSchool();
   const [loading, setLoading] = useState(false);
 
-  const { data: classes } = useSWR<Class[]>("/api/classes", fetcher);
+  // N25 : la route renvoie { data, pagination } — traitée comme un tableau, la
+  // liste des classes plantait à l'ouverture (`.map` sur un objet).
+  const { data: classesPayload } = useSWR<unknown>("/api/classes", fetcher);
+  const classes = listFrom<Class>(classesPayload);
   const { data: periods } = useSWR<Period[]>(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
   const { data: evalTypes } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
 

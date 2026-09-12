@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { listFrom } from "@/lib/api/list-payload";
 
 type ClassSubjectRow = {
     id: string;
@@ -38,7 +39,10 @@ type TeacherRow = {
 };
 
 export default function ClassSubjectsPage() {
-    const { data: classes, isLoading: classesLoading } = useSWR<ClassRow[]>("/api/classes", fetcher);
+    // N25 : la route renvoie { data, pagination }, pas un tableau (section vide, ni
+    // liste ni état vide). `undefined` tant que la réponse n'est pas arrivée.
+    const { data: classesPayload, isLoading: classesLoading } = useSWR<unknown>("/api/classes", fetcher);
+    const classes = classesPayload === undefined ? undefined : listFrom<ClassRow>(classesPayload);
     const { isLoading: subjectsLoading } = useSWR("/api/subjects", fetcher);
     const { data: teachers, isLoading: teachersLoading } = useSWR<TeacherRow[]>("/api/teachers", fetcher);
     const { data: classSubjects, mutate: mutateClassSubjects } = useSWR<ClassSubjectRow[]>("/api/class-subjects", fetcher);

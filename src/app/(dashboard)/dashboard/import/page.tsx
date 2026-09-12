@@ -20,6 +20,7 @@ import {
     type FieldDefinition,
 } from "@/lib/import/mapping-utils";
 import { runValidations, readyCount, type ValidationCheck } from "@/lib/import/validators";
+import { listFrom } from "@/lib/api/list-payload";
 import {
     IMPORT_TYPE_LABELS,
     type SupportedImportType,
@@ -111,12 +112,14 @@ function ImportWizardPage() {
     const targetFields = selectedType ? FIELDS_BY_TYPE[selectedType] : [];
     const targetFieldsByKey = useMemo(() => new Map(targetFields.map((f) => [f.key, f])), [targetFields]);
 
-    const { data: classesData } = useSWR<{ classes?: Array<{ name: string }> }>(
+    const { data: classesData } = useSWR<unknown>(
         selectedType === "STUDENTS" || selectedType === "CLASSES" ? "/api/classes" : null,
         fetcher,
     );
+    // N25 : la route renvoie { data, pagination } (la clé `classes` n'existait pas :
+    // les noms de classe importés n'étaient jamais vérifiés).
     const knownClassNames = useMemo(
-        () => (classesData?.classes ?? []).map((c) => c.name),
+        () => listFrom<{ name: string }>(classesData).map((c) => c.name),
         [classesData],
     );
 
