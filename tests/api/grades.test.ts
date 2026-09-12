@@ -10,6 +10,10 @@ vi.mock("@/lib/prisma", () => {
     enrollment: { count: vi.fn() },
     grade: { upsert: vi.fn(), findMany: vi.fn() },
     period: { findUnique: vi.fn(), findFirst: vi.fn() },
+    parentProfile: { findUnique: vi.fn() },
+    studentProfile: { findUnique: vi.fn() },
+    classSubject: { count: vi.fn() },
+    class: { count: vi.fn() },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: unknown) => Promise<unknown>)(prismaMock)
@@ -20,12 +24,20 @@ vi.mock("@/lib/prisma", () => {
 vi.mock("@/lib/services/analytics-sync", () => ({
   syncAnalyticsAfterGradeChange: vi.fn().mockResolvedValue(undefined),
 }));
+// Agrégations SQL des statistiques : prouvées sur vrai PostgreSQL par
+// tests/integration-db/grade-statistics.test.ts ; ici, la route seule.
+vi.mock("@/lib/services/grade-statistics", () => ({
+  aggregateGradeStatistics: vi.fn(),
+  averageGrade: vi.fn(),
+  rankStudents: vi.fn(),
+}));
 
 import prisma from "@/lib/prisma";
 import { syncAnalyticsAfterGradeChange } from "@/lib/services/analytics-sync";
 import { invalidateCache } from "@/lib/api/cache-helpers";
 import { POST as POST_BATCH } from "@/app/api/grades/batch/route";
 import { GET as GET_STATISTICS } from "@/app/api/grades/statistics/route";
+import { aggregateGradeStatistics, averageGrade, rankStudents } from "@/lib/services/grade-statistics";
 
 const evaluationId = cuid("eval1");
 const teacherUserId = cuid("userteacher1");
@@ -229,15 +241,28 @@ describe("GET /api/grades/statistics", () => {
     expect(body.code).toBe("NO_SCHOOL");
   });
 
-  it("calcule moyenne, extrêmes, distribution et taux de réussite (notes normalisées sur 20)", async () => {
+  // Audit C3 / N10 : les 4 tests ci-dessous nourrissaient la route de notes
+  // chargées en mémoire (grade.findMany, jusqu'à 50 000 lignes) et exigeaient
+  // un classement nominatif pour tout rôle. Les agrégats sont désormais
+  // calculés en SQL (service grade-statistics, prouvé sur vrai PostgreSQL) et
+  // le classement nominatif est réservé au personnel concerné.
+  function aggregate(overrides: Record<string, unknown> = {}) {
+    return {
+      totalGrades: 5,
+      average: 12.8333,
+      highest: 18,
+      lowest: 4,
+      passRate: 80,
+      gradeDistribution: { excellent: 2, good: 1, average: 1, poor: 1 },
+      bySubject: { Mathématiques: { average: 12.8333, count: 5 } },
+      byType: { Devoir: { average: 12.8333, count: 5 } },
+      ...overrides,
+    };
+  }
+
+  it("délègue l'agrégation à la base, filtrée par école, et arrondit la réponse", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
-    vi.mocked(prisma.grade.findMany).mockResolvedValue([
-      gradeRecord(18), // excellent
-      gradeRecord(14), // good
-      gradeRecord(12), // average
-      gradeRecord(4), // poor
-      gradeRecord(40, 50), // 16/20 après normalisation → excellent
-    ] as unknown as Grade[]);
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
 
     const response = await GET_STATISTICS(
       makeRequest("http://localhost:3000/api/grades/statistics")
@@ -245,52 +270,31 @@ describe("GET /api/grades/statistics", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    const stats = body.statistics;
-    expect(stats.totalGrades).toBe(5);
-    expect(stats.average).toBe(12.8); // (18+14+12+4+16)/5
-    expect(stats.highest).toBe(18);
-    expect(stats.lowest).toBe(4);
-    expect(stats.passRate).toBe(80); // 4 notes ≥ 10 sur 5
-    expect(stats.gradeDistribution).toEqual({ excellent: 2, good: 1, average: 1, poor: 1 });
-    expect(stats.bySubject["Mathématiques"].count).toBe(5);
-
-    // Isolation tenant : filtre école dans la requête
-    expect(vi.mocked(prisma.grade.findMany).mock.calls[0][0].where.evaluation).toMatchObject({
-      classSubject: { class: { schoolId: FIXTURES.schoolA } },
-    });
+    expect(body.statistics).toMatchObject({ totalGrades: 5, average: 12.83, passRate: 80 });
+    expect(body.statistics.bySubject["Mathématiques"]).toEqual({ average: 12.83, count: 5 });
+    expect(aggregateGradeStatistics).toHaveBeenCalledWith(expect.objectContaining({ schoolId: FIXTURES.schoolA }));
   });
 
-  it("régression : supporte des dizaines de milliers de notes sans stack overflow", async () => {
+  it("régression : ne charge plus aucune note en mémoire (agrégation SQL)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    const manyGrades = Array.from({ length: 50000 }, (_, index) =>
-      gradeRecord((index % 20) + 0.5)
-    );
-    vi.mocked(prisma.grade.findMany).mockResolvedValue(manyGrades as unknown as Grade[]);
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
 
     const response = await GET_STATISTICS(
       makeRequest("http://localhost:3000/api/grades/statistics")
     );
-    const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.statistics.totalGrades).toBe(50000);
-    expect(body.statistics.highest).toBe(19.5);
-    expect(body.statistics.lowest).toBe(0.5);
+    expect(prisma.grade.findMany).not.toHaveBeenCalled();
   });
 
-  it("classe les élèves et calcule le rang quand type=class", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+  it("classe les élèves et calcule le rang quand type=class (administration)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     const classId = cuid("classe6a");
-    // 1er findMany : stats globales — 2e : notes du classement
-    vi.mocked(prisma.grade.findMany)
-      .mockResolvedValueOnce([gradeRecord(12)] as unknown as Grade[])
-      .mockResolvedValueOnce([
-        gradeRecord(12, 20, { studentId: FIXTURES.studentA }),
-        gradeRecord(16, 20, {
-          studentId: FIXTURES.studentB,
-          student: { user: { firstName: "Bio", lastName: "Soglo" } },
-        }),
-      ] as unknown as Grade[]);
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
+    vi.mocked(rankStudents).mockResolvedValue([
+      { studentId: FIXTURES.studentB, studentName: "Bio Soglo", average: 16, gradeCount: 1 },
+      { studentId: FIXTURES.studentA, studentName: "Awa Dossou", average: 12, gradeCount: 1 },
+    ]);
 
     const response = await GET_STATISTICS(
       makeRequest(
@@ -304,18 +308,38 @@ describe("GET /api/grades/statistics", () => {
     expect(body.ranking.rank).toBe(2); // studentA (12) derrière studentB (16)
     expect(body.ranking.topStudent.studentId).toBe(FIXTURES.studentB);
     expect(body.ranking.bottomStudent.studentId).toBe(FIXTURES.studentA);
+    expect(body.ranking.students).toHaveLength(2);
+  });
+
+  it("masque les noms du classement à un parent et refuse l'enfant d'un autre (N10)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
+    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue({
+      parentStudents: [{ studentId: FIXTURES.studentA }],
+    } as never);
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
+    vi.mocked(rankStudents).mockResolvedValue([
+      { studentId: FIXTURES.studentB, studentName: "Bio Soglo", average: 16, gradeCount: 1 },
+      { studentId: FIXTURES.studentA, studentName: "Awa Dossou", average: 12, gradeCount: 1 },
+    ]);
+
+    const own = await GET_STATISTICS(
+      makeRequest(
+        `http://localhost:3000/api/grades/statistics?type=class&classId=${cuid("classe6a")}&studentId=${FIXTURES.studentA}`
+      )
+    );
+    expect((await own.json()).ranking).toEqual({ totalStudents: 2, rank: 2, topStudent: null, bottomStudent: null });
+
+    const other = await GET_STATISTICS(
+      makeRequest(`http://localhost:3000/api/grades/statistics?studentId=${FIXTURES.studentB}`)
+    );
+    expect(other.status).toBe(403);
   });
 
   it("calcule la tendance par rapport à la période précédente", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const periodId = cuid("periode2");
-    vi.mocked(prisma.grade.findMany)
-      // Période courante : moyenne 14
-      .mockResolvedValueOnce([gradeRecord(14)] as unknown as Grade[])
-      // Période précédente : moyenne 10 → tendance "up"
-      .mockResolvedValueOnce([
-        { value: 10, evaluation: { maxGrade: 20 } },
-      ] as unknown as Grade[]);
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate({ average: 14 }));
+    vi.mocked(averageGrade).mockResolvedValue(10); // période précédente
     vi.mocked(prisma.period.findUnique).mockResolvedValue({
       academicYearId: cuid("annee2026"),
       sequence: 2,
@@ -329,5 +353,6 @@ describe("GET /api/grades/statistics", () => {
 
     expect(response.status).toBe(200);
     expect(body.trend).toBe("up");
+    expect(averageGrade).toHaveBeenCalledWith(expect.objectContaining({ periodId: cuid("periode1") }));
   });
 });
