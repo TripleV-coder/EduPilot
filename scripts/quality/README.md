@@ -13,6 +13,7 @@ branché sur une **base jetable** remplie par le seed de démonstration. Ils ne 
 | `redis-outage.mjs` | latence `/api/auth/csrf` avec Redis injoignable | H6 |
 | `db-counts.mjs` | nombre de lignes des tables principales | seed, restauration |
 | `lighthouse.sh <dir> [pages]` | scores Lighthouse mobile/desktop, poids des pages | C3, perf front, a11y |
+| `pg-seq-scans.mjs reset\|report` | tables lues séquentiellement entre `reset` et `report` (ex. autour du smoke) : candidates à un `EXPLAIN ANALYZE`, preuve pour ou contre un index | M5, index (Lot 3) |
 
 ## Préparer l'environnement de mesure
 
