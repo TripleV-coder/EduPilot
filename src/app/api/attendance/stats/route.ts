@@ -91,21 +91,33 @@ const url = new URL(request.url);
         };
       }
 
-      // Get attendance records
-      const attendances = await prisma.attendance.findMany({
+      // Audit M5 : comptage par PostgreSQL (une ligne par élève et par statut)
+      // au lieu de charger toutes les présences de l'établissement — une ligne
+      // par élève et par jour, soit ~180 000 lignes par an pour 1 000 élèves.
+      const counts = await prisma.attendance.groupBy({
+        by: ["studentId", "status"],
         where,
-        select: {
-          status: true,
-          studentId: true,
-        },
+        _count: { _all: true },
       });
 
+      const emptyTally = () => ({ total: 0, present: 0, absent: 0, late: 0, excused: 0 });
+      const totals = emptyTally();
+      const perStudent = new Map<string, ReturnType<typeof emptyTally>>();
+      for (const row of counts) {
+        const count = row._count._all;
+        const studentTally = perStudent.get(row.studentId) ?? emptyTally();
+        perStudent.set(row.studentId, studentTally);
+        for (const tally of [totals, studentTally]) {
+          tally.total += count;
+          if (row.status === "PRESENT") tally.present += count;
+          else if (row.status === "ABSENT") tally.absent += count;
+          else if (row.status === "LATE") tally.late += count;
+          else if (row.status === "EXCUSED") tally.excused += count;
+        }
+      }
+
       // Calculate statistics
-      const total = attendances.length;
-      const present = attendances.filter((a) => a.status === "PRESENT").length;
-      const absent = attendances.filter((a) => a.status === "ABSENT").length;
-      const late = attendances.filter((a) => a.status === "LATE").length;
-      const excused = attendances.filter((a) => a.status === "EXCUSED").length;
+      const { total, present, absent, late, excused } = totals;
 
       const presentEquivalent = present + late;
       const presentRate = total > 0 ? ((presentEquivalent / total) * 100).toFixed(2) : "0";
@@ -120,26 +132,15 @@ const url = new URL(request.url);
         excused: number;
         presentRate: string;
       }> | null = null;
-      if (!studentId && attendances.length > 0) {
-        const studentIds = [...new Set(attendances.map((a) => a.studentId))];
+      if (!studentId && total > 0) {
         byStudent = {};
 
-        for (const sid of studentIds) {
-          const studentAttendances = attendances.filter((a) => a.studentId === sid);
-          const studentTotal = studentAttendances.length;
-          const studentPresent = studentAttendances.filter((a) => a.status === "PRESENT").length;
-          const studentLate = studentAttendances.filter((a) => a.status === "LATE").length;
-          const studentPresentEquivalent = studentPresent + studentLate;
-
+        for (const [sid, studentTally] of perStudent) {
           byStudent[sid] = {
-            total: studentTotal,
-            present: studentPresent,
-            absent: studentAttendances.filter((a) => a.status === "ABSENT").length,
-            late: studentLate,
-            excused: studentAttendances.filter((a) => a.status === "EXCUSED").length,
+            ...studentTally,
             presentRate:
-              studentTotal > 0
-                ? ((studentPresentEquivalent / studentTotal) * 100).toFixed(2)
+              studentTally.total > 0
+                ? (((studentTally.present + studentTally.late) / studentTally.total) * 100).toFixed(2)
                 : "0",
           };
         }

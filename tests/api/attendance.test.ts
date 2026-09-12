@@ -22,7 +22,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
-    attendance: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    attendance: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), groupBy: vi.fn() },
   },
 }));
 
@@ -35,13 +35,17 @@ describe("GET /api/attendance/stats", () => {
     expect(res.status).toBe(401);
   });
 
+  // Audit M5 : la route ne charge plus chaque présence (findMany) pour les
+  // compter en mémoire ; PostgreSQL les compte par élève et par statut
+  // (groupBy). Mêmes données (s1 : 2 PRESENT, 1 ABSENT, 1 LATE), mêmes
+  // assertions ; le calcul réel est vérifié sur PostgreSQL :
+  // tests/integration-db/attendance-stats.test.ts.
   it("should compute stats for a teacher", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
-    vi.mocked(prisma.attendance.findMany).mockResolvedValue([
-      { status: "PRESENT", studentId: "s1" },
-      { status: "PRESENT", studentId: "s1" },
-      { status: "ABSENT", studentId: "s1" },
-      { status: "LATE", studentId: "s1" },
+    vi.mocked(prisma.attendance.groupBy).mockResolvedValue([
+      { studentId: "s1", status: "PRESENT", _count: { _all: 2 } },
+      { studentId: "s1", status: "ABSENT", _count: { _all: 1 } },
+      { studentId: "s1", status: "LATE", _count: { _all: 1 } },
     ] as never);
 
     const res = await GET_STATS(makeRequest("http://localhost/api/attendance/stats?startDate=2026-09-01&endDate=2026-09-30"));
@@ -52,6 +56,8 @@ describe("GET /api/attendance/stats", () => {
     expect(body.absent).toBe(1);
     expect(body.late).toBe(1);
     expect(body.byStudent).not.toBeNull();
+    expect(body.byStudent.s1).toEqual({ total: 4, present: 2, absent: 1, late: 1, excused: 0, presentRate: "75.00" });
+    expect(prisma.attendance.findMany).not.toHaveBeenCalled();
   });
 
   it("should return zeroed stats when student has no profile", async () => {
@@ -70,11 +76,11 @@ describe("GET /api/attendance/stats", () => {
     vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue({
       parentStudents: [{ studentId: FIXTURES.studentA }, { studentId: FIXTURES.studentB }],
     } as never);
-    vi.mocked(prisma.attendance.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.attendance.groupBy).mockResolvedValue([] as never);
 
     const res = await GET_STATS(makeRequest("http://localhost/api/attendance/stats"));
     expect(res.status).toBe(200);
-    const call = vi.mocked(prisma.attendance.findMany).mock.calls[0][0] as {
+    const call = vi.mocked(prisma.attendance.groupBy).mock.calls[0][0] as unknown as {
       where: { studentId?: object };
     };
     expect(call.where.studentId).toEqual({ in: [FIXTURES.studentA, FIXTURES.studentB] });
