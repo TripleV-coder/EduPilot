@@ -161,12 +161,15 @@ describe("POST /api/evaluation-types", () => {
     expect(createArgs.data.schoolId).toBe(FIXTURES.schoolB);
   });
 
-  it("propague une erreur de validation vers le handler générique (500, pas de catch Zod)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("convertit une erreur de validation non interceptée en 400 VALIDATION_ERROR (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     const res = await POST_CREATE(
       makeRequest(typeRoute, { method: "POST", body: { name: "D", code: "DEV" } })
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
   });
 });
 

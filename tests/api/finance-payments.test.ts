@@ -138,12 +138,15 @@ describe("POST /api/finance/payments", () => {
     expect(res.status).toBe(403);
   });
 
-  it("retourne 500 sur un body invalide (ZodError non converti en 400 par cette route)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("retourne 400 VALIDATION_ERROR sur un body invalide, sans paiement créé (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     const res = await POST(
       makeRequest("http://localhost/api/finance/payments", { method: "POST", body: { amount: 50000 } })
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
     expect(prisma.payment.create).not.toHaveBeenCalled();
   });
 

@@ -114,10 +114,13 @@ describe("POST /api/schedules", () => {
     expect(res.status).toBe(403);
   });
 
-  it("should return 500 on invalid body (zod error uncaught by the route)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("should return 400 VALIDATION_ERROR on invalid body (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     const res = await POST(makeRequest("http://localhost/api/schedules", { method: "POST", body: { ...body, startTime: "10:00", endTime: "08:00" } }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
   });
 
   it("should return 403 when the account has no active school", async () => {

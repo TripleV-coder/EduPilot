@@ -49,13 +49,20 @@ type RouteHandler = (
 /** Appelle un vrai handler de route (createApiHandler compris) et lit sa réponse. */
 export async function callRoute(
   handler: RouteHandler,
-  options: { method?: string; path: string; params?: Record<string, string>; body?: unknown },
+  options: {
+    method?: string;
+    path: string;
+    params?: Record<string, string>;
+    body?: unknown;
+    /** Corps envoyé tel quel (JSON invalide, très gros corps…). */
+    rawBody?: string;
+  },
 ): Promise<{ status: number; body: unknown }> {
-  const hasBody = options.body !== undefined;
+  const payload = options.rawBody ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined);
   const request = new NextRequest(new URL(options.path, "http://localhost:3000"), {
     method: options.method ?? "GET",
-    headers: hasBody ? { "content-type": "application/json" } : undefined,
-    body: hasBody ? JSON.stringify(options.body) : undefined,
+    headers: payload !== undefined ? { "content-type": "application/json" } : undefined,
+    body: payload,
   });
 
   const response = await handler(request, { params: Promise.resolve(options.params ?? {}) });

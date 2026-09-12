@@ -12,6 +12,7 @@ import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
+import { isZodError } from "@/lib/is-zod-error";
 
 // ============================================
 // CUID VALIDATION
@@ -264,6 +265,8 @@ interface HandlerOptions {
     allowedRoles?: string[];
     rateLimit?: boolean;
     rateLimitCount?: number;
+    /** Taille maximale du corps de requête (octets) ; défaut DEFAULT_MAX_BODY_BYTES. */
+    maxBodyBytes?: number;
 }
 
 type RouteHandler = (
@@ -273,6 +276,83 @@ type RouteHandler = (
 ) => Promise<NextResponse | Response>;
 
 type RouteContext = { params?: Promise<Record<string, string>> };
+
+// ============================================
+// CORPS DE REQUÊTE (audit M3)
+// ============================================
+
+/** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
+export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+type BodyInspection = "ok" | "too-large" | "invalid-json";
+
+function isJsonContentType(request: Request): boolean {
+    return (request.headers.get("content-type") ?? "").toLowerCase().includes("application/json");
+}
+
+/**
+ * Vérifie le corps AVANT le handler, sans le consommer (lecture d'un clone) :
+ *  - Content-Length au-delà de la limite → refus sans rien lire ;
+ *  - corps en flux sans Content-Length → lu jusqu'à la limite au plus ;
+ *  - JSON déclaré mais syntaxiquement invalide → refus, quelle que soit la
+ *    gestion d'erreurs propre au handler.
+ */
+async function inspectRequestBody(request: Request, limit: number): Promise<BodyInspection> {
+    if (!BODY_METHODS.has(request.method) || !request.body) return "ok";
+
+    const declared = request.headers.get("content-length");
+    if (declared !== null && Number(declared) > limit) return "too-large";
+
+    const json = isJsonContentType(request);
+    if (declared !== null && !json) return "ok";
+
+    const reader = request.clone().body!.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > limit) {
+            // Flux dupliqué par clone() : l'annulation n'aboutit qu'une fois
+            // les DEUX branches annulées. La branche d'origine ne sera jamais
+            // lue (413) : on l'annule aussi, ce qui libère la connexion.
+            await Promise.all([
+                reader.cancel().catch(() => undefined),
+                request.body?.cancel().catch(() => undefined),
+            ]);
+            return "too-large";
+        }
+        if (json) chunks.push(value);
+    }
+
+    if (!json) return "ok";
+    const text = new TextDecoder().decode(Buffer.concat(chunks));
+    if (text.trim() === "") return "ok"; // corps vide : le handler décide
+    try {
+        JSON.parse(text);
+        return "ok";
+    } catch {
+        return "invalid-json";
+    }
+}
+
+function payloadTooLarge(limit: number): NextResponse {
+    const megabytes = Math.round((limit / (1024 * 1024)) * 10) / 10;
+    return NextResponse.json(
+        { error: `Requête trop volumineuse (limite : ${megabytes} Mo).`, code: "PAYLOAD_TOO_LARGE" },
+        { status: 413 },
+    );
+}
+
+function invalidJson(): NextResponse {
+    return NextResponse.json(
+        { error: "Le corps de la requête n'est pas un JSON valide.", code: "INVALID_JSON" },
+        { status: 400 },
+    );
+}
 
 export function createApiHandler(handler: RouteHandler, options: HandlerOptions = {}) {
     return async (request: NextRequest, routeContext?: RouteContext) => {
@@ -363,6 +443,13 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
+            // Corps vérifié après les contrôles d'accès : une requête refusée
+            // n'est jamais lue.
+            const bodyLimit = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+            const body = await inspectRequestBody(request, bodyLimit);
+            if (body === "too-large") return payloadTooLarge(bodyLimit);
+            if (body === "invalid-json") return invalidJson();
+
             return await handler(
                 request,
                 {
@@ -372,6 +459,25 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 t,
             );
         } catch (error: unknown) {
+            // Erreurs de validation non interceptées par le handler : faute du
+            // client (400 détaillé), pas du serveur (audit M3).
+            if (isZodError(error)) {
+                return NextResponse.json(
+                    {
+                        error: "Données invalides",
+                        code: "VALIDATION_ERROR",
+                        details: error.issues.map((issue) => ({
+                            path: issue.path.join("."),
+                            message: issue.message,
+                        })),
+                    },
+                    { status: 400 },
+                );
+            }
+            if (error instanceof SyntaxError && /JSON/i.test(error.message)) {
+                return invalidJson();
+            }
+
             const message = error instanceof Error ? error.message : String(error);
             console.error("[API Error]", { path: request.url, error: message });
 

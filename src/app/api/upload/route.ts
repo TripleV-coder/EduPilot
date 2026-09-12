@@ -224,7 +224,8 @@ export const POST = createApiHandler(async (request, context) => {
     );
   }
 
-});
+  // Fichier de 5 Mo + enveloppe multipart (champs, en-têtes de parties).
+}, { maxBodyBytes: MAX_FILE_SIZE + 256 * 1024 });
 
 /**
  * GET /api/upload
