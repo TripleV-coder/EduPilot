@@ -88,11 +88,17 @@ export const GET = createApiHandler(async (request, context) => {
       where.isActive = isActive === "true";
     }
 
+    // Audit C3 (minimisation) : chaque bourse embarquait le profil élève
+    // complet (adresse, date et lieu de naissance, nationalité…) et la classe
+    // avec son niveau. Seuls les champs affichés par la page sortent. La liste
+    // reste complète : la page calcule ses indicateurs sur l'ensemble.
     const scholarships = await prisma.scholarship.findMany({
       where,
       include: {
         student: {
-          include: {
+          select: {
+            id: true,
+            matricule: true,
             user: {
               select: {
                 id: true,
@@ -102,13 +108,7 @@ export const GET = createApiHandler(async (request, context) => {
             },
             enrollments: {
               where: { status: "ACTIVE" },
-              include: {
-                class: {
-                  include: {
-                    classLevel: true,
-                  },
-                },
-              },
+              select: { class: { select: { name: true } } },
             },
           },
         },
