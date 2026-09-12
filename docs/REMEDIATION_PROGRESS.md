@@ -139,7 +139,16 @@ Interprétation consignée : enchaîner les lots sans arrêt intermédiaire, sau
 - `tests/api/payments-initiate.test.ts` : exigeait `reference = "TXN-1"` après l'appel au fournisseur, c'est-à-dire N7 lui-même.
 - `tests/api/payments-fedapay-initiate.test.ts` : exigeait qu'aucune référence ne soit écrite quand FedaPay échoue, soit l'ordre qui rend un arrêt brutal irrécupérable.
 
-### Décision en attente du propriétaire — Upstash (M6)
+### Décisions du propriétaire (2026-09-12)
+
+| Sujet | Décision | Application |
+|---|---|---|
+| Rate-limit / cache partagés (M6) | **PM2 à 1 instance + repli mémoire**, pas d'Upstash | Appliqué : `validateEnv` sans Upstash, `ecosystem.config.js` en `fork` ×1 avec préchargement H3 (commit « instance unique ») |
+| RLS (M2) | **(a) RLS effective** | Lot 4 |
+| 2FA obligatoire | **Aucune obligation** (reste facultative pour tous) | Rien à implémenter |
+| Modules sensibles (Lot 6) | **Tout activé par défaut** | Mécanisme d'activation par module au Lot 6, défaut « activé » |
+
+### Contexte de la décision Upstash (historique)
 
 La validation de démarrage exige Upstash en production. Deux faits relèvent pourtant de la règle 11 :
 
@@ -197,7 +206,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N5 | Élevée | `lib/config/env-validation.ts` lève à l'import (y compris pendant `next build`) et ignore `SKIP_ENV_VALIDATION` : build d'un clone neuf sans `.env` en échec, **et étape de build du Dockerfile impossible** (aucun secret) | 2 | Corrigé (fusion des 2 modules : Lot 8, L3) | `828a6f8` | `tests/lib/config/env-validation.test.ts` (3) | build KO sans `.env` | build sans secret OK ; démarrage sans secret toujours refusé |
 | N6 | Faible | `nodemailer` 9 hors de la plage peer de `next-auth` (`^7 \|\| ^8`) — préexistant (9.0.5), masqué par `legacy-peer-deps` | 8 | Constat Lot 1 | — | vérification de l'envoi d'email (Lot 5/7) | — | — |
 | N9 | Élevée (données personnelles) | `GET /api/evaluations` ne filtre que par école ; seul TEACHER est restreint à ses matières. Un PARENT ou un STUDENT reçoit toutes les évaluations de l'établissement **avec les notes et les noms de tous les élèves** (notes de mineurs exposées à d'autres familles) | 3 (avec C3, même route) | Constat Lot 2 | — | test d'intégration par rôle (parent : ses enfants seulement) | lecture `src/app/api/evaluations/route.ts:24-32,79-105` [LU] | — |
-| N8 | Élevée | Maintenance quotidienne (`runDailyMaintenance`) exécutée de façon synchrone dans la requête du cron : recalcul séquentiel de ~3 000 instantanés d'analyse (élève × période), CPU du serveur 100–126 % pendant toute la durée (l'application ralentit pour tous) ; **aucune exclusion mutuelle** : un planificateur qui réessaie après expiration lance une 2e exécution concurrente (observé : 2 exécutions simultanées) | 3 (analytics) / 7 (crons) | Constat Lot 2 | — | durée du cron sur base seedée ; test d'exclusion mutuelle | 11 min 49 s pour 2 982 instantanés (mesure perturbée : 2e exécution concurrente + suite E2E) ; client expiré à 300 s | — |
+| N8 | Élevée | Maintenance quotidienne (`runDailyMaintenance`) exécutée de façon synchrone dans la requête du cron : recalcul séquentiel de ~3 000 instantanés d'analyse (élève × période), CPU du serveur 100–126 % pendant toute la durée (l'application ralentit pour tous) ; **aucune exclusion mutuelle** : un planificateur qui réessaie après expiration lance une 2e exécution concurrente (observé : 2 exécutions simultanées) | 3 (analytics) / 7 (crons) | Constat Lot 2 | — | durée du cron sur base seedée ; test d'exclusion mutuelle | 1re exécution 11 min 49 s, 2e exécution HTTP 200 en 733 s, pour 2 982 instantanés chacune (exécutions simultanées + suite E2E en parallèle) ; client expiré à 300 s | — |
 | N7 | Élevée | `payments/initiate` écrasait la référence de rapprochement (« PAY-… ») par l'identifiant du fournisseur ; les webhooks MoMo et FedaPay rapprochent par notre référence : paiements Mobile Money encaissés mais jamais rapprochés (restent PENDING), sans aucune panne | 2 | Corrigé | `8a34de6` | `tests/integration-db/payment-momo-flow.test.ts` (3, PG réel, fournisseur simulé) | PENDING après webhook signé | VERIFIED ; rejeu sans effet ; signature forgée → 401 |
 
 ---
