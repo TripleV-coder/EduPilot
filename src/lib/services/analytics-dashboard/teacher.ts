@@ -1,10 +1,11 @@
 // Extrait de l'ancien src/lib/services/analytics-dashboard.ts (1205 lignes)
-// lors de la découpe par rôle (P3.1, 2026-06-11). Logique inchangée.
+// lors de la découpe par rôle (P3.1, 2026-06-11).
+// C3 : analyses lues avec les seuls champs utiles (plus d'élève complet ni de
+// performances par matière) ; noms chargés pour les seuls élèves à risque.
 
 import prisma from "@/lib/prisma";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
-import type { AnalyticsWithDetails } from "./types";
-import { buildAtRiskStudents } from "./builders";
+import { DASHBOARD_ANALYTICS_SELECT, loadAtRiskStudents } from "./queries";
 
 export async function getTeacherDashboardData(userId: string, _schoolId: string, yearId: string) {
   const teacherProfile = await prisma.teacherProfile.findFirst({ where: { userId } });
@@ -68,19 +69,7 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
   const studentIds = enrollments.map(e => e.studentId);
   const analytics = await prisma.studentAnalytics.findMany({
     where: { academicYearId: yearId, studentId: { in: studentIds } },
-    include: {
-      period: { select: { id: true, name: true, sequence: true } },
-      student: {
-        include: {
-          user: { select: { firstName: true, lastName: true } },
-          enrollments: {
-            where: { academicYearId: yearId, status: "ACTIVE" },
-            include: { class: { select: { name: true } } },
-          },
-        },
-      },
-      subjectPerformances: { include: { subject: { select: { name: true } } } },
-    },
+    select: DASHBOARD_ANALYTICS_SELECT,
   });
 
   const currentAnalytics = dedupeLatestAnalyticsByStudent(analytics);
@@ -89,16 +78,16 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
     ? scoredCurrentAnalytics.reduce((sum, a) => sum + Number(a.generalAverage), 0) / scoredCurrentAnalytics.length
     : 0;
 
-  const classStudentMap: Record<string, { name: string; studentIds: string[] }> = {};
+  const classStudentMap: Record<string, { name: string; studentIds: Set<string> }> = {};
   for (const enr of enrollments) {
     if (!classStudentMap[enr.classId]) {
-      classStudentMap[enr.classId] = { name: enr.class.name, studentIds: [] };
+      classStudentMap[enr.classId] = { name: enr.class.name, studentIds: new Set() };
     }
-    classStudentMap[enr.classId].studentIds.push(enr.studentId);
+    classStudentMap[enr.classId].studentIds.add(enr.studentId);
   }
 
   const classPerformance = Object.values(classStudentMap).map(cls => {
-    const clsAnalytics = currentAnalytics.filter(a => cls.studentIds.includes(a.studentId) && a.generalAverage !== null);
+    const clsAnalytics = currentAnalytics.filter(a => cls.studentIds.has(a.studentId) && a.generalAverage !== null);
     const avg = clsAnalytics.length > 0
       ? clsAnalytics.reduce((sum, a) => sum + Number(a.generalAverage), 0) / clsAnalytics.length
       : 0;
@@ -124,7 +113,7 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
     classAverage: roundTo(classAverage),
     classPerformance,
     monthlyTrend,
-    atRiskStudents: buildAtRiskStudents(currentAnalytics, yearId),
+    atRiskStudents: await loadAtRiskStudents(currentAnalytics, yearId),
     todaySchedule,
   };
 }
