@@ -7,7 +7,7 @@
 //   QUALITY_OUT=dir  → écrit smoke-<ROLE>.json dans dir
 import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
-import { BASE, login, fakeIp, pct, ROLE_ACCOUNTS, DEMO_PASSWORD } from "./lib.mjs";
+import { BASE, login, fakeIp, pct, ROLE_ACCOUNTS, DEMO_PASSWORD, retryAfterMs, sleep } from "./lib.mjs";
 
 const routes = [];
 (function walk(d) {
@@ -44,20 +44,31 @@ for (const role of roles) {
   const by = {};
   for (const r of routes.sort()) {
     if (SKIP.some((s) => s.test(r))) continue;
-    const t0 = performance.now();
     let status = 0;
     let size = 0;
-    try {
-      const ctl = new AbortController();
-      const to = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-      const x = await fetch(BASE + r, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
-      size = (await x.arrayBuffer()).byteLength;
-      status = x.status;
-      clearTimeout(to);
-    } catch {
-      status = "TIMEOUT";
+    let ms = 0;
+    // Un 429 (rate-limit : tous les appels partagent une adresse depuis H3) n'est
+    // pas une mesure de la route : attente Retry-After puis nouvel essai, seul le
+    // dernier essai est chronométré.
+    for (let attempt = 0; attempt <= 5; attempt++) {
+      const t0 = performance.now();
+      let retryWait = 0;
+      try {
+        const ctl = new AbortController();
+        const to = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+        const x = await fetch(BASE + r, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
+        size = (await x.arrayBuffer()).byteLength;
+        status = x.status;
+        clearTimeout(to);
+        if (status === 429) retryWait = retryAfterMs(x);
+      } catch {
+        status = "TIMEOUT";
+      }
+      ms = Math.round(performance.now() - t0);
+      if (!retryWait || attempt === 5) break;
+      console.log(`  (429 sur ${r} : attente ${retryWait / 1000} s)`);
+      await sleep(retryWait);
     }
-    const ms = Math.round(performance.now() - t0);
     by[status] = (by[status] || 0) + 1;
     rows.push({ r, status, ms, kb: Math.round(size / 1024) });
   }

@@ -45,20 +45,44 @@ function jar() {
   };
 }
 
+export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Délai demandé par un 429 (en-tête Retry-After, en secondes ; 60 s à défaut). */
+export function retryAfterMs(res) {
+  return Math.max(1, Number(res.headers.get("retry-after")) || 60) * 1000;
+}
+
+/**
+ * fetch qui respecte les 429 du serveur. Depuis H3, tous les appels d'un script
+ * partagent la même adresse (X-Forwarded-For ignoré) et atteignent les limites
+ * de production : on attend le délai Retry-After puis on réessaie, pour que les
+ * mesures portent sur la route et non sur le rate-limit.
+ */
+export async function fetchRespectingRateLimit(url, init = {}, { maxRetries = 5 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || attempt >= maxRetries) return res;
+    const wait = retryAfterMs(res);
+    await res.arrayBuffer().catch(() => {});
+    console.log(`  (429 sur ${new URL(url).pathname} : attente ${wait / 1000} s)`);
+    await sleep(wait);
+  }
+}
+
 /** Connexion via le flux Credentials de NextAuth ; renvoie cookie + session. */
 export async function login(email, password, { ip = fakeIp() } = {}) {
   const j = jar();
-  const r1 = await fetch(`${BASE}/api/auth/csrf`, { headers: { "x-forwarded-for": ip } });
+  const r1 = await fetchRespectingRateLimit(`${BASE}/api/auth/csrf`, { headers: { "x-forwarded-for": ip } });
   j.add(r1);
   const { csrfToken } = await r1.json();
-  const r2 = await fetch(`${BASE}/api/auth/callback/credentials`, {
+  const r2 = await fetchRespectingRateLimit(`${BASE}/api/auth/callback/credentials`, {
     method: "POST",
     redirect: "manual",
     headers: { "content-type": "application/x-www-form-urlencoded", cookie: j.header(), "x-forwarded-for": ip },
     body: new URLSearchParams({ csrfToken, email, password, callbackUrl: `${BASE}/dashboard`, json: "true" }),
   });
   j.add(r2);
-  const s = await fetch(`${BASE}/api/auth/session`, { headers: { cookie: j.header(), "x-forwarded-for": ip } });
+  const s = await fetchRespectingRateLimit(`${BASE}/api/auth/session`, { headers: { cookie: j.header(), "x-forwarded-for": ip } });
   const session = await s.json().catch(() => null);
   return { cookie: j.header(), session, status: r2.status };
 }
