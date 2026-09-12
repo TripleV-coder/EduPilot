@@ -1,21 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
+type Bucket = { sum: number; count: number; name: string };
+
+function addTo<K>(map: Map<K, Bucket>, key: K, name: string, sum: number, count: number) {
+    const bucket = map.get(key) ?? { sum: 0, count: 0, name };
+    bucket.sum += sum;
+    bucket.count += count;
+    map.set(key, bucket);
+}
+
+function averages(map: Map<unknown, Bucket>) {
+    return Array.from(map.values())
+        .map((b) => ({ name: b.name, average: b.count > 0 ? Number((b.sum / b.count).toFixed(2)) : 0 }))
+        .sort((a, b) => b.average - a.average);
+}
+
+/**
+ * GET /api/performances — moyennes (valeurs brutes des notes) par niveau,
+ * classe et matière pour une période.
+ *
+ * C3 : l'ancienne version chargeait toutes les classes avec toutes leurs
+ * matières, évaluations et notes de la période pour sommer en JS. Ici, les
+ * sommes et effectifs sont calculés par PostgreSQL (groupBy par évaluation) ;
+ * seules les évaluations de la période (sans notes) sont lues. Les notes
+ * supprimées (deletedAt) ne sont plus comptées.
+ */
 export const GET = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
-        // Allow access to school administrators, directors and teachers
 
         const url = new URL(request.url);
         const periodId = url.searchParams.get("periodId");
         const academicYearId = url.searchParams.get("academicYearId");
 
-        const schoolConstraint = (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session))
-            ? { schoolId: getActiveSchoolId(session) }
-            : {};
+        const schoolId =
+            session.user.role !== "SUPER_ADMIN" ? getActiveSchoolId(session) ?? undefined : undefined;
+        const schoolConstraint = schoolId ? { schoolId } : {};
 
         // Find the academic year
         const activeYear = await prisma.academicYear.findFirst({
@@ -41,105 +65,59 @@ export const GET = createApiHandler(async (request, context) => {
             return NextResponse.json({ error: "Aucune période trouvée." }, { status: 404 });
         }
 
-        // Fetch all classes and their classSubjects and evaluations
-        const classes = await prisma.class.findMany({
+        const evaluations = await prisma.evaluation.findMany({
             where: {
-                schoolId: session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session) ? getActiveSchoolId(session) : undefined
+                periodId: activePeriodId,
+                ...(schoolId ? { classSubject: { class: { schoolId } } } : {}),
             },
-            include: {
-                classLevel: true,
-                classSubjects: {
-                    include: {
-                        subject: true,
-                        evaluations: {
-                            where: { periodId: activePeriodId },
-                            include: {
-                                grades: {
-                                    where: { isAbsent: false, value: { not: null } }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            select: {
+                id: true,
+                classSubject: {
+                    select: {
+                        subjectId: true,
+                        subject: { select: { name: true } },
+                        class: { select: { id: true, name: true, classLevelId: true, classLevel: { select: { name: true } } } },
+                    },
+                },
+            },
         });
 
-        // Compute performance metrics
-        let totalGradesCount = 0;
+        const sums = evaluations.length > 0
+            ? await prisma.grade.groupBy({
+                by: ["evaluationId"],
+                where: {
+                    evaluationId: { in: evaluations.map((e) => e.id) },
+                    isAbsent: false,
+                    value: { not: null },
+                    deletedAt: null,
+                },
+                _sum: { value: true },
+                _count: { value: true },
+            })
+            : [];
+        const byEvaluation = new Map(
+            sums.map((row) => [row.evaluationId, { sum: Number(row._sum.value ?? 0), count: row._count.value }])
+        );
+
         let totalGradesSum = 0;
+        let totalGradesCount = 0;
+        const levelAverages = new Map<string, Bucket>();
+        const classAverages = new Map<string, Bucket>();
+        const subjectAverages = new Map<string, Bucket>();
 
-        // Detailed metrics by class level, class, and subject
-        const levelAverages = new Map<string, { sum: number, count: number, name: string }>();
-        const classAverages = new Map<string, { sum: number, count: number, name: string, levelName: string }>();
-        const subjectAverages = new Map<string, { sum: number, count: number, name: string }>();
+        for (const evaluation of evaluations) {
+            const totals = byEvaluation.get(evaluation.id);
+            if (!totals || totals.count === 0) continue;
+            const { class: cls, subject, subjectId } = evaluation.classSubject;
 
-        classes.forEach(cls => {
-            let classSum = 0;
-            let classCount = 0;
+            totalGradesSum += totals.sum;
+            totalGradesCount += totals.count;
+            addTo(levelAverages, cls.classLevelId, cls.classLevel.name, totals.sum, totals.count);
+            addTo(classAverages, cls.id, `${cls.classLevel.name} ${cls.name}`, totals.sum, totals.count);
+            addTo(subjectAverages, subjectId, subject.name, totals.sum, totals.count);
+        }
 
-            cls.classSubjects.forEach(cs => {
-                let subjectSum = 0;
-                let subjectCount = 0;
-
-                cs.evaluations.forEach(ev => {
-                    ev.grades.forEach(g => {
-                        if (g.value !== null) {
-                            const val = Number(g.value);
-                            // Assuming base 20 for normalization if needed, but going with raw values
-                            subjectSum += val;
-                            subjectCount++;
-                        }
-                    });
-                });
-
-                if (subjectCount > 0) {
-                    classSum += subjectSum;
-                    classCount += subjectCount;
-                    totalGradesSum += subjectSum;
-                    totalGradesCount += subjectCount;
-
-                    // Update global subject stats
-                    const subStat = subjectAverages.get(cs.subject.id) || { sum: 0, count: 0, name: cs.subject.name };
-                    subStat.sum += subjectSum;
-                    subStat.count += subjectCount;
-                    subjectAverages.set(cs.subject.id, subStat);
-                }
-            });
-
-            if (classCount > 0) {
-                // Update class stats
-                classAverages.set(cls.id, {
-                    sum: classSum,
-                    count: classCount,
-                    name: cls.name,
-                    levelName: cls.classLevel.name
-                });
-
-                // Update level stats
-                const lvlStat = levelAverages.get(cls.classLevelId) || { sum: 0, count: 0, name: cls.classLevel.name };
-                lvlStat.sum += classSum;
-                lvlStat.count += classCount;
-                levelAverages.set(cls.classLevelId, lvlStat);
-            }
-        });
-
-        // Format the output
         const overallAverage = totalGradesCount > 0 ? totalGradesSum / totalGradesCount : 0;
-
-        const performanceByLevel = Array.from(levelAverages.values()).map(l => ({
-            name: l.name,
-            average: l.count > 0 ? Number((l.sum / l.count).toFixed(2)) : 0
-        })).sort((a, b) => b.average - a.average);
-
-        const performanceByClass = Array.from(classAverages.values()).map(c => ({
-            name: `${c.levelName} ${c.name}`,
-            average: c.count > 0 ? Number((c.sum / c.count).toFixed(2)) : 0
-        })).sort((a, b) => b.average - a.average).slice(0, 10); // Top 10 classes
-
-        const performanceBySubject = Array.from(subjectAverages.values()).map(s => ({
-            name: s.name,
-            average: s.count > 0 ? Number((s.sum / s.count).toFixed(2)) : 0
-        })).sort((a, b) => b.average - a.average).slice(0, 10); // Top 10 subjects
 
         return NextResponse.json({
             academicYear: activeYear.name,
@@ -147,11 +125,11 @@ export const GET = createApiHandler(async (request, context) => {
             activePeriodId,
             overallAverage: Number(overallAverage.toFixed(2)),
             totalEvaluations: totalGradesCount,
-            performanceByLevel,
-            performanceByClass,
-            performanceBySubject
+            performanceByLevel: averages(levelAverages),
+            performanceByClass: averages(classAverages).slice(0, 10), // Top 10 classes
+            performanceBySubject: averages(subjectAverages).slice(0, 10), // Top 10 subjects
         });
-    
+
     } catch (error) {
         logger.error(" fetching performance stats:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
