@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
-import { createApiHandler, translateError, getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -73,7 +74,18 @@ export const GET = createApiHandler(
       const feeId = searchParams.get("feeId");
       const activeSchoolId = getActiveSchoolId(session);
 
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
+      // Lot 3 : format curseur par défaut, ?page= toléré (ancien format). Tri sur la
+      // date d'encaissement, nullable : curseur positionnel.
+      const list = getListWindow(request, {
+        positional: true,
+        orderBy: [{ paidAt: "desc" }, { id: "desc" }],
+        defaultLimit: 50,
+        maxLimit: 200,
+      });
+      const respond = <Row extends { id: string }>(rows: Row[], total: number | undefined) =>
+        list.offset
+          ? createPaginatedResponse(rows, total ?? 0, list.offset)
+          : NextResponse.json(list.page(rows, () => 0, total));
 
       const where: PaymentWhereFilter = {};
       if (studentId) where.studentId = studentId;
@@ -130,19 +142,21 @@ export const GET = createApiHandler(
                 },
               },
             },
-            orderBy: { paidAt: "desc" },
-            skip,
-            take: limit,
+            orderBy: list.orderBy,
+            skip: list.skip,
+            take: list.take,
           }),
-          prisma.payment.count({
-            where: {
-              studentId: { in: childrenIds },
-              ...where,
-            },
-          }),
+          list.needsTotal
+            ? prisma.payment.count({
+                where: {
+                  studentId: { in: childrenIds },
+                  ...where,
+                },
+              })
+            : Promise.resolve(undefined),
         ]);
 
-        return createPaginatedResponse(payments, total, { page, limit, skip });
+        return respond(payments, total);
       }
 
       if (session.user.role === "STUDENT") {
@@ -152,7 +166,7 @@ export const GET = createApiHandler(
         });
 
         if (!studentProfile) {
-          return createPaginatedResponse([], 0, { page, limit, skip });
+          return respond([], 0);
         }
 
         if (studentId && studentId !== studentProfile.id) {
@@ -188,19 +202,21 @@ export const GET = createApiHandler(
                 },
               },
             },
-            orderBy: { paidAt: "desc" },
-            skip,
-            take: limit,
+            orderBy: list.orderBy,
+            skip: list.skip,
+            take: list.take,
           }),
-          prisma.payment.count({
-            where: {
-              studentId: studentProfile.id,
-              ...where,
-            },
-          }),
+          list.needsTotal
+            ? prisma.payment.count({
+                where: {
+                  studentId: studentProfile.id,
+                  ...where,
+                },
+              })
+            : Promise.resolve(undefined),
         ]);
 
-        return createPaginatedResponse(payments, total, { page, limit, skip });
+        return respond(payments, total);
       }
 
       const [payments, total] = await Promise.all([
@@ -229,14 +245,14 @@ export const GET = createApiHandler(
               },
             },
           },
-          orderBy: { paidAt: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.payment.count({ where }),
+        list.needsTotal ? prisma.payment.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return createPaginatedResponse(payments, total, { page, limit, skip });
+      return respond(payments, total);
     };
 
     const response = await cachedHandler(handler, request);

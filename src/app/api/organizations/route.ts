@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
-import { createApiHandler, createPaginatedResponse, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 export const dynamic = "force-dynamic";
 
 export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
 
-  const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
+  // Lot 3 : curseur sur le nom par défaut, ?page= toléré (ancien format).
+  const list = getListWindow(request, { sortField: "name", direction: "asc", defaultLimit: 50, maxLimit: 200 });
   const search = new URL(request.url).searchParams.get("search") || "";
 
   let manageableMemberships: Array<{
@@ -48,10 +50,10 @@ export const GET = createApiHandler(async (request, context) => {
 
   const [organizations, total] = await Promise.all([
     prisma.organization.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { name: "asc" },
+      where: list.where(where),
+      skip: list.skip,
+      take: list.take,
+      orderBy: list.orderBy,
       select: {
         id: true,
         name: true,
@@ -66,23 +68,21 @@ export const GET = createApiHandler(async (request, context) => {
         },
       },
     }),
-    prisma.organization.count({ where }),
+    list.needsTotal ? prisma.organization.count({ where }) : Promise.resolve(undefined),
   ]);
 
   const membershipByOrganizationId = new Map(
     manageableMemberships.map((membership) => [membership.organizationId, membership] as const)
   );
 
-  return createPaginatedResponse(
-    organizations.map((organization) => ({
-      ...organization,
-      membership:
-        session.user.role === "SUPER_ADMIN"
-          ? null
-          : membershipByOrganizationId.get(organization.id) || null,
-    })),
-    total,
-    { page, limit, skip }
-  );
+  const rows = organizations.map((organization) => ({
+    ...organization,
+    membership:
+      session.user.role === "SUPER_ADMIN"
+        ? null
+        : membershipByOrganizationId.get(organization.id) || null,
+  }));
+  if (list.offset) return createPaginatedResponse(rows, total ?? 0, list.offset);
+  return NextResponse.json(list.page(rows, (organization) => organization.name, total));
 
 });

@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireRoot } from "@/lib/security/require-root";
-import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { SchoolType, SchoolLevel } from "@prisma/client";
@@ -28,7 +29,8 @@ export const GET = createApiHandler(
   if (guard) return guard;
 
   try {
-    const { page, limit, skip } = getPaginationParams(request);
+    // Lot 3 : curseur sur la date de création par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc" });
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const type = url.searchParams.get("type");
@@ -51,10 +53,10 @@ export const GET = createApiHandler(
 
     const [schools, total, studentCounts, userCounts] = await Promise.all([
       prisma.school.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
+        where: list.where(where),
+        skip: list.skip,
+        take: list.take,
+        orderBy: list.orderBy,
         select: {
           id: true,
           name: true,
@@ -90,7 +92,7 @@ export const GET = createApiHandler(
           },
         },
       }),
-      prisma.school.count({ where }),
+      list.needsTotal ? prisma.school.count({ where }) : Promise.resolve(undefined),
       prisma.studentProfile.groupBy({
         by: ["schoolId"],
         _count: true,
@@ -128,22 +130,20 @@ export const GET = createApiHandler(
       schoolIds.map((id) => [id, (assignedMap.get(id) ?? 0) + (legacyMap.get(id) ?? 0)] as const)
     );
 
-    return createPaginatedResponse(
-      schools.map((s) => {
-        return {
-          ...s,
-          stats: {
-            users: userCountBySchool.get(s.id) ?? 0,
-            classes: s._count.classes,
-            students: studentCountBySchool.get(s.id) ?? 0,
-            teachers: teacherCountBySchool.get(s.id) ?? 0,
-          },
-          _count: undefined,
-        };
-      }),
-      total,
-      { page, limit, skip }
-    );
+    const rows = schools.map((s) => {
+      return {
+        ...s,
+        stats: {
+          users: userCountBySchool.get(s.id) ?? 0,
+          classes: s._count.classes,
+          students: studentCountBySchool.get(s.id) ?? 0,
+          teachers: teacherCountBySchool.get(s.id) ?? 0,
+        },
+        _count: undefined,
+      };
+    });
+    if (list.offset) return createPaginatedResponse(rows, total ?? 0, list.offset);
+    return NextResponse.json(list.page(rows, (school) => school.createdAt, total));
   } catch (error) {
     logger.error("Error fetching root schools", error as Error);
     return NextResponse.json(

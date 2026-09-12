@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { SchoolLevel, SchoolType, SiteType } from "@prisma/client";
-import { createApiHandler, translateError, getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -26,8 +27,8 @@ const schoolSchema = z.object({
 
 export const GET = createApiHandler(
   async (request, { session }, t) => {
-    // Pagination
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Pagination — Lot 3 : curseur sur la date de création par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
     // Role-based filtering
     let whereClause = {};
@@ -55,7 +56,7 @@ export const GET = createApiHandler(
 
     const [schools, total] = await Promise.all([
       prisma.school.findMany({
-        where: whereClause,
+        where: list.where(whereClause),
         select: {
           id: true,
           name: true,
@@ -76,18 +77,21 @@ export const GET = createApiHandler(
           parentSchoolId: true,
           parentSchool: { select: { name: true } },
           isActive: true,
+          // Clé du curseur (Lot 3)
+          createdAt: true,
           _count: {
             select: { users: true, classes: true, childSchools: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.school.count({ where: whereClause }),
+      list.needsTotal ? prisma.school.count({ where: whereClause }) : Promise.resolve(undefined),
     ]);
 
-    return createPaginatedResponse(schools, total, { page, limit, skip });
+    if (list.offset) return createPaginatedResponse(schools, total ?? 0, list.offset);
+    return NextResponse.json(list.page(schools, (school) => school.createdAt, total));
   },
   {
     requireAuth: true,

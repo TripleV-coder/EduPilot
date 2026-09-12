@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireRoot } from "@/lib/security/require-root";
-import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export const GET = createApiHandler(
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
 
-  const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
+  // Lot 3 : curseur sur le nom par défaut, ?page= toléré (ancien format).
+  const list = getListWindow(request, { sortField: "name", direction: "asc", defaultLimit: 50, maxLimit: 200 });
   const search = new URL(request.url).searchParams.get("search") || "";
 
   const where: Prisma.OrganizationWhereInput = search
@@ -28,10 +30,10 @@ export const GET = createApiHandler(
 
   const [organizations, total] = await Promise.all([
     prisma.organization.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { name: "asc" },
+      where: list.where(where),
+      skip: list.skip,
+      take: list.take,
+      orderBy: list.orderBy,
       select: {
         id: true,
         name: true,
@@ -45,10 +47,11 @@ export const GET = createApiHandler(
         },
       },
     }),
-    prisma.organization.count({ where }),
+    list.needsTotal ? prisma.organization.count({ where }) : Promise.resolve(undefined),
   ]);
 
-  return createPaginatedResponse(organizations, total, { page, limit, skip });
+  if (list.offset) return createPaginatedResponse(organizations, total ?? 0, list.offset);
+  return NextResponse.json(list.page(organizations, (organization) => organization.name, total));
     },
     {},
 );
