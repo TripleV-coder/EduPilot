@@ -32,7 +32,7 @@ type PaymentRecordLike = {
 
 type PaymentPlanClient = Pick<Prisma.TransactionClient, "paymentPlan" | "payment" | "installmentPayment">;
 
-function hasDateRange(range?: FinanceDateRange | null): boolean {
+export function hasDateRange(range?: FinanceDateRange | null): boolean {
   return Boolean(range?.startDate || range?.endDate);
 }
 

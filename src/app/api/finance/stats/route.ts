@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import {
@@ -10,11 +10,10 @@ import { withHttpCache } from "@/lib/api/cache-http";
 import { roundTo } from "@/lib/analytics/helpers";
 import {
   buildPaymentDateWhere,
-  getEffectivePaymentDate,
   resolveFinanceDateRange,
   resolvePreviousFinanceDateRange,
-  summarizePaymentPlans,
 } from "@/lib/finance/helpers";
+import { collectedByUtcMonth, summarizePaymentPlansInRange } from "@/lib/finance/stats-aggregates";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
@@ -26,6 +25,12 @@ function calculateGrowth(currentValue: number, previousValue: number): number {
   return ((currentValue - previousValue) / previousValue) * 100;
 }
 
+/**
+ * GET /api/finance/stats — indicateurs financiers d'un établissement sur une
+ * période, comparés à la période précédente. Tout est agrégé par PostgreSQL
+ * (M5) : ni les plans de paiement (toutes années confondues) ni les
+ * encaissements ne sont chargés ligne à ligne.
+ */
 export const GET = createApiHandler(
   async (request, context) => {
     const session = context.session;
@@ -51,103 +56,51 @@ export const GET = createApiHandler(
       const startDate = url.searchParams.get("startDate");
       const endDate = url.searchParams.get("endDate");
 
-      const [currentRange, plans, classLevels] = await Promise.all([
-        resolveFinanceDateRange(schoolId, period, startDate, endDate),
-        prisma.paymentPlan.findMany({
-          where: {
-            fee: { schoolId },
-            status: { not: "CANCELLED" as const },
-          },
-          include: {
-            fee: {
-              select: {
-                classLevelCode: true,
-                dueDate: true,
-              },
-            },
-            installmentPayments: {
-              select: {
-                id: true,
-                amount: true,
-                dueDate: true,
-                status: true,
-              },
-            },
-          },
-        }),
-        prisma.classLevel.findMany({
-          where: { schoolId },
-          select: { code: true, name: true },
-        }),
-      ]);
+      const currentRange = await resolveFinanceDateRange(schoolId, period, startDate, endDate);
+      const previousRange = await resolvePreviousFinanceDateRange(schoolId, period, currentRange);
+      const collectedWhere = (range: typeof currentRange) => ({
+        fee: { schoolId },
+        status: { in: ["VERIFIED" as const, "RECONCILED" as const] },
+        ...buildPaymentDateWhere(range),
+      });
 
-      const previousRange = await resolvePreviousFinanceDateRange(
-        schoolId,
-        period,
-        currentRange
-      );
+      const [classLevels, fees, currentByFee, previousCollected, revenueByMonth, currentPlanSummary, previousPlanSummary] =
+        await Promise.all([
+          prisma.classLevel.findMany({
+            where: { schoolId },
+            select: { code: true, name: true },
+          }),
+          // Définitions de frais de l'établissement (par niveau et par nature) :
+          // bornées par nature, pour rattacher chaque encaissement à son cycle.
+          prisma.fee.findMany({
+            where: { schoolId },
+            select: { id: true, classLevelCode: true },
+          }),
+          prisma.payment.groupBy({
+            by: ["feeId"],
+            where: collectedWhere(currentRange),
+            _sum: { amount: true },
+          }),
+          prisma.payment.aggregate({
+            where: collectedWhere(previousRange),
+            _sum: { amount: true },
+          }),
+          collectedByUtcMonth(schoolId, currentRange),
+          summarizePaymentPlansInRange(schoolId, currentRange),
+          summarizePaymentPlansInRange(schoolId, previousRange),
+        ]);
 
-      const [currentPayments, previousPayments] = await Promise.all([
-        prisma.payment.findMany({
-          where: {
-            fee: { schoolId },
-            status: { in: ["VERIFIED", "RECONCILED"] },
-            ...buildPaymentDateWhere(currentRange),
-          },
-          select: {
-            amount: true,
-            paidAt: true,
-            createdAt: true,
-            fee: {
-              select: {
-                classLevelCode: true,
-              },
-            },
-          },
-          orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
-        }),
-        prisma.payment.findMany({
-          where: {
-            fee: { schoolId },
-            status: { in: ["VERIFIED", "RECONCILED"] },
-            ...buildPaymentDateWhere(previousRange),
-          },
-          select: {
-            amount: true,
-            paidAt: true,
-            createdAt: true,
-          },
-        }),
-      ]);
-
-      const currentPlanSummary = summarizePaymentPlans(plans, currentRange);
-      const previousPlanSummary = summarizePaymentPlans(plans, previousRange);
-
-      const totalRevenue = currentPayments.reduce(
-        (sum, payment) => sum + Number(payment.amount),
-        0
-      );
-      const previousRevenue = previousPayments.reduce(
-        (sum, payment) => sum + Number(payment.amount),
-        0
-      );
+      const totalRevenue = currentByFee.reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
+      const previousRevenue = Number(previousCollected._sum.amount ?? 0);
 
       const classLevelByCode = new Map(
         classLevels.map((classLevel) => [classLevel.code, classLevel.name])
       );
-
-      const revenueByMonthMap = new Map<string, number>();
-      for (const payment of currentPayments) {
-        const monthKey = getEffectivePaymentDate(payment).toISOString().slice(0, 7);
-        revenueByMonthMap.set(
-          monthKey,
-          (revenueByMonthMap.get(monthKey) ?? 0) + Number(payment.amount)
-        );
-      }
+      const classLevelCodeByFee = new Map(fees.map((fee) => [fee.id, fee.classLevelCode]));
 
       const revenueByCycleMap = new Map<string, number>();
-      for (const payment of currentPayments) {
-        const cycleKey = payment.fee.classLevelCode || "ALL_LEVELS";
+      for (const row of currentByFee) {
+        const cycleKey = classLevelCodeByFee.get(row.feeId) || "ALL_LEVELS";
         const cycleLabel =
           cycleKey === "ALL_LEVELS"
             ? "Tous niveaux"
@@ -155,7 +108,7 @@ export const GET = createApiHandler(
 
         revenueByCycleMap.set(
           cycleLabel,
-          (revenueByCycleMap.get(cycleLabel) ?? 0) + Number(payment.amount)
+          (revenueByCycleMap.get(cycleLabel) ?? 0) + Number(row._sum.amount ?? 0)
         );
       }
 
@@ -168,8 +121,8 @@ export const GET = createApiHandler(
         totalRevenue: roundTo(totalRevenue),
         totalPending: roundTo(currentPlanSummary.totalPending),
         collectionRate: roundTo(collectionRate),
-        revenueByMonth: Array.from(revenueByMonthMap.entries())
-          .map(([month, amount]) => ({
+        revenueByMonth: revenueByMonth
+          .map(({ month, amount }) => ({
             month,
             amount: roundTo(amount),
           }))
