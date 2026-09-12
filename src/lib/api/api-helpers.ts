@@ -13,6 +13,7 @@ import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/a
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 import { isZodError } from "@/lib/is-zod-error";
+import { InvalidCursorError } from "@/lib/api/pagination";
 
 // ============================================
 // CUID VALIDATION
@@ -476,6 +477,9 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             }
             if (error instanceof SyntaxError && /JSON/i.test(error.message)) {
                 return invalidJson();
+            }
+            if (error instanceof InvalidCursorError) {
+                return NextResponse.json({ error: error.message, code: "INVALID_CURSOR" }, { status: 400 });
             }
 
             const message = error instanceof Error ? error.message : String(error);
