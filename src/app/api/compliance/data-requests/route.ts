@@ -6,7 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -23,9 +23,8 @@ export const GET = createApiHandler(async (request, context) => {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.DataAccessRequestWhereInput = {};
 

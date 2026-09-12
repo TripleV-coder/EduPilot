@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -82,9 +82,8 @@ export const GET = createApiHandler(
     const classSubjectId = searchParams.get("classSubjectId");
     const studentId = searchParams.get("studentId");
     const upcoming = searchParams.get("upcoming") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     interface HomeworkWhereFilter {

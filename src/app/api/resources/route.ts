@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 import { Prisma, ResourceType } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
@@ -37,9 +37,8 @@ const { searchParams } = new URL(request.url);
     const classLevelId = searchParams.get("classLevelId");
     const category = searchParams.get("category");
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
     // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
     // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
     const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });

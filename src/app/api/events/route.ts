@@ -5,7 +5,7 @@ import { Prisma, EventType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 
 const createEventSchema = z.object({
   title: z.string().min(3),
@@ -27,9 +27,8 @@ export const GET = createApiHandler(async (request, context) => {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const upcoming = searchParams.get("upcoming") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.SchoolEventWhereInput = {
       isPublished: true,

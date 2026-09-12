@@ -46,6 +46,22 @@ describe("API helpers", () => {
       const { limit } = getPaginationParams(req, { defaultLimit: 50 });
       expect(limit).toBe(50);
     });
+
+    // Audit N16 : parseInt("abc") donnait NaN, puis take/skip NaN → erreur Prisma (500).
+    it("falls back to defaults on non-numeric page and limit (N16)", () => {
+      const req = mockReq("http://localhost/api/foo?page=abc&limit=abc");
+      expect(getPaginationParams(req, { defaultLimit: 50 })).toEqual({ page: 1, limit: 50, skip: 0 });
+    });
+
+    it("keeps clamping zero or negative values to 1", () => {
+      const req = mockReq("http://localhost/api/foo?page=0&limit=-5");
+      expect(getPaginationParams(req)).toEqual({ page: 1, limit: 1, skip: 0 });
+    });
+
+    it("reads the page size from another parameter name (pageSize)", () => {
+      const req = mockReq("http://localhost/api/foo?page=2&pageSize=500");
+      expect(getPaginationParams(req, { limitParam: "pageSize", maxLimit: 100 })).toEqual({ page: 2, limit: 100, skip: 100 });
+    });
   });
 
   describe("createPaginatedResponse", () => {

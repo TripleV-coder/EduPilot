@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -21,9 +21,8 @@ export const GET = createApiHandler(
     if (!dateRange.success) return dateRange.response;
     const { startDate, endDate } = dateRange;
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 100 });
 
     const where: Prisma.AuditLogWhereInput = {};
 

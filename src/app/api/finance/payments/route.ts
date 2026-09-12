@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
 import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import {
     buildPaymentDateWhere,
@@ -22,8 +22,8 @@ export const GET = createApiHandler(
         const dateRange = parseDateRangeParams(searchParams);
         if (!dateRange.success) return dateRange.response;
         const { startDate, endDate } = dateRange;
-        const page = parseInt(searchParams.get("page") || "1");
-        const pageSize = parseInt(searchParams.get("pageSize") || "20");
+        // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+        const { page, limit: pageSize } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100, limitParam: "pageSize" });
 
         const where: Prisma.PaymentWhereInput = {};
 

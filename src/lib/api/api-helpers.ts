@@ -168,17 +168,20 @@ export interface PaginationMeta {
   hasPreviousPage: boolean;
 }
 
+/** Entier ≥ 1 ; valeur par défaut si absent ou non numérique (audit N16 : NaN → 500). */
+function parsePositiveInt(raw: string | null, fallback: number): number {
+  const value = Number.parseInt(raw ?? "", 10);
+  return Number.isNaN(value) ? fallback : Math.max(1, value);
+}
+
 export function getPaginationParams(
   request: NextRequest,
-  options: { defaultLimit?: number; maxLimit?: number } = {}
+  options: { defaultLimit?: number; maxLimit?: number; limitParam?: string } = {}
 ): PaginationParams {
-  const { defaultLimit = 20, maxLimit = 100 } = options;
+  const { defaultLimit = 20, maxLimit = 100, limitParam = "limit" } = options;
   const searchParams = request.nextUrl?.searchParams ?? new URL(request.url).searchParams;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-  const limit = Math.min(
-    maxLimit,
-    Math.max(1, parseInt(searchParams.get("limit") || String(defaultLimit)))
-  );
+  const page = parsePositiveInt(searchParams.get("page"), 1);
+  const limit = Math.min(maxLimit, parsePositiveInt(searchParams.get(limitParam), defaultLimit));
   const skip = (page - 1) * limit;
   return { page, limit, skip };
 }
