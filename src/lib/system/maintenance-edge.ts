@@ -17,7 +17,11 @@
  * `createApiHandler` et le layout du dashboard restent des filets de sécurité
  * qui, eux, lisent la base directement.
  */
-import { Redis } from "@upstash/redis";
+import type { Redis } from "@upstash/redis";
+import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
+
+/** Échec de lecture du miroir (Redis absent du circuit ou en erreur). */
+const UNAVAILABLE = Symbol("maintenance-mirror-unavailable");
 
 /** Clé du miroir Redis. */
 export const MAINTENANCE_EDGE_KEY = "edupilot:maintenance";
@@ -37,14 +41,8 @@ function getRedis(): Redis | null {
     if (clientResolved) return client;
     clientResolved = true;
 
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) {
-        client = null;
-        return null;
-    }
-
-    client = new Redis({ url, token });
+    // Client borné (H6) : sans tentatives automatiques, délai court.
+    client = createUpstashRedis();
     return client;
 }
 
@@ -65,12 +63,11 @@ export async function publishMaintenanceState(state: EdgeMaintenanceState): Prom
     const redis = getRedis();
     if (!redis) return;
 
-    try {
+    // Le miroir est un optimisant, jamais un point de défaillance.
+    await redisCircuit.run(async () => {
         await redis.set(MAINTENANCE_EDGE_KEY, JSON.stringify(state));
         cache = { state, at: Date.now() };
-    } catch {
-        // Le miroir est un optimisant, jamais un point de défaillance.
-    }
+    }, () => undefined);
 }
 
 /**
@@ -84,8 +81,13 @@ export async function readEdgeMaintenanceState(): Promise<EdgeMaintenanceState |
     const redis = getRedis();
     if (!redis) return null;
 
+    const raw = await redisCircuit.run<string | EdgeMaintenanceState | null | typeof UNAVAILABLE>(
+        () => redis.get<string | EdgeMaintenanceState>(MAINTENANCE_EDGE_KEY),
+        () => UNAVAILABLE,
+    );
+    if (raw === UNAVAILABLE) return null;
+
     try {
-        const raw = await redis.get<string | EdgeMaintenanceState>(MAINTENANCE_EDGE_KEY);
         let state: EdgeMaintenanceState | null = null;
 
         if (raw && typeof raw === "object" && "enabled" in raw) {

@@ -7,18 +7,9 @@
  */
 
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import type { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
-
-// Éviter le spam de logs si Upstash est temporairement indisponible
-let lastRedisFailureLogAt = 0;
-function logRedisFailureOncePerWindow(error: Error) {
-  const now = Date.now();
-  // 60s de “cooldown” pour ce message
-  if (now - lastRedisFailureLogAt < 60_000) return;
-  lastRedisFailureLogAt = now;
-  logger.error("[RateLimit] Redis check failed, falling back to in-memory limiter", error);
-}
+import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
 
 // ─── In-memory Fallback (dev only) ────────────────────────────────────────────
 
@@ -84,12 +75,8 @@ if (!hasUpstash && process.env.NODE_ENV === "production") {
 
 let redis: Redis | null = null;
 function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
-  }
+  // Client borné (H6) : sans tentatives automatiques, délai court.
+  if (!redis) redis = createUpstashRedis()!;
   return redis;
 }
 
@@ -175,16 +162,14 @@ export async function checkRateLimit(
 ): Promise<{ success: boolean; remaining: number; reset: Date }> {
   // If Upstash is not configured, use in-memory fallback directly.
   // La clé inclut le nom du limiter : chaque type garde son propre bucket.
-  if (!handle.limiter) {
-    return checkFallbackRateLimit(handle.fallback, `fallback:${handle.name}:${identifier}`);
-  }
+  const fallback = () => checkFallbackRateLimit(handle.fallback, `fallback:${handle.name}:${identifier}`);
+  const limiter = handle.limiter;
+  if (!limiter) return fallback();
 
-  try {
-    const { success, remaining, reset } = await handle.limiter.limit(identifier);
+  // Redis lent ou injoignable : repli mémoire immédiat (coupe-circuit H6),
+  // l'application n'est jamais laissée sans limite.
+  return redisCircuit.run(async () => {
+    const { success, remaining, reset } = await limiter.limit(identifier);
     return { success, remaining, reset: new Date(reset) };
-  } catch (error) {
-    // Redis failure — fall back to in-memory to avoid leaving the app unprotected
-    logRedisFailureOncePerWindow(error as Error);
-    return checkFallbackRateLimit(handle.fallback, `fallback:${handle.name}:${identifier}`);
-  }
+  }, fallback);
 }

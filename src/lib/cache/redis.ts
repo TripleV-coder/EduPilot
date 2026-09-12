@@ -9,22 +9,9 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
 
-// Lazy-loaded pour éviter les erreurs côté client
 let _upstashRedis: import("@upstash/redis").Redis | null = null;
-
-// Éviter le spam de logs si Upstash est temporairement indisponible (fetch failed, DNS, etc.)
-let lastRedisOpFailureLogAt = 0;
-function logRedisOpFailureOncePerWindow(
-    message: string,
-    error: Error,
-    extra?: Record<string, unknown>
-) {
-    const now = Date.now();
-    if (now - lastRedisOpFailureLogAt < 60_000) return;
-    lastRedisOpFailureLogAt = now;
-    logger.error(message, error, { module: "cache", ...extra });
-}
 
 function getUpstashClient(): import("@upstash/redis").Redis | null {
     if (_upstashRedis) return _upstashRedis;
@@ -41,16 +28,10 @@ function getUpstashClient(): import("@upstash/redis").Redis | null {
         return null;
     }
 
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { Redis } = require("@upstash/redis");
-        _upstashRedis = new Redis({ url: restUrl, token: restToken });
-        logger.info("Redis connecté (Upstash)", { module: "cache" });
-        return _upstashRedis;
-    } catch (error) {
-        logger.error("Échec init Redis", error as Error, { module: "cache" });
-        return null;
-    }
+    // Client borné (H6) : sans tentatives automatiques, délai court.
+    _upstashRedis = createUpstashRedis();
+    logger.info("Redis configuré (Upstash)", { module: "cache" });
+    return _upstashRedis;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,48 +91,41 @@ class MemoryCache implements CacheService {
 class UpstashCache implements CacheService {
     constructor(private client: import("@upstash/redis").Redis) {}
 
+    // Redis lent ou injoignable : le coupe-circuit (H6) bascule sur le cache
+    // mémoire de l'instance, sans attendre ni journaliser à chaque appel.
+
     async get<T>(key: string): Promise<T | null> {
-        try {
-            const value = await this.client.get<string>(key);
-            if (value === null || value === undefined) return null;
-            // Upstash retourne déjà l'objet désérialisé pour les valeurs JSON
-            if (typeof value === "string") {
-                try { return JSON.parse(value) as T; } catch { return value as unknown as T; }
-            }
-            return value as unknown as T;
-        } catch (error) {
-            logRedisOpFailureOncePerWindow("Redis get error", error as Error, { key });
-            return null;
+        const value = await redisCircuit.run(
+            () => this.client.get<string>(key),
+            () => memoryFallback.get<string>(key),
+        );
+        if (value === null || value === undefined) return null;
+        // Upstash retourne déjà l'objet désérialisé pour les valeurs JSON
+        if (typeof value === "string") {
+            try { return JSON.parse(value) as T; } catch { return value as unknown as T; }
         }
+        return value as unknown as T;
     }
 
     async set(key: string, value: unknown, ttl = 3600): Promise<void> {
-        try {
-            await this.client.setex(key, ttl, JSON.stringify(value));
-        } catch (error) {
-            logRedisOpFailureOncePerWindow("Redis set error", error as Error, { key });
-        }
+        await redisCircuit.run(
+            async () => { await this.client.setex(key, ttl, JSON.stringify(value)); },
+            () => memoryFallback.set(key, JSON.stringify(value), ttl),
+        );
     }
 
     async delete(key: string): Promise<void> {
-        try {
-            await this.client.del(key);
-        } catch (error) {
-            logRedisOpFailureOncePerWindow("Redis delete error", error as Error, { key });
-        }
+        await memoryFallback.delete(key);
+        await redisCircuit.run(async () => { await this.client.del(key); }, () => undefined);
     }
 
     async clear(pattern?: string): Promise<void> {
-        try {
-            if (pattern) {
-                const keys = await this.client.keys(pattern);
-                if (keys.length > 0) {
-                    await this.client.del(...keys);
-                }
-            }
-        } catch (error) {
-            logRedisOpFailureOncePerWindow("Redis clear error", error as Error);
-        }
+        await memoryFallback.clear(pattern);
+        if (!pattern) return;
+        await redisCircuit.run(async () => {
+            const keys = await this.client.keys(pattern);
+            if (keys.length > 0) await this.client.del(...keys);
+        }, () => undefined);
     }
 }
 

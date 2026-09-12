@@ -10,7 +10,9 @@
  * Algorithme : sliding window counter avec INCR + EXPIREAT Redis.
  */
 
+import type { Redis } from "@upstash/redis";
 import { getClientIp as getTrustedClientIp } from "@/lib/security/client-ip";
+import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
 
 // ---------------------------------------------------------------------------
 // In-memory fallback
@@ -58,25 +60,12 @@ const memoryStore = new InMemoryStore();
 // Redis client (lazy-loaded pour éviter l'import côté client)
 // ---------------------------------------------------------------------------
 
-let redisClient: import("@upstash/redis").Redis | null = null;
+let redisClient: Redis | null = null;
 
-function getRedis(): import("@upstash/redis").Redis | null {
-    if (redisClient) return redisClient;
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-        return null;
-    }
-    try {
-        // Chargement dynamique pour éviter les erreurs si le module n'est pas installé
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { Redis } = require("@upstash/redis");
-        redisClient = new Redis({
-            url: process.env.UPSTASH_REDIS_REST_URL,
-            token: process.env.UPSTASH_REDIS_REST_TOKEN,
-        });
-        return redisClient;
-    } catch {
-        return null;
-    }
+/** Client borné (H6) : sans tentatives automatiques, délai court. */
+function getRedis(): Redis | null {
+    if (!redisClient) redisClient = createUpstashRedis();
+    return redisClient;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,41 +87,26 @@ export interface RateLimitResult {
 // Implémentation Redis (sliding window)
 // ---------------------------------------------------------------------------
 
+/** Les erreurs remontent au coupe-circuit, qui bascule sur le repli mémoire. */
 async function checkRateLimitRedis(
+    redis: Redis,
     identifier: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
-    const redis = getRedis()!;
     const windowSec = Math.ceil(config.windowMs / 1000);
-    const now = Date.now();
-    const resetTime = now + config.windowMs;
+    const resetTime = Date.now() + config.windowMs;
 
-    try {
-        // Pipeline : INCR + EXPIRE atomique
-        const pipeline = redis.pipeline();
-        pipeline.incr(identifier);
-        pipeline.expire(identifier, windowSec, "NX"); // Expire seulement si la clé vient d'être créée
-        const [count] = (await pipeline.exec()) as [number, number];
+    // Pipeline : INCR + EXPIRE atomique
+    const pipeline = redis.pipeline();
+    pipeline.incr(identifier);
+    pipeline.expire(identifier, windowSec, "NX"); // Expire seulement si la clé vient d'être créée
+    const [count] = (await pipeline.exec()) as [number, number];
 
-        const allowed = count <= config.maxAttempts;
-        return {
-            allowed,
-            remaining: Math.max(0, config.maxAttempts - count),
-            resetTime,
-        };
-    } catch {
-        // En cas d'erreur Redis, dégrader vers in-memory (fail open)
-        return checkRateLimitMemory(identifier, config);
-    }
-}
-
-async function resetRateLimitRedis(identifier: string): Promise<void> {
-    const redis = getRedis()!;
-    try {
-        await redis.del(identifier);
-    } catch {
-        memoryStore.delete(identifier);
-    }
+    return {
+        allowed: count <= config.maxAttempts,
+        remaining: Math.max(0, config.maxAttempts - count),
+        resetTime,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -177,20 +151,24 @@ export async function checkRateLimit(
     identifier: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
-    if (getRedis()) {
-        return checkRateLimitRedis(identifier, config);
-    }
-    return checkRateLimitMemory(identifier, config);
+    const redis = getRedis();
+    if (!redis) return checkRateLimitMemory(identifier, config);
+    return redisCircuit.run(
+        () => checkRateLimitRedis(redis, identifier, config),
+        () => checkRateLimitMemory(identifier, config),
+    );
 }
 
 /**
  * Réinitialise le compteur (ex: après login réussi).
  */
 export async function resetRateLimit(identifier: string): Promise<void> {
-    if (getRedis()) {
-        return resetRateLimitRedis(identifier);
-    }
     memoryStore.delete(identifier);
+    const redis = getRedis();
+    if (!redis) return;
+    await redisCircuit.run(async () => {
+        await redis.del(identifier);
+    }, () => undefined);
 }
 
 /**
@@ -201,13 +179,12 @@ export async function resetRateLimit(identifier: string): Promise<void> {
 export async function releaseRateLimit(identifier: string): Promise<void> {
     const redis = getRedis();
     if (redis) {
-        try {
+        const released = await redisCircuit.run(async () => {
             const remaining = await redis.decr(identifier);
             if (remaining <= 0) await redis.del(identifier);
-            return;
-        } catch {
-            // Redis indisponible : même dégradation que checkRateLimitRedis.
-        }
+            return true;
+        }, () => false);
+        if (released) return;
     }
     const entry = memoryStore.get(identifier);
     if (!entry) return;
