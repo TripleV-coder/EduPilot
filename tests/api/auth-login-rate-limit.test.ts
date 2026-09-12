@@ -106,6 +106,17 @@ describe("rate-limit des échecs de connexion", () => {
         expect(statuses.every((s) => s === 200)).toBe(true);
     });
 
+    it("une panne technique ne consomme pas la limite (M10)", async () => {
+        // Base injoignable : tout le monde échoue, mais personne ne doit rester
+        // bloqué 15 min une fois la base revenue.
+        authPostMock.mockImplementation(async () =>
+            Response.json({ url: "http://localhost:3000/login?error=CredentialsSignin&code=service_unavailable" })
+        );
+        const statuses = await statusesFor(freshIp(), 15);
+
+        expect(statuses.every((s) => s === 200)).toBe(true);
+    });
+
     it("les échecs d'une IP ne bloquent pas une autre IP", async () => {
         authPostMock.mockImplementation(async () => failedLogin());
         await statusesFor(freshIp(), 12);

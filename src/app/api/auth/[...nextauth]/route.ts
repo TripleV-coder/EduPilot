@@ -7,6 +7,7 @@ import {
   releaseRateLimit,
   LOGIN_FAILURE_RATE_LIMIT,
 } from '@/lib/auth/rate-limiter';
+import { SERVICE_UNAVAILABLE_CODE } from '@/lib/auth/login-failure';
 
 /** Point d'entrée réel de la connexion par identifiants (NextAuth v5). */
 const CREDENTIALS_CALLBACK_SUFFIX = "/callback/credentials";
@@ -69,10 +70,25 @@ export async function POST(req: NextRequest) {
   }
 
   const response = await AuthPOST(req);
-  if (issuedSession(response)) {
+  // Ni une connexion réussie, ni une panne technique (M10) ne comptent comme
+  // un échec : sinon une école entière resterait bloquée après la panne.
+  if (issuedSession(response) || (await reportsServiceUnavailable(response))) {
     await releaseRateLimit(rateLimitKey);
   }
   return response;
+}
+
+/** La réponse NextAuth porte `code=service_unavailable` (redirection ou JSON `{ url }`). */
+async function reportsServiceUnavailable(response: Response): Promise<boolean> {
+  const marker = `code=${SERVICE_UNAVAILABLE_CODE}`;
+  if ((response.headers.get("location") ?? "").includes(marker)) return true;
+  if (!(response.headers.get("content-type") ?? "").includes("application/json")) return false;
+  try {
+    const { url } = (await response.clone().json()) as { url?: unknown };
+    return typeof url === "string" && url.includes(marker);
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(req: NextRequest) {

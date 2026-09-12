@@ -92,7 +92,7 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError(getLoginErrorMessage(result.error));
+        setError(getLoginErrorMessage(result.error, result.code));
       } else {
         router.push("/dashboard");
         router.refresh();

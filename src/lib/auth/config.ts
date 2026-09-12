@@ -20,6 +20,7 @@ import {
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
+import { InvalidTwoFactorSignin, withSigninErrorMapping } from "./login-failure";
 
 /**
  * Extended user type for authentication.
@@ -125,7 +126,9 @@ export const authConfig: NextAuthConfig = {
         password: { label: "Mot de passe", type: "password" },
         twoFactorCode: { label: "Code 2FA", type: "text" },
       },
-      async authorize(credentials): Promise<AuthUser | null> {
+      // M10 : une panne de base devient `code=service_unavailable`, jamais un
+      // faux « identifiants invalides » (voir ./login-failure).
+      authorize: withSigninErrorMapping(async (credentials): Promise<AuthUser | null> => {
         const validatedFields = loginSchema.safeParse(credentials);
 
         if (!validatedFields.success) {
@@ -224,7 +227,7 @@ export const authConfig: NextAuthConfig = {
                     newValues: { message: 'Invalid 2FA code' },
                   },
                 });
-                throw new Error("Code 2FA incorrect");
+                throw new InvalidTwoFactorSignin();
               }
               // Supprimer le backup code utilisé (à usage unique)
               const updatedCodes = hashedBackupCodes.filter((_, i) => i !== backupIndex);
@@ -283,7 +286,7 @@ export const authConfig: NextAuthConfig = {
           permissions: getRolePermissions(effectiveRoles),
           avatar: user.avatar,
         };
-      },
+      }),
     }),
   ],
   callbacks: {
