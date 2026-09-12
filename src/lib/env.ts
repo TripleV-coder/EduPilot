@@ -11,7 +11,11 @@ interface EnvVar {
     name: string;
     required: "always" | "production";
     description: string;
+    /** Exigée seulement si cette condition est vraie (ex. selon le fournisseur d'email). */
+    when?: () => boolean;
 }
+
+const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
 
 const ENV_VARS: EnvVar[] = [
     {
@@ -37,17 +41,29 @@ const ENV_VARS: EnvVar[] = [
     {
         name: "EMAIL_PROVIDER",
         required: "production",
-        description: "Fournisseur email (resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
+        description: "Fournisseur email (smtp, resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
     },
     {
         name: "EMAIL_API_KEY",
         required: "production",
-        description: "Clé API du fournisseur email",
+        description: "Clé API du fournisseur email (resend / sendgrid)",
+        when: () => !usesSmtp(),
+    },
+    {
+        name: "SMTP_HOST",
+        required: "production",
+        description: "Serveur SMTP (EMAIL_PROVIDER=smtp)",
+        when: usesSmtp,
     },
     {
         name: "EMAIL_FROM",
         required: "production",
         description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
+    },
+    {
+        name: "SIGNATURE_SALT",
+        required: "production",
+        description: "Sel du hachage des adresses IP des signatures électroniques (openssl rand -hex 32)",
     },
     {
         name: "EDUPILOT_PEER_TOKEN",
@@ -85,6 +101,7 @@ export function validateEnv(): void {
     const errors: string[] = [];
 
     for (const envVar of ENV_VARS) {
+        if (envVar.when && !envVar.when()) continue;
         const value = process.env[envVar.name];
         const isMissing = !value || value.trim() === "";
 

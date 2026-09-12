@@ -34,6 +34,23 @@ export function hashIp(ip: string, salt = ""): string {
     return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
 
+/** Sel de développement : jamais utilisé en production. */
+const DEVELOPMENT_SALT = "edupilot-development-only-signature-salt";
+
+/**
+ * Sel du hachage des IP (audit L4). Le repli codé « edupilot » rendait les
+ * hachages prévisibles : SIGNATURE_SALT est désormais exigé en production
+ * (ici et dans la validation de démarrage, lib/env.ts).
+ */
+export function getSignatureSalt(env: Record<string, string | undefined> = process.env): string {
+    const salt = env.SIGNATURE_SALT?.trim();
+    if (salt) return salt;
+    if (env.NODE_ENV === "production") {
+        throw new Error("SIGNATURE_SALT est obligatoire en production (hachage des adresses IP des signatures).");
+    }
+    return DEVELOPMENT_SALT;
+}
+
 const DIRECTION_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
 
 /**

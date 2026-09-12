@@ -14,6 +14,8 @@ const PRODUCTION_ENV: Record<string, string> = {
     TOTP_ENCRYPTION_KEY: "0".repeat(64),
     EMAIL_PROVIDER: "smtp",
     EMAIL_API_KEY: "cle",
+    SMTP_HOST: "smtp.ecole.example",
+    SIGNATURE_SALT: "b".repeat(32),
     EMAIL_FROM: "noreply@ecole.example",
     UPSTASH_REDIS_REST_URL: "https://redis.example",
     UPSTASH_REDIS_REST_TOKEN: "jeton",
