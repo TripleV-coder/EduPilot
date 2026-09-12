@@ -23,6 +23,8 @@ import type { Class } from "@/lib/types";
 type AnalyticsStudent = {
   studentId: string;
   studentName: string;
+  /** Classe active de l'élève (renvoyée par l'API depuis le Lot 3). */
+  className?: string | null;
   averageGrade: number | null;
   attendanceRate: number | null;
   riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
@@ -129,7 +131,7 @@ function AlertsRisksContent() {
           riskLevelHint: row.riskLevel,
         });
 
-        const className = row.student?.enrollments?.[0]?.class?.name || "Non assignée";
+        const className = row.className || row.student?.enrollments?.[0]?.class?.name || "Non assignée";
         const trend: RiskRow["trend"] = score >= 70 ? "up" : score <= 30 ? "down" : "stable";
 
         return {

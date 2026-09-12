@@ -14,6 +14,49 @@ import { createApiHandler } from "@/lib/api/api-helpers";
  * GET /api/analytics/students
  * Obtenir les analytics des élèves
  */
+/** C3 : liste toujours bornée (défaut 200, plafond 500) et sans détail superflu. */
+const DEFAULT_LIMIT = 200;
+const MAX_LIMIT = 500;
+const RISK_SEVERITY: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
+
+/** Champs lus par les écrans (risques, nuage assiduité/notes, tableaux) — rien de plus. */
+const ANALYTICS_LIST_SELECT = {
+  id: true,
+  studentId: true,
+  periodId: true,
+  academicYearId: true,
+  generalAverage: true,
+  classRank: true,
+  classSize: true,
+  performanceLevel: true,
+  riskLevel: true,
+  riskFactors: true,
+  analyzedAt: true,
+  period: { select: { name: true, sequence: true } },
+  student: {
+    select: {
+      user: { select: { firstName: true, lastName: true } },
+      enrollments: {
+        where: { status: "ACTIVE" as const, deletedAt: null },
+        select: { class: { select: { name: true } } },
+        take: 1,
+      },
+    },
+  },
+} satisfies Prisma.StudentAnalyticsSelect;
+
+type RiskSortable = { riskLevel: string; generalAverage: Prisma.Decimal | number | null; studentId: string };
+
+/** Plus grand risque d'abord, puis plus faible moyenne (sans moyenne : en dernier). */
+function byRiskThenAverage(left: RiskSortable, right: RiskSortable): number {
+  const severity = (RISK_SEVERITY[right.riskLevel] ?? 0) - (RISK_SEVERITY[left.riskLevel] ?? 0);
+  if (severity !== 0) return severity;
+  const a = left.generalAverage === null ? Number.POSITIVE_INFINITY : Number(left.generalAverage);
+  const b = right.generalAverage === null ? Number.POSITIVE_INFINITY : Number(right.generalAverage);
+  if (a !== b) return a < b ? -1 : 1;
+  return left.studentId.localeCompare(right.studentId);
+}
+
 export const GET = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
@@ -26,14 +69,15 @@ export const GET = createApiHandler(async (request, context) => {
     const riskLevel = searchParams.get("riskLevel");
     const latestOnlyParam = searchParams.get("latestOnly");
     const limitParam = searchParams.get("limit");
+    const classId = searchParams.get("classId");
 
     const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
     const handler = async () => {
     const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : null;
-    const limit =
-      parsedLimit && Number.isFinite(parsedLimit) && parsedLimit > 0
-        ? parsedLimit
-        : null;
+    const limit = Math.min(
+      MAX_LIMIT,
+      parsedLimit && Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : DEFAULT_LIMIT
+    );
     const latestOnly =
       latestOnlyParam !== null ? latestOnlyParam !== "false" : !periodId;
 
@@ -121,44 +165,32 @@ export const GET = createApiHandler(async (request, context) => {
     if (periodId) where.periodId = periodId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (riskLevel) where.riskLevel = riskLevel as RiskLevel;
+    if (classId) {
+      where.student = {
+        ...(where.student as Prisma.StudentProfileWhereInput | undefined),
+        enrollments: { some: { classId, status: "ACTIVE", deletedAt: null } },
+      };
+    }
 
-    const analytics = await prisma.studentAnalytics.findMany({
-      where,
-      include: {
-        student: {
-          include: {
-            user: {
-              select: { firstName: true, lastName: true },
-            },
-          },
-        },
-        period: {
-          select: { name: true, sequence: true },
-        },
-        academicYear: {
-          select: { name: true },
-        },
-        subjectPerformances: {
-          include: {
-            subject: {
-              select: { name: true, code: true },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { period: { sequence: "desc" } },
-        { analyzedAt: "desc" },
-      ],
-    });
+    // Dernière analyse par élève calculée en base (distinct) ; le tri par
+    // risque précède la limite : les élèves les plus à risque ne sont jamais
+    // écartés (C3).
+    const analytics = latestOnly
+      ? await prisma.studentAnalytics.findMany({
+          where,
+          select: ANALYTICS_LIST_SELECT,
+          distinct: ["studentId"],
+          orderBy: [{ studentId: "asc" }, { period: { sequence: "desc" } }, { analyzedAt: "desc" }],
+        })
+      : await prisma.studentAnalytics.findMany({
+          where,
+          select: ANALYTICS_LIST_SELECT,
+          orderBy: [{ riskLevel: "desc" }, { generalAverage: "asc" }, { period: { sequence: "desc" } }],
+          take: limit,
+        });
 
-    const selectedAnalytics = latestOnly
-      ? dedupeLatestAnalyticsByStudent(analytics)
-      : analytics;
-
-    const limitedAnalytics = limit
-      ? selectedAnalytics.slice(0, limit)
-      : selectedAnalytics;
+    const selectedAnalytics = latestOnly ? dedupeLatestAnalyticsByStudent(analytics) : analytics;
+    const limitedAnalytics = [...selectedAnalytics].sort(byRiskThenAverage).slice(0, limit);
 
     const relevantStudentIds = Array.from(
       new Set(limitedAnalytics.map((item) => item.studentId))
@@ -227,11 +259,15 @@ export const GET = createApiHandler(async (request, context) => {
           ? roundTo((attendance.presentEquivalent / attendance.total) * 100)
           : null;
 
+      const { student, period, ...fields } = item;
+      const average = item.generalAverage !== null ? Number(item.generalAverage) : null;
       return {
-        ...item,
-        studentName: `${item.student.user.firstName} ${item.student.user.lastName}`,
-        averageGrade:
-          item.generalAverage !== null ? Number(item.generalAverage) : null,
+        ...fields,
+        generalAverage: average,
+        periodName: period?.name ?? null,
+        studentName: `${student.user.firstName} ${student.user.lastName}`,
+        className: student.enrollments?.[0]?.class?.name ?? null,
+        averageGrade: average,
         absenceCount: absenceMap.get(item.studentId) ?? 0,
         attendanceRate,
       };
