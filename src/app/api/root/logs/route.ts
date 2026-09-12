@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
-import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { logger } from "@/lib/utils/logger";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -16,7 +17,8 @@ export const GET = createApiHandler(
   if (guard) return guard;
 
   try {
-    const { page, limit, skip } = getPaginationParams(request);
+    // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc" });
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const action = url.searchParams.get("action");
@@ -38,10 +40,10 @@ export const GET = createApiHandler(
 
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
+        where: list.where(where),
+        skip: list.skip,
+        take: list.take,
+        orderBy: list.orderBy,
         include: {
           user: {
             select: {
@@ -59,10 +61,11 @@ export const GET = createApiHandler(
           },
         },
       }),
-      prisma.auditLog.count({ where }),
+      list.needsTotal ? prisma.auditLog.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return createPaginatedResponse(logs, total, { page, limit, skip });
+    if (list.offset) return createPaginatedResponse(logs, total ?? 0, list.offset);
+    return NextResponse.json(list.page(logs, (log) => log.createdAt, total));
   } catch (error) {
     logger.error("Error fetching root logs", error as Error);
     return NextResponse.json(

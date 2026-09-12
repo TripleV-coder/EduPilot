@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { formatDateShort } from "@/lib/utils/formatters";
 import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { fetchAllPages } from "@/lib/api/fetch-all-pages";
 
 
 
@@ -46,15 +47,16 @@ export default function ComplianceDashboardPage() {
                 if (!r.ok) throw new Error("Erreur de chargement du tableau de conformité");
                 return r.json();
             }),
-            fetch("/api/compliance/data-requests", { credentials: "include" }).then(r => {
-                if (!r.ok) return { requests: [] };
-                return r.json();
+            // Toutes les demandes (droits des personnes) : jamais tronquées aux 20 premières.
+            fetchAllPages<DataRequest>("/api/compliance/data-requests").catch(() => {
+                toast.error("Impossible de charger les demandes relatives aux données personnelles.");
+                return [] as DataRequest[];
             }),
         ])
             .then(([dashData, reqData]) => {
                 if (!cancelled) {
                     setDashboard(dashData);
-                    setRequests(Array.isArray(reqData) ? reqData : reqData.requests ?? []);
+                    setRequests(reqData);
                 }
             })
             .catch((e) => { if (!cancelled) setError(e.message); })

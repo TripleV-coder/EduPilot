@@ -5,7 +5,8 @@ import { Prisma, EventType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const createEventSchema = z.object({
   title: z.string().min(3),
@@ -28,7 +29,8 @@ export const GET = createApiHandler(async (request, context) => {
     const type = searchParams.get("type");
     const upcoming = searchParams.get("upcoming") === "true";
     // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur sur la date de début par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "startDate", direction: "asc", defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.SchoolEventWhereInput = {
       isPublished: true,
@@ -43,7 +45,7 @@ export const GET = createApiHandler(async (request, context) => {
 
     const [events, total] = await Promise.all([
       prisma.schoolEvent.findMany({
-        where,
+        where: list.where(where),
         include: {
           createdBy: {
             select: { firstName: true, lastName: true },
@@ -52,17 +54,20 @@ export const GET = createApiHandler(async (request, context) => {
             select: { participations: true },
           },
         },
-        orderBy: { startDate: "asc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.schoolEvent.count({ where }),
+      list.needsTotal ? prisma.schoolEvent.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      events,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
+    if (list.offset) {
+      return NextResponse.json({
+        events,
+        pagination: { page: list.offset.page, limit: list.limit, total, totalPages: Math.ceil((total ?? 0) / list.limit) },
+      });
+    }
+    return NextResponse.json(list.page(events, (event) => event.startDate, total));
   
     } catch (error) {
     logger.error(" fetching events:", error as Error);

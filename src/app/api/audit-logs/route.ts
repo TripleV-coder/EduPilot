@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -23,7 +24,8 @@ export const GET = createApiHandler(
     const search = searchParams.get("search");
     // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 500 :
     // l'écran du journal affiche les 500 dernières entrées (?limit=500) et les filtre.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 500 });
+    // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 50, maxLimit: 500 });
 
     const where: Prisma.AuditLogWhereInput = {};
 
@@ -80,7 +82,7 @@ export const GET = createApiHandler(
 
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
-        where,
+        where: list.where(where),
         select: {
           id: true,
           action: true,
@@ -100,22 +102,25 @@ export const GET = createApiHandler(
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.auditLog.count({ where }),
+      list.needsTotal ? prisma.auditLog.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      logs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    if (list.offset) {
+      return NextResponse.json({
+        logs,
+        pagination: {
+          page: list.offset.page,
+          limit: list.limit,
+          total,
+          totalPages: Math.ceil((total ?? 0) / list.limit),
+        },
+      });
+    }
+    return NextResponse.json(list.page(logs, (log) => log.createdAt, total));
   },
   {
     requireAuth: true,

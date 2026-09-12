@@ -6,7 +6,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -24,7 +25,8 @@ export const GET = createApiHandler(async (request, context) => {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur sur la date de demande par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "requestedAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.DataAccessRequestWhereInput = {};
 
@@ -50,7 +52,7 @@ export const GET = createApiHandler(async (request, context) => {
 
     const [requests, total] = await Promise.all([
       prisma.dataAccessRequest.findMany({
-        where,
+        where: list.where(where),
         include: {
           user: {
             select: {
@@ -68,22 +70,25 @@ export const GET = createApiHandler(async (request, context) => {
             },
           },
         },
-        orderBy: { requestedAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.dataAccessRequest.count({ where }),
+      list.needsTotal ? prisma.dataAccessRequest.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      requests,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    if (list.offset) {
+      return NextResponse.json({
+        requests,
+        pagination: {
+          page: list.offset.page,
+          limit: list.limit,
+          total,
+          totalPages: Math.ceil((total ?? 0) / list.limit),
+        },
+      });
+    }
+    return NextResponse.json(list.page(requests, (row) => row.requestedAt, total));
   
     } catch (error) {
     logger.error(" fetching data requests:", error as Error);

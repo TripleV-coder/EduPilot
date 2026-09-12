@@ -103,7 +103,8 @@ export default function EventsPage() {
             const res = await fetch("/api/events?limit=50");
             if (!res.ok) throw new Error("Erreur de récupération des événements");
             const data = await res.json();
-            setEvents(data.events || []);
+            // Format paginé du projet : { data, pagination }
+            setEvents(data.data || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
