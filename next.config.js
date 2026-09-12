@@ -209,12 +209,14 @@ const nextConfig = {
 // ─────────────────────────────────────────────────────────────
 // SENTRY — SDK actif dès que SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN
 // est présent. Source maps non uploadées : aucun token CI requis.
+// Télémétrie du plugin désactivée : le build n'envoie rien à Sentry.
 // ─────────────────────────────────────────────────────────────
 const withSentry = (config) =>
   withSentryConfig(config, {
     hideSourceMaps: true,
     widenClientFileUpload: true,
     sourcemaps: { disable: true },
+    telemetry: false,
   });
 
 module.exports = withSentry(withSerwist(nextConfig));
