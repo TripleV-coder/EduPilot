@@ -44,8 +44,10 @@ for (const p of paths) {
   let bytes = 0;
   for (let i = 0; i < n; i++) {
     let t0 = performance.now();
-    const ctl = new AbortController();
-    const to = setTimeout(() => ctl.abort(), 20000);
+    // Délai de 20 s propre à chaque essai : armé avant l'attente d'un 429
+    // (60 s), il abandonnait d'office le nouvel essai (faux TIMEOUT).
+    let ctl = new AbortController();
+    let to = setTimeout(() => ctl.abort(), 20000);
     try {
       let r = await fetch(`${BASE}${p}`, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
       // Un 429 (rate-limit : une seule adresse depuis H3) ne mesure pas la route :
@@ -53,8 +55,11 @@ for (const p of paths) {
       for (let retry = 0; r.status === 429 && retry < 5; retry++) {
         const wait = retryAfterMs(r);
         await r.arrayBuffer();
+        clearTimeout(to);
         console.log(`  (429 sur ${p} : attente ${wait / 1000} s)`);
         await sleep(wait);
+        ctl = new AbortController();
+        to = setTimeout(() => ctl.abort(), 20000);
         t0 = performance.now();
         r = await fetch(`${BASE}${p}`, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
       }
