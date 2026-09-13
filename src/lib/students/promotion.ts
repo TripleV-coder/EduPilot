@@ -35,7 +35,16 @@ export interface PromotionResult {
   skipped: { studentId: string; reason: string }[];
 }
 
-export class PromotionError extends Error {}
+/**
+ * Refus métier de la promotion. `status` : 404 quand la classe ou l'année
+ * n'existe pas DANS l'établissement de l'appelant (isolation, balayage du
+ * Lot 4), 400 pour une demande incohérente.
+ */
+export class PromotionError extends Error {
+  constructor(message: string, readonly status: 400 | 404 = 400) {
+    super(message);
+  }
+}
 
 /**
  * Choisit la classe cible au niveau supérieur : même section (nom) si elle
@@ -134,13 +143,13 @@ export async function promoteClass(params: {
     where: { id: sourceClassId, schoolId, deletedAt: null },
     include: { classLevel: { select: { sequence: true } } },
   });
-  if (!sourceClass) throw new PromotionError("Classe source introuvable dans votre établissement");
+  if (!sourceClass) throw new PromotionError("Classe source introuvable dans votre établissement", 404);
 
   const targetYear = await prisma.academicYear.findFirst({
     where: { id: targetAcademicYearId, schoolId },
     select: { id: true, startDate: true },
   });
-  if (!targetYear) throw new PromotionError("Année académique cible introuvable dans votre établissement");
+  if (!targetYear) throw new PromotionError("Année académique cible introuvable dans votre établissement", 404);
 
   const currentYear = await prisma.academicYear.findFirst({
     where: { schoolId, isCurrent: true },
