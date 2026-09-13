@@ -28,6 +28,7 @@ import { StepFamille } from "@/components/students/inscription/step-famille";
 import { StepCursus } from "@/components/students/inscription/step-cursus";
 import { StepDocuments } from "@/components/students/inscription/step-documents";
 import { StepPaiement } from "@/components/students/inscription/step-paiement";
+import { submitInscription } from "@/lib/students/inscription-submit";
 
 // Extrait de dashboard/students/inscription/page.tsx (1421 lignes) lors
 // de la découpe en steps (P3.1, 2026-06-11). Logique inchangée.
@@ -43,6 +44,8 @@ export default function InscriptionPage() {
     const [submitting, setSubmitting] = useState(false);
     const [draftSaved, setDraftSaved] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // N31 : élève créé, mot de passe provisoire à transmettre (affiché une seule fois).
+    const [createdStudent, setCreatedStudent] = useState<{ id: string; provisionalPassword: string } | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -136,38 +139,17 @@ export default function InscriptionPage() {
         }
         setSubmitting(true);
         setError(null);
-        try {
-            const res = await fetch("/api/students", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    email: form.email.trim(),
-                    firstName: form.firstName.trim(),
-                    lastName: form.lastName.trim(),
-                    phone: form.phone.trim(),
-                    password: "00000000",
-                    matricule: form.matricule.trim(),
-                    dateOfBirth: form.dateOfBirth || undefined,
-                    gender: form.gender || undefined,
-                    birthPlace: form.birthPlace.trim() || undefined,
-                    nationality: form.nationality.trim() || "Beninoise",
-                    address: form.address.trim() || undefined,
-                    classId: form.classId,
-                    academicYearId: form.academicYearId,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(
-                    data.error || "Erreur lors de la création de l'inscription"
-                );
-            }
-            router.push(`/dashboard/students/${data.id || data.student?.id || ""}`);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
-        } finally {
-            setSubmitting(false);
+        const outcome = await submitInscription(form);
+        setSubmitting(false);
+        if (!outcome.ok) {
+            setError(outcome.error);
+            return;
         }
+        if (outcome.provisionalPassword) {
+            setCreatedStudent({ id: outcome.studentId, provisionalPassword: outcome.provisionalPassword });
+            return;
+        }
+        router.push(`/dashboard/students/${outcome.studentId}`);
     };
 
     const handleSaveDraft = () => {
@@ -238,6 +220,7 @@ export default function InscriptionPage() {
                             <Button
                                 icon={submitting ? undefined : "check"}
                                 loading={submitting}
+                                disabled={!!createdStudent}
                                 onClick={handleFinalize}
                             >
                                 Finaliser
@@ -245,6 +228,27 @@ export default function InscriptionPage() {
                         </>
                     }
                 />
+
+                {createdStudent && (
+                    <Card padding={20} style={{ marginBottom: 14 }}>
+                        <SubLabel>Inscription enregistrée</SubLabel>
+                        <p style={{ margin: "8px 0", fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                            Mot de passe provisoire de l&apos;élève, affiché une seule fois : transmettez-le avec son
+                            email de connexion. Il devra choisir son propre mot de passe à la première connexion.
+                        </p>
+                        <code style={{ fontSize: 15, fontWeight: 700, userSelect: "all" }}>
+                            {createdStudent.provisionalPassword}
+                        </code>
+                        <div style={{ marginTop: 12 }}>
+                            <Button
+                                icon="check"
+                                onClick={() => router.push(`/dashboard/students/${createdStudent.id}`)}
+                            >
+                                Ouvrir la fiche de l&apos;élève
+                            </Button>
+                        </div>
+                    </Card>
+                )}
 
                 {/* Stepper */}
                 <Card padding={20} style={{ marginBottom: 14 }}>
@@ -456,6 +460,7 @@ export default function InscriptionPage() {
                             <Button
                                 icon={submitting ? undefined : "check"}
                                 loading={submitting}
+                                disabled={!!createdStudent}
                                 onClick={handleFinalize}
                             >
                                 Finaliser l'inscription

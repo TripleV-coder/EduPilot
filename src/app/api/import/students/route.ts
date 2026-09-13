@@ -3,13 +3,12 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Gender } from "@prisma/client";
 import { importStudentSchema } from "@/lib/import/schemas";
-import { hash } from "bcryptjs";
 import crypto from "crypto";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { generateImportPassword } from "@/lib/import/initial-password";
+import { issueProvisionalPassword, type ProvisionalCredential } from "@/lib/auth/provisional-password";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
@@ -35,6 +34,8 @@ export const POST = createApiHandler(
 
         const results = {
             created: 0,
+            // Identifiants provisoires (un par compte), renvoyés une seule fois (M1).
+            credentials: [] as ProvisionalCredential[],
             errors: [] as Array<{
                 row: number;
                 error: string;
@@ -45,8 +46,6 @@ export const POST = createApiHandler(
             }>,
         };
 
-        // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
-        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
         // Get School ID
         let schoolId = getActiveSchoolId(session) || null;
@@ -154,7 +153,9 @@ export const POST = createApiHandler(
                 }
 
                 // Create User & Student Profile
-                const hashedPassword = await hash(DEFAULT_IMPORT_PASSWORD, 10);
+                // Un mot de passe provisoire PAR compte (M1), jamais un secret de lot.
+                const provisional = await issueProvisionalPassword();
+                const hashedPassword = provisional.hash;
 
                 await prisma.$transaction(async (tx) => {
                     const user = await tx.user.create({
@@ -208,6 +209,13 @@ export const POST = createApiHandler(
                 });
 
                 results.created++;
+                results.credentials.push({
+                    row: index + 1,
+                    email: studentData.email,
+                    firstName: studentData.firstName,
+                    lastName: studentData.lastName,
+                    provisionalPassword: provisional.plain,
+                });
             } catch (err) {
                 logger.error("Error creating student", err, { module: "api/import/students", row: index + 1 });
                 results.errors.push({

@@ -21,6 +21,8 @@ import {
 } from "@/lib/import/mapping-utils";
 import { runValidations, readyCount, type ValidationCheck } from "@/lib/import/validators";
 import { listFrom } from "@/lib/api/list-payload";
+import { exportToCSV } from "@/lib/utils/export";
+import { buildCredentialsExport, readImportCredentials, type ImportCredential } from "@/lib/import/credentials-export";
 import {
     IMPORT_TYPE_LABELS,
     type SupportedImportType,
@@ -107,6 +109,8 @@ function ImportWizardPage() {
     const [progress, setProgress] = useState(0);
     const [importedCount, setImportedCount] = useState(0);
     const [importErrors, setImportErrors] = useState<Array<{ row?: number; error?: string; details?: string }>>([]);
+    // Mots de passe provisoires (un par compte créé), renvoyés une seule fois par l'import (M1).
+    const [credentials, setCredentials] = useState<ImportCredential[]>([]);
 
     const selectedConfig = selectedType ? IMPORT_TYPES.find((it) => it.id === selectedType) ?? null : null;
     const targetFields = selectedType ? FIELDS_BY_TYPE[selectedType] : [];
@@ -152,6 +156,7 @@ function ImportWizardPage() {
         setProgress(0);
         setImportedCount(0);
         setImportErrors([]);
+        setCredentials([]);
     }
 
     function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -197,6 +202,7 @@ function ImportWizardPage() {
             setProgress(100);
             setImportedCount(Number(result?.created ?? result?.count ?? 0));
             setImportErrors(Array.isArray(result?.errors) ? result.errors : []);
+            setCredentials(readImportCredentials(result));
             setStep("SUCCESS");
             toast({ title: "Importation réussie", description: `${result?.created ?? 0} enregistrements ajoutés.` });
         } catch (err) {
@@ -503,6 +509,7 @@ function ImportWizardPage() {
                 <SuccessCard
                     importedCount={importedCount}
                     importErrors={importErrors}
+                    credentials={credentials}
                     onReset={resetFlow}
                     typeLabel={selectedType ? IMPORT_TYPE_LABELS[selectedType] : "enregistrements"}
                 />
@@ -626,11 +633,13 @@ function SelectAndUpload({
 function SuccessCard({
     importedCount,
     importErrors,
+    credentials,
     onReset,
     typeLabel,
 }: {
     importedCount: number;
     importErrors: Array<{ row?: number; error?: string; details?: string }>;
+    credentials: ImportCredential[];
     onReset: () => void;
     typeLabel: string;
 }) {
@@ -665,6 +674,26 @@ function SuccessCard({
                             {err.row ? `Ligne ${err.row} · ` : ""}{err.error || err.details || "—"}
                         </p>
                     ))}
+                </div>
+            )}
+            {credentials.length > 0 && (
+                <div
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                >
+                    <p className="font-bold">Mots de passe provisoires · {credentials.length}</p>
+                    <p className="mt-1">
+                        Un mot de passe différent par compte, affiché une seule fois : téléchargez-les maintenant et
+                        transmettez-les aux titulaires. Chacun devra choisir son propre mot de passe à la première connexion.
+                    </p>
+                    <Button
+                        variant="secondary"
+                        onClick={() => exportToCSV(buildCredentialsExport(credentials, typeLabel))}
+                        className="mt-3"
+                        style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
+                    >
+                        Télécharger les identifiants (CSV)
+                    </Button>
                 </div>
             )}
             <Button

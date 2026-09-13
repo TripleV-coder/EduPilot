@@ -42,7 +42,8 @@ export const studentCreateSchema = z.object({
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim(),
   phone: phoneSchema,
-  password: strongPasswordSchema,
+  // Facultatif : sans mot de passe, le serveur en génère un provisoire unique (N31).
+  password: strongPasswordSchema.optional(),
   matricule: z.string().min(1, "Le matricule est obligatoire").max(50),
   dateOfBirth: z.coerce.date<string | Date>().optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
@@ -58,7 +59,8 @@ export const teacherCreateSchema = z.object({
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim(),
   phone: phoneSchema,
-  password: strongPasswordSchema,
+  // Facultatif : sans mot de passe, le serveur en génère un provisoire unique (N31).
+  password: strongPasswordSchema.optional(),
   matricule: z.string().max(50).optional(),
   specialization: z.string().max(100).optional(),
   // Entrée typée string|Date : bindings RHF sans cast (zod 4 type l'entrée

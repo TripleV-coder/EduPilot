@@ -17,6 +17,7 @@ import {
   createSchoolWithDefaults,
 } from "@/lib/schools/provisioning";
 import { schoolDeploymentSchema, schoolQuotaUpdateSchema } from "@/lib/validations/root";
+import { generateTempPassword } from "@/lib/auth/password-generator";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
@@ -228,6 +229,11 @@ export const POST = createApiHandler(
     const body = await request.json();
     const validatedData = schoolDeploymentSchema.parse(body);
     
+    // N31 : jamais de mot de passe standard. Sans saisie, mot de passe provisoire
+    // unique (haché par createSchoolAdminUser, qui impose mustChangePassword),
+    // renvoyé une seule fois au super-administrateur.
+    const provisionalAdminPassword = validatedData.adminPassword ? null : generateTempPassword();
+
     const result = await prisma.$transaction(async (tx) => {
       let organization = null;
 
@@ -260,7 +266,7 @@ export const POST = createApiHandler(
 
       const adminUser = await createSchoolAdminUser(tx, school.id, {
         email: validatedData.adminEmail,
-        password: validatedData.adminPassword,
+        password: validatedData.adminPassword ?? (provisionalAdminPassword as string),
         firstName: validatedData.adminFirstName,
         lastName: validatedData.adminLastName,
       });
@@ -293,7 +299,8 @@ export const POST = createApiHandler(
         id: result.adminUser.id, 
         email: result.adminUser.email,
         firstName: result.adminUser.firstName,
-        lastName: result.adminUser.lastName
+        lastName: result.adminUser.lastName,
+        ...(provisionalAdminPassword ? { provisionalPassword: provisionalAdminPassword } : {}),
       }
     }, { status: 201 });
   } catch (error) {

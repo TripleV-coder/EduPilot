@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import bcrypt from "bcryptjs";
 import { teacherCreateSchema } from "@/lib/validations/user";
+import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
 import {
   buildTeacherSchoolAssignments,
@@ -24,7 +25,6 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-const DEFAULT_PASSWORD = "00000000";
 
 /**
  * GET /api/teachers
@@ -210,7 +210,10 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
       }
 
-      const hashedPassword = await bcrypt.hash(validatedData.password || DEFAULT_PASSWORD, 10);
+      // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
+      // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
+      const provisional = validatedData.password ? null : await issueProvisionalPassword();
+      const hashedPassword = provisional?.hash ?? (await bcrypt.hash(validatedData.password as string, 10));
 
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -223,7 +226,8 @@ export const POST = createApiHandler(
             roles: ["TEACHER"],
             schoolId: targetSchoolId,
             phone: validatedData.phone,
-            mustChangePassword: !validatedData.password,
+            // Mot de passe connu de l'auteur de la création : à changer (M1).
+            mustChangePassword: true,
           }
         });
 
@@ -264,7 +268,10 @@ export const POST = createApiHandler(
       logger.info("Teacher created", { teacherId: result.profile.id, createdBy: session.user.id });
 
       await invalidateByPath(CACHE_PATHS.teachers).catch(() => {});
-      return NextResponse.json(result, { status: 201 });
+      return NextResponse.json(
+        provisional ? { ...result, provisionalPassword: provisional.plain } : result,
+        { status: 201 },
+      );
     } catch (error) {
       logger.error("Error creating teacher", error);
 

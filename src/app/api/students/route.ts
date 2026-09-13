@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { studentCreateSchema } from "@/lib/validations/user";
+import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import { isZodError } from "@/lib/is-zod-error";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
@@ -14,7 +15,6 @@ import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-const DEFAULT_PASSWORD = "00000000";
 
 /**
  * GET /api/students
@@ -334,8 +334,10 @@ export const POST = createApiHandler(
       }
     }
 
-    const passwordToSet = validatedData.password || DEFAULT_PASSWORD;
-    const hashedPassword = await bcrypt.hash(passwordToSet, 10);
+    // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
+    // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
+    const provisional = validatedData.password ? null : await issueProvisionalPassword();
+    const hashedPassword = provisional?.hash ?? (await bcrypt.hash(validatedData.password as string, 10));
 
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -347,7 +349,8 @@ export const POST = createApiHandler(
           role: "STUDENT",
           schoolId: targetSchoolId,
           phone: validatedData.phone,
-          mustChangePassword: !validatedData.password,
+          // Mot de passe connu de l'auteur de la création : à changer (M1).
+          mustChangePassword: true,
         },
       });
 
@@ -387,7 +390,10 @@ export const POST = createApiHandler(
     });
 
     logger.info("Student created", { studentId: result.id, createdBy: session.user.id });
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(
+      provisional ? { ...result, provisionalPassword: provisional.plain } : result,
+      { status: 201 },
+    );
   },
   {
     requireAuth: true,

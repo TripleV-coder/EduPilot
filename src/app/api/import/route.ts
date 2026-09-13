@@ -3,11 +3,10 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
-import { hash } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { generateImportPassword } from "@/lib/import/initial-password";
+import { issueProvisionalPassword, type ProvisionalCredential } from "@/lib/auth/provisional-password";
 
 export const POST = createApiHandler(
   async (request, { session }) => {
@@ -41,14 +40,14 @@ export const POST = createApiHandler(
       );
     }
 
-    // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
-    const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
+    // Identifiants provisoires (un par compte), renvoyés une seule fois (M1).
+    const credentials: ProvisionalCredential[] = [];
 
     try {
       const results = await prisma.$transaction(async (tx) => {
         const processed = [];
         
-        for (const item of data) {
+        for (const [index, item] of data.entries()) {
           if (type === "STUDENTS") {
             // Logique simplifiée pour l'exemple - En prod on mapperait via headers
             const firstName = item.firstName || item["Prénom"] || "Élève";
@@ -60,7 +59,9 @@ export const POST = createApiHandler(
               throw new Error("EMAIL_REQUIRED_FOR_STUDENT_IMPORT");
             }
 
-            const hashedPassword = await hash(DEFAULT_IMPORT_PASSWORD, 12);
+            // Un mot de passe provisoire PAR compte (M1), jamais un secret de lot.
+            const provisional = await issueProvisionalPassword(12);
+            const hashedPassword = provisional.hash;
 
             // 1. Créer User
             const user = await tx.user.create({
@@ -88,6 +89,13 @@ export const POST = createApiHandler(
             });
 
             processed.push(student.id);
+            credentials.push({
+              row: index + 1,
+              email,
+              firstName,
+              lastName,
+              provisionalPassword: provisional.plain,
+            });
           }
         }
         return processed;
@@ -96,6 +104,7 @@ export const POST = createApiHandler(
       return NextResponse.json({ 
         success: true, 
         count: results.length,
+        credentials,
         message: `${results.length} enregistrements importés.` 
       });
     } catch (error) {

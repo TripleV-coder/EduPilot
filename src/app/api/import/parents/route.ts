@@ -3,9 +3,8 @@ import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { importParentSchema } from "@/lib/import/schemas";
-import { hash } from "bcryptjs";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { generateImportPassword } from "@/lib/import/initial-password";
+import { issueProvisionalPassword, type ProvisionalCredential } from "@/lib/auth/provisional-password";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
@@ -31,6 +30,8 @@ export const POST = createApiHandler(
 
         const results = {
             created: 0,
+            // Identifiants provisoires (un par compte), renvoyés une seule fois (M1).
+            credentials: [] as ProvisionalCredential[],
             errors: [] as Array<{
                 row: number;
                 error: string;
@@ -62,8 +63,6 @@ export const POST = createApiHandler(
             return NextResponse.json({ error: "School not found" }, { status: 400 });
         }
 
-        // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
-        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
         for (const [index, item] of data.entries()) {
             const validation = importParentSchema.safeParse(item);
@@ -97,7 +96,9 @@ export const POST = createApiHandler(
             // Also check phone uniqueness if critical?
 
             try {
-                const hashedPassword = await hash(DEFAULT_IMPORT_PASSWORD, 10);
+                // Un mot de passe provisoire PAR compte (M1), jamais un secret de lot.
+                const provisional = await issueProvisionalPassword();
+                const hashedPassword = provisional.hash;
 
                 await prisma.$transaction(async (tx) => {
                     const user = await tx.user.create({
@@ -155,6 +156,13 @@ export const POST = createApiHandler(
                     }
                 });
                 results.created++;
+                results.credentials.push({
+                    row: index + 1,
+                    email: parentData.email,
+                    firstName: parentData.firstName,
+                    lastName: parentData.lastName,
+                    provisionalPassword: provisional.plain,
+                });
             } catch (err) {
                 logger.error("Error creating parent", err, { module: "api/import/parents", row: index + 1 });
                 results.errors.push({

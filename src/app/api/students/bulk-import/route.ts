@@ -4,13 +4,12 @@ import { Gender } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
-import bcrypt from "bcryptjs";
 import { importStudentSchema } from "@/lib/import/schemas";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { checkStudentQuota } from "@/lib/saas/quotas";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { generateImportPassword } from "@/lib/import/initial-password";
+import { issueProvisionalPassword, type ProvisionalCredential } from "@/lib/auth/provisional-password";
 
 // Wrap the shared schema in an array for bulk import structure expectations if needed
 // But the shared schema is for a single student. 
@@ -66,9 +65,9 @@ export const POST = createApiHandler(
       failed: 0,
       errors: [] as string[],
       created: [] as string[],
+      // Identifiants provisoires (un par compte), renvoyés une seule fois (M1).
+      credentials: [] as ProvisionalCredential[],
     };
-    // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
-        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
 
     // Pre-fetch existing data in batch to avoid N+1 queries
     const allEmails = students.map((s) => s.email);
@@ -98,9 +97,7 @@ export const POST = createApiHandler(
       ? parseInt(lastMatricule.matricule.replace(/^E/, "")) + 1
       : 1;
 
-    const hashedPassword = await bcrypt.hash(DEFAULT_IMPORT_PASSWORD, 12);
-
-    for (const student of students) {
+    for (const [index, student] of students.entries()) {
       try {
         if (existingEmailSet.has(student.email)) {
           results.failed++;
@@ -124,12 +121,15 @@ export const POST = createApiHandler(
         existingEmailSet.add(student.email);
         if (matricule) existingMatriculeSet.add(matricule);
 
+        // Un mot de passe provisoire PAR compte (M1), jamais un secret de lot.
+        const provisional = await issueProvisionalPassword();
+
         // Create user and student profile in a transaction
         await prisma.$transaction(async (tx) => {
           const newUser = await tx.user.create({
             data: {
               email: student.email,
-              password: hashedPassword,
+              password: provisional.hash,
               firstName: student.firstName,
               lastName: student.lastName,
               role: "STUDENT",
@@ -210,6 +210,13 @@ export const POST = createApiHandler(
         });
 
         results.created.push(`${student.firstName} ${student.lastName} (${student.email})`);
+        results.credentials.push({
+          row: index + 1,
+          email: student.email,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          provisionalPassword: provisional.plain,
+        });
         results.success++;
       } catch (error) {
         logger.error("Bulk import row failed", error instanceof Error ? error : new Error(String(error)), { module: "api/students/bulk-import" });
@@ -221,6 +228,7 @@ export const POST = createApiHandler(
     return NextResponse.json({
       message: `Import terminé: ${results.success} étudiants créés, ${results.failed} échoués`,
       results,
+      credentials: results.credentials,
     });
   },
   {
