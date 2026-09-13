@@ -311,7 +311,11 @@ Aucun. Les tests unitaires des routes modifiées (111 cas) passent sans changeme
 ### Reste à faire (Lot 4)
 
 1. ✅ Balayage des routes `[id]` (`36fecda`), sur PostgreSQL réel. Chaque méthode exportée de **67 routes** est appelée par l'admin d'une autre école : seules 403 et 404 sont acceptées, et la ligne visée par une écriture doit rester identique en base. Un contrôle positif du propriétaire (GET 200) écarte les faux 404. Il a d'ailleurs révélé que le DELETE vulnérable supprimait en cascade modules et leçons. Résultat : **1 fuite réelle (N32) et 1 refus en 400 (N33), corrigés : 67/67**. Trois routes sont hors balayage, avec justification : `auth/[...nextauth]` (pas une ressource), `public/schools/[code]` (vitrine publique par conception), `uploads/[type]/[filename]` (contrôle par manifeste de fichiers ; le cas inter-écoles est couvert par `uploads-route.test.ts:187`, 403). Soit 70 routes au total.
-2. **M2 — RLS effective** (option a retenue) : rôle applicatif non propriétaire, `FORCE ROW LEVEL SECURITY`, extension aux tables sensibles ; scripts de migration pour la base réelle exécutés par le propriétaire (règle 5).
+2. **M2 — RLS effective** (option a retenue). Rôle applicatif non propriétaire, `FORCE ROW LEVEL SECURITY`, extension aux tables sensibles. Les scripts destinés à la base réelle sont exécutés par le propriétaire (règle 5).
+   **Décisions du propriétaire (2026-09-13)**, prises après mesure du surcoût (+0,8 ms par requête : 1,27 → 2,08 ms p50 sur la base d'audit, `.quality-tmp/rls-overhead.cjs`) :
+   - **fermée par défaut** : sans contexte d'établissement, les tables couvertes apparaissent vides ; les contextes système (connexion, crons, webhooks, console root, installation) sont déclarés explicitement ;
+   - **périmètre « données sensibles »** : élèves, notes, paiements, dossiers médicaux, allergies, vaccinations, contacts d'urgence, incidents de discipline, présences, évaluations.
+   Constat préalable : 283 routes sur 285 passent par `createApiHandler` (les 2 autres, `setup` et `auth/[...nextauth]`, sont des contextes système). Le contexte peut donc être posé automatiquement.
 3. Batterie du Lot 4.
 
 ---
