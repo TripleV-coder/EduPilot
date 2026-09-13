@@ -3,7 +3,7 @@
 //   QUALITY_PATHS="/api/a,/api/b"  pour surcharger la liste ; "__CLASS__" est remplacé par une classe de l'école.
 //   QUALITY_SERVER_PID=<pid>        pour relever la RSS du serveur avant/après.
 import { readFileSync } from "fs";
-import { BASE, login, fakeIp, pct, ROLE_ACCOUNTS, DEMO_PASSWORD, prismaForDisposableDb } from "./lib.mjs";
+import { BASE, login, fakeIp, pct, ROLE_ACCOUNTS, DEMO_PASSWORD, prismaForDisposableDb, retryAfterMs, sleep } from "./lib.mjs";
 
 const role = process.argv[2] || "SCHOOL_ADMIN";
 const n = Number(process.argv[3] || 30);
@@ -43,11 +43,21 @@ for (const p of paths) {
   const statuses = {};
   let bytes = 0;
   for (let i = 0; i < n; i++) {
-    const t0 = performance.now();
+    let t0 = performance.now();
     const ctl = new AbortController();
     const to = setTimeout(() => ctl.abort(), 20000);
     try {
-      const r = await fetch(`${BASE}${p}`, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
+      let r = await fetch(`${BASE}${p}`, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
+      // Un 429 (rate-limit : une seule adresse depuis H3) ne mesure pas la route :
+      // attente Retry-After puis nouvel essai, seul le dernier essai est chronométré.
+      for (let retry = 0; r.status === 429 && retry < 5; retry++) {
+        const wait = retryAfterMs(r);
+        await r.arrayBuffer();
+        console.log(`  (429 sur ${p} : attente ${wait / 1000} s)`);
+        await sleep(wait);
+        t0 = performance.now();
+        r = await fetch(`${BASE}${p}`, { headers: { cookie, "x-forwarded-for": fakeIp() }, signal: ctl.signal });
+      }
       bytes = (await r.arrayBuffer()).byteLength;
       statuses[r.status] = (statuses[r.status] || 0) + 1;
     } catch {

@@ -26,10 +26,12 @@ try {
     // Les statistiques sont publiées en fin de transaction, avec un léger différé.
     await new Promise((resolve) => setTimeout(resolve, 1500));
     const rows = await prisma.$queryRawUnsafe(`
-      SELECT relname AS "table", n_live_tup::int AS "rows", seq_scan::int AS "seqScans",
-             seq_tup_read::bigint AS "seqRowsRead", COALESCE(idx_scan, 0)::int AS "indexScans"
-      FROM pg_stat_user_tables
-      WHERE seq_scan > 0
+      SELECT s.relname AS "table", GREATEST(c.reltuples, 0)::bigint AS "rows", s.seq_scan::int AS "seqScans",
+             s.seq_tup_read::bigint AS "seqRowsRead", COALESCE(s.idx_scan, 0)::int AS "indexScans"
+      -- pg_stat_reset() remet aussi n_live_tup à zéro : taille lue dans pg_class.
+      FROM pg_stat_user_tables s
+      JOIN pg_class c ON c.oid = s.relid
+      WHERE s.seq_scan > 0
       ORDER BY seq_tup_read DESC
       LIMIT 25`);
     console.log("table".padEnd(32), "lignes".padStart(9), "parcours seq".padStart(13), "lignes lues".padStart(13), "parcours index".padStart(15));
