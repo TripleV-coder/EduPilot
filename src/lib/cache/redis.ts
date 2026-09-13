@@ -49,25 +49,87 @@ export interface CacheService {
 // Implémentation in-memory (fallback)
 // ---------------------------------------------------------------------------
 
-class MemoryCache implements CacheService {
-    private cache: Map<string, { value: unknown; expiresAt: number }> = new Map();
+export interface MemoryCacheOptions {
+    /** Nombre maximal d'entrées ; au-delà, la moins récemment utilisée est évincée. */
+    maxEntries?: number;
+    /** Volume maximal estimé (JSON sérialisé, en octets) de l'ensemble des valeurs. */
+    maxBytes?: number;
+    /** Intervalle minimal entre deux purges des entrées expirées jamais relues. */
+    sweepIntervalMs?: number;
+    /** Horloge injectable (tests). */
+    now?: () => number;
+}
+
+type MemoryEntry = { value: unknown; expiresAt: number; bytes: number };
+
+/**
+ * Cache mémoire borné (N28). C'est le cache de production (instance unique,
+ * sans Upstash) : ses clés portent l'URL, ses paramètres et l'utilisateur, il
+ * doit donc rester borné en nombre d'entrées et en volume. Éviction LRU (ordre
+ * d'insertion de la Map, rafraîchi à chaque lecture) et purge périodique des
+ * entrées expirées lors des écritures.
+ */
+export class MemoryCache implements CacheService {
+    private cache: Map<string, MemoryEntry> = new Map();
+    private totalBytes = 0;
+    private lastSweep: number;
+    private readonly maxEntries: number;
+    private readonly maxBytes: number;
+    private readonly sweepIntervalMs: number;
+    private readonly now: () => number;
+
+    constructor(options: MemoryCacheOptions = {}) {
+        this.maxEntries = options.maxEntries ?? 5_000;
+        this.maxBytes = options.maxBytes ?? 64 * 1024 * 1024;
+        this.sweepIntervalMs = options.sweepIntervalMs ?? 60_000;
+        this.now = options.now ?? Date.now;
+        this.lastSweep = this.now();
+    }
+
+    get size(): number {
+        return this.cache.size;
+    }
+
+    get bytes(): number {
+        return this.totalBytes;
+    }
 
     async get<T>(key: string): Promise<T | null> {
         const item = this.cache.get(key);
         if (!item) return null;
-        if (item.expiresAt < Date.now()) {
-            this.cache.delete(key);
+        if (item.expiresAt < this.now()) {
+            this.remove(key);
             return null;
         }
+        // Rafraîchit la position LRU.
+        this.cache.delete(key);
+        this.cache.set(key, item);
         return item.value as T;
     }
 
     async set(key: string, value: unknown, ttl = 3600): Promise<void> {
-        this.cache.set(key, { value, expiresAt: Date.now() + ttl * 1000 });
+        this.remove(key);
+        this.sweepExpired();
+
+        let bytes: number;
+        try {
+            bytes = Buffer.byteLength(key) + Buffer.byteLength(JSON.stringify(value) ?? "");
+        } catch {
+            return; // valeur non sérialisable : non mise en cache (simple défaut de cache)
+        }
+        if (bytes > this.maxBytes) return;
+
+        this.cache.set(key, { value, expiresAt: this.now() + ttl * 1000, bytes });
+        this.totalBytes += bytes;
+
+        for (const oldest of this.cache.keys()) {
+            if (this.cache.size <= this.maxEntries && this.totalBytes <= this.maxBytes) break;
+            this.remove(oldest);
+        }
     }
 
     async delete(key: string): Promise<void> {
-        this.cache.delete(key);
+        this.remove(key);
     }
 
     async clear(pattern?: string): Promise<void> {
@@ -76,10 +138,27 @@ class MemoryCache implements CacheService {
             const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const regex = new RegExp(pattern.endsWith("*") ? `^${escaped}.*` : `^${escaped}$`);
             for (const key of this.cache.keys()) {
-                if (regex.test(key)) this.cache.delete(key);
+                if (regex.test(key)) this.remove(key);
             }
         } else {
             this.cache.clear();
+            this.totalBytes = 0;
+        }
+    }
+
+    private remove(key: string): void {
+        const item = this.cache.get(key);
+        if (!item) return;
+        this.cache.delete(key);
+        this.totalBytes -= item.bytes;
+    }
+
+    private sweepExpired(): void {
+        const now = this.now();
+        if (now - this.lastSweep < this.sweepIntervalMs) return;
+        this.lastSweep = now;
+        for (const [key, item] of this.cache) {
+            if (item.expiresAt < now) this.remove(key);
         }
     }
 }
