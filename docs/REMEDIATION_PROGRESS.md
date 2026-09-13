@@ -278,6 +278,42 @@ Réserves, consignées honnêtement :
 
 ---
 
+## Lot 4 — Isolation, comptes et contrôle d'accès (en cours, commencé le 2026-09-13)
+
+Décisions déjà prises par le propriétaire (2026-09-12) : **2FA facultative pour tous** (rien à implémenter) ; **RLS option (a)**, effective (rôle applicatif non propriétaire, `FORCE ROW LEVEL SECURITY`).
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `6fbd7e2` | fix(auth) **[M1]** : `mustChangePassword` dans `authorize()` → JWT → session (Node et Edge) ; middleware : pages → `/first-login`, API → 403 `PASSWORD_CHANGE_REQUIRED`, `/api/auth/*` joignable, second facteur prioritaire ; `POST /api/auth/first-login` sans jeton = changement depuis la session ; les deux parcours lèvent l'indicateur et positionnent `passwordChangedAt` ; écran `/first-login` : logique dans `hooks/use-first-login` |
+| `89080bd` | fix(security) **[M1][N31]** : mot de passe provisoire unique par compte (`lib/auth/provisional-password`) pour les 4 créations unitaires, le déploiement root et les 5 imports ; fin de « 00000000 » ; identifiants renvoyés une seule fois et affichés (écrans enseignant/utilisateur : `<code>` existant ; inscription : `Card` ; root : `Dialog` ; import : téléchargement CSV) |
+
+### Parcours du titulaire d'un compte créé par un tiers
+
+1. L'auteur (admin, import, console root) reçoit **une fois** le mot de passe provisoire, différent pour chaque compte.
+2. Le titulaire se connecte avec son email et ce mot de passe. Le middleware le confine à `/first-login`.
+3. Il saisit le mot de passe provisoire et choisit le sien. L'indicateur est levé, la session est fermée, il se reconnecte.
+
+### Tests existants modifiés (règle 4)
+
+Aucun. Les tests unitaires des routes modifiées (111 cas) passent sans changement.
+
+### Risques résiduels (M1 / N31)
+
+- **Mot de passe provisoire perdu.** Il n'est affiché qu'une fois (réponse de l'API). Si l'auteur ferme l'écran sans le noter, il faut réinitialiser le mot de passe du compte. L'existence d'une réinitialisation par l'admin reste à vérifier au Lot 5 (parcours de démarrage à vide).
+- **Robustesse du format.** Le format « XXXX-9999 » donne ~1,15 × 10⁹ combinaisons. La devinette est bornée par le verrouillage de compte et la limite d'échecs par adresse (H4), et la fenêtre dure jusqu'à la première connexion.
+- **Code mort.** `lib/import/initial-password.ts` (`generateImportPassword`) n'est plus appelé mais conservé, car son test existe (règle 4). `lib/auth/user-creation.ts` n'est importé nulle part et ne positionnait pas `mustChangePassword`. Les deux relèvent de **L3** (Lot 8).
+- **E2E du premier login forcé** (créer un compte depuis l'écran, se connecter avec le mot de passe affiché, être forcé de le changer) : à ajouter au Lot 5 avec les comptes E2E dédiés (N4/N17).
+
+### Reste à faire (Lot 4)
+
+1. Balayage des 70 routes `[id]` : test d'intégration générique (admin d'une autre école → 403/404), correction des routes en échec.
+2. **M2 — RLS effective** (option a retenue) : rôle applicatif non propriétaire, `FORCE ROW LEVEL SECURITY`, extension aux tables sensibles ; scripts de migration pour la base réelle exécutés par le propriétaire (règle 5).
+3. Batterie du Lot 4.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -293,7 +329,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | H4 | Élevée | Pas de limite IP sur `/api/auth/callback/credentials` | 1 | Corrigé (échecs seulement — voir Lot 1) | `e2b1751` | `tests/api/auth-login-rate-limit.test.ts` (5) ; `security.mjs bruteforce` sur build de prod | 12×302, 0×429 | `{"302":10,"429":2}` ; 30 succès même IP : 0×429 |
 | H5 | Élevée | IDOR `subjects/categories/[id]` (+ N3) | 1 | Corrigé | `563ccb6` | `tests/integration-db/subject-categories-isolation.test.ts` (7, PG réel) ; `security.mjs idor` | GET/PATCH/DELETE 200 (persisté) | 404/404/404, rien persisté |
 | H6 | Élevée | Redis injoignable : +4,3 s par requête | 2 | Corrigé | `1fe4a19` | `tests/lib/redis/circuit.test.ts` (5), `tests/lib/redis/outage.test.ts` (3, vrai port fermé) ; `redis-outage.mjs` sur build de prod | `/api/auth/csrf` p50 4 319 / p95 4 360 ms | 10×200, p50 14 / p95 24 ms ; `/api/health` 14–97 ms |
-| M1 | Moyenne | `mustChangePassword` jamais imposé | 4 | Constat audit | — | E2E premier login forcé | — | — |
+| M1 | Moyenne | `mustChangePassword` jamais imposé | 4 | Corrigé (E2E du premier login forcé : Lot 5) | `6fbd7e2` `89080bd` | `must-change-password-gate.test.ts` (8), `use-first-login.test.tsx` (6), intégration PG `first-login-session` (3), `first-login-token` (1), `provisional-passwords` (9), `provisional-passwords-root` (2) | indicateur lu nulle part ; imports : un secret par lot, communiqué à personne | session confinée à `/first-login` (API 403 `PASSWORD_CHANGE_REQUIRED`) ; mot de passe provisoire unique par compte, renvoyé une fois ; indicateur levé et session invalidée au changement |
 | M2 | Moyenne | RLS inerte | 4 | Constat audit | — | selon option retenue (a/b) | — | — |
 | M3 | Moyenne | JSON invalide / ZodError → 500 | 2 | Corrigé | `6cd4595` | `tests/lib/api/api-handler-body.test.ts` (7) ; `tests/integration-db/api-body-validation.test.ts` (3, PG réel) ; `security.mjs json` | `{}` → 500, `{bad` → 500 ; corps de 5 Mo lu en entier | 400 `VALIDATION_ERROR` / 400 `INVALID_JSON` ; > 1 Mo → 413 ; rien écrit |
 | M4 | Moyenne | Croissance mémoire (aggravée : N1) | 3 | Corrigé | `0356461` (N1) `2a24ac2` (N28) | RSS relevée pendant la batterie du Lot 3 | 8 746 Mo | 395 Mo après smoke 7 rôles + latences + Lighthouse |
@@ -341,6 +377,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N28 | Élevée | Le cache mémoire (`MemoryCache`, `lib/cache/redis.ts`) — **cache de production** (instance unique sans Upstash, décision du propriétaire) — est une `Map` sans borne ; une entrée expirée n'est retirée qu'à la relecture de la même clé. Les clés portent l'URL, ses paramètres (curseur, recherche) et l'utilisateur, les valeurs la réponse entière : la mémoire du serveur croît jusqu'au redémarrage (famille M4/N1) | 3 | Corrigé | `2a24ac2` | `tests/lib/cache/memory-cache.test.ts` (6 ; rouge avant : classe non bornée, non exportée) | RSS 338 → 545 Mo après la série de mesures (critère < 500 Mo) | 5 000 entrées / 64 Mo max, LRU, purge des expirées à l'écriture (toutes les 60 s) ; RSS 395 Mo en fin de batterie |
 | N29 | Élevée (données personnelles) | `withCache` (`lib/api/cache-helpers.ts`, 14 routes : notes, paiements, messages, statistiques…) renvoie `Cache-Control: public, max-age=…` sur des réponses propres à un utilisateur ou à une école : un proxy ou cache partagé du réseau d'établissement peut les stocker et les resservir à un autre utilisateur | 3 | Corrigé | `2da4d02` | `tests/lib/api/cache-helpers-privacy.test.ts` (2, rouges avant) | `public, max-age=60` (MISS et HIT) | `private, max-age=60` |
 | N30 | Faible | `getUpstashClient()` journalise « Redis non configuré — cache désactivé » en `warn` à **chaque** appel en production (des dizaines de lignes par seconde dans `server.log`), et le message est faux : le cache mémoire est actif (mode de production retenu) | 7 (journaux) | Constat Lot 3 | — | `.quality-tmp/server.log` | — | — |
+| N31 | Élevée (comptes, dont mineurs) | Mot de passe standard « 00000000 » : `DEFAULT_PASSWORD` des routes élève/enseignant quand aucun mot de passe n'est fourni ; écrans « Ajouter un enseignant », « Nouvel utilisateur », « Nouvelle inscription » qui envoyaient « 00000000 » (refusé par la validation forte : **création impossible depuis ces écrans**) et l'affichaient comme identifiant ; console root pré-remplie à « 00000000 » pour l'admin d'une nouvelle école. Sans M1, un compte à mot de passe connu restait ouvert indéfiniment | 4 | Corrigé | `89080bd` | `provisional-passwords.test.ts` (9, PG réel), `provisional-passwords-root.test.ts` (2, PG réel), `use-create-account.test.tsx` (5), `inscription-submit.test.ts` (3), `credentials-export.test.ts` (3) | création sans mot de passe → 400 ; mot de passe choisi par l'admin jamais à changer | mot de passe provisoire unique généré et affiché une fois ; changement exigé pour tout compte créé par un tiers ; plus aucune occurrence de « 00000000 » dans `src/` |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
