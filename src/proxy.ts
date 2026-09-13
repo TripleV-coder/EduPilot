@@ -79,6 +79,9 @@ const PUBLIC_ROUTES = new Set([
  */
 const MFA_VERIFY_ROUTE = "/mfa-verify";
 
+/** Écran de choix du mot de passe définitif (compte créé par un tiers, M1). */
+const PASSWORD_CHANGE_ROUTE = "/first-login";
+
 const GUEST_ONLY_ROUTES = new Set([
   "/login",
   "/register",
@@ -198,7 +201,11 @@ export default async function proxy(request: NextRequest) {
 
   if (isGuestOnly) {
     const session = await auth();
-    if (session?.user?.id) {
+    // Une session tenue de changer son mot de passe provisoire (M1) doit
+    // pouvoir ouvrir /first-login : c'est sa seule sortie de cet état.
+    const isPasswordChangeExit =
+      pathname === PASSWORD_CHANGE_ROUTE && session?.user?.mustChangePassword === true;
+    if (session?.user?.id && !isPasswordChangeExit) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return pageResponse(request);
@@ -251,6 +258,21 @@ export default async function proxy(request: NextRequest) {
     const mfaUrl = new URL(MFA_VERIFY_ROUTE, request.url);
     mfaUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(mfaUrl);
+  }
+
+  // ── MOT DE PASSE PROVISOIRE À CHANGER (M1) ──
+  // Compte créé par un tiers (admin, import) : tant que le titulaire n'a pas
+  // choisi son mot de passe, la session est confinée à /first-login (les
+  // routes /api/auth/*, publiques, restent joignables pour changer le mot de
+  // passe, lire la session et se déconnecter).
+  if (session.user.mustChangePassword === true) {
+    if (isApi) {
+      return NextResponse.json(
+        { error: "Vous devez choisir un nouveau mot de passe", code: "PASSWORD_CHANGE_REQUIRED" },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL(PASSWORD_CHANGE_ROUTE, request.url));
   }
 
   // ── MODE MAINTENANCE ──

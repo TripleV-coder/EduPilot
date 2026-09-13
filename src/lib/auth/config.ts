@@ -51,6 +51,8 @@ export interface AuthUser {
   accessibleSchoolIds: string[];
   isTwoFactorEnabled: boolean;
   isTwoFactorAuthenticated: boolean;
+  /** Compte créé par un tiers : mot de passe provisoire à remplacer (M1). */
+  mustChangePassword: boolean;
   permissions?: Permission[]; // Union of permissions
   avatar?: string | null;
 }
@@ -153,6 +155,7 @@ export const authConfig: NextAuthConfig = {
             isTwoFactorEnabled: true,
             twoFactorSecret: true,
             twoFactorBackupCodes: true,
+            mustChangePassword: true,
             avatar: true,
           },
         });
@@ -283,6 +286,7 @@ export const authConfig: NextAuthConfig = {
           accessibleSchoolIds,
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
+          mustChangePassword: user.mustChangePassword === true,
           permissions: getRolePermissions(effectiveRoles),
           avatar: user.avatar,
         };
@@ -307,6 +311,7 @@ export const authConfig: NextAuthConfig = {
         token.lastName = authUser.lastName;
         token.isTwoFactorEnabled = authUser.isTwoFactorEnabled;
         token.isTwoFactorAuthenticated = authUser.isTwoFactorAuthenticated;
+        token.mustChangePassword = authUser.mustChangePassword;
         token.avatar = authUser.avatar;
       }
 
@@ -475,6 +480,7 @@ export const authConfig: NextAuthConfig = {
         session.user.lastName = token.lastName;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
         session.user.isTwoFactorAuthenticated = token.isTwoFactorAuthenticated as boolean;
+        session.user.mustChangePassword = token.mustChangePassword === true;
         session.user.avatar = token.avatar as string | null | undefined;
       }
       return session;

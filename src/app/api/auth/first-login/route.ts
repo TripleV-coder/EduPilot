@@ -17,6 +17,63 @@ import {
   FORGOT_PASSWORD_RATE_LIMIT,
 } from '@/lib/auth/rate-limiter';
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { auth } from "@/lib/auth";
+import { invalidateUserStatusCache } from "@/lib/auth/config";
+
+/**
+ * M1 — compte créé par un tiers, connecté avec son mot de passe provisoire :
+ * le middleware le confine à /first-login, qui change le mot de passe depuis
+ * la SESSION (la plupart des comptes importés ne reçoivent aucun lien).
+ * `passwordChangedAt` invalide la session en cours : reconnexion avec le
+ * nouveau mot de passe.
+ */
+async function changeProvisionalPasswordFromSession(
+  currentPassword: string | undefined,
+  newPassword: string,
+) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: 'Token manquant' }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, password: true, mustChangePassword: true },
+  });
+  if (!user?.mustChangePassword) {
+    return NextResponse.json(
+      { error: "Aucun mot de passe provisoire à remplacer pour ce compte" },
+      { status: 400 }
+    );
+  }
+  if (!currentPassword) {
+    return NextResponse.json({ error: 'Mot de passe temporaire requis' }, { status: 400 });
+  }
+  if (!(await bcrypt.compare(currentPassword, user.password ?? ""))) {
+    return NextResponse.json({ error: 'Mot de passe temporaire incorrect' }, { status: 401 });
+  }
+  if (await bcrypt.compare(newPassword, user.password ?? "")) {
+    return NextResponse.json(
+      { error: 'Le nouveau mot de passe doit être différent du temporaire' },
+      { status: 400 }
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, mustChangePassword: false, passwordChangedAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: { userId: user.id, action: 'PASSWORD_CHANGED_FIRST_LOGIN', entity: 'user', entityId: user.id },
+    }),
+  ]);
+  invalidateUserStatusCache(user.id);
+
+  return NextResponse.json({ success: true, message: 'Mot de passe changé avec succès' });
+}
 
 /**
  * GET - Valider le token et obtenir les infos utilisateur
@@ -106,7 +163,8 @@ export const POST = createApiHandler(
       }
 
       const schema = z.object({
-        token: z.string(),
+        // Sans jeton : changement depuis la session (M1).
+        token: z.string().optional(),
         currentPassword: z.string().optional(),
         newPassword: z
           .string()
@@ -119,6 +177,10 @@ export const POST = createApiHandler(
 
       const body = await req.json();
       const validated = schema.parse(body);
+
+      if (!validated.token) {
+        return changeProvisionalPasswordFromSession(validated.currentPassword, validated.newPassword);
+      }
 
       // 1. Trouver le token
       const tokenRecord = await prisma.firstLoginToken.findUnique({
@@ -194,6 +256,9 @@ export const POST = createApiHandler(
           data: {
             password: hashedPassword,
             emailVerified: new Date(),
+            // M1 : l'obligation est levée et la session en cours invalidée.
+            mustChangePassword: false,
+            passwordChangedAt: new Date(),
           },
         });
 
@@ -213,6 +278,8 @@ export const POST = createApiHandler(
           },
         });
       });
+
+      invalidateUserStatusCache(tokenRecord.userId);
 
       return NextResponse.json({
         success: true,
