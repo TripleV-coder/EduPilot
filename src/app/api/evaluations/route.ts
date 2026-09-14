@@ -26,8 +26,23 @@ const EVALUATION_LIST_SELECT = {
       subject: { select: { id: true, name: true } },
     },
   },
-  _count: { select: { grades: true } },
 } satisfies Prisma.EvaluationSelect;
+
+/**
+ * Nombre de notes des seules évaluations de la page, en une requête groupée.
+ * `_count: { grades }` dans la liste se traduisait par une jointure sur un
+ * agrégat de TOUTES les notes ; sous RLS (audit M2), le planificateur le
+ * réexécutait pour chaque évaluation : 11 s pour la liste d'un enseignant.
+ */
+async function gradeCountsFor(evaluationIds: string[]): Promise<Map<string, number>> {
+  if (evaluationIds.length === 0) return new Map();
+  const groups = await prisma.grade.groupBy({
+    by: ["evaluationId"],
+    where: { evaluationId: { in: evaluationIds } },
+    _count: { _all: true },
+  });
+  return new Map(groups.map((group) => [group.evaluationId, group._count._all]));
+}
 
 /** Bornes d'un filtre `from`/`to` (AAAA-MM-JJ, jours inclus). */
 function parseDay(value: string | null): Date | null {
@@ -116,7 +131,8 @@ export const GET = createApiHandler(
     ]);
 
     const page = buildCursorPage(rows, pageParams.limit, (row) => row.date);
-    const data = page.data.map(({ _count, ...evaluation }) => ({ ...evaluation, gradeCount: _count.grades }));
+    const counts = await gradeCountsFor(page.data.map((evaluation) => evaluation.id));
+    const data = page.data.map((evaluation) => ({ ...evaluation, gradeCount: counts.get(evaluation.id) ?? 0 }));
 
     return NextResponse.json({
       data,

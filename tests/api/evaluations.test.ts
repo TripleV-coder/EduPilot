@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
     teacherProfile: { findFirst: vi.fn() },
     classSubject: { findUnique: vi.fn(), findMany: vi.fn() },
     evaluation: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() },
+    grade: { groupBy: vi.fn() },
     period: { findUnique: vi.fn() },
     evaluationType: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
@@ -51,6 +52,7 @@ function evaluationFixture(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.grade.groupBy).mockResolvedValue([] as never);
 });
 
 // Audit C3 / N9 : les tests GET exigeaient une liste brute, non paginée,
@@ -75,9 +77,11 @@ describe("GET /api/evaluations", () => {
 
   it("renvoie une page { data, pagination } limitée à l'école d'un SCHOOL_ADMIN, sans notes", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([
-      { ...evaluationFixture(), _count: { grades: 3 } },
-    ] as never);
+    // Le nombre de notes vient d'une requête groupée sur les évaluations de la
+    // page (audit M2 : `_count` dans la liste dégénérait sous RLS) ; il était
+    // auparavant simulé par `_count: { grades: 3 }` dans les lignes.
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([evaluationFixture()] as never);
+    vi.mocked(prisma.grade.groupBy).mockResolvedValue([{ evaluationId, _count: { _all: 3 } }] as never);
     vi.mocked(prisma.evaluation.count).mockResolvedValue(1 as never);
 
     const res = await GET(makeRequest(evaluationRoute));
@@ -85,6 +89,10 @@ describe("GET /api/evaluations", () => {
     const body = await res.json();
     expect(body.data).toHaveLength(1);
     expect(body.data[0].gradeCount).toBe(3);
+    expect(vi.mocked(prisma.grade.groupBy).mock.calls[0][0]).toMatchObject({
+      by: ["evaluationId"],
+      where: { evaluationId: { in: [evaluationId] } },
+    });
     expect(body.pagination).toMatchObject({ limit: 20, hasNextPage: false, nextCursor: null, total: 1 });
     const args = findManyArgs();
     expect(args.where.AND[0].AND).toContainEqual({ classSubject: { class: { schoolId: FIXTURES.schoolA } } });

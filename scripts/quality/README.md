@@ -24,12 +24,21 @@ export QUALITY_DISPOSABLE_DB=1
 DATABASE_URL="$QUALITY_DATABASE_URL" npx prisma migrate deploy
 DATABASE_URL="$QUALITY_DATABASE_URL" npm run db:seed          # ~8 min, 125 000 notes
 
-# 2. Build et serveur de production sur le port 3100
+# 2. Rôle applicatif soumis à la RLS (audit M2) : le serveur de production
+#    refuse de démarrer avec un rôle superutilisateur ou BYPASSRLS.
+ADMIN_DATABASE_URL="$QUALITY_DATABASE_URL" APP_DB_PASSWORD=audit-app-role-password \
+  node scripts/db/setup-app-role.mjs
+export QUALITY_APP_DATABASE_URL="postgresql://edupilot_app:audit-app-role-password@localhost:5433/edupilot_audit?schema=public"
+
+# 3. Build et serveur de production sur le port 3100
 npm run build
-DATABASE_URL="$QUALITY_DATABASE_URL" AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 \
+DATABASE_URL="$QUALITY_APP_DATABASE_URL" AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 \
   UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= SKIP_ENV_VALIDATION=true \
   PORT=3100 npm run start -- -p 3100
 ```
+
+`QUALITY_DATABASE_URL` (propriétaire) sert au seed et aux lectures directes des scripts (`db-counts.mjs`,
+`pg-seq-scans.mjs`, vérifications de `security.mjs`) ; le serveur utilise `QUALITY_APP_DATABASE_URL`.
 
 `npm run start` charge `scripts/server/client-ip-preload.cjs` (adresse client fiable, audit H3). Sans lui,
 toutes les requêtes partagent l'IP `unknown` et `security.mjs xff` ne mesure plus le vrai comportement.

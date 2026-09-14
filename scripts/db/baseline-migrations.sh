@@ -92,6 +92,8 @@ npx prisma db execute --url "$DATABASE_URL" \
 echo "RLS effective sur les tables sensibles (audit M2)…"
 npx prisma db execute --url "$DATABASE_URL" \
   --file prisma/migrations/20260913120000_rls_effective_sensitive_tables/migration.sql
+npx prisma db execute --url "$DATABASE_URL" \
+  --file prisma/migrations/20260914090000_rls_policies_index_friendly/migration.sql
 
 echo "Rattachement enseignants ↔ établissements…"
 npx prisma db execute --url "$DATABASE_URL" --stdin <<'SQL'
