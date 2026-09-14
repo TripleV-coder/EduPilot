@@ -1,0 +1,70 @@
+import * as XLSX from "xlsx";
+
+/**
+ * Lecture d'un fichier d'import (CSV, XLSX, XLS) à partir de ses OCTETS
+ * (Lot 5, N45). L'ancienne lecture (readAsBinaryString + XLSX type "binary")
+ * abîmait les CSV en UTF-8 sans BOM — export par défaut de LibreOffice ou
+ * Google Sheets — (« AÃ¯cha ») et perdait les caractères Windows-1252 hors
+ * Latin-1, dont l'apostrophe typographique (« NDiaye »).
+ *
+ * - Classeurs Excel reconnus à leur signature (ZIP pour .xlsx, OLE pour .xls).
+ * - CSV : UTF-8 strict, sinon Windows-1252 (Excel français) ; BOM retiré.
+ * - Lignes entièrement vides et colonnes sans en-tête ignorées.
+ */
+export type SpreadsheetRows = {
+    headers: string[];
+    rows: Array<Record<string, unknown>>;
+};
+
+const ZIP = [0x50, 0x4b, 0x03, 0x04];
+const OLE = [0xd0, 0xcf, 0x11, 0xe0];
+
+function startsWith(bytes: Uint8Array, signature: number[]): boolean {
+    return signature.every((byte, index) => bytes[index] === byte);
+}
+
+export function decodeText(bytes: Uint8Array): string {
+    let text: string;
+    try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+        text = new TextDecoder("windows-1252").decode(bytes);
+    }
+    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+function readWorkbook(bytes: Uint8Array): XLSX.WorkBook {
+    if (startsWith(bytes, ZIP) || startsWith(bytes, OLE)) {
+        return XLSX.read(bytes, { type: "array", cellDates: false });
+    }
+    // CSV / texte : décodé ici, puis lu comme chaîne (aucune conversion de page de codes par SheetJS).
+    return XLSX.read(decodeText(bytes), { type: "string", raw: true });
+}
+
+export function readSpreadsheetRows(bytes: Uint8Array, _fileName?: string): SpreadsheetRows {
+    const workbook = readWorkbook(bytes);
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!firstSheet) return { headers: [], rows: [] };
+
+    const raw = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, defval: undefined, raw: false });
+    if (raw.length === 0) return { headers: [], rows: [] };
+
+    const headerCells = (raw[0] ?? []).map((cell) => String(cell ?? "").trim());
+    const columns = headerCells
+        .map((header, index) => ({ header, index }))
+        .filter((column) => column.header !== "");
+
+    const rows = raw
+        .slice(1)
+        .filter((cells) => Array.isArray(cells) && cells.some((cell) => String(cell ?? "").trim() !== ""))
+        .map((cells) => {
+            const record: Record<string, unknown> = {};
+            for (const { header, index } of columns) {
+                const value = cells[index];
+                record[header] = value === undefined || String(value).trim() === "" ? undefined : value;
+            }
+            return record;
+        });
+
+    return { headers: columns.map((column) => column.header), rows };
+}
