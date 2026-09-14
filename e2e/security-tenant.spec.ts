@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { E2E_SCHOOLS } from "./global-setup";
+import { readE2EFixtures } from "./e2e-accounts";
+
+// Identifiants réels de la base testée (N4) : écrits par global-setup, et non
+// plus codés en dur pour un seed précis (une ressource inexistante donnait un
+// 404 qui ne prouvait rien).
+const E2E_SCHOOLS = readE2EFixtures();
 
 /**
  * Tenant isolation: a SCHOOL_ADMIN of school B must NEVER receive school A's data.

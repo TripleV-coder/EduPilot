@@ -1,7 +1,8 @@
 import { test as setup, expect, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { E2E_PASSWORD, E2E_USERS } from "./global-setup";
+// Comptes dédiés aux E2E (N4/N17), sans charger Prisma dans le processus de test.
+import { E2E_PASSWORD, E2E_USERS } from "./e2e-accounts";
 
 const AUTH_DIR = "e2e/.auth";
 

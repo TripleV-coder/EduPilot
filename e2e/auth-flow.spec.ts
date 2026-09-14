@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+// Compte dédié aux E2E (N4/N17). L'import dynamique de ./global-setup chargeait
+// Prisma et le verrou des scripts dans le processus de test.
+import { E2E_PASSWORD, E2E_USERS } from "./e2e-accounts";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -16,10 +19,9 @@ test.describe("Authentication flow", () => {
     });
 
     test("valid SCHOOL_ADMIN credentials reach the dashboard", async ({ page }) => {
-        const { E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD } = await import("./global-setup");
         await page.goto("/login");
-        await page.locator("#email").fill(E2E_ADMIN_EMAIL);
-        await page.locator("#password").fill(E2E_ADMIN_PASSWORD);
+        await page.locator("#email").fill(E2E_USERS.SCHOOL_ADMIN_1);
+        await page.locator("#password").fill(E2E_PASSWORD);
         await page.getByRole("button", { name: /se connecter/i }).click();
 
         await page.waitForURL(/\/dashboard($|\/)/, { timeout: 30_000 });
