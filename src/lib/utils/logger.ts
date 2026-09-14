@@ -26,6 +26,39 @@ interface LogEntry {
   };
 }
 
+// ---------------------------------------------------------------------------
+// N56 (Lot 6) — aucune donnée personnelle dans les journaux. Des appels réels y
+// écrivaient l'email de la personne, un numéro de téléphone ou le texte d'une
+// erreur citant un email. Le masquage est fait ici, pour tous les appelants :
+// message, contexte (même imbriqué) et texte des erreurs.
+// ---------------------------------------------------------------------------
+
+const MASKED = "[masqué]";
+const EMAIL = /([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})/g;
+// 8 à 15 chiffres, séparés au plus par un espace ou un point ; jamais collés à
+// des lettres (identifiants) ni séparés par des tirets (dates).
+const PHONE = /(?<![\w+])\+?\d(?:[ .]?\d){7,14}(?!\w)/g;
+const SECRET_KEY = /pass(?:word|wd)?|token|secret|authorization|cookie|otp|api[-_]?key/i;
+const PERSONAL_KEY = /^(?:firstName|lastName|fullName|birthPlace|dateOfBirth|birthDate|address|nationality)$/i;
+const MAX_DEPTH = 6;
+
+export function redactText(text: string): string {
+  return text
+    .replace(EMAIL, (_match, first: string, domain: string) => `${first}***@${domain}`)
+    .replace(PHONE, (match) => `[tél. ***${match.replace(/\D/g, "").slice(-2)}]`);
+}
+
+function redactValue(value: unknown, key: string | undefined, depth: number): unknown {
+  if (key !== undefined && (SECRET_KEY.test(key) || PERSONAL_KEY.test(key))) return MASKED;
+  if (typeof value === "string") return redactText(value);
+  if (depth >= MAX_DEPTH || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, undefined, depth + 1));
+  if (value instanceof Date) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactValue(v, k, depth + 1)]),
+  );
+}
+
 /**
  * Format log entry for output
  */
@@ -66,19 +99,19 @@ function createLogEntry(
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
-    message,
+    message: redactText(message),
   };
 
   if (context) {
-    entry.context = context;
+    entry.context = redactValue(context, undefined, 0) as LogContext;
   }
 
   if (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     entry.error = {
       name: err.name,
-      message: err.message,
-      stack: err.stack,
+      message: redactText(err.message),
+      stack: err.stack ? redactText(err.stack) : undefined,
     };
   }
 
