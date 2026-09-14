@@ -25,11 +25,9 @@ async function statuses(n, headersFn, url = "/api/auth/csrf") {
   return st;
 }
 
-// H3 — le rate-limit ne doit pas être contournable en faisant varier X-Forwarded-For.
-if (want("xff")) {
-  const st = await statuses(130, (i) => ({ "x-forwarded-for": `198.51.100.${i % 250}` }));
-  check("H3", "rafale 130 req. avec XFF tournant", (st[429] || 0) > 0, JSON.stringify(st));
-}
+// H4 avant H3 : la rafale de H3 épuise volontairement le budget de l'adresse ;
+// placée avant, elle faisait refuser (429) les jetons CSRF de H4, qui ne
+// mesurait plus rien.
 
 // H4 — la connexion réelle (/api/auth/callback/credentials) doit être limitée par IP.
 if (want("bruteforce")) {
@@ -52,6 +50,12 @@ if (want("bruteforce")) {
     st[r.status] = (st[r.status] || 0) + 1;
   }
   check("H4", "12 échecs de connexion depuis la même IP", (st[429] || 0) > 0, JSON.stringify(st));
+}
+
+// H3 — le rate-limit ne doit pas être contournable en faisant varier X-Forwarded-For.
+if (want("xff")) {
+  const st = await statuses(130, (i) => ({ "x-forwarded-for": `198.51.100.${i % 250}` }));
+  check("H3", "rafale 130 req. avec XFF tournant", (st[429] || 0) > 0, JSON.stringify(st));
 }
 
 // H5 — IDOR inter-établissement sur subjects/categories/[id].
@@ -110,7 +114,10 @@ if (want("cron")) {
     if (process.env.CRON_SECRET) {
       const ok = await fetch(`${BASE}${route}`, { method: "POST", headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
       await ok.arrayBuffer();
-      check("H2", `${route} secret valide`, ok.status === 200, `HTTP ${ok.status}`);
+      // Depuis N8 (Lot 3), la maintenance est acceptée puis exécutée après la
+      // réponse : 202, ou 409 si une exécution est déjà en cours.
+      const accepted = route === "/api/system/automation" ? [202, 409] : [200];
+      check("H2", `${route} secret valide`, accepted.includes(ok.status), `HTTP ${ok.status}`);
     }
   }
 }

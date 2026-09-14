@@ -278,7 +278,7 @@ Réserves, consignées honnêtement :
 
 ---
 
-## Lot 4 — Isolation, comptes et contrôle d'accès (en cours, commencé le 2026-09-13)
+## Lot 4 — Isolation, comptes et contrôle d'accès (terminé le 2026-09-14 ; en attente du feu vert)
 
 Décisions déjà prises par le propriétaire (2026-09-12) : **2FA facultative pour tous** (rien à implémenter) ; **RLS option (a)**, effective (rôle applicatif non propriétaire, `FORCE ROW LEVEL SECURITY`).
 
@@ -290,6 +290,8 @@ Décisions déjà prises par le propriétaire (2026-09-12) : **2FA facultative p
 | `e983006` | fix(api) **[N33]** : promotion d'une classe ou vers une année hors établissement → 404 au lieu de 400 (`PromotionError` porte son statut) |
 | `36fecda` | fix(security) **[N32]** : IDOR `DELETE /api/courses/[id]` (garde d'établissement ajouté) + **balayage des routes `[id]`** (`tenant-isolation-sweep.test.ts`, fixture `tenant-graph.ts`) |
 | `89080bd` | fix(security) **[M1][N31]** : mot de passe provisoire unique par compte (`lib/auth/provisional-password`) pour les 4 créations unitaires, le déploiement root et les 5 imports ; fin de « 00000000 » ; identifiants renvoyés une seule fois et affichés (écrans enseignant/utilisateur : `<code>` existant ; inscription : `Card` ; root : `Dialog` ; import : téléchargement CSV) |
+| `aa074b9` | fix(security) **[M2]** : RLS effective — contexte par requête (`lib/db/db-context`, AsyncLocalStorage), client Prisma à portée (`lib/db/scoped-client` : `set_config` en portée transaction), posé par `createApiHandler` et la page serveur du tableau de bord ; contextes système déclarés (connexion, webhooks après signature, crons après secret, garde d'accès) ; migration `ENABLE` + `FORCE` sur 11 tables, idempotente ; rôle applicatif (`scripts/db/setup-app-role.mjs`) ; refus de démarrer en production avec un rôle superutilisateur/BYPASSRLS ; ADR-0010 ; CI E2E sur le rôle applicatif |
+| `005be2d` | perf(rls) **[M2]** : politiques corrélées (`EXISTS` sur la clé, fonctions en InitPlan) qui conservent les plans par index ; nombre de notes de la liste des évaluations et nombre de paiements du rapport des frais comptés par requête groupée (`_count` dégénérait sous RLS : 11 s) |
 
 ### Parcours du titulaire d'un compte créé par un tiers
 
@@ -299,7 +301,14 @@ Décisions déjà prises par le propriétaire (2026-09-12) : **2FA facultative p
 
 ### Tests existants modifiés (règle 4)
 
-Aucun. Les tests unitaires des routes modifiées (111 cas) passent sans changement.
+- M1 / N31 : aucun. Les tests unitaires des routes modifiées (111 cas) passent sans changement.
+- M2 (`aa074b9`) :
+  - `tests/setup.ts` : le double de `PrismaClient` n'a pas `$extends` ; le client à portée y est l'identité. Son comportement est prouvé sur PostgreSQL réel (`rls-effective.test.ts`).
+  - `tests/api/classes-id.test.ts`, `tests/api/orientation-recommendations.test.ts` : simulaient `findUnique` puis attendaient 403 pour une autre école. La route cherche désormais dans l'établissement (sous RLS, lire l'élève masqué faisait échouer Prisma, 500) : 404, filtre vérifié. Le 403 reste testé pour une ligne renvoyée hors établissement.
+  - `tests/integration-db/*` : jeux de données et vérifications par le rôle propriétaire (`owner-db.ts`, remplacement de l'import) ; le code testé tourne avec le rôle applicatif.
+  - `analytics-dashboard.test.ts` (annexe) : la session était construite sans l'annexe, contrairement à la connexion réelle ; elle est calculée par la vraie `getAccessibleSchoolIdsForUser`.
+  - `payment-momo-flow.test.ts` : le webhook était appelé avec la session du comptable, ce qui masquait l'absence de contexte système dans la route (défaut réel, corrigé) ; il est appelé anonymement, comme en production.
+- M2 (`005be2d`) : `tests/api/evaluations.test.ts` et `tests/api/finance-reports.test.ts` simulaient `_count` dans les lignes ; ils simulent la requête groupée et vérifient qu'elle ne porte que sur la page ou les frais listés.
 
 ### Risques résiduels (M1 / N31)
 
@@ -316,7 +325,40 @@ Aucun. Les tests unitaires des routes modifiées (111 cas) passent sans changeme
    - **fermée par défaut** : sans contexte d'établissement, les tables couvertes apparaissent vides ; les contextes système (connexion, crons, webhooks, console root, installation) sont déclarés explicitement ;
    - **périmètre « données sensibles »** : élèves, notes, paiements, dossiers médicaux, allergies, vaccinations, contacts d'urgence, incidents de discipline, présences, évaluations.
    Constat préalable : 283 routes sur 285 passent par `createApiHandler` (les 2 autres, `setup` et `auth/[...nextauth]`, sont des contextes système). Le contexte peut donc être posé automatiquement.
-3. Batterie du Lot 4.
+   ✅ **Réalisé** (`aa074b9`, `005be2d`, ADR-0010). Constats faits pendant la mise en œuvre, tous corrigés avant commit :
+   - **Requêtes paresseuses.** `runAsSystem(…, () => prisma.x.op())` renvoie une promesse Prisma qui ne part qu'au `await`, hors de la portée : la requête partait sans contexte. Les trois webhooks de paiement avaient ce motif ; ils n'auraient **jamais rapproché** un paiement. Détecté par `rls-effective.test.ts`, corrigé une fois pour toutes dans `runWithDbContext`/`runAsSystem` (le `then` est appelé dans la portée). Le test d'intégration MoMo passait quand même, parce qu'il appelait le webhook avec la session du comptable ; il est désormais anonyme.
+   - **Relations obligatoires vers un élève masqué.** Une ligne non couverte (rendez-vous, certificat, bourse…) lue avec son élève d'une autre école fait échouer Prisma (« Inconsistent query result ») : le balayage `[id]` est passé de 67/67 à 8 routes en 500. Corrigé au garde central `assertModelAccess` (résolution du seul `schoolId` en contexte système déclaré, puis 403) et dans `classes/[id]` et `orientation/[id]/recommendations` (recherche dans l'établissement, 404).
+   - **Plans d'exécution.** Voir « Mesures RLS » ci-dessous.
+3. ✅ Batterie du Lot 4 (2026-09-14) — voir le journal des batteries.
+
+### Mesures RLS (base d'audit, build de production, serveur sur le rôle applicatif `edupilot_app`)
+
+Surcoût mesuré avant décision : +0,8 ms par requête SQL (aller-retour `set_config`). Le vrai coût était ailleurs : la forme des politiques changeait les plans.
+
+| p50 (admin / enseignant) | Lot 3 (sans RLS) | RLS, forme `IN (sous-requête)` | RLS, forme corrélée + comptes groupés |
+|---|---|---|---|
+| `/api/evaluations` | 55 / 75 ms | 149 / 144 ms | **33 / 37 ms** |
+| `/api/grades?classId` | 50 / 53 ms | 122 / 124 ms | 58 / 58 ms |
+| `/api/analytics/dashboard` (p95) | 251 / 208 ms | 292 / 236 ms | 267 / 211 ms (< 300) |
+| `/api/grades/statistics` | 289 / 286 ms | 367 / 364 ms | 322 / 319 ms |
+
+- Diagnostic par `EXPLAIN (ANALYZE, BUFFERS)` : avec `IN (sous-requête)`, parcours séquentiel des 131 208 notes au lieu du chemin par index (17 → 114 ms pour les notes d'une classe) ; forme corrélée : 18 ms. Contrepartie : un agrégat sur toutes les notes d'une école passe de 83 à 114 ms (+33 ms mesurés sur `grades/statistics`).
+- Sous la forme corrélée, `_count: { grades }` (liste des évaluations) était réexécuté pour chaque évaluation : **11 s** pour l'enseignant (smoke 7 rôles). Compté par requête groupée : 37 ms.
+- Index couvrants essayés (`student_profiles(id, schoolId)`, `classes(id, schoolId)`, `class_subjects(id, classId)`) : aucun gain, **non ajoutés**.
+- Smoke 7 rôles × 164 GET (seuils 500 ms / 500 Ko) : aucune violation hors les deux connues (`/api/root/analytics` N15 ; `/api/system/automation` 500 sur un serveur de mesure lancé sans `CRON_SECRET`). Comparaison route par route avec le smoke final du Lot 3 : statuts et tailles identiques (±50 %) pour les 7 rôles — aucune donnée masquée à tort.
+- RSS : 227 Mo au repos → 452 Mo après smoke, latences et suite E2E complète (plafond 500 Mo).
+- Garde de démarrage : serveur de production sur le superutilisateur → « Démarrage refusé : … rôle « edupilot » (superutilisateur), qui ignore la sécurité par ligne… », aucune requête servie (HTTP 000). Voir N34.
+- Script du propriétaire `setup-app-role.mjs` exécuté deux fois sur la base d'audit : idempotent ; propriétaire `BYPASSRLS=true`, applicatif `superutilisateur=false, BYPASSRLS=false`.
+- Maintenance quotidienne déclenchée par le cron (secret valide → 202), exécutée après la réponse en contexte système, sous RLS : « Maintenance quotidienne terminée », 2 982 élèves traités, **0 erreur**, 11 min 05 s. En base : 2 982/2 982 `student_analytics` et 35 784/35 784 `grade_history` réécrits, **moyenne générale non nulle pour les 2 982** (moyenne 13,22). Les notes ont donc été lues à travers la RLS ; le contexte système est conservé par `runInBackground`.
+
+### Risques résiduels (M2)
+
+- La RLS isole les **établissements**. L'isolation plus fine (un parent ne voit que ses enfants, un enseignant ses classes) reste applicative.
+- Une injection SQL pourrait poser elle-même `app.rls_bypass` : la RLS protège des oublis de filtre, pas d'une injection (requêtes brutes paramétrées).
+- Les tables hors périmètre (inscriptions, rendez-vous, bourses, certificats, messages…) restent protégées par le seul code applicatif, comme décidé.
+- Scripts de maintenance qui passent par `@/lib/prisma` : ils doivent tourner avec le rôle propriétaire, ou déclarer leur contexte. Documenté dans `docs/MIGRATIONS.md`.
+- Tout nouveau `_count` ou agrégat relationnel sur une table couverte peut dégénérer sous RLS. Il faut le mesurer (smoke 7 rôles) avant de l'accepter.
+- Déploiement Docker (Lot 7) : l'image PostgreSQL crée un superutilisateur ; il faudra y ajouter la création du rôle applicatif, sans quoi l'application refusera de démarrer.
 
 ---
 
@@ -336,7 +378,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | H5 | Élevée | IDOR `subjects/categories/[id]` (+ N3) | 1 | Corrigé | `563ccb6` | `tests/integration-db/subject-categories-isolation.test.ts` (7, PG réel) ; `security.mjs idor` | GET/PATCH/DELETE 200 (persisté) | 404/404/404, rien persisté |
 | H6 | Élevée | Redis injoignable : +4,3 s par requête | 2 | Corrigé | `1fe4a19` | `tests/lib/redis/circuit.test.ts` (5), `tests/lib/redis/outage.test.ts` (3, vrai port fermé) ; `redis-outage.mjs` sur build de prod | `/api/auth/csrf` p50 4 319 / p95 4 360 ms | 10×200, p50 14 / p95 24 ms ; `/api/health` 14–97 ms |
 | M1 | Moyenne | `mustChangePassword` jamais imposé | 4 | Corrigé (E2E du premier login forcé : Lot 5) | `6fbd7e2` `89080bd` | `must-change-password-gate.test.ts` (8), `use-first-login.test.tsx` (6), intégration PG `first-login-session` (3), `first-login-token` (1), `provisional-passwords` (9), `provisional-passwords-root` (2) | indicateur lu nulle part ; imports : un secret par lot, communiqué à personne | session confinée à `/first-login` (API 403 `PASSWORD_CHANGE_REQUIRED`) ; mot de passe provisoire unique par compte, renvoyé une fois ; indicateur levé et session invalidée au changement |
-| M2 | Moyenne | RLS inerte | 4 | Constat audit | — | selon option retenue (a/b) | — | — |
+| M2 | Moyenne | RLS inerte | 4 | Corrigé — option (a), fermée par défaut, 11 tables sensibles | `aa074b9` `005be2d` | `tests/integration-db/rls-effective.test.ts` (13, PG réel : 11 tables en lecture, écriture, transactions, annulation, pool) ; toute la suite d'intégration sur le rôle applicatif (230/230) ; démarrage refusé sur superutilisateur | 3 tables, contexte posé dans 2 routes, rôle qui contourne les politiques | 11 tables sous `FORCE` ; contexte sur 283/285 routes + contextes système déclarés ; latences : voir « Mesures RLS » (Lot 4) |
 | M3 | Moyenne | JSON invalide / ZodError → 500 | 2 | Corrigé | `6cd4595` | `tests/lib/api/api-handler-body.test.ts` (7) ; `tests/integration-db/api-body-validation.test.ts` (3, PG réel) ; `security.mjs json` | `{}` → 500, `{bad` → 500 ; corps de 5 Mo lu en entier | 400 `VALIDATION_ERROR` / 400 `INVALID_JSON` ; > 1 Mo → 413 ; rien écrit |
 | M4 | Moyenne | Croissance mémoire (aggravée : N1) | 3 | Corrigé | `0356461` (N1) `2a24ac2` (N28) | RSS relevée pendant la batterie du Lot 3 | 8 746 Mo | 395 Mo après smoke 7 rôles + latences + Lighthouse |
 | M5 | Moyenne | 163/231 `findMany` sans `take` | 3 | Corrigé — revue faite, N+1 corrigés, les 6 occurrences non bornées traitées ; `alumni` reporté (N14) | `618933d` `0d3a609` `82baca8` `d926558` `9eb7657` `8d2c446` `b62db28` `6911d97` | revue + plafond helper | 163 | voir « Revue M5 » (Lot 3) |
@@ -386,6 +428,8 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N31 | Élevée (comptes, dont mineurs) | Mot de passe standard « 00000000 » : `DEFAULT_PASSWORD` des routes élève/enseignant quand aucun mot de passe n'est fourni ; écrans « Ajouter un enseignant », « Nouvel utilisateur », « Nouvelle inscription » qui envoyaient « 00000000 » (refusé par la validation forte : **création impossible depuis ces écrans**) et l'affichaient comme identifiant ; console root pré-remplie à « 00000000 » pour l'admin d'une nouvelle école. Sans M1, un compte à mot de passe connu restait ouvert indéfiniment | 4 | Corrigé | `89080bd` | `provisional-passwords.test.ts` (9, PG réel), `provisional-passwords-root.test.ts` (2, PG réel), `use-create-account.test.tsx` (5), `inscription-submit.test.ts` (3), `credentials-export.test.ts` (3) | création sans mot de passe → 400 ; mot de passe choisi par l'admin jamais à changer | mot de passe provisoire unique généré et affiché une fois ; changement exigé pour tout compte créé par un tiers ; plus aucune occurrence de « 00000000 » dans `src/` |
 | N32 | Élevée | IDOR : `DELETE /api/courses/[id]` ne vérifiait que le rôle TEACHER, pas l'établissement. L'admin de n'importe quelle école supprimait le cours d'une autre, **et en cascade ses modules et leçons** | 4 | Corrigé | `36fecda` | `tenant-isolation-sweep.test.ts` (PG réel) | 200, cours et contenu supprimés | 403, cours intact |
 | N33 | Faible | `POST /api/classes/[id]/promote` sur une classe ou une année d'une autre école : refus en **400** (« introuvable dans votre établissement ») au lieu de 404 | 4 | Corrigé | `e983006` | `tenant-isolation-sweep.test.ts` | 400 | 404, classe intacte |
+| N34 | Faible | Démarrage de production refusé (garde RLS, comme la garde H3 de `validateEnv`) : l'erreur est levée dans le hook d'instrumentation, Next affiche « Failed to prepare server », mais le processus **ne se termine pas** (aucune requête servie, HTTP 000). Un superviseur ne voit pas d'échec ; seule la sonde de santé le révèle | 7 (arrêt propre, supervision) | Constat Lot 4 | — | `.quality-tmp/guard-superuser.log` (processus vivant après 60 s) | — | — |
+| N35 | Faible | Outil `scripts/quality/security.mjs` : attendait 200 pour la maintenance, alors que N8 (Lot 3) la rend asynchrone (202) ; la rafale H3, placée avant H4, épuisait le budget de l'adresse et H4 ne mesurait plus rien (`csrf-429` ×12) | 4 | Corrigé (outil) | commit de clôture du Lot 4 | H4 seul : `{"302":10,"429":2}` | 11/13 PASS | voir journal |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
@@ -461,4 +505,5 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | 0 | ✅ 0 erreur (11 s, cache incrémental) | ✅ 0 erreur (60 s) | ✅ 2 703/2 703, 240 fichiers (36 s) | ✅ 47 s | n/a (suite inexistante) | non rejoués (aucun code applicatif modifié) | Base : `88215e5` |
 | 1 | ✅ 0 erreur (46 s) | ✅ 0 erreur (41 s) | ✅ 2 729/2 729, 246 fichiers (33 s) | ✅ 87 s (next 16.3.5) ; clone neuf ✅ | ✅ 9/9 (`npm run test:integration`, PG réel) | ✅ 40/40 (`auth-flow`, `security-anonymous`, `security-rbac`, `security-tenant` ; build de prod, base seedée) | `security.mjs` : H3, H4, H5 ×3, TENANT → 6/6 PASS ; `npm audit --omit=dev --audit-level=high` → 0 ; base d'audit : 3 écoles, 2 698 utilisateurs, 994 élèves, 131 208 notes |
 | 3 | ✅ 0 erreur (9 s) | ✅ 0 erreur (62 s) | ✅ 2 845/2 845, 268 fichiers (34 s) | ✅ 48 s | ✅ 134/134, 26 fichiers (43 s, PG réel) | ✅ 18/18 (`grades-flow`, `class-lists`, `student-lists` ; build de prod, base d'audit) | Build de `2da4d02`. Smoke 7 rôles : 0 > 500 ms / 500 Ko, 1 violation N15 ; RSS finale 395 Mo ; `analytics/dashboard` p95 251 / 208 ms ; page Notes 687 Ko |
+| 4 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 871/2 871, 273 fichiers | ✅ (next 16.3.5) | ✅ 230/230, 32 fichiers (PG réel, code sur le **rôle applicatif** soumis à la RLS) | ✅ 87/89 (suite complète) : les 2 échecs a11y M8 connus (`/ecoles`, `/dashboard/grades` TEACHER) ; `grades-flow` CTA désormais vert | Build de `005be2d`, serveur sur `edupilot_app`, base d'audit. `security.mjs` **13/13 PASS** aux limites de production (réserve : H4 `{"429":12}`, fenêtre d'échecs d'un rejeu isolé 5 min plus tôt encore ouverte ; rejeu isolé : `{"302":10,"429":2}`). Smoke 7 rôles : 0 réponse > 500 ms / 500 Ko hors N15 et automation (serveur sans secret). RSS 452 Mo. Maintenance quotidienne en contexte système sous RLS : voir « Mesures RLS » |
 | 2 | ✅ 0 erreur | ✅ 0 erreur (`npm run lint` complet) | ✅ 2 776/2 776, 255 fichiers | ✅ 36 s ; 0 ligne de télémétrie Sentry | ✅ 18/18 (5 fichiers, PG réel) | ✅ 78/81 : exactement les 3 échecs connus de l'audit (M8 : a11y `/ecoles`, a11y `/dashboard/grades` TEACHER, `grades-flow` CTA) — aucune régression | `security.mjs` : H1, H2 ×2, M3 ×2, H5 ×3, TENANT → 9/9 PASS ; `redis-outage.mjs` PASS (10×200, p95 24 ms) ; cron valide : voir N8 |
