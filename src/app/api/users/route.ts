@@ -335,6 +335,12 @@ export const POST = createApiHandler(
           });
         }
 
+        // Démarrage à vide (N37) : sans profil parent, le compte ne peut
+        // rattacher aucun enfant (/api/parents/link-child répond 404).
+        if (validatedData.role === "PARENT") {
+          await tx.parentProfile.create({ data: { userId: user.id } });
+        }
+
         return { user };
       });
     } catch (error) {

@@ -323,6 +323,7 @@ export default function NewUserPage() {
                                                             <SelectItem value="DIRECTOR">Directeur</SelectItem>
                                                             <SelectItem value="ACCOUNTANT">Comptable</SelectItem>
                                                             <SelectItem value="TEACHER">Enseignant</SelectItem>
+                                                            <SelectItem value="PARENT">Parent</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormDescription className="text-xs">
