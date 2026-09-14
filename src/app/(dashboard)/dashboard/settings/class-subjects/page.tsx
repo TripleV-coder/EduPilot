@@ -44,7 +44,10 @@ export default function ClassSubjectsPage() {
     const { data: classesPayload, isLoading: classesLoading } = useSWR<unknown>("/api/classes", fetcher);
     const classes = classesPayload === undefined ? undefined : listFrom<ClassRow>(classesPayload);
     const { isLoading: subjectsLoading } = useSWR("/api/subjects", fetcher);
-    const { data: teachers, isLoading: teachersLoading } = useSWR<TeacherRow[]>("/api/teachers", fetcher);
+    // N49 : /api/teachers renvoie aussi { data, pagination } ; `.map` sur l'objet
+    // plantait la page dès qu'une classe avait une matière affectée.
+    const { data: teachersPayload, isLoading: teachersLoading } = useSWR<unknown>("/api/teachers", fetcher);
+    const teachers = listFrom<TeacherRow>(teachersPayload);
     const { data: classSubjects, mutate: mutateClassSubjects } = useSWR<ClassSubjectRow[]>("/api/class-subjects", fetcher);
 
     const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -235,7 +238,7 @@ export default function ClassSubjectsPage() {
                                                                 <SelectItem value="unassigned" className="text-muted-foreground italic">
                                                                     Non assigné
                                                                 </SelectItem>
-                                                                {(teachers ?? []).map((t) => (
+                                                                {teachers.map((t) => (
                                                                     <SelectItem key={t.id} value={t.id}>
                                                                         {t.user?.firstName} {t.user?.lastName}
                                                                     </SelectItem>
