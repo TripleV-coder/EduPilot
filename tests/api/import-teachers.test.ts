@@ -21,7 +21,7 @@ vi.mock("@/lib/api/cache-helpers", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    user: { findUnique: vi.fn(), create: vi.fn() },
+    user: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     school: { findUnique: vi.fn() },
     teacherProfile: { create: vi.fn() },
     teacherSchoolAssignment: { createMany: vi.fn() },
@@ -47,6 +47,7 @@ beforeEach(() => {
   mockTransaction();
   vi.mocked(prisma.school.findUnique).mockResolvedValue({ id: FIXTURES.schoolA } as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.user.findMany).mockResolvedValue([]);
   vi.mocked(prisma.user.create).mockResolvedValue({ id: cuid("user1") } as never);
   vi.mocked(prisma.teacherProfile.create).mockResolvedValue({ id: cuid("prof1") } as never);
   vi.mocked(prisma.teacherSchoolAssignment.createMany).mockResolvedValue({ count: 1 } as never);
@@ -134,7 +135,11 @@ describe("POST /api/import/teachers", () => {
     expect(invalidateByPath).toHaveBeenCalled();
   });
 
-  it("should collect validation errors without creating users", async () => {
+  // Règle 4 (Lot 5, N47) : les trois cas suivants exigeaient l'import PARTIEL
+  // (lignes valides créées, autres ignorées, 200) — le défaut corrigé. L'import
+  // est désormais en tout ou rien : 422 et rien n'est écrit ; une erreur de base
+  // annule toute la transaction.
+  it("rejects the whole file on a validation error (422), nothing created", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const body = makeBody([
       { email: "not-an-email", firstName: "", lastName: "Dupont" },
@@ -143,17 +148,19 @@ describe("POST /api/import/teachers", () => {
     const res = await POST(makeRequest("http://localhost/api/import/teachers", { method: "POST", body }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].row).toBe(1);
-    expect(result.errors[0].error).toBe("Validation failed");
-    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(422);
+    expect(result.created).toBe(0);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ row: 1, field: "email" }),
+      expect.objectContaining({ row: 1, field: "firstName" }),
+    ]);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(hash).not.toHaveBeenCalled();
   });
 
-  it("should skip rows with existing email", async () => {
+  it("rejects the file when an email is already used (422)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: cuid("u9") } as never);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([{ email: "taken@school.bj" }] as never);
     const body = makeBody([
       { email: "new@school.bj", firstName: "Jean", lastName: "Dupont" },
       { email: "taken@school.bj", firstName: "Paul", lastName: "Biya" },
@@ -161,23 +168,18 @@ describe("POST /api/import/teachers", () => {
     const res = await POST(makeRequest("http://localhost/api/import/teachers", { method: "POST", body }));
     const result = await res.json();
 
-    expect(result.created).toBe(1);
-    expect(result.errors).toEqual([
-      expect.objectContaining({ row: 2, error: "Email already exists", email: "taken@school.bj" }),
-    ]);
+    expect(res.status).toBe(422);
+    expect(result.errors).toEqual([expect.objectContaining({ row: 2, field: "email" })]);
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it("should record database errors per row", async () => {
+  it("rolls back the whole import on a database error", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     vi.mocked(prisma.user.create).mockRejectedValueOnce(new Error("connection lost"));
     const body = makeBody([{ email: "t@school.bj", firstName: "Jean", lastName: "Dupont" }]);
     const res = await POST(makeRequest("http://localhost/api/import/teachers", { method: "POST", body }));
-    const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(0);
-    expect(result.errors[0].error).toBe("Database error");
-    expect(result.errors[0].details).toBe("connection lost");
+    expect(res.status).toBe(500);
     expect(invalidateByPath).not.toHaveBeenCalled();
   });
 

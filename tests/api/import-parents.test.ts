@@ -17,7 +17,7 @@ vi.mock("@/lib/api/cache-helpers", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    user: { findUnique: vi.fn(), create: vi.fn() },
+    user: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     school: { findUnique: vi.fn() },
     parentProfile: { create: vi.fn() },
     studentProfile: { findMany: vi.fn() },
@@ -44,6 +44,7 @@ beforeEach(() => {
   mockTransaction();
   vi.mocked(prisma.school.findUnique).mockResolvedValue({ id: FIXTURES.schoolA } as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.user.findMany).mockResolvedValue([]);
   vi.mocked(prisma.user.create).mockResolvedValue({ id: cuid("user1") } as never);
   vi.mocked(prisma.parentProfile.create).mockResolvedValue({ id: cuid("parent1") } as never);
   vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([]);
@@ -136,7 +137,10 @@ describe("POST /api/import/parents", () => {
     expect(invalidateByPath).toHaveBeenCalled();
   });
 
-  it("should collect validation errors (phone required, email format)", async () => {
+  // Règle 4 (Lot 5, N47) : les trois cas suivants exigeaient l'import PARTIEL
+  // (200, lignes valides créées) — le défaut corrigé. Tout ou rien : 422, rien
+  // d'écrit ; une erreur de base annule toute la transaction.
+  it("rejects the whole file on a validation error (phone required, email format)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const body = makeBody([
       { email: "bad-email", firstName: "Paul", lastName: "Biya" },
@@ -145,41 +149,42 @@ describe("POST /api/import/parents", () => {
     const res = await POST(makeRequest("http://localhost/api/import/parents", { method: "POST", body }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].row).toBe(1);
-    expect(result.errors[0].error).toBe("Validation failed");
-    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(422);
+    expect(result.created).toBe(0);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ row: 1, field: "email" }),
+      expect.objectContaining({ row: 1, field: "phone" }),
+    ]);
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it("should skip rows with existing email", async () => {
+  it("rejects the file when an email is already used, or a child matricule is unknown", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: cuid("u9") } as never);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([{ email: "taken@school.bj" }] as never);
+    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([{ id: cuid("student1"), matricule: "E00001" }] as never);
     const body = makeBody([
-      { email: "new@school.bj", firstName: "Paul", lastName: "Biya", phone: "01" },
+      { email: "new@school.bj", firstName: "Paul", lastName: "Biya", phone: "01", childrenMatricules: "E00001, E99999" },
       { email: "taken@school.bj", firstName: "Awa", lastName: "Soumaré", phone: "02" },
     ]);
     const res = await POST(makeRequest("http://localhost/api/import/parents", { method: "POST", body }));
     const result = await res.json();
 
-    expect(result.created).toBe(1);
+    expect(res.status).toBe(422);
     expect(result.errors).toEqual([
-      expect.objectContaining({ row: 2, error: "Email already exists", email: "taken@school.bj" }),
+      expect.objectContaining({ row: 1, field: "childrenMatricules" }),
+      expect.objectContaining({ row: 2, field: "email" }),
     ]);
-    expect(invalidateByPath).toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(invalidateByPath).not.toHaveBeenCalled();
   });
 
-  it("should record database errors per row", async () => {
+  it("rolls back the whole import on a database error", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     vi.mocked(prisma.user.create).mockRejectedValueOnce(new Error("constraint violation"));
     const body = makeBody([{ email: "p@school.bj", firstName: "Paul", lastName: "Biya", phone: "01" }]);
     const res = await POST(makeRequest("http://localhost/api/import/parents", { method: "POST", body }));
-    const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(0);
-    expect(result.errors[0].error).toBe("constraint violation");
+    expect(res.status).toBe(500);
     expect(invalidateByPath).not.toHaveBeenCalled();
   });
 
