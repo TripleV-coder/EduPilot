@@ -1,17 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
-import { UserRole } from "@prisma/client";
-
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { issueProvisionalPassword, type ProvisionalCredential } from "@/lib/auth/provisional-password";
+import { checkStudentQuota } from "@/lib/saas/quotas";
+import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { importStudentsAllOrNothing } from "@/lib/import/student-import";
 
+/**
+ * POST /api/import — { type: "STUDENTS", data: [...], schoolId? } (appel direct
+ * de l'API ; l'écran d'import passe par /api/import/students).
+ *
+ * N55 : mêmes règles que /api/import/students (lib/import/student-import,
+ * N46, N50, N54) — tout le lot validé d'abord ; à la moindre erreur 422 et
+ * rien d'écrit, rapport { row, field, message } ; sinon une transaction :
+ * 200 { created, credentials, errors: [], warnings }.
+ * Avant : l'établissement de la requête était pris tel quel pour tout rôle ;
+ * un prénom ou un nom manquant devenait « Élève » / « Nouveau » ; classe, date
+ * de naissance, genre et adresse étaient ignorés ; aucune validation.
+ */
 export const POST = createApiHandler(
   async (request, { session }) => {
-    const { type, data, schoolId } = await request.json();
-    const targetSchoolId = schoolId || getActiveSchoolId(session);
+    const { type, data, schoolId: requestedSchoolId } = await request.json();
+
+    // Seul le SUPER_ADMIN choisit l'établissement ; les autres rôles importent dans le leur.
+    const targetSchoolId =
+      session.user.role === "SUPER_ADMIN"
+        ? requestedSchoolId || getActiveSchoolId(session)
+        : getActiveSchoolId(session);
 
     if (!targetSchoolId) {
       return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
@@ -40,87 +56,30 @@ export const POST = createApiHandler(
       );
     }
 
-    // Identifiants provisoires (un par compte), renvoyés une seule fois (M1).
-    const credentials: ProvisionalCredential[] = [];
-
-    try {
-      const results = await prisma.$transaction(async (tx) => {
-        const processed = [];
-        
-        for (const [index, item] of data.entries()) {
-          if (type === "STUDENTS") {
-            // Logique simplifiée pour l'exemple - En prod on mapperait via headers
-            const firstName = item.firstName || item["Prénom"] || "Élève";
-            const lastName = item.lastName || item["Nom"] || "Nouveau";
-            const email = (item.email || item["Email"]) as string | undefined;
-
-            // On refuse la création d'élèves sans email réel dans tous les environnements
-            if (!email) {
-              throw new Error("EMAIL_REQUIRED_FOR_STUDENT_IMPORT");
-            }
-
-            // Un mot de passe provisoire PAR compte (M1), jamais un secret de lot.
-            const provisional = await issueProvisionalPassword(12);
-            const hashedPassword = provisional.hash;
-
-            // 1. Créer User
-            const user = await tx.user.create({
-              data: {
-                email,
-                firstName,
-                lastName,
-                password: hashedPassword,
-                role: UserRole.STUDENT,
-                roles: [UserRole.STUDENT],
-                schoolId: targetSchoolId,
-                mustChangePassword: true,
-              },
-            });
-
-            // 2. Créer StudentProfile
-            const student = await tx.studentProfile.create({
-              data: {
-                userId: user.id,
-                schoolId: targetSchoolId,
-                matricule:
-                  item.matricule ||
-                  `MAT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-              },
-            });
-
-            processed.push(student.id);
-            credentials.push({
-              row: index + 1,
-              email,
-              firstName,
-              lastName,
-              provisionalPassword: provisional.plain,
-            });
-          }
-        }
-        return processed;
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        count: results.length,
-        credentials,
-        message: `${results.length} enregistrements importés.` 
-      });
-    } catch (error) {
-      if (error instanceof Error && error.message === "EMAIL_REQUIRED_FOR_STUDENT_IMPORT") {
-        return NextResponse.json(
-          {
-            error:
-              "Chaque élève à importer doit avoir un email explicite. Complétez vos données d'import.",
-            code: "EMAIL_REQUIRED_FOR_STUDENT_IMPORT",
-          },
-          { status: 400 }
-        );
-      }
-      logger.error("Bulk Import Error", error);
-      return NextResponse.json({ error: "Échec de l'importation massive" }, { status: 500 });
+    const school = await prisma.school.findUnique({ where: { id: targetSchoolId }, select: { id: true } });
+    if (!school) {
+      return NextResponse.json({ error: "Établissement introuvable" }, { status: 400 });
     }
+
+    const quota = await checkStudentQuota(targetSchoolId);
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: `Quota d'élèves atteint (${quota.limit}).`, code: "QUOTA_EXCEEDED" },
+        { status: 403 }
+      );
+    }
+    if (quota.current + data.length > quota.limit) {
+      return NextResponse.json(
+        { error: `L'import dépasserait votre quota restant de ${quota.limit - quota.current}.`, code: "QUOTA_WILL_EXCEED" },
+        { status: 403 }
+      );
+    }
+
+    const outcome = await importStudentsAllOrNothing(targetSchoolId, data);
+    if (outcome.status === 200 && outcome.body.created > 0) {
+      await invalidateByPath(CACHE_PATHS.students).catch(() => { });
+    }
+    return NextResponse.json(outcome.body, { status: outcome.status });
   },
   {
     requireAuth: true,
