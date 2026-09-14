@@ -10,6 +10,11 @@
  * chaque mot de passe provisoire est lu à l'écran, comme le ferait l'auteur.
  */
 import { test, expect, type Browser, type Page } from "@playwright/test";
+import { readdirSync, statSync } from "node:fs";
+import path from "node:path";
+
+// Le parcours des états vides réutilise le super-administrateur de l'installation.
+test.describe.configure({ mode: "serial" });
 
 const RUN = Date.now().toString(36);
 const mail = (who: string) => `${who}.${RUN}@fresh-install.test`;
@@ -287,4 +292,132 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await expect(row.first()).toBeVisible({ timeout: 30_000 });
         await expect(row.first().locator("td").nth(1)).toHaveText(GRADE);
     });
+});
+
+// ─── États vides (Lot 5) ────────────────────────────────────────────────────
+
+const EMPTY_ADMIN = { email: mail("vide.direction"), password: "Vide!2026abcd" };
+const EMPTY_TEACHER = { email: mail("vide.prof"), password: "Vide!2026efgh" };
+const EMPTY_PARENT = { email: mail("vide.parent"), password: "Vide!2026ijkl" };
+
+/** Toutes les pages statiques du tableau de bord (routes `[param]` exclues), lues dans le code. */
+function dashboardRoutes(): string[] {
+    const root = path.join(__dirname, "..", "..", "src", "app", "(dashboard)", "dashboard");
+    const routes: string[] = [];
+    const walk = (dir: string, prefix: string) => {
+        for (const name of readdirSync(dir)) {
+            const full = path.join(dir, name);
+            if (!statSync(full).isDirectory()) {
+                if (name === "page.tsx") routes.push(prefix || "/dashboard");
+                continue;
+            }
+            if (name.startsWith("[") || name.startsWith("_")) continue;
+            const segment = name.startsWith("(") ? "" : `/${name}`;
+            walk(full, `${prefix || "/dashboard"}${segment}`);
+        }
+    };
+    walk(root, "");
+    return [...new Set(routes)].sort();
+}
+
+async function deploySchool(root: Page, schoolName: string, adminEmail: string): Promise<string> {
+    await root.goto("/dashboard/root-control/schools");
+    await root.getByRole("button", { name: /déployer un établissement/i }).click();
+    const dialog = root.getByRole("dialog");
+    await dialog.locator("#create-name").fill(schoolName);
+    await dialog.getByRole("button", { name: /étape suivante/i }).click();
+    await dialog.locator("#admin-firstname").fill("Admin");
+    await dialog.locator("#admin-lastname").fill("Vide");
+    await dialog.locator("#admin-email").fill(adminEmail);
+    await dialog.locator('button[type="submit"]').click();
+    const credentials = root.getByRole("dialog", { name: /identifiants de l'administrateur/i });
+    await expect(credentials).toBeVisible({ timeout: 30_000 });
+    const provisional = (await credentials.locator(".select-all").innerText()).trim();
+    await credentials.getByRole("button").last().click();
+    return provisional;
+}
+
+async function createAccount(admin: Page, email: string, role?: RegExp): Promise<string> {
+    await admin.goto("/dashboard/users/new");
+    await admin.getByLabel("Prénom de l'utilisateur", { exact: true }).fill("Compte");
+    await admin.getByLabel("Nom de l'utilisateur", { exact: true }).fill("Vide");
+    await admin.getByLabel("Adresse e-mail de l'utilisateur", { exact: true }).fill(email);
+    if (role) {
+        await admin.getByLabel("Sélectionner le rôle utilisateur").click();
+        await admin.getByRole("option", { name: role }).click();
+    }
+    await admin.getByRole("button", { name: /créer l'utilisateur/i }).click();
+    await expect(admin.getByText(/utilisateur créé avec succès/i)).toBeVisible();
+    return (await admin.locator("code.select-all").innerText()).trim();
+}
+
+/**
+ * Visite chaque page et relève tout ce qu'un utilisateur ne doit jamais voir
+ * dans une école sans données : erreur serveur ou 404, écran d'erreur,
+ * exception non rattrapée, « NaN », « Infinity » ou « undefined » affichés,
+ * zone principale vide, perte de session. « Accès refusé » est attendu pour
+ * les pages d'un autre rôle et n'est pas une anomalie.
+ */
+async function crawlEmptySchool(page: Page, role: string, routes: string[]): Promise<string[]> {
+    const problems: string[] = [];
+    let pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message.split("\n")[0]));
+    for (const route of routes) {
+        pageErrors = [];
+        let status = 0;
+        try {
+            const response = await page.goto(route, { waitUntil: "load", timeout: 45_000 });
+            status = response?.status() ?? 0;
+        } catch (error) {
+            problems.push(`${role} ${route} : navigation impossible (${(error as Error).message.split("\n")[0]})`);
+            continue;
+        }
+        await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => undefined);
+        const where = `${role} ${route}`;
+        if (new URL(page.url()).pathname.startsWith("/login")) {
+            problems.push(`${where} : session perdue (renvoi vers /login)`);
+            continue;
+        }
+        if (status >= 500 || status === 404) problems.push(`${where} : HTTP ${status}`);
+        const body = await page.locator("body").innerText().catch(() => "");
+        if (/Une erreur inattendue est survenue|Application error|Internal Server Error/i.test(body)) {
+            problems.push(`${where} : écran d'erreur`);
+        }
+        const garbage = body.match(/\b(NaN|Infinity|undefined)\b/);
+        if (garbage) problems.push(`${where} : « ${garbage[1]} » affiché`);
+        const main = page.locator("main");
+        const mainText = (await main.count()) ? await main.first().innerText().catch(() => "") : body;
+        if (!mainText.trim()) problems.push(`${where} : zone principale vide`);
+        for (const message of pageErrors) problems.push(`${where} : exception « ${message} »`);
+    }
+    return problems;
+}
+
+test("toutes les pages s'affichent dans une école sans aucune donnée (admin, enseignant, parent)", async ({ browser }) => {
+    test.setTimeout(90 * 60_000);
+    const routes = dashboardRoutes();
+    expect(routes.length).toBeGreaterThan(100);
+
+    const root = await newPage(browser);
+    await login(root, SUPER_ADMIN.email, SUPER_ADMIN.password);
+    await root.waitForURL(/\/dashboard/, { timeout: 30_000 });
+    const adminProvisional = await deploySchool(root, "École Sans Données", EMPTY_ADMIN.email);
+
+    const admin = await newPage(browser);
+    await firstLogin(admin, EMPTY_ADMIN.email, adminProvisional, EMPTY_ADMIN.password);
+    const teacherProvisional = await createAccount(admin, EMPTY_TEACHER.email);
+    const parentProvisional = await createAccount(admin, EMPTY_PARENT.email, /^parent$/i);
+
+    const teacher = await newPage(browser);
+    await firstLogin(teacher, EMPTY_TEACHER.email, teacherProvisional, EMPTY_TEACHER.password);
+    const parent = await newPage(browser);
+    await firstLogin(parent, EMPTY_PARENT.email, parentProvisional, EMPTY_PARENT.password);
+
+    const problems = [
+        ...(await crawlEmptySchool(admin, "SCHOOL_ADMIN", routes)),
+        ...(await crawlEmptySchool(teacher, "TEACHER", routes)),
+        ...(await crawlEmptySchool(parent, "PARENT", routes)),
+    ];
+    console.log(`[états vides] ${routes.length} pages × 3 rôles — ${problems.length} anomalie(s)`);
+    expect(problems).toEqual([]);
 });
