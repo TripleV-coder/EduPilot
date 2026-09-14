@@ -118,6 +118,27 @@ describe("N46 — import des élèves : tout ou rien, rapport ligne par ligne", 
     expect((await ownerDb.user.findUniqueOrThrow({ where: { email: b } })).lastName).toBe("N’Diaye");
   });
 
+  it("N50 — « Email parent » n'est pas utilisé : élève importé, avertissement explicite, aucun rattachement", async () => {
+    const student = email("n50");
+    const res = await post([row({ email: student, parentEmail: email("parent-n50") })]);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const body = res.body as Report & { warnings?: Array<{ field?: string; message: string }> };
+    expect(body.created).toBe(1);
+    expect(body.warnings).toEqual([
+      expect.objectContaining({ field: "parentEmail", message: expect.stringContaining("import « Parents »") }),
+    ]);
+    const created = await ownerDb.user.findUniqueOrThrow({ where: { email: student }, include: { studentProfile: true } });
+    expect(await ownerDb.parentStudent.count({ where: { studentId: created.studentProfile!.id } })).toBe(0);
+
+    const plain = await post([row({ email: email("n50-sans") })]);
+    expect(plain.status).toBe(200);
+    expect((plain.body as { warnings?: unknown }).warnings).toEqual([]);
+
+    // Colonne non utilisée : une adresse mal saisie ne bloque plus l'import (avant : 422).
+    const malformed = await post([row({ email: email("n50-mal"), parentEmail: "papa-sans-arobase" })]);
+    expect(malformed.status, JSON.stringify(malformed.body)).toBe(200);
+  });
+
   it("une date de naissance impossible est signalée", async () => {
     const res = await post([row({ dateOfBirth: "31/02/2012" })]);
     expect(res.status).toBe(422);

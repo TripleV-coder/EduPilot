@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fetcher } from "@/lib/fetcher";
 import {
-    applyMapping, suggestMapping,
+    applyMapping, suggestMapping, ignoredColumnNotices,
     STUDENT_FIELDS, TEACHER_FIELDS, CLASS_FIELDS, PARENT_FIELDS,
     type FieldDefinition,
 } from "@/lib/import/mapping-utils";
@@ -46,7 +46,7 @@ const IMPORT_TYPES: Array<{
         previewType: "students",
         endpoint: "/api/import/students",
         label: "Élèves",
-        description: "Importez votre base d'élèves, matricules et contacts parents.",
+        description: "Importez votre base d'élèves, leurs classes et matricules.",
         icon: UserPlus,
     },
     {
@@ -113,6 +113,8 @@ function ImportWizardPage() {
     const [importedCount, setImportedCount] = useState(0);
     const [importErrors, setImportErrors] = useState<ImportErrorEntry[]>([]);
     const [importRejected, setImportRejected] = useState(false);
+    // Informations sans blocage renvoyées par l'import (N50).
+    const [importWarnings, setImportWarnings] = useState<string[]>([]);
     // Mots de passe provisoires (un par compte créé), renvoyés une seule fois par l'import (M1).
     const [credentials, setCredentials] = useState<ImportCredential[]>([]);
 
@@ -134,6 +136,11 @@ function ImportWizardPage() {
     const mappedRows = useMemo(
         () => (selectedType ? applyMapping(fileData, mapping) : []),
         [selectedType, fileData, mapping],
+    );
+    // Colonnes du fichier ignorées délibérément (N50), signalées avant l'import.
+    const columnNotices = useMemo(
+        () => (selectedType ? ignoredColumnNotices(headers, selectedType) : []),
+        [selectedType, headers],
     );
 
     const validations: ValidationCheck[] = useMemo(() => {
@@ -161,7 +168,14 @@ function ImportWizardPage() {
         setImportedCount(0);
         setImportErrors([]);
         setImportRejected(false);
+        setImportWarnings([]);
         setCredentials([]);
+    }
+
+    // Après un import d'élèves : enchaîner directement sur le rattachement des parents.
+    function continueWithParents() {
+        resetFlow();
+        setSelectedType("PARENTS");
     }
 
     function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -202,6 +216,7 @@ function ImportWizardPage() {
                 setImportedCount(0);
                 setImportErrors(result.errors);
                 setCredentials([]);
+                setImportWarnings(columnNotices);
                 setImportRejected(true);
                 setStep("SUCCESS");
                 toast({
@@ -216,6 +231,10 @@ function ImportWizardPage() {
             setImportedCount(Number(result?.created ?? result?.count ?? 0));
             setImportErrors(Array.isArray(result?.errors) ? result.errors : []);
             setCredentials(readImportCredentials(result));
+            const serverWarnings: string[] = Array.isArray(result?.warnings)
+                ? result.warnings.map((w: { message?: string }) => w?.message).filter((m: unknown): m is string => typeof m === "string")
+                : [];
+            setImportWarnings([...new Set([...columnNotices, ...serverWarnings])]);
             setImportRejected(false);
             setStep("SUCCESS");
             toast({ title: "Importation réussie", description: `${result?.created ?? 0} enregistrements ajoutés.` });
@@ -454,6 +473,27 @@ function ImportWizardPage() {
                             </div>
                         </div>
 
+                        {columnNotices.length > 0 && (
+                            <div
+                                role="status"
+                                className="rounded-xl p-4"
+                                style={{
+                                    background: "var(--eduflow-warning-50)",
+                                    border: "1px solid var(--eduflow-border-subtle)",
+                                    color: "var(--eduflow-warning-800)",
+                                    fontSize: 12,
+                                }}
+                            >
+                                <SubLabel style={{ color: "var(--eduflow-warning-800)" }}>Colonne non importée</SubLabel>
+                                {columnNotices.map((notice) => (
+                                    <p key={notice} className="mt-2 flex gap-2">
+                                        <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                        {notice}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+
                         <div
                             className="rounded-xl p-4"
                             style={{
@@ -527,6 +567,12 @@ function ImportWizardPage() {
                     onReset={resetFlow}
                     typeLabel={selectedType ? IMPORT_TYPE_LABELS[selectedType] : "enregistrements"}
                     rejected={importRejected}
+                    notices={importWarnings}
+                    onNextStep={
+                        selectedType === "STUDENTS" && !importRejected && importedCount > 0
+                            ? { label: "Importer les parents", onClick: continueWithParents }
+                            : undefined
+                    }
                 />
             )}
         </PageShell>
@@ -652,6 +698,8 @@ function SuccessCard({
     onReset,
     typeLabel,
     rejected,
+    notices,
+    onNextStep,
 }: {
     importedCount: number;
     importErrors: ImportErrorEntry[];
@@ -660,6 +708,10 @@ function SuccessCard({
     typeLabel: string;
     /** Import refusé en entier (N46) : rien n'a été écrit. */
     rejected: boolean;
+    /** Informations sans blocage : données fournies mais non utilisées (N50). */
+    notices: string[];
+    /** Étape suivante du parcours (après les élèves : les parents). */
+    onNextStep?: { label: string; onClick: () => void };
 }) {
     return (
         <div
@@ -699,6 +751,21 @@ function SuccessCard({
                     ))}
                 </div>
             )}
+            {notices.length > 0 && (
+                <div
+                    role="status"
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                >
+                    <p className="font-bold">À savoir</p>
+                    {notices.map((notice) => (
+                        <p key={notice} className="mt-1 flex gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            {notice}
+                        </p>
+                    ))}
+                </div>
+            )}
             {credentials.length > 0 && (
                 <div
                     className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
@@ -719,14 +786,30 @@ function SuccessCard({
                     </Button>
                 </div>
             )}
-            <Button
-                variant="secondary"
-                onClick={onReset}
-                className="mt-6"
-                style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
-            >
-                Nouvel import
-            </Button>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {onNextStep && (
+                    <Button
+                        variant="secondary"
+                        onClick={onNextStep.onClick}
+                        className="gap-2"
+                        style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
+                    >
+                        {onNextStep.label}
+                        <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                )}
+                <Button
+                    variant="secondary"
+                    onClick={onReset}
+                    style={
+                        onNextStep
+                            ? { background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.6)" }
+                            : { background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }
+                    }
+                >
+                    Nouvel import
+                </Button>
+            </div>
         </div>
     );
 }

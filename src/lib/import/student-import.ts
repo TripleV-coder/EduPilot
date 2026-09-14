@@ -3,6 +3,7 @@ import { Prisma, type Gender } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { importStudentSchema } from "@/lib/import/schemas";
 import { parseImportDate } from "@/lib/import/dates";
+import { PARENT_EMAIL_NOTICE } from "@/lib/import/mapping-utils";
 import {
     issueProvisionalPassword,
     type ProvisionalCredential,
@@ -25,8 +26,11 @@ import {
  */
 export type ImportRowError = { row: number; field?: string; message: string };
 
+/** Information sans blocage : l'import est fait, mais une donnée fournie n'a pas été utilisée (N50). */
+export type ImportWarning = { field?: string; message: string };
+
 export type StudentImportOutcome =
-    | { status: 200; body: { created: number; credentials: ProvisionalCredential[]; errors: [] } }
+    | { status: 200; body: { created: number; credentials: ProvisionalCredential[]; errors: []; warnings: ImportWarning[] } }
     | { status: 409 | 422; body: { created: 0; credentials: []; errors: ImportRowError[] } };
 
 type PreparedRow = {
@@ -42,6 +46,10 @@ type PreparedRow = {
 };
 
 const GENDERS: Record<string, Gender> = { M: "MALE", F: "FEMALE" };
+
+// N50 : « Email parent » n'est pas utilisé ici (rattachement par l'import « Parents ») ;
+// il n'est donc pas validé non plus — une adresse mal saisie ne bloque pas l'import des élèves.
+const studentRowSchema = importStudentSchema.omit({ parentEmail: true });
 
 function trimmed(value: unknown): unknown {
     return typeof value === "string" ? value.trim() : value;
@@ -68,7 +76,7 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
         );
         if (typeof input.email === "string") input.email = input.email.toLowerCase();
         if (input.gender === "") delete input.gender;
-        const parsed = importStudentSchema.safeParse(input);
+        const parsed = studentRowSchema.safeParse(input);
         if (!parsed.success) {
             for (const issue of parsed.error.issues) {
                 const field = String(issue.path[0] ?? "");
@@ -217,6 +225,16 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
                 provisionalPassword: provisional[index].plain,
             })),
             errors: [],
+            warnings: unusedParentEmail(rawRows),
         },
     };
+}
+
+/** N50 : « Email parent » fourni (appel direct de l'API) mais jamais utilisé — dit, pas ignoré en silence. */
+function unusedParentEmail(rawRows: unknown[]): ImportWarning[] {
+    const provided = rawRows.some((raw) => {
+        const value = (raw as Record<string, unknown> | null)?.parentEmail;
+        return typeof value === "string" && value.trim() !== "";
+    });
+    return provided ? [{ field: "parentEmail", message: PARENT_EMAIL_NOTICE }] : [];
 }
