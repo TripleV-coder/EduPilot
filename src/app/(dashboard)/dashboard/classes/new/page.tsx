@@ -31,6 +31,9 @@ import { useSchool } from "@/components/providers/school-provider";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
+/** Option « Aucun » du professeur principal : Radix interdit la valeur vide. */
+const NO_MAIN_TEACHER = "none";
+
 type ClassLevelOption = { id: string; name: string; level: string };
 type TeacherOption = {
     id: string;
@@ -239,14 +242,19 @@ export default function NewClassPage() {
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Professeur Principal</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                                                    {/* N40 : Radix refuse un <SelectItem value=""> — la page
+                                                        entière plantait au chargement. « Aucun » = NO_MAIN_TEACHER. */}
+                                                    <Select
+                                                        onValueChange={(value) => field.onChange(value === NO_MAIN_TEACHER ? "" : value)}
+                                                        defaultValue={field.value || undefined}
+                                                    >
                                                         <FormControl>
                                                             <SelectTrigger aria-label="Sélectionner le professeur principal">
                                                                 <SelectValue placeholder="Aucun" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="">Aucun</SelectItem>
+                                                            <SelectItem value={NO_MAIN_TEACHER}>Aucun</SelectItem>
                                                             {teachers.map((t) => (
                                                                 <SelectItem key={t.id} value={t.id}>
                                                                     {t.user
