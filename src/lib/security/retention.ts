@@ -3,6 +3,9 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { anonymizeUser, ANONYMIZED_FIRST_NAME, ANONYMIZED_LAST_NAME } from "@/lib/security/rgpd";
+import { DEFAULT_RETENTION_POLICIES, type RetentionDataType } from "@/lib/security/retention-defaults";
+
+export { DEFAULT_RETENTION_POLICIES, type RetentionDataType };
 
 /**
  * Conservation des données (Lot 6, N57) — une seule définition sert à l'aperçu
@@ -21,26 +24,6 @@ import { anonymizeUser, ANONYMIZED_FIRST_NAME, ANONYMIZED_LAST_NAME } from "@/li
  */
 
 export type RetentionAction = "deactivate" | "anonymize" | "delete" | "report";
-
-export type RetentionDataType =
-    | "STUDENT_ACCOUNT"
-    | "ACADEMIC_RECORDS"
-    | "MEDICAL_RECORDS"
-    | "ACCOUNTING"
-    | "BADGE_SCAN_LOGS"
-    | "AUDIT_LOGS"
-    | "NOTIFICATIONS"
-    | "MESSAGES";
-
-/** Durées par défaut décidées le 2026-09-14, dans l'ordre d'application. */
-export const DEFAULT_RETENTION_POLICIES: ReadonlyArray<{ dataType: RetentionDataType; months: number; description: string }> = [
-    { dataType: "STUDENT_ACCOUNT", months: 12, description: "Compte de l'élève parti : accès fermé et coordonnées effacées. Le nom et le matricule restent au registre." },
-    { dataType: "ACADEMIC_RECORDS", months: 60, description: "Notes et bulletins : l'élève parti est entièrement anonymisé." },
-    { dataType: "MEDICAL_RECORDS", months: 12, description: "Dossier médical de l'élève parti : effacé." },
-    { dataType: "ACCOUNTING", months: 120, description: "Pièces comptables (OHADA) : signalées au-delà de la durée, jamais supprimées automatiquement." },
-    { dataType: "BADGE_SCAN_LOGS", months: 3, description: "Journaux d'accès aux badges : effacés." },
-    { dataType: "AUDIT_LOGS", months: 60, description: "Journal d'audit : effacé." },
-];
 
 /** Journaux techniques (télémétrie) : non rattachés à une école, purgés pour toute la plateforme. */
 export const TECHNICAL_LOGS_MONTHS = 12;

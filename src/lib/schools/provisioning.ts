@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { hash } from "bcryptjs";
 import { Prisma, SchoolLevel, SchoolType, SiteType, UserRole } from "@prisma/client";
+import { defaultRetentionPoliciesForNewSchool } from "@/lib/security/retention-defaults";
 
 function trimOrNull(value?: string | null) {
   const trimmed = value?.trim();
@@ -211,6 +212,10 @@ export async function createSchoolWithDefaults(
           maxGrade: 20,
           passingGrade: 10,
         },
+      },
+      // Lot 6 : durées de conservation décidées le 2026-09-14, actives dès la création.
+      dataRetentionPolicies: {
+        create: defaultRetentionPoliciesForNewSchool(),
       },
       academicYears: {
         create: {
