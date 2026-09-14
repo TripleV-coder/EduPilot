@@ -54,5 +54,8 @@ données dans `.quality-tmp/pg`, reste au premier plan).
 
 - `security.mjs` : serveur **sans** `RATE_LIMIT_RELAXED` (limites de production).
 - `smoke.mjs`, `latency.mjs`, `load.mjs` : ajouter `RATE_LIMIT_RELAXED=true` pour ne pas mesurer le rate-limit.
-- Les tests E2E (`npm run test:e2e`) réécrivent les mots de passe de certains comptes de démonstration :
-  définir `QUALITY_PASSWORD` en conséquence si besoin.
+- Les tests E2E (`npm run test:e2e`) ne touchent plus aux comptes de démonstration (N17) : ils créent ou
+  remettent à zéro leurs propres comptes `e2e.*@edupilot-e2e.test` (`e2e/e2e-accounts.ts`) dans une base
+  marquée jetable.
+- E2E du démarrage à vide : base neuve (`migrate deploy`, aucun seed), rôle applicatif, serveur avec
+  `ROOT_USER_EMAILS=` vide, puis `E2E_BASE_URL=http://localhost:<port> npx playwright test -c playwright.fresh.config.ts`.

@@ -362,7 +362,7 @@ Surcoût mesuré avant décision : +0,8 ms par requête SQL (aller-retour `set_c
 
 ---
 
-## Lot 5 — Démarrage à vide, import et tests fiables (en cours, commencé le 2026-09-14)
+## Lot 5 — Démarrage à vide, import et tests fiables (terminé le 2026-09-14 ; en attente du feu vert)
 
 ### Démarrage à vide depuis l'interface — E2E `e2e/fresh-install/fresh-install.spec.ts`
 
@@ -390,15 +390,53 @@ Constats sans blocage, laissés au suivi (règle 10) :
 
 ### Règle 6 — scripts dangereux verrouillés (N17, `9a811aa`)
 
-Marqueur `edupilot:disposable` posé sur la base (commentaire PostgreSQL), vérifié par `scripts/lib/disposable-guard.mjs` dans `prisma/seed.ts`, les 5 seeds annexes, les 8 scripts `create-*`/`seed-*`, `reset-passwords.ts`, `wipe-users.js` et `e2e/global-setup.ts`. Pose : `scripts/db/mark-disposable.mjs` (refuse une base contenant des comptes sauf `--allow-non-empty`), `disposable-pg.mjs`, CI (après `migrate deploy`). Vérifié en réel : seed et `reset-passwords` refusés sur une base non marquée ; base d'audit refusée sans `--allow-non-empty`. Reste : comptes E2E dédiés (N4/N17).
+Marqueur `edupilot:disposable` posé sur la base (commentaire PostgreSQL), vérifié par `scripts/lib/disposable-guard.mjs` dans `prisma/seed.ts`, les 5 seeds annexes, les 8 scripts `create-*`/`seed-*`, `reset-passwords.ts`, `wipe-users.js` et `e2e/global-setup.ts`. Pose : `scripts/db/mark-disposable.mjs` (refuse une base contenant des comptes sauf `--allow-non-empty`), `disposable-pg.mjs`, CI (après `migrate deploy`). Vérifié en réel : seed et `reset-passwords` refusés sur une base non marquée ; base d'audit refusée sans `--allow-non-empty`. Comptes E2E dédiés : voir plus bas (`cc8e1ea`).
 
-### Reste à faire (Lot 5)
+### États vides — toutes les pages d'une école sans données (`ad82d49`)
 
-1. États vides : parcours de toutes les pages avec une école sans données.
-2. Import CSV/Excel robuste (ligne par ligne, rapport, pas d'import partiel silencieux, doublons, UTF-8 et Windows-1252).
-3. Comptes E2E dédiés (N4/N17) ; E2E du démarrage à vide en CI ; CI bloquante.
-4. M8 : 2 violations d'accessibilité restantes (`/ecoles`, `/dashboard/grades` enseignant).
-5. Batterie du Lot 5.
+Second test du démarrage à vide (même fichier, en série) : le super-administrateur déploie « École Sans Données », son administrateur crée un enseignant et un parent, puis chacun des trois comptes visite les 145 pages statiques du tableau de bord (liste lue dans `src/app`, routes `[param]` exclues). Anomalie relevée si : statut ≥ 500 ou 404, écran d'erreur, exception non rattrapée, « NaN » / « Infinity » / « undefined » affichés, perte de session. « Accès refusé » (page d'un autre rôle) n'en est pas une.
+
+**Résultat : 145 pages × 3 rôles, 0 anomalie (11,8 min).** Limites : le tableau de bord n'a pas d'élément `<main>` propre au contenu, donc le contrôle du texte porte sur le corps entier ; rôle élève non parcouru (un élève n'existe pas sans classe).
+
+### Import CSV/Excel (`c28e0e1`, `a157849`)
+
+| ID | Défaut | Correctif | Preuve |
+|---|---|---|---|
+| N45 | Fichier lu par `readAsBinaryString` : CSV UTF-8 sans BOM → « AÃ¯cha » ; Windows-1252 → apostrophe typographique perdue ; noms enregistrés ainsi | `lib/import/read-spreadsheet` lit les octets : XLSX/XLS reconnus à leur signature, UTF-8 strict sinon Windows-1252, BOM retiré, séparateur `;` ou `,` | `tests/lib/import/read-spreadsheet.test.ts` (6) |
+| N46 | Élèves : une transaction par ligne, lignes invalides ignorées sous « Importation réussie », classe introuvable → élève inscrit nulle part, date `JJ/MM/AAAA` passée à `new Date()`, arrêt en cours → import partiel | Tout le fichier validé d'abord (schéma, dates, doublons fichier et base, classes, année en cours) ; à la moindre erreur 422 et rien d'écrit, rapport `{ row, field, message }` ; sinon une seule transaction ; collision concurrente → 409 | `tests/lib/import/dates.test.ts` (5) ; `tests/integration-db/import-students.test.ts` (6, PG réel, tous rouges avant) |
+| N47 | Enseignants, parents, classes : même import partiel ; matricule d'enfant inconnu ignoré (parent sans enfant) ; niveau inconnu **créé** en `PRIMARY` ; professeur principal introuvable → classe sans titulaire | Socle `lib/import/all-or-nothing` ; mêmes règles que N46 ; niveau trouvé par code ou nom, enseignant de l'école exigé, noms de classe en double signalés | `tests/integration-db/import-accounts-classes.test.ts` (8, PG réel, 6 rouges avant) |
+
+Écran (règle 8, même commit que chaque contrat) : refus affiché comme tel (« Import refusé : aucun enregistrement créé ») avec le rapport complet.
+
+Tests existants modifiés (règle 4, `a157849`) : `tests/api/import-{teachers,parents,classes}.test.ts` exigeaient l'import partiel (« erreurs de validation → 200, 1 créé », « email existant ignoré », « niveau manquant créé », « enseignant inconnu → classe sans titulaire ») ; ils exigent désormais 422 sans écriture, ou 500 et transaction annulée. Cas d'accès, de format et de quota inchangés.
+
+### Comptes E2E dédiés — N4 / N17 (`cc8e1ea`)
+
+`e2e/global-setup.ts` (base marquée jetable obligatoire, contexte système RLS) crée ou remet à zéro des comptes propres aux E2E (`e2e.*@edupilot-e2e.test`, `e2e/e2e-accounts.ts`) dans les écoles du seed retrouvées par code, plus un jeu dédié (classe, matière enseignée, évaluation, élève inscrit, parent rattaché), et écrit les identifiants réels dans `e2e/.auth/fixtures.json`, lus par `security-tenant`. Les comptes de démonstration ne sont plus réécrits : empreinte des 8 comptes (hash du mot de passe, `updatedAt`, échecs, 2FA) **identique avant et après** chacun des trois passages de la suite complète.
+
+Tests existants modifiés (règle 4) : `auth.setup.ts` et `auth-flow.spec.ts` importaient les comptes depuis `global-setup` (import dynamique qui chargeait Prisma dans le processus de test) ; même compte administrateur de l'école 1, désormais dédié.
+
+### M8 et N49 — suite E2E complète (`90930dd`, `b500a09`)
+
+- M8 : `/ecoles` reçoit son `<main>` ; la liste des évaluations passe de `h4` à `h2` (elle suit le `h1` de la page Notes) et son bouton à icône reçoit un nom accessible. Le troisième échec de l'audit (`grades-flow`, CTA) est vert depuis la batterie du Lot 4.
+- N49 : les données dédiées ont mis au jour un plantage de « Matières par classe » (`.map` sur `{ data, pagination }` de `/api/teachers`) dès qu'une classe a une matière affectée. `class-lists.spec.ts` rouge avant, vert après.
+
+Suite complète (build de production, base d'audit, rôle applicatif) : 87/89 → **89/89**.
+
+### CI (`c80117e`)
+
+- Seed du job `e2e` bloquant (retrait de `continue-on-error`).
+- Nouveau job `fresh-install` : PostgreSQL neuf, `migrate deploy` sans seed, rôle applicatif, build, serveur de production sans `ROOT_USER_EMAILS`, `playwright.fresh.config.ts`. Ajouté aux vérifications requises du Quality Gate.
+- L'intégration PostgreSQL tourne déjà en CI (job `integration-tests`, Lot 1). Les deux `continue-on-error` restants (envoi Codecov, relevé des licences) sont informatifs et ne portent aucun test.
+- Non vérifié : aucune exécution sur GitHub Actions dans cette session (YAML validé, étapes rejouées en local).
+
+### Constats du Lot 5 laissés au suivi (règle 10)
+
+- **N48** : bouton « autres actions » de la liste des évaluations sans action (nom accessible ajouté par M8, comportement inchangé).
+- **N50** : import des élèves, la colonne « Email parent » est proposée par l'écran (`lib/import/mapping-utils.ts`) et acceptée par le schéma, mais `lib/import/student-import.ts` ne l'utilise pas : aucun rattachement, aucun avertissement. **Décision à prendre (données personnelles, règle 11)** : rattacher l'élève au compte parent existant de cette adresse, ou retirer la colonne et refuser le fichier qui la remplit.
+- **N51** : `/api/import/schedules` écrit les lignes valides et ignore les autres (import partiel). Aucun écran ne l'appelle.
+- **N52** : `/api/students/bulk-import`, second point d'entrée d'import d'élèves, appelé par aucun écran et non couvert par N46.
+- **N53** : le spinner de chargement de `PageGuard` n'a ni texte ni `role="status"`. Au passage de la batterie, l'E2E des états vides a relevé une fois « TEACHER /dashboard/settings/profile : zone principale vide ». Aucune reproduction en 15 chargements ciblés (362 caractères affichés à chaque fois, `networkidle` atteint en 1,3 à 1,9 s) : c'est un état de chargement capturé, pas une page vide.
 
 ---
 
@@ -424,7 +462,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | M5 | Moyenne | 163/231 `findMany` sans `take` | 3 | Corrigé — revue faite, N+1 corrigés, les 6 occurrences non bornées traitées ; `alumni` reporté (N14) | `618933d` `0d3a609` `82baca8` `d926558` `9eb7657` `8d2c446` `b62db28` `6911d97` | revue + plafond helper | 163 | voir « Revue M5 » (Lot 3) |
 | M6 | Moyenne | `.env.example` incohérent (18 variables, Upstash, `AUTH_TRUST_HOST`) | 2 | Corrigé (statut Upstash : décision en attente, voir Lot 2) | `2851521` | `tests/lib/config/env-documentation.test.ts` (2), `tests/lib/env-production.test.ts` (4) | 18 lues non documentées, 3 documentées jamais lues ; `EMAIL_API_KEY` exigée même en SMTP | 0 / 0 ; `SMTP_HOST` exigé en SMTP, `EMAIL_API_KEY` hors SMTP |
 | M7 | Moyenne | Dépendances vulnérables (nodemailer, sharp) | 1 | Corrigé (prod) | `0fd0302` | `npm audit --omit=dev --audit-level=high` | 4 prod, 15 total | 0 prod ; 8 total, outils de dev uniquement (correctif = majeure/`--force`) |
-| M8 | Moyenne | 3 E2E en échec | 5 | Constat audit | — | `npm run test:e2e` | 78/81 | — |
+| M8 | Moyenne | 3 E2E en échec | 5 | Corrigé | `90930dd` (a11y `/ecoles`, `/dashboard/grades` enseignant) ; `grades-flow` vert depuis le Lot 4 | `npm run test:e2e` (build de prod, base d'audit, rôle applicatif) | 78/81 | 89/89 |
 | M9 | Moyenne | Documentation d'API obsolète | 8 | Constat audit | — | OpenAPI généré | 33/452 | — |
 | M10 | Moyenne | Panne DB indiscernable d'identifiants invalides | 2 | Corrigé | `fc28606` | `tests/integration-db/login-db-outage.test.ts` (3, vraies erreurs Prisma) ; `login-errors.test.ts` (5) ; `auth-login-rate-limit.test.ts` (+1) | `error=Configuration` → « Email ou mot de passe incorrect » | `code=service_unavailable` → « Service momentanément indisponible… » ; panne non comptée par la limite H4 |
 | L1 | Faible | CSP `style-src 'unsafe-inline'` | 7 | Constat audit | — | en-tête | — | — |
@@ -439,7 +477,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N1 | Critique | Épuisement mémoire (voir ci-dessus) | 3 | Corrigé | `0356461` `2a24ac2` | RSS (batterie du Lot 3) | 8 746 Mo | 395 Mo après smoke 7 rôles + latences + Lighthouse |
 | N2 | Élevée | Retention : `requireAuth` par défaut + comparaison non constante | 2 | Corrigé | `c749ec8` | `system-retention.test.ts` (+2), `cron-auth.test.ts` (4) | 401 avec secret valide ; comparaison `===` | cron sans session → 200 ; `timingSafeEqual` ; SUPER_ADMIN pré-2FA refusé |
 | N3 | Élevée | Désactivation inter-école via DELETE | 1 | Corrigé | `563ccb6` | `subject-categories-isolation.test.ts` (N3) ; `security.mjs idor` | 200, `isActive=false` | 404, catégorie toujours active |
-| N4 | Moyenne | `e2e/global-setup.ts` code en dur les identifiants d'écoles et de classe d'un seed précis (`E2E_SCHOOLS`) : sur une base reseedée, `security-tenant` peut passer sans rien prouver (ressource inexistante) | 5 | Constat Lot 1 | — | comptes et données E2E dédiés, identifiants lus en base | — | — |
+| N4 | Moyenne | `e2e/global-setup.ts` code en dur les identifiants d'écoles et de classe d'un seed précis (`E2E_SCHOOLS`) : sur une base reseedée, `security-tenant` peut passer sans rien prouver (ressource inexistante) | 5 | Corrigé | `cc8e1ea` | `security-tenant` lit `e2e/.auth/fixtures.json` écrit par `global-setup` ; suite complète 89/89 | identifiants d'un seed précis codés en dur | identifiants réels lus en base |
 | N5 | Élevée | `lib/config/env-validation.ts` lève à l'import (y compris pendant `next build`) et ignore `SKIP_ENV_VALIDATION` : build d'un clone neuf sans `.env` en échec, **et étape de build du Dockerfile impossible** (aucun secret) | 2 | Corrigé (fusion des 2 modules : Lot 8, L3) | `828a6f8` | `tests/lib/config/env-validation.test.ts` (3) | build KO sans `.env` | build sans secret OK ; démarrage sans secret toujours refusé |
 | N6 | Faible | `nodemailer` 9 hors de la plage peer de `next-auth` (`^7 \|\| ^8`) — préexistant (9.0.5), masqué par `legacy-peer-deps` | 8 | Constat Lot 1 | — | vérification de l'envoi d'email (Lot 5/7) | — | — |
 | N9 | Élevée (données personnelles) | `GET /api/evaluations` ne filtre que par école ; seul TEACHER est restreint à ses matières. Un PARENT ou un STUDENT reçoit toutes les évaluations de l'établissement **avec les notes et les noms de tous les élèves** (notes de mineurs exposées à d'autres familles) | 3 (avec C3, même route) | Corrigé | `0356461` `811016c` | test d'intégration par rôle (parent : ses enfants seulement) | lecture `src/app/api/evaluations/route.ts:24-32,79-105` [LU] | `evaluations-list.test.ts` (10, PG réel) : parent → ses enfants, élève → lui-même |
@@ -452,7 +490,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N7 | Élevée | `payments/initiate` écrasait la référence de rapprochement (« PAY-… ») par l'identifiant du fournisseur ; les webhooks MoMo et FedaPay rapprochent par notre référence : paiements Mobile Money encaissés mais jamais rapprochés (restent PENDING), sans aucune panne | 2 | Corrigé | `8a34de6` | `tests/integration-db/payment-momo-flow.test.ts` (3, PG réel, fournisseur simulé) | PENDING après webhook signé | VERIFIED ; rejeu sans effet ; signature forgée → 401 |
 | N15 | Moyenne | `GET /api/root/analytics` → 500 pour le SUPER_ADMIN : `DATE()` renvoie un objet `Date` que le code trie avec `localeCompare` (`TypeError`) ; la page d'analyse de la console root est inutilisable | Suivi | Constat Lot 3 — non corrigé (règle 10 : sévérité moyenne, hors données personnelles) | — | smoke SUPER_ADMIN | 500 | — |
 | N16 | Moyenne | 8 routes lisaient la pagination par `parseInt` sans plafond (`?limit=100000` → liste entière en mémoire, famille N1) ; `?page=abc` → `take: NaN` → 500. **Son premier correctif a tronqué 3 écrans** (plafond uniforme de 100) | 3 | Corrigé | `51bbf26` `ba9b24a` | `tests/integration-db/list-limit-cap.test.ts` (PG réel, 19 cas) | liste entière ; 500 sur saisie invalide ; puis journal 500 → 100, rendez-vous et incidents 200 → 100 | plafond de chaque route au niveau demandé par son écran (100 / 200 / 500) ; valeurs par défaut sur saisie invalide |
-| N17 | Élevée | `e2e/global-setup.ts` réinitialise mot de passe, verrouillage et 2FA de 8 comptes dans la base désignée par le `DATABASE_URL` du `.env` — la base locale du développeur (5432) si l'E2E est lancé sans surcharge — sans aucun garde-fou (règles 5 et 6) | 5 (comptes E2E dédiés + marqueur d'environnement) | En cours — marqueur fait (`9a811aa`) ; comptes E2E dédiés à faire | `9a811aa` | `tests/integration-db/disposable-guard.test.ts` (4, PG réel) ; seed et `reset-passwords` refusés sur base non marquée (exécution réelle) | aucun garde-fou | base non marquée refusée par les 16 scripts d'écriture et `e2e/global-setup.ts` |
+| N17 | Élevée | `e2e/global-setup.ts` réinitialise mot de passe, verrouillage et 2FA de 8 comptes dans la base désignée par le `DATABASE_URL` du `.env` — la base locale du développeur (5432) si l'E2E est lancé sans surcharge — sans aucun garde-fou (règles 5 et 6) | 5 (comptes E2E dédiés + marqueur d'environnement) | Corrigé | `9a811aa`, `cc8e1ea` | `tests/integration-db/disposable-guard.test.ts` (4, PG réel) ; seed et `reset-passwords` refusés sur base non marquée (exécution réelle) ; empreinte des 8 comptes de démonstration identique avant et après la suite E2E complète (3 passages) | aucun garde-fou ; comptes de démonstration réécrits | base non marquée refusée par les 16 scripts d'écriture et `e2e/global-setup.ts` ; E2E sur comptes dédiés |
 | N18 | Élevée | 5 écrans lisaient la clé `students` alors que `/api/students` renvoie `{ data, pagination }` (antérieur à la remédiation) : appel, déclaration d'incident, recherche d'élève du paiement, médical et documents affichaient une liste vide | 3 | Corrigé | `3f8913c` | `e2e/student-lists.spec.ts` (5) ; `tests/lib/student-list.test.ts` (4) | 5 E2E rouges sur le build d'avant le correctif | 5 verts |
 | N19 | Élevée | `/api/students?classId=…` plafonné à 100 : appel, saisie de notes, bulletins et promotion perdaient sans erreur les élèves au-delà du 100e d'une classe (effectifs courants dans le public au Bénin) | 3 | Corrigé | `a812b42` | `tests/integration-db/class-roster.test.ts` (2, PG réel) | classe de 120 : 100 renvoyés | 120 renvoyés ; listes de l'établissement toujours plafonnées à 100 |
 | N20 | Moyenne | Sélecteurs d'élèves à l'échelle de l'établissement tronqués sans indication (antérieur) : documents (20 premiers), médical (100), déclaration d'incident et tableau des risques (200 demandés → 100), gamification et orientation (100). Correction propre : recherche côté serveur dans les sélecteurs (changement d'interface, design gelé) | Suivi — décision du propriétaire | Constat Lot 3 | — | — | — | — |
@@ -479,6 +517,15 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N42 | Faible | `/dashboard/grades` montre au parent l'interface de l'équipe (« Saisir Notes ») ; écritures refusées par le serveur | Suivi | Constat Lot 5 | — | E2E (texte de la page) | — | — |
 | N43 | Faible | « Matières par classe » : boutons « Ajouter » et « Catalogue global » sans action (l'affectation se fait depuis la fiche de la classe) | Suivi | Constat Lot 5 | — | lecture du code | — | — |
 | N44 | Faible | `/dashboard/alerts` (navigation super-admin) → 404 | Suivi | Constat Lot 5 | — | console navigateur (E2E) | — | — |
+| N45 | Élevée | Import : fichier lu par `readAsBinaryString` — CSV UTF-8 sans BOM → « AÃ¯cha », Windows-1252 → apostrophe perdue ; noms enregistrés corrompus (données personnelles) | 5 | Corrigé | `c28e0e1` | `tests/lib/import/read-spreadsheet.test.ts` (6) | « AÃ¯cha », « NDiaye » | « Aïcha », « N’Diaye » |
+| N46 | Élevée | Import des élèves partiel et silencieux (lignes invalides ignorées sous « Importation réussie », élève sans classe, dates `JJ/MM/AAAA` mal lues, arrêt → import partiel) | 5 | Corrigé | `c28e0e1` | `tests/integration-db/import-students.test.ts` (6, PG réel, rouges avant) ; `tests/lib/import/dates.test.ts` (5) | lignes valides créées, autres ignorées (200) | 422, rien d'écrit, rapport complet ; sinon une transaction |
+| N47 | Élevée | Imports enseignants / parents / classes partiels ; parent créé sans enfant ; niveau inconnu créé en `PRIMARY` ; classe sans titulaire | 5 | Corrigé | `a157849` | `tests/integration-db/import-accounts-classes.test.ts` (8, PG réel, 6 rouges avant) | import partiel (200) | 422, rien d'écrit ; sinon une transaction |
+| N48 | Faible | Liste des évaluations : bouton « autres actions » sans action | Suivi | Constat Lot 5 | — | lecture du code | — | — |
+| N49 | Élevée | « Matières par classe » plantait dès qu'une classe avait une matière affectée (`.map` sur `{ data, pagination }` de `/api/teachers`) | 5 | Corrigé | `b500a09` | `e2e/class-lists.spec.ts` (rouge avant) | « Une erreur inattendue est survenue » | liste et affectations affichées |
+| N50 | Moyenne | Import des élèves : colonne « Email parent » proposée et acceptée, jamais utilisée (aucun rattachement, aucun avertissement) | Décision du propriétaire (données personnelles) | Constat Lot 5 | — | lecture du code (`mapping-utils.ts`, `student-import.ts`) | — | — |
+| N51 | Moyenne | `/api/import/schedules` : lignes valides écrites, autres ignorées (import partiel) ; aucun écran ne l'appelle | Suivi | Constat Lot 5 | — | lecture du code | — | — |
+| N52 | Faible | `/api/students/bulk-import` : second import d'élèves, appelé par aucun écran, non couvert par N46 | Suivi | Constat Lot 5 | — | recherche des appels | — | — |
+| N53 | Faible | `PageGuard` : pendant le chargement de la session, un spinner sans texte ni `role="status"` — rien n'est annoncé aux lecteurs d'écran, et la zone principale paraît vide | Suivi | Constat Lot 5 | — | E2E des états vides (relevé intermittent sur `/dashboard/settings/profile`, enseignant) ; lecture du code | — | — |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
@@ -556,3 +603,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | 3 | ✅ 0 erreur (9 s) | ✅ 0 erreur (62 s) | ✅ 2 845/2 845, 268 fichiers (34 s) | ✅ 48 s | ✅ 134/134, 26 fichiers (43 s, PG réel) | ✅ 18/18 (`grades-flow`, `class-lists`, `student-lists` ; build de prod, base d'audit) | Build de `2da4d02`. Smoke 7 rôles : 0 > 500 ms / 500 Ko, 1 violation N15 ; RSS finale 395 Mo ; `analytics/dashboard` p95 251 / 208 ms ; page Notes 687 Ko |
 | 4 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 871/2 871, 273 fichiers | ✅ (next 16.3.5) | ✅ 230/230, 32 fichiers (PG réel, code sur le **rôle applicatif** soumis à la RLS) | ✅ 87/89 (suite complète) : les 2 échecs a11y M8 connus (`/ecoles`, `/dashboard/grades` TEACHER) ; `grades-flow` CTA désormais vert | Build de `005be2d`, serveur sur `edupilot_app`, base d'audit. `security.mjs` **13/13 PASS** aux limites de production (réserve : H4 `{"429":12}`, fenêtre d'échecs d'un rejeu isolé 5 min plus tôt encore ouverte ; rejeu isolé : `{"302":10,"429":2}`). Smoke 7 rôles : 0 réponse > 500 ms / 500 Ko hors N15 et automation (serveur sans secret). RSS 452 Mo. Maintenance quotidienne en contexte système sous RLS : voir « Mesures RLS » |
 | 2 | ✅ 0 erreur | ✅ 0 erreur (`npm run lint` complet) | ✅ 2 776/2 776, 255 fichiers | ✅ 36 s ; 0 ligne de télémétrie Sentry | ✅ 18/18 (5 fichiers, PG réel) | ✅ 78/81 : exactement les 3 échecs connus de l'audit (M8 : a11y `/ecoles`, a11y `/dashboard/grades` TEACHER, `grades-flow` CTA) — aucune régression | `security.mjs` : H1, H2 ×2, M3 ×2, H5 ×3, TENANT → 9/9 PASS ; `redis-outage.mjs` PASS (10×200, p95 24 ms) ; cron valide : voir N8 |
+| 5 | ✅ 0 erreur (10 s) | ✅ 0 erreur (54 s) | ✅ 2 888/2 888, 277 fichiers (35 s) | ✅ (next 16.3.5) | ✅ 252/252, 37 fichiers (64 s, PG réel) | ✅ suite standard 89/89 (build de prod, base d'audit, rôle applicatif) ; ✅ démarrage à vide 2/2 (installation 1,3 min + 145 pages × 3 rôles, 0 anomalie, 13,6 min) | Code de `90930dd`. Démarrage à vide rejoué sur une base neuve vérifiée (`setupNeeded:true`). Premier passage : installation verte, états vides avec 1 relevé non reproduit (N53, état de chargement ; 0 en 15 chargements ciblés) ; second passage vert. Empreinte des 8 comptes de démonstration identique avant et après chaque suite standard. Job CI `fresh-install` non exécuté sur GitHub Actions dans cette session |
