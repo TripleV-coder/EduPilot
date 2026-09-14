@@ -17,12 +17,30 @@ import { fetchAllPages } from "@/lib/api/fetch-all-pages";
 
 
 
+// N59 : ces champs sont renvoyés par /api/compliance/dashboard (ils ne l'étaient
+// pas : la page affichait ses valeurs de repli, 85 % et 100 %).
 type ComplianceDashboard = {
     overallScore: number;
-    consentRate: number;
+    /** null tant que le taux n'est pas réellement mesuré. */
+    consentRate: number | null;
+    /** Règles de conservation inactives, à revoir et activer. */
     pendingPolicies: number;
     dataRequestsSummary: { pending: number; completed: number; total: number };
-    retentionStatus: { compliant: number; overdue: number };
+    retentionStatus: { active: number; inactive: number };
+};
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+    EXPORT: "Export des données",
+    RECTIFICATION: "Rectification",
+    DELETION: "Droit à l'effacement",
+    PORTABILITY: "Portabilité",
+};
+
+const REQUEST_STATUS_LABELS: Record<string, string> = {
+    PENDING: "En attente",
+    IN_PROGRESS: "En cours",
+    COMPLETED: "Traitée",
+    REJECTED: "Refusée",
 };
 
 type DataRequest = {
@@ -123,7 +141,7 @@ export default function ComplianceDashboardPage() {
                             <Card className="border-border shadow-sm border-t-4 border-t-success">
                                 <CardContent className="pt-6 text-center">
                                     <ShieldCheck className="w-8 h-8 text-success mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold text-success">{dashboard.overallScore ?? 85}%</h3>
+                                    <h3 className="text-3xl font-bold text-success">{dashboard.overallScore}%</h3>
                                     <p className="text-sm font-medium mt-1 text-success">Score de Conformité</p>
                                 </CardContent>
                             </Card>
@@ -131,16 +149,20 @@ export default function ComplianceDashboardPage() {
                             <Card className="border-border shadow-sm">
                                 <CardContent className="pt-6 text-center">
                                     <Users className="w-8 h-8 text-primary mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold">{dashboard.consentRate ?? 100}%</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Consentements Parents</p>
+                                    <h3 className="text-3xl font-bold">
+                                        {dashboard.consentRate === null ? "—" : `${dashboard.consentRate}%`}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Consentements Parents{dashboard.consentRate === null ? " · non mesuré" : ""}
+                                    </p>
                                 </CardContent>
                             </Card>
 
                             <Card className="border-border shadow-sm border-t-4 border-t-warning">
                                 <CardContent className="pt-6 text-center">
                                     <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold">{dashboard.pendingPolicies ?? 0}</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Politiques à revoir</p>
+                                    <h3 className="text-3xl font-bold">{dashboard.pendingPolicies}</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Règles de conservation à activer</p>
                                 </CardContent>
                             </Card>
                         </div>
@@ -150,10 +172,10 @@ export default function ComplianceDashboardPage() {
                                 <CardHeader className="bg-muted/10 border-b border-border">
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <FileText className="w-5 h-5 text-primary" />
-                                        Demandes RGPD ({dashboard.dataRequestsSummary?.total ?? 0})
+                                        Demandes RGPD ({dashboard.dataRequestsSummary.total})
                                     </CardTitle>
                                     <CardDescription>
-                                        {dashboard.dataRequestsSummary?.pending ?? 0} en attente · {dashboard.dataRequestsSummary?.completed ?? 0} traitées
+                                        {dashboard.dataRequestsSummary.pending} en attente · {dashboard.dataRequestsSummary.completed} traitées
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-6">
@@ -172,7 +194,7 @@ export default function ComplianceDashboardPage() {
                                                             {req.user ? `${req.user.firstName} ${req.user.lastName}` : req.id}
                                                         </h4>
                                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                                            {req.type === "ACCESS" ? "Droit d'accès" : req.type === "DELETE" ? "Droit à l'oubli" : req.type === "EXPORT" ? "Portabilité" : req.type} · {formatDateShort(req.requestedAt)}
+                                                            {REQUEST_TYPE_LABELS[req.type] ?? req.type} · {formatDateShort(req.requestedAt)}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -191,7 +213,7 @@ export default function ComplianceDashboardPage() {
                                                             </Button>
                                                         )}
                                                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(req.status)}`}>
-                                                            {req.status}
+                                                            {REQUEST_STATUS_LABELS[req.status] ?? req.status}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -207,22 +229,22 @@ export default function ComplianceDashboardPage() {
                                         <Clock className="w-5 h-5 text-primary" />
                                         Rétention des données
                                     </CardTitle>
-                                    <CardDescription>Statut du respect des politiques de rétention.</CardDescription>
+                                    <CardDescription>Règles de conservation de votre établissement.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-4">
                                     <div className="flex items-center justify-between p-4 border rounded-lg bg-success/10 border-success/30">
                                         <div className="flex items-center gap-3">
                                             <CheckCircle className="w-5 h-5 text-success" />
-                                            <span className="text-sm font-medium">Conformes</span>
+                                            <span className="text-sm font-medium">Règles actives</span>
                                         </div>
-                                        <span className="text-lg font-bold text-success">{dashboard.retentionStatus?.compliant ?? 0}</span>
+                                        <span className="text-lg font-bold text-success">{dashboard.retentionStatus.active}</span>
                                     </div>
                                     <div className="flex items-center justify-between p-4 border rounded-lg bg-warning/10 border-warning/30">
                                         <div className="flex items-center gap-3">
                                             <AlertTriangle className="w-5 h-5 text-warning" />
-                                            <span className="text-sm font-medium">En retard</span>
+                                            <span className="text-sm font-medium">Règles à activer</span>
                                         </div>
-                                        <span className="text-lg font-bold text-warning">{dashboard.retentionStatus?.overdue ?? 0}</span>
+                                        <span className="text-lg font-bold text-warning">{dashboard.retentionStatus.inactive}</span>
                                     </div>
                                 </CardContent>
                             </Card>

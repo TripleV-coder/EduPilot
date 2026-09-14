@@ -151,6 +151,17 @@ export const GET = createApiHandler(async (request, context) => {
       {}
     );
 
+    // N59 (Lot 6) : indicateurs lus par la page Conformité, qui ne les recevait pas
+    // et affichait ses valeurs de repli (85 % de conformité, 100 % de consentements).
+    const requestScope = schoolId ? { user: { schoolId } } : {};
+    const policyScope = schoolId ? { schoolId } : {};
+    const [completedDataRequests, totalDataRequests, activePolicies] = await Promise.all([
+      prisma.dataAccessRequest.count({ where: { ...requestScope, status: "COMPLETED" } }),
+      prisma.dataAccessRequest.count({ where: requestScope }),
+      prisma.dataRetentionPolicy.count({ where: { ...policyScope, isActive: true } }),
+    ]);
+    const inactivePolicies = Math.max(0, retentionPolicies - activePolicies);
+
     // Calculate compliance score (0-100)
     let complianceScore = 100;
 
@@ -175,6 +186,12 @@ export const GET = createApiHandler(async (request, context) => {
     });
 
     return NextResponse.json({
+      overallScore: Math.max(0, complianceScore),
+      // Non mesuré (pas encore de consentement par enfant) : jamais un chiffre inventé.
+      consentRate: null,
+      pendingPolicies: inactivePolicies,
+      dataRequestsSummary: { pending: pendingDataRequests, completed: completedDataRequests, total: totalDataRequests },
+      retentionStatus: { active: activePolicies, inactive: inactivePolicies },
       summary: {
         totalUsers,
         activeUsers,
@@ -215,6 +232,15 @@ export const GET = createApiHandler(async (request, context) => {
               level: "error",
               message: "Aucune politique de rétention définie",
               action: "Configurer les politiques",
+            },
+          ]
+          : []),
+        ...(inactivePolicies > 0
+          ? [
+            {
+              level: "info",
+              message: `${inactivePolicies} règle(s) de conservation à activer`,
+              action: "Revoir les durées de conservation",
             },
           ]
           : []),
