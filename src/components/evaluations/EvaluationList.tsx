@@ -70,9 +70,11 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-sm font-bold text-foreground truncate">
+                      {/* h2 (M8, a11y) : la liste suit directement le h1 de la page Notes ;
+                          style porté par les classes. */}
+                      <h2 className="text-sm font-bold text-foreground truncate">
                         {ev.title || `${ev.type.name} - ${ev.classSubject.subject.name}`}
-                      </h4>
+                      </h2>
                       <Badge className={cn("text-[9px] font-bold uppercase py-0 px-1.5", statusColor)}>
                         {status}
                       </Badge>
@@ -113,8 +115,13 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <MoreVertical className="w-4 h-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Autres actions pour l'évaluation ${ev.title || ev.type.name}`}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                      <MoreVertical className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

@@ -53,7 +53,8 @@ function DirectoryInner() {
     const resetPageThen = (fn: () => void) => fn();
 
     return (
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
+        // <main> (M8, a11y) : zone principale unique ; même mise en page que le div d'origine.
+        <main style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
             <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 6px" }}>
                 Annuaire des établissements
             </h1>
@@ -164,7 +165,7 @@ function DirectoryInner() {
                     ) : null}
                 </>
             )}
-        </div>
+        </main>
     );
 }
 
