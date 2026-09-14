@@ -362,6 +362,46 @@ Surcoût mesuré avant décision : +0,8 ms par requête SQL (aller-retour `set_c
 
 ---
 
+## Lot 5 — Démarrage à vide, import et tests fiables (en cours, commencé le 2026-09-14)
+
+### Démarrage à vide depuis l'interface — E2E `e2e/fresh-install/fresh-install.spec.ts`
+
+Conditions : base neuve `edupilot_fresh` (`migrate deploy`, aucun seed, aucun utilisateur), rôle applicatif `edupilot_app` sous RLS, build de production, `ROOT_USER_EMAILS` vide (installation neuve), `playwright.fresh.config.ts`.
+
+Parcours en 15 étapes, uniquement par l'interface : `/setup` → déploiement de l'école (console root) → premier changement du mot de passe provisoire de l'admin → années et périodes → niveau de collège → matière et type d'évaluation → enseignant → classe avec professeur principal → matière affectée → inscription d'un élève → compte parent et code de liaison → note saisie par l'enseignant → connexion de l'élève → rattachement et lecture de la note par le parent. **Résultat : vert (1,1 min).**
+
+Blocages trouvés en le déroulant, chacun prouvé rouge avant correctif :
+
+| ID | Étape | Blocage | Commit |
+|---|---|---|---|
+| N36 | 2 | Console root refusée (403) au super-admin créé par `/setup` quand `ROOT_USER_EMAILS` est absente | `388ccae` |
+| N37 | 12, 15 | Aucun compte parent créable depuis l'interface ; `POST /api/users` sans profil parent → rattachement 404 | `7117bb0` |
+| N38 | 5 | Écran des périodes : accents écrits `é` en JSX, affichés tels quels (« Nouvelle Période ») | `b8c6a88` |
+| N39 | 6 | Niveaux de collège et de lycée refusés (valeurs `MIDDLE`/`HIGH` hors enum) | `e6afa61` |
+| N40 | 9 | « Créer une classe » plantait au chargement (`<SelectItem value="">`) | `df0bd5c` |
+| N41 | 3, 13–15 | Activation des comptes : 3 tentatives / 15 min par adresse, réussites comprises | `c188894` |
+
+Constats sans blocage, laissés au suivi (règle 10) :
+- **N42** : `/dashboard/grades` montre au parent l'interface de l'équipe (« Saisissez les notes », bouton « Saisir Notes »). Le serveur refuse ces écritures (`allowedRoles`) : aucun risque pour les données. Le parent consulte les notes par « Mes enfants » → fiche → Scolarité.
+- **N43** : bouton « Ajouter » (et « Catalogue global ») de l'écran « Matières par classe » sans action ; l'affectation se fait depuis la fiche de la classe.
+- **N44** : `/dashboard/alerts` (navigation super-admin) répond 404.
+- **N27 (complément)** : pendant le premier changement de mot de passe, des navigations vers `https://localhost:3100/…` échouent (`ERR_SSL_PROTOCOL_ERROR`) : sur une installation en HTTP seul, la directive `upgrade-insecure-requests` casse aussi des navigations. Lot 7.
+- Le déploiement d'une école crée déjà son année courante et ses trimestres (`lib/schools/provisioning.ts`) : le parcours le vérifie, puis crée l'année suivante.
+
+### Règle 6 — scripts dangereux verrouillés (N17, `9a811aa`)
+
+Marqueur `edupilot:disposable` posé sur la base (commentaire PostgreSQL), vérifié par `scripts/lib/disposable-guard.mjs` dans `prisma/seed.ts`, les 5 seeds annexes, les 8 scripts `create-*`/`seed-*`, `reset-passwords.ts`, `wipe-users.js` et `e2e/global-setup.ts`. Pose : `scripts/db/mark-disposable.mjs` (refuse une base contenant des comptes sauf `--allow-non-empty`), `disposable-pg.mjs`, CI (après `migrate deploy`). Vérifié en réel : seed et `reset-passwords` refusés sur une base non marquée ; base d'audit refusée sans `--allow-non-empty`. Reste : comptes E2E dédiés (N4/N17).
+
+### Reste à faire (Lot 5)
+
+1. États vides : parcours de toutes les pages avec une école sans données.
+2. Import CSV/Excel robuste (ligne par ligne, rapport, pas d'import partiel silencieux, doublons, UTF-8 et Windows-1252).
+3. Comptes E2E dédiés (N4/N17) ; E2E du démarrage à vide en CI ; CI bloquante.
+4. M8 : 2 violations d'accessibilité restantes (`/ecoles`, `/dashboard/grades` enseignant).
+5. Batterie du Lot 5.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -412,7 +452,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N7 | Élevée | `payments/initiate` écrasait la référence de rapprochement (« PAY-… ») par l'identifiant du fournisseur ; les webhooks MoMo et FedaPay rapprochent par notre référence : paiements Mobile Money encaissés mais jamais rapprochés (restent PENDING), sans aucune panne | 2 | Corrigé | `8a34de6` | `tests/integration-db/payment-momo-flow.test.ts` (3, PG réel, fournisseur simulé) | PENDING après webhook signé | VERIFIED ; rejeu sans effet ; signature forgée → 401 |
 | N15 | Moyenne | `GET /api/root/analytics` → 500 pour le SUPER_ADMIN : `DATE()` renvoie un objet `Date` que le code trie avec `localeCompare` (`TypeError`) ; la page d'analyse de la console root est inutilisable | Suivi | Constat Lot 3 — non corrigé (règle 10 : sévérité moyenne, hors données personnelles) | — | smoke SUPER_ADMIN | 500 | — |
 | N16 | Moyenne | 8 routes lisaient la pagination par `parseInt` sans plafond (`?limit=100000` → liste entière en mémoire, famille N1) ; `?page=abc` → `take: NaN` → 500. **Son premier correctif a tronqué 3 écrans** (plafond uniforme de 100) | 3 | Corrigé | `51bbf26` `ba9b24a` | `tests/integration-db/list-limit-cap.test.ts` (PG réel, 19 cas) | liste entière ; 500 sur saisie invalide ; puis journal 500 → 100, rendez-vous et incidents 200 → 100 | plafond de chaque route au niveau demandé par son écran (100 / 200 / 500) ; valeurs par défaut sur saisie invalide |
-| N17 | Élevée | `e2e/global-setup.ts` réinitialise mot de passe, verrouillage et 2FA de 8 comptes dans la base désignée par le `DATABASE_URL` du `.env` — la base locale du développeur (5432) si l'E2E est lancé sans surcharge — sans aucun garde-fou (règles 5 et 6) | 5 (comptes E2E dédiés + marqueur d'environnement) | Constat Lot 3 — contourné pendant la remédiation : `DATABASE_URL` de la base jetable toujours passé explicitement | — | — | — | — |
+| N17 | Élevée | `e2e/global-setup.ts` réinitialise mot de passe, verrouillage et 2FA de 8 comptes dans la base désignée par le `DATABASE_URL` du `.env` — la base locale du développeur (5432) si l'E2E est lancé sans surcharge — sans aucun garde-fou (règles 5 et 6) | 5 (comptes E2E dédiés + marqueur d'environnement) | En cours — marqueur fait (`9a811aa`) ; comptes E2E dédiés à faire | `9a811aa` | `tests/integration-db/disposable-guard.test.ts` (4, PG réel) ; seed et `reset-passwords` refusés sur base non marquée (exécution réelle) | aucun garde-fou | base non marquée refusée par les 16 scripts d'écriture et `e2e/global-setup.ts` |
 | N18 | Élevée | 5 écrans lisaient la clé `students` alors que `/api/students` renvoie `{ data, pagination }` (antérieur à la remédiation) : appel, déclaration d'incident, recherche d'élève du paiement, médical et documents affichaient une liste vide | 3 | Corrigé | `3f8913c` | `e2e/student-lists.spec.ts` (5) ; `tests/lib/student-list.test.ts` (4) | 5 E2E rouges sur le build d'avant le correctif | 5 verts |
 | N19 | Élevée | `/api/students?classId=…` plafonné à 100 : appel, saisie de notes, bulletins et promotion perdaient sans erreur les élèves au-delà du 100e d'une classe (effectifs courants dans le public au Bénin) | 3 | Corrigé | `a812b42` | `tests/integration-db/class-roster.test.ts` (2, PG réel) | classe de 120 : 100 renvoyés | 120 renvoyés ; listes de l'établissement toujours plafonnées à 100 |
 | N20 | Moyenne | Sélecteurs d'élèves à l'échelle de l'établissement tronqués sans indication (antérieur) : documents (20 premiers), médical (100), déclaration d'incident et tableau des risques (200 demandés → 100), gamification et orientation (100). Correction propre : recherche côté serveur dans les sélecteurs (changement d'interface, design gelé) | Suivi — décision du propriétaire | Constat Lot 3 | — | — | — | — |
@@ -430,6 +470,15 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N33 | Faible | `POST /api/classes/[id]/promote` sur une classe ou une année d'une autre école : refus en **400** (« introuvable dans votre établissement ») au lieu de 404 | 4 | Corrigé | `e983006` | `tenant-isolation-sweep.test.ts` | 400 | 404, classe intacte |
 | N34 | Faible | Démarrage de production refusé (garde RLS, comme la garde H3 de `validateEnv`) : l'erreur est levée dans le hook d'instrumentation, Next affiche « Failed to prepare server », mais le processus **ne se termine pas** (aucune requête servie, HTTP 000). Un superviseur ne voit pas d'échec ; seule la sonde de santé le révèle | 7 (arrêt propre, supervision) | Constat Lot 4 | — | `.quality-tmp/guard-superuser.log` (processus vivant après 60 s) | — | — |
 | N35 | Faible | Outil `scripts/quality/security.mjs` : attendait 200 pour la maintenance, alors que N8 (Lot 3) la rend asynchrone (202) ; la rafale H3, placée avant H4, épuisait le budget de l'adresse et H4 ne mesurait plus rien (`csrf-429` ×12) | 4 | Corrigé (outil) | commit de clôture du Lot 4 | H4 seul : `{"302":10,"429":2}` | 11/13 PASS | voir journal |
+| N36 | Élevée | Console root : `requireRoot` exigeait l'appartenance à `ROOT_USER_EMAILS` (vide sur une installation neuve) — le super-admin créé par `/setup` ne pouvait déployer aucune école ; comparaison sensible à la casse | 5 | Corrigé | `388ccae` | `tests/lib/security/root-access-fresh-install.test.ts` (5, 2 rouges avant) ; E2E démarrage à vide (étape 2) | 403 « Accès root refusé » | école déployée depuis la console |
+| N37 | Élevée | Aucun compte parent créable depuis l'interface (rôle absent de « Nouvel utilisateur », inscription publique désactivée) ; `POST /api/users` ne créait pas le profil parent → `link-child` 404 | 5 | Corrigé | `7117bb0` | `tests/integration-db/parent-account-link.test.ts` (2, PG réel, rouges avant) ; E2E (étapes 12, 15) | profil absent, rattachement 404 | parent créé, enfant rattaché, note lue |
+| N38 | Moyenne | Écran des périodes : accents écrits en séquences d'échappement dans le JSX, affichés tels quels (bouton de création illisible) | 5 | Corrigé | `b8c6a88` | `tests/lib/ui/jsx-unicode-escapes.test.ts` (rouge avant : 15 lignes) ; E2E (étape 5) | libellés illisibles | libellés corrects ; plus aucune occurrence dans `src/` |
+| N39 | Élevée | Écran des niveaux : cycles `MIDDLE`/`HIGH`/`UNIVERSITY` refusés par l'API (400) — aucun niveau de collège ou de lycée créable | 5 | Corrigé | `e6afa61` | E2E (étape 6, rouge avant : 400 « Invalid option ») | 400 | niveau créé |
+| N40 | Élevée | « Créer une classe » plantait au chargement (`<SelectItem value="">`, Radix 2.2.6) — aucune classe créable depuis l'interface | 5 | Corrigé | `df0bd5c` | E2E (étape 9, rouge avant : erreur de rendu) | écran d'erreur | classe créée avec professeur principal |
+| N41 | Élevée | `first-login` : 3 tentatives / 15 min par adresse, réussites comprises — activation bloquée au 4e compte derrière un même NAT | 5 | Corrigé | `c188894` | `tests/integration-db/first-login-rate-limit.test.ts` (2, PG réel, rouges avant) | `[200,200,200,429,429]` | 5 × 200 ; échecs limités à 10 / 15 min |
+| N42 | Faible | `/dashboard/grades` montre au parent l'interface de l'équipe (« Saisir Notes ») ; écritures refusées par le serveur | Suivi | Constat Lot 5 | — | E2E (texte de la page) | — | — |
+| N43 | Faible | « Matières par classe » : boutons « Ajouter » et « Catalogue global » sans action (l'affectation se fait depuis la fiche de la classe) | Suivi | Constat Lot 5 | — | lecture du code | — | — |
+| N44 | Faible | `/dashboard/alerts` (navigation super-admin) → 404 | Suivi | Constat Lot 5 | — | console navigateur (E2E) | — | — |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
