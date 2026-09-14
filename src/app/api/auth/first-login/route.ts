@@ -12,9 +12,10 @@ import { normalizeTempPassword } from '@/lib/auth/password-generator';
 import { logger } from "@/lib/utils/logger";
 import {
   checkRateLimit,
+  releaseRateLimit,
   getClientIp,
   createRateLimitKey,
-  FORGOT_PASSWORD_RATE_LIMIT,
+  LOGIN_FAILURE_RATE_LIMIT,
 } from '@/lib/auth/rate-limiter';
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
@@ -137,31 +138,45 @@ export const GET = createApiHandler(
 
 /**
  * POST - Changer le mot de passe (avec ou sans MDP temporaire)
+ *
+ * N41 : seuls les ÉCHECS (mot de passe provisoire faux, 401) comptent dans la
+ * limite par adresse. Une salle de formation, le NAT d'un établissement ou le
+ * réseau d'un opérateur mobile activent de nombreux comptes depuis une même
+ * adresse ; l'ancienne limite (3 tentatives / 15 min, réussites comprises)
+ * bloquait l'activation au 4e compte. La tentative est comptée AVANT le
+ * traitement (une rafale parallèle ne dépasse pas la limite), puis rendue si
+ * elle n'est pas un échec de mot de passe — même principe que la connexion (H4).
  */
 export const POST = createApiHandler(
   async (req) => {
-    try {
-      // Rate limiting par IP
-      const ip = getClientIp(req);
-      const rateLimitKey = createRateLimitKey('first-login', ip);
-      const rateLimitResult = await checkRateLimit(rateLimitKey, FORGOT_PASSWORD_RATE_LIMIT);
+    const rateLimitKey = createRateLimitKey('first-login-failures', getClientIp(req));
+    const rateLimitResult = await checkRateLimit(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
 
-      if (!rateLimitResult.allowed) {
-        const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
-        return NextResponse.json(
-          {
-            error: 'Trop de tentatives. Veuillez réessayer plus tard.',
-            retryAfter,
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error: 'Trop de tentatives. Veuillez réessayer plus tard.',
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString(),
           },
-          {
-            status: 429,
-            headers: {
-              'Retry-After': retryAfter.toString(),
-            },
-          }
-        );
-      }
+        }
+      );
+    }
 
+    const response = await changeFirstLoginPassword(req);
+    if (response.status !== 401) await releaseRateLimit(rateLimitKey);
+    return response;
+  },
+  { requireAuth: false },
+);
+
+async function changeFirstLoginPassword(req: Request): Promise<NextResponse> {
+    try {
       const schema = z.object({
         // Sans jeton : changement depuis la session (M1).
         token: z.string().optional(),
@@ -299,6 +314,4 @@ export const POST = createApiHandler(
         { status: 500 }
       );
     }
-  },
-  { requireAuth: false },
-);
+}
