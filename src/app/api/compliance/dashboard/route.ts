@@ -238,4 +238,6 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 
-});
+// N60 (Lot 6) : réservé à l'administration, comme la page ; auparavant tout compte
+// connecté lisait les compteurs et les demandes RGPD récentes (noms et emails).
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });
