@@ -19,6 +19,7 @@ import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { verifyCronSecret } from "@/lib/security/cron-auth";
+import { runAsSystem } from "@/lib/db/db-context";
 
 // requireAuth: false (audit N2) : un cron n'a pas de session ; le garde par
 // défaut répondait 401 avant même le contrôle du secret. La route étant aussi
@@ -37,7 +38,9 @@ export const POST = createApiHandler(async (request, context) => {
     try {
         logger.info("Démarrage enforcement rétention RGPD", { module: "api/system/retention" });
 
-        const results = await enforceDataRetentionPolicies();
+        // Appelant vérifié : la rétention porte sur tous les établissements,
+        // contexte système déclaré (audit M2).
+        const results = await runAsSystem("cron:retention", () => enforceDataRetentionPolicies());
 
         const totalDeleted = results.reduce((sum, r) => sum + r.deletedCount, 0);
 

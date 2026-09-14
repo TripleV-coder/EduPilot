@@ -14,17 +14,18 @@ export const POST = createApiHandler(async (request, context) => {
         const body = await request.json();
         const data = recommendationSchema.parse({ ...body, orientationId: id });
 
-        // Verify orientation exists
-        const orientation = await prisma.studentOrientation.findUnique({
-            where: { id },
-            include: { student: { select: { schoolId: true } } },
+        // Dossier d'un élève d'un autre établissement → introuvable (404) : l'élève
+        // est masqué par la RLS (audit M2), le filtre applicatif le dit explicitement.
+        const orientation = await prisma.studentOrientation.findFirst({
+            where: {
+                id,
+                ...(session.user.role === "SUPER_ADMIN" ? {} : { student: { schoolId: getActiveSchoolId(session) } }),
+            },
+            select: { id: true, status: true },
         });
 
         if (!orientation) {
             return NextResponse.json({ error: "Dossier d'orientation introuvable" }, { status: 404 });
-        }
-        if (session.user.role !== "SUPER_ADMIN" && orientation.student.schoolId !== getActiveSchoolId(session)) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
         const newRecommendation = await prisma.orientationRecommendation.create({

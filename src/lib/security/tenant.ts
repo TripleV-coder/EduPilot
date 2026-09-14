@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Session } from "next-auth";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { runAsSystem } from "@/lib/db/db-context";
 
 export type TenantGuardResult = NextResponse | null;
 
@@ -243,7 +244,11 @@ export async function assertModelAccess(
   const resolver = modelSchoolResolvers[model];
   if (!resolver) return forbidden("Accès refusé à cet établissement");
 
-  const schoolId = await resolver(id);
+  // Le garde doit connaître l'établissement propriétaire pour refuser (403) :
+  // sous RLS (audit M2), l'élève d'une autre école est masqué et la relation
+  // obligatoire lue par le résolveur ferait échouer Prisma. Contexte système
+  // déclaré, limité à la lecture de l'identifiant d'établissement.
+  const schoolId = await runAsSystem("tenant-guard:resolve-school", () => resolver(id));
   if (!schoolId) return notFound(notFoundMsg);
   if (!canAccessSchool(session, schoolId)) return forbidden("Accès refusé à cet établissement");
   return null;

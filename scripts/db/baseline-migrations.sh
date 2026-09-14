@@ -12,7 +12,8 @@
 #   2. vérifie que son schéma est IDENTIQUE à prisma/schema.prisma (sinon arrêt) ;
 #   3. demande une confirmation explicite ;
 #   4. rejoue les instructions que `db push` ne crée pas (toutes idempotentes) :
-#      politiques RLS, rattachement enseignants ↔ établissements ;
+#      politiques RLS (V1 puis RLS effective, audit M2), rattachement
+#      enseignants ↔ établissements ;
 #   5. marque chaque migration versionnée comme appliquée ;
 #   6. vérifie avec `prisma migrate status` que la base est à jour.
 #
@@ -87,6 +88,10 @@ fi
 echo "Politiques RLS (student_profiles, grades, payments)…"
 npx prisma db execute --url "$DATABASE_URL" \
   --file prisma/migrations/20260804083000_enable_rls_on_tenant_critical_tables/migration.sql
+
+echo "RLS effective sur les tables sensibles (audit M2)…"
+npx prisma db execute --url "$DATABASE_URL" \
+  --file prisma/migrations/20260913120000_rls_effective_sensitive_tables/migration.sql
 
 echo "Rattachement enseignants ↔ établissements…"
 npx prisma db execute --url "$DATABASE_URL" --stdin <<'SQL'

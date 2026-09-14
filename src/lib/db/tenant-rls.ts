@@ -1,8 +1,10 @@
 import prisma from "@/lib/prisma";
+import { runWithDbContext, tenantContext } from "@/lib/db/db-context";
 
 /**
- * Exécute une transaction en injectant le tenant courant dans Postgres.
- * Les politiques RLS utilisant `app.current_tenant_id` deviennent alors actives.
+ * Exécute une transaction restreinte à un seul établissement (audit M2).
+ * Le contexte de la requête est déjà posé automatiquement par
+ * `createApiHandler` ; ce helper le réduit à `tenantId` pour la transaction.
  */
 export async function withTenantRls<T>(
   tenantId: string | null | undefined,
@@ -12,16 +14,7 @@ export async function withTenantRls<T>(
     return callback(prisma);
   }
 
-  return prisma.$transaction(async (tx) => {
-    try {
-      await tx.$executeRawUnsafe(
-        `SELECT set_config('app.current_tenant_id', $1, true)`,
-        tenantId
-      );
-    } catch {
-      // Catch safe fallback in non-Postgres environments (e.g. SQLite / unit tests)
-    }
-    return callback(tx as typeof prisma);
-  });
+  return runWithDbContext(tenantContext([tenantId]), () =>
+    prisma.$transaction(async (tx) => callback(tx as typeof prisma)),
+  );
 }
-

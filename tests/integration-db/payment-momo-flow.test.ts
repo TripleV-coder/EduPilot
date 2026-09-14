@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
 
 /**
@@ -45,15 +45,26 @@ async function initiateMomo(feeId: string): Promise<{ paymentId: string; externa
   return { paymentId: (res.body as { paymentId: string }).paymentId, externalId };
 }
 
+/**
+ * Le fournisseur n'a pas de session : le webhook est appelé anonymement, comme
+ * en production. Avec la session du comptable (état antérieur de ce test), le
+ * contexte d'établissement de la session masquait l'absence de contexte
+ * système déclaré par la route (audit M2).
+ */
 async function deliverWebhook(event: Record<string, unknown>, secret = WEBHOOK_SECRET) {
   const raw = JSON.stringify(event);
   const signature = createHmac("sha256", secret).update(raw).digest("hex");
-  return callRoute(momoWebhook, {
-    method: "POST",
-    path: "/api/payments/momo/webhook",
-    rawBody: raw,
-    headers: { "x-momo-signature": signature },
-  });
+  actAs(null);
+  try {
+    return await callRoute(momoWebhook, {
+      method: "POST",
+      path: "/api/payments/momo/webhook",
+      rawBody: raw,
+      headers: { "x-momo-signature": signature },
+    });
+  } finally {
+    actAs(sessionFor("ACCOUNTANT", schoolId));
+  }
 }
 
 function successEvent(externalId: string) {

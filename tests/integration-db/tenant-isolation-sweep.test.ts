@@ -5,7 +5,7 @@ vi.hoisted(() => {
   process.env.RATE_LIMIT_RELAXED = "true";
 });
 
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
 import { seedTenantGraph, type TenantGraph } from "./fixtures/tenant-graph";
 

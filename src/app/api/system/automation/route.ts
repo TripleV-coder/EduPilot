@@ -5,6 +5,7 @@ import { logger } from "@/lib/utils/logger";
 import { verifyCronSecret } from "@/lib/security/cron-auth";
 import { acquireJobLease, releaseJobLease } from "@/lib/system/job-lease";
 import { runInBackground } from "@/lib/system/run-in-background";
+import { runAsSystem } from "@/lib/db/db-context";
 
 /**
  * API Trigger for Automated Maintenance Tasks
@@ -40,6 +41,12 @@ async function handleMaintenance(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Secret vérifié : la maintenance porte sur tous les établissements,
+    // contexte système déclaré (audit M2), conservé par la tâche de fond.
+    return runAsSystem("cron:daily-maintenance", startMaintenance);
+}
+
+async function startMaintenance() {
     try {
         const token = await acquireJobLease(LEASE_NAME, LEASE_TTL_MS);
         if (!token) {

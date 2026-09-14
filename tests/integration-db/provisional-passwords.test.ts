@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import bcrypt from "bcryptjs";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { POST as createTeacher } from "@/app/api/teachers/route";
 import { POST as createStudent } from "@/app/api/students/route";
 import { POST as createUser } from "@/app/api/users/route";

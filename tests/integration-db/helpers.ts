@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 
 /** Session courante renvoyée par le mock de `@/lib/auth` (voir setup.ts). */
 const sessionState = globalThis as unknown as { __integrationSession?: Session | null };

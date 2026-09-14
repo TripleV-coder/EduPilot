@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { runAsSystem } from "@/lib/db/db-context";
 import { logger } from "@/lib/utils/logger";
 import { verifyFedaPayEvent } from "@/lib/payments/fedapay";
 
@@ -48,9 +49,11 @@ export const POST = createApiHandler(async (request) => {
         return NextResponse.json({ received: true, reconciled: 0 });
     }
 
+    // Signature vérifiée : le fournisseur n'a pas de session, les écritures
+    // de paiement passent en contexte système déclaré (audit M2).
     try {
         if (APPROVED.has(event.name)) {
-            const updated = await prisma.payment.updateMany({
+            const updated = await runAsSystem("webhook:fedapay", () => prisma.payment.updateMany({
                 where: { reference, status: "PENDING", method: { in: [...FEDAPAY_METHODS] } },
                 data: {
                     status: "VERIFIED",
@@ -58,7 +61,7 @@ export const POST = createApiHandler(async (request) => {
                     reconciledAt: new Date(),
                     notes: `FedaPay txn ${fedapayId}`,
                 },
-            });
+            }));
             logger.info("FedaPay webhook: paiement(s) rapproché(s)", {
                 reference,
                 fedapayId,
@@ -68,10 +71,10 @@ export const POST = createApiHandler(async (request) => {
         }
 
         if (CANCELLED.has(event.name)) {
-            const updated = await prisma.payment.updateMany({
+            const updated = await runAsSystem("webhook:fedapay", () => prisma.payment.updateMany({
                 where: { reference, status: "PENDING", method: { in: [...FEDAPAY_METHODS] } },
                 data: { status: "CANCELLED" },
-            });
+            }));
             logger.info("FedaPay webhook: paiement(s) annulé(s)", { reference, count: updated.count });
             return NextResponse.json({ received: true, cancelled: updated.count });
         }

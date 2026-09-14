@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { validateEnvironment } from "@/lib/config/env-validation";
+import { createScopedClient } from "@/lib/db/scoped-client";
 
 // Validate environment variables before initializing Prisma
 validateEnvironment();
@@ -8,14 +9,18 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Chaque opération porte le contexte d'établissement de la requête, lu par les
+// politiques RLS des tables sensibles (audit M2, `lib/db/scoped-client.ts`).
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
-  });
+  createScopedClient(
+    new PrismaClient({
+      log:
+        process.env.NODE_ENV === "development"
+          ? ["query", "error", "warn"]
+          : ["error"],
+    }),
+  );
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 

@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { runAsSystem } from "@/lib/db/db-context";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -66,9 +67,11 @@ export const POST = createApiHandler(async (request) => {
         return NextResponse.json({ error: "Payload invalide" }, { status: 400 });
     }
 
+    // Signature vérifiée : le fournisseur n'a pas de session, les écritures
+    // de paiement passent en contexte système déclaré (audit M2).
     try {
         if (event.status === "SUCCESSFUL") {
-            const updated = await prisma.payment.updateMany({
+            const updated = await runAsSystem("webhook:momo", () => prisma.payment.updateMany({
                 where: {
                     reference: event.externalId,
                     status: "PENDING",
@@ -80,21 +83,21 @@ export const POST = createApiHandler(async (request) => {
                     notes: `MoMo txn ${event.financialTransactionId}`,
                     reconciledAt: new Date(),
                 },
-            });
+            }));
 
             logger.info(`MoMo webhook: ${updated.count} paiement(s) rapprochés`, {
                 externalId: event.externalId,
                 txn: event.financialTransactionId,
             });
         } else if (event.status === "FAILED") {
-            await prisma.payment.updateMany({
+            await runAsSystem("webhook:momo", () => prisma.payment.updateMany({
                 where: {
                     reference: event.externalId,
                     status: "PENDING",
                     method: { in: ["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"] },
                 },
                 data: { status: "CANCELLED" },
-            });
+            }));
 
             logger.info(`MoMo webhook: paiement annulé`, { externalId: event.externalId });
         }

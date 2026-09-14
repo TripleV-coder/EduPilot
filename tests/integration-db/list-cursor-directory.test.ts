@@ -7,7 +7,7 @@ vi.hoisted(() => {
 });
 
 import type { Session } from "next-auth";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET as organizations } from "@/app/api/organizations/route";
 import { GET as rootOrganizations } from "@/app/api/root/organizations/route";
 import { GET as rootSchools } from "@/app/api/root/schools/route";

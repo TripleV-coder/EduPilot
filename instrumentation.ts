@@ -10,6 +10,16 @@ export async function register() {
     const { validateEnv } = await import("./src/lib/env");
     validateEnv();
 
+    // RLS effective (audit M2) : refus d'un rôle PostgreSQL qui l'ignorerait.
+    if (process.env.NODE_ENV === "production") {
+      const [{ prisma }, { assertRlsEnforcedAtStartup }, { logger }] = await Promise.all([
+        import("./src/lib/prisma"),
+        import("./src/lib/db/rls-guard"),
+        import("./src/lib/utils/logger"),
+      ]);
+      await assertRlsEnforcedAtStartup(prisma, (message) => logger.warn(message));
+    }
+
     const { initSentryServer } = await import("./src/lib/monitoring/sentry");
     initSentryServer();
 

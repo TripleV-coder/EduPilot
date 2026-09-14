@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { POST } from "@/app/api/classes/route";
 import { DEFAULT_MAX_BODY_BYTES } from "@/lib/api/api-helpers";
 import { actAs, callRoute, createSchool, sessionFor } from "./helpers";

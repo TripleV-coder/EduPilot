@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { POST as batchAssign } from "@/app/api/class-subjects/batch/route";
 import { PUT as importSubjects } from "@/app/api/admin/subjects/route";
 import { POST as regenerateBadges } from "@/app/api/access-control/badges/regenerate/route";

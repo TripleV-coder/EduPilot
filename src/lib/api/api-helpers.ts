@@ -14,6 +14,8 @@ import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/mainten
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 import { isZodError } from "@/lib/is-zod-error";
 import { InvalidCursorError } from "@/lib/api/pagination";
+import { runWithDbContext } from "@/lib/db/db-context";
+import { dbContextForSession } from "@/lib/db/session-db-context";
 
 // ============================================
 // CUID VALIDATION
@@ -454,13 +456,18 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             if (body === "too-large") return payloadTooLarge(bodyLimit);
             if (body === "invalid-json") return invalidJson();
 
-            return await handler(
-                request,
-                {
-                    session: session as Session,
-                    params: routeContext?.params ?? Promise.resolve({}),
-                },
-                t,
+            // Contexte d'établissement transmis à PostgreSQL pour toute la
+            // requête (audit M2) ; sans session, aucun : les tables sensibles
+            // restent fermées, sauf contexte système déclaré par la route.
+            return await runWithDbContext(dbContextForSession(session), () =>
+                handler(
+                    request,
+                    {
+                        session: session as Session,
+                        params: routeContext?.params ?? Promise.resolve({}),
+                    },
+                    t,
+                ),
             );
         } catch (error: unknown) {
             // Erreurs de validation non interceptées par le handler : faute du

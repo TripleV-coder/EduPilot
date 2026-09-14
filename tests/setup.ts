@@ -81,6 +81,13 @@ vi.mock("@prisma/client", () => {
   };
 });
 
+// Le double de PrismaClient ci-dessus n'a pas d'extensions : le client à
+// portée RLS (audit M2) est l'identité en tests unitaires. Son comportement
+// est prouvé contre un vrai PostgreSQL (tests/integration-db/rls-effective.test.ts).
+vi.mock("@/lib/db/scoped-client", () => ({
+  createScopedClient: <T>(client: T): T => client,
+}));
+
 // Mock next/server for NextResponse
 // Le mock expose json/text/clone/headers pour supporter les middlewares de
 // cache (withHttpCache lit response.clone().text(), withCache lit headers.entries()).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import bcrypt from "bcryptjs";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { POST } from "@/app/api/auth/first-login/route";
 import { actAs, callRoute, createSchool, uniqueCode } from "./helpers";
 

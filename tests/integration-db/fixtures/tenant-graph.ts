@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma";
+import prisma from "../owner-db";
 import { uniqueCode } from "../helpers";
 
 /**

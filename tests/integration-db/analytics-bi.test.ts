@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET } from "@/app/api/analytics/bi/route";
 import { seedAnalyticsSchool, type AnalyticsSchoolFixture } from "./fixtures/analytics-school";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";

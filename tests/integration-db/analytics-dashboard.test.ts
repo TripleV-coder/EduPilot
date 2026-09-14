@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { GET } from "@/app/api/analytics/dashboard/route";
+import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
 import { actAs, callRoute, sessionFor } from "./helpers";
 import { seedAnalyticsSchool, type AnalyticsSchoolFixture } from "./fixtures/analytics-school";
 
@@ -64,7 +65,17 @@ describe("C3 — tableau de bord administrateur (caractérisation)", () => {
   });
 
   it("compare l'école à son annexe", async () => {
-    actAs(sessionFor("SCHOOL_ADMIN", fx.schoolId, fx.adminId));
+    // Session réelle d'un admin du site principal : la connexion ajoute les
+    // annexes à ses établissements accessibles (lib/auth/school-access.ts).
+    // Sous RLS (audit M2), c'est ce périmètre qui rend l'annexe visible.
+    const base = sessionFor("SCHOOL_ADMIN", fx.schoolId, fx.adminId);
+    const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+      userId: fx.adminId,
+      role: "SCHOOL_ADMIN",
+      primarySchoolId: fx.schoolId,
+    });
+    expect(accessibleSchoolIds).toEqual(expect.arrayContaining([fx.schoolId, fx.annexId]));
+    actAs({ ...base, user: { ...base.user, accessibleSchoolIds } });
     const res = await callRoute(GET, { path: "/api/analytics/dashboard" });
     const comparison = (res.body as { siteComparison: Array<Row & Record<string, unknown>> }).siteComparison;
 

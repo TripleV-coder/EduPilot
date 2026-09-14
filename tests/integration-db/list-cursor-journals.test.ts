@@ -6,7 +6,7 @@ vi.hoisted(() => {
   process.env.ROOT_USER_EMAILS = "super_admin@integration.test";
 });
 
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET as auditLogs } from "@/app/api/audit-logs/route";
 import { GET as events } from "@/app/api/events/route";
 import { GET as dataRequests } from "@/app/api/compliance/data-requests/route";

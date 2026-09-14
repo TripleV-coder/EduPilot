@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET } from "@/app/api/finance/stats/route";
 import { roundTo } from "@/lib/analytics/helpers";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";

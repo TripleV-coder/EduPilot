@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { UserRole } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET } from "@/app/api/evaluations/route";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
 

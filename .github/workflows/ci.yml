@@ -275,11 +275,22 @@ jobs:
         run: npm run db:seed
         continue-on-error: true
 
+      # RLS effective (audit M2) : le serveur de production refuse un rôle
+      # superutilisateur. Migrations et seed gardent le propriétaire ; le
+      # serveur E2E utilise le rôle applicatif, soumis aux politiques.
+      - name: Create application database role
+        run: node scripts/db/setup-app-role.mjs
+        env:
+          ADMIN_DATABASE_URL: ${{ env.DATABASE_URL }}
+          APP_DB_PASSWORD: edupilot-app-e2e-password
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E
         run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://edupilot_app:edupilot-app-e2e-password@localhost:5432/edupilot_e2e
 
       - name: Upload Playwright report
         if: always()

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import prisma from "@/lib/prisma";
+import prisma from "./owner-db";
 import { GET as listStudents } from "@/app/api/students/route";
 import { GET as listUsers } from "@/app/api/users/route";
 import { GET as listResources } from "@/app/api/resources/route";
