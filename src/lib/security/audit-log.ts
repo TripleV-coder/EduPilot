@@ -45,9 +45,17 @@ function sanitizeAuditData(data: AuditValue): AuditValue {
 }
 
 export async function createAuditLog(data: AuditLogData) {
-    const headersList = await headers();
-    const ip = getClientIp(headersList);
-    const userAgent = headersList.get("user-agent") || "unknown";
+    // Hors requête (tâche planifiée, script, test) : headers() lève une erreur.
+    // L'entrée d'audit est alors écrite sans adresse ni navigateur (Lot 6).
+    let ip = "unknown";
+    let userAgent = "unknown";
+    try {
+        const headersList = await headers();
+        ip = getClientIp(headersList);
+        userAgent = headersList.get("user-agent") || "unknown";
+    } catch {
+        // pas de requête en cours
+    }
 
     try {
         const sanitizedOld = sanitizeAuditData(data.oldValues);

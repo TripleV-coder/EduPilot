@@ -1199,7 +1199,7 @@ model DataRetentionPolicy {
   id              String   @id @default(cuid())
   schoolId        String
   dataType        String
-  retentionPeriod Int
+  retentionPeriod Int // en mois (Lot 6, N57 — migration 20260914160000)
   isActive        Boolean  @default(true)
   description     String?
   createdAt       DateTime @default(now())

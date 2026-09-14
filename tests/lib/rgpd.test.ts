@@ -230,10 +230,11 @@ describe('RGPD Compliance', () => {
 
             await anonymizeUser('user-1', 'admin-1')
 
+            // Lot 6 (N57) : l'entrée d'audit précise aussi le motif (demande ou durée de conservation).
             expect(auditLog.securityEvent).toHaveBeenCalledWith(
                 'admin-1',
                 'USER_ANONYMIZATION',
-                { targetUserId: 'user-1' }
+                { targetUserId: 'user-1', reason: 'REQUEST' }
             )
         })
 

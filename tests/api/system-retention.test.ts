@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "@/app/api/system/retention/route";
 import { auth } from "@/lib/auth";
-import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
+import { enforceDataRetentionPolicies } from "@/lib/security/retention";
 import { makeRequest, makeSession } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/security/rgpd", () => ({
+vi.mock("@/lib/security/retention", () => ({
   enforceDataRetentionPolicies: vi.fn(),
 }));
 
@@ -16,8 +16,8 @@ const CRON_SECRET = "test-cron-secret-0123456789abcdef";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(enforceDataRetentionPolicies).mockResolvedValue([
-    { school: "École A", dataType: "AUDIT_LOGS", deletedCount: 120, retentionYears: 5 },
-    { school: "École B", dataType: "NOTIFICATIONS", deletedCount: 8, retentionYears: 1 },
+    { schoolId: "school-a", school: "École A", dataType: "AUDIT_LOGS", action: "delete", deletedCount: 120, retentionMonths: 60 },
+    { schoolId: "school-b", school: "École B", dataType: "NOTIFICATIONS", action: "delete", deletedCount: 8, retentionMonths: 12 },
   ]);
   delete process.env.CRON_SECRET;
 });
@@ -110,6 +110,18 @@ describe("POST /api/system/retention", () => {
 
     expect(res.status).toBe(200);
     expect(body.totalDeleted).toBe(128);
+  });
+
+  it("reports a failed policy instead of hiding it (N57)", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(enforceDataRetentionPolicies).mockResolvedValue([
+      { schoolId: "school-a", school: "École A", dataType: "MEDICAL_RECORDS", action: "delete", deletedCount: 0, retentionMonths: 12, error: "db down" },
+    ]);
+    const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(false);
+    expect(body.errors).toBe(1);
   });
 
   it("should return 500 when enforcement fails", async () => {

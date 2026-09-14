@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
+import { enforceDataRetentionPolicies } from "@/lib/security/retention";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { verifyCronSecret } from "@/lib/security/cron-auth";
@@ -44,16 +44,17 @@ export const POST = createApiHandler(async (request, context) => {
 
         const totalDeleted = results.reduce((sum, r) => sum + r.deletedCount, 0);
 
-        logger.info("Enforcement rétention RGPD terminé", {
-            module: "api/system/retention",
-            totalDeleted,
-            policiesProcessed: results.length,
-        });
+        // N57 : une règle en échec n'est plus avalée ; elle est comptée et signalée.
+        const errors = results.filter((r) => r.error).length;
+        const summary = { module: "api/system/retention", totalDeleted, policiesProcessed: results.length, errors };
+        if (errors > 0) logger.warn("Enforcement rétention RGPD terminé avec des erreurs", summary);
+        else logger.info("Enforcement rétention RGPD terminé", summary);
 
         return NextResponse.json({
-            success: true,
+            success: errors === 0,
             executedAt: new Date().toISOString(),
             totalDeleted,
+            errors,
             details: results,
         });
     } catch (error) {

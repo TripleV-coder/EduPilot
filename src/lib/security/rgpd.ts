@@ -194,7 +194,15 @@ export async function exportUserData(userId: string) {
 // sensibles liées à la personne (grades, paiements, messages, notifications).
 // ---------------------------------------------------------------------------
 
-export async function anonymizeUser(userId: string, requestedBy: string) {
+/** Marqueurs d'un compte anonymisé (reconnus par la purge de conservation, lib/security/retention). */
+export const ANONYMIZED_FIRST_NAME = "Utilisateur";
+export const ANONYMIZED_LAST_NAME = "Supprimé";
+
+/**
+ * @param requestedBy auteur de la demande ; absent pour la purge de conservation (tâche système).
+ * @param reason REQUEST (demande de la personne ou de l'école) ou RETENTION (durée de conservation écoulée).
+ */
+export async function anonymizeUser(userId: string, requestedBy?: string, reason: "REQUEST" | "RETENTION" = "REQUEST") {
     const anonymizedEmail = `deleted_${userId.slice(0, 8)}@anonymized.local`;
 
     // 1. Récupérer le profil étudiant pour les suppressions liées
@@ -209,8 +217,8 @@ export async function anonymizeUser(userId: string, requestedBy: string) {
             where: { id: userId },
             data: {
                 email: anonymizedEmail,
-                firstName: "Utilisateur",
-                lastName: "Supprimé",
+                firstName: ANONYMIZED_FIRST_NAME,
+                lastName: ANONYMIZED_LAST_NAME,
                 phone: null,
                 avatar: null,
                 isActive: false,
@@ -300,99 +308,9 @@ export async function anonymizeUser(userId: string, requestedBy: string) {
         }
     });
 
-    await auditLog.securityEvent(requestedBy, "USER_ANONYMIZATION", { targetUserId: userId });
+    await auditLog.securityEvent(requestedBy, "USER_ANONYMIZATION", { targetUserId: userId, reason });
 
     return { success: true, anonymizedEmail };
-}
-
-// ---------------------------------------------------------------------------
-// ENFORCEMENT DE RÉTENTION DES DONNÉES (Cron job)
-// ---------------------------------------------------------------------------
-
-export interface RetentionEnforcementResult {
-    school: string;
-    dataType: string;
-    deletedCount: number;
-    retentionYears: number;
-}
-
-export async function enforceDataRetentionPolicies(): Promise<RetentionEnforcementResult[]> {
-    const policies = await prisma.dataRetentionPolicy.findMany({
-        where: { isActive: true },
-        include: { school: { select: { id: true, name: true } } },
-    });
-
-    const results: RetentionEnforcementResult[] = [];
-
-    for (const policy of policies) {
-        const cutoffDate = new Date();
-        cutoffDate.setFullYear(cutoffDate.getFullYear() - policy.retentionPeriod);
-
-        let deletedCount = 0;
-
-        try {
-            switch (policy.dataType) {
-                case "AUDIT_LOGS": {
-                    const { count } = await prisma.auditLog.deleteMany({
-                        where: {
-                            user: { schoolId: policy.schoolId },
-                            createdAt: { lt: cutoffDate }
-                        },
-                    });
-                    deletedCount = count;
-                    break;
-                }
-                case "NOTIFICATIONS": {
-                    const { count } = await prisma.notification.deleteMany({
-                        where: {
-                            user: { schoolId: policy.schoolId },
-                            createdAt: { lt: cutoffDate },
-                        },
-                    });
-                    deletedCount = count;
-                    break;
-                }
-                case "MESSAGES": {
-                    const { count } = await prisma.message.deleteMany({
-                        where: {
-                            sender: { schoolId: policy.schoolId },
-                            createdAt: { lt: cutoffDate },
-                        },
-                    });
-                    deletedCount = count;
-                    break;
-                }
-                case "MEDICAL_RECORDS": {
-                    const profiles = await prisma.studentProfile.findMany({
-                        where: { user: { schoolId: policy.schoolId } },
-                        select: { id: true },
-                    });
-                    const ids = profiles.map((p) => p.id);
-                    if (ids.length > 0) {
-                        const { count } = await prisma.medicalRecord.deleteMany({
-                            where: {
-                                studentId: { in: ids },
-                                updatedAt: { lt: cutoffDate },
-                            },
-                        });
-                        deletedCount = count;
-                    }
-                    break;
-                }
-            }
-
-            results.push({
-                school: policy.school.name,
-                dataType: policy.dataType,
-                deletedCount,
-                retentionYears: policy.retentionPeriod,
-            });
-        } catch (err) {
-            console.error(`[RGPD Retention] Erreur sur ${policy.dataType} / ${policy.school.name}:`, err);
-        }
-    }
-
-    return results;
 }
 
 // ---------------------------------------------------------------------------
