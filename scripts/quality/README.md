@@ -40,6 +40,12 @@ DATABASE_URL="$QUALITY_APP_DATABASE_URL" AUTH_TRUST_HOST=true NEXTAUTH_URL=http:
 `QUALITY_DATABASE_URL` (propriétaire) sert au seed et aux lectures directes des scripts (`db-counts.mjs`,
 `pg-seq-scans.mjs`, vérifications de `security.mjs`) ; le serveur utilise `QUALITY_APP_DATABASE_URL`.
 
+**Base jetable marquée (règle 6).** Les seeds, `scripts/reset-passwords.ts`, les scripts `create-*`/`seed-*`
+et `e2e/global-setup.ts` refusent toute base qui ne porte pas le marqueur `edupilot:disposable` (commentaire
+de base, `scripts/lib/disposable-guard.mjs`). `disposable-pg.mjs` marque les bases qu'il crée ; ailleurs :
+`DATABASE_URL=… node scripts/db/mark-disposable.mjs` sur une base vide (après `migrate deploy`), ou
+`--allow-non-empty` pour une base de test déjà peuplée. Ne jamais marquer une base réelle.
+
 `npm run start` charge `scripts/server/client-ip-preload.cjs` (adresse client fiable, audit H3). Sans lui,
 toutes les requêtes partagent l'IP `unknown` et `security.mjs xff` ne mesure plus le vrai comportement.
 

@@ -12,6 +12,8 @@
  * Le port 5432 (base locale du développeur) est refusé.
  */
 import EmbeddedPostgres from "embedded-postgres";
+import { PrismaClient } from "@prisma/client";
+import { markDatabaseDisposable } from "../lib/disposable-guard.mjs";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -44,7 +46,16 @@ for (const name of databases) {
   } catch (error) {
     if (!String(error?.message ?? error).includes("already exists")) throw error;
   }
-  console.log(`postgresql://edupilot:edupilot@127.0.0.1:${port}/${name}?schema=public`);
+  const url = `postgresql://edupilot:edupilot@127.0.0.1:${port}/${name}?schema=public`;
+  // Bases de ce cluster jetable (port ≠ 5432, répertoire propre) : marquées
+  // pour les seeds et la préparation des E2E (règle 6, scripts/lib/disposable-guard.mjs).
+  const client = new PrismaClient({ datasources: { db: { url } } });
+  try {
+    await markDatabaseDisposable(client, { allowNonEmpty: true });
+  } finally {
+    await client.$disconnect();
+  }
+  console.log(url);
 }
 console.log(`PostgreSQL jetable prêt (port ${port}, données : ${dataDir}).`);
 

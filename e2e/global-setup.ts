@@ -7,6 +7,7 @@
  */
 import bcrypt from "bcryptjs";
 import prisma from "../src/lib/prisma";
+import { assertDisposableDatabase } from "../scripts/lib/disposable-guard.mjs";
 
 export const E2E_PASSWORD = "E2eTestPass!2026";
 
@@ -59,6 +60,9 @@ export default async function globalSetup() {
     if (process.env.NODE_ENV === "production") {
         throw new Error("E2E global setup must not run in production.");
     }
+    // Règle 6 / N17 : réécrit des comptes → base marquée jetable obligatoire
+    // (scripts/db/mark-disposable.mjs), jamais la base locale ou réelle.
+    await assertDisposableDatabase(prisma, "e2e/global-setup.ts");
 
     for (const email of Object.values(E2E_USERS)) {
         await resetUser(email);

@@ -4,9 +4,12 @@
  */
 
 import prisma from '../src/lib/prisma';
+import { assertDisposableDatabase } from "./lib/disposable-guard.mjs";
 import type { IncidentSeverity, IncidentType, NotificationType, PaymentStatus } from '@prisma/client';
 
 async function seedEssentialData() {
+  // Règle 6 / N17 : données de démonstration — base marquée jetable obligatoire.
+  await assertDisposableDatabase(prisma, "scripts/seed-fast-data.ts");
   console.log('⚡ Début du seed rapide des données essentielles...\n');
 
   try {

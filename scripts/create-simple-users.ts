@@ -4,11 +4,15 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { assertDisposableDatabase } from "./lib/disposable-guard.mjs";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Règle 6 / N17 : données de démonstration ou comptes de test —
+  // base marquée jetable obligatoire (scripts/db/mark-disposable.mjs).
+  await assertDisposableDatabase(prisma, "scripts/create-simple-users.ts");
     console.log("🔧 Création des utilisateurs de test (version simplifiée)...\n");
 
     const password = await hash("Test123!", 10);

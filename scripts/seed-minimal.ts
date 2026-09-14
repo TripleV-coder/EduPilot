@@ -3,8 +3,11 @@
  */
 
 import prisma from '../src/lib/prisma';
+import { assertDisposableDatabase } from "./lib/disposable-guard.mjs";
 
 async function seedMinimalData() {
+  // Règle 6 / N17 : données de démonstration — base marquée jetable obligatoire.
+  await assertDisposableDatabase(prisma, "scripts/seed-minimal.ts");
   console.log('⚡ Seed minimaliste rapide en cours...\n');
 
   try {

@@ -270,6 +270,9 @@ jobs:
         run: |
           npx prisma generate
           npx prisma migrate deploy
+          # Règle 6 / N17 : base de CI marquée jetable (vide à ce stade) ;
+          # le seed et e2e/global-setup refusent toute base non marquée.
+          node scripts/db/mark-disposable.mjs
 
       - name: Seed test data
         run: npm run db:seed

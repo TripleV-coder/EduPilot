@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { assertDisposableDatabase } from "./lib/disposable-guard.mjs";
 import { hash } from 'bcryptjs';
 import * as dotenv from 'dotenv';
 
@@ -8,6 +9,8 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 async function createTestData() {
+  // Règle 6 / N17 : données de démonstration — base marquée jetable obligatoire.
+  await assertDisposableDatabase(prisma, "scripts/create-test-data.ts");
   console.log('🚀 Création des données de test...\n');
 
   try {
