@@ -139,6 +139,20 @@ describe("N46 — import des élèves : tout ou rien, rapport ligne par ligne", 
     expect(malformed.status, JSON.stringify(malformed.body)).toBe(200);
   });
 
+  it("N54 — l'adresse fournie est enregistrée ; trop longue, elle est signalée et rien n'est écrit", async () => {
+    const student = email("n54");
+    const res = await post([row({ email: student, address: "  Akpakpa, von 1234, Cotonou  " })]);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const created = await ownerDb.user.findUniqueOrThrow({ where: { email: student }, include: { studentProfile: true } });
+    expect(created.studentProfile?.address).toBe("Akpakpa, von 1234, Cotonou");
+
+    const before = await countStudents();
+    const tooLong = await post([row({ address: "x".repeat(256) })]);
+    expect(tooLong.status).toBe(422);
+    expect((tooLong.body as Report).errors).toEqual([expect.objectContaining({ row: 1, field: "address" })]);
+    expect(await countStudents()).toBe(before);
+  });
+
   it("une date de naissance impossible est signalée", async () => {
     const res = await post([row({ dateOfBirth: "31/02/2012" })]);
     expect(res.status).toBe(422);

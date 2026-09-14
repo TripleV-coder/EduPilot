@@ -42,6 +42,7 @@ type PreparedRow = {
     dateOfBirth?: Date;
     gender?: Gender;
     birthPlace?: string;
+    address?: string;
     classId?: string;
 };
 
@@ -98,6 +99,8 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
             dateOfBirth: date.date,
             gender: parsed.data.gender ? GENDERS[parsed.data.gender] : undefined,
             birthPlace: parsed.data.birthPlace || undefined,
+            // N54 : proposée par l'écran, elle était acceptée puis jamais enregistrée.
+            address: parsed.data.address || undefined,
             classId: parsed.data.className ? `?${parsed.data.className}` : undefined,
         });
     });
@@ -192,6 +195,7 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
                             dateOfBirth: item.dateOfBirth,
                             gender: item.gender,
                             birthPlace: item.birthPlace,
+                            address: item.address,
                         },
                         select: { id: true },
                     });
