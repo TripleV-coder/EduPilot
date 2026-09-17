@@ -12,6 +12,8 @@ import { logger } from "@/lib/utils/logger";
 import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
 
 let _upstashRedis: import("@upstash/redis").Redis | null = null;
+/** L'absence de configuration n'est signalée qu'une fois par processus. */
+let _unconfiguredLogged = false;
 
 function getUpstashClient(): import("@upstash/redis").Redis | null {
     if (_upstashRedis) return _upstashRedis;
@@ -20,7 +22,11 @@ function getUpstashClient(): import("@upstash/redis").Redis | null {
     const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
     if (!restUrl || !restToken) {
-        if (process.env.NODE_ENV === "production") {
+        // Une seule fois par processus : c'est un choix d'installation, pas un
+        // incident. Signalé à chaque requête, l'avertissement remplissait le
+        // journal d'une machine locale et le rendait illisible.
+        if (process.env.NODE_ENV === "production" && !_unconfiguredLogged) {
+            _unconfiguredLogged = true;
             logger.warn("Redis non configuré (UPSTASH_REDIS_REST_URL/TOKEN manquants) — cache désactivé", {
                 module: "cache",
             });
