@@ -78,7 +78,7 @@ describe("GET/POST /api/system/backup", () => {
 
   it("liste les sauvegardes triées avec checksum facultatif", async () => {
     authMock.mockResolvedValue(makeSession("SUPER_ADMIN"));
-    readdirMock.mockResolvedValue(["old.sql.gz", "new.sql.gz", "ignored.txt"]);
+    readdirMock.mockResolvedValue(["old.sql.gz.enc", "new.sql.gz.enc", "ignored.txt"]);
     statMock
       .mockResolvedValueOnce({
         size: 5 * 1024 * 1024,
@@ -101,11 +101,11 @@ describe("GET/POST /api/system/backup", () => {
     expect(body.count).toBe(2);
     expect(body.totalSize).toBe(7 * 1024 * 1024);
     expect(body.backups[0]).toMatchObject({
-      filename: "new.sql.gz",
+      filename: "new.sql.gz.enc",
       checksum: "sha256-new",
     });
     expect(body.backups[1]).toMatchObject({
-      filename: "old.sql.gz",
+      filename: "old.sql.gz.enc",
       checksum: null,
     });
   });
@@ -141,7 +141,7 @@ describe("GET/POST /api/system/backup", () => {
 
   it("la liste des sauvegardes ne donne pas le chemin des fichiers", async () => {
     authMock.mockResolvedValue(makeSession("SUPER_ADMIN"));
-    readdirMock.mockResolvedValue(["new.sql.gz"]);
+    readdirMock.mockResolvedValue(["new.sql.gz.enc"]);
     statMock.mockResolvedValue({
       size: 2 * 1024 * 1024,
       birthtime: new Date("2026-02-01T10:00:00Z"),
@@ -150,7 +150,7 @@ describe("GET/POST /api/system/backup", () => {
     readFileMock.mockResolvedValue("sha256-new");
 
     const body = await (await GET(makeRequest("http://localhost:3000/api/system/backup"))).json();
-    expect(body.backups[0]).toMatchObject({ filename: "new.sql.gz", checksum: "sha256-new" });
+    expect(body.backups[0]).toMatchObject({ filename: "new.sql.gz.enc", checksum: "sha256-new" });
     expect(body.backups[0]).not.toHaveProperty("path");
     expect(JSON.stringify(body)).not.toMatch(/\/(var|home|app|usr)\//);
   });

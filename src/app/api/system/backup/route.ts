@@ -98,11 +98,13 @@ export const GET = createApiHandler(async (request, context) => {
       );
     }
 
-    const backupDir = "/var/backups/edupilot/postgres";
+    // Même répertoire que scripts/backup/postgres-backup.sh.
+    const backupDir = process.env.BACKUP_DIR || "/var/backups/edupilot/postgres";
 
     try {
       const files = await fs.readdir(backupDir);
-      const backups = files.filter((f) => f.endsWith(".sql.gz"));
+      // Sauvegardes chiffrées (Lot 7) ; les .sql.gz d'avant restent listées.
+      const backups = files.filter((f) => f.endsWith(".sql.gz.enc") || f.endsWith(".sql.gz"));
 
       const backupDetails = await Promise.all(
         backups.map(async (file) => {
