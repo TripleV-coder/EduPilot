@@ -649,12 +649,11 @@ module n'est même pas chargé.
 
 ### Points ouverts du Lot 7
 
-1. **Deux générations de scripts de sauvegarde coexistent** : `postgres-backup.sh`
-   / `postgres-restore.sh` (chiffrés, Lot 7) et `backup.sh` / `restore.sh` /
-   `setup-cron.sh` / `crontab.example` (anciens, **non chiffrés**). Les anciens
-   ne sont référencés nulle part. Leur suppression sort du code applicatif :
-   **votre décision** (règle 11). En attendant, `docs/EXPLOITATION.md` ne
-   documente que les nouveaux.
+1. ~~Deux générations de scripts de sauvegarde coexistent~~ — **tranché le
+   2026-09-17** : les anciens (`backup.sh`, `restore.sh`, `setup-cron.sh`,
+   `crontab.example`), non chiffrés, sont supprimés avec 51 autres fichiers
+   morts (`dafda24`, L9). `docs/PRODUCTION_CHECKLIST.md` renvoyait encore vers
+   eux : corrigé dans le même commit.
 2. **Sentry en sortie standalone** : voir ci-dessus.
 3. `setUserContext` garde un paramètre `_email` ignoré, pour ne toucher à aucun
    appelant — à retirer avec le code mort (L3, Lot 8).
@@ -694,7 +693,7 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | L6 | Faible | Fichiers géants | 8 (inventaire) | Constat audit | — | — | — | — |
 | L7 | Faible | Données de cache servies pendant panne DB sans indicateur | 2 | Constat audit | — | — | — | — |
 | L8 | Faible | `/api/setup` expose `setupNeeded` | 5 | Constat audit (probablement accepté : nécessaire au démarrage à vide) | — | — | — | — |
-| L9 | Faible | Artefacts hors périmètre à la racine | 8 (liste à valider) | Constat audit | — | — | — | — |
+| L9 | Faible | Artefacts hors périmètre à la racine | 7 | Corrigé | `dafda24` | `tsc`, `lint`, 2 970 tests et build verts après suppression ; recherche de chaque nom dans `package.json`, `.github/`, `src/`, `tests/`, `e2e/`, `prisma/`, `docs/`, `scripts/` | 55 fichiers morts, dont une génération de sauvegarde **non chiffrée** encore recommandée par `docs/PRODUCTION_CHECKLIST.md` et un `wipe-users.js` | racine et `scripts/` ne contiennent plus que ce qui sert ; liste validée point par point par le propriétaire |
 | N1 | Critique | Épuisement mémoire (voir ci-dessus) | 3 | Corrigé | `0356461` `2a24ac2` | RSS (batterie du Lot 3) | 8 746 Mo | 395 Mo après smoke 7 rôles + latences + Lighthouse |
 | N2 | Élevée | Retention : `requireAuth` par défaut + comparaison non constante | 2 | Corrigé | `c749ec8` | `system-retention.test.ts` (+2), `cron-auth.test.ts` (4) | 401 avec secret valide ; comparaison `===` | cron sans session → 200 ; `timingSafeEqual` ; SUPER_ADMIN pré-2FA refusé |
 | N3 | Élevée | Désactivation inter-école via DELETE | 1 | Corrigé | `563ccb6` | `subject-categories-isolation.test.ts` (N3) ; `security.mjs idor` | 200, `isActive=false` | 404, catégorie toujours active |
