@@ -59,8 +59,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Préchargement : IP client fiable pour le rate-limit (audit H3, voir CMD)
+# Préchargements serveur : IP client fiable pour le rate-limit (audit H3) et
+# arrêt propre sur SIGTERM (Lot 7) — voir CMD.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/client-ip-preload.cjs ./client-ip-preload.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/graceful-shutdown.cjs ./graceful-shutdown.cjs
 
 # Copier le schéma Prisma pour les migrations runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
@@ -76,4 +78,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Sans reverse proxy : TRUSTED_PROXY_HOPS=0 (défaut). Derrière nginx/Caddy : 1.
-CMD ["node", "--require", "./client-ip-preload.cjs", "server.js"]
+CMD ["node", "--require", "./client-ip-preload.cjs", "--require", "./graceful-shutdown.cjs", "server.js"]

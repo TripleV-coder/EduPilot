@@ -25,6 +25,25 @@ export async function register() {
 
     const { warmCache } = await import("./src/lib/cache/warm");
     warmCache().catch(() => {});
+
+    // Arrêt propre (Lot 7) : le préchargement du serveur ferme les connexions
+    // et attend les requêtes en cours ; c'est ici que l'application déclare ce
+    // qu'elle veut refermer ensuite. Sans le préchargement (développement),
+    // l'enregistrement ne fait rien.
+    const [{ registerShutdownTask }, { prisma: db }, { logger: log }] = await Promise.all([
+      import("./src/lib/system/shutdown"),
+      import("./src/lib/prisma"),
+      import("./src/lib/utils/logger"),
+    ]);
+    registerShutdownTask(async () => {
+      await db.$disconnect();
+      log.info("Connexions PostgreSQL fermées", { module: "server/shutdown" });
+    });
+    registerShutdownTask(async () => {
+      const { closeRedis } = await import("./src/lib/cache/redis");
+      await closeRedis();
+      log.info("Client Redis fermé", { module: "server/shutdown" });
+    });
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

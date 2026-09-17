@@ -230,3 +230,15 @@ export function getRedisClient() {
 export function initRedis() {
     return getUpstashClient();
 }
+
+/**
+ * Arrêt propre (Lot 7) : vide le cache mémoire et oublie le client.
+ *
+ * Upstash parle en HTTP : il n'y a pas de connexion persistante à refermer. Ce
+ * qui compte à l'arrêt, c'est de ne plus servir de valeurs en cache et de ne
+ * rien garder en mémoire pendant que les dernières requêtes se terminent.
+ */
+export async function closeRedis(): Promise<void> {
+    await memoryFallback.clear();
+    cacheInstance = null;
+}

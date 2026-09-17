@@ -9,8 +9,12 @@ module.exports = {
       name: 'edupilot',
       // Serveur standalone produit par `next build` (output: standalone).
       script: '.next/standalone/server.js',
-      // Adresse client fiable pour le rate-limit (audit H3).
-      node_args: '--require ./scripts/server/client-ip-preload.cjs',
+      // Adresse client fiable pour le rate-limit (audit H3) + arrêt propre
+      // sur SIGTERM (Lot 7 : fin des requêtes en cours, puis Prisma et Redis).
+      node_args: '--require ./scripts/server/client-ip-preload.cjs --require ./scripts/server/graceful-shutdown.cjs',
+      // Laisse le temps à l'arrêt propre de se dérouler avant le SIGKILL
+      // (20 s de drainage + 5 s de fermetures, cf. graceful-shutdown.cjs).
+      kill_timeout: 30000,
       // UN SEUL processus (décision du 2026-09-12) : rate-limit, compteur
       // d'échecs de connexion et cache sont en mémoire — exacts avec une
       // instance unique, faux en cluster (limites multipliées par processus).
@@ -50,7 +54,8 @@ module.exports = {
       max_memory_restart: '1G',
 
       // Graceful shutdown
-      kill_timeout: 5000,
+      // (kill_timeout est défini plus haut à 30 s : l'arrêt propre du Lot 7
+      // a besoin de ce délai ; 5 s coupaient les requêtes en cours.)
       listen_timeout: 3000,
       shutdown_with_message: true,
 
