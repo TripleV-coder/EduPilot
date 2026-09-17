@@ -14,6 +14,8 @@ import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/mainten
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 import { isZodError } from "@/lib/is-zod-error";
 import { moduleForApiPath } from "@/lib/modules/catalog";
+import { entityIdFromPath, sensitiveAreaForPath, shouldLogRead } from "@/lib/security/sensitive-data";
+import { createAuditLog } from "@/lib/security/audit-log";
 import { getEnabledModules } from "@/lib/modules/school-modules";
 import { InvalidCursorError } from "@/lib/api/pagination";
 import { runWithDbContext } from "@/lib/db/db-context";
@@ -289,6 +291,34 @@ type RouteContext = { params?: Promise<Record<string, string>> };
 // CORPS DE REQUÊTE (audit M3)
 // ============================================
 
+/**
+ * Trace une consultation ou une modification de données sensibles (Lot 6).
+ * Silencieuse en cas d'échec : `createAuditLog` intercepte déjà ses erreurs,
+ * une trace manquée ne doit jamais faire échouer la requête de l'utilisateur.
+ */
+async function recordSensitiveAccess(
+    request: NextRequest,
+    session: Session,
+    _status: number,
+): Promise<void> {
+    const pathname = new URL(request.url).pathname;
+    const area = sensitiveAreaForPath(pathname);
+    if (!area) return;
+
+    const isRead = request.method === "GET" || request.method === "HEAD";
+    if (isRead && !shouldLogRead(`${session.user.id}|${pathname}`)) return;
+
+    await createAuditLog({
+        userId: session.user.id,
+        action: isRead ? "DATA_ACCESS" : "DATA_MODIFICATION",
+        entity: area.entity,
+        entityId: entityIdFromPath(pathname),
+        schoolId: getActiveSchoolId(session) ?? null,
+        newValues: { method: request.method, path: pathname, category: area.category },
+        severity: isRead ? "INFO" : "WARNING",
+    });
+}
+
 /** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
 export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
@@ -484,7 +514,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             // Contexte d'établissement transmis à PostgreSQL pour toute la
             // requête (audit M2) ; sans session, aucun : les tables sensibles
             // restent fermées, sauf contexte système déclaré par la route.
-            return await runWithDbContext(dbContextForSession(session), () =>
+            const response = await runWithDbContext(dbContextForSession(session), () =>
                 handler(
                     request,
                     {
@@ -494,6 +524,18 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                     t,
                 ),
             );
+
+            // ── TRAÇABILITÉ DES DONNÉES SENSIBLES (Lot 6) ──
+            // Notes, santé, paiements et rôles : toute modification réussie et
+            // toute consultation laissent une trace. Posée ici, au passage
+            // central, aucune route ne peut l'oublier. Les consultations sont
+            // dédupliquées sur 5 min : sans cela la revalidation automatique
+            // des écrans rendrait le journal illisible.
+            if (session?.user && response.status < 400) {
+                await recordSensitiveAccess(request, session, response.status);
+            }
+
+            return response;
         } catch (error: unknown) {
             // Erreurs de validation non interceptées par le handler : faute du
             // client (400 détaillé), pas du serveur (audit M3).

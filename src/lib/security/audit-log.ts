@@ -11,6 +11,8 @@ export interface AuditLogData {
     action: string;
     entity: string;
     entityId?: string;
+    /** Établissement concerné : la purge de conservation s'appuie dessus. */
+    schoolId?: string | null;
     oldValues?: AuditValue;
     newValues?: AuditValue;
     severity?: "INFO" | "WARNING" | "CRITICAL";
@@ -73,6 +75,7 @@ export async function createAuditLog(data: AuditLogData) {
                 action: data.action,
                 entity: data.entity,
                 entityId: data.entityId,
+                schoolId: data.schoolId ?? undefined,
                 oldValues: (sanitizedOld ?? undefined) as Prisma.InputJsonValue | undefined,
                 newValues: newValuesWithSeverity as Prisma.InputJsonValue,
                 ipAddress: ip,
