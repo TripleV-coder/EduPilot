@@ -8,7 +8,9 @@ vi.mock("@/lib/prisma", () => ({
     user: { count: vi.fn() },
     auditLog: { count: vi.fn(), groupBy: vi.fn() },
     dataAccessRequest: { count: vi.fn(), findMany: vi.fn() },
-    dataConsent: { groupBy: vi.fn() },
+    // count : nouvelle lecture du Lot 6 (comptes ayant accepté la version
+    // courante des conditions). Sans elle la route lèverait, faute de double.
+    dataConsent: { groupBy: vi.fn(), count: vi.fn() },
     dataRetentionPolicy: { count: vi.fn() },
   },
 }));
@@ -43,11 +45,14 @@ describe("GET /api/compliance/dashboard", () => {
       { consentType: "MARKETING", isGranted: false, _count: 1 },
     ] as never);
     vi.mocked(prisma.dataRetentionPolicy.count).mockResolvedValue(1);
+    vi.mocked(prisma.dataConsent.count).mockResolvedValue(25);
     vi.mocked(prisma.dataAccessRequest.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
 
     const res = await GET(makeRequest("http://localhost:3000/api/compliance/dashboard"));
     const body = await res.json();
+    // 25 acceptations sur 100 comptes : mesuré, jamais inventé.
+    expect(body.consentRate).toBe(25);
 
     expect(res.status).toBe(200);
     expect(body.summary).toMatchObject({
@@ -69,6 +74,7 @@ describe("GET /api/compliance/dashboard", () => {
     vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
     vi.mocked(prisma.dataConsent.groupBy).mockResolvedValue([] as never);
+    vi.mocked(prisma.dataConsent.count).mockResolvedValue(0);
     vi.mocked(prisma.dataRetentionPolicy.count).mockResolvedValue(0);
     vi.mocked(prisma.dataAccessRequest.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
@@ -76,6 +82,11 @@ describe("GET /api/compliance/dashboard", () => {
     const res = await GET(makeRequest("http://localhost:3000/api/compliance/dashboard"));
 
     expect(res.status).toBe(200);
+    // Le comptage des consentements est lui aussi cloisonné à l'école.
+    const consentCountArgs = vi.mocked(prisma.dataConsent.count).mock.calls[0][0] as {
+      where: { user: { schoolId: string } };
+    };
+    expect(consentCountArgs.where.user.schoolId).toBe(FIXTURES.schoolA);
     const auditCountArgs = vi.mocked(prisma.auditLog.count).mock.calls[0][0] as {
       where: { user: { schoolId: string } };
     };

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "@/lib/security/consent";
 
 /**
  * GET /api/compliance/dashboard
@@ -155,10 +156,19 @@ export const GET = createApiHandler(async (request, context) => {
     // et affichait ses valeurs de repli (85 % de conformité, 100 % de consentements).
     const requestScope = schoolId ? { user: { schoolId } } : {};
     const policyScope = schoolId ? { schoolId } : {};
-    const [completedDataRequests, totalDataRequests, activePolicies] = await Promise.all([
+    const [completedDataRequests, totalDataRequests, activePolicies, acceptedTerms] = await Promise.all([
       prisma.dataAccessRequest.count({ where: { ...requestScope, status: "COMPLETED" } }),
       prisma.dataAccessRequest.count({ where: requestScope }),
       prisma.dataRetentionPolicy.count({ where: { ...policyScope, isActive: true } }),
+      // Lot 6 : comptes ayant accepté la version courante des conditions.
+      prisma.dataConsent.count({
+        where: {
+          consentType: CONSENT_TERMS,
+          isGranted: true,
+          version: LEGAL_TERMS_VERSION,
+          ...(schoolId ? { user: { schoolId } } : {}),
+        },
+      }),
     ]);
     const inactivePolicies = Math.max(0, retentionPolicies - activePolicies);
 
@@ -187,8 +197,9 @@ export const GET = createApiHandler(async (request, context) => {
 
     return NextResponse.json({
       overallScore: Math.max(0, complianceScore),
-      // Non mesuré (pas encore de consentement par enfant) : jamais un chiffre inventé.
-      consentRate: null,
+      // Part des comptes ayant accepté la version courante des conditions
+      // (Lot 6). `null` seulement s'il n'y a aucun compte : jamais un chiffre inventé.
+      consentRate: totalUsers > 0 ? Math.round((acceptedTerms / totalUsers) * 100) : null,
       pendingPolicies: inactivePolicies,
       dataRequestsSummary: { pending: pendingDataRequests, completed: completedDataRequests, total: totalDataRequests },
       retentionStatus: { active: activePolicies, inactive: inactivePolicies },

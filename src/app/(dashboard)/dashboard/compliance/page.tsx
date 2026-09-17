@@ -166,7 +166,7 @@ export default function ComplianceDashboardPage() {
                                         {dashboard.consentRate === null ? "—" : `${dashboard.consentRate}%`}
                                     </h3>
                                     <p className="text-sm text-muted-foreground mt-1">
-                                        Consentements Parents{dashboard.consentRate === null ? " · non mesuré" : ""}
+                                        Comptes ayant accepté les conditions{dashboard.consentRate === null ? " · non mesuré" : ""}
                                     </p>
                                 </CardContent>
                             </Card>

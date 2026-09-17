@@ -56,6 +56,23 @@ async function login(page: Page, email: string, password: string) {
     await page.getByRole("button", { name: /se connecter/i }).click();
 }
 
+/**
+ * Consentement (Lot 6) : à sa première connexion, chaque compte doit accepter
+ * les conditions et la politique de confidentialité. L'écran s'affiche à la
+ * place du tableau de bord tant que ce n'est pas fait.
+ */
+async function acceptConsent(page: Page, { expectVisible = false } = {}) {
+    const heading = page.getByRole("heading", { name: /avant de continuer/i });
+    if (expectVisible) {
+        await expect(heading).toBeVisible({ timeout: 30_000 });
+    } else if (!(await heading.isVisible().catch(() => false))) {
+        return;
+    }
+    await page.getByRole("checkbox", { name: /j'accepte les conditions/i }).click();
+    await page.getByRole("button", { name: /continuer/i }).click();
+    await expect(heading).toBeHidden({ timeout: 30_000 });
+}
+
 /** Première connexion d'un compte créé par un tiers : changement imposé (M1). */
 async function firstLogin(page: Page, email: string, provisional: string, chosen: string) {
     await login(page, email, provisional);
@@ -67,6 +84,7 @@ async function firstLogin(page: Page, email: string, provisional: string, chosen
     await page.waitForURL(/\/login/, { timeout: 30_000 });
     await login(page, email, chosen);
     await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
+    await acceptConsent(page);
 }
 
 test("installation complète depuis une base vide, jusqu'à la consultation par un parent", async ({ browser }) => {
@@ -93,6 +111,8 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await root.waitForURL(/\/login/, { timeout: 30_000 });
         await login(root, SUPER_ADMIN.email, SUPER_ADMIN.password);
         await root.waitForURL(/\/dashboard/, { timeout: 30_000 });
+        // Le tout premier compte voit bien l'écran de consentement (Lot 6).
+        await acceptConsent(root, { expectVisible: true });
     });
 
     await test.step("2. la console root déploie l'établissement et son administrateur", async () => {
@@ -283,6 +303,10 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await parent.getByLabel(/code de liaison/i).fill(linkCode);
         await parent.getByRole("button", { name: /lier cet enfant/i }).click();
         await expectNoErrorBanner(parent);
+        // Lot 6 : l'enfant vient d'être rattaché — le parent répond pour lui
+        // avant de pouvoir consulter ses données.
+        await parent.goto("/dashboard");
+        await acceptConsent(parent, { expectVisible: true });
         // Chemin du parent : « Mes enfants » → fiche de l'enfant → onglet Scolarité.
         await parent.goto("/dashboard/students");
         await parent.locator(`a[href="${studentUrl}"]`).first().click();
@@ -401,6 +425,7 @@ test("toutes les pages s'affichent dans une école sans aucune donnée (admin, e
     const root = await newPage(browser);
     await login(root, SUPER_ADMIN.email, SUPER_ADMIN.password);
     await root.waitForURL(/\/dashboard/, { timeout: 30_000 });
+    await acceptConsent(root);
     const adminProvisional = await deploySchool(root, "École Sans Données", EMPTY_ADMIN.email);
 
     const admin = await newPage(browser);

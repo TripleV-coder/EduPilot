@@ -1185,6 +1185,11 @@ model DataConsent {
   id          String    @id @default(cuid())
   userId      String
   consentType String
+  /// Personne concernée par le consentement : l'auteur lui-même, ou l'enfant
+  /// pour lequel un parent répond (Lot 6). Jamais nul : l'unicité en dépend.
+  subjectUserId String  @default("")
+  /// Version du document acceptée (conditions, politique de confidentialité).
+  version     String?
   isGranted   Boolean   @default(false)
   grantedAt   DateTime?
   revokedAt   DateTime?
@@ -1194,8 +1199,9 @@ model DataConsent {
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, consentType])
+  @@unique([userId, consentType, subjectUserId])
   @@index([userId])
+  @@index([subjectUserId, consentType])
   @@map("data_consents")
 }
 

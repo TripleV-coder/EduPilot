@@ -14,6 +14,7 @@ import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
 import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
+import type { PendingConsent } from "@/lib/security/consent";
 
 type ConsentKey = "analytics" | "imageRights";
 
@@ -238,10 +239,83 @@ export default function MyDataSettingsPage() {
                                     );
                                 })}
                             </div>
+
+                            <ChildConsentSection />
                         </CardContent>
                     </Card>
                 </div>
             </div>
         </PageGuard>
+    );
+}
+
+/**
+ * Consentement par enfant (Lot 6) : un parent revient ici sur le choix fait à
+ * la première connexion. Un retrait est horodaté et suffit à lui seul à
+ * retirer le consentement de l'enfant.
+ */
+function ChildConsentSection() {
+    const { data, mutate } = useSWR<PendingConsent>("/api/compliance/consents", fetcher, {
+        revalidateOnFocus: false,
+    });
+    const [pendingChild, setPendingChild] = useState<string | null>(null);
+
+    if (!data || data.children.length === 0) return null;
+
+    const toggle = async (studentId: string, next: boolean) => {
+        setPendingChild(studentId);
+        try {
+            const res = await fetch("/api/compliance/consents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ children: { [studentId]: next } }),
+            });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Enregistrement impossible");
+            await mutate();
+            toast.success(next ? "Consentement accordé" : "Consentement retiré");
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erreur");
+        } finally {
+            setPendingChild(null);
+        }
+    };
+
+    return (
+        <div className="mt-6 border-t border-border pt-4 space-y-4">
+            <div>
+                <h4 className="font-medium text-foreground text-sm">Données de mes enfants</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                    Vous répondez pour chaque enfant qui vous est rattaché. Un retrait est enregistré avec sa date.
+                </p>
+            </div>
+            {data.children.map((child) => (
+                <div key={child.studentId} className="flex justify-between items-center">
+                    <h4 className="font-medium text-foreground text-sm">{child.firstName} {child.lastName}</h4>
+                    <div className="flex items-center gap-3">
+                        <Badge
+                            variant="outline"
+                            className={
+                                child.granted
+                                    ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] border-[hsl(var(--success-border))]"
+                                    : "bg-muted text-muted-foreground border-border"
+                            }
+                        >
+                            {child.granted === null ? "Non renseigné" : child.granted ? "Accordé" : "Retiré"}
+                        </Badge>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary"
+                            onClick={() => toggle(child.studentId, !child.granted)}
+                            disabled={pendingChild === child.studentId}
+                        >
+                            {pendingChild === child.studentId
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : child.granted ? "Retirer" : "Accorder"}
+                        </Button>
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 }

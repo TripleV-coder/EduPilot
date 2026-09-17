@@ -26,6 +26,7 @@ import {
     E2E_USERS,
     type E2EFixtures,
 } from "./e2e-accounts";
+import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../src/lib/security/consent-defaults";
 
 // Compatibilité : imports historiques depuis ce module.
 export { E2E_PASSWORD, E2E_USERS } from "./e2e-accounts";
@@ -66,6 +67,26 @@ async function upsertDedicatedUser(
         create: { email, ...state },
         update: state,
         select: { id: true },
+    });
+    // Lot 6 : comptes E2E dédiés — conditions déjà acceptées, sinon chaque
+    // scénario s'arrêterait sur l'écran de consentement. Cet écran a son propre
+    // parcours dans e2e/fresh-install (compte réellement neuf).
+    const consent = {
+        isGranted: true,
+        version: LEGAL_TERMS_VERSION,
+        grantedAt: new Date(),
+        revokedAt: null,
+    };
+    await prisma.dataConsent.upsert({
+        where: {
+            userId_consentType_subjectUserId: {
+                userId: user.id,
+                consentType: CONSENT_TERMS,
+                subjectUserId: user.id,
+            },
+        },
+        create: { userId: user.id, consentType: CONSENT_TERMS, subjectUserId: user.id, ...consent },
+        update: consent,
     });
     return user.id;
 }
