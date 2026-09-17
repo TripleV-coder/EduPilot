@@ -10,6 +10,7 @@ import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 
 type ThemeValue = "light" | "dark" | "system";
 type DisplayMode = "comfort" | "dense" | "focus";
@@ -63,6 +64,7 @@ export default function AppearanceSettingsPage() {
     const {
         data: profileData,
         mutate,
+        error: profileError,
     } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
         revalidateOnFocus: false,
     });
@@ -145,6 +147,15 @@ export default function AppearanceSettingsPage() {
                         { label: "Apparence" },
                     ]}
                 />
+
+                {/* Sans ce cas, une panne affichait le thème par défaut : la
+                    personne croyait son choix perdu. */}
+                {profileError ? (
+                    <PageError
+                        message="Impossible de charger vos préférences d'affichage."
+                        onRetry={() => void mutate()}
+                    />
+                ) : null}
 
                 {saved ? (
                     <Card

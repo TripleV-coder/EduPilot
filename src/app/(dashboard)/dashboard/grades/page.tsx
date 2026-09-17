@@ -17,7 +17,7 @@ import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
 
 import { Badge, Button, Card, Chip, FilterBar, Icon, MetricCard } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageEmpty, PageLoading } from "@/components/layout/page-states";
+import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
 
 type GradeStats = {
     average: number;
@@ -64,10 +64,12 @@ function GradesContent() {
         limit: EVALUATIONS_PAGE_SIZE,
     });
     const evalsLoading = evaluationsPage.isLoading;
-    const { data: statsData, isLoading: statsLoading } = useSWR<StatsResponse>(
-        "/api/grades/statistics",
-        fetcher
-    );
+    const {
+        data: statsData,
+        isLoading: statsLoading,
+        error: statsError,
+        mutate: reloadStats,
+    } = useSWR<StatsResponse>("/api/grades/statistics", fetcher);
 
     const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
@@ -204,7 +206,17 @@ function GradesContent() {
                 <div className="flex flex-col gap-4">
                     {statsLoading ? <PageLoading label="Chargement des statistiques…" /> : null}
 
-                    {!statsLoading && !stats ? (
+                    {/* Sans ce cas, une panne du calcul affichait « aucune
+                        statistique disponible », que l'enseignant pouvait lire
+                        comme « aucune note saisie ». */}
+                    {statsError ? (
+                        <PageError
+                            message="Impossible de calculer les statistiques."
+                            onRetry={() => void reloadStats()}
+                        />
+                    ) : null}
+
+                    {!statsLoading && !statsError && !stats ? (
                         <PageEmpty
                             icon="chart"
                             title="Aucune statistique disponible"

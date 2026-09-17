@@ -21,7 +21,7 @@ import {
 } from "recharts";
 import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageEmpty } from "@/components/layout/page-states";
+import { PageEmpty, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -241,10 +241,12 @@ export default function OrganizationDashboardPage() {
 
   const canAccess = session?.user?.role === "SUPER_ADMIN" || session?.user?.isOrganizationManager === true;
 
-  const { data: organizationsData, isLoading: organizationsLoading } = useSWR<PaginatedOrganizations>(
-    canAccess ? "/api/organizations?limit=100" : null,
-    fetcher
-  );
+  const {
+    data: organizationsData,
+    isLoading: organizationsLoading,
+    error: organizationsError,
+    mutate: reloadOrganizations,
+  } = useSWR<PaginatedOrganizations>(canAccess ? "/api/organizations?limit=100" : null, fetcher);
 
   const organizations = organizationsData?.data || [];
   const requestedOrganizationId = searchParams.get("organizationId");
@@ -285,6 +287,19 @@ export default function OrganizationDashboardPage() {
 
   if (organizationsLoading) {
     return <EmptyState label="Chargement des organisations accessibles..." />;
+  }
+
+  // Une panne de chargement n'est pas « aucune organisation » : le message
+  // d'origine disait à un gestionnaire légitime qu'il n'avait rien à gérer.
+  if (organizationsError) {
+    return (
+      <div className="mx-auto max-w-4xl py-16">
+        <PageError
+          message="Impossible de charger la liste des organisations."
+          onRetry={() => void reloadOrganizations()}
+        />
+      </div>
+    );
   }
 
   if (organizations.length === 0 || !selectedOrganization) {

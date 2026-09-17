@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Badge, Button, MetricCard } from "@/components/edu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -95,7 +95,10 @@ function EmptyBlock({ label }: { label: string }) {
 }
 
 export default function RootDashboard() {
-  const { data: stats, isLoading } = useSWR<RootSummary>("/api/root/analytics/summary", fetcher);
+  const { data: stats, isLoading, error, mutate } = useSWR<RootSummary>(
+    "/api/root/analytics/summary",
+    fetcher,
+  );
 
   const recentSchools = stats?.recentSchools || [];
   const recentActivity = stats?.recentActivity || [];
@@ -131,7 +134,15 @@ export default function RootDashboard() {
 
         {isLoading ? <PageLoading label="Chargement des métriques réseau…" /> : null}
 
-        {!isLoading ? (
+        {/* Sans ce cas, une panne affichait un réseau à 0 établissement. */}
+        {error ? (
+          <PageError
+            message="Impossible de charger les métriques réseau."
+            onRetry={() => void mutate()}
+          />
+        ) : null}
+
+        {!isLoading && !error ? (
         <>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Établissements actifs" value={String(stats?.totalSchools ?? 0)} icon="school" />

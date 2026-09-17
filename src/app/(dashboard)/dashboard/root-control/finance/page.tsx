@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   DollarSign, TrendingUp, Building2, 
@@ -25,7 +26,7 @@ type RootFinanceSummary = {
 };
 
 export default function RootFinancePage() {
-    const { data } = useSWR<RootFinanceSummary>("/api/root/finance/summary", fetcher);
+    const { data, error, mutate } = useSWR<RootFinanceSummary>("/api/root/finance/summary", fetcher);
 
     const summary = data?.summary || { totalMonthlyRevenue: 0, activeTenants: 0, averageRevenuePerTenant: 0, collectionRate: 0 };
     const distribution = data?.distribution || [];
@@ -48,6 +49,16 @@ export default function RootFinancePage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Sans ce cas, une panne affichait 0 F CFA de chiffre
+                    d'affaires et 0 établissement actif : un écran de crise
+                    parfaitement lisible, et parfaitement faux. */}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les chiffres de la plateforme."
+                        onRetry={() => void mutate()}
+                    />
+                ) : null}
 
                 {/* KPIs */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

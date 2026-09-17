@@ -12,7 +12,7 @@ import { WeeklyTimetableGrid } from "@/components/schedule/weekly-timetable-grid
 
 import { Button, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 
 interface ScheduleItem {
     id: string;
@@ -41,10 +41,12 @@ export default function SchedulePage() {
     const [filterType, setFilterType] = useState<"class" | "teacher">("class");
     const [selectedId, setSelectedId] = useState<string>("ALL");
 
-    const { data: schedules, isLoading: loadingSchedules } = useSWR<ScheduleItem[]>(
-        "/api/schedules",
-        fetcher
-    );
+    const {
+        data: schedules,
+        isLoading: loadingSchedules,
+        error: schedulesError,
+        mutate: reloadSchedules,
+    } = useSWR<ScheduleItem[]>("/api/schedules", fetcher);
     const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>(
         "/api/classes",
         fetcher
@@ -160,6 +162,13 @@ export default function SchedulePage() {
 
                 {loadingSchedules ? (
                     <PageLoading label="Chargement de l'emploi du temps…" />
+                ) : schedulesError ? (
+                    // Sans ce cas, une panne réseau affichait une grille vide,
+                    // impossible à distinguer d'une semaine sans cours.
+                    <PageError
+                        message="Impossible de charger l'emploi du temps."
+                        onRetry={() => void reloadSchedules()}
+                    />
                 ) : (
                     <Card padding={0} style={{ overflow: "hidden" }}>
                         <WeeklyTimetableGrid

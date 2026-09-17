@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageEmpty } from "@/components/layout/page-states";
+import { PageLoading, PageEmpty, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -109,7 +109,12 @@ function AlertsRisksContent() {
     ? "/api/incidents?limit=200"
     : `/api/incidents?limit=200&classId=${classId}`;
 
-  const { data: analyticsData, isLoading: analyticsLoading } = useSWR<AnalyticsStudent[]>(analyticsUrl, fetcher);
+  const {
+    data: analyticsData,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    mutate: reloadAnalytics,
+  } = useSWR<AnalyticsStudent[]>(analyticsUrl, fetcher);
   // Format paginé du projet : { data, pagination }
   const { data: incidentsData, isLoading: incidentsLoading } = useSWR<{ data?: IncidentApiItem[] }>(incidentsUrl, fetcher);
 
@@ -273,6 +278,18 @@ function AlertsRisksContent() {
                       <tr>
                         <td colSpan={7} className="px-4 py-10">
                           <PageLoading label="Chargement des risques…" />
+                        </td>
+                      </tr>
+                    ) : analyticsError ? (
+                      // Une panne de chargement affichait « aucun élève à
+                      // risque » : le plus rassurant des messages, et le plus
+                      // faux.
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10">
+                          <PageError
+                            message="Impossible de charger les indicateurs de risque."
+                            onRetry={() => void reloadAnalytics()}
+                          />
                         </td>
                       </tr>
                     ) : riskRows.length === 0 ? (

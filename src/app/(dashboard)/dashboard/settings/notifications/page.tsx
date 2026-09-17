@@ -7,6 +7,7 @@ import { Bell, CheckCircle, Mail, Save, Smartphone } from "lucide-react";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ const defaultPreferences: NotificationPreferences = {
 };
 
 export default function NotificationsSettingsPage() {
-  const { data: profileData, mutate } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
+  const { data: profileData, mutate, error: profileError } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
     revalidateOnFocus: false,
   });
   const { data: notificationsData } = useSWR<NotificationsResponse>("/api/notifications?unread=true&limit=1", fetcher, {
@@ -115,6 +116,16 @@ export default function NotificationsSettingsPage() {
             { label: "Notifications" },
           ]}
         />
+
+        {/* Sans ce cas, une panne affichait les préférences par défaut :
+            la personne croyait ses réglages perdus, ou les réenregistrait
+            par-dessus les vrais. */}
+        {profileError ? (
+          <PageError
+            message="Impossible de charger vos préférences."
+            onRetry={() => void mutate()}
+          />
+        ) : null}
 
         {saved ? (
           <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--success-border))] bg-[hsl(var(--success-bg))] px-4 py-3 text-sm text-[hsl(var(--success))]">
