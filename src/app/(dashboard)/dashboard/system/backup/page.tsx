@@ -19,7 +19,7 @@ import { getErrorMessage } from "@/lib/utils/error-message";
 
 type Backup = {
     filename: string;
-    path: string;
+    // L5 (audit) : l'API ne renvoie plus le chemin sur le serveur.
     size: number;
     sizeFormatted: string;
     createdAt: string;

@@ -83,7 +83,10 @@ const nextConfig = {
           // Protection XSS
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
+          // L2 (audit) : X-XSS-Protection retiré. L'en-tête est obsolète (aucun
+          // navigateur à jour ne l'implémente) et son filtre, dans les versions
+          // qui le lisaient encore, ouvrait lui-même des fuites de données.
+          // La protection réelle vient de la CSP noncée (src/proxy.ts).
           
           // Referrer Policy
           { 

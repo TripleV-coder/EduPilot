@@ -43,11 +43,11 @@ export const POST = createApiHandler(async (request, context) => {
     try {
       await fs.access(backupScript);
     } catch (_error) {
+      // L5 (audit) : jamais le chemin. L'exploitant le retrouve dans le
+      // journal du serveur, pas dans une réponse HTTP.
+      logger.error("Script de sauvegarde introuvable", undefined, { module: "system/backup", script: backupScript });
       return NextResponse.json(
-        {
-          error: "Script de sauvegarde non trouvé",
-          path: backupScript,
-        },
+        { error: "Script de sauvegarde non trouvé sur le serveur." },
         { status: 404 }
       );
     }
@@ -59,22 +59,22 @@ export const POST = createApiHandler(async (request, context) => {
     const sizeMatch = stdout.match(/Taille de la sauvegarde: (.*)/);
     const checksumMatch = stdout.match(/Checksum SHA256: (.*)/);
 
+    // L5 (audit) : `stdout` n'est jamais renvoyé — la sortie d'un script de
+    // sauvegarde cite des chemins, des noms de base et parfois une chaîne de
+    // connexion complète. Seuls la taille et l'empreinte sortent d'ici.
     return NextResponse.json({
       success: true,
       message: "Sauvegarde créée avec succès",
       size: sizeMatch ? sizeMatch[1] : "N/A",
       checksum: checksumMatch ? checksumMatch[1] : "N/A",
       timestamp: new Date().toISOString(),
-      logs: stdout,
     });
   
     } catch (error) {
-    logger.error(" creating backup:", error as Error);
+    // L5 (audit) : le détail reste dans le journal du serveur.
+    logger.error("Sauvegarde impossible", error as Error, { module: "system/backup" });
     return NextResponse.json(
-      {
-        error: "Erreur lors de la création de la sauvegarde",
-        details: (error as Error).message,
-      },
+      { error: "Erreur lors de la création de la sauvegarde. Consultez le journal du serveur." },
       { status: 500 }
     );
   }
@@ -118,8 +118,9 @@ export const GET = createApiHandler(async (request, context) => {
           }
 
           return {
+            // L5 (audit) : pas de `path` — le nom du fichier suffit à
+            // l'écran, et l'arborescence du serveur ne regarde personne.
             filename: file,
-            path: filePath,
             size: stats.size,
             sizeFormatted: `${(stats.size / (1024 * 1024)).toFixed(2)} MB`,
             createdAt: stats.birthtime,
@@ -150,7 +151,7 @@ export const GET = createApiHandler(async (request, context) => {
     }
   
     } catch (error) {
-    logger.error(" listing backups:", error as Error);
+    logger.error("Listing des sauvegardes impossible", error as Error, { module: "system/backup" });
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 

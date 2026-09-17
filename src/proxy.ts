@@ -23,7 +23,23 @@ function buildCsp(nonce: string): string {
       ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
       : "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob:",
     "worker-src 'self' blob:",
-    "style-src 'self' 'unsafe-inline'",
+    // L1 (audit) — mesuré le 2026-09-17, pas supposé. La directive unique
+    // `style-src` est séparée en deux, pour dire précisément ce qui est
+    // autorisé et pourquoi :
+    //  - `style-src-elem` : les <style> injectés à l'exécution. Le passage à
+    //    `'nonce-…'` a été essayé et VÉRIFIÉ dans un navigateur : la
+    //    bibliothèque de notifications (sonner 2.0.7) injecte 14 859
+    //    caractères de CSS sans nonce — elle n'en accepte aucun — et tous les
+    //    toasts de l'application perdaient leur style. Le design étant gelé
+    //    (règle 9), `'unsafe-inline'` est conservé ici. Risque consigné dans
+    //    docs/EXPLOITATION.md : une injection HTML réussie pourrait poser une
+    //    feuille de style (exfiltration par sélecteur d'attribut, habillage
+    //    trompeur) — mais pas exécuter de script, `script-src` restant noncé.
+    //  - `style-src-attr` : l'attribut style= des composants React, dont
+    //    l'application est saturée. Aucun vecteur d'injection : ces valeurs
+    //    viennent du code, jamais d'une saisie.
+    "style-src-elem 'self' 'unsafe-inline'",
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
     "font-src 'self' data:",
     IS_PROD
