@@ -443,7 +443,7 @@ Suite complète (build de production, base d'audit, rôle applicatif) : 87/89 �
 
 ---
 
-## Lot 6 — Modules, consentement, droits RGPD, conservation, traçabilité (en cours, commencé le 2026-09-14)
+## Lot 6 — Modules, consentement, droits RGPD, conservation, traçabilité (terminé le 2026-09-17 ; en attente du feu vert)
 
 ### Décisions du propriétaire (2026-09-14)
 
@@ -462,6 +462,96 @@ Suite complète (build de production, base d'audit, rôle applicatif) : 87/89 �
 
   La purge affiche ce qu'elle va effacer avant d'agir.
 - **Consentement des mineurs** : par enfant, par un parent rattaché de façon vérifiée. Il est enregistré avec sa date, son auteur et sa révocation (`DataConsent`). Un refus ou un retrait d'un seul parent suffit, et l'élève ne consent pas seul. Le choix déjà fait sur le compte d'un parent est repris pour chacun de ses enfants.
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `8f183b4` | fix(logs) **[N56]** : masquage central dans `lib/utils/logger` — emails, téléphones, clés de secret et d'identité, messages, contextes imbriqués, textes et piles d'erreurs |
+| `6cf87d7` | fix(rgpd) **[N57]** : purge de conservation en **mois**, comptée depuis le départ de l'élève, avec aperçu ; une seule définition pour l'aperçu et la purge |
+| `c298b03` | feat(rgpd) : durées par défaut — actives pour une nouvelle école, **inactives** pour les écoles existantes (une migration ne déclenche jamais d'effacement d'elle-même) |
+| `74aac22` | fix(rgpd) **[N60]** : `/api/compliance/dashboard` réservé à l'administration (tout compte connecté y lisait les demandes RGPD, avec noms et emails) |
+| `c29cbcc` | fix(rgpd) **[N59]** : la page Conformité affiche des indicateurs réels, plus ses valeurs de repli (85 %, 100 %) |
+| `885d4bb` | feat(rgpd) : l'école **règle et active** ses durées de conservation (aperçu par le code de la purge, plancher OHADA, changement tracé) |
+| `73d7daf` | feat(rgpd) : **modules par établissement** — navigation masquée ET API fermée (403 `MODULE_DISABLED`) |
+| `f17f191` | feat(rgpd) : **consentement** horodaté et versionné, par enfant pour les mineurs ; taux de consentement enfin mesuré |
+| `5682b72` | fix(rgpd) **[N61][N62]** : les trois droits des personnes réellement exerçables ; fin de l'anonymisation immédiate en un clic |
+| `525cd2f` | feat(rgpd) : **traçabilité** centrale des notes, de la santé, des paiements et des rôles |
+| `4293183` | feat(rgpd) : **sortie d'un établissement** — export, effacement, rapport de vérification |
+
+### Minimisation — modules par établissement (`73d7daf`)
+
+Un module éteint n'est pas seulement masqué : son API répond 403. Une école sans infirmerie ne détient aucune donnée de santé, même par appel direct à `/api/health/medical-records`.
+
+- **Catalogue** : `src/lib/modules/catalog.ts`, sans dépendance. Comparaison par segments, pour que `health/medical-records` ne capture jamais `/api/health` (le contrôle de santé du serveur, H1).
+- **Enforcement** une seule fois, dans `createApiHandler` (283 routes sur 285) ; état en cache TTL 30 s, comme le mode maintenance. Base indisponible ou valeur inconnue : rien n'est bloqué.
+- **Navigation** : `requiresModule` sur les liens, `visibleNavGroups` filtre, palette de commandes filtrée par le chemin, `ModuleGuard` monté une fois dans la coque. Liste de modules inconnue = rien n'est masqué (défaut sûr).
+- `/api/schools/context` — la seule route que **tous** les rôles appellent — porte désormais `enabledModules` et `offeredLevels`. `/api/schools/[id]` est réservé à l'administration : la navigation d'un enseignant ou d'un parent n'aurait rien pu filtrer.
+- Écran `/dashboard/settings/modules`, mêmes composants que l'écran Cycles (règle 9).
+- **Migration** : la colonne est créée avec **tout** le catalogue par défaut (les écoles existantes gardent leurs modules), puis le défaut est ramené au socle pour les écoles créées ensuite. Aucun `UPDATE`, rejouable sans effet.
+
+Modules hors du périmètre décidé (bibliothèque, gamification, cagnottes, orientation, compétences, clubs, benchmark, notifications vocales) : **laissés toujours actifs**, faute de décision. À arbitrer si vous souhaitez pouvoir les éteindre aussi.
+
+### Consentement (`f17f191`)
+
+Avant, les consentements vivaient dans `user.preferences.consents` (JSON), sans date, sans version, sans lien avec l'enfant concerné — et rien n'était demandé à la première connexion.
+
+- `DataConsent` porte `subjectUserId` (de qui parle le consentement) et `version`. Unicité `(userId, consentType, subjectUserId)` ; `subjectUserId` non nul, sinon `NULL ≠ NULL` laisserait passer des doublons.
+- Écran de consentement rendu **à la place** du tableau de bord tant que ce n'est pas fait, et redemandé à chaque nouvelle version (`LEGAL_TERMS_VERSION`).
+- Parent : il répond pour chacun de ses enfants rattachés ; son propre choix est repris par défaut pour chaque enfant et reste modifiable. Un refus ou un retrait d'un seul parent suffit ; l'élève ne consent jamais à sa propre place (403, et **rien n'est écrit**, pas même l'acceptation envoyée dans la même requête).
+- Retour sur le choix depuis « Mes données ».
+- Le **taux de consentement** de la page Conformité est enfin mesuré (part des comptes ayant accepté la version courante). N59 l'avait laissé à « non mesuré » plutôt que de l'inventer.
+
+### Droits des personnes (`5682b72`) — deux défauts trouvés en les déroulant
+
+| ID | Sévérité | Constat |
+|---|---|---|
+| **N61** | **Élevée** | `DELETE /api/user/data` anonymisait le compte **sur-le-champ**, alors que l'écran annonçait « votre demande a été enregistrée » et que le code portait le commentaire « in production, this should queue for manual review ». N'importe quel compte — un élève compris — effaçait ainsi en un clic ses notes, son dossier médical, ses sessions d'examen et son historique, sans retour possible et sans que l'établissement en soit informé |
+| **N62** | Moyenne | Le traitement d'une demande ne savait faire que l'export : rectification et effacement recevaient « type de demande non supporté ». Ces deux droits ne pouvaient jamais être honorés |
+
+Désormais : la demande d'effacement est **enregistrée** (202), l'administration la traite ; un élève encore inscrit n'est pas effacé (409 `STUDENT_STILL_ENROLLED`, demande laissée en attente) — le droit à l'effacement ne prime pas sur l'obligation de tenir le registre scolaire ; une rectification se clôt en décrivant la correction apportée, qui reste au dossier.
+
+### Traçabilité (`525cd2f`)
+
+Trace posée au **passage central**, donc aucune route ne peut l'oublier : modification réussie → `DATA_MODIFICATION`, consultation → `DATA_ACCESS` **dédupliquée sur 5 minutes** par personne et par chemin (sans quoi la revalidation automatique des écrans rendrait le journal illisible). Une requête refusée ne laisse aucune trace de modification. Zones : notes et bulletins, santé et bien-être, paiements, comptes et rôles. `AuditLog.schoolId` est enfin renseigné.
+
+`auditLog.securityEvent` écrivait toujours l'action « SECURITY_EVENT » : une anonymisation, un verrouillage de compte et une alerte de connexion étaient indistinguables. L'action porte désormais le nom de l'événement.
+
+### Fin de conservation — sortie d'un établissement (`4293183`)
+
+`lib/security/school-offboarding` + `scripts/db/school-offboarding.ts` : export (JSON Lines, un fichier par table, par lots de 1 000), purge, **rapport de vérification** (lignes restantes par table, pour l'école et pour ses comptes). Les tables sont lues dans le schéma (`information_schema`), pas listées à la main. Export seul par défaut ; l'effacement exige `--purge --confirm <code de l'école>`.
+
+**Déroulé en réel sur une base jetable** (port 5433, migrations, école + école voisine) : export de 4 tables, purge refusée sans confirmation, purge confirmée → `remaining: []`, école voisine et son compte intacts.
+
+### Tests existants modifiés (règle 4)
+
+- `tests/integration-db/helpers.ts` (`createSchool`) : une école de test a désormais tous ses modules, comme une école existante après migration. Ces suites portent sur la pagination, l'isolation et les contrats, pas sur la minimisation, qui a sa propre suite. Sans cela, 19 cas recevaient 403.
+- `tests/integration-db/compliance-dashboard.test.ts` exigeait `consentRate: null` (« non mesuré tant que le consentement par enfant n'existe pas ») : il existe ; un second cas prouve que le taux suit les acceptations réelles.
+- `tests/api/compliance-dashboard.test.ts` : double de `prisma.dataConsent.count` ajouté pour la nouvelle lecture, avec vérification que ce comptage est lui aussi cloisonné à l'école.
+- `tests/api/system-retention.test.ts`, `tests/lib/rgpd.test.ts` : voir `6cf87d7`.
+- `prisma/seeds` et `e2e/global-setup` : les comptes de démonstration et les comptes E2E dédiés ont leurs conditions déjà acceptées et tous leurs modules actifs, sinon chaque scénario s'arrêterait sur l'écran de consentement ou recevrait 403. Un compte réellement neuf voit bien l'écran (E2E `fresh-install`).
+
+### Batterie du Lot 6 (2026-09-17)
+
+| Vérification | Résultat |
+|---|---|
+| `tsc --noEmit` | vert |
+| `eslint src` | vert |
+| `vitest run` | **2 906 / 2 906** (279 fichiers) |
+| `vitest --config vitest.integration.config.ts` (PostgreSQL réel) | **312 / 312** (49 fichiers) |
+| `npm run build` | vert |
+| E2E `playwright test` (base seedée, rôle applicatif, build de production) | **89 / 89** |
+| E2E démarrage à vide (`playwright.fresh.config.ts`, base neuve `edupilot_fresh_lot6`) | **2 / 2** (12,3 min) |
+
+Deux défauts trouvés **par** cette batterie, corrigés :
+- Le tableau de bord d'un **parent** répondait **500**. La lecture du consentement dans le `layout` serveur passe par `student_profiles`, table fermée par la sécurité par ligne (M2) : sans contexte déclaré, Prisma échouait sur la relation masquée. C'est exactement le piège consigné au Lot 4 — la première occurrence hors `createApiHandler`.
+- Le parent E2E dédié a un enfant rattaché : sans réponse pour lui, l'écran de consentement remplaçait le tableau de bord dans les 5 scénarios `parent-flow`. `e2e/global-setup` répond pour lui ; le parcours réel « nouvel enfant rattaché → le parent répond » est couvert par `fresh-install`.
+
+### Points ouverts du Lot 6
+
+1. **Modules hors décision** (bibliothèque, gamification, cagnottes, orientation, compétences, clubs, benchmark, notifications vocales) : toujours actifs. Voulez-vous pouvoir les éteindre ?
+2. **Version des documents légaux** : `LEGAL_TERMS_VERSION = "2026-09-17"`. Les textes de `/terms` et `/privacy` sont ceux du dépôt ; leur rédaction juridique reste hors périmètre (votre liste « hors périmètre »).
+3. **Coût de la traçabilité** : une écriture supplémentaire par requête sensible (modification, ou consultation une fois par 5 min et par chemin). À re-mesurer au Lot 9 avec les seuils de latence du Lot 3.
 
 ---
 
@@ -553,6 +643,14 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N53 | Faible | `PageGuard` : pendant le chargement de la session, un spinner sans texte ni `role="status"` — rien n'est annoncé aux lecteurs d'écran, et la zone principale paraît vide | Suivi | Constat Lot 5 | — | E2E des états vides (relevé intermittent sur `/dashboard/settings/profile`, enseignant) ; lecture du code | — | — |
 | N54 | Moyenne | Import des élèves : colonne « Adresse » proposée et acceptée, jamais enregistrée (`StudentProfile.address` existe), sans avertissement | 5 (décision du propriétaire du 2026-09-14 : l'enregistrer) | Corrigé | `517b289` | `tests/integration-db/import-students.test.ts` (N54, PG réel, rouge avant) | `address` null | adresse enregistrée (espaces retirés, 255 caractères au plus, au-delà ligne signalée) |
 | N55 | Élevée | `/api/import` (type STUDENTS), troisième import d'élèves appelé par aucun écran : établissement de la requête pris tel quel pour tout rôle (autre école visée ; la RLS bloquait l'écriture → 500) ; prénom ou nom manquant remplacé par « Élève » / « Nouveau » ; classe, date, genre, adresse ignorés ; aucune validation | 5 (règle 10 : données personnelles) | Corrigé | `4f08d91` | `tests/integration-db/generic-import-students.test.ts` (3, PG réel, rouges avant) | 500 ; 200 avec « Élève » inventé ; adresse null | école de l'appelant seule (SUPER_ADMIN : école choisie et vérifiée) ; 422 situé ; données enregistrées |
+| N56 | Moyenne | Journaux applicatifs : email (mot de passe oublié, vérification), téléphone (SMS) et erreurs Prisma citant un email écrits en clair | 6 | Corrigé | `8f183b4` | `tests/lib/logger-pii.test.ts` (7, 6 rouges avant) | email et téléphone en clair | masqués ; identifiants, compteurs et dates restent lisibles |
+| N57 | Moyenne | Purge de conservation : durées en années (3 mois impossible), dossiers médicaux effacés selon leur date de mise à jour (élèves inscrits compris), départ jamais pris en compte, badges et journaux techniques jamais purgés, aucun aperçu, erreurs avalées | 6 | Corrigé | `6cf87d7` | `tests/integration-db/retention.test.ts` (7, PG réel) | — | durées en mois depuis le départ, aperçu = purge, règle en échec rapportée |
+| N58 | Moyenne | Règles de conservation posées inactives sur les écoles existantes, sans aucun écran pour les revoir et les activer (alerte « N règle(s) à activer » sans suite) | 6 | Corrigé | `885d4bb` | `tests/integration-db/compliance-retention.test.ts` (5, PG réel, rouges avant) | aucune interface | durée et activation par règle, plancher OHADA, changement tracé |
+| N59 | Moyenne | Page Conformité : l'API ne renvoyait aucun des champs lus → valeurs de repli affichées comme réelles (85 % de conformité, 100 % de consentements, 0 demande) | 6 | Corrigé | `c29cbcc` `f17f191` | `tests/integration-db/compliance-dashboard.test.ts` (PG réel) | chiffres inventés | indicateurs calculés ; taux de consentement mesuré |
+| N60 | Élevée | `/api/compliance/dashboard` sans restriction de rôle : tout compte connecté de l'école — élève, parent, enseignant — lisait les compteurs de conformité et les dix dernières demandes RGPD, avec nom et email de chaque demandeur | 6 | Corrigé | `74aac22` | `tests/integration-db/compliance-dashboard-access.test.ts` (4, PG réel) | élève, parent, enseignant → 200 + email d'un parent | 403 |
+| N61 | Élevée | `DELETE /api/user/data` anonymisait le compte sur-le-champ alors que l'écran annonçait une demande enregistrée : n'importe qui — un élève compris — effaçait en un clic ses notes, son dossier médical et son historique, sans retour possible | 6 | Corrigé | `5682b72` | `tests/integration-db/data-rights.test.ts` (8, PG réel, 5 rouges avant) | compte anonymisé immédiatement | demande enregistrée (202), traitée par l'administration |
+| N62 | Moyenne | Traitement d'une demande RGPD limité à l'export : rectification et effacement recevaient « type de demande non supporté » et ne pouvaient jamais être honorés | 6 | Corrigé | `5682b72` | idem N61 | 400 « non supporté » | effacement (sauf élève inscrit, 409) et rectification (correction décrite) |
+| N63 | Moyenne | `auditLog.securityEvent` écrivait toujours l'action « SECURITY_EVENT » : anonymisation, verrouillage de compte et alerte de connexion indistinguables dans le journal | 6 | Corrigé | `525cd2f` | `tests/integration-db/data-rights.test.ts` | action unique | action nommée `SECURITY_EVENT_<ÉVÉNEMENT>` |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---

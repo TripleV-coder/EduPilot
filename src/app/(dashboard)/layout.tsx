@@ -10,6 +10,8 @@ import { auth } from "@/lib/auth";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { ConsentScreen } from "@/components/compliance/consent-screen";
 import { getPendingConsent } from "@/lib/security/consent";
+import { runWithDbContext } from "@/lib/db/db-context";
+import { dbContextForSession } from "@/lib/db/session-db-context";
 
 export default async function DashboardLayout({
     children,
@@ -30,7 +32,12 @@ export default async function DashboardLayout({
     // acceptées à la première connexion et à chaque nouvelle version ; un
     // parent répond en même temps pour chacun de ses enfants rattachés.
     if (session?.user) {
-        const pending = await getPendingConsent(session.user.id);
+        // Contexte d'établissement obligatoire (M2) : les enfants rattachés
+        // passent par `student_profiles`, table fermée par la sécurité par
+        // ligne. Sans contexte, Prisma échouait sur la relation masquée (500).
+        const pending = await runWithDbContext(dbContextForSession(session), () =>
+            getPendingConsent(session.user.id),
+        );
         if (pending.needsTerms || pending.children.some((c) => c.granted === null)) {
             return <ConsentScreen pending={pending} />;
         }

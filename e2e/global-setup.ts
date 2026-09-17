@@ -26,7 +26,7 @@ import {
     E2E_USERS,
     type E2EFixtures,
 } from "./e2e-accounts";
-import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../src/lib/security/consent-defaults";
+import { CONSENT_CHILD_DATA, CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../src/lib/security/consent-defaults";
 
 // Compatibilité : imports historiques depuis ce module.
 export { E2E_PASSWORD, E2E_USERS } from "./e2e-accounts";
@@ -186,6 +186,27 @@ async function prepareDedicatedData(): Promise<E2EFixtures> {
         where: { parentId_studentId: { parentId: parent.id, studentId: student.id } },
         create: { parentId: parent.id, studentId: student.id, relationship: "PARENT", isPrimary: true },
         update: {},
+    });
+
+    // Lot 6 : ce parent a un enfant rattaché — sans réponse pour lui, l'écran
+    // de consentement remplace le tableau de bord. Le parcours réel « nouvel
+    // enfant rattaché → le parent répond » est couvert par e2e/fresh-install.
+    const childConsent = {
+        isGranted: true,
+        version: LEGAL_TERMS_VERSION,
+        grantedAt: new Date(),
+        revokedAt: null,
+    };
+    await prisma.dataConsent.upsert({
+        where: {
+            userId_consentType_subjectUserId: {
+                userId: parentUserId,
+                consentType: CONSENT_CHILD_DATA,
+                subjectUserId: studentUserId,
+            },
+        },
+        create: { userId: parentUserId, consentType: CONSENT_CHILD_DATA, subjectUserId: studentUserId, ...childConsent },
+        update: childConsent,
     });
 
     return { SCHOOL_1_ID: school1, SCHOOL_2_ID: school2, SCHOOL_1_CLASS_ID: klass.id };
