@@ -12,6 +12,8 @@ import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
+import { REQUEST_ID_HEADER, requestIdFromHeaders, runWithRequestId } from "@/lib/system/request-context";
+import { logger } from "@/lib/utils/logger";
 import { isZodError } from "@/lib/is-zod-error";
 import { moduleForApiPath } from "@/lib/modules/catalog";
 import { entityIdFromPath, sensitiveAreaForPath, shouldLogRead } from "@/lib/security/sensitive-data";
@@ -394,6 +396,17 @@ function invalidJson(): NextResponse {
 
 export function createApiHandler(handler: RouteHandler, options: HandlerOptions = {}) {
     return async (request: NextRequest, routeContext?: RouteContext) => {
+        // Identifiant de la requête (Lot 7) : repris de l'appelant s'il en
+        // fournit un sain, sinon généré. Toute ligne de journal écrite pendant
+        // la requête le porte, et la réponse le renvoie — y compris en erreur,
+        // pour que la personne puisse le citer.
+        const requestId = requestIdFromHeaders(request.headers);
+        const response = await runWithRequestId(requestId, () => runHandler(request, routeContext));
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
+    };
+
+    async function runHandler(request: NextRequest, routeContext?: RouteContext) {
         const t = defaultT;
         try {
             // ── RATE LIMITING ──
@@ -559,8 +572,11 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 return NextResponse.json({ error: error.message, code: "INVALID_CURSOR" }, { status: 400 });
             }
 
-            const message = error instanceof Error ? error.message : String(error);
-            console.error("[API Error]", { path: request.url, error: message });
+            // Journal expurgé (Lot 6) et identifié (Lot 7). L'URL brute
+            // contenait la chaîne de requête, où transitent des données
+            // personnelles (email, matricule) : seul le chemin est écrit.
+            const path = request.nextUrl?.pathname ?? (request.url ? new URL(request.url).pathname : "/api");
+            logger.error("Erreur non interceptée d'une route API", error, { module: "api", path });
 
             // Handle Prisma-specific errors with appropriate HTTP status codes
             if (
@@ -576,5 +592,5 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 { status: 500 }
             );
         }
-    };
+    }
 }

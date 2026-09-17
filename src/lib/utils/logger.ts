@@ -18,6 +18,8 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
+  /** Requête à l'origine de la ligne, quand il y en a une (Lot 7). */
+  requestId?: string;
   context?: LogContext;
   error?: {
     name: string;
@@ -60,6 +62,18 @@ function redactValue(value: unknown, key: string | undefined, depth: number): un
 }
 
 /**
+ * Identifiant de la requête en cours (Lot 7).
+ *
+ * Injecté par `api-helpers` plutôt qu'importé : ce module est aussi chargé par
+ * le middleware, où `node:async_hooks` n'existe pas.
+ */
+let requestIdProvider: (() => string | undefined) | null = null;
+
+export function setRequestIdProvider(provider: () => string | undefined): void {
+  requestIdProvider = provider;
+}
+
+/**
  * Format log entry for output
  */
 function formatLogEntry(entry: LogEntry): string {
@@ -96,10 +110,12 @@ function createLogEntry(
   context?: LogContext,
   error?: unknown
 ): LogEntry {
+  const requestId = requestIdProvider?.();
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message: redactText(message),
+    ...(requestId ? { requestId } : {}),
   };
 
   if (context) {
