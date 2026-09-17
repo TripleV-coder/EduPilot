@@ -490,7 +490,9 @@ Un module éteint n'est pas seulement masqué : son API répond 403. Une école 
 - Écran `/dashboard/settings/modules`, mêmes composants que l'écran Cycles (règle 9).
 - **Migration** : la colonne est créée avec **tout** le catalogue par défaut (les écoles existantes gardent leurs modules), puis le défaut est ramené au socle pour les écoles créées ensuite. Aucun `UPDATE`, rejouable sans effet.
 
-Modules hors du périmètre décidé (bibliothèque, gamification, cagnottes, orientation, compétences, clubs, benchmark, notifications vocales) : **laissés toujours actifs**, faute de décision. À arbitrer si vous souhaitez pouvoir les éteindre aussi.
+**Extension du 2026-09-17 (décision du propriétaire : « ça doit être flexible »).** Les fonctions restées hors du périmètre initial deviennent elles aussi réglables : bibliothèque, récompenses et classements, orientation, événements et clubs, rendez-vous, documents et attestations, bien-être, comparaison entre établissements, notifications vocales et WhatsApp. **17 → 26 modules ; seuls « Élèves » et « Classes et matières » restent imposés** — sans eux l'application ne fonctionne pas.
+
+Les écoles existantes les gardent actives (migration `20260917140000_school_modules_extended` : elles s'en servent peut-être déjà). Une nouvelle école ne reçoit toujours que le socle et active ce dont elle a besoin.
 
 ### Consentement (`f17f191`)
 
@@ -537,8 +539,8 @@ Trace posée au **passage central**, donc aucune route ne peut l'oublier : modif
 |---|---|
 | `tsc --noEmit` | vert |
 | `eslint src` | vert |
-| `vitest run` | **2 906 / 2 906** (279 fichiers) |
-| `vitest --config vitest.integration.config.ts` (PostgreSQL réel) | **312 / 312** (49 fichiers) |
+| `vitest run` | **2 907 / 2 907** (279 fichiers) |
+| `vitest --config vitest.integration.config.ts` (PostgreSQL réel) | **313 / 313** (49 fichiers) |
 | `npm run build` | vert |
 | E2E `playwright test` (base seedée, rôle applicatif, build de production) | **89 / 89** |
 | E2E démarrage à vide (`playwright.fresh.config.ts`, base neuve `edupilot_fresh_lot6`) | **2 / 2** (12,3 min) |
@@ -549,7 +551,7 @@ Deux défauts trouvés **par** cette batterie, corrigés :
 
 ### Points ouverts du Lot 6
 
-1. **Modules hors décision** (bibliothèque, gamification, cagnottes, orientation, compétences, clubs, benchmark, notifications vocales) : toujours actifs. Voulez-vous pouvoir les éteindre ?
+1. ~~Modules hors décision~~ — **tranché le 2026-09-17** : tout est réglable (voir l'extension ci-dessus).
 2. **Version des documents légaux** : `LEGAL_TERMS_VERSION = "2026-09-17"`. Les textes de `/terms` et `/privacy` sont ceux du dépôt ; leur rédaction juridique reste hors périmètre (votre liste « hors périmètre »).
 3. **Coût de la traçabilité** : une écriture supplémentaire par requête sensible (modification, ou consultation une fois par 5 min et par chemin). À re-mesurer au Lot 9 avec les seuils de latence du Lot 3.
 

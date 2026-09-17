@@ -32,7 +32,16 @@ export type ModuleId =
     | "transport"
     | "courses"
     | "alumni"
-    | "signature";
+    | "signature"
+    | "library"
+    | "gamification"
+    | "orientation"
+    | "events"
+    | "appointments"
+    | "documents"
+    | "wellbeing"
+    | "benchmark"
+    | "voice-notifications";
 
 export interface ModuleDefinition {
     id: ModuleId;
@@ -194,6 +203,78 @@ export const MODULES: ReadonlyArray<ModuleDefinition> = [
         defaultEnabled: false,
         apiPrefixes: ["signatures"],
         pagePrefixes: ["signatures"],
+    },
+    {
+        id: "library",
+        label: "Bibliothèque",
+        description: "Ouvrages, emprunts et retours.",
+        defaultEnabled: false,
+        apiPrefixes: ["library"],
+        pagePrefixes: ["library"],
+    },
+    {
+        id: "gamification",
+        label: "Récompenses et classements",
+        description: "Points, badges de mérite et classements des élèves.",
+        defaultEnabled: false,
+        apiPrefixes: ["gamification"],
+        pagePrefixes: ["gamification"],
+    },
+    {
+        id: "orientation",
+        label: "Orientation",
+        description: "Vœux, recommandations et suivi des élèves à risque.",
+        defaultEnabled: false,
+        apiPrefixes: ["orientation"],
+        pagePrefixes: ["orientation", "risks"],
+    },
+    {
+        id: "events",
+        label: "Événements et clubs",
+        description: "Sorties, fêtes, clubs et inscriptions des élèves.",
+        defaultEnabled: false,
+        apiPrefixes: ["events"],
+        pagePrefixes: ["events", "clubs"],
+    },
+    {
+        id: "appointments",
+        label: "Rendez-vous",
+        description: "Prise de rendez-vous entre familles et équipe.",
+        defaultEnabled: false,
+        apiPrefixes: ["appointments"],
+        pagePrefixes: ["appointments"],
+    },
+    {
+        id: "documents",
+        label: "Documents et attestations",
+        description: "Pièces déposées par les familles, certificats et attestations.",
+        defaultEnabled: false,
+        apiPrefixes: ["documents", "certificates"],
+        pagePrefixes: ["documents"],
+    },
+    {
+        id: "wellbeing",
+        label: "Bien-être et suivi psychologique",
+        description: "Signalements de harcèlement, entretiens avec un psychologue. Données sensibles : à n'activer qu'avec une personne formée.",
+        defaultEnabled: false,
+        apiPrefixes: ["wellbeing"],
+        pagePrefixes: ["wellbeing"],
+    },
+    {
+        id: "benchmark",
+        label: "Comparaison entre établissements",
+        description: "Position de l'école face aux autres du réseau. Des indicateurs agrégés sortent de l'établissement.",
+        defaultEnabled: false,
+        apiPrefixes: ["benchmark"],
+        pagePrefixes: ["benchmark"],
+    },
+    {
+        id: "voice-notifications",
+        label: "Notifications vocales et WhatsApp",
+        description: "Messages vocaux et WhatsApp aux familles. Les numéros sont transmis à un prestataire.",
+        defaultEnabled: false,
+        apiPrefixes: ["voice-notifs"],
+        pagePrefixes: ["voice-notifs", "whatsapp"],
     },
 ];
 

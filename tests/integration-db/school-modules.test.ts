@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { UserRole } from "@prisma/client";
 import { GET as GET_MEDICAL } from "@/app/api/health/medical-records/route";
 import { GET as GET_CLASSES } from "@/app/api/classes/route";
 import { GET as GET_MODULES, PATCH as PATCH_MODULES } from "@/app/api/schools/[id]/modules/route";
 import { createSchoolWithDefaults } from "@/lib/schools/provisioning";
-import { DEFAULT_ENABLED_MODULES, ALL_MODULE_IDS } from "@/lib/modules/catalog";
+import { DEFAULT_ENABLED_MODULES, ALL_MODULE_IDS, MODULES } from "@/lib/modules/catalog";
 import { invalidateSchoolModulesCache } from "@/lib/modules/school-modules";
 import ownerDb from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
@@ -33,6 +35,12 @@ beforeAll(async () => {
   await ownerDb.school.update({ where: { id: school }, data: { enabledModules: ALL_MODULE_IDS } });
   invalidateSchoolModulesCache();
 });
+
+/** Les fonctions devenues réglables par la migration d'extension. */
+const EXTENDED_MODULE_IDS = [
+  "library", "gamification", "orientation", "events", "appointments",
+  "documents", "wellbeing", "benchmark", "voice-notifications",
+];
 
 const asAdmin = () => actAs(sessionFor("SCHOOL_ADMIN", school, users.ADMIN));
 const medical = () => callRoute(GET_MEDICAL, { method: "GET", path: "/api/health/medical-records" });
@@ -86,6 +94,29 @@ describe("Lot 6 — modules activés par établissement", () => {
   it("un élève consulte la liste mais ne règle pas les modules", async () => {
     actAs(sessionFor("STUDENT", school, users.STUDENT));
     expect((await patchModules([...ALL_MODULE_IDS])).status).toBe(403);
+  });
+
+  it("la migration d'extension garde actifs les modules d'une école existante", async () => {
+    // Une école telle qu'elle existait avant l'extension du catalogue : les 8
+    // fonctions devenues réglables n'y figurent pas encore.
+    const before = ALL_MODULE_IDS.filter((id) => !EXTENDED_MODULE_IDS.includes(id));
+    const existing = await createSchool("IT-MOD-MIG");
+    await ownerDb.school.update({ where: { id: existing.id }, data: { enabledModules: before } });
+
+    const sql = readFileSync(
+      path.resolve("prisma/migrations/20260917140000_school_modules_extended/migration.sql"),
+      "utf-8",
+    );
+    await ownerDb.$executeRawUnsafe(sql);
+
+    const after = await ownerDb.school.findUniqueOrThrow({ where: { id: existing.id }, select: { enabledModules: true } });
+    // Elles étaient toujours actives : elles le restent, et rien n'est retiré.
+    expect([...after.enabledModules].sort()).toEqual([...ALL_MODULE_IDS].sort());
+
+    // Rejouée, la migration ne change plus rien.
+    await ownerDb.$executeRawUnsafe(sql);
+    const replay = await ownerDb.school.findUniqueOrThrow({ where: { id: existing.id }, select: { enabledModules: true } });
+    expect([...replay.enabledModules].sort()).toEqual([...ALL_MODULE_IDS].sort());
   });
 
   it("l'aperçu indique l'état de chaque module du catalogue", async () => {

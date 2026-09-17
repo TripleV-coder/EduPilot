@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_MODULE_IDS,
   DEFAULT_ENABLED_MODULES,
+  MODULES,
   moduleForApiPath,
   moduleForPagePath,
   normalizeEnabledModules,
@@ -28,10 +29,36 @@ describe("catalogue des modules (Lot 6)", () => {
   });
 
   it("le socle par défaut ne contient aucun module sensible", () => {
-    for (const sensitive of ["health", "discipline", "ai", "access-control", "hr"]) {
+    for (const sensitive of ["health", "discipline", "ai", "access-control", "hr", "wellbeing", "benchmark", "voice-notifications"]) {
       expect(DEFAULT_ENABLED_MODULES).not.toContain(sensitive);
     }
     expect(DEFAULT_ENABLED_MODULES).toContain("grades");
+  });
+
+  it("tout ce qui n'est pas indispensable est réglable par l'école", () => {
+    // Deux modules seulement sont imposés : sans élèves ni classes,
+    // l'application ne fonctionne pas.
+    const imposed = MODULES.filter((m) => m.required).map((m) => m.id);
+    expect(imposed).toEqual(["students", "classes"]);
+
+    // Et chaque zone fonctionnelle de l'application appartient bien à un
+    // module : rien ne reste hors de portée du réglage.
+    for (const [path, expected] of [
+      ["/api/library/books", "library"],
+      ["/api/gamification/leaderboard", "gamification"],
+      ["/api/orientation/wishes", "orientation"],
+      ["/api/events", "events"],
+      ["/api/appointments", "appointments"],
+      ["/api/certificates", "documents"],
+      ["/api/wellbeing/reports", "wellbeing"],
+      ["/api/benchmark", "benchmark"],
+      ["/api/voice-notifs/campaigns", "voice-notifications"],
+    ] as const) {
+      expect(moduleForApiPath(path)?.id, path).toBe(expected);
+    }
+    expect(moduleForPagePath("/dashboard/clubs")?.id).toBe("events");
+    expect(moduleForPagePath("/dashboard/whatsapp")?.id).toBe("voice-notifications");
+    expect(moduleForPagePath("/dashboard/risks")?.id).toBe("orientation");
   });
 
   it("normalise : identifiants inconnus écartés, modules indispensables toujours là", () => {
