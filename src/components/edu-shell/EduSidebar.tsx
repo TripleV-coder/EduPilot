@@ -24,9 +24,10 @@ export function EduSidebar() {
     const role = session?.user?.role ?? "STAFF";
     const schoolCtx = useSchool();
     const offeredLevels = schoolCtx.offeredLevels;
+    const enabledModules = schoolCtx.enabledModules;
     const groups = React.useMemo(
-        () => visibleNavGroups(role, offeredLevels),
-        [role, offeredLevels]
+        () => visibleNavGroups(role, offeredLevels, enabledModules),
+        [role, offeredLevels, enabledModules]
     );
 
     const { data: counts } = useSWR<NavCounts>(

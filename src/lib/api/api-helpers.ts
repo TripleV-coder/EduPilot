@@ -13,6 +13,8 @@ import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/a
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 import { isZodError } from "@/lib/is-zod-error";
+import { moduleForApiPath } from "@/lib/modules/catalog";
+import { getEnabledModules } from "@/lib/modules/school-modules";
 import { InvalidCursorError } from "@/lib/api/pagination";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
@@ -430,6 +432,29 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                         { error: maintenance.message, code: "MAINTENANCE" },
                         { status: 503, headers: { "Retry-After": "120" } }
                     );
+                }
+            }
+
+            // ── MODULE DÉSACTIVÉ PAR L'ÉTABLISSEMENT (Lot 6, minimisation) ──
+            // Un module éteint n'est pas seulement masqué dans la navigation :
+            // son API est fermée. Une école sans infirmerie ne détient aucune
+            // donnée de santé, même par appel direct.
+            if (options.requireAuth !== false && session?.user && session.user.role !== "SUPER_ADMIN") {
+                const moduleDefinition = moduleForApiPath(new URL(request.url).pathname);
+                const moduleSchoolId = moduleDefinition ? getActiveSchoolId(session) : null;
+                if (moduleDefinition && moduleSchoolId) {
+                    const enabled = await getEnabledModules(moduleSchoolId);
+                    // `null` = école introuvable ou base indisponible : on ne bloque pas.
+                    if (enabled && !enabled.includes(moduleDefinition.id)) {
+                        return NextResponse.json(
+                            {
+                                error: `Le module « ${moduleDefinition.label} » n'est pas activé pour votre établissement.`,
+                                code: "MODULE_DISABLED",
+                                module: moduleDefinition.id,
+                            },
+                            { status: 403 },
+                        );
+                    }
                 }
             }
 

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import prisma from "./owner-db";
+import { ALL_MODULE_IDS } from "@/lib/modules/catalog";
 
 /** Session courante renvoyée par le mock de `@/lib/auth` (voir setup.ts). */
 const sessionState = globalThis as unknown as { __integrationSession?: Session | null };
@@ -34,10 +35,18 @@ export function uniqueCode(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/**
+ * École de test. Tous les modules sont actifs, comme une école existante après
+ * la migration `20260917100000_school_enabled_modules` (Lot 6) : ces suites
+ * portent sur la pagination, l'isolation et les contrats d'API, pas sur la
+ * minimisation, qui a sa propre suite (`school-modules.test.ts`). Sans cela,
+ * une école de test n'aurait que le socle et les routes des autres modules
+ * répondraient 403.
+ */
 export async function createSchool(prefix: string) {
   const code = uniqueCode(prefix);
   return prisma.school.create({
-    data: { name: `École ${code}`, code, level: "PRIMARY" },
+    data: { name: `École ${code}`, code, level: "PRIMARY", enabledModules: [...ALL_MODULE_IDS] },
   });
 }
 

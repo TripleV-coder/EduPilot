@@ -5,6 +5,7 @@
 // /api/dashboard/nav-counts.
 
 import type { IconName } from "@/components/edu";
+import type { ModuleId } from "@/lib/modules/catalog";
 
 export type Cycle = "PRIMARY" | "SECONDARY_COLLEGE" | "SECONDARY_LYCEE";
 
@@ -16,6 +17,8 @@ export interface NavLink {
     matchPrefix?: boolean;
     /** Masqué si l'école n'offre pas ce cycle (cf. School.offeredLevels). */
     requiresCycle?: Cycle;
+    /** Masqué si l'école n'a pas activé ce module (cf. School.enabledModules, Lot 6). */
+    requiresModule?: ModuleId;
 }
 
 export interface NavGroup {
@@ -23,6 +26,8 @@ export interface NavGroup {
     title?: string;
     /** Groupe entier masqué si l'école n'offre pas ce cycle. */
     requiresCycle?: Cycle;
+    /** Groupe entier masqué si l'école n'a pas activé ce module. */
+    requiresModule?: ModuleId;
     links: NavLink[];
 }
 
@@ -32,6 +37,7 @@ export const AI_ASSISTANT_NAV_LINK: NavLink = {
     label: "Assistant IA",
     href: "/dashboard/ai-assistant",
     matchPrefix: true,
+    requiresModule: "ai",
 };
 
 export interface NavCounts {
@@ -89,11 +95,11 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Vue d'ensemble", href: "/dashboard" },
-                        { icon: "users", label: "Élèves", href: "/dashboard/students", countKey: "students", matchPrefix: true },
-                        { icon: "pencil", label: "Notes & bulletins", href: "/dashboard/grades", matchPrefix: true },
-                        { icon: "check", label: "Appel", href: "/dashboard/attendance", matchPrefix: true },
-                        { icon: "money", label: "Finance", href: "/dashboard/finance", countKey: "finance", matchPrefix: true },
-                        { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "notifications", matchPrefix: true },
+                        { icon: "users", label: "Élèves", href: "/dashboard/students", countKey: "students", matchPrefix: true, requiresModule: "students" },
+                        { icon: "pencil", label: "Notes & bulletins", href: "/dashboard/grades", matchPrefix: true, requiresModule: "grades" },
+                        { icon: "check", label: "Appel", href: "/dashboard/attendance", matchPrefix: true, requiresModule: "attendance" },
+                        { icon: "money", label: "Finance", href: "/dashboard/finance", countKey: "finance", matchPrefix: true, requiresModule: "finance" },
+                        { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "notifications", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
@@ -105,12 +111,12 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Mes classes", href: "/dashboard" },
-                        { icon: "users", label: "Mes élèves", href: "/dashboard/students", countKey: "teacherStudents", matchPrefix: true },
-                        { icon: "pencil", label: "Saisie de notes", href: "/dashboard/grades/entry", countKey: "teacherGradeEntry", matchPrefix: true },
-                        { icon: "book", label: "Cahier de textes", href: "/dashboard/grades/cahier", matchPrefix: true },
-                        { icon: "check", label: "Appel du jour", href: "/dashboard/attendance", matchPrefix: true },
-                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true },
-                        { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "teacherMessages", matchPrefix: true },
+                        { icon: "users", label: "Mes élèves", href: "/dashboard/students", countKey: "teacherStudents", matchPrefix: true, requiresModule: "students" },
+                        { icon: "pencil", label: "Saisie de notes", href: "/dashboard/grades/entry", countKey: "teacherGradeEntry", matchPrefix: true, requiresModule: "grades" },
+                        { icon: "book", label: "Cahier de textes", href: "/dashboard/grades/cahier", matchPrefix: true, requiresModule: "grades" },
+                        { icon: "check", label: "Appel du jour", href: "/dashboard/attendance", matchPrefix: true, requiresModule: "attendance" },
+                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
+                        { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "teacherMessages", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                     ],
                 },
@@ -121,11 +127,11 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
-                        { icon: "users", label: "Mes enfants", href: "/dashboard/students", countKey: "children", matchPrefix: true },
-                        { icon: "book", label: "Cahier de liaison", href: "/dashboard/liaison", matchPrefix: true },
-                        { icon: "money", label: "Paiements", href: "/dashboard/finance", countKey: "pendingPayments", matchPrefix: true },
-                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true },
-                        { icon: "bell", label: "Notifications", href: "/dashboard/notifications", countKey: "notifications", matchPrefix: true },
+                        { icon: "users", label: "Mes enfants", href: "/dashboard/students", countKey: "children", matchPrefix: true, requiresModule: "students" },
+                        { icon: "book", label: "Cahier de liaison", href: "/dashboard/liaison", matchPrefix: true, requiresModule: "messaging" },
+                        { icon: "money", label: "Paiements", href: "/dashboard/finance", countKey: "pendingPayments", matchPrefix: true, requiresModule: "finance" },
+                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
+                        { icon: "bell", label: "Notifications", href: "/dashboard/notifications", countKey: "notifications", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Mon compte", href: "/dashboard/settings", matchPrefix: true },
                     ],
@@ -137,12 +143,12 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Mon tableau", href: "/dashboard" },
-                        { icon: "pencil", label: "Mes notes", href: "/dashboard/grades", matchPrefix: true },
-                        { icon: "book", label: "Devoirs", href: "/dashboard/homework", countKey: "homework", matchPrefix: true },
-                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true },
-                        { icon: "users", label: "Ma classe", href: "/dashboard/classes", matchPrefix: true },
+                        { icon: "pencil", label: "Mes notes", href: "/dashboard/grades", matchPrefix: true, requiresModule: "grades" },
+                        { icon: "book", label: "Devoirs", href: "/dashboard/homework", countKey: "homework", matchPrefix: true, requiresModule: "schedule" },
+                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
+                        { icon: "users", label: "Ma classe", href: "/dashboard/classes", matchPrefix: true, requiresModule: "classes" },
                         { icon: "sparkle", label: "Mon orientation", href: "/dashboard/orientation/me", matchPrefix: true },
-                        { icon: "sms", label: "Messagerie", href: "/dashboard/messages", matchPrefix: true },
+                        { icon: "sms", label: "Messagerie", href: "/dashboard/messages", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                     ],
                 },
@@ -153,10 +159,10 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Vue d'ensemble", href: "/dashboard" },
-                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true },
-                        { icon: "money", label: "Finance", href: "/dashboard/finance", matchPrefix: true },
-                        { icon: "money", label: "Portefeuille", href: "/dashboard/wallet", matchPrefix: true },
-                        { icon: "cards", label: "Comptabilité OHADA", href: "/dashboard/accounting", matchPrefix: true },
+                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true, requiresModule: "students" },
+                        { icon: "money", label: "Finance", href: "/dashboard/finance", matchPrefix: true, requiresModule: "finance" },
+                        { icon: "money", label: "Portefeuille", href: "/dashboard/wallet", matchPrefix: true, requiresModule: "finance" },
+                        { icon: "cards", label: "Comptabilité OHADA", href: "/dashboard/accounting", matchPrefix: true, requiresModule: "finance" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
@@ -169,9 +175,9 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
-                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true },
-                        { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true },
-                        { icon: "bell", label: "Communication", href: "/dashboard/announcements", matchPrefix: true },
+                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true, requiresModule: "students" },
+                        { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true, requiresModule: "schedule" },
+                        { icon: "bell", label: "Communication", href: "/dashboard/announcements", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
@@ -193,16 +199,24 @@ export function navForRole(role: string | undefined | null): NavLink[] {
  */
 export function visibleNavGroups(
     role: string | undefined | null,
-    offeredLevels: string[] | undefined | null
+    offeredLevels: string[] | undefined | null,
+    enabledModules?: string[] | null
 ): NavGroup[] {
     const groups = navGroupsForRole(role);
-    if (!offeredLevels || offeredLevels.length === 0) return groups;
+    const filterCycle = Boolean(offeredLevels && offeredLevels.length > 0);
+    // Tant que les modules ne sont pas connus (session en cours de chargement),
+    // rien n'est masqué : l'API reste, elle, la garde réelle (Lot 6).
+    const filterModule = Boolean(enabledModules && enabledModules.length > 0);
+    if (!filterCycle && !filterModule) return groups;
+
+    const cycleOk = (c?: Cycle) => !filterCycle || !c || offeredLevels!.includes(c);
+    const moduleOk = (m?: ModuleId) => !filterModule || !m || enabledModules!.includes(m);
 
     return groups
-        .filter((g) => !g.requiresCycle || offeredLevels.includes(g.requiresCycle))
+        .filter((g) => cycleOk(g.requiresCycle) && moduleOk(g.requiresModule))
         .map((g) => ({
             ...g,
-            links: g.links.filter((l) => !l.requiresCycle || offeredLevels.includes(l.requiresCycle)),
+            links: g.links.filter((l) => cycleOk(l.requiresCycle) && moduleOk(l.requiresModule)),
         }))
         .filter((g) => g.links.length > 0);
 }

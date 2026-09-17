@@ -70,6 +70,10 @@ model School {
   type                   SchoolType                @default(PRIVATE)
   level                  SchoolLevel
   offeredLevels          SchoolLevel[]             @default([])
+  // Lot 6 (minimisation) : modules actifs de l'école. Défaut = socle
+  // (lib/modules/catalog). Les écoles existantes reçoivent tout le catalogue
+  // par la migration 20260917100000_school_enabled_modules.
+  enabledModules         String[]                  @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
   siteType               SiteType                  @default(MAIN)
   address                String?
   city                   String?

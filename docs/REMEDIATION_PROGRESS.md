@@ -443,6 +443,28 @@ Suite complète (build de production, base d'audit, rôle applicatif) : 87/89 �
 
 ---
 
+## Lot 6 — Modules, consentement, droits RGPD, conservation, traçabilité (en cours, commencé le 2026-09-14)
+
+### Décisions du propriétaire (2026-09-14)
+
+- **Modules par défaut** : socle actif pour une nouvelle école (élèves, classes, notes et bulletins, appel, emploi du temps, messagerie, finance). Le reste est à activer par l'école : santé, discipline, IA, badges et contrôle d'accès, RH et paie, cantine, transport, cours en ligne, alumni, signature. Les écoles existantes gardent tous leurs modules actifs.
+- **Conservation** : durées prudentes, modifiables par chaque école, à valider juridiquement (loi n° 2017-20 portant Code du numérique, APDP) :
+
+  | Donnée | Durée par défaut |
+  |---|---|
+  | Compte de l'élève parti (anonymisé) | 1 an après la fin de la dernière inscription |
+  | Notes et bulletins | 5 ans après le départ |
+  | Santé | 1 an après le départ |
+  | Pièces comptables | 10 ans (OHADA) |
+  | Journaux d'accès aux badges | 3 mois |
+  | Journaux techniques | 12 mois |
+  | Journal d'audit | 5 ans |
+
+  La purge affiche ce qu'elle va effacer avant d'agir.
+- **Consentement des mineurs** : par enfant, par un parent rattaché de façon vérifiée. Il est enregistré avec sa date, son auteur et sa révocation (`DataConsent`). Un refus ou un retrait d'un seul parent suffit, et l'élève ne consent pas seul. Le choix déjà fait sur le compte d'un parent est repris pour chacun de ses enfants.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
