@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { enforceDataRetentionPolicies, planRetention, type RetentionPlanItem } from "@/lib/security/retention";
 import { runAsSystem } from "@/lib/db/db-context";
 import ownerDb from "./owner-db";
-import { createSchool, uniqueCode } from "./helpers";
+import { callRoute, createSchool, uniqueCode } from "./helpers";
 
 /**
  * Lot 6 (N57) — purge de conservation sur une vraie base.
@@ -159,5 +159,36 @@ describe("Lot 6 — purge de conservation", () => {
     for (const item of plan) {
       if (item.action !== "report") expect(item.affected, item.dataType).toBe(0);
     }
+  });
+});
+
+/**
+ * Lot 7 — aperçu global avant d'armer la purge en cron. L'exploitant doit
+ * pouvoir voir ce que la tâche effacerait sur TOUS les établissements avant de
+ * la planifier ; seule la purge elle-même existait.
+ */
+describe("Lot 7 — aperçu de la purge pour l'exploitant", () => {
+  it("GET /api/system/retention décrit ce que la purge ferait, sans rien effacer", async () => {
+    const { GET } = await import("@/app/api/system/retention/route");
+    const secret = process.env.CRON_SECRET ?? "";
+    const before = await ownerDb.user.count();
+
+    const res = await callRoute(GET, {
+      method: "GET",
+      path: "/api/system/retention",
+      headers: { authorization: `Bearer ${secret}` },
+    });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const body = res.body as { schools: Array<{ schoolId: string; school: string; rules: Array<{ dataType: string; affected: number; isActive: boolean }> }> };
+    expect(Array.isArray(body.schools)).toBe(true);
+    // Rien n'a été touché.
+    expect(await ownerDb.user.count()).toBe(before);
+  });
+
+  it("sans secret, l'aperçu est refusé", async () => {
+    const { GET } = await import("@/app/api/system/retention/route");
+    const res = await callRoute(GET, { method: "GET", path: "/api/system/retention" });
+    expect(res.status).toBe(401);
   });
 });

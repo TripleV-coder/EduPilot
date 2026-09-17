@@ -20,6 +20,9 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "cron:automation": "bash scripts/cron/run-task.sh automation",
+    "cron:retention": "bash scripts/cron/run-task.sh retention",
+    "cron:retention:dry": "bash scripts/cron/run-task.sh retention --dry",
     "postinstall": "prisma generate"
   },
   "dependencies": {
