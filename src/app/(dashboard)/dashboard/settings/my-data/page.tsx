@@ -78,8 +78,9 @@ export default function MyDataSettingsPage() {
         setDeleting(true);
         try {
             const res = await fetch("/api/user/data", { method: "DELETE" });
-            if (!res.ok) throw new Error("Erreur lors de la suppression");
-            toast.success("Votre demande de suppression a été enregistrée.");
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error ?? "Erreur lors de la demande");
+            toast.success(body.message ?? "Votre demande d'effacement a été enregistrée.");
         } catch (_error) {
             toast.error("Impossible de traiter votre demande. Veuillez réessayer.");
         } finally {
@@ -128,9 +129,9 @@ export default function MyDataSettingsPage() {
                 <ConfirmActionDialog
                     open={deleteDialogOpen}
                     onOpenChange={setDeleteDialogOpen}
-                    title="Supprimer votre compte"
-                    description="Cette action est irréversible. Toutes les données associées seront traitées selon les politiques de conservation."
-                    confirmLabel={t("common.delete")}
+                    title="Demander l'effacement de vos données"
+                    description="Votre demande sera transmise à votre établissement, qui doit la traiter. Certaines données restent conservées le temps prévu par la loi (dossier scolaire d'un élève inscrit, pièces comptables)."
+                    confirmLabel="Envoyer la demande"
                     cancelLabel={t("common.cancel")}
                     variant="destructive"
                     isConfirmLoading={deleting}
@@ -182,10 +183,10 @@ export default function MyDataSettingsPage() {
                                 </p>
                             </div>
                             <div className="flex justify-between items-center bg-card">
-                                <span className="text-sm font-medium">Lancer la procédure de suppression</span>
+                                <span className="text-sm font-medium">Demander l&apos;effacement de mes données</span>
                                 <Button variant="outline" className="text-destructive border-border hover:bg-destructive hover:text-destructive-foreground" onClick={handleDeleteAccount} disabled={deleting}>
                                     {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                    Supprimer mon compte
+                                    Envoyer la demande
                                 </Button>
                             </div>
                         </CardContent>

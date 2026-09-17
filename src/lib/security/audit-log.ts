@@ -128,6 +128,13 @@ export const auditLog = {
             severity: "CRITICAL",
         }),
 
+    /**
+     * Événement de sécurité. L'action porte le nom de l'événement
+     * (`SECURITY_EVENT_<EVENT>`) : sans cela, une anonymisation, un
+     * verrouillage de compte et une alerte de connexion partageaient la même
+     * action « SECURITY_EVENT » et n'étaient plus distinguables dans le
+     * journal (Lot 6 — traçabilité).
+     */
     securityEvent: (
         userId: string | undefined,
         event: string,
@@ -135,7 +142,7 @@ export const auditLog = {
     ) =>
         createAuditLog({
             userId,
-            action: "SECURITY_EVENT",
+            action: `SECURITY_EVENT_${event}`,
             entity: "SECURITY",
             severity: "CRITICAL",
             newValues: { event, ...details },
