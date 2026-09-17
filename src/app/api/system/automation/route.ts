@@ -11,10 +11,11 @@ import { runAsSystem } from "@/lib/db/db-context";
  * API Trigger for Automated Maintenance Tasks
  * Secured via the CRON_SECRET environment variable.
  *
- * - Vercel Cron Jobs invoke this path with a **GET** request and inject the
- *   `Authorization: Bearer <CRON_SECRET>` header automatically (see vercel.json).
- * - External schedulers may also POST with the same bearer token.
- * Both verbs share the exact same secured handler.
+ * - Le planificateur local (`scripts/cron/run-task.sh`, installé par
+ *   `scripts/cron/edupilot.cron`) appelle ce chemin en **POST** avec l'en-tête
+ *   `Authorization: Bearer <CRON_SECRET>` — voir `docs/EXPLOITATION.md` §5.
+ * - Le **GET** reste accepté : un planificateur externe qui ne sait faire que
+ *   cela passe par le même handler sécurisé.
  *
  * Audit N8 : la maintenance durait plus que le délai du planificateur, qui
  * réessayait et lançait une 2e exécution concurrente. Elle est désormais
