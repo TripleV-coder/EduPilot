@@ -14,6 +14,9 @@ import { formatDateShort } from "@/lib/utils/formatters";
 import { getComplianceRequestStatusClass } from "@/lib/ui/status-styles";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { fetchAllPages } from "@/lib/api/fetch-all-pages";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { useRetentionPolicies, type RetentionPlanItem } from "@/hooks/use-retention-policies";
 
 
 
@@ -34,6 +37,14 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
     RECTIFICATION: "Rectification",
     DELETION: "Droit à l'effacement",
     PORTABILITY: "Portabilité",
+};
+
+// Ce que la purge fait réellement, pour que l'école sache avant d'activer.
+const RETENTION_ACTION_LABELS: Record<string, string> = {
+    deactivate: "Ferme le compte et efface les coordonnées",
+    anonymize: "Anonymise définitivement",
+    delete: "Efface définitivement",
+    report: "Signale seulement, n'efface jamais",
 };
 
 const REQUEST_STATUS_LABELS: Record<string, string> = {
@@ -57,6 +68,8 @@ export default function ComplianceDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [fulfillingId, setFulfillingId] = useState<string | null>(null);
+    const retention = useRetentionPolicies();
+    const [draftMonths, setDraftMonths] = useState<Record<string, string>>({});
 
     useEffect(() => {
         let cancelled = false;
@@ -246,6 +259,84 @@ export default function ComplianceDashboardPage() {
                                         </div>
                                         <span className="text-lg font-bold text-warning">{dashboard.retentionStatus.inactive}</span>
                                     </div>
+
+                                    {retention.error && (
+                                        <p className="text-sm text-destructive">{retention.error}</p>
+                                    )}
+                                    {!retention.items && !retention.error && (
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                                            <Loader2 className="animate-spin w-4 h-4" aria-hidden="true" />
+                                            Chargement des règles…
+                                        </div>
+                                    )}
+                                    {retention.items?.length === 0 && !retention.error && (
+                                        <p className="text-sm text-muted-foreground">Aucune règle de conservation pour cet établissement.</p>
+                                    )}
+
+                                    {retention.items?.map((item: RetentionPlanItem) => (
+                                        <div key={item.dataType} className="p-4 border rounded-lg space-y-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-medium">{item.label}</p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {RETENTION_ACTION_LABELS[item.action] ?? item.action} · {item.affected} élément(s) concerné(s) aujourd&apos;hui
+                                                    </p>
+                                                </div>
+                                                <Switch
+                                                    checked={item.isActive}
+                                                    disabled={retention.savingType === item.dataType}
+                                                    aria-label={`Activer la règle « ${item.label} »`}
+                                                    onCheckedChange={async (checked) => {
+                                                        const res = await retention.update(item.dataType, { isActive: checked });
+                                                        if (res.ok) toast.success(checked ? "Règle activée" : "Règle désactivée");
+                                                        else toast.error(res.message);
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-xs text-muted-foreground" htmlFor={`months-${item.dataType}`}>
+                                                        Durée de conservation (mois)
+                                                    </label>
+                                                    <Input
+                                                        id={`months-${item.dataType}`}
+                                                        type="number"
+                                                        min={1}
+                                                        max={600}
+                                                        value={draftMonths[item.dataType] ?? String(item.months)}
+                                                        onChange={(e) => setDraftMonths((prev) => ({ ...prev, [item.dataType]: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    disabled={
+                                                        retention.savingType === item.dataType ||
+                                                        Number(draftMonths[item.dataType] ?? item.months) === item.months
+                                                    }
+                                                    onClick={async () => {
+                                                        const months = Number(draftMonths[item.dataType] ?? item.months);
+                                                        if (!Number.isInteger(months) || months < 1) {
+                                                            toast.error("Indiquez un nombre de mois entier, au moins 1.");
+                                                            return;
+                                                        }
+                                                        const res = await retention.update(item.dataType, { months });
+                                                        if (res.ok) {
+                                                            setDraftMonths((prev) => { const next = { ...prev }; delete next[item.dataType]; return next; });
+                                                            toast.success("Durée enregistrée");
+                                                        } else {
+                                                            toast.error(res.message);
+                                                        }
+                                                    }}
+                                                >
+                                                    {retention.savingType === item.dataType ? (
+                                                        <Loader2 className="animate-spin w-4 h-4" aria-hidden="true" />
+                                                    ) : (
+                                                        "Enregistrer"
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </CardContent>
                             </Card>
                         </div>
