@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -28,11 +29,38 @@ import { InteractiveRiskPieChart } from "@/components/charts/InteractiveRiskPieC
 import { TrendLineChart } from "@/components/charts/TrendLineChart";
 import { AttendanceGradesScatter } from "@/components/charts/AttendanceGradesScatter";
 import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
-import { RiskInterventionTab } from "@/components/analytics/RiskInterventionTab";
-import { FinanceAnalyticsTab } from "@/components/analytics/FinanceAnalyticsTab";
-import { AcademicPerformancesTab } from "@/components/analytics/AcademicPerformancesTab";
-import { AnalyticsComparisonsTab } from "@/components/analytics/AnalyticsComparisonsTab";
-import { AnalyticsReportsTab } from "@/components/analytics/AnalyticsReportsTab";
+
+/**
+ * Onglets chargés à la demande (Lot 8). Un seul est visible à la fois, mais
+ * les cinq étaient téléchargés à l'ouverture de la page — recharts compris,
+ * pour des graphiques que personne ne regardait encore. Sur un téléphone en
+ * réseau lent, c'est du temps perdu avant le premier affichage.
+ *
+ * `ssr: false` : ces onglets ne s'affichent qu'après un clic, et les
+ * graphiques ont besoin du DOM. L'apparence ne change pas — seul un état de
+ * chargement existant apparaît le temps du téléchargement, à la place d'un
+ * contenu qui n'était de toute façon pas encore là.
+ */
+const RiskInterventionTab = dynamic(
+    () => import("@/components/analytics/RiskInterventionTab").then((m) => m.RiskInterventionTab),
+    { ssr: false, loading: () => <PageLoading /> },
+);
+const FinanceAnalyticsTab = dynamic(
+    () => import("@/components/analytics/FinanceAnalyticsTab").then((m) => m.FinanceAnalyticsTab),
+    { ssr: false, loading: () => <PageLoading /> },
+);
+const AcademicPerformancesTab = dynamic(
+    () => import("@/components/analytics/AcademicPerformancesTab").then((m) => m.AcademicPerformancesTab),
+    { ssr: false, loading: () => <PageLoading /> },
+);
+const AnalyticsComparisonsTab = dynamic(
+    () => import("@/components/analytics/AnalyticsComparisonsTab").then((m) => m.AnalyticsComparisonsTab),
+    { ssr: false, loading: () => <PageLoading /> },
+);
+const AnalyticsReportsTab = dynamic(
+    () => import("@/components/analytics/AnalyticsReportsTab").then((m) => m.AnalyticsReportsTab),
+    { ssr: false, loading: () => <PageLoading /> },
+);
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";

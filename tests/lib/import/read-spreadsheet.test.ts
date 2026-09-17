@@ -22,34 +22,34 @@ const utf8 = (text: string) => new TextEncoder().encode(text);
 const withBom = (bytes: Uint8Array) => Uint8Array.from([0xef, 0xbb, 0xbf, ...bytes]);
 
 describe("N45 — lecture des fichiers d'import (encodages, séparateurs, Excel)", () => {
-    it("CSV en UTF-8 sans BOM", () => {
-        const { headers, rows } = readSpreadsheetRows(utf8(TEXT), "eleves.csv");
+    it("CSV en UTF-8 sans BOM", async () => {
+        const { headers, rows } = await readSpreadsheetRows(utf8(TEXT), "eleves.csv");
         expect(headers).toEqual(["prenom", "nom", "email"]);
         expect(rows).toEqual(EXPECTED);
     });
 
-    it("CSV en UTF-8 avec BOM", () => {
-        expect(readSpreadsheetRows(withBom(utf8(TEXT)), "eleves.csv").rows).toEqual(EXPECTED);
+    it("CSV en UTF-8 avec BOM", async () => {
+        expect((await readSpreadsheetRows(withBom(utf8(TEXT)), "eleves.csv")).rows).toEqual(EXPECTED);
     });
 
-    it("CSV en Windows-1252 (Excel français), apostrophe typographique comprise", () => {
-        expect(readSpreadsheetRows(toCp1252(TEXT), "eleves.csv").rows).toEqual(EXPECTED);
+    it("CSV en Windows-1252 (Excel français), apostrophe typographique comprise", async () => {
+        expect((await readSpreadsheetRows(toCp1252(TEXT), "eleves.csv")).rows).toEqual(EXPECTED);
     });
 
-    it("CSV séparé par des virgules", () => {
-        expect(readSpreadsheetRows(utf8(TEXT.replaceAll(";", ",")), "eleves.csv").rows).toEqual(EXPECTED);
+    it("CSV séparé par des virgules", async () => {
+        expect((await readSpreadsheetRows(utf8(TEXT.replaceAll(";", ",")), "eleves.csv")).rows).toEqual(EXPECTED);
     });
 
-    it("classeur Excel (.xlsx)", () => {
+    it("classeur Excel (.xlsx)", async () => {
         const sheet = XLSX.utils.aoa_to_sheet([["prenom", "nom", "email"], ...EXPECTED.map((r) => [r.prenom, r.nom, r.email])]);
         const book = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(book, sheet, "Élèves");
         const bytes = new Uint8Array(XLSX.write(book, { type: "array", bookType: "xlsx" }) as ArrayBuffer);
-        expect(readSpreadsheetRows(bytes, "eleves.xlsx").rows).toEqual(EXPECTED);
+        expect((await readSpreadsheetRows(bytes, "eleves.xlsx")).rows).toEqual(EXPECTED);
     });
 
-    it("ignore les lignes vides et les en-têtes sans nom, garde les cellules vides", () => {
-        const { headers, rows } = readSpreadsheetRows(utf8("prenom;nom;\nAïcha;;\n;;\n"), "eleves.csv");
+    it("ignore les lignes vides et les en-têtes sans nom, garde les cellules vides", async () => {
+        const { headers, rows } = await readSpreadsheetRows(utf8("prenom;nom;\nAïcha;;\n;;\n"), "eleves.csv");
         expect(headers).toEqual(["prenom", "nom"]);
         expect(rows).toEqual([{ prenom: "Aïcha", nom: undefined }]);
     });

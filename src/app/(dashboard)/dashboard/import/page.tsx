@@ -185,10 +185,22 @@ function ImportWizardPage() {
         // Lecture par les octets du fichier (N45) : UTF-8 avec ou sans BOM,
         // Windows-1252, XLSX/XLS — lib/import/read-spreadsheet.
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             const buffer = evt.target?.result;
             if (!(buffer instanceof ArrayBuffer)) return;
-            const { headers: parsedHeaders, rows } = readSpreadsheetRows(new Uint8Array(buffer), file.name);
+            let parsedHeaders: string[];
+            let rows: Array<Record<string, unknown>>;
+            try {
+                // La bibliothèque de lecture est chargée ici, à la demande (Lot 8).
+                ({ headers: parsedHeaders, rows } = await readSpreadsheetRows(new Uint8Array(buffer), file.name));
+            } catch {
+                toast({
+                    title: "Fichier illisible",
+                    description: "Ce fichier n'a pas pu être ouvert. Vérifiez qu'il s'agit bien d'un CSV, d'un XLSX ou d'un XLS, puis réessayez.",
+                    variant: "destructive",
+                });
+                return;
+            }
             if (parsedHeaders.length === 0) return;
             setHeaders(parsedHeaders);
             setFileData(rows);

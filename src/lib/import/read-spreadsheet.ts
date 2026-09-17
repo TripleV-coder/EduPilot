@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 /**
  * Lecture d'un fichier d'import (CSV, XLSX, XLS) à partir de ses OCTETS
  * (Lot 5, N45). L'ancienne lecture (readAsBinaryString + XLSX type "binary")
@@ -10,7 +8,22 @@ import * as XLSX from "xlsx";
  * - Classeurs Excel reconnus à leur signature (ZIP pour .xlsx, OLE pour .xls).
  * - CSV : UTF-8 strict, sinon Windows-1252 (Excel français) ; BOM retiré.
  * - Lignes entièrement vides et colonnes sans en-tête ignorées.
+ *
+ * SheetJS (390 Ko) est chargé **à la demande** (Lot 8) : il n'est utile qu'au
+ * moment où quelqu'un choisit un fichier. Un import statique l'ajoutait au
+ * paquet de la page d'import, donc au téléchargement de tous ceux qui
+ * l'ouvrent — y compris sur un téléphone en réseau lent. C'est ce qui rend
+ * cette fonction asynchrone.
  */
+type SheetJs = typeof import("xlsx");
+
+let sheetJs: Promise<SheetJs> | null = null;
+
+/** Une seule fois par session : les imports suivants réutilisent le module. */
+function loadSheetJs(): Promise<SheetJs> {
+    sheetJs ??= import("xlsx");
+    return sheetJs;
+}
 export type SpreadsheetRows = {
     headers: string[];
     rows: Array<Record<string, unknown>>;
@@ -33,7 +46,7 @@ export function decodeText(bytes: Uint8Array): string {
     return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
-function readWorkbook(bytes: Uint8Array): XLSX.WorkBook {
+function readWorkbook(XLSX: SheetJs, bytes: Uint8Array) {
     if (startsWith(bytes, ZIP) || startsWith(bytes, OLE)) {
         return XLSX.read(bytes, { type: "array", cellDates: false });
     }
@@ -41,8 +54,9 @@ function readWorkbook(bytes: Uint8Array): XLSX.WorkBook {
     return XLSX.read(decodeText(bytes), { type: "string", raw: true });
 }
 
-export function readSpreadsheetRows(bytes: Uint8Array, _fileName?: string): SpreadsheetRows {
-    const workbook = readWorkbook(bytes);
+export async function readSpreadsheetRows(bytes: Uint8Array, _fileName?: string): Promise<SpreadsheetRows> {
+    const XLSX = await loadSheetJs();
+    const workbook = readWorkbook(XLSX, bytes);
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
     if (!firstSheet) return { headers: [], rows: [] };
 
