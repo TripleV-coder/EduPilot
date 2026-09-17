@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { hostStatus } from "@/lib/system/host-status";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +107,15 @@ export const GET = createApiHandler(
       });
       const maintenanceMode = maintenanceSetting?.value === "on";
 
+      // Nombre RÉEL d'erreurs sur 24 h : `recentErrors` est plafonné à 50
+      // par son `take`, il ne pouvait donc pas servir de compteur.
+      const errorCount = await prisma.auditLog.count({
+        where: { action: { contains: "ERROR" }, createdAt: { gte: last24h } },
+      });
+
+      // État de la machine (Lot 7) : mémoire, disque, dernière sauvegarde.
+      const host = await hostStatus();
+
       // Performance de la base de données
       const dbHealth = {
         responseTime: dbResponseTime,
@@ -128,8 +138,9 @@ export const GET = createApiHandler(
           recentLogins,
           pendingDataRequests: pendingRequests,
         },
+        host,
         errors: {
-          last24h: recentErrors.length,
+          last24h: errorCount,
           recent: recentErrors.slice(0, 10),
           byType: errorStats.map((e) => ({
             type: e.action,
@@ -146,11 +157,58 @@ export const GET = createApiHandler(
               },
             ]
             : []),
-          ...(recentErrors.length > 20
+          ...(errorCount > 20
             ? [
               {
                 level: "warning",
-                message: `${recentErrors.length} erreurs dans les dernières 24h`,
+                message: `${errorCount} erreurs dans les dernières 24h`,
+                timestamp: now.toISOString(),
+              },
+            ]
+            : []),
+          // Sauvegarde : l'absence de preuve est le pire des cas. Une
+          // installation locale n'a personne d'autre pour s'en apercevoir.
+          ...(host.backup.status === "unavailable"
+            ? [
+              {
+                level: "critical",
+                message: "Aucune sauvegarde visible : vérifiez BACKUP_DIR et la tâche planifiée",
+                timestamp: now.toISOString(),
+              },
+            ]
+            : []),
+          ...(host.backup.status === "none"
+            ? [
+              {
+                level: "critical",
+                message: "Aucune sauvegarde n'a encore été faite",
+                timestamp: now.toISOString(),
+              },
+            ]
+            : []),
+          ...(host.backup.status === "stale"
+            ? [
+              {
+                level: "critical",
+                message: `Dernière sauvegarde il y a ${host.backup.ageHours} h`,
+                timestamp: now.toISOString(),
+              },
+            ]
+            : []),
+          ...(host.disk && host.disk.usedPercent >= 90
+            ? [
+              {
+                level: host.disk.usedPercent >= 95 ? "critical" : "warning",
+                message: `Disque occupé à ${host.disk.usedPercent} % (${host.disk.freeGb} Go libres)`,
+                timestamp: now.toISOString(),
+              },
+            ]
+            : []),
+          ...(host.memory.usedPercent >= 90
+            ? [
+              {
+                level: "warning",
+                message: `Mémoire occupée à ${host.memory.usedPercent} %`,
                 timestamp: now.toISOString(),
               },
             ]
