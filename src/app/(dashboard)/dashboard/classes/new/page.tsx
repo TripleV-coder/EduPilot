@@ -28,6 +28,7 @@ import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { useSchool } from "@/components/providers/school-provider";
+import { PageError } from "@/components/layout/page-states";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
@@ -51,7 +52,7 @@ export default function NewClassPage() {
     const [success, setSuccess] = useState(false);
 
     // Fetch options for the selects
-    const { data: levelsResponse } = useSWR<ClassLevelOption[] | { data?: ClassLevelOption[] }>("/api/class-levels", fetcher);
+    const { data: levelsResponse, error: loadError, mutate: reloadOptions } = useSWR<ClassLevelOption[] | { data?: ClassLevelOption[] }>("/api/class-levels", fetcher);
     const { data: teachersResponse } = useSWR<
         TeacherOption[] | { teachers?: TeacherOption[]; data?: TeacherOption[] }
     >("/api/teachers", fetcher);
@@ -173,6 +174,10 @@ export default function NewClassPage() {
                             </div>
                         ) : (
                             <Form {...form}>
+                                {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
+                                {loadError ? (
+                                    <PageError message="Impossible de charger les données nécessaires à la création d'une classe." onRetry={() => void reloadOptions()} />
+                                ) : null}
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                     <FormField
                                         control={form.control}

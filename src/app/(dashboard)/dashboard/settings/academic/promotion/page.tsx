@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -67,7 +68,7 @@ function PromotionEngineContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, PromotionStatus>>({});
 
-  const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
+  const { data: classesData, error: loadError, mutate: reloadPage } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
   const classes: ClassOption[] = Array.isArray(classesData) ? classesData : classesData?.data || [];
   const { data: academicYears } = useSWR<AcademicYearOption[]>("/api/academic-years", fetcher);
 
@@ -208,6 +209,10 @@ function PromotionEngineContent() {
           title="Promotion & Fin d'Année" 
           description="Gérez le passage des élèves en classe supérieure et la clôture de l'exercice académique."
         />
+
+            {loadError ? (
+                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+            ) : null}
         <div className="flex items-center gap-2">
            <Button variant="destructive" className="h-10 px-6 rounded-xl font-bold uppercase gap-2 shadow-lg shadow-destructive/20">
              <Lock className="w-4 h-4" />

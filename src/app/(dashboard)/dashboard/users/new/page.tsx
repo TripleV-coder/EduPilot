@@ -28,6 +28,7 @@ import { useCreateAccount } from "@/hooks/use-create-account";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { PageError } from "@/components/layout/page-states";
 
 const formSchema = z.object({
     firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
@@ -90,7 +91,7 @@ export default function NewUserPage() {
     const { user } = useRBAC();
     const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
-    const { data: schoolsData } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
+    const { data: schoolsData, error: loadError, mutate: reloadOptions } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
     const schools: SchoolOption[] = Array.isArray(schoolsData)
         ? schoolsData
         : schoolsData?.data || schoolsData?.schools || [];
@@ -247,6 +248,10 @@ export default function NewUserPage() {
                             </div>
                         ) : (
                             <Form {...form}>
+                                {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
+                                {loadError ? (
+                                    <PageError message="Impossible de charger la liste des établissements." onRetry={() => void reloadOptions()} />
+                                ) : null}
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField

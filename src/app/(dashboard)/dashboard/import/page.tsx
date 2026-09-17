@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -122,7 +123,7 @@ function ImportWizardPage() {
     const targetFields = selectedType ? FIELDS_BY_TYPE[selectedType] : [];
     const targetFieldsByKey = useMemo(() => new Map(targetFields.map((f) => [f.key, f])), [targetFields]);
 
-    const { data: classesData } = useSWR<unknown>(
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR<unknown>(
         selectedType === "STUDENTS" || selectedType === "CLASSES" ? "/api/classes" : null,
         fetcher,
     );
@@ -280,6 +281,10 @@ function ImportWizardPage() {
                     { label: "Import" },
                 ]}
             />
+
+            {loadError ? (
+                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+            ) : null}
 
             {/* Mini stepper */}
             <div className="flex items-center gap-3" style={{ color: "var(--eduflow-text-tertiary)" }}>

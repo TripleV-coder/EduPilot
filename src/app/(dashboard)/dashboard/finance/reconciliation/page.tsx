@@ -5,6 +5,7 @@ import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { Link2, AlertCircle, Search, Loader2, FilterX, Wallet, Clock3 } from "lucide-react";
@@ -44,7 +45,7 @@ type PendingPaymentsResponse = {
 export default function FinanceReconciliationPage() {
     const [reconcilingId, setReconcilingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
-    const { data: paymentsData, isLoading } = useSWR<PendingPaymentsResponse>(
+    const { data: paymentsData, isLoading, error: loadError, mutate: reloadPage } = useSWR<PendingPaymentsResponse>(
         "/api/finance/payments?status=PENDING&limit=50",
         fetcher
     );
@@ -95,6 +96,10 @@ export default function FinanceReconciliationPage() {
                         { label: "Réconciliation" },
                     ]}
                 />
+
+            {loadError ? (
+                <PageError message="Impossible de charger les paiements à rapprocher." onRetry={() => void reloadPage()} />
+            ) : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <MetricCardPro label="Paiements en attente" value={pendingCount} hint="Entrées à valider manuellement" icon={Clock3} tone="warning" />

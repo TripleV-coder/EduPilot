@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,7 @@ export default function IncidentDetailsPage() {
     const { toast } = useToast();
     const id = params.id as string;
 
-    const { data: incident, isLoading, mutate } = useSWR(`/api/incidents/${id}`, fetcher);
+    const { data: incident, isLoading, mutate, error: loadError } = useSWR(`/api/incidents/${id}`, fetcher);
 
     // Dialog states
     const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
@@ -159,6 +160,10 @@ export default function IncidentDetailsPage() {
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
             <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger cet incident." onRetry={() => void mutate()} />
+                ) : null}
+
                 <PageHeader
                     title="Détails de l'incident"
                     description={`Signalement du ${new Date(incident.date).toLocaleDateString("fr-FR")}`}

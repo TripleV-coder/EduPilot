@@ -16,7 +16,7 @@ import { t } from "@/lib/i18n";
 
 import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageEmpty, PageLoading } from "@/components/layout/page-states";
+import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
 
 type RawStudent = {
     id: string;
@@ -90,7 +90,7 @@ export default function AttendancePage() {
     >({});
     const [orderedStudentIds, setOrderedStudentIds] = useState<string[]>([]);
 
-    const { data: classesData } = useSWR("/api/classes", fetcher);
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR("/api/classes", fetcher);
     useEffect(() => {
         if (classesData)
             setClasses(
@@ -250,6 +250,10 @@ export default function AttendancePage() {
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <PageShell className="max-w-[1200px] pb-32">
+                {loadError ? (
+                    <PageError message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 <PageHeader
                     title="Feuille d'appel"
                     description={

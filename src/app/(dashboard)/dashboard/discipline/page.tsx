@@ -21,6 +21,7 @@ import {
     Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -155,7 +156,7 @@ function getCount(b: StatsBucket | number | undefined): number {
 export default function DisciplinePage() {
     const [filter, setFilter] = useState<FilterCategory>("all");
 
-    const { data: incRaw, isLoading: incLoading } = useSWR<IncidentsResponse>(
+    const { data: incRaw, isLoading: incLoading, error: loadError, mutate: reloadPage } = useSWR<IncidentsResponse>(
         "/api/incidents?limit=50",
         fetcher
     );
@@ -226,6 +227,10 @@ export default function DisciplinePage() {
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <PageShell className="pb-12">
+                {loadError ? (
+                    <PageError message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 <PageHeader
                     title="Discipline & comportement"
                     description="Suivi des sanctions, retards et manquements au règlement intérieur"

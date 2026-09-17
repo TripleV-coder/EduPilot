@@ -6,6 +6,7 @@ import { fetcher } from "@/lib/fetcher";
 import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,7 @@ export default function IncidentsPage() {
     };
 
     // Fetch incident statistics
-    const { data: statsData } = useSWR<IncidentStats>("/api/incidents/statistics?period=month", fetcher);
+    const { data: statsData, error: loadError, mutate: reloadPage } = useSWR<IncidentStats>("/api/incidents/statistics?period=month", fetcher);
 
     useEffect(() => {
         // Fetch current academic year periods
@@ -294,6 +295,10 @@ export default function IncidentsPage() {
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
             <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 <PageHeader
                     title="Vie scolaire et discipline"
                     description="Suivez les incidents disciplinaires, retards et sanctions des élèves."

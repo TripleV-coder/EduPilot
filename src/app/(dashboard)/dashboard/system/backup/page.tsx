@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { HardDriveDownload, DatabaseBackup, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -40,7 +41,7 @@ export default function SystemBackupPage() {
     const { mutate } = useSWRConfig();
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const { data, error, isLoading } = useSWR<BackupData>("/api/system/backup", fetcher);
+    const { data, error, isLoading, mutate: reloadBackups } = useSWR<BackupData>("/api/system/backup", fetcher);
     const backups = data?.backups || [];
 
     const handleBackup = async () => {
@@ -76,6 +77,15 @@ export default function SystemBackupPage() {
                             { label: "Sauvegardes" },
                         ]}
                     />
+
+            {/* Sans ce cas, une panne affichait « aucune sauvegarde » —
+                exactement ce qu'on ne veut pas croire à tort. */}
+            {error ? (
+                <PageError
+                    message="Impossible de charger la liste des sauvegardes."
+                    onRetry={() => void reloadBackups()}
+                />
+            ) : null}
                     <div className="flex gap-3 shrink-0">
                         <Button className="gap-2 shadow-sm" onClick={handleBackup} disabled={isGenerating}>
                             {isGenerating ? (
