@@ -557,6 +557,110 @@ Deux défauts trouvés **par** cette batterie, corrigés :
 
 ---
 
+## Lot 7 — Outils d'exploitation (terminé le 2026-09-17 ; en attente du feu vert)
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `22cefef` | fix(security) **[L1][L2][L5]** : `X-XSS-Protection` retiré, CSP des styles, `/api/system/backup` sans chemin ni `stdout` |
+| `2490be1` | feat(ops) : arrêt propre sur SIGTERM (préchargement `graceful-shutdown.cjs`, `/api/health` 503 `shutting_down`) |
+| `6b2b991` | feat(ops) : sauvegarde chiffrée (AES-256, manifeste avec lignes par table, rotation avec plancher) et restauration prouvée par recomptage |
+| `f2c78fe` | feat(ops) : tâches planifiées sans Vercel Cron (`scripts/cron/run-task.sh`, `/etc/cron.d`, `GET /api/system/retention` = aperçu) |
+| `871e686` | fix(config) **[M6]** : `BACKUP_DIR` et les variables de sauvegarde documentées (régression de `6b2b991`) |
+| `233d633` | feat(payments) : parcours FedaPay éprouvé en bac à sable ; argent réel refusé sans `PAYMENTS_LIVE_ENABLED` |
+| `8fa0b5f` | feat(ops) **[N68]** : identifiant de requête dans la réponse **et dans chaque ligne de journal** |
+| `de01b15` | feat(ops) **[N70]** : mémoire, disque et dernière sauvegarde sur l'écran d'exploitation |
+| `ba40b0b` | fix(rgpd) **[N69]** : Sentry prouvé inactif sans DSN ; `setUserContext` n'exporte plus l'adresse électronique |
+| `96c3986` | fix(build) **[N64]** : **l'instrumentation ne s'exécutait pas du tout en production** |
+| `5808189` | fix(docker) **[N65]** : **l'image ne pouvait pas se construire** ; migrations appliquées au démarrage |
+| `877ec17` | fix(docker) **[N66]** : PostgreSQL, Redis et n8n ne sont plus publiés sur le réseau de l'établissement |
+| `9f3f482` | fix(logs) **[N67]** : l'absence de Redis n'est plus signalée à chaque requête |
+| `8900716` | docs(ops) : `docs/EXPLOITATION.md` |
+
+### Défauts trouvés **en exécutant** (règle 14)
+
+Ces quatre défauts n'étaient visibles qu'en lançant réellement le serveur de
+production. Aucun test unitaire ne pouvait les révéler.
+
+| ID | Sév. | Constat | Preuve avant | Traitement |
+|---|---|---|---|---|
+| **N64** | **Critique** | `.next/standalone/.next/server/instrumentation.js` **absent** de la sortie standalone : en production (image Docker, `node server.js`), `register()` n'était jamais appelé. Donc **aucune** validation d'environnement au démarrage, **aucune** garde RLS (M2), pas d'init Sentry, pas de préchauffage, et **pas de fermeture de Prisma ni de Redis à l'arrêt** — la promesse du commit `2490be1` | Journal du serveur standalone : « Arrêt terminé … **tasks: 0** » | `96c3986` — recopie par fermeture transitive (`scripts/build/copy-instrumentation.mjs`, branché sur `npm run build`) + `instrumentation.ts` durci : fermetures enregistrées en premier, Sentry chargé en dernier, seulement avec DSN, échec sans conséquence. Après : « tasks: **2**, failedTasks: 0 » et « Cache warming completed » |
+| **N65** | **Élevée** | `docker build` **échouait** : `.dockerignore` exclut `scripts`, que le Dockerfile copie (préchargements H3 et arrêt propre). L'image n'avait pas été construite depuis le Lot 1 | Lecture croisée `.dockerignore` / `Dockerfile` | `5808189` — exception `!scripts/server` ; entrypoint qui migre puis `exec` le serveur |
+| **N66** | **Élevée** | `docker-compose.yml` publiait PostgreSQL, Redis et n8n sur **toutes** les interfaces : depuis le Wi-Fi de l'établissement, connexion directe à la base (notes, santé, paiements) sans passer par l'application ni par la RLS | `docker compose config` : `published: 5432/6379/5678` sans `host_ip` | `877ec17` — `127.0.0.1` seulement ; port hôte PostgreSQL 5433 (conflit avec un PostgreSQL déjà installé) |
+| **N67** | Faible | « Redis non configuré » écrit à **chaque requête** : 3 lignes identiques en 300 ms dans le journal de production | `.quality-tmp/server-lot7*.log` | `9f3f482` — une fois par processus |
+
+Trois autres défauts trouvés en écrivant les tests du lot :
+
+| ID | Sév. | Constat | Traitement |
+|---|---|---|---|
+| **N68** | Moyenne | `catch` final de `createApiHandler` : `console.error("[API Error]", { path: request.url })` — l'URL **brute**, chaîne de requête comprise (email, matricule), hors de l'expurgation du Lot 6 | `8fa0b5f` — `logger.error`, chemin seul. Test : `?email=parent@exemple.fr` n'apparaît plus |
+| **N69** | Moyenne | `setUserContext` transmettait l'adresse électronique de la personne à Sentry (service tiers). Fonction non appelée aujourd'hui, mais prête à l'être | `ba40b0b` — identifiant interne et rôle seulement |
+| **N70** | Faible | `errors.last24h` de l'écran Monitoring valait la longueur d'une liste plafonnée par son `take: 50` : au-delà, l'écran affichait « 50 » indéfiniment — précisément quand le chiffre compte | `de01b15` — `count` |
+
+### Image de production — ce qui est prouvé et ce qui ne l'est pas
+
+**Docker n'a pas pu être utilisé** : démon `inactive`, `sudo` avec mot de passe.
+L'image n'a été **ni construite ni lancée**.
+
+Ce qui **a** été prouvé, en reproduisant hors conteneur exactement la chaîne que
+le conteneur exécute (`sh docker-entrypoint.sh`, base jetable port 5433, rôle
+applicatif `edupilot_app`, build de production) :
+
+- l'entrypoint applique les migrations : **5 migrations en attente appliquées** ;
+- le serveur standalone démarre avec les deux préchargements ;
+- `GET /api/health` → **200** (375 ms), en-tête `x-request-id` présent ;
+- `SIGTERM` → « plus aucune nouvelle connexion », « Client Redis fermé »,
+  « Connexions PostgreSQL fermées », « Arrêt terminé … tasks: 2, failedTasks: 0 »,
+  port libéré ;
+- journaux JSON avec `requestId` par requête, et **sans** `requestId` hors requête.
+
+Ce qui reste **non vérifié** : la construction de l'image, le `HEALTHCHECK`,
+l'utilisateur non-root, et le démarrage de la pile `docker compose`. Procédure
+exacte à rejouer : `docs/EXPLOITATION.md` §10.
+
+### Tâches planifiées — vérification à l'exécution
+
+| Commande | Résultat |
+|---|---|
+| `run-task.sh retention --dry` | **200**, aperçu de toutes les écoles, `totalAffected: 0`, **aucune écriture** |
+| `run-task.sh automation` | **202** `{"accepted":true}` |
+| `run-task.sh automation` pendant l'exécution | **409** traité comme un succès, code de sortie **0** |
+| `CRON_SECRET` invalide | **401**, le script sort en erreur |
+
+### Paiements (règle 11)
+
+Aucun paiement en argent réel n'a été activé ni tenté. Le parcours FedaPay est
+prouvé **en bac à sable** sur vraie base : initiation → webhook **signé** →
+VERIFIED ; rejeu → 0 rapprochement, `paidAt` et `updatedAt` inchangés ;
+signature forgée → 401, paiement resté PENDING ; `transaction.canceled` →
+CANCELLED. Le garde-fou `PAYMENTS_LIVE_ENABLED` refuse en 503 toute
+configuration de production **avant** appel au fournisseur — le test montrait
+qu'avant, l'appel partait pour de bon (502 du fournisseur).
+
+### Limitation connue, assumée
+
+Avec l'image (sortie standalone), fournir un DSN Sentry **ne suffira pas** :
+ses modules OpenTelemetry (`require-in-the-middle`) ne sont pas embarqués. Le
+serveur démarre et le signale dans le journal ; la surveillance reste
+indisponible dans ce mode. Pour utiliser Sentry : `npm run start`. Documenté
+dans `docs/EXPLOITATION.md` §10. Sans DSN — le cas de cette installation — le
+module n'est même pas chargé.
+
+### Points ouverts du Lot 7
+
+1. **Deux générations de scripts de sauvegarde coexistent** : `postgres-backup.sh`
+   / `postgres-restore.sh` (chiffrés, Lot 7) et `backup.sh` / `restore.sh` /
+   `setup-cron.sh` / `crontab.example` (anciens, **non chiffrés**). Les anciens
+   ne sont référencés nulle part. Leur suppression sort du code applicatif :
+   **votre décision** (règle 11). En attendant, `docs/EXPLOITATION.md` ne
+   documente que les nouveaux.
+2. **Sentry en sortie standalone** : voir ci-dessus.
+3. `setUserContext` garde un paramètre `_email` ignoré, pour ne toucher à aucun
+   appelant — à retirer avec le code mort (L3, Lot 8).
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -653,6 +757,13 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N61 | Élevée | `DELETE /api/user/data` anonymisait le compte sur-le-champ alors que l'écran annonçait une demande enregistrée : n'importe qui — un élève compris — effaçait en un clic ses notes, son dossier médical et son historique, sans retour possible | 6 | Corrigé | `5682b72` | `tests/integration-db/data-rights.test.ts` (8, PG réel, 5 rouges avant) | compte anonymisé immédiatement | demande enregistrée (202), traitée par l'administration |
 | N62 | Moyenne | Traitement d'une demande RGPD limité à l'export : rectification et effacement recevaient « type de demande non supporté » et ne pouvaient jamais être honorés | 6 | Corrigé | `5682b72` | idem N61 | 400 « non supporté » | effacement (sauf élève inscrit, 409) et rectification (correction décrite) |
 | N63 | Moyenne | `auditLog.securityEvent` écrivait toujours l'action « SECURITY_EVENT » : anonymisation, verrouillage de compte et alerte de connexion indistinguables dans le journal | 6 | Corrigé | `525cd2f` | `tests/integration-db/data-rights.test.ts` | action unique | action nommée `SECURITY_EVENT_<ÉVÉNEMENT>` |
+| N64 | Critique | Instrumentation absente de la sortie standalone : en production, aucune validation d'environnement, aucune garde RLS, aucune fermeture Prisma/Redis à l'arrêt | 7 | Corrigé | `96c3986` | `tests/lib/copy-instrumentation.test.ts` (4), `tests/lib/instrumentation.test.ts` (5) ; serveur standalone lancé | « Arrêt terminé … tasks: 0 » | « tasks: 2, failedTasks: 0 », « Cache warming completed » |
+| N65 | Élevée | `docker build` échouait : `.dockerignore` excluait les préchargements que le Dockerfile copie | 7 | Corrigé | `5808189` | entrypoint rejoué hors conteneur (5 migrations, `/api/health` 200, arrêt propre) | build impossible | chaîne du conteneur verte ; image elle-même non construite (démon inactif) |
+| N66 | Élevée | PostgreSQL, Redis et n8n publiés sur toutes les interfaces par `docker-compose.yml` | 7 | Corrigé | `877ec17` | `docker compose config` | `published: 5432/6379/5678`, aucune restriction d'hôte | `host_ip: 127.0.0.1` sur 5433/6379/5678 ; 3000 inchangé |
+| N67 | Faible | « Redis non configuré » journalisé à chaque requête | 7 | Corrigé | `9f3f482` | `tests/lib/redis-unconfigured-log.test.ts` | 25 appels → 25 lignes | 25 appels → 1 ligne |
+| N68 | Moyenne | `catch` d'`api-helpers` journalisait l'URL brute (chaîne de requête : email, matricule) hors expurgation | 7 | Corrigé | `8fa0b5f` | `tests/api/request-id.test.ts` (6) | `?email=parent@exemple.fr` dans le journal | chemin seul, ligne identifiée par `requestId` |
+| N69 | Moyenne | `setUserContext` exportait l'adresse électronique vers Sentry | 7 | Corrigé | `ba40b0b` | `tests/lib/sentry-config.test.ts` (5) | email transmis | identifiant interne et rôle seulement |
+| N70 | Faible | `errors.last24h` plafonné à 50 par le `take` de la liste | 7 | Corrigé | `de01b15` | `tests/api/root-monitoring.test.ts` (10) | 25 erreurs comptées via la liste | `count` dédié |
 | N22 | Moyenne | La page Notes (`/dashboard/grades`) demande `/api/grades/statistics` sans période ni classe : l'agrégat porte sur **tout l'historique** de l'établissement et son coût croît d'année en année (271 ms pour 129 575 notes après `b428aed`, soit ~1 s vers 500 000 notes). Restreindre à l'année scolaire courante changerait les chiffres affichés : décision produit | Suivi — décision du propriétaire | Constat Lot 3 | — | `EXPLAIN` + chronométrage (`.quality-tmp/explain-grades*.cjs`) | 578 ms | 271 ms (agrégat), croissance linéaire non traitée |
 
 ---
@@ -731,3 +842,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | 4 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 871/2 871, 273 fichiers | ✅ (next 16.3.5) | ✅ 230/230, 32 fichiers (PG réel, code sur le **rôle applicatif** soumis à la RLS) | ✅ 87/89 (suite complète) : les 2 échecs a11y M8 connus (`/ecoles`, `/dashboard/grades` TEACHER) ; `grades-flow` CTA désormais vert | Build de `005be2d`, serveur sur `edupilot_app`, base d'audit. `security.mjs` **13/13 PASS** aux limites de production (réserve : H4 `{"429":12}`, fenêtre d'échecs d'un rejeu isolé 5 min plus tôt encore ouverte ; rejeu isolé : `{"302":10,"429":2}`). Smoke 7 rôles : 0 réponse > 500 ms / 500 Ko hors N15 et automation (serveur sans secret). RSS 452 Mo. Maintenance quotidienne en contexte système sous RLS : voir « Mesures RLS » |
 | 2 | ✅ 0 erreur | ✅ 0 erreur (`npm run lint` complet) | ✅ 2 776/2 776, 255 fichiers | ✅ 36 s ; 0 ligne de télémétrie Sentry | ✅ 18/18 (5 fichiers, PG réel) | ✅ 78/81 : exactement les 3 échecs connus de l'audit (M8 : a11y `/ecoles`, a11y `/dashboard/grades` TEACHER, `grades-flow` CTA) — aucune régression | `security.mjs` : H1, H2 ×2, M3 ×2, H5 ×3, TENANT → 9/9 PASS ; `redis-outage.mjs` PASS (10×200, p95 24 ms) ; cron valide : voir N8 |
 | 5 | ✅ 0 erreur (10 s) | ✅ 0 erreur (54 s) | ✅ 2 888/2 888, 277 fichiers (35 s) | ✅ (next 16.3.5) | ✅ 252/252, 37 fichiers (64 s, PG réel) | ✅ suite standard 89/89 (build de prod, base d'audit, rôle applicatif) ; ✅ démarrage à vide 2/2 (installation 1,3 min + 145 pages × 3 rôles, 0 anomalie, 13,6 min) | Code de `90930dd`. Démarrage à vide rejoué sur une base neuve vérifiée (`setupNeeded:true`). Premier passage : installation verte, états vides avec 1 relevé non reproduit (N53, état de chargement ; 0 en 15 chargements ciblés) ; second passage vert. Empreinte des 8 comptes de démonstration identique avant et après chaque suite standard. Job CI `fresh-install` non exécuté sur GitHub Actions dans cette session |
+| 7 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 970/2 970, 288 fichiers (37 s) | ✅ (next 16.3.5) + recopie de l'instrumentation | ✅ 320/320, 50 fichiers (77 s, PG réel) | ✅ **89/89** (suite complète, build de production, base E2E jetable, rôle applicatif) | Serveur standalone lancé par l'entrypoint du conteneur : 5 migrations appliquées, `/api/health` 200, `x-request-id` présent, arrêt propre `tasks: 2`. Crons éprouvés à l'exécution (200/202/409/401). Docker **non exécutable** (démon inactif) |
