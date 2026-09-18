@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageGuard } from "@/components/guard/page-guard";
+import { PageError, PageLoading } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,8 +61,11 @@ type ConfigOption = {
 };
 
 export default function ReformsPage() {
-    const [configs, setConfigs] = useState<ConfigOption[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loaded, setLoaded] = useState(false);
+    // Échec du chargement initial : distinct de l'erreur d'enregistrement,
+    // il masque les éditeurs (sinon « Enregistrer » écraserait la
+    // configuration nationale avec des listes vides).
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -77,12 +81,11 @@ export default function ReformsPage() {
     }, []);
 
     const loadConfigs = async () => {
-        setLoading(true);
+        setLoadError(null);
         try {
             const res = await fetch("/api/admin/config/reforms");
             if (!res.ok) throw new Error("Erreur de chargement");
             const data: ConfigOption[] = await res.json();
-            setConfigs(data);
 
             // Extract values
             const cep = (data.find(c => c.code === "CEP")?.metadata?.subjects as ExamSubject[]) || [];
@@ -94,10 +97,11 @@ export default function ReformsPage() {
             setBepcSubjects(bepc);
             setBacSubjects(bac.length > 0 ? bac : DEFAULT_BAC_SUBJECTS);
             setMentions(m.length > 0 ? m : DEFAULT_MENTIONS);
+            setLoaded(true);
         } catch (err) {
-            setError(getErrorMessage(err));
-        } finally {
-            setLoading(false);
+            // Rechargement après enregistrement : les éditeurs restent affichés
+            if (loaded) setError(getErrorMessage(err));
+            else setLoadError(getErrorMessage(err));
         }
     };
 
@@ -174,6 +178,11 @@ export default function ReformsPage() {
                     </div>
                 )}
 
+                {loadError ? (
+                    <PageError message={loadError} onRetry={() => void loadConfigs()} />
+                ) : !loaded ? (
+                    <PageLoading label="Chargement des réformes…" />
+                ) : (
                 <Tabs defaultValue="cep" className="space-y-6">
                     <TabsList className="bg-muted/50 border border-border">
                         <TabsTrigger value="cep" className="gap-2"><GraduationCap className="h-4 w-4" /> Examens CEP</TabsTrigger>
@@ -346,6 +355,7 @@ export default function ReformsPage() {
                         </Card>
                     </TabsContent>
                 </Tabs>
+                )}
             </PageShell>
         </PageGuard>
     );
