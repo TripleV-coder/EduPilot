@@ -9,8 +9,9 @@ node_modules/
 .env.production.example
 .env.*.local
 
-# Uploads
-uploads/
+# Uploads (stockage à la racine uniquement : un motif non ancré excluait
+# aussi la route src/app/api/uploads/, jamais versionnée)
+/uploads/
 
 # Database dumps
 *.sql
