@@ -18,7 +18,7 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * listes qui grossissent avec l'usage : journal d'audit (école et console root),
  * événements, demandes relatives aux données personnelles.
  * Attendu : parcours complet sans doublon ni trou, dans l'ordre de la route,
- * total sur la première page seulement ; `?page=` renvoie encore l'ancien format.
+ * total sur la première page seulement. Lot 8 : `?page=` n'est plus lu.
  */
 type Handler = Parameters<typeof callRoute>[0];
 type CursorBody = {
@@ -92,13 +92,17 @@ describe("Lot 3 — journal d'audit de l'établissement : curseur sur la date", 
     expect(seen).toEqual([logIds[4], logIds[3], ...sameDay, logIds[0]]);
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(auditLogs, { path: `/api/audit-logs?search=${tag}&page=2&limit=2` });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect((res.body as { logs: unknown[] }).logs).toHaveLength(2);
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 2, limit: 2, total: 5, totalPages: 3 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -121,13 +125,17 @@ describe("Lot 3 — événements : curseur sur la date de début", () => {
     expect(ids(pages)).toEqual([eventIds[1], eventIds[2], eventIds[0]]);
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(events, { path: "/api/events?page=1&limit=2" });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect((res.body as { events: unknown[] }).events).toHaveLength(2);
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -140,12 +148,16 @@ describe("Lot 3 — demandes relatives aux données personnelles : curseur sur l
     expect(ids(pages)).toEqual([requestIds[1], requestIds[2], requestIds[0]]);
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(dataRequests, { path: "/api/compliance/data-requests?page=1&limit=2" });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect((res.body as { requests: unknown[] }).requests).toHaveLength(2);
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });

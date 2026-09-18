@@ -3,7 +3,7 @@ import { Prisma, UserRole } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { isRootUserEmail } from "@/lib/security/root-access";
-import { createPaginatedResponse, createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { logger } from "@/lib/utils/logger";
 
@@ -87,7 +87,6 @@ export const GET = createApiHandler(
         sessionCount: u._count.sessions,
         _count: undefined,
       }));
-      if (list.offset) return createPaginatedResponse(rows, total ?? 0, list.offset);
       return NextResponse.json(list.page(rows, (user) => user.createdAt, total));
     } catch (error) {
       logger.error("Error fetching root users", error as Error);

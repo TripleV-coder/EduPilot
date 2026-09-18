@@ -35,7 +35,6 @@ export const GET = createApiHandler(
     const region = url.searchParams.get("region")?.trim() ?? "";
     const typeParam = url.searchParams.get("type")?.trim() ?? "";
     const levelParam = url.searchParams.get("level")?.trim() ?? "";
-    const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
 
     const where: Prisma.SchoolWhereInput = {
         isPublic: true,
@@ -48,20 +47,17 @@ export const GET = createApiHandler(
             : {}),
     };
 
-    // Lot 3 : curseur (keyset sur le nom) par défaut, total sur la première page
-    // seulement ; ?page= reste accepté avec l'ancien format jusqu'au Lot 8.
-    const cursorPage = url.searchParams.has("page")
-        ? null
-        : getCursorParams(url.searchParams, { defaultLimit: PAGE_SIZE, maxLimit: 48 });
+    // Lot 3 : curseur (keyset sur le nom), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(url.searchParams, { defaultLimit: PAGE_SIZE, maxLimit: 48 });
 
     const [total, schools, regions] = await Promise.all([
-        !cursorPage || cursorPage.withTotal ? prisma.school.count({ where }) : Promise.resolve(undefined),
+        cursorPage.withTotal ? prisma.school.count({ where }) : Promise.resolve(undefined),
         prisma.school.findMany({
-            where: cursorPage?.cursor ? { AND: [where, keysetWhere("name", "asc", cursorPage.cursor)] } : where,
+            where: cursorPage.cursor ? { AND: [where, keysetWhere("name", "asc", cursorPage.cursor)] } : where,
             select: PUBLIC_SELECT,
-            orderBy: cursorPage ? keysetOrderBy("name", "asc") : { name: "asc" },
-            skip: cursorPage ? undefined : (page - 1) * PAGE_SIZE,
-            take: cursorPage ? cursorPage.limit + 1 : PAGE_SIZE,
+            orderBy: keysetOrderBy("name", "asc"),
+            take: cursorPage.limit + 1,
         }),
         // Régions distinctes pour alimenter le filtre.
         prisma.school.findMany({
@@ -74,22 +70,11 @@ export const GET = createApiHandler(
 
     const regionNames = regions.map((r) => r.region).filter(Boolean);
 
-    if (cursorPage) {
-        const { data, pagination } = buildCursorPage(schools, cursorPage.limit, (school) => school.name);
-        return NextResponse.json({
-            data,
-            regions: regionNames,
-            pagination: { ...pagination, ...(total !== undefined ? { total } : {}) },
-        });
-    }
-
+    const { data, pagination } = buildCursorPage(schools, cursorPage.limit, (school) => school.name);
     return NextResponse.json({
-        page,
-        pageSize: PAGE_SIZE,
-        total: total ?? 0,
-        totalPages: Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE)),
+        data,
         regions: regionNames,
-        schools,
+        pagination: { ...pagination, ...(total !== undefined ? { total } : {}) },
     });
     },
     { requireAuth: false },

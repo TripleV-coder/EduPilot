@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizeRichText } from "@/lib/sanitize";
-import { createPaginatedResponse, createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -113,7 +113,6 @@ const { searchParams } = new URL(request.url);
       list.needsTotal ? prisma.course.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) return createPaginatedResponse(courses, total ?? 0, list.offset);
     return NextResponse.json(list.page(courses, (course) => course.createdAt, total));
   } catch (error) {
     logger.error("Error fetching courses", error as Error);

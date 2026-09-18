@@ -43,11 +43,13 @@ describe("GET /api/announcements", () => {
     ] as never);
     vi.mocked(prisma.announcement.count).mockResolvedValue(1);
 
-    const res = await GET(makeRequest("http://localhost/api/announcements?page=1&limit=10"));
+    // Lot 8 : l'ancien mode ?page= est retiré ; la route répond au format unique
+    // { data, pagination: { limit, nextCursor, hasNextPage, total? } }.
+    const res = await GET(makeRequest("http://localhost/api/announcements?limit=10"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.announcements).toHaveLength(1);
-    expect(body.pagination.totalPages).toBe(1);
+    expect(body.data).toHaveLength(1);
+    expect(body.pagination).toMatchObject({ limit: 10, hasNextPage: false, total: 1 });
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ isPublished: true }) })
     );

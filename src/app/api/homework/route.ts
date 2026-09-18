@@ -260,17 +260,6 @@ export const GET = createApiHandler(
       }) as unknown as typeof homeworks;
     }
 
-    if (list.offset) {
-      return NextResponse.json({
-        homeworks: homeworksWithSubmissions,
-        pagination: {
-          page: list.offset.page,
-          limit: list.limit,
-          total,
-          totalPages: Math.ceil((total ?? 0) / list.limit),
-        },
-      });
-    }
     return NextResponse.json(list.page(homeworksWithSubmissions, (hw) => hw.dueDate, total));
   } catch (error) {
     logger.error(" fetching homework:", error as Error);

@@ -109,17 +109,6 @@ export const GET = createApiHandler(
       list.needsTotal ? prisma.auditLog.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) {
-      return NextResponse.json({
-        logs,
-        pagination: {
-          page: list.offset.page,
-          limit: list.limit,
-          total,
-          totalPages: Math.ceil((total ?? 0) / list.limit),
-        },
-      });
-    }
     return NextResponse.json(list.page(logs, (log) => log.createdAt, total));
   },
   {

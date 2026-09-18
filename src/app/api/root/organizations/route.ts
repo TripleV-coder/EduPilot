@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireRoot } from "@/lib/security/require-root";
-import { createPaginatedResponse } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -50,7 +49,6 @@ export const GET = createApiHandler(
     list.needsTotal ? prisma.organization.count({ where }) : Promise.resolve(undefined),
   ]);
 
-  if (list.offset) return createPaginatedResponse(organizations, total ?? 0, list.offset);
   return NextResponse.json(list.page(organizations, (organization) => organization.name, total));
     },
     {},

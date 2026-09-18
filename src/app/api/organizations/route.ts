@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
-import { createApiHandler, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +82,6 @@ export const GET = createApiHandler(async (request, context) => {
         ? null
         : membershipByOrganizationId.get(organization.id) || null,
   }));
-  if (list.offset) return createPaginatedResponse(rows, total ?? 0, list.offset);
   return NextResponse.json(list.page(rows, (organization) => organization.name, total));
 
 });

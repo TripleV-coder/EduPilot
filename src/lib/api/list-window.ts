@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import { getPaginationParams, type PaginationParams } from "@/lib/api/api-helpers";
 import {
     buildCursorPage,
     encodeCursor,
@@ -12,16 +11,15 @@ import {
 } from "@/lib/api/pagination";
 
 /**
- * Fenêtre d'une liste paginée : curseur (keyset) par défaut — format unique du
- * projet, voir `pagination.ts` —, ancien mode `?page=` toléré jusqu'au Lot 8
- * pour les consommateurs non migrés (réponse inchangée, construite par la route).
+ * Fenêtre d'une liste paginée : curseur (keyset), format unique du projet
+ * (voir `pagination.ts`). L'ancien mode `?page=` a été retiré au Lot 8, une
+ * fois tous les consommateurs migrés ; le paramètre est désormais ignoré.
  *
  *   const list = getListWindow(request, { sortField: "createdAt", direction: "desc" });
  *   const [rows, total] = await Promise.all([
  *     prisma.x.findMany({ where: list.where(where), orderBy: list.orderBy, skip: list.skip, take: list.take }),
  *     list.needsTotal ? prisma.x.count({ where }) : undefined,
  *   ]);
- *   if (list.offset) return <ancien format>(rows, total, list.offset);
  *   return NextResponse.json(list.page(rows, (row) => row.createdAt, total));
  *
  * Même tri dans les deux modes : (clé de tri, id), l'id départageant les ex æquo.
@@ -34,13 +32,11 @@ import {
  * terminer par l'id (ordre total, stable d'une page à l'autre).
  */
 export interface ListWindow {
-    /** Mode `?page=` (déprécié) : paramètres de l'ancien format ; `null` en mode curseur. */
-    offset: PaginationParams | null;
     limit: number;
     orderBy: object[];
     skip: number | undefined;
     take: number;
-    /** count() à exécuter : toujours en mode `?page=`, première page seulement en mode curseur. */
+    /** count() à exécuter : première page seulement. */
     needsTotal: boolean;
     /** Ajoute la condition « après le curseur » au filtre de la liste. */
     where<W extends object>(where: W): W;
@@ -55,8 +51,6 @@ export interface ListWindow {
 type ListLimits = {
     defaultLimit?: number;
     maxLimit?: number;
-    /** Nom du paramètre de taille de l'ancien mode (ex. `pageSize`). */
-    limitParam?: string;
 };
 
 export function getListWindow(
@@ -67,26 +61,22 @@ export function getListWindow(
 ): ListWindow {
     const searchParams = request.nextUrl?.searchParams ?? new URL(request.url).searchParams;
     const limits = { defaultLimit: options.defaultLimit, maxLimit: options.maxLimit };
-    const offset = searchParams.has("page")
-        ? getPaginationParams(request, { ...limits, limitParam: options.limitParam })
-        : null;
-    const cursor = offset ? null : getCursorParams(searchParams, limits);
-    const limit = offset ? offset.limit : cursor!.limit;
+    const cursor = getCursorParams(searchParams, limits);
+    const limit = cursor.limit;
 
     if (options.positional) {
         // Curseur positionnel : la valeur encodée est le rang de la première ligne de la page.
-        const position = cursor?.cursor ? cursor.cursor.value : 0;
+        const position = cursor.cursor ? cursor.cursor.value : 0;
         if (typeof position !== "number" || !Number.isInteger(position) || position < 0) {
             throw new InvalidCursorError();
         }
-        const skip = offset ? offset.skip : position;
+        const skip = position;
         return {
-            offset,
             limit,
             orderBy: options.orderBy,
             skip,
-            take: offset ? limit : limit + 1,
-            needsTotal: offset ? true : cursor!.withTotal,
+            take: limit + 1,
+            needsTotal: cursor.withTotal,
             where: (where) => where,
             page: (rows, _sortValue, total) => {
                 const hasNextPage = rows.length > limit;
@@ -107,14 +97,13 @@ export function getListWindow(
 
     const { sortField, direction } = options;
     return {
-        offset,
         limit,
         orderBy: keysetOrderBy(sortField, direction),
-        skip: offset?.skip,
-        take: offset ? limit : limit + 1,
-        needsTotal: offset ? true : cursor!.withTotal,
+        skip: undefined,
+        take: limit + 1,
+        needsTotal: cursor.withTotal,
         where: <W extends object>(where: W) =>
-            cursor?.cursor
+            cursor.cursor
                 ? ({ AND: [where, keysetWhere(sortField, direction, cursor.cursor)] } as unknown as W)
                 : where,
         page: (rows, sortValue, total) => {

@@ -138,17 +138,6 @@ export const GET = createApiHandler(
         list.needsTotal ? prisma.appointment.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      if (list.offset) {
-        return NextResponse.json({
-          appointments,
-          pagination: {
-            page: list.offset.page,
-            limit: list.limit,
-            total,
-            totalPages: Math.ceil((total ?? 0) / list.limit),
-          },
-        });
-      }
       return NextResponse.json(list.page(appointments, (appointment) => appointment.scheduledAt, total));
     } catch (error) {
       logger.error(" fetching appointments:", error as Error);

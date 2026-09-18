@@ -20,18 +20,17 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  */
 type Handler = Parameters<typeof callRoute>[0];
 
-// metaKey : objet de pagination de la réponse (finance/payments renvoie `meta`).
 // maxSize : plafond de la route quand un écran demande plus de 100 lignes
 // (journal d'audit : 500, rendez-vous : 200, incidents : 200 — tableau des risques).
-const ROUTES: Array<{ name: string; handler: Handler; path: string; sizeKey: "limit" | "pageSize"; defaultSize: number; maxSize?: number; metaKey?: "meta" }> = [
+const ROUTES: Array<{ name: string; handler: Handler; path: string; sizeKey: "limit"; defaultSize: number; maxSize?: number }> = [
   { name: "appointments", handler: appointments, path: "/api/appointments", sizeKey: "limit", defaultSize: 20, maxSize: 200 },
   { name: "audit-logs", handler: auditLogs, path: "/api/audit-logs", sizeKey: "limit", defaultSize: 50, maxSize: 500 },
   { name: "compliance/data-requests", handler: dataRequests, path: "/api/compliance/data-requests", sizeKey: "limit", defaultSize: 20 },
   { name: "events", handler: events, path: "/api/events", sizeKey: "limit", defaultSize: 20 },
   { name: "homework", handler: homework, path: "/api/homework", sizeKey: "limit", defaultSize: 20 },
   { name: "incidents", handler: incidents, path: "/api/incidents", sizeKey: "limit", defaultSize: 20, maxSize: 200 },
-  { name: "finance/payments", handler: financePayments, path: "/api/finance/payments", sizeKey: "pageSize", defaultSize: 20, metaKey: "meta" },
-  { name: "resources (?page=)", handler: resources, path: "/api/resources", sizeKey: "limit", defaultSize: 20 },
+  { name: "finance/payments", handler: financePayments, path: "/api/finance/payments", sizeKey: "limit", defaultSize: 20 },
+  { name: "resources", handler: resources, path: "/api/resources", sizeKey: "limit", defaultSize: 20 },
 ];
 
 let schoolId: string;
@@ -50,10 +49,10 @@ describe("N16 — limite de page plafonnée et saisie invalide tolérée", () =>
   for (const route of ROUTES) {
     it(`${route.name} : ?${route.sizeKey}=100000 est plafonné à ${route.maxSize ?? 100}`, async () => {
       actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
-      const res = await callRoute(route.handler, { path: `${route.path}?page=1&${route.sizeKey}=100000` });
+      const res = await callRoute(route.handler, { path: `${route.path}?${route.sizeKey}=100000` });
 
       expect(res.status).toBe(200);
-      expect((res.body as Record<string, Record<string, number>>)[route.metaKey ?? "pagination"][route.sizeKey]).toBe(route.maxSize ?? 100);
+      expect((res.body as Record<string, Record<string, number>>).pagination[route.sizeKey]).toBe(route.maxSize ?? 100);
     });
 
     if (route.maxSize) {
@@ -62,16 +61,19 @@ describe("N16 — limite de page plafonnée et saisie invalide tolérée", () =>
         const res = await callRoute(route.handler, { path: `${route.path}?${route.sizeKey}=${route.maxSize}` });
 
         expect(res.status).toBe(200);
-        expect((res.body as Record<string, Record<string, number>>)[route.metaKey ?? "pagination"][route.sizeKey]).toBe(route.maxSize);
+        expect((res.body as Record<string, Record<string, number>>).pagination[route.sizeKey]).toBe(route.maxSize);
       });
     }
 
+    // Lot 8 : ?page= a été retiré ; il est ignoré, sans erreur, et seule la
+    // taille invalide retombe sur la valeur par défaut de la route.
     it(`${route.name} : page et taille non numériques → valeurs par défaut`, async () => {
       actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
       const res = await callRoute(route.handler, { path: `${route.path}?page=abc&${route.sizeKey}=abc` });
 
       expect(res.status).toBe(200);
-      expect((res.body as Record<string, Record<string, number>>)[route.metaKey ?? "pagination"]).toMatchObject({ page: 1, [route.sizeKey]: route.defaultSize });
+      expect((res.body as Record<string, Record<string, unknown>>).pagination).toMatchObject({ [route.sizeKey]: route.defaultSize });
+      expect((res.body as Record<string, Record<string, unknown>>).pagination.page).toBeUndefined();
     });
   }
 });

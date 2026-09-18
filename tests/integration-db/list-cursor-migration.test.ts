@@ -10,8 +10,8 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * Lot 3 — migration des listes paginées par offset vers le curseur (keyset),
  * format décidé par le propriétaire : { data, pagination: { limit, nextCursor,
  * hasNextPage, total? } }, total sur la première page seulement, aucun OFFSET.
- * Tolérance jusqu'au Lot 8 : une requête qui envoie encore ?page= reçoit
- * l'ancien format, inchangé (consommateurs non migrés).
+ * Lot 8 : `?page=` a été retiré. Une requête qui l'envoie encore reçoit la
+ * première page au format unique, sans erreur.
  *
  * Les quatre routes ci-dessous sont celles dont un écran parcourt réellement
  * les pages (élèves, parents, ressources, annuaire public).
@@ -97,14 +97,17 @@ describe("Lot 3 — élèves : curseur sur le nom", () => {
     expect(seen.map((id) => studentNames.get(id))).toEqual(["Adjovi", "Bello", "Bello", "Dossou", "Zinsou"]);
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(listStudents, { path: "/api/students?page=2&limit=2" });
-    const body = res.body as { data: unknown[]; pagination: Record<string, unknown> };
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(2);
-    expect(body.pagination).toMatchObject({ page: 2, limit: 2, total: 5, totalPages: 3 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -117,12 +120,17 @@ describe("Lot 3 — utilisateurs (écran Parents) : curseur sur la date de créa
     expect(ids(pages).sort()).toEqual([...parentIds].sort());
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(listUsers, { path: "/api/users?role=PARENT&page=1&limit=2" });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -135,14 +143,17 @@ describe("Lot 3 — ressources : curseur sur la date de création", () => {
     expect(ids(pages).sort()).toEqual([...resourceIds].sort());
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(listResources, { path: "/api/resources?page=1&limit=2" });
-    const body = res.body as { resources: unknown[]; pagination: Record<string, unknown> };
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect(body.resources).toHaveLength(2);
-    expect(body.pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -157,12 +168,16 @@ describe("Lot 3 — annuaire public : curseur sur le nom", () => {
     expect((pages[0] as unknown as { regions: string[] }).regions).toEqual(expect.arrayContaining(["Borgou", "Littoral"]));
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(null);
     const res = await callRoute(listPublicSchools, { path: `/api/public/schools?q=${encodeURIComponent(directoryPrefix)}&page=1` });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ page: 1, pageSize: 12, total: 3, totalPages: 1 });
-    expect((res.body as { schools: unknown[] }).schools).toHaveLength(3);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });

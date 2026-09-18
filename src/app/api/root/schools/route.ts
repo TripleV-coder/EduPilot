@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireRoot } from "@/lib/security/require-root";
-import { createPaginatedResponse } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
@@ -142,7 +141,6 @@ export const GET = createApiHandler(
         _count: undefined,
       };
     });
-    if (list.offset) return createPaginatedResponse(rows, total ?? 0, list.offset);
     return NextResponse.json(list.page(rows, (school) => school.createdAt, total));
   } catch (error) {
     logger.error("Error fetching root schools", error as Error);

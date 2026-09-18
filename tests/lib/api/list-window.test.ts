@@ -4,8 +4,10 @@ import { getListWindow } from "@/lib/api/list-window";
 import { decodeCursor, encodeCursor } from "@/lib/api/pagination";
 
 /**
- * Lot 3 — fenêtre de liste commune aux routes migrées vers le curseur :
- * curseur par défaut, ancien mode `?page=` toléré jusqu'au Lot 8.
+ * Lot 3 — fenêtre de liste commune aux routes paginées : curseur (keyset).
+ * Lot 8 — l'ancien mode `?page=` a été retiré, tous les consommateurs étant
+ * migrés ; le paramètre est désormais ignoré, sans erreur pour un client resté
+ * en arrière (il reçoit la première page au format unique).
  */
 const request = (query: string) => ({ url: `http://localhost/api/x?${query}` }) as unknown as NextRequest;
 const sort = { sortField: "createdAt", direction: "desc" as const };
@@ -14,7 +16,6 @@ describe("getListWindow — mode curseur (défaut)", () => {
   it("lit une ligne de plus que la limite, sans skip, total sur la première page", () => {
     const list = getListWindow(request("limit=10"), sort);
 
-    expect(list.offset).toBeNull();
     expect(list).toMatchObject({ limit: 10, take: 11, skip: undefined, needsTotal: true });
     expect(list.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
   });
@@ -56,7 +57,7 @@ describe("getListWindow — curseur positionnel (tri composé ou colonne nullabl
   it("première page : ordre de la route, aucune condition ajoutée, total demandé", () => {
     const list = getListWindow(request("limit=2"), positional);
 
-    expect(list).toMatchObject({ offset: null, limit: 2, skip: 0, take: 3, needsTotal: true });
+    expect(list).toMatchObject({ limit: 2, skip: 0, take: 3, needsTotal: true });
     expect(list.orderBy).toEqual(positional.orderBy);
     expect(list.where({ schoolId: "s1" })).toEqual({ schoolId: "s1" });
   });
@@ -80,17 +81,16 @@ describe("getListWindow — curseur positionnel (tri composé ou colonne nullabl
   });
 });
 
-describe("getListWindow — ancien mode ?page= (toléré jusqu'au Lot 8)", () => {
-  it("offset classique, filtre inchangé, count() toujours exécuté", () => {
+describe("getListWindow — ancien mode ?page= retiré (Lot 8)", () => {
+  it("?page= est ignoré : première page au format curseur, jamais d'erreur", () => {
     const list = getListWindow(request("page=3&limit=10"), sort);
 
-    expect(list.offset).toEqual({ page: 3, limit: 10, skip: 20 });
-    expect(list).toMatchObject({ limit: 10, take: 10, skip: 20, needsTotal: true });
+    expect(list).toMatchObject({ limit: 10, take: 11, skip: undefined, needsTotal: true });
     expect(list.where({ schoolId: "s1" })).toEqual({ schoolId: "s1" });
   });
 
-  it("respecte le nom de paramètre de taille de la route (pageSize)", () => {
-    const list = getListWindow(request("page=1&pageSize=5"), { ...sort, limitParam: "pageSize" });
-    expect(list.offset).toEqual({ page: 1, limit: 5, skip: 0 });
+  it("?pageSize= n'est plus lu : seul ?limit= fixe la taille", () => {
+    const list = getListWindow(request("page=1&pageSize=5"), { ...sort, defaultLimit: 20 });
+    expect(list.limit).toBe(20);
   });
 });

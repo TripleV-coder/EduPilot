@@ -22,7 +22,7 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * organisations, écoles et utilisateurs (console root comprise), classes
  * (tri composé → curseur positionnel), paiements (date d'encaissement nullable
  * → curseur positionnel). Parcours complet sans doublon ni trou, dans l'ordre
- * de la route, total sur la première page seulement ; `?page=` : ancien format.
+ * de la route, total sur la première page seulement. Lot 8 : `?page=` n'est plus lu.
  */
 type Handler = Parameters<typeof callRoute>[0];
 type CursorBody = {
@@ -102,13 +102,20 @@ describe("Lot 3 — organisations : curseur sur le nom", () => {
     expect(ids(pages)).toEqual([orgIds.A, orgIds.B, orgIds.C]);
   });
 
-  it("console root : même parcours, et ?page= avec l'ancien format", async () => {
+  it("console root : même parcours, et ?page= n'est plus lu (Lot 8)", async () => {
     actAs(ROOT);
     const pages = await collect(rootOrganizations, `/api/root/organizations?search=${encodeURIComponent(tag)}&limit=2`);
     expect(ids(pages)).toEqual([orgIds.A, orgIds.B, orgIds.C]);
 
     const res = await callRoute(rootOrganizations, { path: `/api/root/organizations?search=${encodeURIComponent(tag)}&page=1&limit=2` });
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -129,7 +136,7 @@ describe("Lot 3 — écoles et utilisateurs : curseur sur la date de création",
     expect(ids(pages)).toEqual([rootUserIds[1], rootUserIds[2], rootUserIds[0]]);
   });
 
-  it("écoles accessibles d'un compte réseau, plus récentes d'abord, et ?page= avec l'ancien format", async () => {
+  it("écoles accessibles d'un compte réseau, plus récentes d'abord, et ?page= n'est plus lu (Lot 8)", async () => {
     const network = sessionFor("SCHOOL_ADMIN", networkSchoolIds[0]);
     (network.user as Session["user"] & { accessibleSchoolIds: string[] }).accessibleSchoolIds = [...networkSchoolIds];
     actAs(network);
@@ -138,8 +145,16 @@ describe("Lot 3 — écoles et utilisateurs : curseur sur la date de création",
     expect(pages[0].pagination.total).toBe(3);
     expect(ids(pages)).toEqual([networkSchoolIds[1], networkSchoolIds[2], networkSchoolIds[0]]);
 
+    actAs(network);
     const res = await callRoute(schools, { path: "/api/schools?page=2&limit=2" });
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 2, total: 3, totalPages: 2 });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });
 
@@ -173,11 +188,16 @@ describe("Lot 3 — paiements : curseur positionnel (date d'encaissement nullabl
     expect(ids(pages)).toEqual([paymentIds.unpaid, paymentIds.recent, paymentIds.older]);
   });
 
-  it("tolère encore ?page= avec l'ancien format", async () => {
+  it("?page= n'est plus lu : la route répond au format unique (Lot 8)", async () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const res = await callRoute(payments, { path: "/api/payments?page=1&limit=2" });
+    const body = res.body as { data?: unknown[]; pagination?: Record<string, unknown> };
 
     expect(res.status).toBe(200);
-    expect((res.body as { pagination: Record<string, unknown> }).pagination).toMatchObject({ page: 1, total: 3, totalPages: 2 });
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({ limit: expect.any(Number), hasNextPage: expect.any(Boolean) });
+    // Les clés de l'ancien format ont disparu.
+    expect(body.pagination?.page).toBeUndefined();
+    expect(body.pagination?.totalPages).toBeUndefined();
   });
 });

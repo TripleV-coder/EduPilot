@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { SchoolLevel, SchoolType, SiteType } from "@prisma/client";
-import { createApiHandler, translateError, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { Permission } from "@/lib/rbac/permissions";
@@ -90,7 +90,6 @@ export const GET = createApiHandler(
       list.needsTotal ? prisma.school.count({ where: whereClause }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) return createPaginatedResponse(schools, total ?? 0, list.offset);
     return NextResponse.json(list.page(schools, (school) => school.createdAt, total));
   },
   {

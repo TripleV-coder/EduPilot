@@ -23,6 +23,7 @@ import {
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
@@ -35,9 +36,14 @@ export const GET = createApiHandler(
     const session = context.session;
 
     const searchParams = new URL(request.url).searchParams;
-    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50")));
-    const skip = (page - 1) * limit;
+    // Lot 8 : format de pagination unique du projet (curseur keyset sur le nom).
+    // Cette route était restée sur l'ancien mode ?page= / { teachers, pagination }.
+    const list = getListWindow(request, {
+      sortField: "user.lastName",
+      direction: "asc",
+      defaultLimit: 50,
+      maxLimit: 100,
+    });
     const search = searchParams.get("search") ?? "";
     const status = searchParams.get("status");
     const activeSchoolId = getActiveSchoolId(session);
@@ -73,7 +79,7 @@ export const GET = createApiHandler(
     const handler = async () => {
       const [teachers, total] = await Promise.all([
         prisma.teacherProfile.findMany({
-          where,
+          where: list.where(where),
           include: {
             user: {
               select: {
@@ -99,11 +105,10 @@ export const GET = createApiHandler(
               orderBy: [{ isPrimary: "desc" }, { school: { name: "asc" } }],
             },
           },
-          orderBy: { user: { lastName: "asc" } },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          take: list.take,
         }),
-        prisma.teacherProfile.count({ where }),
+        list.needsTotal ? prisma.teacherProfile.count({ where }) : Promise.resolve(undefined),
       ]);
 
       // Deduplicate subjects per teacher
@@ -123,10 +128,9 @@ export const GET = createApiHandler(
         };
       });
 
-      return NextResponse.json({
-        teachers: teachersWithUniqueSubjects,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      });
+      return NextResponse.json(
+        list.page(teachersWithUniqueSubjects, (teacher) => teacher.user.lastName, total),
+      );
     };
 
     const response = await withCache(handler, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });

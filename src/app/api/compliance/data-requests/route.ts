@@ -77,17 +77,6 @@ export const GET = createApiHandler(async (request, context) => {
       list.needsTotal ? prisma.dataAccessRequest.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) {
-      return NextResponse.json({
-        requests,
-        pagination: {
-          page: list.offset.page,
-          limit: list.limit,
-          total,
-          totalPages: Math.ceil((total ?? 0) / list.limit),
-        },
-      });
-    }
     return NextResponse.json(list.page(requests, (row) => row.requestedAt, total));
   
     } catch (error) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { Prisma, ResourceType } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
@@ -38,10 +38,9 @@ const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const search = searchParams.get("search");
     // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
-    // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
-    // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
-    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur (keyset), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     const where: Prisma.ResourceWhereInput = {
@@ -91,7 +90,7 @@ const { searchParams } = new URL(request.url);
 
     const [resources, total] = await Promise.all([
       prisma.resource.findMany({
-        where: cursorPage?.cursor ? { AND: [where, keysetWhere("createdAt", "desc", cursorPage.cursor)] } : where,
+        where: cursorPage.cursor ? { AND: [where, keysetWhere("createdAt", "desc", cursorPage.cursor)] } : where,
         include: {
           subject: {
             select: {
@@ -116,27 +115,14 @@ const { searchParams } = new URL(request.url);
             },
           },
         },
-        orderBy: cursorPage ? keysetOrderBy("createdAt", "desc") : { createdAt: "desc" },
-        skip: cursorPage ? undefined : skip,
-        take: cursorPage ? cursorPage.limit + 1 : limit,
+        orderBy: keysetOrderBy("createdAt", "desc"),
+        take: cursorPage.limit + 1,
       }),
-      !cursorPage || cursorPage.withTotal ? prisma.resource.count({ where }) : Promise.resolve(undefined),
+      cursorPage.withTotal ? prisma.resource.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (cursorPage) {
-      const { data, pagination } = buildCursorPage(resources, cursorPage.limit, (resource) => resource.createdAt);
-      return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
-    }
-
-    return NextResponse.json({
-      resources,
-      pagination: {
-        page,
-        limit,
-        total: total ?? 0,
-        totalPages: Math.ceil((total ?? 0) / limit),
-      },
-    });
+    const { data, pagination } = buildCursorPage(resources, cursorPage.limit, (resource) => resource.createdAt);
+    return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
   } catch (error) {
     if (error instanceof InvalidCursorError) throw error; // 400 INVALID_CURSOR (createApiHandler)
     logger.error(" fetching resources:", error as Error);

@@ -40,11 +40,12 @@ describe("GET /api/events", () => {
     vi.mocked(prisma.schoolEvent.findMany).mockResolvedValue([{ id: "e1" }] as never);
     vi.mocked(prisma.schoolEvent.count).mockResolvedValue(1);
 
-    const res = await GET(makeRequest("http://localhost/api/events?page=1&limit=10"));
+    // Lot 8 : ancien mode ?page= retiré ; format unique { data, pagination }.
+    const res = await GET(makeRequest("http://localhost/api/events?limit=10"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.events).toHaveLength(1);
-    expect(body.pagination.totalPages).toBe(1);
+    expect(body.data).toHaveLength(1);
+    expect(body.pagination).toMatchObject({ limit: 10, hasNextPage: false, total: 1 });
   });
 
   it("should filter by type and upcoming", async () => {

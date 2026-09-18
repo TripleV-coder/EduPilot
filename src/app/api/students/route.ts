@@ -8,7 +8,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizePlainText } from "@/lib/sanitize";
-import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { Permission } from "@/lib/rbac/permissions";
 import { checkStudentQuota } from "@/lib/saas/quotas";
@@ -87,17 +87,14 @@ export const GET = createApiHandler(
     // tronqué (appel, saisie de notes, bulletins, promotion) : plafond de sécurité
     // CLASS_ROSTER_MAX avec ?classId=, 100 pour les listes de l'établissement.
     const listLimits = { defaultLimit: 20, maxLimit: classId ? CLASS_ROSTER_MAX : 100 };
-    const { page, limit, skip } = getPaginationParams(request, listLimits);
-    // Lot 3 : curseur (keyset) par défaut, total sur la première page seulement ;
-    // ?page= reste accepté avec l'ancien format jusqu'au Lot 8 (consommateurs non migrés).
-    const cursorPage = searchParams.has("page") ? null : getCursorParams(searchParams, listLimits);
+    // Lot 3 : curseur (keyset), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(searchParams, listLimits);
     const emptyList = () =>
-      cursorPage
-        ? NextResponse.json({
-            data: [],
-            pagination: { limit: cursorPage.limit, nextCursor: null, hasNextPage: false, ...(cursorPage.withTotal ? { total: 0 } : {}) },
-          })
-        : createPaginatedResponse([], 0, { page, limit, skip });
+      NextResponse.json({
+        data: [],
+        pagination: { limit: cursorPage.limit, nextCursor: null, hasNextPage: false, ...(cursorPage.withTotal ? { total: 0 } : {}) },
+      });
 
     if (!academicYearId && session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       const currentYear = await prisma.academicYear.findFirst({
@@ -175,7 +172,7 @@ export const GET = createApiHandler(
 
     const [students, total] = await Promise.all([
       prisma.studentProfile.findMany({
-        where: cursorPage?.cursor ? { AND: [where, keysetWhere("user.lastName", "asc", cursorPage.cursor)] } : where,
+        where: cursorPage.cursor ? { AND: [where, keysetWhere("user.lastName", "asc", cursorPage.cursor)] } : where,
         select: {
           id: true,
           matricule: true,
@@ -217,11 +214,10 @@ export const GET = createApiHandler(
             take: 1, // Only need first active enrollment
           }
         },
-        orderBy: cursorPage ? keysetOrderBy("user.lastName", "asc") : { user: { lastName: "asc" } },
-        skip: cursorPage ? undefined : skip,
-        take: cursorPage ? cursorPage.limit + 1 : limit,
+        orderBy: keysetOrderBy("user.lastName", "asc"),
+        take: cursorPage.limit + 1,
       }),
-      !cursorPage || cursorPage.withTotal ? prisma.studentProfile.count({ where }) : Promise.resolve(undefined),
+      cursorPage.withTotal ? prisma.studentProfile.count({ where }) : Promise.resolve(undefined),
     ]);
 
     interface StudentRowWithUser {
@@ -238,8 +234,8 @@ export const GET = createApiHandler(
         academicYear: { id: string; name: string; isCurrent: boolean; }
       }>;
     }
-    const cursorResult = cursorPage ? buildCursorPage(students, cursorPage.limit, (student) => student.user.lastName) : null;
-    const formattedStudents = (cursorResult ? cursorResult.data : students).map((student) => {
+    const cursorResult = buildCursorPage(students, cursorPage.limit, (student) => student.user.lastName);
+    const formattedStudents = cursorResult.data.map((student) => {
       const row = student as unknown as StudentRowWithUser;
       return {
         ...row,
@@ -254,13 +250,10 @@ export const GET = createApiHandler(
       };
     });
 
-    if (cursorResult) {
-      return NextResponse.json({
-        data: formattedStudents,
-        pagination: { ...cursorResult.pagination, ...(total !== undefined ? { total } : {}) },
-      });
-    }
-    return createPaginatedResponse(formattedStudents, total ?? 0, { page, limit, skip });
+    return NextResponse.json({
+      data: formattedStudents,
+      pagination: { ...cursorResult.pagination, ...(total !== undefined ? { total } : {}) },
+    });
   },
   {
     allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT"],

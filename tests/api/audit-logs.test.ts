@@ -64,15 +64,16 @@ describe("GET /api/audit-logs", () => {
     ] as unknown as AuditLog[]);
     vi.mocked(prisma.auditLog.count).mockResolvedValue(1);
 
+    // Lot 8 : ancien mode ?page= retiré ; format unique { data, pagination }.
     const response = await GET(
       makeRequest(
-        "http://localhost:3000/api/audit-logs?startDate=2026-01-01&endDate=2026-01-31&page=1&limit=10"
+        "http://localhost:3000/api/audit-logs?startDate=2026-01-01&endDate=2026-01-31&limit=10"
       )
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.logs).toHaveLength(1);
+    expect(body.data).toHaveLength(1);
     expect(body.pagination.total).toBe(1);
     expect(vi.mocked(prisma.auditLog.findMany).mock.calls[0][0].where.createdAt).toEqual({
       gte: new Date("2026-01-01"),

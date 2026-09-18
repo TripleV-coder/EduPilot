@@ -8,7 +8,6 @@ import {
   getSearchParam,
   createSearchFilter,
   createErrorResponse,
-  createPaginationMeta,
 } from "@/lib/api/api-helpers";
 
 const validCuid = "c" + "a".repeat(24);
@@ -97,21 +96,6 @@ describe("api/api-helpers — pure helpers", () => {
         error: "oops",
         code: "INTERNAL",
       });
-    });
-  });
-
-  describe("createPaginationMeta", () => {
-    it("computes totalPages and flags", () => {
-      const m = createPaginationMeta(45, { page: 2, limit: 10, skip: 10 });
-      expect(m.totalPages).toBe(5);
-      expect(m.hasNextPage).toBe(true);
-      expect(m.hasPreviousPage).toBe(true);
-    });
-
-    it("flags last page correctly", () => {
-      const m = createPaginationMeta(25, { page: 3, limit: 10, skip: 20 });
-      expect(m.hasNextPage).toBe(false);
-      expect(m.hasPreviousPage).toBe(true);
     });
   });
 });

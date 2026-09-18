@@ -170,18 +170,6 @@ export const GET = createApiHandler(async (request, context) => {
           : Promise.resolve(0),
       ]);
 
-      if (list.offset) {
-        return NextResponse.json({
-          messages,
-          unreadCount,
-          pagination: {
-            page: list.offset.page,
-            limit: list.limit,
-            total,
-            totalPages: Math.ceil((total ?? 0) / list.limit),
-          },
-        });
-      }
       return NextResponse.json({ ...list.page(messages, (message) => message.createdAt, total), unreadCount });
     };
 

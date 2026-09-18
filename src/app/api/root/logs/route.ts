@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
-import { createPaginatedResponse } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { logger } from "@/lib/utils/logger";
 
@@ -64,7 +63,6 @@ export const GET = createApiHandler(
       list.needsTotal ? prisma.auditLog.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) return createPaginatedResponse(logs, total ?? 0, list.offset);
     return NextResponse.json(list.page(logs, (log) => log.createdAt, total));
   } catch (error) {
     logger.error("Error fetching root logs", error as Error);

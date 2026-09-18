@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
-import { createApiHandler, translateError, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
@@ -83,9 +83,7 @@ export const GET = createApiHandler(
         maxLimit: 200,
       });
       const respond = <Row extends { id: string }>(rows: Row[], total: number | undefined) =>
-        list.offset
-          ? createPaginatedResponse(rows, total ?? 0, list.offset)
-          : NextResponse.json(list.page(rows, () => 0, total));
+        NextResponse.json(list.page(rows, () => 0, total));
 
       const where: PaymentWhereFilter = {};
       if (studentId) where.studentId = studentId;

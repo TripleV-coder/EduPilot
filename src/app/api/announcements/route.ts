@@ -178,17 +178,6 @@ export const GET = createApiHandler(async (request, { session }) => {
         list.needsTotal ? prisma.announcement.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      if (list.offset) {
-        return NextResponse.json({
-          announcements,
-          pagination: {
-            page: list.offset.page,
-            limit: list.limit,
-            total,
-            totalPages: Math.ceil((total ?? 0) / list.limit),
-          },
-        });
-      }
       return NextResponse.json(list.page(announcements, () => 0, total));
     };
 

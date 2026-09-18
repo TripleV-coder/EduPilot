@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { classSchema } from "@/lib/validations/school";
-import { createApiHandler, translateError, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
@@ -143,7 +143,6 @@ export const GET = createApiHandler(
         list.needsTotal ? prisma.class.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      if (list.offset) return createPaginatedResponse(classes, total ?? 0, list.offset);
       return NextResponse.json(list.page(classes, () => 0, total));
     };
 

@@ -61,12 +61,6 @@ export const GET = createApiHandler(async (request, context) => {
       list.needsTotal ? prisma.schoolEvent.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    if (list.offset) {
-      return NextResponse.json({
-        events,
-        pagination: { page: list.offset.page, limit: list.limit, total, totalPages: Math.ceil((total ?? 0) / list.limit) },
-      });
-    }
     return NextResponse.json(list.page(events, (event) => event.startDate, total));
   
     } catch (error) {

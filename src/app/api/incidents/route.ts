@@ -112,17 +112,6 @@ export const GET = createApiHandler(
         list.needsTotal ? prisma.behaviorIncident.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      if (list.offset) {
-        return NextResponse.json({
-          incidents,
-          pagination: {
-            page: list.offset.page,
-            limit: list.limit,
-            total,
-            totalPages: Math.ceil((total ?? 0) / list.limit),
-          },
-        });
-      }
       return NextResponse.json(list.page(incidents, (incident) => incident.date, total));
     } catch (error) {
       logger.error(" fetching incidents:", error as Error);
