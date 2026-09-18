@@ -52,6 +52,8 @@ d'échecs de connexion).
 | TD-012 | Deux familles de primitives d'interface (`ui/` shadcn et `edu/` maison) | 15j | 3 | 1 | 0,2 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-013 | Deux jeux de jetons de style décrivant la même charte | 4j | 2 | 1 | 0,5 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-014 | 92 routes d'API sans aucun test unitaire | 8j | 3 | 3 | 1,1 | 🟡 Ouvert |
+| TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | 🟡 Ouvert |
+| TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
 
 ---
 
@@ -169,6 +171,37 @@ routes `[id]`), les listes paginées, les limites de taille et les écritures
 sensibles ; `createApiHandler` applique session, rôles, permissions, limites de
 débit, taille de corps et maintenance à 286 routes sur 288, de sorte qu'une
 route non testée hérite quand même des garanties.
+
+---
+
+## TD-015 — Accueil publique lente sur mobile *(ouvert)*
+
+Mesure du 2026-09-18, machine au repos, build de production, Lighthouse 12
+mobile (4G lente + CPU ÷4) : **perf 0,61**, LCP 5,4 s, TBT 686 ms, 531 Ko
+transférés. L'audit mesurait 0,63 : **la page n'a pas progressé**, alors que le
+tableau de bord est passé de 0,54 à 0,90.
+
+Cause : 913 Ko de JavaScript, dont **116 Ko de framer-motion**. Contrairement au
+tableau de bord — dont les animations, toutes des entrées simples, ont été
+reprises en CSS avec 0,000 % de pixels différents — les sections de l'accueil
+s'animent **au défilement** (`whileInView`, 5 composants). Les convertir demande
+un observateur d'intersection et une vérification visuelle en défilement, que je
+n'ai pas faite : le rapport coût/risque ne le justifiait pas pour une page
+vitrine, face aux écrans de travail quotidiens.
+
+Chemin si repris : hook de révélation partagé + `.edu-enter-up` déjà en place
+dans `globals.css`, puis captures avant/après à plusieurs positions de
+défilement (`scripts/quality/screenshots.mjs` ne capture aujourd'hui que l'état
+initial).
+
+---
+
+## TD-016 — Deux systèmes de notification *(ouvert, assumé)*
+
+`sonner` (26 fichiers) et le toast Radix via `useToast` (35 fichiers)
+coexistent, tous deux montés dans la mise en page racine. Les unifier changerait
+l'apparence des notifications : interdit tant que le design est gelé (règle 9 de
+la remise à niveau). Coût mesuré : ~38 Ko sur chaque page.
 
 ---
 
