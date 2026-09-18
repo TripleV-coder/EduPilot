@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -24,11 +25,7 @@ import { AnalyticsProvider, useAnalytics, StudentSegment } from "@/components/an
 import { AnalyticsContextBar } from "@/components/analytics/AnalyticsContextBar";
 import { PerformanceHeatmap } from "@/components/charts/PerformanceHeatmap";
 import { AttendanceHeatmap } from "@/components/charts/AttendanceHeatmap";
-import { InteractivePerformanceBarChart } from "@/components/charts/InteractivePerformanceBarChart";
 import { InteractiveRiskPieChart } from "@/components/charts/InteractiveRiskPieChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
-import { AttendanceGradesScatter } from "@/components/charts/AttendanceGradesScatter";
-import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
 
 /**
  * Onglets chargés à la demande (Lot 8). Un seul est visible à la fois, mais
@@ -61,6 +58,24 @@ const AnalyticsReportsTab = dynamic(
     () => import("@/components/analytics/AnalyticsReportsTab").then((m) => m.AnalyticsReportsTab),
     { ssr: false, loading: () => <PageLoading /> },
 );
+
+// Perf : ces graphiques embarquent recharts (~350 Ko), chargés à la demande.
+const InteractivePerformanceBarChart = dynamic(() => import("@/components/charts/InteractivePerformanceBarChart").then((m) => m.InteractivePerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const AttendanceGradesScatter = dynamic(() => import("@/components/charts/AttendanceGradesScatter").then((m) => m.AttendanceGradesScatter), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const PerformanceBarChart = dynamic(() => import("@/components/charts/PerformanceBarChart").then((m) => m.PerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";

@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -26,9 +29,20 @@ import {
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
-import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
-import { BasePieChart } from "@/components/charts/BasePieChart";
+
+
 import { CHART_COLORS } from "@/components/charts/chart-theme";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const PaymentBarChart = dynamic(() => import("@/components/charts/PaymentBarChart").then((m) => m.PaymentBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const BasePieChart = dynamic(() => import("@/components/charts/BasePieChart").then((m) => m.BasePieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type FinanceSummary = {
     totalFees: number;

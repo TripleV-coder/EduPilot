@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -8,9 +11,20 @@ import { Permission } from "@/lib/rbac/permissions";
 import { BarChart3, TrendingUp, TrendingDown, Calendar, FileText, Download, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PaymentBarChart } from "@/components/charts/PaymentBarChart";
-import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
+
+
 import { t } from "@/lib/i18n";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const PaymentBarChart = dynamic(() => import("@/components/charts/PaymentBarChart").then((m) => m.PaymentBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const CategoryPieChart = dynamic(() => import("@/components/charts/CategoryPieChart").then((m) => m.CategoryPieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
  
 

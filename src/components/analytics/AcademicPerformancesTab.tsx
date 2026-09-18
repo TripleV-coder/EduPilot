@@ -1,15 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InteractiveSubjectRadarChart } from "@/components/charts/InteractiveSubjectRadarChart";
-import { InteractivePerformanceBarChart } from "@/components/charts/InteractivePerformanceBarChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
-import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
+
+
+
+
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +25,25 @@ import {
     CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from "recharts";
 import { FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const InteractiveSubjectRadarChart = dynamic(() => import("@/components/charts/InteractiveSubjectRadarChart").then((m) => m.InteractiveSubjectRadarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const InteractivePerformanceBarChart = dynamic(() => import("@/components/charts/InteractivePerformanceBarChart").then((m) => m.InteractivePerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const PerformanceBarChart = dynamic(() => import("@/components/charts/PerformanceBarChart").then((m) => m.PerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type ClassOption = { id: string; name: string };
 

@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
@@ -15,14 +18,29 @@ import {
 import Link from "next/link";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { RiskPieChart } from "@/components/charts/RiskPieChart";
-import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
+
+
+
 import { PageCallout } from "@/components/layout/page-callout";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
 import { getIncidentSeverityClass } from "@/lib/ui/status-styles";
 import { PageHeader } from "@/components/layout/page-header";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const RiskPieChart = dynamic(() => import("@/components/charts/RiskPieChart").then((m) => m.RiskPieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const CategoryPieChart = dynamic(() => import("@/components/charts/CategoryPieChart").then((m) => m.CategoryPieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 export type Incident = {
     id: string;

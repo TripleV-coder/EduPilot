@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -15,10 +18,21 @@ import {
     GraduationCap, BookOpen, User, Calendar
 } from "lucide-react";
 import Link from "next/link";
-import { InteractivePerformanceBarChart } from "@/components/charts/InteractivePerformanceBarChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
+
+
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const InteractivePerformanceBarChart = dynamic(() => import("@/components/charts/InteractivePerformanceBarChart").then((m) => m.InteractivePerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type GradeRow = {
     studentId: string;

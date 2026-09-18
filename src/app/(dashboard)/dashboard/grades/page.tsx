@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -12,12 +15,22 @@ import { EvaluationList, type EvaluationListItem } from "@/components/evaluation
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { exportEvaluationsCsv } from "@/lib/evaluations/evaluations-csv";
 import { EvaluationSheet } from "@/components/evaluations/EvaluationSheet";
-import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
-import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
+
 
 import { Badge, Button, Card, Chip, FilterBar, Icon, MetricCard } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const PerformanceBarChart = dynamic(() => import("@/components/charts/PerformanceBarChart").then((m) => m.PerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const SubjectRadarChart = dynamic(() => import("@/components/charts/SubjectRadarChart").then((m) => m.SubjectRadarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type GradeStats = {
     average: number;

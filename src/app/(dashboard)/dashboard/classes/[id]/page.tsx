@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -15,12 +18,27 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
-import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
+
+
+
 import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const PerformanceBarChart = dynamic(() => import("@/components/charts/PerformanceBarChart").then((m) => m.PerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const SubjectRadarChart = dynamic(() => import("@/components/charts/SubjectRadarChart").then((m) => m.SubjectRadarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type ClassData = {
     id: string;
