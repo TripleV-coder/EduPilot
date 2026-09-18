@@ -30,31 +30,34 @@ export const GET = createApiHandler(
     const now = new Date();
     const startDate = getStartDate(period);
 
-    // All aggregations in parallel using database-level grouping
+    // Agrégations groupées en base. `DATE(x)` rend un `date` PostgreSQL, que le
+    // pilote convertit en objet `Date` : les clés du regroupement cessaient alors
+    // d'être des chaînes et le tri final levait un TypeError (N15). `TO_CHAR`
+    // rend explicitement la chaîne AAAA-MM-JJ attendue par le type déclaré.
     const [usersByDay, paymentsByDay, schoolsByDay, activityByDay] = await Promise.all([
       prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
-        SELECT DATE("createdAt") as day, COUNT(*) as count
+        SELECT TO_CHAR(DATE("createdAt"), 'YYYY-MM-DD') as day, COUNT(*) as count
         FROM users
         WHERE "createdAt" >= ${startDate}
         GROUP BY DATE("createdAt")
         ORDER BY day ASC
       `,
       prisma.$queryRaw<Array<{ day: string; count: bigint; revenue: number }>>`
-        SELECT DATE("paidAt") as day, COUNT(*) as count, COALESCE(SUM(amount), 0) as revenue
+        SELECT TO_CHAR(DATE("paidAt"), 'YYYY-MM-DD') as day, COUNT(*) as count, COALESCE(SUM(amount), 0) as revenue
         FROM payments
         WHERE "paidAt" >= ${startDate} AND "paidAt" IS NOT NULL
         GROUP BY DATE("paidAt")
         ORDER BY day ASC
       `,
       prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
-        SELECT DATE("createdAt") as day, COUNT(*) as count
+        SELECT TO_CHAR(DATE("createdAt"), 'YYYY-MM-DD') as day, COUNT(*) as count
         FROM schools
         WHERE "createdAt" >= ${startDate}
         GROUP BY DATE("createdAt")
         ORDER BY day ASC
       `,
       prisma.$queryRaw<Array<{ day: string; count: bigint }>>`
-        SELECT DATE("createdAt") as day, COUNT(*) as count
+        SELECT TO_CHAR(DATE("createdAt"), 'YYYY-MM-DD') as day, COUNT(*) as count
         FROM audit_logs
         WHERE "createdAt" >= ${startDate}
         GROUP BY DATE("createdAt")
@@ -77,7 +80,7 @@ export const GET = createApiHandler(
 
     const timeline = Array.from(dailyData.entries())
       .map(([date, data]) => ({ date, ...data }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
     const totalUsers = timeline.reduce((s, d) => s + d.users, 0);
     const totalPayments = timeline.reduce((s, d) => s + d.payments, 0);
