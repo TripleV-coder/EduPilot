@@ -225,7 +225,7 @@ export const POST = createApiHandler(
             type: announcement.priority === "URGENT" ? "WARNING" : "INFO",
             title: `Nouvelle annonce: ${announcement.title}`,
             message: announcement.content.substring(0, 150) + (announcement.content.length > 150 ? "..." : ""),
-            link: `/announcements/${announcement.id}`,
+            link: "/dashboard/announcements",
           }));
 
           await prisma.notification.createMany({

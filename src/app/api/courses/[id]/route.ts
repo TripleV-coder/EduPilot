@@ -221,7 +221,7 @@ export const PATCH = createApiHandler(
           type: "INFO",
           title: "Nouveau cours disponible",
           message: `Le cours "${updatedCourse.title}" est maintenant disponible`,
-          link: `/courses/${id}`,
+          link: `/dashboard/courses/${id}`,
         })),
       });
     }

@@ -310,7 +310,7 @@ const body = await request.json();
         type: "INFO" as const,
         title: "Nouveau devoir",
         message: `${homework.classSubject.subject.name}: ${homework.title} - À rendre le ${new Date(homework.dueDate).toLocaleDateString("fr-FR")}`,
-        link: `/homework/${homework.id}`,
+        link: `/dashboard/homework/${homework.id}`,
       }));
 
       await prisma.notification.createMany({

@@ -194,7 +194,7 @@ export const POST = createApiHandler(
           type: "SUCCESS",
           title: "Bourse accordée",
           message: `Vous avez reçu une bourse: ${scholarship.name} (${scholarship.percentage ? `${scholarship.percentage}%` : `${scholarship.amount}`})`,
-          link: `/scholarships/${scholarship.id}`,
+          link: "/dashboard/scholarships",
         },
       });
 
@@ -206,7 +206,7 @@ export const POST = createApiHandler(
             type: "SUCCESS",
             title: "Bourse accordée",
             message: `${student.user.firstName} ${student.user.lastName} a reçu une bourse: ${scholarship.name}`,
-            link: `/scholarships/${scholarship.id}`,
+            link: "/dashboard/scholarships",
           })),
         });
       }

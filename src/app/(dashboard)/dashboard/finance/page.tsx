@@ -401,19 +401,6 @@ export default function FinanceDashboardPage() {
                                             {dashData.recentPayments.length} encaissements récents
                                         </p>
                                     </div>
-                                    <Link
-                                        href="/dashboard/finance/payments"
-                                        style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            letterSpacing: "0.06em",
-                                            textTransform: "uppercase",
-                                            color: "var(--brand-700)",
-                                            textDecoration: "none",
-                                        }}
-                                    >
-                                        Voir tout
-                                    </Link>
                                 </div>
                                 {dashData.recentPayments.length === 0 ? (
                                     <EmptyRow

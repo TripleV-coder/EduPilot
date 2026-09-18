@@ -142,7 +142,7 @@ export const DELETE = createApiHandler(
           type: "WARNING",
           title: "Plan de paiement annulé",
           message: "Votre plan de paiement a été annulé",
-          link: `/payments/plans/${id}`,
+          link: "/dashboard/finance",
         },
       });
 

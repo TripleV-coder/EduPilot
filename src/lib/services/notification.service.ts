@@ -110,7 +110,7 @@ export async function notifyBulletinAvailable(
     type: "BULLETIN",
     title: "Bulletin disponible",
     message: `Votre bulletin pour ${periodName} est maintenant disponible`,
-    link: "/dashboard/report-cards",
+    link: "/dashboard/grades/bulletins",
   });
 }
 

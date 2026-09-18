@@ -158,7 +158,7 @@ export const POST = createApiHandler(async (request, context) => {
           type: "WARNING",
           title: "Nouvelle demande RGPD",
           message: `${session.user.firstName} ${session.user.lastName} a soumis une demande de type: ${validatedData.requestType}`,
-          link: `/compliance/data-requests/${dataRequest.id}`,
+          link: "/dashboard/compliance",
         })),
       });
     }

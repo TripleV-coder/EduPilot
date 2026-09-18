@@ -181,7 +181,7 @@ export const PATCH = createApiHandler(
             type: updatedScholarship.isActive ? "INFO" : "WARNING",
             title: `Bourse ${status}`,
             message: `Votre bourse "${updatedScholarship.name}" a été ${status}`,
-            link: `/scholarships/${id}`,
+            link: "/dashboard/scholarships",
           },
         });
 
@@ -193,7 +193,7 @@ export const PATCH = createApiHandler(
               type: updatedScholarship.isActive ? "INFO" : "WARNING",
               title: `Bourse ${status}`,
               message: `La bourse "${updatedScholarship.name}" de ${scholarship.student.user.firstName} a été ${status}`,
-              link: `/scholarships/${id}`,
+              link: "/dashboard/scholarships",
             })),
           });
         }

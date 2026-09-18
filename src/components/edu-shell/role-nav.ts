@@ -82,7 +82,7 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "users", label: "Utilisateurs", href: "/dashboard/users", countKey: "networkUsers", matchPrefix: true },
                         { icon: "money", label: "Finance consolidée", href: "/dashboard/finance", matchPrefix: true },
                         { icon: "chart", label: "Analyses réseau", href: "/dashboard/analytics", matchPrefix: true },
-                        { icon: "bell", label: "Alertes", href: "/dashboard/alerts", countKey: "networkAlerts", matchPrefix: true },
+                        { icon: "bell", label: "Alertes", href: "/dashboard/notifications", countKey: "networkAlerts", matchPrefix: true },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Configuration", href: "/dashboard/settings", matchPrefix: true },
                     ],

@@ -184,7 +184,7 @@ export default function ParentsPage() {
                                     <Button variant="ghost" icon="download" onClick={handleExportCSV}>
                                         {t("common.exportCsv")}
                                     </Button>
-                                    <Link href="/dashboard/parents/new">
+                                    <Link href="/dashboard/users/new?role=PARENT">
                                         <Button icon="plus">Ajouter un parent</Button>
                                     </Link>
                                 </RoleActionGuard>
@@ -252,7 +252,7 @@ export default function ParentsPage() {
                                           },
                                       },
                                   ]
-                                : [{ label: "Ajouter un parent", href: "/dashboard/parents/new" }]
+                                : [{ label: "Ajouter un parent", href: "/dashboard/users/new?role=PARENT" }]
                         }
                     />
                 ) : null}

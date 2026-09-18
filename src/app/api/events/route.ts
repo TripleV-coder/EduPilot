@@ -116,7 +116,7 @@ export const POST = createApiHandler(async (request, context) => {
           type: "INFO" as const,
           title: "Nouvel événement",
           message: `${validatedData.title} - ${new Date(validatedData.startDate).toLocaleDateString("fr-FR")}`,
-          link: `/events/${event.id}`,
+          link: "/dashboard/events",
         })),
       });
     }

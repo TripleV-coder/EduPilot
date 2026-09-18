@@ -121,7 +121,7 @@ export const POST = createApiHandler(
         type: "GRADE",
         title: "Devoir noté",
         message: `Votre devoir "${gradedSubmission.homework.title}" a été noté: ${validatedData.grade}/${submission.homework.maxGrade || 20}`,
-        link: `/homework/${submission.homeworkId}`,
+        link: `/dashboard/homework/${submission.homeworkId}`,
       },
     });
 

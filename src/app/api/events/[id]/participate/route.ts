@@ -125,7 +125,7 @@ export const POST = createApiHandler(async (request, context) => {
         type: "SUCCESS",
         title: "Inscription événement",
         message: `Vous êtes inscrit à l'événement: ${event.title}`,
-        link: `/events/${event.id}`,
+        link: "/dashboard/events",
       },
     });
 

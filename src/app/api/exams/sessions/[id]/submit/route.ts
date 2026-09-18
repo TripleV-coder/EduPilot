@@ -119,7 +119,7 @@ export const POST = createApiHandler(
         type: hasManualQuestions ? "INFO" : (updatedSession.isPassed ? "SUCCESS" : "INFO"),
         title: "Examen soumis",
         message: notificationMessage,
-        link: `/exams/sessions/${id}`,
+        link: "/dashboard/exams",
       },
     });
 

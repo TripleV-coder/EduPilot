@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, UserPlus, CheckCircle, Info } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { t } from "@/lib/i18n";
 import { Permission } from "@/lib/rbac/permissions";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -90,6 +91,9 @@ export default function NewUserPage() {
     });
     const { user } = useRBAC();
     const isSuperAdmin = user?.role === "SUPER_ADMIN";
+    // Rôle présélectionné par le lien d'appel (ex. « Ajouter un parent » → ?role=PARENT)
+    const requestedRole = formSchema.shape.role.safeParse(useSearchParams().get("role"));
+    const initialRole: UserFormValues["role"] = requestedRole.success ? requestedRole.data : "TEACHER";
 
     const { data: schoolsData, error: loadError, mutate: reloadOptions } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
     const schools: SchoolOption[] = Array.isArray(schoolsData)
@@ -103,7 +107,7 @@ export default function NewUserPage() {
             lastName: "",
             email: "",
             phone: "",
-            role: "TEACHER",
+            role: initialRole,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",
@@ -171,7 +175,7 @@ export default function NewUserPage() {
             lastName: "",
             email: "",
             phone: "",
-            role: "TEACHER",
+            role: initialRole,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",

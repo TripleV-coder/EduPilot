@@ -186,7 +186,7 @@ export const POST = createApiHandler(
         type: (incident.severity === "CRITICAL" || incident.severity === "HIGH" ? "WARNING" : "INFO") as NotificationType,
         title: "Incident de comportement",
         message: `Un incident de type "${validatedData.incidentType}" a été signalé concernant ${incident.student.user.firstName} ${incident.student.user.lastName}`,
-        link: `/incidents/${incident.id}`,
+        link: `/dashboard/incidents/${incident.id}`,
       }));
 
       if (parentNotifications.length > 0) {
@@ -203,7 +203,7 @@ export const POST = createApiHandler(
             type: "WARNING",
             title: "Incident signalé",
             message: `Un incident de comportement a été enregistré`,
-            link: `/incidents/${incident.id}`,
+            link: `/dashboard/incidents/${incident.id}`,
           },
         });
       }

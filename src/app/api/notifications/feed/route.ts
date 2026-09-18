@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
+import { normalizeNotificationLink } from "@/lib/utils/notification-links";
 import type { NotificationType, Prisma } from "@prisma/client";
 
 type CatColor = "neutral" | "danger" | "warning" | "success" | "info" | "brand";
@@ -180,7 +181,7 @@ export const GET = createApiHandler(async (request, { session }) => {
                 priority,
                 title: n.title,
                 body: n.message,
-                link: n.link,
+                link: normalizeNotificationLink(n.link) ?? null,
                 isRead: n.isRead,
                 createdAt: n.createdAt.toISOString(),
                 relativeTime: relativeTime(n.createdAt),

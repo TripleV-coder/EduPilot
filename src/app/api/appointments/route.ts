@@ -311,7 +311,7 @@ export const POST = createApiHandler(
             type: "INFO",
             title: "Nouveau rendez-vous",
             message: `${appointment.parent.user.firstName} ${appointment.parent.user.lastName} souhaite un rendez-vous concernant ${appointment.student.user.firstName} ${appointment.student.user.lastName}`,
-            link: `/appointments/${appointment.id}`,
+            link: "/dashboard/appointments",
           },
         }),
         // Notify parent
@@ -321,7 +321,7 @@ export const POST = createApiHandler(
             type: "SUCCESS",
             title: "Rendez-vous demandé",
             message: `Votre demande de rendez-vous avec ${appointment.teacher.user.firstName} ${appointment.teacher.user.lastName} a été envoyée`,
-            link: `/appointments/${appointment.id}`,
+            link: "/dashboard/appointments",
           },
         }),
       ]);

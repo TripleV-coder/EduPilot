@@ -258,7 +258,7 @@ export const POST = createApiHandler(
             type: "INFO",
             title: "Nouveau cours disponible",
             message: `Le cours "${course.title}" est maintenant disponible`,
-            link: `/courses/${course.id}`,
+            link: `/dashboard/courses/${course.id}`,
           })),
           skipDuplicates: true,
         });
