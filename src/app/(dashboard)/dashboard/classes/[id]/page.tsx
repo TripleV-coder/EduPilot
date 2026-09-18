@@ -151,7 +151,9 @@ export default function ClassDetailsPage() {
 
                 if (teachersRes.ok) {
                     const t = await teachersRes.json();
-                    setAvailableTeachers(Array.isArray(t) ? t : t.teachers || []);
+                    // /api/teachers répond au format unique { data, pagination }
+                    // depuis le Lot 8 ; `teachers` est l'ancienne clé.
+                    setAvailableTeachers(Array.isArray(t) ? t : t.data ?? t.teachers ?? []);
                 }
 
                 if (allSubjectsRes.ok) {
