@@ -6,7 +6,6 @@
 import prisma from "@/lib/prisma";
 import { CONFIG, type CausalFactor } from "./types";
 import { linearRegression } from "./algorithms/regression";
-import { temporalWeightedAverage } from "./algorithms/statistics";
 
 /**
  * Prédit le risque d'échec d'un élève en utilisant un modèle de scoring AMÉLIORÉ
@@ -82,11 +81,10 @@ export async function predictFailureRisk(studentId: string): Promise<{
         const grades = studentAnalytics.map(sa => Number(sa.generalAverage || 0));
         const latestAvg = grades[0];
 
-        // Utiliser moyenne pondérée temporellement
-        const _weightedAvg = temporalWeightedAverage(grades.reverse());
-
-        // Calcul de la tendance avec régression
-        const gradePoints = grades.map((g, i) => ({ x: i + 1, y: g }));
+        // Régression sur l'ordre chronologique (du plus ancien au plus récent) :
+        // la requête trie par date décroissante.
+        const chronological = [...grades].reverse();
+        const gradePoints = chronological.map((g, i) => ({ x: i + 1, y: g }));
         const trendModel = linearRegression(gradePoints);
         const trend = trendModel.slope;
 
