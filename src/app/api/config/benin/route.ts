@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { primarySubjects, collegeSubjects, gradeMentions } from "@/lib/benin/config";
 import { LEVEL_CYCLES } from "@/lib/benin/levels";
 import { createApiHandler } from "@/lib/api/api-helpers";

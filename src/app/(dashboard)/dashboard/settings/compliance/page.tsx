@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Permission } from "@/lib/rbac/permissions";
-import { Shield, AlertCircle, CheckCircle, Database, Users, Activity, FileText, Lock, Clock, Bell } from "lucide-react";
-import Link from "next/link";
+import { Shield, AlertCircle, CheckCircle, Database, Users, Activity, FileText, Bell } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 type ComplianceAlert = {

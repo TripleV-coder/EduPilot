@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Avatar, Badge, Card, Icon, Spinner, type IconName } from "@/components/edu";
+import { Avatar, Badge, Card, Icon, type IconName } from "@/components/edu";
 import {
     type Student,
     type EvaluationData,
-    type ScoreVariant,
     pickScoreVariant,
     variantToken,
 } from "./types";

@@ -1,20 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
+import { PageHeader } from "@/components/layout/page-shell";
+import { PageLoading } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Permission } from "@/lib/rbac/permissions";
 import {
-    BarChart3, AlertCircle, Users, GraduationCap, TrendingUp,
+    AlertCircle, GraduationCap, 
     RefreshCcw, Wallet, FileText, CalendarDays, Scale, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";

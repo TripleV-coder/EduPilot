@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   ArrowUpRight, Users, GraduationCap, 
   Loader2, Save, 

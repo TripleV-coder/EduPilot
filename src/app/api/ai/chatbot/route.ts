@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { chatWithAI } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";

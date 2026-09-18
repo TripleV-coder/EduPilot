@@ -15,9 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Permission } from "@/lib/rbac/permissions";
 import { 
-  GraduationCap, ArrowLeft, Award, Download, Loader2, 
-  BookOpen, CalendarCheck, Users, BarChart3, BrainCircuit, 
-  Edit, ShieldAlert, HeartPulse, DollarSign, Activity, FileText,
+  GraduationCap, ArrowLeft, Download, Loader2, 
+  CalendarCheck, 
+  Edit, ShieldAlert, HeartPulse, DollarSign, Activity, 
   UserCircle, CreditCard
 } from "lucide-react";
 import { StudentGradesTab } from "@/components/students/student-grades-tab";

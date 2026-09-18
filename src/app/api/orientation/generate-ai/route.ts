@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { aiService, OrientationRecommendation } from "@/lib/ai/ai-service";
 import { SubjectGroup } from "@prisma/client";

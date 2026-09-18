@@ -16,7 +16,6 @@ import {
     Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
 
 type ChannelStatus = {
     connected: boolean;

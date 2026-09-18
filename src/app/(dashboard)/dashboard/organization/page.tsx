@@ -19,9 +19,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
 } from "recharts";
-import { CHART_COLORS, FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
+import { FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageEmpty, PageError } from "@/components/layout/page-states";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

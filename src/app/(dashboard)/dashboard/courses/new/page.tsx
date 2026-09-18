@@ -7,10 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
     Form,
@@ -32,7 +31,6 @@ import { Switch } from "@/components/ui/switch";
 import { 
     Plus, 
     Trash2, 
-    GripVertical, 
     BookOpen, 
     Layers, 
     FileText, 
@@ -40,11 +38,8 @@ import {
     Save, 
     ChevronDown, 
     ChevronUp,
-    Loader2,
-    AlertCircle
-} from "lucide-react";
+    Loader2} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import type { ClassSubjectWithTeacher } from "@/lib/types";

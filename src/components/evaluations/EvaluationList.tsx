@@ -4,9 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
-  FileText, Calendar, Users, Target, ArrowRight, 
-  MoreVertical, Edit, Trash2, CheckCircle2, Clock, AlertCircle
-} from "lucide-react";
+  FileText, Calendar, ArrowRight, 
+  MoreVertical, CheckCircle2, Clock} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { Grade } from "@/lib/types";

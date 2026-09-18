@@ -7,7 +7,6 @@
  * Seul `app/(dashboard)/dashboard/loading.tsx` charge ce fichier.
  */
 
-import { cn } from "@/lib/utils";
 import { Skeleton } from "./skeleton";
 
 /* ─── Framer Motion stagger variants ──── */

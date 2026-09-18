@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { writeFile, mkdir, readFile, appendFile } from "fs/promises";
 import { existsSync } from "fs";

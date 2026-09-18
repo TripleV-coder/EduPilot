@@ -8,7 +8,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
-import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
+import { Badge, Button, Card, Chip } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 import { SubLabel } from "@/components/edu-homes/_shared";

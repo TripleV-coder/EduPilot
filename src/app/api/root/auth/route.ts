@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { timingSafeEqual, createHash } from "node:crypto";
 import { hasValidRootSession } from "@/lib/security/root-access";
 

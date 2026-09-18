@@ -48,13 +48,6 @@ function getRedis(): Redis | null {
 
 let cache: { state: EdgeMaintenanceState | null; at: number } | null = null;
 
-/** Vide le cache mémoire (tests, ou après publication). */
-export function resetEdgeMaintenanceCache(): void {
-    cache = null;
-    clientResolved = false;
-    client = null;
-}
-
 /**
  * Publie l'état courant dans le miroir Redis. Appelé après chaque écriture de
  * l'état en base. Silencieux en cas d'échec : la base reste la source de vérité.

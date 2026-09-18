@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { cepSubjects, bepcSubjects, gradeMentions } from "@/lib/benin/config";
+import { gradeMentions } from "@/lib/benin/config";
 import { logger } from "@/lib/utils/logger";
 
 export interface ExamSubjectConfig {

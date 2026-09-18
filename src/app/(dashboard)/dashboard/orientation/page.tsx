@@ -26,10 +26,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    GraduationCap, Search, Loader2, Plus, LineChart,
+    GraduationCap, Search, Loader2, Plus, 
     CheckCircle2, FileText, ArrowRight, BookOpen, AlertCircle, Sparkles,
-    Zap, Brain, History, UserCheck
-} from "lucide-react";
+    Zap, Brain} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { formatDateNumeric } from "@/lib/utils/formatters";
 import {

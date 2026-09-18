@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiClassComparison } from "@/components/analytics/MultiClassComparison";
 import { PeriodComparison } from "@/components/analytics/PeriodComparison";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { Badge } from "@/components/ui/badge";
-import { Scale, GitCompare, Calendar } from "lucide-react";
+import { Scale, Calendar } from "lucide-react";
 
 interface AnalyticsComparisonsTabProps {
     classes: Array<{ id: string; name: string }>;

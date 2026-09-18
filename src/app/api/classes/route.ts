@@ -6,7 +6,6 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import type { ClassWhereFilter } from "@/lib/types/api";
 import { Permission } from "@/lib/rbac/permissions";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";

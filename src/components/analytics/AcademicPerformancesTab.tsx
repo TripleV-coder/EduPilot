@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -17,7 +17,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { 
-    GraduationCap, BookOpen, Users, 
+    GraduationCap, BookOpen, 
     ArrowRight, ScatterChart as ScatterIcon, User
 } from "lucide-react";
 import { 

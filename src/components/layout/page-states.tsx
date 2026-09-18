@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Button, Icon, Spinner, type IconName } from "@/components/edu";
 import { cn } from "@/lib/utils";
 
@@ -127,25 +126,4 @@ export function PageEmpty({
             ) : null}
         </div>
     );
-}
-
-export function PageStateBoundary({
-    loading,
-    error,
-    empty,
-    isEmpty,
-    onRetry,
-    children,
-}: {
-    loading?: boolean;
-    error?: string | null;
-    empty?: ReactNode;
-    isEmpty?: boolean;
-    onRetry?: () => void;
-    children: ReactNode;
-}) {
-    if (loading) return <PageLoading />;
-    if (error) return <PageError message={error} onRetry={onRetry} />;
-    if (isEmpty && empty) return <>{empty}</>;
-    return <>{children}</>;
 }

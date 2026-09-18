@@ -114,13 +114,6 @@ export function setUserContext(userId: string, _email?: string, role?: string) {
 }
 
 /**
- * Clear user context
- */
-export function clearUserContext() {
-  Sentry.setUser(null);
-}
-
-/**
  * Add breadcrumb
  */
 export function addBreadcrumb(message: string, category: string, level: Sentry.SeverityLevel = "info", data?: Record<string, unknown>) {
@@ -129,15 +122,5 @@ export function addBreadcrumb(message: string, category: string, level: Sentry.S
     category,
     level,
     data,
-  });
-}
-
-/**
- * Start transaction for performance monitoring
- */
-export function startTransaction(name: string, op: string) {
-  return Sentry.startSpan({
-    name,
-    op,
   });
 }

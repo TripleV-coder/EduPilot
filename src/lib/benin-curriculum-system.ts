@@ -55,7 +55,6 @@ export function calculateGeneralAverage(subjects: { subjectId: string; subjectNa
 export const BENIN_SCHOOL_LEVELS = { PRIMARY: "PRIMARY", SECONDARY_COLLEGE: "SECONDARY_COLLEGE" } as const;
 export const BENIN_PRIMARY_GRADES = ["CI", "CP", "CE1", "CE2", "CM1", "CM2"];
 export const BENIN_COLLEGE_GRADES = ["6E", "5E", "4E", "3E"];
-export const BENIN_ALL_GRADES = [...BENIN_PRIMARY_GRADES, ...BENIN_COLLEGE_GRADES];
 
 export default {
   validateCoefficient,

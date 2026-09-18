@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { calculateWeightedAverage } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";

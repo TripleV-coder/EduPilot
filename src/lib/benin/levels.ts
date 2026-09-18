@@ -94,10 +94,6 @@ export function getCycle(level: SchoolLevel): LevelCycle | null {
   return isRealCycle(level) ? LEVEL_CYCLES[level] : null;
 }
 
-export function gradesForLevel(level: SchoolLevel): string[] {
-  return getCycle(level)?.grades ?? [];
-}
-
 export function examForLevel(level: SchoolLevel): FinalExam | null {
   return getCycle(level)?.finalExam ?? null;
 }

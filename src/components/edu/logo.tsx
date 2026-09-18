@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 
 export interface LogoProps {
     size?: number;

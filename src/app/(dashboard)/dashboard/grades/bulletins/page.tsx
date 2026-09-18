@@ -7,7 +7,7 @@ import { useReactToPrint } from "react-to-print";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
-import { Badge, Button, Card, Icon, Logo, Spinner } from "@/components/edu";
+import { Badge, Button, Card, Icon, Logo } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
 

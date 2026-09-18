@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import useSWR from "swr";
 
 import { PageGuard } from "@/components/guard/page-guard";

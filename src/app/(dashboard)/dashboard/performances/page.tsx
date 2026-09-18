@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { exportToCSV, exportToPDF } from "@/lib/utils/export";
-import { LineChart, BarChart3, TrendingUp, Trophy, BookOpen, AlertCircle, Loader2, Filter, Download } from "lucide-react";
+import { LineChart, BarChart3, TrendingUp, Trophy, BookOpen, Filter, Download } from "lucide-react";
 import {
     BarChart,
     Bar,

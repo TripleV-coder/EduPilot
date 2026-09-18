@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { recommendationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";

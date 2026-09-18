@@ -8,7 +8,7 @@ import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -21,7 +21,6 @@ import {
     ChevronRight, 
     Send,
     Loader2,
-    CheckCircle2,
     Trophy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

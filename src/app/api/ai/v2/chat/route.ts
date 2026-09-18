@@ -3,7 +3,7 @@
  * Handles chat requests with streaming support for authenticated users only
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { aiService } from '@/lib/ai/ai-service';
 import { checkN8nHealth } from '@/lib/ai/n8n-client';
 import { logger } from '@/lib/utils/logger';

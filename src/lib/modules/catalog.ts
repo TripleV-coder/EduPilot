@@ -328,7 +328,3 @@ export function normalizeEnabledModules(stored: readonly string[] | null | undef
     for (const id of REQUIRED_MODULE_IDS) set.add(id);
     return ALL_MODULE_IDS.filter((id) => set.has(id));
 }
-
-export function isModuleEnabled(enabled: readonly string[] | null | undefined, id: ModuleId): boolean {
-    return normalizeEnabledModules(enabled).includes(id);
-}

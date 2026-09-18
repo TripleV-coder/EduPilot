@@ -9,7 +9,6 @@ import {
     ChevronRight, 
     BrainCircuit, 
     User, 
-    ArrowRight, 
     BookOpen, 
     Clock, 
     CheckCircle2,

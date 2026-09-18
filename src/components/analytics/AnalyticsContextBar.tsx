@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useAnalytics, StudentSegment } from "./AnalyticsContext";
 import { useSchool } from "@/components/providers/school-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

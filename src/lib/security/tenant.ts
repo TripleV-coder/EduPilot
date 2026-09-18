@@ -22,13 +22,6 @@ export function requireSchoolContext(session: Session): TenantGuardResult {
   return null;
 }
 
-export function ensureSchoolMatch(session: Session, schoolId: string | null, notFoundMsg = "Ressource introuvable") {
-  if (session.user.role === "SUPER_ADMIN") return null;
-  if (!schoolId) return notFound(notFoundMsg);
-  if (!canAccessSchool(session, schoolId)) return forbidden("Accès refusé à cet établissement");
-  return null;
-}
-
 // --- Model-specific school ownership lookup ---
 
 async function schoolFromGrade(id: string) {

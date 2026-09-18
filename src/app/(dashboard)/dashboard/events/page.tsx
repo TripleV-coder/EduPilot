@@ -13,7 +13,6 @@ import {
     Card,
     Icon,
     Input,
-    Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";

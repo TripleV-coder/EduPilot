@@ -259,15 +259,3 @@ export function logApiError(
     userId,
   });
 }
-
-/**
- * Log database query (only in development)
- */
-export function logDatabaseQuery(query: string, duration?: number): void {
-  if (process.env.NODE_ENV === "development") {
-    logger.debug("Database Query", {
-      query,
-      duration: duration ? `${duration}ms` : undefined,
-    });
-  }
-}

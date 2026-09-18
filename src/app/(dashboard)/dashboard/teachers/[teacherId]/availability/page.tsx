@@ -2,7 +2,7 @@
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError } from "@/components/layout/page-states";
+import { PageLoading } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Clock, Save, CalendarCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

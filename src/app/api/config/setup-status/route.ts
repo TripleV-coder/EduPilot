@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { t } from "@/lib/i18n";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const GET = createApiHandler(async (_request, context) => {

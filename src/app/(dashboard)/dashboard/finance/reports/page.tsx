@@ -8,7 +8,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { BarChart3, TrendingUp, TrendingDown, Calendar, FileText, Download, AlertCircle, Loader2 } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Calendar, Download, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 

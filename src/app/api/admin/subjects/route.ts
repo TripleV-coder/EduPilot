@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { primarySubjects, collegeSubjects } from "@/lib/benin/config";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";

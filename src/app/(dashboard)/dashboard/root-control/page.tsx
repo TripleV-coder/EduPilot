@@ -9,11 +9,8 @@ import {
   Activity,
   Building2,
   Clock,
-  HardDrive,
   MapPin,
   ShieldAlert,
-  Users,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import useSWR from "swr";

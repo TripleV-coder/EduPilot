@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import type { UserRole } from "@prisma/client";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageHeader } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { Permission, getRoleName } from "@/lib/rbac/permissions";
 import {

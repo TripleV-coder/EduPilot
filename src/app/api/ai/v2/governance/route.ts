@@ -3,7 +3,7 @@
  * Executes governance actions on real platform data.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AIServiceError, aiService } from '@/lib/ai/ai-service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";

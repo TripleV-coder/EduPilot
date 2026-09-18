@@ -2,7 +2,7 @@
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info, Cpu, Database, Blocks, ShieldCheck, Server } from "lucide-react";
 
 export default function SystemInfoPage() {

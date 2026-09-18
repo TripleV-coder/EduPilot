@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
-import { Badge, Button, Card, Icon, Spinner } from "@/components/edu";
+import { Button, Card, Icon } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { SubLabel } from "@/components/edu-homes/_shared";
 import {
@@ -19,7 +19,6 @@ import {
     type FormState,
     STEPS,
     INITIAL_FORM,
-    FR_AMOUNT,
     PEDA_OPTIONS,
 } from "@/components/students/inscription/types";
 import { loading_spinner_placeholder } from "@/components/students/inscription/fields";

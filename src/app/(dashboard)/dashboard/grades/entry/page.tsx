@@ -12,15 +12,12 @@ import { useAutoSave } from "@/hooks/use-autosave";
 
 import {
     Avatar,
-    Badge,
     Button,
     Card,
     Icon,
-    Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
-import { SubLabel } from "@/components/edu-homes/_shared";
 import {
     type ClassOption,
     type PeriodOption,
@@ -31,7 +28,6 @@ import {
 } from "@/components/grades/entry/types";
 import { AppreciationButton } from "@/components/ai/appreciation-button";
 import {
-    type CellState,
     computeCellState,
     StateBadge,
     NoteCell,

@@ -5,7 +5,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { FilePlus2, AlertCircle, ArrowRight, Zap, ListChecks } from "lucide-react";
+import { FilePlus2, AlertCircle, Zap, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

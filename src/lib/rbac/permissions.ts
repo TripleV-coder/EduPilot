@@ -527,18 +527,6 @@ export function roleSatisfies(
   return false;
 }
 
-/**
- * Check if user can perform an action on a resource
- */
-export function canPerformAction(
-  userRole: UserRole,
-  action: "create" | "read" | "update" | "delete",
-  resource: string
-): boolean {
-  const permission = `${resource}:${action}` as Permission;
-  return hasPermission(userRole, permission);
-}
-
 // ============================================
 // ROLE HIERARCHY (for inheritance)
 // ============================================

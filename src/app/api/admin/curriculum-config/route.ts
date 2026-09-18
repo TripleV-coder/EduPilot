@@ -6,12 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { createApiHandler, translateError, type TranslationFn } from "@/lib/api/api-helpers";
+import { createApiHandler, type TranslationFn } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { validateCoefficient, validateGrade } from "@/lib/benin-curriculum-system";
+import { validateCoefficient } from "@/lib/benin-curriculum-system";
 
 // ============================================
 // SCHÉMAS DE VALIDATION

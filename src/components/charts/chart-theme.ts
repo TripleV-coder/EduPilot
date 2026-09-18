@@ -32,10 +32,6 @@ export const FR_TOOLTIP_STYLE: { contentStyle: CSSProperties } = {
   },
 };
 
-export function formatNote(value: number): string {
-  return `${value.toFixed(1)}/20`;
-}
-
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }

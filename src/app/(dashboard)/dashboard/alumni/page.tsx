@@ -9,12 +9,9 @@ import { Permission } from "@/lib/rbac/permissions";
 import {
     Avatar,
     Badge,
-    Button,
     Card,
     Chip,
-    Icon,
     MetricCard,
-    Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";

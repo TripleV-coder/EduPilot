@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import useSWR, { useSWRConfig } from "swr";
+import { useSWRConfig } from "swr";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { fetcher } from "@/lib/fetcher";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";

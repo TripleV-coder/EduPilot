@@ -1,8 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
-import { DollarSign, AlertCircle, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
+import { DollarSign, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";

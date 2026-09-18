@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma, DataAccessStatus } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";

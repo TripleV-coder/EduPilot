@@ -186,31 +186,6 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   OTHER: "Autre",
 };
 
-// Payment Status Labels
-export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  PENDING: "En attente",
-  VERIFIED: "Vérifié",
-  RECONCILED: "Réconcilié",
-  CANCELLED: "Annulé",
-};
-
-// Scholarship Type Labels
-export const SCHOLARSHIP_TYPE_LABELS: Record<string, string> = {
-  MERIT: "Mérite académique",
-  NEED_BASED: "Besoin financier",
-  SPORTS: "Sportive",
-  ACADEMIC: "Académique",
-  OTHER: "Autre",
-};
-
-// Payment Status Colors
-export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  VERIFIED: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  RECONCILED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
-
 // Format currency helper
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("fr-FR", {
@@ -218,28 +193,4 @@ export const formatCurrency = (amount: number): string => {
     currency: "XOF",
     minimumFractionDigits: 0,
   }).format(amount);
-};
-
-// Calculate payment plan schedule
-export const calculateInstallmentSchedule = (
-  totalAmount: number,
-  installments: number,
-  firstDueDate: Date
-): { amount: number; dueDate: Date }[] => {
-  const installmentAmount = Math.round(totalAmount / installments);
-  const schedule: { amount: number; dueDate: Date }[] = [];
-
-  for (let i = 0; i < installments; i++) {
-    const dueDate = new Date(firstDueDate);
-    dueDate.setMonth(dueDate.getMonth() + i);
-
-    // Last installment gets the remainder
-    const amount = i === installments - 1
-      ? totalAmount - (installmentAmount * (installments - 1))
-      : installmentAmount;
-
-    schedule.push({ amount, dueDate });
-  }
-
-  return schedule;
 };

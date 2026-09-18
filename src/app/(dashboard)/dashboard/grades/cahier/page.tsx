@@ -1,33 +1,26 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
-    Avatar,
     Badge,
     Button,
     Card,
     Icon,
     Spinner,
-    type IconName,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
-import { SubLabel } from "@/components/edu-homes/_shared";
 import {
     type Student,
-    type GradeEntry,
-    type EvalStats,
     type EvaluationData,
     type SubjectInfo,
     type ClassOption,
     type PeriodOption,
     type EvalTypeOption,
-    type ScoreVariant,
     pickScoreVariant,
     variantToken,
 } from "@/components/grades/cahier/types";

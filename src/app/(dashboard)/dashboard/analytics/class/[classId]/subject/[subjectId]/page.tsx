@@ -15,8 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
     BarChart3, ArrowLeft, TrendingUp, Users, 
-    GraduationCap, BookOpen, User, Calendar
-} from "lucide-react";
+    GraduationCap} from "lucide-react";
 import Link from "next/link";
 
 

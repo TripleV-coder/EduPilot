@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,12 +14,8 @@ import {
     Save,
     Plus,
     Trash2,
-    LayoutGrid,
     GraduationCap,
-    Star,
-    RefreshCw
-} from "lucide-react";
-import { t } from "@/lib/i18n";
+    Star} from "lucide-react";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 const DEFAULT_BAC_SUBJECTS: ExamSubject[] = [

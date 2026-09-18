@@ -4,7 +4,7 @@ import { Session } from "next-auth";
  * Central API for chat and governance actions with explicit engine status.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AIServiceError, aiService } from '@/lib/ai/ai-service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";

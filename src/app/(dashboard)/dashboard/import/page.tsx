@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";

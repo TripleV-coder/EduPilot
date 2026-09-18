@@ -15,7 +15,6 @@ import {
     Chip,
     Progress,
     Sparkline,
-    Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { aiService } from "@/lib/ai/ai-service";
 import { logger } from "@/lib/utils/logger";
 import { getErrorMessage } from "@/lib/utils/error-message";

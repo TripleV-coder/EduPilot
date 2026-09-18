@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
     Form,
     FormControl,
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Permission } from "@/lib/rbac/permissions";
 import { incidentCreateSchema, IncidentFormValues } from "@/lib/validations/incident";
-import { AlertCircle, Save, ArrowLeft, Loader2 } from "lucide-react";
+import { Save, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useStudentList } from "@/hooks/use-student-list";
