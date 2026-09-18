@@ -112,7 +112,7 @@ const students = await prisma.studentProfile.findMany({
 
 **Sécurité** :
 - Middleware vérifie systématiquement `schoolId`
-- Row Level Security au niveau applicatif
+- Row Level Security PostgreSQL (`FORCE RLS`) sur les tables sensibles, contexte posé par requête
 - Audit logs pour la traçabilité
 
 ---
@@ -140,20 +140,20 @@ edupilot/
 │   ├── lib/                   # Bibliothèques et utilitaires
 │   │   ├── api/              # Helpers API
 │   │   ├── auth/             # Configuration auth
-│   │   ├── config/           # Configuration app
-│   │   ├── security/         # Sécurité (RBAC, rate limit)
+│   │   ├── rbac/             # Rôles et permissions
+│   │   ├── security/         # Sécurité (IP client, consentement, RGPD, rétention, audit)
 │   │   ├── services/         # Business logic
+│   │   ├── cache/            # Cache (Redis + mémoire)
 │   │   ├── utils/            # Utilitaires généraux
-│   │   ├── cache.ts          # Système de cache
-│   │   ├── redis-cache.ts    # Cache Redis optimisé
-│   │   ├── performance.ts    # Monitoring performance
-│   │   └── prisma.ts         # Client Prisma singleton
+│   │   ├── env.ts            # Variables d'environnement validées
+│   │   ├── rate-limit.ts     # Limites de débit
+│   │   └── prisma.ts         # Client Prisma singleton (contexte RLS)
 │   │
 │   ├── types/                 # Types TypeScript globaux
 │   ├── hooks/                 # React hooks personnalisés
-│   ├── domain/                # Logique métier (Domain Driven)
-│   ├── middleware.ts          # Middleware Next.js
-│   └── instrumentation.ts     # Observabilité
+│   └── proxy.ts               # Proxy Next.js 16 (ex-middleware)
+│
+├── instrumentation.ts         # Observabilité (Sentry, démarrage)
 │
 ├── prisma/
 │   ├── schema.prisma          # Schéma de base de données
@@ -163,7 +163,8 @@ edupilot/
 │
 ├── tests/
 │   ├── lib/                  # Tests unitaires
-│   ├── api/                  # Tests d'intégration API
+│   ├── api/                  # Tests des routes API (Prisma simulé)
+│   ├── integration-db/       # Tests d'intégration sur vrai PostgreSQL
 │   └── setup.ts              # Configuration des tests
 │
 ├── e2e/                      # Tests E2E Playwright
