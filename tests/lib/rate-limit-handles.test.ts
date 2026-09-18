@@ -8,10 +8,15 @@ import {
 } from "@/lib/rate-limit";
 
 /**
- * Sans UPSTASH_REDIS_REST_URL/TOKEN (cas de la suite de tests), tous les
- * LimiterHandle ont limiter=null → le fallback in-memory est exercé.
- * Régression du bug CI 2026-06-10 : chaque limiter doit garder son propre
- * bucket (la résolution par identité faisait tout matcher sur auth 5/15min).
+ * Sans UPSTASH_REDIS_REST_URL/TOKEN (cas de la suite de tests), le moteur
+ * tombe sur le magasin mémoire. Régression du bug CI 2026-06-10 : chaque
+ * limiter doit garder son propre seau (la résolution par identité faisait
+ * tout matcher sur auth 5/15min).
+ *
+ * L3 (2026-09-18) : après fusion des trois modules, un LimiterHandle porte
+ * `{ name, config }` au lieu de `{ limiter, fallback, name }` — il n'existe
+ * plus d'objet Ratelimit à inspecter, le seuil vit dans `config.maxAttempts`.
+ * Les comportements vérifiés sont inchangés.
  */
 
 beforeEach(() => {
@@ -29,14 +34,14 @@ describe("checkRateLimit — fallback in-memory", () => {
     expect(strictLimiter.name).toBe("strict");
     expect(uploadLimiter.name).toBe("upload");
     for (const handle of [apiLimiter, authLimiter, strictLimiter, uploadLimiter]) {
-      expect(handle.limiter).toBeNull(); // pas d'Upstash en test
-      expect(handle.fallback.limit).toBeGreaterThan(0);
+      expect(handle.config.maxAttempts).toBeGreaterThan(0);
+      expect(handle.config.windowMs).toBeGreaterThan(0);
     }
   });
 
   it("bloque après la limite et décompte remaining", async () => {
     const ip = "10.99.0.1";
-    const limit = authLimiter.fallback.limit;
+    const limit = authLimiter.config.maxAttempts;
 
     for (let i = 1; i <= limit; i++) {
       const result = await checkRateLimit(authLimiter, ip);
@@ -54,7 +59,7 @@ describe("checkRateLimit — fallback in-memory", () => {
     const ip = "10.99.0.2";
 
     // Saturer le limiter auth
-    for (let i = 0; i <= authLimiter.fallback.limit; i++) {
+    for (let i = 0; i <= authLimiter.config.maxAttempts; i++) {
       await checkRateLimit(authLimiter, ip);
     }
     expect((await checkRateLimit(authLimiter, ip)).success).toBe(false);
@@ -66,7 +71,7 @@ describe("checkRateLimit — fallback in-memory", () => {
   });
 
   it("isole les buckets par identifiant (IP)", async () => {
-    const limit = uploadLimiter.fallback.limit;
+    const limit = uploadLimiter.config.maxAttempts;
     for (let i = 0; i <= limit; i++) {
       await checkRateLimit(uploadLimiter, "10.99.0.3");
     }
@@ -76,7 +81,7 @@ describe("checkRateLimit — fallback in-memory", () => {
 
   it("réinitialise le compteur après la fenêtre", async () => {
     const ip = "10.99.0.5";
-    const { limit, windowMs } = strictLimiter.fallback;
+    const { maxAttempts: limit, windowMs } = strictLimiter.config;
 
     for (let i = 0; i <= limit; i++) {
       await checkRateLimit(strictLimiter, ip);

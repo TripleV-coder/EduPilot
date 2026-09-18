@@ -8,8 +8,7 @@ import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { SchoolType, SchoolLevel } from "@prisma/client";
-import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { authLimiter, checkRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import {
   createOrganization,
   createOrganizationMembership,

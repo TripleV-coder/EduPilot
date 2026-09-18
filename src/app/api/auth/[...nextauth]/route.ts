@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GET as AuthGET, POST as AuthPOST } from "@/lib/auth";
 import {
-  checkRateLimit,
+  checkRateLimitKey,
   getClientIp,
   createRateLimitKey,
   releaseRateLimit,
   LOGIN_FAILURE_RATE_LIMIT,
-} from '@/lib/auth/rate-limiter';
+} from '@/lib/rate-limit';
 import { SERVICE_UNAVAILABLE_CODE } from '@/lib/auth/login-failure';
 
 /** Point d'entrée réel de la connexion par identifiants (NextAuth v5). */
@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
   }
 
   const rateLimitKey = createRateLimitKey("login-failures", getClientIp(req));
-  const attempt = await checkRateLimit(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
+  const attempt = await checkRateLimitKey(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
 
-  if (!attempt.allowed) {
-    const retryAfter = Math.max(1, Math.ceil((attempt.resetTime - Date.now()) / 1000));
+  if (!attempt.success) {
+    const retryAfter = Math.max(1, Math.ceil((attempt.reset.getTime() - Date.now()) / 1000));
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("error", LOGIN_RATE_LIMITED_ERROR);
     loginUrl.searchParams.set("code", "rate_limited");

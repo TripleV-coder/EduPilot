@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import { checkRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { checkRateLimitKey, API_RATE_LIMIT } from "@/lib/rate-limit";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getClientIp } from "@/lib/security/client-ip";
 
@@ -26,8 +26,8 @@ export const POST = createApiHandler(async (request, context) => {
     try {
     // Endpoint anonyme : rate limit IP pour éviter le flood
     const ip = getClientIp(request.headers);
-    const rl = await checkRateLimit(`rl:web-vitals:${ip}`, API_RATE_LIMIT);
-    if (!rl.allowed) {
+    const rl = await checkRateLimitKey(`rl:web-vitals:${ip}`, API_RATE_LIMIT);
+    if (!rl.success) {
       return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 });
     }
 

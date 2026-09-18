@@ -17,11 +17,11 @@ vi.mock("@/lib/prisma", () => ({
 }));
 // Le routeur utilise le rate limiter in-memory/Redis : mock de checkRateLimit
 // pour contrôler le comportement 429 sans état partagé entre tests.
-vi.mock("@/lib/auth/rate-limiter", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/auth/rate-limiter")>();
+vi.mock("@/lib/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/rate-limit")>();
   return {
     ...actual,
-    checkRateLimit: checkRateLimitMock,
+    checkRateLimitKey: checkRateLimitMock,
   };
 });
 // bcryptjs : hash/compare réels inutiles ici → mock au niveau module.
@@ -67,7 +67,7 @@ const NEW_PASSWORD = "NewPassw0rd!";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  checkRateLimitMock.mockResolvedValue({ allowed: true, remaining: 3, resetTime: Date.now() + 60_000 });
+  checkRateLimitMock.mockResolvedValue({ success: true, remaining: 3, reset: new Date(Date.now() + 60_000) });
 });
 
 describe("GET /api/auth/first-login", () => {
@@ -137,7 +137,7 @@ describe("POST /api/auth/first-login", () => {
 
   it("retourne 429 quand le rate limit est atteint", async () => {
     vi.mocked(auth).mockResolvedValue(null);
-    checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0, resetTime: Date.now() + 60_000 });
+    checkRateLimitMock.mockResolvedValue({ success: false, remaining: 0, reset: new Date(Date.now() + 60_000) });
 
     const res = await post({ token: TOKEN, currentPassword: "toto", newPassword: NEW_PASSWORD });
     expect(res.status).toBe(429);

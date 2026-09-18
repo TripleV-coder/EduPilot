@@ -12,11 +12,11 @@ import {
 } from "./account-lockout";
 import { verifyToken, findMatchingBackupCode } from "./two-factor";
 import {
-  checkRateLimit,
+  checkRateLimitKey,
   createRateLimitKey,
   resetRateLimit,
   MFA_VERIFY_RATE_LIMIT,
-} from "./rate-limiter";
+} from "@/lib/rate-limit";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
@@ -324,11 +324,11 @@ export const authConfig: NextAuthConfig = {
           if (userId) {
             // Un TOTP ne vaut que 6 chiffres : sans plafond de tentatives, il
             // est devinable par force brute depuis une session pré-2FA.
-            const mfaRl = await checkRateLimit(
+            const mfaRl = await checkRateLimitKey(
               createRateLimitKey("mfa-verify", userId),
               MFA_VERIFY_RATE_LIMIT,
             );
-            if (!mfaRl.allowed) {
+            if (!mfaRl.success) {
               await prisma.auditLog.create({
                 data: {
                   userId,

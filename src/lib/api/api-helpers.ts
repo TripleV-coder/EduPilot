@@ -9,7 +9,7 @@ import { Permission, hasPermission, roleSatisfies } from "@/lib/rbac/permissions
 import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { checkRateLimitKey, API_RATE_LIMIT } from "@/lib/rate-limit";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
 import { REQUEST_ID_HEADER, requestIdFromHeaders, runWithRequestId } from "@/lib/system/request-context";
@@ -233,7 +233,7 @@ export function createPaginatedResponse<T>(
     });
 }
 
-// Rate limiting is now handled via the unified checkRateLimit from @/lib/auth/rate-limiter
+// Rate limiting is now handled via the unified checkRateLimitKey from @/lib/rate-limit
 
 // ============================================
 // ROUTE HANDLER (AUTH, RBAC, TENANT)
@@ -422,12 +422,12 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 const rlKey = `rl:api:${ip}:${pathname}`;
                 const limitCount = options.rateLimitCount || API_RATE_LIMIT.maxAttempts;
                 
-                const rl = await checkUnifiedRateLimit(rlKey, {
+                const rl = await checkRateLimitKey(rlKey, {
                     ...API_RATE_LIMIT,
                     maxAttempts: limitCount
                 });
                 
-                if (!rl.allowed) {
+                if (!rl.success) {
                     return NextResponse.json(
                         { error: "Trop de requêtes. Veuillez réessayer plus tard.", code: "TOO_MANY_REQUESTS" },
                         { status: 429, headers: { "Retry-After": "60" } }

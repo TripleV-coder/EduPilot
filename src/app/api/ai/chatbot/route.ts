@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatWithAI } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
-import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 

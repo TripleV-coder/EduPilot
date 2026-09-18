@@ -11,12 +11,12 @@ import { isZodError } from "@/lib/is-zod-error";
 import { normalizeTempPassword } from '@/lib/auth/password-generator';
 import { logger } from "@/lib/utils/logger";
 import {
-  checkRateLimit,
+  checkRateLimitKey,
   releaseRateLimit,
   getClientIp,
   createRateLimitKey,
   LOGIN_FAILURE_RATE_LIMIT,
-} from '@/lib/auth/rate-limiter';
+} from '@/lib/rate-limit';
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
 import { invalidateUserStatusCache } from "@/lib/auth/config";
@@ -150,10 +150,10 @@ export const GET = createApiHandler(
 export const POST = createApiHandler(
   async (req) => {
     const rateLimitKey = createRateLimitKey('first-login-failures', getClientIp(req));
-    const rateLimitResult = await checkRateLimit(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
+    const rateLimitResult = await checkRateLimitKey(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
 
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+    if (!rateLimitResult.success) {
+      const retryAfter = Math.ceil((rateLimitResult.reset.getTime() - Date.now()) / 1000);
       return NextResponse.json(
         {
           error: 'Trop de tentatives. Veuillez réessayer plus tard.',

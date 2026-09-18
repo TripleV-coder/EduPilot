@@ -5,11 +5,14 @@ import {
   API_RATE_LIMIT,
   getClientIp,
   createRateLimitKey,
-  checkRateLimit,
+  checkRateLimitKey,
   resetRateLimit,
-} from "@/lib/auth/rate-limiter";
+} from "@/lib/rate-limit";
 
-describe("auth/rate-limiter", () => {
+// L3 — `lib/auth/rate-limiter.ts` a fusionné dans `lib/rate-limit.ts` :
+// même moteur, même magasin. Les cas ci-dessous sont inchangés, seuls le
+// chemin du module et le nom de l'entrée (`checkRateLimitKey`) ont suivi.
+describe("rate-limit — clés construites par l'appelant", () => {
   describe("predefined configs", () => {
     it("LOGIN allows 5 attempts in 15 min", () => {
       expect(LOGIN_RATE_LIMIT.maxAttempts).toBe(5);
@@ -67,31 +70,31 @@ describe("auth/rate-limiter", () => {
     });
   });
 
-  describe("in-memory checkRateLimit / resetRateLimit", () => {
+  describe("in-memory checkRateLimitKey / resetRateLimit", () => {
     it("allows up to maxAttempts then blocks", async () => {
       const config = { maxAttempts: 3, windowMs: 60_000 };
       const key = "rl:test:" + Math.random();
 
       for (let i = 1; i <= 3; i++) {
-        const r = await checkRateLimit(key, config);
-        expect(r.allowed).toBe(true);
+        const r = await checkRateLimitKey(key, config);
+        expect(r.success).toBe(true);
         expect(r.remaining).toBe(3 - i);
       }
-      const blocked = await checkRateLimit(key, config);
-      expect(blocked.allowed).toBe(false);
+      const blocked = await checkRateLimitKey(key, config);
+      expect(blocked.success).toBe(false);
       expect(blocked.remaining).toBe(0);
     });
 
     it("reset clears the counter", async () => {
       const config = { maxAttempts: 1, windowMs: 60_000 };
       const key = "rl:test-reset:" + Math.random();
-      await checkRateLimit(key, config);
-      const blocked = await checkRateLimit(key, config);
-      expect(blocked.allowed).toBe(false);
+      await checkRateLimitKey(key, config);
+      const blocked = await checkRateLimitKey(key, config);
+      expect(blocked.success).toBe(false);
 
       await resetRateLimit(key);
-      const after = await checkRateLimit(key, config);
-      expect(after.allowed).toBe(true);
+      const after = await checkRateLimitKey(key, config);
+      expect(after.success).toBe(true);
     });
   });
 });

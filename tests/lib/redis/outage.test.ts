@@ -35,14 +35,14 @@ describe("Redis injoignable", () => {
     });
 
     it("le rate-limit des routes d'authentification répond en moins de 300 ms", async () => {
-        const { checkRateLimit } = await import("@/lib/auth/rate-limiter");
+        const { checkRateLimitKey } = await import("@/lib/rate-limit");
 
         for (let i = 0; i < 10; i++) {
             const { ms, value } = await timed(() =>
-                checkRateLimit(`rl:outage:${i}`, { maxAttempts: 5, windowMs: 60_000 }),
+                checkRateLimitKey(`rl:outage:${i}`, { maxAttempts: 5, windowMs: 60_000 }),
             );
             expect(ms).toBeLessThan(300);
-            expect(value.allowed).toBe(true);
+            expect(value.success).toBe(true);
         }
     });
 
