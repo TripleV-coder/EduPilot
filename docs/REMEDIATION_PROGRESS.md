@@ -828,6 +828,197 @@ apparaît. Aucun risque : la fonction n'exporte plus d'adresse électronique.
 
 ---
 
+## Lot P — Performance ressentie (2026-09-18, demandé par le propriétaire)
+
+> « Je trouve toujours que la plateforme est lente. » Les mesures des lots
+> précédents portaient sur les **routes d'API** ; elles ne disaient rien du
+> temps que la personne attend devant son écran. Ce lot mesure d'abord, corrige
+> ensuite.
+
+### Ce que la mesure a montré
+
+Nouvel outil `scripts/quality/pages.mjs` (temps et poids **par page**, pas par
+route) et `scripts/quality/time-to-data.mjs` (navigateur réel, 4G lente,
+processeur ÷4).
+
+| Constat | Mesure |
+|---|---|
+| Le HTML est rapide | TTFB 37–100 ms sur 11 pages |
+| **Le service worker préchargeait toute l'application** | **8 736 Ko sur 271 entrées** à la première visite |
+| Le JavaScript domine le premier affichage | 1 046 à 1 737 Ko par page ; premières données à ~3 s en 4G lente |
+| Deux routes coûtaient cher à chaque affichage | tableau de bord p50 **356 ms**, statistiques de notes p50 **400 ms**, aucune en cache |
+| Le mode développement fausse le ressenti | **1,8 à 12,5 s** au premier affichage d'une page (`npm run dev`), contre 35–80 ms sur le build de production |
+
+Le propriétaire a confirmé juger sur le **build de production** : les mesures de
+ce lot s'appliquent donc directement.
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `1f47831` | perf(pwa) : préchargement limité à la coquille — **8 736 → 205 Ko** |
+| `526cece` | perf(front) : code mort du socle (`GlassCard`, `PageTransition`, `lib/ui/motion`, squelettes animés séparés, palette de commandes à la demande) |
+| `3e51c4a` | perf(front) : 11 écrans chargent recharts à la demande |
+| `74162ac` | perf(api) : requêtes du tableau de bord en parallèle + cache court sur les deux agrégats lourds |
+| `8e9cc6b` | perf(front) : framer-motion retiré du tableau de bord, animations reprises en CSS |
+| `65b8dac` | fix(a11y) : le contenu replié ressort du DOM (régression du commit précédent) |
+| `c6ed840` | fix(classes) : liste d'enseignants vide (régression de `dd17d02`) |
+
+### Décision du propriétaire (règle 9, design gelé)
+
+Remplacer framer-motion par du CSS a été **proposé et accepté**, à condition de
+prouver que l'apparence ne bouge pas. Preuve : `scripts/quality/screenshots.mjs`
+compare 16 captures avant/après — 8 écrans × bureau 1280 et mobile 375 —
+pixel à pixel : **0,000 % de pixels différents**.
+
+Trois animations se sont révélées inexistantes en pratique : `StatCard` et
+`QuickAction` portaient des variantes sans parent pour les déclencher, et la
+sortie de la checklist d'accueil ne jouait jamais (le `return null` démontait
+l'`AnimatePresence` elle-même).
+
+### Résultats
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Préchargement du service worker | 8 736 Ko | **205 Ko** |
+| JS — `/dashboard` | 1 046 Ko | **926 Ko** |
+| JS — `/dashboard/grades` | 1 737 Ko | **1 205 Ko** |
+| JS — `/dashboard/finance` | 1 485 Ko | **1 086 Ko** |
+| `/api/analytics/dashboard` | p50 356 / p95 418 ms | **p50 19 / p95 27 ms** (268 ms à froid) |
+| `/api/grades/statistics` | p50 400 / p95 420 ms | **p50 16 / p95 19 ms** (374 ms à froid) |
+| Lighthouse `/dashboard` mobile | 0,92 · LCP 2 563 ms · TBT 246 ms · 416 Ko | 0,90–0,92 · LCP **2 340 ms** · TBT 298 ms · **374 Ko** |
+| Lighthouse `/dashboard/grades` mobile | 0,86 · LCP 2 588 · TBT 432 · 613 Ko | **0,90** · LCP **2 414** · TBT **345** · **449 Ko** |
+| Lighthouse `/dashboard/grades` desktop | 0,68 · TBT 1 412 ms · 96 453 Ko | **1,00** · TBT **6 ms** · **403 Ko** |
+
+### Deux régressions introduites, trouvées par les tests
+
+1. **Contenu replié laissé dans l'arbre d'accessibilité** : mon repli CSS
+   (`grid-template-rows: 0fr`) ne retirait pas le contenu du DOM, contrairement
+   à `AnimatePresence`. Les étapes repliées restaient atteignables au clavier.
+   Attrapé par l'E2E `student-lists`, corrigé (`65b8dac`).
+2. **Liste d'enseignants vide** dans l'affectation d'une matière : consommateur
+   de `/api/teachers` oublié lors du changement de format (`dd17d02`).
+   Attrapé par le parcours de démarrage à vide, corrigé (`c6ed840`).
+
+### Ce que je n'ai pas fait, et pourquoi
+
+- **La page d'accueil publique reste à 0,61 sur mobile** (audit : 0,63). Elle
+  charge 913 Ko de JavaScript dont 116 Ko d'animation, déclenchée au
+  défilement : la convertir demande un observateur d'intersection et une
+  vérification visuelle au défilement. Page vitrine, pas outil de travail :
+  coût et risque non justifiés ici. Inscrit dans `TECH_DEBT.md`.
+- **`optimizePackageImports` de Next** a été essayé puis **retiré** : aucun gain
+  mesuré, et le build passait de 19 s à 89 s.
+- **L'agrégation des notes reste en arithmétique exacte** (numeric). La passer
+  en flottant gagnerait du temps mais ferait basculer un 10,00 en 9,999…, donc
+  un élève d'admis à recalé.
+
+---
+
+## Lot 9 — Vérification finale (2026-09-18)
+
+Toutes les mesures de l'audit rejouées avec `scripts/quality/`, dans les mêmes
+conditions, pour **les sept rôles** — y compris les trois que l'audit n'avait
+pas testés (ACCOUNTANT, STUDENT, PARENT).
+
+### Parcours des sept rôles
+
+`smoke.mjs ALL`, 167 routes par rôle, seuils 1 Mo / 1 s :
+
+| Rôle | Statuts | p50 / p95 (200) | 5xx | > 500 ms | > 500 Ko |
+|---|---|---|---|---|---|
+| SUPER_ADMIN | `{"200":98,"400":49,"401":2,"403":17,"404":1}` | 29 / 127 ms | aucun | aucun | aucun |
+| SCHOOL_ADMIN | `{"200":114,"400":24,"401":2,"403":27}` | 23 / 129 ms | aucun | aucun | aucun |
+| DIRECTOR | `{"200":109,"400":24,"401":2,"403":32}` | 22 / 141 ms | aucun | aucun | aucun |
+| ACCOUNTANT | `{"200":85,"400":16,"401":2,"403":64}` | 22 / 80 ms | aucun | aucun | aucun |
+| TEACHER | `{"200":83,"400":24,"401":2,"403":58}` | 22 / 211 ms | aucun | aucun | aucun |
+| STUDENT | `{"200":78,"400":14,"401":2,"403":73}` | 21 / 60 ms | aucun | aucun | aucun |
+| PARENT | `{"200":79,"400":15,"401":2,"403":71}` | 22 / 68 ms | aucun | aucun | aucun |
+
+RSS du serveur : 353 Mo au repos → **391 Mo** après le parcours → 417 Mo après
+les latences des trois rôles mesurés en profondeur. Référence Lot 0 : 8 746 Mo.
+
+### Sécurité
+
+Rejouée aux **limites de production** (sans `RATE_LIMIT_RELAXED`), après la
+fusion du moteur de limitation du Lot 8 :
+
+| Contrôle | Résultat |
+|---|---|
+| H4 — 12 échecs de connexion, même adresse | **PASS** `{"302":10,"429":2}` |
+| H3 — 130 requêtes, XFF tournant | **PASS** `{"200":76,"429":54}` |
+| H1 — `/api/health` anonyme | **PASS** 200 |
+| H2 — cron, secret invalide puis valide | **PASS** 401 / 202 et 401 / 200 |
+| H5 — catégorie d'une autre école (GET/PATCH/DELETE) | **PASS** 404 ×3, rien persisté |
+| TENANT — `?schoolId` d'une autre école | **PASS** 403 |
+| M3 — corps vide puis JSON cassé | **PASS** 400 ×2 |
+| H6 — Redis injoignable | **PASS** 10×200, **p50 14 / p95 22 ms** |
+| **Total** | **11/11 PASS** (+ H3 et H4 dans une passe séparée) |
+
+Réserve d'outillage, déjà connue : lancés en une seule passe, les contrôles
+H3/H4 épuisent volontairement le budget de l'adresse, si bien que les suivants
+reçoivent des 429. Ils sont donc exécutés en deux passes sur serveur neuf. Ce
+n'est pas un défaut de l'application : c'est le rate-limit qui fait son travail.
+
+### Démarrage à vide sur clone neuf
+
+Procédure complète, depuis un `git clone` local jusqu'à la consultation par un
+parent :
+
+| Étape | Résultat |
+|---|---|
+| `git clone` + `npm ci` | OK |
+| Base **vide** créée, `prisma migrate deploy` | **34 migrations appliquées**, aucun seed |
+| Rôle applicatif `edupilot_app` (non propriétaire, sans BYPASSRLS) | créé |
+| `npm run build` | OK |
+| `GET /api/setup` | `{"setupNeeded":true}` |
+| E2E `playwright.fresh.config.ts` | **2/2** |
+| — installation complète → consultation par un parent | ✅ |
+| — toutes les pages dans une école sans données | **146 pages × 3 rôles, 0 anomalie** |
+
+Un défaut réel a été trouvé par ce parcours et corrigé : la liste d'enseignants
+vide dans l'affectation d'une matière (`c6ed840`).
+
+### Batterie complète
+
+| Vérification | Résultat |
+|---|---|
+| `tsc --noEmit` | ✅ 0 erreur |
+| `eslint src` | ✅ 0 erreur |
+| `vitest` | ✅ **2 982 / 2 982** |
+| `vitest` intégration (PostgreSQL réel) | ✅ **323 / 323** |
+| `next build` | ✅ |
+| `npm audit --omit=dev --audit-level=high` | ✅ **0** |
+| E2E complet | ✅ **89 / 89** |
+| E2E démarrage à vide | ✅ **2 / 2** |
+
+### Mesures complémentaires
+
+| Métrique | Audit | Lot 9 |
+|---|---|---|
+| Démarrage à froid → 1re réponse | 8,8 s | **2,65 s** |
+| Lighthouse `/dashboard` desktop | 0,96 · LCP 977 ms · TBT 145 ms | **1,00** · LCP 756 ms · TBT 11 ms |
+| Lighthouse `/dashboard/grades` desktop | 0,68 · TBT 1 412 ms · **96 453 Ko** | **1,00** · TBT 6 ms · **403 Ko** |
+| Lighthouse `/dashboard` mobile | 0,54 · LCP 4,7 s · TBT 1 737 ms | **0,90** · LCP 2,37 s · TBT 338 ms |
+| Lighthouse accueil publique mobile | 0,63 · LCP 5,1 s | 0,61 · LCP 5,4 s — **non amélioré** |
+
+### Piège de mesure, consigné
+
+Les premières mesures Lighthouse de ce lot donnaient des scores en **baisse**
+(tableau de bord 0,92 → 0,70) alors que le poids baissait. Cause : l'indexeur de
+fichiers du système occupait 93 % d'un cœur et le `npm ci` du clone tournait en
+parallèle. Après arrêt de l'indexeur et retour de la charge sous 1,3, les
+mesures sont redevenues cohérentes. **Toute mesure Lighthouse de ce dépôt doit
+être prise machine au repos**, sous peine de conclure l'inverse de la réalité.
+
+### Livrable
+
+[`docs/REMEDIATION.md`](REMEDIATION.md) : note de réévaluation **8,2/10**,
+tableau par défaut, performances avant/après, grille d'évaluation, registre des
+données personnelles, risques résiduels, hors périmètre et procédure de fusion.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -1011,3 +1202,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | 5 | ✅ 0 erreur (10 s) | ✅ 0 erreur (54 s) | ✅ 2 888/2 888, 277 fichiers (35 s) | ✅ (next 16.3.5) | ✅ 252/252, 37 fichiers (64 s, PG réel) | ✅ suite standard 89/89 (build de prod, base d'audit, rôle applicatif) ; ✅ démarrage à vide 2/2 (installation 1,3 min + 145 pages × 3 rôles, 0 anomalie, 13,6 min) | Code de `90930dd`. Démarrage à vide rejoué sur une base neuve vérifiée (`setupNeeded:true`). Premier passage : installation verte, états vides avec 1 relevé non reproduit (N53, état de chargement ; 0 en 15 chargements ciblés) ; second passage vert. Empreinte des 8 comptes de démonstration identique avant et après chaque suite standard. Job CI `fresh-install` non exécuté sur GitHub Actions dans cette session |
 | 7 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 970/2 970, 288 fichiers (37 s) | ✅ (next 16.3.5) + recopie de l'instrumentation | ✅ 320/320, 50 fichiers (77 s, PG réel) | ✅ **89/89** (suite complète, build de production, base E2E jetable, rôle applicatif) | Serveur standalone lancé par l'entrypoint du conteneur : 5 migrations appliquées, `/api/health` 200, `x-request-id` présent, arrêt propre `tasks: 2`. Crons éprouvés à l'exécution (200/202/409/401). Docker **non exécutable** (démon inactif) |
 | 8 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 959/2 959, 288 fichiers (37 s) | ✅ (next 16.3.5) | ✅ **323/323**, 51 fichiers (78 s, PG réel) | ✅ **89/89** (suite complète, build de production, base d'audit, rôle applicatif) | Build de `be88e99`. `security.mjs` **13/13 PASS** après la fusion du rate-limit ; `redis-outage.mjs` p50 13 / p95 21 ms. Smoke 7 rôles × 167 routes : **0 violation** (première fois — N15 corrigée), RSS 346 Mo. `npm audit --omit=dev --audit-level=high` → 0. Couverture : API 71,2 % lignes (92 routes à zéro), lib 54,9 %, composants 70,3 % |
+| P + 9 | ✅ 0 erreur | ✅ 0 erreur | ✅ **2 982/2 982**, 290 fichiers | ✅ (next 16.3.5) | ✅ **323/323**, 51 fichiers (PG réel) | ✅ **89/89** + **2/2 démarrage à vide sur clone neuf** | Build de `c6ed840`. `security.mjs` **11/11 PASS** (+H3/H4 en passe séparée) ; `redis-outage.mjs` p50 14 / p95 22 ms. Smoke **7 rôles × 167 routes : 0 violation**, RSS 391 Mo. `npm audit --omit=dev --audit-level=high` → 0. Démarrage à froid 2,65 s. Lighthouse : tableau de bord mobile **0,90**, bureau **1,00**, page Notes bureau **1,00 / 403 Ko** |
