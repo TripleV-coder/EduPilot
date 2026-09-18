@@ -8,7 +8,7 @@ import { predictFailureRisk as predictStudentFailureRisk } from "@/lib/services/
 import { logger } from "@/lib/utils/logger";
 import { studentAlias } from "./pii";
 import { callExternalAI } from "./external-client";
-import { appEnv } from "@/lib/config/env";
+import { appEnv } from "@/lib/env";
 import {
   generateAppreciation,
   generateActionPlan,

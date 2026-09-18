@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { validateEnvironment } from "@/lib/config/env-validation";
+import { validateCriticalEnv } from "@/lib/env";
 
 /**
- * N5 — `validateEnvironment()` s'exécute à l'import de Prisma, y compris
+ * N5 — `validateCriticalEnv()` s'exécute à l'import de Prisma, y compris
  * pendant `next build`. Sans secrets, le build d'un clone neuf (et l'étape de
  * build du Dockerfile, qui n'en définit aucun) échouait. Les secrets ne sont
  * pas nécessaires pour construire : ils sont vérifiés au démarrage.
  */
-describe("validateEnvironment", () => {
+describe("validateCriticalEnv", () => {
     afterEach(() => {
         vi.unstubAllEnvs();
     });
@@ -24,19 +24,19 @@ describe("validateEnvironment", () => {
     it("ne bloque pas la phase de build de Next", () => {
         productionWithoutSecret();
         vi.stubEnv("NEXT_PHASE", "phase-production-build");
-        expect(() => validateEnvironment()).not.toThrow();
+        expect(() => validateCriticalEnv()).not.toThrow();
     });
 
     it("respecte SKIP_ENV_VALIDATION, comme lib/env.ts", () => {
         productionWithoutSecret();
         vi.stubEnv("SKIP_ENV_VALIDATION", "true");
-        expect(() => validateEnvironment()).not.toThrow();
+        expect(() => validateCriticalEnv()).not.toThrow();
     });
 
     it("bloque toujours le démarrage d'un serveur sans secret", () => {
         productionWithoutSecret();
         const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
-        expect(() => validateEnvironment()).toThrow(/Critical environment variables/);
+        expect(() => validateCriticalEnv()).toThrow(/Critical environment variables/);
         quiet.mockRestore();
     });
 });

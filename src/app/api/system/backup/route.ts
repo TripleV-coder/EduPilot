@@ -4,7 +4,7 @@ import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
 import { logger } from "@/lib/utils/logger";
-import { appEnv } from "@/lib/config/env";
+import { appEnv } from "@/lib/env";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const execAsync = promisify(exec);

@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { validateEnvironment } from "@/lib/config/env-validation";
+import { validateCriticalEnv } from "@/lib/env";
 import { createScopedClient } from "@/lib/db/scoped-client";
 
 // Validate environment variables before initializing Prisma
-validateEnvironment();
+validateCriticalEnv();
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

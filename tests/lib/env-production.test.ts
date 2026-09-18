@@ -52,6 +52,26 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).toThrow(/EMAIL_API_KEY/);
     });
 
+    /**
+     * L3 — fusion des trois modules d'environnement. `lib/config/env-validation.ts`
+     * contrôlait la longueur du secret et la forme de l'URL de base ; `validateEnv()`
+     * ne les contrôlait pas. La fusion garde le contrôle le plus strict des deux :
+     * ces deux cas passaient avant, ils doivent échouer maintenant.
+     */
+    it("refuse un secret de session trop court", () => {
+        vi.stubEnv("EMAIL_PROVIDER", "resend");
+        vi.stubEnv("EMAIL_API_KEY", "cle");
+        vi.stubEnv("NEXTAUTH_SECRET", "trop-court");
+        expect(() => validateEnv()).toThrow(/NEXTAUTH_SECRET.*trop court/s);
+    });
+
+    it("refuse une URL de base qui n'est pas PostgreSQL", () => {
+        vi.stubEnv("EMAIL_PROVIDER", "resend");
+        vi.stubEnv("EMAIL_API_KEY", "cle");
+        vi.stubEnv("DATABASE_URL", "mysql://u:p@db:3306/edupilot");
+        expect(() => validateEnv()).toThrow(/DATABASE_URL.*postgresql/s);
+    });
+
     it("démarre sans Upstash : instance unique, repli mémoire (décision du 2026-09-12)", () => {
         vi.stubEnv("EMAIL_PROVIDER", "resend");
         vi.stubEnv("EMAIL_API_KEY", "cle");

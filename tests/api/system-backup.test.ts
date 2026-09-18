@@ -30,7 +30,11 @@ vi.mock("fs/promises", () => ({
   },
 }));
 
-vi.mock("@/lib/config/env", () => ({
+// L3 : `appEnv` vit désormais dans `@/lib/env`, avec la validation appelée par
+// Prisma. Mock partiel : seul `appEnv` est remplacé, le reste du module garde
+// son comportement réel.
+vi.mock("@/lib/env", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/env")>()),
   appEnv: {
     allowBackupApi: true,
   },
