@@ -54,6 +54,8 @@ d'échecs de connexion).
 | TD-014 | 92 routes d'API sans aucun test unitaire | 8j | 3 | 3 | 1,1 | 🟡 Ouvert |
 | TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | 🟡 Ouvert |
 | TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
+| TD-017 | « Facturation en masse » sans modèle de données : la page envoie `{classLevelId, feeId, academicYearId}`, l'API attend `{paymentIds}` → toujours 400 | 3j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
+| TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
 
 ---
 
@@ -202,6 +204,26 @@ initial).
 coexistent, tous deux montés dans la mise en page racine. Les unifier changerait
 l'apparence des notifications : interdit tant que le design est gelé (règle 9 de
 la remise à niveau). Coût mesuré : ~38 Ko sur chaque page.
+
+---
+
+## TD-017 / TD-018 — Deux fonctions promises sans implémentation *(ouvert, décision produit)*
+
+Relevés au nettoyage du 2026-09-18 (déclarations jamais lues).
+
+- **Facturation en masse** (`/dashboard/finance/bulk-invoice`) : la page promet
+  de « générer des frais pour une classe ou un niveau entier ». Or le modèle
+  n'a pas de facture impayée : `Payment` exige un moyen de paiement, et ce
+  qu'un élève doit découle implicitement de `Fee.classLevelCode`. La route
+  `/api/payments/bulk-invoice` ne fait que lister des URL de factures pour des
+  paiements existants. Le formulaire reçoit donc toujours « Données
+  invalides ». À trancher : créer un modèle d'échéance/facture, ou retirer la
+  page.
+- **Clôture d'année** : l'énum `AcademicYearStatus` prévoit `CLOSED` et
+  `ARCHIVED`, mais rien ne les écrit. Le bouton « Clôturer l'année » de la page
+  Promotion n'avait aucun gestionnaire, et un encart promettait notes figées et
+  bulletins générés : retirés, le sélecteur d'année de destination manquant a
+  été ajouté à leur place.
 
 ---
 
