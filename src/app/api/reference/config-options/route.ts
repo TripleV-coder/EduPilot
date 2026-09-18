@@ -4,6 +4,18 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { z } from "zod";
+
+// Même contrat que POST /api/config-options
+const createConfigOptionSchema = z.object({
+  category: z.string().min(1).max(100),
+  code: z.string().min(1).max(50),
+  label: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  order: z.number().int().min(0).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  schoolId: z.string().min(1).nullish(),
+});
 
 /**
  * GET /api/reference/config-options
@@ -80,18 +92,16 @@ export const POST = createApiHandler(async (request, context) => {
 
     // Seuls SUPER_ADMIN peut créer des options globales
     // Les admins d'école peuvent créer des options pour leur école
-    const body = await request.json();
-    const { category, code, label, description, order, metadata, schoolId } = body;
-    const activeSchoolId = getActiveSchoolId(session);
-    const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
-    if (schoolAccess) return schoolAccess;
-
-    if (!category || !code || !label) {
+    const parsed = createConfigOptionSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Catégorie, code et label requis" },
+        { error: "Catégorie, code et label requis", details: parsed.error.issues },
         { status: 400 }
       );
     }
+    const { category, code, label, description, order, metadata, schoolId } = parsed.data;
+    const schoolAccess = ensureRequestedSchoolAccess(session, schoolId);
+    if (schoolAccess) return schoolAccess;
 
     if (!schoolId && !["SUPER_ADMIN"].includes(session.user.role)) {
       return NextResponse.json(
@@ -107,7 +117,7 @@ export const POST = createApiHandler(async (request, context) => {
         label,
         description,
         order: order || 0,
-        metadata: metadata || undefined,
+        metadata: (metadata as Prisma.InputJsonValue | undefined) ?? undefined,
         schoolId: schoolId || null,
       },
     });
@@ -130,4 +140,4 @@ export const POST = createApiHandler(async (request, context) => {
     );
   }
 
-});
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });
