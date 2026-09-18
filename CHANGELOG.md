@@ -5,6 +5,127 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.3.0] - 2026-09-18
+
+Remise à niveau production, branche `fix/production-readiness` : 145 commits
+répondant à l'audit du 2026-09-11 (`docs/AUDIT.md`, note 5,8/10). Le détail
+défaut par défaut, avec les mesures avant/après, est dans
+[`docs/REMEDIATION_PROGRESS.md`](docs/REMEDIATION_PROGRESS.md).
+
+### 🔐 Sécurité
+
+- **Limites de débit incontournables** : l'adresse du client est établie par le
+  serveur ; `X-Forwarded-For` n'est lu que si un proxy de confiance est déclaré
+  (`TRUSTED_PROXY_HOPS`). Avant, 130 requêtes à en-tête tournant passaient sans
+  un seul refus [H3].
+- **Connexion protégée de la force brute** : 10 échecs par adresse et par
+  quart d'heure. Une connexion réussie rend l'unité consommée, pour qu'une
+  école derrière une seule adresse publique ne se bloque pas elle-même [H4].
+- **Isolation entre établissements** : balayage des 70 routes `[id]` depuis un
+  administrateur d'une autre école, et correction de toutes celles qui
+  répondaient. Une ressource d'un autre établissement répond 404, sans révéler
+  son existence [H5].
+- **RLS PostgreSQL effective** : rôle applicatif non propriétaire,
+  `FORCE ROW LEVEL SECURITY` sur les tables sensibles [M2].
+- **Second facteur** imposé jusque dans les routes d'API ; mot de passe
+  provisoire **unique** par compte, à changer à la première connexion [M1].
+- **Dépendances** : `npm audit --omit=dev --audit-level=high` renvoie **0**
+  (Next.js, nodemailer, sharp) [C2][M7].
+- En-têtes et fuites : `X-XSS-Protection` retiré, `/api/system/backup` n'expose
+  plus de chemin ni de sortie de commande [L1][L2][L5].
+
+### ⚡ Performance
+
+- `/api/evaluations` : **13,9 s et 99 Mo** → sous la seconde, sans les notes,
+  paginé. Plus aucune réponse au-dessus de 1 Mo ni de 1 s sur le parcours des
+  sept rôles [C3].
+- Empreinte mémoire du serveur : **8,7 Go** après la série de mesures →
+  **395 Mo** [M4].
+- Statistiques et analyses agrégées en base plutôt qu'en mémoire ; boucles N+1
+  remplacées par des requêtes groupées ; index ajoutés seulement quand
+  `EXPLAIN ANALYZE` les justifiait.
+- Chargement à la demande de SheetJS, des onglets d'analyse et des graphiques.
+
+### 🗄 Intégrité et exploitation
+
+- **34 migrations versionnées** : un clone neuf passe `migrate deploy` et
+  démarre, sans seed. Contrôle `prisma migrate diff --exit-code` en CI [C1].
+- **Image de production** qui se construit, applique les migrations au
+  démarrage et n'expose plus la base ni le cache sur le réseau de
+  l'établissement.
+- **Arrêt propre** sur SIGTERM : requêtes en cours menées à terme, Prisma et
+  Redis fermés.
+- **Sauvegarde chiffrée** avec rotation, et restauration prouvée par
+  recomptage ligne à ligne.
+- **Tâches planifiées** déclenchables et planifiables sans Vercel Cron.
+- **Journaux JSON** portant un identifiant de requête, repris dans la réponse.
+- Coupe-circuit Redis : avec un cache injoignable, la latence reste sous
+  300 ms au lieu de 4,3 s [H6].
+- `docs/EXPLOITATION.md` : variables, démarrage, migrations, sauvegarde,
+  restauration, tâches, rotation des secrets, conduite à tenir en panne.
+
+### 🧑‍🎓 Démarrage à vide et données réelles
+
+- Parcours d'installation complet **depuis l'interface**, sur une base vide :
+  premier super-administrateur, établissement, année, périodes, niveaux,
+  classes, matières, comptes, première saisie de notes, consultation par un
+  parent. Couvert par un E2E dédié.
+- Import CSV/Excel **en tout ou rien**, avec rapport d'erreurs ligne à ligne,
+  détection des doublons, encodages UTF-8 et Windows-1252, noms accentués.
+- Scripts dangereux (seeds, réinitialisations) **refusant de s'exécuter** sur
+  une base qui ne porte pas le marqueur `edupilot:disposable`. Les comptes de
+  démonstration ne peuvent plus exister en production.
+
+### 🛡 Données personnelles
+
+- **Activation par module** : navigation masquée *et* API bloquée. Les modules
+  sensibles, la santé en particulier, peuvent être désactivés.
+- **Consentement** horodaté et versionné à la première connexion, avec le suivi
+  du représentant légal pour les comptes d'élèves mineurs.
+- **Droits des personnes** exerçables et testés : export, rectification,
+  suppression ou anonymisation.
+- **Fin de conservation** : script d'export puis d'effacement par
+  établissement, avec rapport de vérification par table.
+- **Traçabilité** : notes, santé, paiements et rôles écrits dans `AuditLog`.
+- **Journaux expurgés** : aucun nom, e-mail, note, donnée de santé ni contenu
+  de message en clair.
+
+### 📐 Contrats et outillage
+
+- **Un seul format de pagination** dans toute l'API :
+  `{ data, pagination: { limit, nextCursor, hasNextPage, total? } }`.
+  L'ancien `?page=` est retiré ; il est ignoré sans erreur.
+- **Spécification OpenAPI générée depuis le code et les schémas Zod**
+  (`npm run docs:openapi`) : 287 chemins, 463 opérations, 45 schémas, servie
+  par `/api/docs`. Elle remplace un document écrit à la main qui en décrivait
+  quatre [M9].
+- **Suite d'intégration sur vrai PostgreSQL** (323 tests) en CI, aux côtés des
+  2 959 tests unitaires et d'API. CI bloquante.
+- Modules de limitation de débit et d'environnement **consolidés** : un seul de
+  chacun, au lieu de trois [L3].
+- `docs/design/INVENTAIRE_UI.md` : état de l'interface avant refonte (constat).
+
+### 🐛 Corrections notables
+
+- Une panne de chargement ne se déguise plus en absence de données : 27 pages
+  distinguent l'erreur de l'état vide.
+- Connexion : une panne technique n'est plus présentée comme un identifiant
+  invalide [M10].
+- JSON illisible et corps refusé par le schéma répondent 400 (et non 500), avec
+  le détail par champ ; plafond de taille de corps [M3].
+- La page d'analyse de la console root ne répond plus 500 [N15].
+- L'instrumentation ne s'exécutait pas du tout en production : ni validation
+  d'environnement, ni garde RLS, ni fermeture propre.
+
+### ⚠️ Rupture de contrat
+
+- `?page=` et `?pageSize=` ne sont plus lus. Les clients qui les envoient
+  reçoivent la première page au format unique, sans erreur. `/api/teachers` et
+  `/api/finance/payments` changent la forme de leur réponse en conséquence.
+- `X-XSS-Protection` n'est plus émis (en-tête obsolète et nuisible).
+
+---
+
 ## [1.2.0] - 2026-08-16
 
 ### 🚀 Nouveautés majeures (juin–juillet 2026)

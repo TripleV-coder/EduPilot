@@ -23,7 +23,6 @@ export default defineConfig({
       exclude: [
         'src/lib/types/**',
         '**/*.d.ts',
-        'src/lib/swagger.ts',
       ],
       // Seuils par périmètre (glob), à monter au fil des nouveaux tests :
       //  - src/lib/**        : cœur métier testé (baseline 2026-06-11 : 41/33/40)
