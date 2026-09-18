@@ -480,7 +480,7 @@ export function calculateAverage(
 Lorsque vous ajoutez une fonctionnalité :
 
 1. **README.md** : Si changement majeur
-2. **docs/API.md** : Si nouveau endpoint
+2. **Spécification OpenAPI** : `npm run docs:openapi` (le test `tests/lib/openapi.test.ts` échoue sinon). `docs/API.md` ne décrit que les conventions communes.
 3. **docs/ARCHITECTURE.md** : Si changement architectural
 4. **Code comments** : Pour la logique complexe
 

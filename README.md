@@ -104,10 +104,12 @@ EduPilot ne transige JAMAIS sur la sécurité de la donnée.
 L'environnement de développement a été pensé pour être lancé en un minimum de frictions.
 
 ### 1. Prérequis
-- Node.js `20.x` (LTS recommandé)
+- Node.js `22.x` (LTS)
 - PostgreSQL `15+`
-- Redis (Local ou Upstash)
-- Docker (optionnel mais recommandé)
+- Docker (recommandé : l'image de production fait tout le reste)
+- Redis (**facultatif**) : sans lui, le cache et les limites de débit
+  fonctionnent en mémoire, ce qui est exact tant que l'application tourne en
+  un seul processus — le déploiement retenu.
 
 ### 2. Installation Locale
 
@@ -122,15 +124,13 @@ cd edupilot
 cp .env.example .env
 # Éditer .env avec vos valeurs
 
-# Démarrer avec Docker Compose
-docker-compose up -d
-
-# Appliquer les migrations
-docker-compose exec app npx prisma migrate deploy
-
-# Seed des données de test
-docker-compose exec app npm run db:seed
+# Démarrer avec Docker Compose (les migrations sont appliquées au démarrage)
+docker compose up -d
 ```
+
+L'entrypoint de l'image lance `prisma migrate deploy` puis le serveur : une
+base vide devient une base à jour sans intervention. **Aucun seed** : la
+première personne se crée depuis l'interface (§ *Démarrage à vide*).
 
 #### Option B : Installation manuelle
 
@@ -144,30 +144,40 @@ npm install
 cp .env.example .env
 # Éditer .env (DATABASE_URL, NEXTAUTH_SECRET, etc.)
 
-# Générer le client Prisma et appliquer le schéma
+# Générer le client Prisma et appliquer les migrations
 npx prisma generate
-npx prisma db push
-
-# Seed des données de test
-npm run db:seed
+npx prisma migrate deploy
 ```
 
-### 3. Le Script de Seed Magique 🌟
-EduPilot embarque un orchestrateur de seed massif générant une école complète, cohérente, avec des centaines d'entrées réalistes, de la comptabilité aux profils médicaux :
+`prisma db push` ne convient qu'à un essai jetable : il ne laisse aucune trace
+dans `_prisma_migrations`, et la base ne peut plus être mise à jour ensuite.
+Pour reprendre une base déjà créée ainsi, voir [docs/MIGRATIONS.md](docs/MIGRATIONS.md).
+
+### 3. Démarrage à vide (installation réelle)
+
+Une installation destinée à de vraies personnes part d'une **base vide**, sans
+seed et sans SQL à la main. Tout se fait depuis l'interface :
+
+1. `prisma migrate deploy` (ou `docker compose up -d`, qui le fait) ;
+2. ouvrir `/setup` → création du **premier super-administrateur** ;
+3. établissement, année scolaire, périodes, niveaux, classes, matières ;
+4. comptes (un par un ou par import CSV/Excel) ;
+5. première saisie de notes, puis consultation par un parent.
+
+Tout compte créé par un tiers reçoit un mot de passe provisoire **unique**,
+à changer à la première connexion.
+
+### 3 bis. Jeu de démonstration (développement uniquement)
 
 ```bash
-# Générer tout le dataset de démonstration
-npm run db:seed
+npm run db:seed   # 3 écoles, ~2 700 comptes, ~130 000 notes
 ```
-*Génère automatiquement 3 écoles, des dizaines d'admins, directeurs, professeurs, élèves, notes, présences, et transactions financières.*
 
-**Comptes de connexion par défaut créés par le Seed (UNIQUEMENT pour le développement local) :**
-- Super Admin: `admin@edupilot.bj`
-- Admin École: `admin@saintmichel.bj`
-- Directeur: `directeur@saintmichel.bj`
-- Professeur: `m.agbossou@saintmichel.bj`
-
-> ⚠️ Ces comptes et le mot de passe universel `Password123!` ne doivent JAMAIS être utilisés ou conservés tels quels sur un environnement exposé (staging ou production). En production, créez vos propres comptes avec des mots de passe forts et/ou des tokens de premier login.
+Le seed **refuse de s'exécuter** sur une base qui ne porte pas le marqueur
+`edupilot:disposable` (`scripts/lib/disposable-guard.mjs`). C'est un
+garde-fou vérifié par le script, pas une convention : les comptes de
+démonstration et leur mot de passe unique ne peuvent pas apparaître sur une
+base réelle. Pour marquer une base jetable : `node scripts/db/mark-disposable.mjs`.
 
 ### 4. Lancement du Serveur de Développement
 
@@ -179,15 +189,24 @@ npm run dev
 ### 5. Scripts disponibles
 
 ```bash
-npm run dev          # Développement avec hot-reload
-npm run build        # Build de production
-npm run start        # Démarrage production
-npm run test         # Tests unitaires
-npm run test:e2e     # Tests E2E Playwright
-npm run lint         # Vérification ESLint
-npm run type-check   # Vérification TypeScript
-npm run db:studio    # Interface Prisma Studio
+npm run dev              # Développement avec hot-reload
+npm run build            # Build de production
+npm run start            # Démarrage production (avec les préchargements requis)
+npm run test             # Tests unitaires et d'API (Prisma mocké)
+npm run test:integration # Tests sur un VRAI PostgreSQL jetable (isolation, listes, volume)
+npm run test:e2e         # Tests E2E Playwright
+npm run lint             # Vérification ESLint
+npm run type-check       # Vérification TypeScript
+npm run db:studio        # Interface Prisma Studio
+npm run docs:openapi     # Régénère docs/openapi.json depuis le code et les schémas Zod
+npm run cron:automation  # Déclenche les relances (voir docs/EXPLOITATION.md)
+npm run cron:retention   # Déclenche la purge de conservation (--dry pour un aperçu)
 ```
+
+> `npm run start` charge deux préchargements Node indispensables :
+> l'adresse client de confiance (sans elle, les limites de débit ne
+> distinguent plus les clients) et l'arrêt propre sur SIGTERM. En production,
+> le serveur **refuse de démarrer** sans le premier.
 
 ---
 
@@ -204,8 +223,8 @@ docker-compose -f docker-compose.yml up -d --build
 # Vérifier les logs
 docker-compose logs -f app
 
-# Healthcheck
-curl https://votre-domaine.com/api/system/health
+# Santé de l'application (route publique, sans session)
+curl https://votre-domaine.com/api/health
 ```
 
 ### Option 2 : PM2
@@ -248,10 +267,18 @@ Voir [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
 
 Documentation complète disponible dans le dossier `/docs` :
 
-- 📖 **[API Documentation](docs/API.md)** - Endpoints, authentification, exemples
-- 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** - Docker, PM2, Cloud deployment
-- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Stack technique, modèle de données
-- 👥 **[Contributing Guide](docs/CONTRIBUTING.md)** - Comment contribuer au projet
+- 📖 **[Spécification OpenAPI](docs/openapi.json)** — générée depuis le code et
+  les schémas Zod (`npm run docs:openapi`), servie par `/api/docs`. 287 chemins.
+- 🔧 **[Exploitation](docs/EXPLOITATION.md)** — variables de production, démarrage,
+  migrations, sauvegarde et restauration, tâches planifiées, rotation des secrets,
+  conduite à tenir si la base ou Redis tombe.
+- 🗄️ **[Migrations](docs/MIGRATIONS.md)** — procédure, et reprise d'une base créée par `db push`.
+- 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** — Docker, PM2, cloud.
+- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** — stack technique, modèle de données.
+- 👥 **[Contributing Guide](docs/CONTRIBUTING.md)** — comment contribuer au projet.
+- 📐 **[Inventaire de l'interface](docs/design/INVENTAIRE_UI.md)** — état des pages,
+  composants et jetons (constat, avant refonte).
+- 🧾 **[Dette technique](TECH_DEBT.md)** — ce qui est connu, mesuré et assumé.
 
 ### Ressources supplémentaires
 
