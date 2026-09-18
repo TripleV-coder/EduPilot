@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -43,7 +43,6 @@ type ExamData = {
 
 export default function TakeExamPage() {
     const params = useParams();
-    const router = useRouter();
     const { toast } = useToast();
     const id = params.id as string;
 

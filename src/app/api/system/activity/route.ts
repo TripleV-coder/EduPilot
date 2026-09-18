@@ -12,7 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
 
     const { searchParams } = new URL(request.url);

@@ -102,10 +102,6 @@ export default function IncidentsPage() {
         return count;
     }, [searchTerm, selectedPeriodId, selectedSeverity, selectedType, selectedStatus]);
 
-    const markIncidentTransition = (incidentId: string) => {
-        if (typeof window === "undefined") return;
-        window.sessionStorage.setItem("edupilot-incident-transition", incidentId);
-    };
     const resetFilters = () => {
         setSearchTerm("");
         setSelectedType("ALL");
@@ -303,7 +299,7 @@ export default function IncidentsPage() {
             header: "",
             cell: ({ row }) => (
                 <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/dashboard/incidents/${row.original.id}`} onClick={() => markIncidentTransition(row.original.id)}>
+                    <Link href={`/dashboard/incidents/${row.original.id}`}>
                         <MoreVertical className="w-4 h-4 text-muted-foreground" />
                     </Link>
                 </Button>

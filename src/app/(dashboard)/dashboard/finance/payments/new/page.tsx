@@ -348,7 +348,13 @@ export default function NewPaymentPage() {
                                                 required
                                                 disabled={!selectedStudentId}
                                             >
-                                                <option value="">Sélectionner un frais...</option>
+                                                <option value="">
+                                                    {loading
+                                                        ? "Chargement des frais…"
+                                                        : fees.length === 0
+                                                          ? "Aucun frais configuré"
+                                                          : "Sélectionner un frais..."}
+                                                </option>
                                                 {fees.map(f => (
                                                     <option key={f.id} value={f.id}>
                                                         {f.name} ({(f.amount).toLocaleString('fr-BJ')} FCFA)

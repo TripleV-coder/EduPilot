@@ -35,10 +35,6 @@ const updateCoefficientSchema = z.object({
   coefficient: z.number().min(0.01).max(10),
 });
 
-const removeSubjectSchema = z.object({
-  classSubjectId: z.string(),
-});
-
 // ============================================
 // GET /api/admin/curriculum-config
 // Lister les matières d'une classe
@@ -104,7 +100,7 @@ export const POST = createApiHandler(
         );
       }
 
-      const { schoolId, name, code, category, description } = parsed.data;
+      const { schoolId, name, code, category } = parsed.data;
 
       // Vérifier l'école existe
       const school = await prisma.school.findUnique({

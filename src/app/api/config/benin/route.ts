@@ -5,7 +5,6 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 
 // GET: Récupérer la configuration Bénin (matières, coefficients, mentions)
 export const GET = createApiHandler(async (request, context) => {
-        const session = context.session;
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");

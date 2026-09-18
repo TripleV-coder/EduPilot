@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const GET = createApiHandler(async (request, context) => {
-        const session = context.session;
 
   try {
     const [schoolsCount, studentsCount, classesCount, teachersCount] =

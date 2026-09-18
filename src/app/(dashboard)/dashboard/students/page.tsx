@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import useSWR, { useSWRConfig } from "swr";
+import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
@@ -81,7 +81,6 @@ export default function StudentsPage() {
         fetcher
     );
 
-    const { mutate } = useSWRConfig();
     const { toast } = useToast();
 
     const students: Student[] = studentsPage.items;

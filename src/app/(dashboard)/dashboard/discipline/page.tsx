@@ -147,12 +147,6 @@ function studentClass(s: Incident["student"]): string {
     return s?.enrollments?.[0]?.class?.name ?? "";
 }
 
-function getCount(b: StatsBucket | number | undefined): number {
-    if (b === undefined || b === null) return 0;
-    if (typeof b === "number") return b;
-    return b.count ?? 0;
-}
-
 export default function DisciplinePage() {
     const [filter, setFilter] = useState<FilterCategory>("all");
 

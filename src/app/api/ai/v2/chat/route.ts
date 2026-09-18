@@ -134,7 +134,6 @@ export const POST = createApiHandler(async (request, context) => {
 // Get service status (authenticated endpoint)
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
     const status = aiService.getStatus();
     const n8nHealth = await checkN8nHealth();

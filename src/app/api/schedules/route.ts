@@ -7,12 +7,6 @@ import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from 
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
-interface ScheduleWhereFilter {
-  classId?: string;
-  dayOfWeek?: number;
-  classSubjectId?: { in: string[] };
-}
-
 /**
  * GET /api/schedules
  * Obtenir l'emploi du temps

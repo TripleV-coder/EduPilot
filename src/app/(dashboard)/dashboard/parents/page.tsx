@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSWRConfig } from "swr";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -41,7 +40,6 @@ type ParentUser = {
 const PAGE_SIZE = 30;
 
 export default function ParentsPage() {
-    const { mutate } = useSWRConfig();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 300);

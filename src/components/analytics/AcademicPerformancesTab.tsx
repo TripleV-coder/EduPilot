@@ -32,10 +32,6 @@ const InteractiveSubjectRadarChart = dynamic(() => import("@/components/charts/I
     ssr: false,
     loading: () => <Skeleton className="h-full w-full rounded-lg" />,
 });
-const InteractivePerformanceBarChart = dynamic(() => import("@/components/charts/InteractivePerformanceBarChart").then((m) => m.InteractivePerformanceBarChart), {
-    ssr: false,
-    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
-});
 const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
     ssr: false,
     loading: () => <Skeleton className="h-full w-full rounded-lg" />,

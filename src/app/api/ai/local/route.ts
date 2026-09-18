@@ -54,7 +54,6 @@ const modelSchema = z.object({
  */
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
     const status = aiService.getStatus();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -53,8 +53,6 @@ const SANCTION_TYPES = [
     { value: "OTHER", label: "Autre" }
 ];
 
-const FLOW_TRANSITION = { duration: 0.24, ease: [0.16, 1, 0.3, 1] as const };
-
 export default function IncidentDetailsPage() {
     const params = useParams();
     const router = useRouter();
@@ -67,7 +65,6 @@ export default function IncidentDetailsPage() {
     const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
     const [sanctionDialogOpen, setSanctionDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [fromListTransition, setFromListTransition] = useState(false);
 
     // Form states
     const [followUpNotes, setFollowUpNotes] = useState("");
@@ -75,13 +72,6 @@ export default function IncidentDetailsPage() {
     const [sanctionDescription, setSanctionDescription] = useState("");
     const [sanctionStartDate, setSanctionStartDate] = useState(new Date().toISOString().slice(0, 16));
     const [sanctionEndDate, setSanctionEndDate] = useState("");
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const value = window.sessionStorage.getItem("edupilot-incident-transition");
-        if (value === id) setFromListTransition(true);
-        window.sessionStorage.removeItem("edupilot-incident-transition");
-    }, [id]);
 
     if (isLoading) return <div className="p-12 flex justify-center"><AlertTriangle className="animate-pulse text-muted-foreground" /></div>;
     if (!incident) return <div className="p-12 text-center text-destructive">Incident introuvable.</div>;

@@ -569,7 +569,7 @@ export async function getAdminDashboardData(
 
   for (const a of currentAnalytics) {
     if (a.generalAverage === null) continue;
-    for (const [classId, data] of Object.entries(classMap)) {
+    for (const data of Object.values(classMap)) {
       if (data.students.has(a.studentId)) {
         data.totals += Number(a.generalAverage);
         data.count += 1;

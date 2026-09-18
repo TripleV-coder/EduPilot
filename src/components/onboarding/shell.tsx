@@ -16,8 +16,6 @@ import {
 
 export type Color = "brand" | "success" | "warning" | "danger" | "info";
 
-type Step = { label: string };
-
 type ShellProps = {
     role: string;
     color: Color;

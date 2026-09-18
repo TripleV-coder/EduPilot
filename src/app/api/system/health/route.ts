@@ -12,7 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export const GET = createApiHandler(async (_request, context) => {
     try {
-        const session = context.session;
 
 
     // Calculate system health metrics

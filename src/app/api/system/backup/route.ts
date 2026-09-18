@@ -21,7 +21,6 @@ function isBackupApiAllowed(): boolean {
  */
 export const POST = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
 
     // Garde-fou supplémentaire : cette API peut être entièrement désactivée par configuration
@@ -87,7 +86,6 @@ export const POST = createApiHandler(async (request, context) => {
  */
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
 
     // Même garde-fou que pour POST : possibilité de désactiver totalement la surface backup via config

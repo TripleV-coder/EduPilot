@@ -22,17 +22,6 @@ const createScholarshipSchema = z.object({
   message: "Either amount or percentage must be provided",
 });
 
-const _updateScholarshipSchema = z.object({
-  name: z.string().min(3).max(200).optional(),
-  type: z.enum(["MERIT", "NEED_BASED", "ATHLETIC", "PARTIAL", "FULL", "OTHER"]).optional(),
-  amount: z.number().positive().optional(),
-  percentage: z.number().int().min(1).max(100).optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional().nullable(),
-  isActive: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
-});
-
 // GET /api/scholarships - List scholarships
 export const GET = createApiHandler(async (request, context) => {
   try {

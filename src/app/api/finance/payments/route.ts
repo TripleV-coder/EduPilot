@@ -76,7 +76,6 @@ export const GET = createApiHandler(
 
 export const POST = createApiHandler(
     async (request: NextRequest, { session: authSession }) => {
-        const _userRole = authSession.user.role;
         const body = await request.json();
         const validatedData = paymentSchema.parse(body);
 

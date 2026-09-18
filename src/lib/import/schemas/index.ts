@@ -2,7 +2,6 @@ import { z } from "zod";
 
 // Shared Schemas
 const phoneSchema = z.string().optional();
-const _emailSchema = z.string().email("Email invalide").optional().or(z.literal(""));
 
 // 1. Teacher Import Schema
 export const importTeacherSchema = z.object({

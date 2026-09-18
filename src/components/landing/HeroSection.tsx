@@ -9,13 +9,11 @@ import { useSession } from "next-auth/react";
 import { t } from "@/lib/i18n";
 
 export function HeroSection() {
-    const [isMounted, setIsMounted] = useState(false);
     const [trainedStudents, setTrainedStudents] = useState<number>(0);
     const { status } = useSession();
     const isAuthenticated = status === "authenticated";
 
      
-    useEffect(() => { setIsMounted(true); }, []);
 
     useEffect(() => {
         let cancelled = false;

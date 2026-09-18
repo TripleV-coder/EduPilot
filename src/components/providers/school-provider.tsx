@@ -137,7 +137,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         }
     );
 
-    const { data: academicYears, error: yearsError } = useSWR<AcademicYear[]>(
+    const { error: yearsError } = useSWR<AcademicYear[]>(
         isGlobalMode ? `/api/academic-years` : (session?.user?.schoolId ? `/api/academic-years?schoolId=${session.user.schoolId}` : null),
         fetcher,
         {

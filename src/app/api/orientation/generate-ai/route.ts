@@ -1,31 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { aiService, OrientationRecommendation } from "@/lib/ai/ai-service";
-import { SubjectGroup } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
-
-const SUBJECT_MAPPING: Record<string, SubjectGroup> = {
-    "mathématiques": "SCIENTIFIQUE",
-    "physique": "SCIENTIFIQUE",
-    "chimie": "SCIENTIFIQUE",
-    "svt": "SCIENTIFIQUE",
-    "sciences": "SCIENTIFIQUE",
-    "français": "LITTERAIRE",
-    "philosophie": "LITTERAIRE",
-    "lettres": "LITTERAIRE",
-    "littérature": "LITTERAIRE",
-    "histoire": "LITTERAIRE",
-    "géographie": "LITTERAIRE",
-    "économie": "ECONOMIQUE",
-    "gestion": "ECONOMIQUE",
-    "comptabilité": "ECONOMIQUE",
-    "dessin technique": "TECHNIQUE",
-    "mécanique": "TECHNIQUE",
-    "électronique": "TECHNIQUE",
-    "anglais": "LANGUES",
-    "espagnol": "LANGUES",
-    "allemand": "LANGUES",
-};
 
 export const POST = createApiHandler(async (request, context) => {
     try {

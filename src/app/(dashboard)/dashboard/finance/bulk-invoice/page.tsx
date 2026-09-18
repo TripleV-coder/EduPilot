@@ -23,7 +23,8 @@ export default function BulkInvoicePage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedLevel, setSelectedLevel] = useState("");
     const [selectedFee, setSelectedFee] = useState("");
-    const [selectedYear, setSelectedYear] = useState("");
+    // Aucun sélecteur d'année sur cette page : valeur toujours vide (voir TECH_DEBT)
+    const [selectedYear] = useState("");
     const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
     const [fees, setFees] = useState<FeeOption[]>([]);
     const [error, setError] = useState<string | null>(null);

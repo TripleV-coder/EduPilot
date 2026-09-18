@@ -6,7 +6,7 @@
 import prisma from "@/lib/prisma";
 import { CONFIG } from "./types";
 import { linearRegression, calculateR2, polynomialRegression, crossValidate } from "./algorithms/regression";
-import { exponentialMovingAverage, detectAnomalies, bootstrapConfidenceInterval, assessDataQuality } from "./algorithms/statistics";
+import { exponentialMovingAverage, detectAnomalies, bootstrapConfidenceInterval } from "./algorithms/statistics";
 import { rngFromId } from "./algorithms/rng";
 
 /**
@@ -45,7 +45,6 @@ export async function predictNextPeriodGrade(studentId: string): Promise<{
         const lastGrade = gradeHistory.length > 0
             ? Number(gradeHistory[gradeHistory.length - 1].average)
             : 10;
-        const _dataQuality = assessDataQuality(gradeHistory.length);
 
         return {
             predicted: lastGrade,

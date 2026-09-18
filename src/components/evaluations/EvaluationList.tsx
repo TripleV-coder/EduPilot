@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   FileText, Calendar, ArrowRight, 
-  MoreVertical, CheckCircle2, Clock} from "lucide-react";
+  MoreVertical} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { Grade } from "@/lib/types";
@@ -57,7 +57,6 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
         // Logic for status
         const status = gradeCount === 0 ? "Brouillon" : "Clôturée"; // Simplified for now
         const statusColor = gradeCount === 0 ? "bg-muted text-muted-foreground" : "bg-blue-500/10 text-blue-600";
-        const statusIcon = gradeCount === 0 ? Clock : CheckCircle2;
 
         return (
           <Card key={ev.id} className="border-none shadow-none bg-muted/20 hover:bg-muted/30 transition-colors group">
