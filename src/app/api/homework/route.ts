@@ -19,61 +19,7 @@ const createHomeworkSchema = z.object({
   isPublished: z.boolean().optional(),
 });
 
-/**
- * GET /api/homework
- * List homework assignments
- * @swagger
- * /api/homework:
- *   get:
- *     summary: Liste des devoirs
- *     description: Récupère la liste paginée des devoirs avec filtres optionnels
- *     tags: [Homework]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: classSubjectId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par matière de classe
- *       - name: studentId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par élève (pour voir ses devoirs)
- *       - name: upcoming
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Filtrer uniquement les devoirs à venir
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des devoirs
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 homeworks:
- *                   type: array
- *                   items:
- *                     type: object
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/homework — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, context) => {
   try {

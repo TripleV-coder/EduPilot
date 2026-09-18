@@ -97,52 +97,7 @@ export const GET = createApiHandler(
   }
 );
 
-/**
- * POST /api/schools
- * @swagger
- * /api/schools:
- *   post:
- *     summary: Créer un établissement
- *     description: Crée un nouvel établissement scolaire (SUPER_ADMIN uniquement)
- *     tags: [Schools]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *             properties:
- *               name:
- *                 type: string
- *                 minLength: 3
- *               address:
- *                 type: string
- *               phone:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
-   *               logo:
-   *                 type: string
-   *                 format: uri
- *     responses:
- *       201:
- *         description: Établissement créé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/School'
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** POST /api/schools — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const POST = createApiHandler(
   async (request, _context, t) => {
     const body = await request.json();

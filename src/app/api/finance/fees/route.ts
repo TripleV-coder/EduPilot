@@ -6,38 +6,7 @@ import { feeSchema } from "@/lib/validations/finance";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
-/**
- * GET /api/finance/fees
- * @swagger
- * /api/finance/fees:
- *   get:
- *     summary: Liste des frais
- *     description: Récupère la liste des frais scolaires
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: schoolId
- *         in: query
- *         schema:
- *           type: string
- *         description: ID de l'établissement
- *     responses:
- *       200:
- *         description: Liste des frais
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/finance/fees — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
     async (request, context) => {
         try {
@@ -88,54 +57,7 @@ export const GET = createApiHandler(
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] }
 );
 
-/**
- * POST /api/finance/fees
- * @swagger
- * /api/finance/fees:
- *   post:
- *     summary: Créer un frais
- *     description: Crée un nouveau frais scolaire
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - schoolId
- *               - name
- *               - amount
- *             properties:
- *               schoolId:
- *                 type: string
- *               name:
- *                 type: string
- *               amount:
- *                 type: number
- *               description:
- *                 type: string
- *               dueDate:
- *                 type: string
- *                 format: date-time
- *               isActive:
- *                 type: boolean
- *     responses:
- *       201:
- *         description: Frais créé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** POST /api/finance/fees — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;

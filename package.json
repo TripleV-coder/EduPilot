@@ -23,7 +23,8 @@
     "cron:automation": "bash scripts/cron/run-task.sh automation",
     "cron:retention": "bash scripts/cron/run-task.sh retention",
     "cron:retention:dry": "bash scripts/cron/run-task.sh retention --dry",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "docs:openapi": "tsx scripts/docs/generate-openapi.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

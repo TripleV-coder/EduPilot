@@ -20,60 +20,7 @@ const createMessageSchema = z.object({
   parentId: z.string().cuid().optional(), // For replies
 });
 
-/**
- * GET /api/messages
- * List user's messages (inbox/sent)
- * @swagger
- * /api/messages:
- *   get:
- *     summary: Liste des messages
- *     description: Récupère les messages (boîte de réception, envoyés, archivés)
- *     tags: [Messages]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: type
- *         in: query
- *         schema:
- *           type: string
- *           enum: [inbox, sent, archived]
- *           default: inbox
- *         description: Type de messages à récupérer
- *       - name: unreadOnly
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Filtrer uniquement les messages non lus (pour inbox)
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des messages
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 messages:
- *                   type: array
- *                   items:
- *                     type: object
- *                 unreadCount:
- *                   type: integer
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/messages — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(async (request, context) => {
   try {
     // Cache key based on user and query params

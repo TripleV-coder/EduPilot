@@ -12,57 +12,7 @@ import { API_ERRORS } from "@/lib/constants/api-messages";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
-/**
- * GET /api/classes
- * @swagger
- * /api/classes:
- *   get:
- *     summary: Liste des classes
- *     description: Récupère la liste paginée des classes
- *     tags: [Classes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: schoolId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par établissement
- *       - name: classLevelId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par niveau
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 50
- *           maximum: 200
- *     responses:
- *       200:
- *         description: Liste des classes
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Class'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/classes — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);

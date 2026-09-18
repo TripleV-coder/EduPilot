@@ -22,62 +22,7 @@ const createAnnouncementSchema = z.object({
   attachments: z.array(z.string().url()).optional(),
 });
 
-/**
- * GET /api/announcements
- * List announcements
- * @swagger
- * /api/announcements:
- *   get:
- *     summary: Liste des annonces
- *     description: Récupère les annonces publiées avec filtres optionnels
- *     tags: [Notifications]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: type
- *         in: query
- *         schema:
- *           type: string
- *         description: Type d'annonce
- *       - name: priority
- *         in: query
- *         schema:
- *           type: string
- *           enum: [LOW, MEDIUM, HIGH, URGENT]
- *         description: Priorité de l'annonce
- *       - name: includeExpired
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Inclure les annonces expirées
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des annonces
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 announcements:
- *                   type: array
- *                   items:
- *                     type: object
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/announcements — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(async (request, { session }) => {
   try {
     // Cache key based on user role, school, and query params

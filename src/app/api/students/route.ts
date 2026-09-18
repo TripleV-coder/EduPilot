@@ -16,62 +16,7 @@ import { checkStudentQuota } from "@/lib/saas/quotas";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
-/**
- * GET /api/students
- * @swagger
- * /api/students:
- *   get:
- *     summary: Liste des élèves
- *     description: Récupère la liste paginée des élèves avec filtres optionnels
- *     tags: [Students]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: classId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par classe
- *       - name: academicYearId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par année académique
- *       - name: search
- *         in: query
- *         schema:
- *           type: string
- *         description: Recherche par nom, prénom ou matricule
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *           maximum: 100
- *     responses:
- *       200:
- *         description: Liste des élèves
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Student'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/students — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 /** Plafond de sécurité d'un effectif de classe (?classId=) : aucune classe réelle ne l'atteint. */
 const CLASS_ROSTER_MAX = 1000;
 
