@@ -442,11 +442,90 @@ export async function getAdminDashboardData(
   if (filterStudentIds) analyticsWhere.studentId = { in: filterStudentIds };
   if (filterPeriodId) analyticsWhere.periodId = filterPeriodId;
 
-  // C3 : champs utiles aux indicateurs seulement (voir ./queries).
-  const analytics = await prisma.studentAnalytics.findMany({
-    where: analyticsWhere,
-    select: DASHBOARD_ANALYTICS_SELECT,
-  });
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const prevMonthStart = new Date(startOfMonth);
+  prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+  const prevMonthEnd = new Date(startOfMonth);
+  prevMonthEnd.setSeconds(-1);
+
+  /**
+   * Perf (2026-09-18) : ces requêtes ne dépendent pas les unes des autres, mais
+   * étaient enchaînées — une dizaine d'allers-retours l'un après l'autre, dont
+   * la comparaison entre sites, la plus lourde. Le tableau de bord attendait la
+   * somme de toutes les latences au lieu de la plus longue. Elles partent
+   * maintenant ensemble ; les deux seules dépendances réelles restent
+   * imbriquées (dates de l'année scolaire → présences ; identifiants d'analyse
+   * → matières et élèves à risque).
+   */
+  const [
+    analytics,
+    attendanceStats,
+    droppedStudentsCount,
+    studentsInSchoolCount,
+    recentActivity,
+    pendingPayments,
+    paymentsReceived,
+    enrollments,
+    periods,
+    newStudentsThisMonth,
+    prevAttendanceStats,
+    siteComparison,
+  ] = await Promise.all([
+    // C3 : champs utiles aux indicateurs seulement (voir ./queries).
+    prisma.studentAnalytics.findMany({ where: analyticsWhere, select: DASHBOARD_ANALYTICS_SELECT }),
+    (async () => {
+      const academicYear = await prisma.academicYear.findFirst({
+        where: { id: yearId },
+        select: { startDate: true, endDate: true },
+      });
+      const attendanceWhere: Prisma.AttendanceWhereInput = {
+        student: { schoolId },
+        date: {
+          gte: academicYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1),
+          lte: academicYear?.endDate ?? new Date(),
+        },
+      };
+      if (filterStudentIds) attendanceWhere.studentId = { in: filterStudentIds };
+      return prisma.attendance.groupBy({ by: ["status"], where: attendanceWhere, _count: true });
+    })(),
+    prisma.enrollment.count({
+      where: { class: { schoolId }, academicYearId: yearId, status: { in: ["DROPPED", "SUSPENDED"] } }
+    }),
+    prisma.studentProfile.count({ where: { schoolId, deletedAt: null } }),
+    prisma.auditLog.findMany({
+      where: { schoolId },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { firstName: true, lastName: true } } }
+    }),
+    prisma.payment.aggregate({
+      where: { status: "PENDING", fee: { schoolId }, deletedAt: null },
+      _sum: { amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: { status: "VERIFIED", fee: { schoolId }, deletedAt: null },
+      _sum: { amount: true },
+    }),
+    prisma.enrollment.findMany({
+      where: { academicYearId: yearId, status: "ACTIVE", class: { schoolId } },
+      select: { studentId: true, classId: true, class: { select: { name: true } } },
+    }),
+    prisma.period.findMany({ where: { academicYearId: yearId }, orderBy: { sequence: "asc" } }),
+    prisma.studentProfile.count({ where: { schoolId, createdAt: { gte: startOfMonth } } }),
+    prisma.attendance.groupBy({
+      by: ["status"],
+      where: { student: { schoolId }, date: { gte: prevMonthStart, lte: prevMonthEnd } },
+      _count: true,
+    }),
+    buildSiteComparison({
+      rootSchoolId: schoolId,
+      yearId,
+      filterClassId,
+      filterPeriodId,
+      filterSubjectId,
+      networkSchoolIds: normalizedComparisonSchoolIds,
+    }),
+  ]);
 
   const currentAnalytics = filterPeriodId ? analytics : dedupeLatestAnalyticsByStudent(analytics);
   const scoredCurrentAnalytics = currentAnalytics.filter(item => item.generalAverage !== null);
@@ -454,26 +533,6 @@ export async function getAdminDashboardData(
   const averageGrade = scoredCurrentAnalytics.length > 0
     ? scoredCurrentAnalytics.reduce((sum, a) => sum + Number(a.generalAverage), 0) / scoredCurrentAnalytics.length
     : 0;
-
-  const academicYear = await prisma.academicYear.findFirst({
-    where: { id: yearId },
-    select: { startDate: true, endDate: true },
-  });
-
-  const attendanceWhere: Prisma.AttendanceWhereInput = {
-    student: { schoolId },
-    date: {
-      gte: academicYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1),
-      lte: academicYear?.endDate ?? new Date(),
-    },
-  };
-  if (filterStudentIds) attendanceWhere.studentId = { in: filterStudentIds };
-
-  const attendanceStats = await prisma.attendance.groupBy({
-    by: ["status"],
-    where: attendanceWhere,
-    _count: true,
-  });
 
   const attendanceDistribution = {
     present: attendanceStats.find(a => a.status === "PRESENT")?._count || 0,
@@ -495,40 +554,10 @@ export async function getAdminDashboardData(
     ? (scoredCurrentAnalytics.filter(a => Number(a.generalAverage) < 10).length / scoredCurrentAnalytics.length) * 100
     : 0;
 
-  const [droppedStudentsCount, studentsInSchoolCount, recentActivity] = await Promise.all([
-    prisma.enrollment.count({
-      where: { class: { schoolId }, academicYearId: yearId, status: { in: ["DROPPED", "SUSPENDED"] } }
-    }),
-    prisma.studentProfile.count({ where: { schoolId, deletedAt: null } }),
-    prisma.auditLog.findMany({
-      where: { schoolId },
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { firstName: true, lastName: true } } }
-    })
-  ]);
-
   const dropoutRate = studentsInSchoolCount > 0 ? (droppedStudentsCount / studentsInSchoolCount) * 100 : 0;
-
-  const [pendingPayments, paymentsReceived] = await Promise.all([
-    prisma.payment.aggregate({
-      where: { status: "PENDING", fee: { schoolId }, deletedAt: null },
-      _sum: { amount: true },
-    }),
-    prisma.payment.aggregate({
-      where: { status: "VERIFIED", fee: { schoolId }, deletedAt: null },
-      _sum: { amount: true },
-    }),
-  ]);
 
   const performanceDistribution = buildPerformanceDistribution(currentAnalytics);
   const riskDistribution = buildRiskDistribution(currentAnalytics);
-  const subjectSummary = await summarizeSubjects(currentAnalytics.map((item) => item.id), filterSubjectId);
-
-  const enrollments = await prisma.enrollment.findMany({
-    where: { academicYearId: yearId, status: "ACTIVE", class: { schoolId } },
-    select: { studentId: true, classId: true, class: { select: { name: true } } },
-  });
 
   const classMap: Record<string, { name: string; totals: number; count: number; students: Set<string> }> = {};
   for (const enr of enrollments) {
@@ -557,11 +586,6 @@ export async function getAdminDashboardData(
     .sort((a, b) => b.average - a.average)
     .slice(0, 10);
 
-  const periods = await prisma.period.findMany({
-    where: { academicYearId: yearId },
-    orderBy: { sequence: "asc" },
-  });
-
   const monthlyTrend = periods.map(period => {
     const periodAnalytics = analytics.filter(a => a.periodId === period.id && a.generalAverage !== null);
     const avg = periodAnalytics.length > 0
@@ -570,7 +594,11 @@ export async function getAdminDashboardData(
     return { name: period.name, value: roundTo(avg) };
   });
 
-  const atRiskStudents = await loadAtRiskStudents(currentAnalytics, yearId);
+  // Vague 2 : les deux seules requêtes qui dépendent des analyses lues plus haut.
+  const [subjectSummary, atRiskStudents] = await Promise.all([
+    summarizeSubjects(currentAnalytics.map((item) => item.id), filterSubjectId),
+    loadAtRiskStudents(currentAnalytics, yearId),
+  ]);
 
   // Calculate realistic growths
   const currentMonthAvg = monthlyTrend[monthlyTrend.length - 1]?.value || 0;
@@ -579,10 +607,6 @@ export async function getAdminDashboardData(
   
   // Approximation légère: on mesure la croissance du mois courant via les créations récentes
   // pour éviter des historiques volumineux sur chaque chargement du dashboard.
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const newStudentsThisMonth = await prisma.studentProfile.count({
-    where: { schoolId, createdAt: { gte: startOfMonth } }
-  });
   // Croissance mensuelle des effectifs. Garde anti-division-par-zéro : sans
   // base le mois précédent (ex. créations en masse / 1re année), on n'affiche
   // pas de pourcentage aberrant (0 plutôt que 99900%). Plafond de sécurité à
@@ -592,36 +616,12 @@ export async function getAdminDashboardData(
     ? Math.min(999, roundTo((newStudentsThisMonth / prevStudentsCount) * 100))
     : 0;
 
-  // Calculate real attendance growth vs previous month
-  const prevMonthStart = new Date(startOfMonth);
-  prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
-  const prevMonthEnd = new Date(startOfMonth);
-  prevMonthEnd.setSeconds(-1);
-
-  const prevAttendanceStats = await prisma.attendance.groupBy({
-    by: ["status"],
-    where: {
-      student: { schoolId },
-      date: { gte: prevMonthStart, lte: prevMonthEnd },
-    },
-    _count: true,
-  });
-
   const prevTotalAttendance = prevAttendanceStats.reduce((s, v) => s + v._count, 0);
   const prevAttendanceRate = prevTotalAttendance > 0
     ? (( (prevAttendanceStats.find(a => a.status === "PRESENT")?._count || 0) + (prevAttendanceStats.find(a => a.status === "LATE")?._count || 0) ) / prevTotalAttendance) * 100
     : attendanceRate; // Fallback to current if no data in prev month
 
   const attendanceGrowth = roundTo(attendanceRate - prevAttendanceRate);
-  const siteComparison = await buildSiteComparison({
-    rootSchoolId: schoolId,
-    yearId,
-    filterClassId,
-    filterPeriodId,
-    filterSubjectId,
-    networkSchoolIds: normalizedComparisonSchoolIds,
-  });
-
   return {
     totalStudents,
     totalTeachers,

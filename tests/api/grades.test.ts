@@ -275,6 +275,42 @@ describe("GET /api/grades/statistics", () => {
     expect(aggregateGradeStatistics).toHaveBeenCalledWith(expect.objectContaining({ schoolId: FIXTURES.schoolA }));
   });
 
+  /**
+   * Perf (2026-09-18) : l'agrégation parcourt toutes les notes du périmètre —
+   * ~400 ms sur la base de l'audit (131 208 notes). C'est le coût de
+   * l'agrégation elle-même, pas d'un index manquant. La route la recalculait à
+   * chaque affichage de la page Notes, y compris quand rien n'avait changé.
+   */
+  it("sert le cache au 2e appel identique, sans réagréger", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
+
+    const url = "http://localhost:3000/api/grades/statistics?cachetest=1";
+    const first = await GET_STATISTICS(makeRequest(url));
+    const second = await GET_STATISTICS(makeRequest(url));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.headers.get("X-Cache")).toBe("MISS");
+    expect(second.headers.get("X-Cache")).toBe("HIT");
+    expect(aggregateGradeStatistics).toHaveBeenCalledTimes(1);
+    // Réponse propre à un établissement : jamais de cache partagé (N29).
+    expect(second.headers.get("Cache-Control")).toContain("private");
+  });
+
+  it("ne partage pas le cache entre deux comptes", async () => {
+    const url = "http://localhost:3000/api/grades/statistics?cachetest=2";
+    vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());
+
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN", { id: cuid("compteun") }));
+    await GET_STATISTICS(makeRequest(url));
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN", { id: cuid("comptedeux") }));
+    const other = await GET_STATISTICS(makeRequest(url));
+
+    expect(other.headers.get("X-Cache")).toBe("MISS");
+    expect(aggregateGradeStatistics).toHaveBeenCalledTimes(2);
+  });
+
   it("régression : ne charge plus aucune note en mémoire (agrégation SQL)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(aggregateGradeStatistics).mockResolvedValue(aggregate());

@@ -6,6 +6,7 @@ import { roundTo } from "@/lib/analytics/helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { getOwnStudentIds } from "@/lib/auth/family-scope";
+import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import {
   aggregateGradeStatistics,
   averageGrade,
@@ -85,6 +86,26 @@ export const GET = createApiHandler(
       studentIds,
     };
 
+    /**
+     * Perf (2026-09-18) : l'agrégation parcourt toutes les notes du périmètre
+     * (~400 ms sur la base de l'audit, 131 208 notes). C'est le coût de
+     * l'agrégation elle-même — EXPLAIN montre des parcours déjà indexés — et il
+     * était payé à chaque affichage de la page Notes, même sans changement.
+     *
+     * La clé inclut l'identifiant de la personne et tous les paramètres : deux
+     * comptes ne partagent jamais une réponse, et le périmètre famille (N10)
+     * reste exact. Les écritures de notes purgent déjà le préfixe
+     * `/api/grades` (`invalidateByPath`), donc une note saisie est visible tout
+     * de suite ; à défaut, la fenêtre est d'une minute.
+     */
+    const cacheKey = generateCacheKey(
+      "/api/grades/statistics",
+      searchParams,
+      `${session.user.id}:${activeSchoolId ?? "sans-ecole"}`,
+    );
+
+    // `await` indispensable : sans lui, un rejet échapperait au try/catch de la route.
+    return await withCache(async () => {
     const stats = await aggregateGradeStatistics(scope);
 
     let trend: "up" | "down" | "stable" | null = null;
@@ -158,6 +179,7 @@ export const GET = createApiHandler(
       trend,
       ranking,
     });
+    }, { ttl: CACHE_TTL_SHORT, key: cacheKey });
   } catch (error) {
     logger.error("Error fetching grade statistics", error as Error);
     return NextResponse.json(
