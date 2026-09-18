@@ -94,6 +94,22 @@ export function OnboardingChecklist() {
     // Réduit par défaut : barre compacte en bas à droite qui ne recouvre pas le
     // contenu du dashboard ; l'utilisateur déplie quand il le souhaite.
     const [collapsed, setCollapsed] = useState(true);
+    /*
+     * Le corps replié doit sortir du DOM une fois l'animation terminée — comme
+     * le faisait `AnimatePresence`. Sans cela il reste atteignable au clavier
+     * et lu par un lecteur d'écran, et ses libellés entrent en collision avec
+     * ceux de la page : un test E2E l'a constaté (« Marquer comme non fait :
+     * Créer une classe » capté par une recherche de champ « Classe »).
+     */
+    const [bodyMounted, setBodyMounted] = useState(false);
+    useEffect(() => {
+        if (!collapsed) {
+            setBodyMounted(true);
+            return;
+        }
+        const timeoutId = window.setTimeout(() => setBodyMounted(false), 200);
+        return () => window.clearTimeout(timeoutId);
+    }, [collapsed]);
 
     const checklistItems = role ? (roleChecklists[role] || []) : [];
     const showChecklist = checklistItems.length > 0;
@@ -226,7 +242,8 @@ export function OnboardingChecklist() {
                     </div>
 
                     {/* Body */}
-                    <div className="edu-collapse" data-collapsed={collapsed}>
+                    {bodyMounted ? (
+                    <div className="edu-collapse" data-collapsed={collapsed} inert={collapsed || undefined}>
                         <div>
                             <div className="p-3 space-y-1">
                                     <p className="text-xs text-muted-foreground mb-3">
@@ -272,6 +289,7 @@ export function OnboardingChecklist() {
                             </div>
                         </div>
                     </div>
+                    ) : null}
                 </div>
         </aside>
     );

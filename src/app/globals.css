@@ -661,14 +661,26 @@
 }
 .edu-pulse-bg { animation: eduPulseBg 1.5s ease-in-out infinite; }
 
-/* Repli/dépli à hauteur automatique, sans mesurer en JavaScript. */
+/* Repli/dépli à hauteur automatique, sans mesurer en JavaScript.
+   `visibility: hidden` en fin de repli est indispensable : une hauteur nulle et
+   une opacité nulle laissent le contenu dans l'arbre d'accessibilité, donc
+   atteignable au clavier et lu par un lecteur d'écran. Un test E2E l'a
+   constaté (le bouton d'une étape repliée captait un libellé de la page). */
 .edu-collapse {
   display: grid;
   grid-template-rows: 1fr;
   transition: grid-template-rows 200ms ease, opacity 200ms ease;
 }
-.edu-collapse > * { overflow: hidden; min-height: 0; }
+.edu-collapse > * {
+  overflow: hidden;
+  min-height: 0;
+  visibility: visible;
+}
 .edu-collapse[data-collapsed="true"] { grid-template-rows: 0fr; opacity: 0; }
+.edu-collapse[data-collapsed="true"] > * {
+  visibility: hidden;
+  transition: visibility 0s linear 200ms;
+}
 
 /* ─── CHAMP DE FORMULAIRE COHÉRENT ───────────────────────────────────
    Traitement unifié des inputs/textarea hors composant <Input> (dialogs,
