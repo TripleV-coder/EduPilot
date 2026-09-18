@@ -660,6 +660,174 @@ module n'est même pas chargé.
 
 ---
 
+## Lot 8 — Front, consolidation, inventaire, OpenAPI (terminé le 2026-09-18 ; en attente du feu vert)
+
+### Commits
+
+| Commit | Objet |
+|---|---|
+| `7a6b688` | perf(front) : SheetJS et les onglets d'analyse chargés à la demande |
+| `7f668d6` `deb8d42` | fix(ux) : **27 pages** distinguent une panne de chargement d'une absence de données |
+| `dafda24` `621ee2f` | chore **[L9]** : 55 fichiers morts supprimés (liste validée point par point par le propriétaire) |
+| `795c596` | chore **[L3]** : 8 modules morts retirés, 0 référence vivante |
+| `7f506e4` | refactor(config) **[L3]** : un seul module d'environnement, **2 contrôles retrouvés** |
+| `f6c867e` | refactor(security) **[L3]** : un seul moteur de limitation ; les limiteurs nommés savent rendre une unité |
+| `dd17d02` | refactor(api) **[Lot 3][Lot 8]** : un seul format de pagination, `?page=` retiré |
+| `a578eea` | docs(api) **[M9]** : spécification OpenAPI générée depuis le code et les schémas Zod |
+| `0bd963a` | docs(design) : `docs/design/INVENTAIRE_UI.md` (constat seul) |
+| `7e69abf` | docs **[M9]** : README et `docs/API.md` alignés sur ce que le code fait |
+| `67fad66` | fix(root) **[N15]** : la page d'analyse de la console root ne répond plus 500 |
+| `be88e99` | chore(release) : version **1.3.0**, `TECH_DEBT.md` remesuré, CHANGELOG |
+
+### Décisions du propriétaire (2026-09-18, règle 11)
+
+| Question | Réponse retenue |
+|---|---|
+| Module cible du rate-limit | **Fusion complète sur `src/lib/rate-limit.ts`**, avec le moteur maison (le seul capable de rendre une unité) ; `lib/auth/rate-limiter.ts` et `lib/api/middleware-rate-limit.ts` supprimés ; dépendance `@upstash/ratelimit` retirée |
+| Module cible de l'environnement | **Tout sur `src/lib/env.ts`** ; `lib/config/env.ts` et `lib/config/env-validation.ts` supprimés |
+
+### Ce que la consolidation a révélé
+
+Les fusions n'ont pas seulement rangé le code ; elles ont mis au jour trois
+comportements qui n'étaient corrects que par accident :
+
+1. **Deux validations d'environnement aux règles divergentes.** C'est ce
+   désaccord qui avait produit N5. Surtout, deux contrôles n'existaient que
+   dans le module secondaire : le démarrage acceptait un `NEXTAUTH_SECRET` de
+   **10 caractères** et un `DATABASE_URL` en `mysql://`. La fusion garde le
+   plus strict des deux comportements, jamais le plus permissif — prouvé par
+   2 cas rouges sur le code d'avant.
+2. **Deux magasins de limitation distincts.** Une même adresse consommait deux
+   quotas selon la porte d'entrée, et aucun limiteur nommé ne savait rendre une
+   unité — ce dont dépend pourtant le correctif H4.
+3. **`?page=` documenté partout, utilisé nulle part.** Aucun écran ne
+   l'envoyait plus ; en revanche `/api/teachers` était restée **entièrement**
+   sur l'ancien mode, et la documentation d'API le décrivait encore.
+
+### Mesures du Lot 8
+
+Conditions : build de production de `be88e99`, base d'audit (3 écoles,
+2 706 comptes, 995 élèves, 131 208 notes), serveur standalone sur le rôle
+applicatif `edupilot_app` (RLS active), port 3100.
+
+| Critère du lot | Mesure | Verdict |
+|---|---|---|
+| Lighthouse mobile, tableau de bord ≥ 0,80 | **0,94** | ✅ |
+| TBT < 600 ms | **229 ms** | ✅ |
+| Accessibilité ≥ 0,95 | **1,00** | ✅ |
+| Apparence inchangée | Aucune couleur, typographie, espacement, jeton ni mise en page modifiés ; contrôlé page à page sur les fichiers touchés | ✅ |
+| Consolidation rate-limit / env | 3 + 3 modules → **1 + 1** | ✅ |
+| `INVENTAIRE_UI.md` | Écrit, constat seul | ✅ |
+| OpenAPI générée depuis Zod | **287 chemins, 463 opérations, 45 schémas** | ✅ |
+| README / TECH_DEBT / CHANGELOG 1.3.0 | À jour, chiffres remesurés | ✅ |
+| Artefacts racine (L9) | 55 fichiers, liste validée par le propriétaire | ✅ |
+
+Les autres pages mobiles mesurées : analyses 0,85–0,89 (TBT 256–370 ms),
+import 0,86–0,94 (TBT 214–261 ms), notes 0,89, performances 0,88.
+La page d'accueil publique reste à 0,59 — hors critère du lot, consignée.
+
+### Non-régression — sécurité rejouée après la fusion du rate-limit
+
+Le moteur de limitation ayant changé, les mesures de sécurité ont été
+**rejouées intégralement** sur build de production, et non déduites des tests.
+
+| Contrôle | Résultat | Référence Lot 0 |
+|---|---|---|
+| H4 — 12 échecs de connexion, même IP | **PASS** `{"302":10,"429":2}` | `{"302":12}` |
+| H3 — 130 requêtes, XFF tournant | **PASS** `{"200":76,"429":54}` | `{"200":130}` |
+| H1 — `/api/health` anonyme | **PASS** 200 | 401 |
+| H2 — cron, secret invalide puis valide | **PASS** 401 / 202 et 401 / 200 | 401 dans les deux cas |
+| H5 — catégorie d'une autre école (GET/PATCH/DELETE) | **PASS** 404 ×3, rien persisté, rien désactivé | 200 ×3 |
+| TENANT — `?schoolId` d'une autre école | **PASS** 403 | 403 |
+| M3 — corps vide puis JSON cassé | **PASS** 400 ×2 | 500 ×2 |
+| **Total** | **13/13 PASS** | |
+| H6 — Redis injoignable, `/api/auth/csrf` | **PASS** 10×200, **p50 13 ms / p95 21 ms** | p50 4 319 ms |
+
+### Non-régression — parcours des sept rôles
+
+`smoke.mjs ALL`, seuils 1 Mo / 1 s, 167 routes par rôle :
+
+| Rôle | Statuts | p50 / p95 (200) | 5xx | > 500 ms | > 500 Ko |
+|---|---|---|---|---|---|
+| SUPER_ADMIN | `{"200":98,"400":49,"401":2,"403":17,"404":1}` | 26 / 113 ms | aucun | aucun | aucun |
+| SCHOOL_ADMIN | `{"200":114,"400":24,"401":2,"403":27}` | 19 / 124 ms | aucun | aucun | aucun |
+| DIRECTOR | `{"200":109,"400":24,"401":2,"403":32}` | 19 / 137 ms | aucun | aucun | aucun |
+| ACCOUNTANT | `{"200":85,"400":16,"401":2,"403":64}` | 17 / 71 ms | aucun | aucun | aucun |
+| TEACHER | `{"200":83,"400":24,"401":2,"403":58}` | 17 / 177 ms | aucun | aucun | aucun |
+| STUDENT | `{"200":78,"400":14,"401":2,"403":73}` | 17 / 59 ms | aucun | aucun | aucun |
+| PARENT | `{"200":79,"400":15,"401":2,"403":71}` | 21 / 66 ms | aucun | aucun | aucun |
+
+**C'est le premier smoke sans aucune violation** : la violation `N15`
+(`/api/root/analytics` → 500 pour le SUPER_ADMIN), présente à tous les lots
+depuis le Lot 3, a disparu — elle est corrigée dans ce lot. RSS du serveur
+après la série : **346 Mo** (critère du Lot 3 : < 500 Mo).
+
+Contrôle direct de la route corrigée sur le build de production :
+`GET /api/root/analytics?period=30d` → **200 en 39 ms**, chronologie de 6
+points, dates en chaînes `AAAA-MM-JJ`.
+
+### Non-régression — E2E après le changement de contrat des listes
+
+Le retrait de `?page=` change la forme des réponses de listes : la suite E2E a
+donc été rejouée en entier sur le build de production, contre la base d'audit
+et le rôle applicatif soumis à la RLS. **89/89 en 2,0 min**, dont les suites
+qui parcourent des listes (`class-lists`, `student-lists`, `security-rbac` sur
+`/api/teachers`, `/api/students`, `/api/classes`, `/api/users`).
+
+### Non-régression — forme des réponses après le retrait de `?page=`
+
+Sur le build de production, session d'administrateur d'établissement :
+
+| Route | Statut | Clés | Pagination |
+|---|---|---|---|
+| `/api/teachers?limit=5` | 200 | `data, pagination` | `limit, hasNextPage, nextCursor, total` |
+| `/api/finance/payments?limit=5` | 200 | `data, pagination` | idem |
+| `/api/students?limit=5` | 200 | `data, pagination` | idem |
+| `/api/classes?limit=5` | 200 | `data, pagination` | idem |
+
+La page `/dashboard/teachers` — la seule dont la forme de réponse changeait —
+rend en **200**, 33 Ko, sans message d'erreur ni état vide.
+
+### Tests existants modifiés (règle 4)
+
+Tous ces changements accompagnent un changement de contrat assumé, jamais un
+contournement :
+
+- `tests/lib/auth-rate-limiter.test.ts` → `tests/lib/rate-limit-keys.test.ts` :
+  chemin du module suivi, cas inchangés.
+- `tests/lib/rate-limit-handles.test.ts` : un `LimiterHandle` porte désormais
+  `{ name, config }` ; l'assertion `handle.limiter === null` (il n'existe plus
+  d'objet `Ratelimit` à inspecter) devient `config.maxAttempts > 0`. Les cinq
+  comportements vérifiés sont identiques.
+- `tests/lib/config/env-validation.test.ts` → `tests/lib/env-critical.test.ts` :
+  renommage, contenu inchangé.
+- Six tests d'API remplaçaient un module entier par un mock ; ils passent au
+  mock **partiel** (`importOriginal`) — rétréci, pas élargi.
+- 10 cas unitaires et 14 cas d'intégration vérifiaient la tolérance `?page=` :
+  ils vérifient maintenant que le paramètre est ignoré et que les clés
+  `page`/`totalPages` ont disparu.
+
+### Tests retirés (règle 4, justification exigée)
+
+- `tests/lib/brute-force.test.ts` : ne testait que `lib/security/brute-force.ts`,
+  doublon mort. Le verrouillage de compte réellement branché
+  (`lib/auth/account-lockout.ts`) reste couvert par son propre test.
+- 11 cas de `api-helpers.test.ts` / `api-helpers-cuid.test.ts` : ne couvraient
+  que `getPaginationParams`, `createPaginationMeta` et `createPaginatedResponse`,
+  supprimés faute d'appelant.
+
+Aucune couverture de comportement vivant n'est perdue. Un cas réel emporté par
+erreur pendant la réécriture des tests d'intégration (« écoles accessibles d'un
+compte réseau ») a été **restauré en entier** avant le commit.
+
+### Point ouvert du Lot 8
+
+`setUserContext` garde un paramètre `_email` ignoré (héritage du Lot 7). Il
+n'est appelé nulle part ; retiré avec le reste du code mort si un appelant
+apparaît. Aucun risque : la fonction n'exporte plus d'adresse électronique.
+
+---
+
 ## Registre des défauts
 
 Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, preuve dans `docs/AUDIT.md`) · **En cours** · **Corrigé** (avec preuve) · **Accepté** (décision du propriétaire) · **Reporté**.
@@ -683,11 +851,11 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | M6 | Moyenne | `.env.example` incohérent (18 variables, Upstash, `AUTH_TRUST_HOST`) | 2 | Corrigé (statut Upstash : décision en attente, voir Lot 2) | `2851521` | `tests/lib/config/env-documentation.test.ts` (2), `tests/lib/env-production.test.ts` (4) | 18 lues non documentées, 3 documentées jamais lues ; `EMAIL_API_KEY` exigée même en SMTP | 0 / 0 ; `SMTP_HOST` exigé en SMTP, `EMAIL_API_KEY` hors SMTP |
 | M7 | Moyenne | Dépendances vulnérables (nodemailer, sharp) | 1 | Corrigé (prod) | `0fd0302` | `npm audit --omit=dev --audit-level=high` | 4 prod, 15 total | 0 prod ; 8 total, outils de dev uniquement (correctif = majeure/`--force`) |
 | M8 | Moyenne | 3 E2E en échec | 5 | Corrigé | `90930dd` (a11y `/ecoles`, `/dashboard/grades` enseignant) ; `grades-flow` vert depuis le Lot 4 | `npm run test:e2e` (build de prod, base d'audit, rôle applicatif) | 78/81 | 89/89 |
-| M9 | Moyenne | Documentation d'API obsolète | 8 | Constat audit | — | OpenAPI généré | 33/452 | — |
+| M9 | Moyenne | Documentation d'API obsolète | 8 | Corrigé | `a578eea` `7e69abf` | `tests/lib/openapi.test.ts` (6, reconstruit la spécification et la compare au fichier versionné) ; `/api/docs` 200 en 27 ms sur build de production | `lib/swagger.ts` : 4 chemins écrits à la main ; `docs/API.md` : 33 routes, format `?page=` inexistant | **287 chemins, 463 opérations, 45 schémas** générés depuis le code et les schémas Zod ; `docs/API.md` réduit aux conventions réelles ; README corrigé sur `db push`, le seed et la sonde de santé |
 | M10 | Moyenne | Panne DB indiscernable d'identifiants invalides | 2 | Corrigé | `fc28606` | `tests/integration-db/login-db-outage.test.ts` (3, vraies erreurs Prisma) ; `login-errors.test.ts` (5) ; `auth-login-rate-limit.test.ts` (+1) | `error=Configuration` → « Email ou mot de passe incorrect » | `code=service_unavailable` → « Service momentanément indisponible… » ; panne non comptée par la limite H4 |
 | L1 | Faible | CSP `style-src 'unsafe-inline'` | 7 | Constat audit | — | en-tête | — | — |
 | L2 | Faible | `X-XSS-Protection` obsolète | 7 | Constat audit | — | en-tête | — | — |
-| L3 | Faible | Code mort / modules dupliqués | 8 | Constat audit | — | grep imports | 4 rate-limit | — |
+| L3 | Faible | Code mort / modules dupliqués | 8 | Corrigé | `795c596` `7f506e4` `f6c867e` `dafda24` + N12 | `tests/lib/rate-limit-unified.test.ts` (4, rouges avant) ; `tests/lib/env-production.test.ts` (+2, rouges avant) ; `security.mjs` 13/13 et `redis-outage.mjs` rejoués sur build de production | 3 modules de rate-limit (2 moteurs, 2 magasins), 3 modules d'environnement (2 validations divergentes), 9 modules morts, 55 fichiers morts à la racine | **1 module de rate-limit, 1 module d'environnement** ; dépendance `@upstash/ratelimit` retirée ; 2 contrôles de démarrage retrouvés (longueur du secret, forme de l'URL de base) |
 | L4 | Faible | `SIGNATURE_SALT` avec repli codé | 2 | Corrigé | `2851521` | `tests/lib/signatures/signature-salt.test.ts` (3) ; `env-production.test.ts` | repli codé « edupilot » | obligatoire en production (démarrage refusé sinon) |
 | L5 | Faible | `/api/system/backup` expose chemin + stdout | 7 | Constat audit | — | test de réponse | — | — |
 | L6 | Faible | Fichiers géants | 8 (inventaire) | Constat audit | — | — | — | — |
@@ -704,11 +872,11 @@ Statuts : **Confirmé** (rejoué au Lot 0) · **Constat audit** (non rejoué, pr
 | N10 | Élevée (données personnelles) | `GET /api/grades/statistics` : périmètre et classement nominatif non restreints par rôle (noms et moyennes d'élèves exposés au-delà de l'équipe concernée) ; calcul en mémoire sur toutes les notes | 3 | Corrigé | `20d56d1` | `grade-statistics.test.ts` (8, PG réel) | timeout 20 s (Lot 0) | classement réservé aux rôles autorisés et à l'enseignant de la classe ; agrégation SQL |
 | N8 | Élevée | Maintenance quotidienne (`runDailyMaintenance`) exécutée de façon synchrone dans la requête du cron : recalcul séquentiel de ~3 000 instantanés d'analyse (élève × période), CPU du serveur 100–126 % pendant toute la durée (l'application ralentit pour tous) ; **aucune exclusion mutuelle** : un planificateur qui réessaie après expiration lance une 2e exécution concurrente (observé : 2 exécutions simultanées) | 3 (analytics) / 7 (crons) | Corrigé | `ab8aa4c` `761d460` | `tests/integration-db/job-lease.test.ts` (PG réel : 1 détenteur sur 5 acquisitions simultanées, reprise d'un bail expiré) ; `concurrency.test.ts` ; `automation-service.test.ts` ; route : 202 puis 409 pendant l'exécution | 1re exécution 11 min 49 s, 2e exécution HTTP 200 en 733 s, pour 2 982 instantanés chacune (exécutions simultanées + suite E2E en parallèle) ; client expiré à 300 s | réponse 202 immédiate ; exécution concurrente refusée (409) ; 277,4 s au lieu de 616,7 s (A/B) |
 | N11 | Moyenne | `/api/analytics/school/overview` compte une moyenne générale **nulle** comme 0 (moyenne de l'établissement et taux d'échec), alors que le tableau de bord l'exclut : les deux écrans affichent des chiffres différents pour les mêmes données | Suivi | Constat Lot 3 — **conservé** (réponse identique exigée par l'optimisation) | — | `analytics-school-overview.test.ts` (élève sans moyenne : 9,17 au lieu de 11) | — | — |
-| N12 | Faible | `src/lib/services/analytics/helpers.ts` duplique les builders de `analytics-dashboard/` et n'est importé nulle part (code mort) | Suivi | Constat Lot 3 | — | `grep` des imports | — | — |
+| N12 | Faible | `src/lib/services/analytics/helpers.ts` duplique les builders de `analytics-dashboard/` et n'est importé nulle part (code mort) | 8 | Corrigé | `b0b2d1f` | `grep` des imports dans src/tests/e2e/scripts → 0 ; tsc, eslint, 2 959 tests verts après suppression | 472 lignes sans appelant | fichier supprimé |
 | N13 | Moyenne | RSS du serveur 221 → 457 Mo après 90 requêtes analytiques séquentielles (plafond du Lot 3 : 500 Mo) | 3 | Corrigé (cause : N28) | `2a24ac2` | `latency.mjs` + `/proc/<pid>/status` | 457 Mo ; 545 Mo avant N28 | 395 Mo |
 | N14 | Faible | Liste `GET /api/alumni` non bornée ; la page calcule ses répartitions sur la liste entière côté navigateur | Suivi | Constat Lot 3 — reporté (refonte d'écran nécessaire) | — | — | — | — |
 | N7 | Élevée | `payments/initiate` écrasait la référence de rapprochement (« PAY-… ») par l'identifiant du fournisseur ; les webhooks MoMo et FedaPay rapprochent par notre référence : paiements Mobile Money encaissés mais jamais rapprochés (restent PENDING), sans aucune panne | 2 | Corrigé | `8a34de6` | `tests/integration-db/payment-momo-flow.test.ts` (3, PG réel, fournisseur simulé) | PENDING après webhook signé | VERIFIED ; rejeu sans effet ; signature forgée → 401 |
-| N15 | Moyenne | `GET /api/root/analytics` → 500 pour le SUPER_ADMIN : `DATE()` renvoie un objet `Date` que le code trie avec `localeCompare` (`TypeError`) ; la page d'analyse de la console root est inutilisable | Suivi | Constat Lot 3 — non corrigé (règle 10 : sévérité moyenne, hors données personnelles) | — | smoke SUPER_ADMIN | 500 | — |
+| N15 | Moyenne | `GET /api/root/analytics` → 500 pour le SUPER_ADMIN : `DATE()` renvoie un objet `Date` que le code trie avec `localeCompare` (`TypeError`) ; la page d'analyse de la console root est inutilisable | 8 | Corrigé | `67fad66` | `tests/integration-db/root-analytics.test.ts` (3, PostgreSQL réel ; rouge avant avec exactement « a.date.localeCompare is not a function ») ; smoke SUPER_ADMIN | **500** à tous les lots depuis le Lot 3 | **200 en 39 ms**, chronologie de 6 points, dates en chaînes ; premier smoke sans aucune violation |
 | N16 | Moyenne | 8 routes lisaient la pagination par `parseInt` sans plafond (`?limit=100000` → liste entière en mémoire, famille N1) ; `?page=abc` → `take: NaN` → 500. **Son premier correctif a tronqué 3 écrans** (plafond uniforme de 100) | 3 | Corrigé | `51bbf26` `ba9b24a` | `tests/integration-db/list-limit-cap.test.ts` (PG réel, 19 cas) | liste entière ; 500 sur saisie invalide ; puis journal 500 → 100, rendez-vous et incidents 200 → 100 | plafond de chaque route au niveau demandé par son écran (100 / 200 / 500) ; valeurs par défaut sur saisie invalide |
 | N17 | Élevée | `e2e/global-setup.ts` réinitialise mot de passe, verrouillage et 2FA de 8 comptes dans la base désignée par le `DATABASE_URL` du `.env` — la base locale du développeur (5432) si l'E2E est lancé sans surcharge — sans aucun garde-fou (règles 5 et 6) | 5 (comptes E2E dédiés + marqueur d'environnement) | Corrigé | `9a811aa`, `cc8e1ea` | `tests/integration-db/disposable-guard.test.ts` (4, PG réel) ; seed et `reset-passwords` refusés sur base non marquée (exécution réelle) ; empreinte des 8 comptes de démonstration identique avant et après la suite E2E complète (3 passages) | aucun garde-fou ; comptes de démonstration réécrits | base non marquée refusée par les 16 scripts d'écriture et `e2e/global-setup.ts` ; E2E sur comptes dédiés |
 | N18 | Élevée | 5 écrans lisaient la clé `students` alors que `/api/students` renvoie `{ data, pagination }` (antérieur à la remédiation) : appel, déclaration d'incident, recherche d'élève du paiement, médical et documents affichaient une liste vide | 3 | Corrigé | `3f8913c` | `e2e/student-lists.spec.ts` (5) ; `tests/lib/student-list.test.ts` (4) | 5 E2E rouges sur le build d'avant le correctif | 5 verts |
@@ -842,3 +1010,4 @@ Aucun test ne tourne aujourd'hui contre une vraie base. Proposition : suite `tes
 | 2 | ✅ 0 erreur | ✅ 0 erreur (`npm run lint` complet) | ✅ 2 776/2 776, 255 fichiers | ✅ 36 s ; 0 ligne de télémétrie Sentry | ✅ 18/18 (5 fichiers, PG réel) | ✅ 78/81 : exactement les 3 échecs connus de l'audit (M8 : a11y `/ecoles`, a11y `/dashboard/grades` TEACHER, `grades-flow` CTA) — aucune régression | `security.mjs` : H1, H2 ×2, M3 ×2, H5 ×3, TENANT → 9/9 PASS ; `redis-outage.mjs` PASS (10×200, p95 24 ms) ; cron valide : voir N8 |
 | 5 | ✅ 0 erreur (10 s) | ✅ 0 erreur (54 s) | ✅ 2 888/2 888, 277 fichiers (35 s) | ✅ (next 16.3.5) | ✅ 252/252, 37 fichiers (64 s, PG réel) | ✅ suite standard 89/89 (build de prod, base d'audit, rôle applicatif) ; ✅ démarrage à vide 2/2 (installation 1,3 min + 145 pages × 3 rôles, 0 anomalie, 13,6 min) | Code de `90930dd`. Démarrage à vide rejoué sur une base neuve vérifiée (`setupNeeded:true`). Premier passage : installation verte, états vides avec 1 relevé non reproduit (N53, état de chargement ; 0 en 15 chargements ciblés) ; second passage vert. Empreinte des 8 comptes de démonstration identique avant et après chaque suite standard. Job CI `fresh-install` non exécuté sur GitHub Actions dans cette session |
 | 7 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 970/2 970, 288 fichiers (37 s) | ✅ (next 16.3.5) + recopie de l'instrumentation | ✅ 320/320, 50 fichiers (77 s, PG réel) | ✅ **89/89** (suite complète, build de production, base E2E jetable, rôle applicatif) | Serveur standalone lancé par l'entrypoint du conteneur : 5 migrations appliquées, `/api/health` 200, `x-request-id` présent, arrêt propre `tasks: 2`. Crons éprouvés à l'exécution (200/202/409/401). Docker **non exécutable** (démon inactif) |
+| 8 | ✅ 0 erreur | ✅ 0 erreur | ✅ 2 959/2 959, 288 fichiers (37 s) | ✅ (next 16.3.5) | ✅ **323/323**, 51 fichiers (78 s, PG réel) | ✅ **89/89** (suite complète, build de production, base d'audit, rôle applicatif) | Build de `be88e99`. `security.mjs` **13/13 PASS** après la fusion du rate-limit ; `redis-outage.mjs` p50 13 / p95 21 ms. Smoke 7 rôles × 167 routes : **0 violation** (première fois — N15 corrigée), RSS 346 Mo. `npm audit --omit=dev --audit-level=high` → 0. Couverture : API 71,2 % lignes (92 routes à zéro), lib 54,9 %, composants 70,3 % |
