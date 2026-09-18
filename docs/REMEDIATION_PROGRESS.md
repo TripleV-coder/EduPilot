@@ -881,9 +881,9 @@ l'`AnimatePresence` elle-même).
 | Mesure | Avant | Après |
 |---|---|---|
 | Préchargement du service worker | 8 736 Ko | **205 Ko** |
-| JS — `/dashboard` | 1 046 Ko | **926 Ko** |
-| JS — `/dashboard/grades` | 1 737 Ko | **1 205 Ko** |
-| JS — `/dashboard/finance` | 1 485 Ko | **1 086 Ko** |
+| JS — `/dashboard` | 1 046 Ko | **920 Ko** |
+| JS — `/dashboard/grades` | 1 737 Ko | **1 199 Ko** |
+| JS — `/dashboard/finance` | 1 485 Ko | **960 Ko** |
 | `/api/analytics/dashboard` | p50 356 / p95 418 ms | **p50 19 / p95 27 ms** (268 ms à froid) |
 | `/api/grades/statistics` | p50 400 / p95 420 ms | **p50 16 / p95 19 ms** (374 ms à froid) |
 | Lighthouse `/dashboard` mobile | 0,92 · LCP 2 563 ms · TBT 246 ms · 416 Ko | 0,90–0,92 · LCP **2 340 ms** · TBT 298 ms · **374 Ko** |
@@ -1010,6 +1010,20 @@ fichiers du système occupait 93 % d'un cœur et le `npm ci` du clone tournait e
 parallèle. Après arrêt de l'indexeur et retour de la charge sous 1,3, les
 mesures sont redevenues cohérentes. **Toute mesure Lighthouse de ce dépôt doit
 être prise machine au repos**, sous peine de conclure l'inverse de la réalité.
+
+### Commits arrivés sur la branche pendant ce lot, sans être de moi
+
+Deux commits ont été poussés sur `fix/production-readiness` pendant la session,
+que je n'ai pas écrits — je les signale pour que le journal reste exact :
+
+| Commit | Objet | Effet constaté |
+|---|---|---|
+| `cbd08e9` | `fix(liens)` : notifications et trois boutons menant à des 404 | +1 fichier de test (`notification-links.test.ts`) ; explique le passage de 2 964 à 2 982 tests |
+| `8d99548` | `chore(cleanup)` : 43 fichiers morts et 11 dépendances retirés | Supprime notamment `DashboardOverviewContent.tsx`, `DashboardUI.tsx` et `incidents-client.tsx`, que je venais de convertir au CSS. **Vérifié** : ces fichiers n'avaient effectivement plus aucun appelant (la page `/dashboard` rend les composants `edu-homes/*`), la suppression est donc légitime — une partie de ma conversion portait sur du code déjà mort |
+
+La batterie finale ci-dessus porte sur l'état **combiné** (`e03d450`), tout
+vert. Les poids par page ont été **remesurés après** ce nettoyage : tableau de
+bord 920 Ko, page Notes 1 199 Ko, Finance 960 Ko.
 
 ### Livrable
 

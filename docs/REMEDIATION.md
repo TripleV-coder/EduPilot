@@ -138,8 +138,8 @@ Mêmes métriques et mêmes conditions que l'audit § 10.1.
 |---|---|---|---|
 | JS client total | 8,25 Mo, 242 fragments | 8,56 Mo, 269 fragments | 🟡 (le total croît, mais ce qui est **chargé par page** baisse) |
 | **Préchargement du service worker** | 8,5 Mo à la première visite | **205 Ko** | ✅ |
-| JS chargé — tableau de bord | — | 1 046 → **926 Ko** | ✅ |
-| JS chargé — page Notes | — | 1 737 → **1 205 Ko** | ✅ |
+| JS chargé — tableau de bord | — | 1 046 → **920 Ko** | ✅ |
+| JS chargé — page Notes | — | 1 737 → **1 199 Ko** | ✅ |
 | Lighthouse `/dashboard` mobile | **0,54** · LCP 4,7 s · **TBT 1 737 ms** | **0,90–0,92** · LCP 2,34 s · TBT 298–338 ms | ✅ |
 | Lighthouse `/dashboard` desktop | 0,96 · LCP 977 ms · TBT 145 ms | **1,00** · LCP 756 ms · TBT 11 ms | ✅ |
 | Lighthouse `/dashboard/grades` desktop | 0,68 · TBT 1 412 ms · **96 453 Ko** | **1,00** · TBT 6 ms · **403 Ko** | ✅ |
