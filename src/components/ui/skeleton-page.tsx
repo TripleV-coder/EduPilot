@@ -1,47 +1,22 @@
 "use client";
 
 /**
- * Squelettes composés du tableau de bord, animés (framer-motion) : entrée en
- * cascade des cartes, des graphiques et du tableau.
+ * Squelettes composés du tableau de bord : entrée en cascade des cartes, des
+ * graphiques et du tableau, en CSS (`.edu-stagger-loading`).
  *
- * Séparés de `skeleton.tsx` pour que le squelette de base, en CSS seul, ne
- * fasse plus télécharger la bibliothèque d'animation à toutes les pages.
  * Seul `app/(dashboard)/dashboard/loading.tsx` charge ce fichier.
  */
 
 import { cn } from "@/lib/utils";
-import { motion, type Variants } from "framer-motion";
 import { Skeleton } from "./skeleton";
 
 /* ─── Framer Motion stagger variants ──── */
-
-const staggerContainer: Variants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.04,
-    },
-  },
-};
-
-const staggerItem: Variants = {
-  hidden: { opacity: 0, y: 6 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
-  },
-};
 
 /* ─── Stat Card Skeleton (KPI) ──── */
 
 export function StatCardSkeleton() {
   return (
-    <motion.div
-      variants={staggerItem}
-      className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-5 shadow-sm"
-    >
+    <div className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-5 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="space-y-2.5 flex-1">
           <Skeleton className="h-3.5 w-24 rounded-full" />
@@ -53,7 +28,7 @@ export function StatCardSkeleton() {
         <Skeleton className="h-3 w-12 rounded-full" />
         <Skeleton className="h-3 w-20 rounded-full" />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -61,38 +36,26 @@ export function StatCardSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="show"
-      className="space-y-2"
-    >
+    <div className="edu-stagger-loading space-y-2">
       {/* Header row */}
-      <motion.div
-        variants={staggerItem}
-        className="flex gap-4 pb-3 border-b border-border/40"
-      >
+      <div className="flex gap-4 pb-3 border-b border-border/40">
         <Skeleton className="h-4 w-[18%] rounded-full" />
         <Skeleton className="h-4 w-[25%] rounded-full" />
         <Skeleton className="h-4 w-[15%] rounded-full" />
         <Skeleton className="h-4 w-[12%] rounded-full" />
         <Skeleton className="h-4 w-[10%] rounded-full" />
-      </motion.div>
+      </div>
       {/* Data rows */}
       {Array.from({ length: rows }).map((_, i) => (
-        <motion.div
-          key={i}
-          variants={staggerItem}
-          className="flex gap-4 items-center py-2"
-        >
+        <div key={i} className="flex gap-4 items-center py-2">
           <Skeleton className="h-9 w-[18%] rounded-lg" />
           <Skeleton className="h-9 w-[25%] rounded-lg" />
           <Skeleton className="h-9 w-[15%] rounded-lg" />
           <Skeleton className="h-9 w-[12%] rounded-lg" />
           <Skeleton className="h-9 w-[10%] rounded-lg" />
-        </motion.div>
+        </div>
       ))}
-    </motion.div>
+    </div>
   );
 }
 
@@ -100,14 +63,11 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function CardSkeleton() {
   return (
-    <motion.div
-      variants={staggerItem}
-      className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-6 space-y-3 shadow-sm"
-    >
+    <div className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-6 space-y-3 shadow-sm">
       <Skeleton className="h-4 w-1/3 rounded-full" />
       <Skeleton className="h-7 w-1/2 rounded-lg" />
       <Skeleton className="h-4 w-3/4 rounded-full" />
-    </motion.div>
+    </div>
   );
 }
 
@@ -115,10 +75,7 @@ export function CardSkeleton() {
 
 export function ChartSkeleton({ type = "bar" }: { type?: "bar" | "line" | "pie" | "radar" }) {
   return (
-    <motion.div
-      variants={staggerItem}
-      className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-5 shadow-sm"
-    >
+    <div className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-5 shadow-sm">
       {/* Chart header */}
       <div className="flex items-center justify-between mb-4">
         <div className="space-y-1.5">
@@ -172,7 +129,7 @@ export function ChartSkeleton({ type = "bar" }: { type?: "bar" | "line" | "pie" 
           <Skeleton key={i} className="h-3 w-8 rounded-full" />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -180,53 +137,35 @@ export function ChartSkeleton({ type = "bar" }: { type?: "bar" | "line" | "pie" 
 
 export function PageSkeleton() {
   return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="show"
-      className="space-y-6 p-6"
-    >
+    <div className="edu-stagger-loading space-y-6 p-6">
       {/* Page header */}
-      <motion.div variants={staggerItem} className="space-y-2">
+      <div className="space-y-2">
         <Skeleton className="h-8 w-64 rounded-lg" />
         <Skeleton className="h-4 w-96 rounded-full" />
-      </motion.div>
+      </div>
 
       {/* KPI row */}
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      >
+      <div className="edu-stagger-loading grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCardSkeleton />
         <StatCardSkeleton />
         <StatCardSkeleton />
         <StatCardSkeleton />
-      </motion.div>
+      </div>
 
       {/* Charts row */}
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4 md:grid-cols-2"
-      >
+      <div className="edu-stagger-loading grid gap-4 md:grid-cols-2">
         <ChartSkeleton type="bar" />
         <ChartSkeleton type="line" />
-      </motion.div>
+      </div>
 
       {/* Table */}
-      <motion.div
-        variants={staggerItem}
-        className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-6 shadow-sm"
-      >
+      <div className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <Skeleton className="h-5 w-48 rounded-full" />
           <Skeleton className="h-9 w-32 rounded-lg" />
         </div>
         <TableSkeleton rows={5} />
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

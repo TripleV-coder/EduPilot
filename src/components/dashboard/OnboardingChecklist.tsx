@@ -1,7 +1,7 @@
 "use client";
 
+import type React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, X, Sparkles, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -180,16 +180,18 @@ export function OnboardingChecklist() {
 
     if (!showChecklist || dismissed) return null;
 
+    /*
+     * Perf (2026-09-18) : entrée et repli passent au CSS. L'animation de
+     * sortie d'`AnimatePresence` ne jouait de toute façon jamais — le
+     * `return null` ci-dessus démonte l'`AnimatePresence` elle-même, pas
+     * seulement son enfant. Le comportement observable est donc identique.
+     */
     return (
-        <AnimatePresence>
-            <motion.aside
-                aria-label="Démarrage rapide"
-                className="fixed bottom-6 right-6 z-50 w-[320px]"
-                initial={{ opacity: 0, y: 40, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 40, scale: 0.95 }}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            >
+        <aside
+            aria-label="Démarrage rapide"
+            className="edu-enter-up fixed bottom-6 right-6 z-50 w-[320px]"
+            style={{ "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
+        >
                 <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20">
@@ -217,25 +219,16 @@ export function OnboardingChecklist() {
 
                     {/* Progress bar */}
                     <div className="h-1 bg-muted">
-                        <motion.div
-                            className="h-full bg-primary rounded-r-full"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progressPercent}%` }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
+                        <div
+                            className="edu-grow-width h-full bg-primary rounded-r-full"
+                            style={{ "--edu-grow-to": `${progressPercent}%`, width: `${progressPercent}%` } as React.CSSProperties}
                         />
                     </div>
 
                     {/* Body */}
-                    <AnimatePresence>
-                        {!collapsed && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="p-3 space-y-1">
+                    <div className="edu-collapse" data-collapsed={collapsed}>
+                        <div>
+                            <div className="p-3 space-y-1">
                                     <p className="text-xs text-muted-foreground mb-3">
                                         {completedCount}/{totalCount} étapes complétées
                                     </p>
@@ -276,12 +269,10 @@ export function OnboardingChecklist() {
                                             </div>
                                         );
                                     })}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </motion.aside>
-        </AnimatePresence>
+        </aside>
     );
 }

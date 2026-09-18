@@ -2,9 +2,16 @@
 
 /**
  * Dashboard UI primitives — StatCard, QuickAction, ActivityItem
- * Enhanced with Framer Motion animations, glassmorphism, and premium UX.
+ *
+ * Perf (2026-09-18) : les animations passent de framer-motion au CSS
+ * (`.edu-enter-*` dans globals.css), mêmes distances, durées et courbe.
+ *
+ * `StatCard` et `QuickAction` portaient `variants={cardVariants}` sans aucun
+ * parent `motion` pour les déclencher : ils n'animaient donc rien. Ce sont de
+ * simples `div` désormais — le rendu est rigoureusement identique.
  */
 
+import type React from "react";
 import { ComponentType } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,28 +21,6 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { trackUxEvent } from "@/lib/ux/telemetry";
-import { motion, type Variants } from "framer-motion";
-
-/* ─── Shared animation variants ──── */
-
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 8, scale: 0.98 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
-  },
-};
-
-const numberVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.1 },
-  },
-};
 
 /* ─── StatCard (KPI) ──── */
 
@@ -49,7 +34,7 @@ interface StatCardProps {
 
 export function StatCard({ title, value, delta, icon: Icon, trend }: StatCardProps) {
   return (
-    <motion.div variants={cardVariants}>
+    <div>
       <Card className="group relative overflow-hidden border-border/40 bg-card/90 backdrop-blur-sm shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ease-out cursor-default">
         {/* Subtle gradient overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -58,12 +43,9 @@ export function StatCard({ title, value, delta, icon: Icon, trend }: StatCardPro
           <div className="flex justify-between items-start">
             <div className="space-y-1.5">
               <p className="text-[13px] font-medium text-muted-foreground tracking-wide">{title}</p>
-              <motion.h3
-                variants={numberVariants}
-                className="text-3xl font-bold tracking-tight text-foreground font-[var(--font-display)]"
-              >
+              <h3 className="text-3xl font-bold tracking-tight text-foreground font-[var(--font-display)]">
                 {value}
-              </motion.h3>
+              </h3>
             </div>
             <div className="p-2.5 rounded-xl bg-primary/8 dark:bg-primary/15 border border-primary/15 group-hover:bg-primary/12 group-hover:scale-105 transition-all duration-300">
               <Icon className="w-5 h-5 text-primary" />
@@ -71,11 +53,9 @@ export function StatCard({ title, value, delta, icon: Icon, trend }: StatCardPro
           </div>
 
           {delta && (
-            <motion.div
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-4 flex items-center gap-1.5"
+            <div
+              className="edu-enter-side mt-4 flex items-center gap-1.5"
+              style={{ "--edu-enter-dx": "-8px", "--edu-enter-d": "300ms", "--edu-enter-delay": "200ms" } as React.CSSProperties}
             >
               <div className={cn(
                 "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold",
@@ -91,11 +71,11 @@ export function StatCard({ title, value, delta, icon: Icon, trend }: StatCardPro
                 {delta}
               </div>
               <span className="text-[11px] text-muted-foreground">vs periode prec.</span>
-            </motion.div>
+            </div>
           )}
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
 
@@ -110,7 +90,7 @@ interface QuickActionProps {
 
 export function QuickAction({ label, icon: Icon, href, color }: QuickActionProps) {
   return (
-    <motion.div variants={cardVariants}>
+    <div>
       <Link
         href={href}
         prefetch
@@ -130,7 +110,7 @@ export function QuickAction({ label, icon: Icon, href, color }: QuickActionProps
           {label}
         </span>
       </Link>
-    </motion.div>
+    </div>
   );
 }
 
@@ -158,11 +138,9 @@ export function ActivityItem({ type, title, description, time, entityLink }: Act
   const IconComponent = config.icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -6 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      className="flex gap-4 py-3.5 border-b border-border/30 last:border-0 hover:bg-muted/5 transition-colors px-2 rounded-lg group"
+    <div
+      className="edu-enter-side flex gap-4 py-3.5 border-b border-border/30 last:border-0 hover:bg-muted/5 transition-colors px-2 rounded-lg group"
+      style={{ "--edu-enter-dx": "-6px", "--edu-enter-d": "220ms" } as React.CSSProperties}
     >
       <div className={cn(
         "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
@@ -192,7 +170,7 @@ export function ActivityItem({ type, title, description, time, entityLink }: Act
           </Link>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

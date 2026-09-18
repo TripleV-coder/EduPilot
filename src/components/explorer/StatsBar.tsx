@@ -1,7 +1,8 @@
 "use client";
 
+import type React from "react";
+
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 
 type Overview = {
   schools: number;
@@ -66,20 +67,16 @@ export function StatsBar({ overview, loading }: StatsBarProps) {
   ];
 
   return (
-    <motion.div
-      className="fixed bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-2xl border border-explorer-border bg-explorer-bg-elevated/90 px-8 py-4 backdrop-blur-xl"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    <div
+      className="edu-enter-up fixed bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-2xl border border-explorer-border bg-explorer-bg-elevated/90 px-8 py-4 backdrop-blur-xl"
+      style={{ "--edu-enter-dy": "20px", "--edu-enter-d": "500ms" } as React.CSSProperties}
     >
       <div className="flex items-center gap-10">
         {stats.map((stat, i) => (
-          <motion.div
+          <div
             key={stat.key}
-            className="flex flex-col items-center gap-0.5"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * i, duration: 0.4 }}
+            className="edu-enter-up flex flex-col items-center gap-0.5"
+            style={{ "--edu-enter-dy": "10px", "--edu-enter-d": "400ms", "--edu-enter-delay": `${i * 100}ms` } as React.CSSProperties}
           >
             <span className="text-2xl font-semibold tabular-nums text-explorer-foreground">
               {loading ? (
@@ -91,9 +88,9 @@ export function StatsBar({ overview, loading }: StatsBarProps) {
             <span className="text-xs uppercase tracking-wider text-explorer-muted">
               {stat.label}
             </span>
-          </motion.div>
+          </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

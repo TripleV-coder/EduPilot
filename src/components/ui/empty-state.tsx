@@ -1,13 +1,14 @@
 "use client";
 
+import type React from "react";
 import { useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { FileQuestion, Lock, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trackUxEvent } from "@/lib/ux/telemetry";
+import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -71,7 +72,7 @@ export interface EmptyStateProps {
   variant?: EmptyStateVariant;
   /** Render inside a `<Card>` with dashed border. */
   card?: boolean;
-  /** Enable entrance animation via framer-motion. Default `true`. */
+  /** Animation d'entrée (CSS `.edu-enter-up`). Défaut : `true`. */
   animate?: boolean;
 
   /* --- Telemetry --------------------------------------------------- */
@@ -227,12 +228,12 @@ export function EmptyState({
   );
 
   /* ---- Wrapper --------------------------------------------------- */
-  const Wrapper = animate ? motion.div : "div";
+  // Perf (2026-09-18) : même entrée qu'avant (12 px, 350 ms, même courbe),
+  // en CSS — framer-motion pesait 117 Ko sur chaque page.
   const wrapperProps = animate
     ? {
-        initial: { opacity: 0, y: 12 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+        className: "edu-enter-up",
+        style: { "--edu-enter-dy": "12px", "--edu-enter-d": "350ms" } as React.CSSProperties,
       }
     : {};
 
@@ -240,26 +241,24 @@ export function EmptyState({
     return (
       <Card className="border-dashed border-border bg-muted/10">
         <CardContent className="py-14">
-          {/* @ts-expect-error -- motion.div vs div prop mismatch */}
-          <Wrapper
-            className="flex items-center justify-center"
+          <div
             {...wrapperProps}
+            className={cn("flex items-center justify-center", wrapperProps.className)}
           >
             {content}
-          </Wrapper>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    // @ts-expect-error -- motion.div vs div prop mismatch
-    <Wrapper
-      className="flex min-h-[40vh] items-center justify-center px-4"
+    <div
       {...wrapperProps}
+      className={cn("flex min-h-[40vh] items-center justify-center px-4", wrapperProps.className)}
     >
       {content}
-    </Wrapper>
+    </div>
   );
 }
 

@@ -1,9 +1,10 @@
 "use client";
 
+import type React from "react";
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
 import { SignatureBlock } from "@/components/signatures/signature-block";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -137,11 +138,11 @@ export default function StudentDetailPage() {
   return (
     <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
       <PageShell>
-      <motion.div
-        className="flex flex-col gap-6"
-        initial={fromListTransition ? { opacity: 0, y: 12, scale: 0.99 } : false}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      {/* Perf (2026-09-18) : entrée en CSS. L'animation ne joue toujours que
+          lorsqu'on arrive depuis la liste (`fromListTransition`). */}
+      <div
+        className={fromListTransition ? "edu-enter-up flex flex-col gap-6" : "flex flex-col gap-6"}
+        style={{ "--edu-enter-dy": "12px", "--edu-enter-s": "0.99", "--edu-enter-d": "280ms" } as React.CSSProperties}
       >
         <PageHeader
           title={loading ? "Chargement…" : name}
@@ -356,7 +357,7 @@ export default function StudentDetailPage() {
             onSuccess={fetchStudent}
           />
         )}
-      </motion.div>
+      </div>
       </PageShell>
     </PageGuard>
   );

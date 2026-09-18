@@ -1,10 +1,11 @@
 "use client";
 
+import type React from "react";
+
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -271,11 +272,9 @@ export function IncidentsClient({ initialIncidents, stats: statsData, periods }:
     ];
 
     return (
-        <motion.div
-            className="space-y-6 max-w-7xl mx-auto pb-12"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+        <div
+            className="edu-enter-up space-y-6 max-w-7xl mx-auto pb-12"
+            style={{ "--edu-enter-dy": "6px", "--edu-enter-d": "240ms" } as React.CSSProperties}
         >
             <PageHeader
                 title={t("incidents.title")}
@@ -475,11 +474,11 @@ export function IncidentsClient({ initialIncidents, stats: statsData, periods }:
                         />
                     </div>
                 ) : (
-                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                    <div className="edu-enter-up" style={{ "--edu-enter-dy": "6px", "--edu-enter-d": "200ms" } as React.CSSProperties}>
                         <DataTable columns={incidentColumns} data={filteredIncidents} />
-                    </motion.div>
+                    </div>
                 )}
             </Card>
-        </motion.div>
+        </div>
     );
 }

@@ -1,12 +1,13 @@
 "use client";
 
+import type React from "react";
+
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
@@ -535,9 +536,9 @@ export default function IncidentsPage() {
                             />
                         </div>
                     ) : (
-                        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                        <div className="edu-enter-up" style={{ "--edu-enter-dy": "6px", "--edu-enter-d": "200ms" } as React.CSSProperties}>
                             <DataTable columns={incidentColumns} data={incidents} />
-                        </motion.div>
+                        </div>
                     )}
                 </Card>
             </PageShell>
