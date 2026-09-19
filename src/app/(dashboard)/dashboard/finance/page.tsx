@@ -224,7 +224,7 @@ export default function FinanceDashboardPage() {
                             <div className="flex flex-wrap gap-2">
                                 <Link href="/dashboard/finance/bulk-invoice">
                                     <Button variant="secondary" icon="sparkle">
-                                        Facturation de masse
+                                        Avis de paiement
                                     </Button>
                                 </Link>
                                 <Link href="/dashboard/finance/payments/new">

@@ -2016,6 +2016,56 @@
     }
   },
   "paths": {
+    "/api/academic-years/{id}/status": {
+      "patch": {
+        "summary": "PATCH /api/academic-years/{id}/status",
+        "description": "Session requise. Permissions : ACADEMIC_YEAR_CLOSE.",
+        "tags": [
+          "academic-years"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/academic-years": {
       "get": {
         "summary": "GET /api/academic-years",
@@ -8603,6 +8653,43 @@
         }
       }
     },
+    "/api/finance/payment-notices": {
+      "post": {
+        "summary": "POST /api/finance/payment-notices",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/finance/payments/{id}": {
       "put": {
         "summary": "PUT /api/finance/payments/{id}",
@@ -13086,43 +13173,6 @@
           }
         }
       ]
-    },
-    "/api/payments/bulk-invoice": {
-      "post": {
-        "summary": "POST /api/payments/bulk-invoice",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
-        "tags": [
-          "payments"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
     },
     "/api/payments/cash": {
       "post": {
