@@ -280,7 +280,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                 />
                 <div className="flex items-center gap-2">
                     <Select value={classFilter} onValueChange={setClassFilter}>
-                        <SelectTrigger className="w-[220px]">
+                        <SelectTrigger aria-label="Filtrer par classe" className="w-[220px]">
                             <SelectValue placeholder="Toutes les classes" />
                         </SelectTrigger>
                         <SelectContent>

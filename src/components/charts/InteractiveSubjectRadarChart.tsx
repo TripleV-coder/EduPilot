@@ -103,9 +103,11 @@ export function InteractiveSubjectRadarChart({
           <p className="text-xs font-semibold text-muted-foreground">Cliquez sur une matière</p>
           <div className="grid grid-cols-2 gap-2">
             {normalizedData.map((item, index) => (
-              <div
+              <button
+                type="button"
                 key={`${item.subjectId}-${index}`}
-                className={`p-2 rounded cursor-pointer transition-colors ${
+                aria-pressed={filterSubjectId === item.subjectId}
+                className={`p-2 rounded cursor-pointer transition-colors text-left ${
                   filterSubjectId === item.subjectId
                     ? "bg-purple-100 dark:bg-purple-950"
                     : "bg-muted hover:bg-muted/80"
@@ -116,7 +118,7 @@ export function InteractiveSubjectRadarChart({
                 <p className="text-xs text-muted-foreground">
                   {item.grade}/20 • {item.passRate}%
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </div>

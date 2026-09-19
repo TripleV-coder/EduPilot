@@ -114,7 +114,7 @@ function LeavesContent() {
             <Card padding={0}>
                 <div className="flex items-center gap-2 border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
                     <Icon name="calendar" size={18} color="var(--brand-700)" />
-                    <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Demander un congé</h3>
+                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Demander un congé</h2>
                 </div>
                 <form onSubmit={submitRequest} className="grid gap-3 px-5 py-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                     <label className="flex flex-col gap-1">
@@ -147,9 +147,9 @@ function LeavesContent() {
             {canManage && pending.length > 0 ? (
                 <Card padding={0}>
                     <div className="border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             À valider ({pending.length})
-                        </h3>
+                        </h2>
                     </div>
                     <ul className="divide-y" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
                         {pending.map((r) => (
@@ -173,9 +173,9 @@ function LeavesContent() {
             {/* Historique complet */}
             <Card padding={0}>
                 <div className="border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                    <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                         {canManage ? "Toutes les demandes" : "Mes demandes"}
-                    </h3>
+                    </h2>
                 </div>
                 {requests.length === 0 ? (
                     <p className="px-5 py-8 text-center" style={{ fontSize: 13, color: "var(--eduflow-text-tertiary)" }}>

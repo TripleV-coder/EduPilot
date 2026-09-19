@@ -25,6 +25,7 @@ export function PageHeader({
     return (
         <UnifiedPageHeader
             className="mb-6"
+            documentTitle="Tableau de bord"
             title={typeof greeting === "string" ? greeting : String(greeting)}
             description={typeof sub === "string" ? sub : sub ? String(sub) : undefined}
             breadcrumbs={breadcrumbs}

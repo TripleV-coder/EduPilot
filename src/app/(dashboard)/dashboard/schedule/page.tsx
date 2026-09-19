@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import { useSchool } from "@/components/providers/school-provider";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
-import { t } from "@/lib/i18n";
+import { useRBAC } from "@/lib/hooks/use-rbac";
 import { WeeklyTimetableGrid } from "@/components/schedule/weekly-timetable-grid";
 
 import { Button, Card, Icon, type IconName } from "@/components/edu";
@@ -23,16 +24,10 @@ interface ScheduleItem {
     classId: string;
     classSubjectId: string;
     class: { id: string; name: string };
-    classSubject?: { teacherId?: string };
-}
-
-interface ClassOption {
-    id: string;
-    name: string;
-}
-interface TeacherOption {
-    id: string;
-    user?: { firstName: string; lastName: string };
+    classSubject?: {
+        teacherId?: string;
+        teacher?: { id: string; user?: { firstName: string; lastName: string } } | null;
+    };
 }
 
 export default function SchedulePage() {
@@ -47,21 +42,26 @@ export default function SchedulePage() {
         error: schedulesError,
         mutate: reloadSchedules,
     } = useSWR<ScheduleItem[]>("/api/schedules", fetcher);
-    const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>(
-        "/api/classes",
-        fetcher
-    );
-    const { data: teachersData } = useSWR<TeacherOption[] | { data?: TeacherOption[] }>(
-        "/api/teachers",
-        fetcher
-    );
+    const { canAccess } = useRBAC();
+    const canCreate = canAccess({ permission: Permission.SCHEDULE_CREATE, roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
 
-    const classes: ClassOption[] = Array.isArray(classesData)
-        ? classesData
-        : classesData?.data ?? [];
-    const teachers: TeacherOption[] = Array.isArray(teachersData)
-        ? teachersData
-        : teachersData?.data ?? [];
+    // Filtres tirés des créneaux visibles : chaque rôle ne voit que ses classes
+    // et ses enseignants, sans appeler /api/classes ni /api/teachers (403 pour
+    // les élèves et les parents).
+    const { classes, teachers } = useMemo(() => {
+        const classMap = new Map<string, string>();
+        const teacherMap = new Map<string, string>();
+        for (const item of schedules ?? []) {
+            if (item.class) classMap.set(item.class.id, item.class.name);
+            const teacher = item.classSubject?.teacher;
+            if (teacher?.user) teacherMap.set(teacher.id, `${teacher.user.firstName} ${teacher.user.lastName}`);
+        }
+        const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "fr");
+        return {
+            classes: [...classMap].map(([id, name]) => ({ id, name })).sort(byName),
+            teachers: [...teacherMap].map(([id, name]) => ({ id, name })).sort(byName),
+        };
+    }, [schedules]);
 
     const filteredSchedules = useMemo(() => {
         if (!schedules) return [];
@@ -84,12 +84,11 @@ export default function SchedulePage() {
                         { label: "Emploi du temps" },
                     ]}
                     actions={
-                        <>
-                            <Button variant="ghost" icon="download">
-                                {t("common.export")}
-                            </Button>
-                            <Button icon="plus">Nouvel horaire</Button>
-                        </>
+                        canCreate ? (
+                            <Link href="/dashboard/schedule/new">
+                                <Button icon="plus">Nouvel horaire</Button>
+                            </Link>
+                        ) : undefined
                     }
                 />
 
@@ -118,6 +117,7 @@ export default function SchedulePage() {
                             >
                                 <Icon name="filter" size={14} color="var(--eduflow-text-tertiary)" />
                                 <select
+                                    aria-label={filterType === "class" ? "Filtrer par classe" : "Filtrer par enseignant"}
                                     value={selectedId}
                                     onChange={(e) => setSelectedId(e.target.value)}
                                     className="flex-1 bg-transparent outline-none"
@@ -143,7 +143,7 @@ export default function SchedulePage() {
                                           ))
                                         : teachers.map((tch) => (
                                               <option key={tch.id} value={tch.id}>
-                                                  {tch.user?.firstName} {tch.user?.lastName}
+                                                  {tch.name}
                                               </option>
                                           ))}
                                 </select>

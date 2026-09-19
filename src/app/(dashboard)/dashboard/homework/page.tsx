@@ -319,17 +319,15 @@ export default function HomeworkPage() {
                                             href={`/dashboard/homework/${hw.id}`}
                                             aria-label="Voir le devoir"
                                         >
-                                            <Button variant="ghost" size="sm" icon="search">
-                                                {""}
+                                            <Button aria-label={`Voir le devoir ${hw.title}`} variant="ghost" size="sm" icon="search">
                                             </Button>
                                         </Link>
-                                        <Button
+                                        <Button aria-label={`Supprimer le devoir ${hw.title}`}
                                             variant="ghost"
                                             size="sm"
                                             icon="x"
                                             onClick={() => handleDelete(hw.id, hw.title)}
                                         >
-                                            {""}
                                         </Button>
                                     </div>
                                 ),

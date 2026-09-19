@@ -12,15 +12,33 @@ import { ALL_MODULE_IDS, normalizeEnabledModules } from "@/lib/modules/catalog";
  * le catalogue est renvoyé : on ne masque jamais hâtivement.
  */
 async function activeSchoolSettings(schoolId: string | null) {
-  if (!schoolId) return { enabledModules: [...ALL_MODULE_IDS], offeredLevels: [] as string[] };
+  if (!schoolId) {
+    return { enabledModules: [...ALL_MODULE_IDS], offeredLevels: [] as string[], schoolName: null, academicYears: [] };
+  }
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
-    select: { enabledModules: true, offeredLevels: true },
+    select: {
+      name: true,
+      enabledModules: true,
+      offeredLevels: true,
+      // Nom et années de l'école active pour le sélecteur d'année de TOUS les
+      // rôles : /api/schools/[id] et /api/academic-years sont réservés à
+      // l'administration, et répondaient 403 aux enseignants, élèves, parents
+      // et comptables (contexte année/période jamais initialisé).
+      academicYears: {
+        select: { id: true, name: true, isCurrent: true, status: true },
+        orderBy: { startDate: "desc" },
+      },
+    },
   });
-  if (!school) return { enabledModules: [...ALL_MODULE_IDS], offeredLevels: [] as string[] };
+  if (!school) {
+    return { enabledModules: [...ALL_MODULE_IDS], offeredLevels: [] as string[], schoolName: null, academicYears: [] };
+  }
   return {
     enabledModules: normalizeEnabledModules(school.enabledModules),
     offeredLevels: school.offeredLevels as string[],
+    schoolName: school.name,
+    academicYears: school.academicYears,
   };
 }
 

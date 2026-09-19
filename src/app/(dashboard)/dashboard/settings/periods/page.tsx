@@ -190,7 +190,7 @@ export default function AcademicPeriodsPage() {
                     />
                     <div className="flex items-center gap-3">
                         <Select value={selectedYearId} onValueChange={setSelectedYearId}>
-                            <SelectTrigger className="w-[200px]">
+                            <SelectTrigger aria-label="Année scolaire" className="w-[200px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -226,8 +226,8 @@ export default function AcademicPeriodsPage() {
                     <Card className="border-primary/30 shadow-sm">
                         <CardContent className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold">{editingId ? "Modifier la période" : "Nouvelle période"}</h3>
-                                <Button variant="ghost" size="icon" onClick={resetForm}><X className="h-4 w-4" /></Button>
+                                <h2 className="text-lg font-semibold">{editingId ? "Modifier la période" : "Nouvelle période"}</h2>
+                                <Button aria-label="Fermer le formulaire" variant="ghost" size="icon" onClick={resetForm}><X className="h-4 w-4" /></Button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -237,7 +237,7 @@ export default function AcademicPeriodsPage() {
                                 <div className="space-y-2">
                                     <Label>Type</Label>
                                     <Select value={formType} onValueChange={setFormType} disabled={!!editingId}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectTrigger aria-label="Type de période"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="TRIMESTER">Trimestre</SelectItem>
                                             <SelectItem value="SEMESTER">Semestre</SelectItem>
@@ -281,7 +281,7 @@ export default function AcademicPeriodsPage() {
                 {!periodsLoading && periods.length === 0 && selectedYearId && (
                     <div className="text-center py-16 border border-dashed border-border rounded-xl bg-muted/30">
                         <CalendarRange className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                        <h3 className="text-lg font-medium text-foreground">Aucune période définie</h3>
+                        <h2 className="text-lg font-medium text-foreground">Aucune période définie</h2>
                         <p className="text-sm text-muted-foreground mt-2">Créez des périodes pour cette année scolaire.</p>
                     </div>
                 )}
@@ -303,9 +303,9 @@ export default function AcademicPeriodsPage() {
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h3 className={`text-xl font-semibold ${isCurrent ? "text-primary" : "text-foreground"}`}>
+                                                <h2 className={`text-xl font-semibold ${isCurrent ? "text-primary" : "text-foreground"}`}>
                                                     {period.name}
-                                                </h3>
+                                                </h2>
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 border ${status.style}`}>
                                                     {status.icon} {status.label}
                                                 </span>

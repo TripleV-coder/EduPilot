@@ -9,6 +9,7 @@ import { logger } from "@/lib/utils/logger";
 import { studentAlias } from "./pii";
 import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/env";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 import {
   generateAppreciation,
   generateActionPlan,
@@ -292,7 +293,9 @@ class GovernanceService {
     allowedRoles: readonly string[],
     actionLabel: string
   ) {
-    if (!allowedRoles.includes(request.userRole)) {
+    // roleSatisfies : NETWORK_ADMIN hérite des droits de SCHOOL_ADMIN, comme
+    // partout ailleurs (la page IA l'admettait, la gouvernance le refusait).
+    if (!roleSatisfies(request.userRole, allowedRoles)) {
       throw new AIServiceError(
         `Accès refusé pour l'action ${actionLabel}`,
         403,

@@ -44,6 +44,12 @@ const { searchParams } = new URL(request.url);
 
         const classSubjectIds = classSubjects.map(cs => cs.id);
 
+        // La matière demandée doit appartenir à CETTE classe : sinon le filtre
+        // remplaçait la contrainte et ouvrait les notes d'une autre classe.
+        if (classSubjectId && !classSubjectIds.includes(classSubjectId)) {
+            return NextResponse.json({ error: "Matière introuvable dans cette classe" }, { status: 404 });
+        }
+
         // Find all evaluations for these class subjects with optional filters
         const evaluations = await prisma.evaluation.findMany({
             where: {

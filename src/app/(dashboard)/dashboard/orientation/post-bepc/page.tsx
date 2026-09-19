@@ -314,9 +314,9 @@ export default function OrientationPostBepcPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="school" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Configurer le conseil d'orientation
-                        </h3>
+                        </h2>
                     </div>
                     <div className="px-5 py-5">
                         <div
@@ -399,9 +399,9 @@ export default function OrientationPostBepcPage() {
                             >
                                 <Icon name="school" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Conseil d'orientation à préparer
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -476,12 +476,12 @@ export default function OrientationPostBepcPage() {
                                         gap: 8,
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Décisions d'orientation · {data.class.name}
-                                    </h3>
+                                    </h2>
                                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         <Chip
                                             active={filter === "all"}
@@ -972,7 +972,7 @@ function SeriesLegend() {
                 }}
             >
                 <div>
-                    <h3
+                    <h2
                         className="eduflow-display"
                         style={{
                             fontSize: 18,
@@ -981,7 +981,7 @@ function SeriesLegend() {
                         }}
                     >
                         Séries du système béninois
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 12,

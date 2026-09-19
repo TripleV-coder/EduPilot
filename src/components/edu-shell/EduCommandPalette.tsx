@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
-import { navForRole, AI_ASSISTANT_NAV_LINK } from "./role-nav";
+import { navForRole, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 import { useSchool } from "@/components/providers/school-provider";
 import { moduleForPagePath } from "@/lib/modules/catalog";
 
@@ -113,8 +113,8 @@ function buildActions(
         keywords: `${n.label} ${n.href}`,
         category: "Navigation",
     }));
-    return [...roleQuickActions(role), ...navItems, ...STATIC_ACTIONS(router, role)].filter((a) =>
-        allowedByModules(a, enabledModules),
+    return [...roleQuickActions(role), ...navItems, ...STATIC_ACTIONS(router, role)].filter(
+        (a) => allowedByModules(a, enabledModules) && (a.id !== "act-ai" || canUseAiAssistant(role)),
     );
 }
 

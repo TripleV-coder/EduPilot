@@ -219,9 +219,9 @@ export default function EventsPage() {
                             style={{ borderColor: "var(--brand-100)" }}
                         >
                             <Icon name="calendar" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Nouvel événement
-                            </h3>
+                            </h2>
                         </div>
                         <form
                             onSubmit={handleCreateEvent}
@@ -435,7 +435,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                 </div>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                        <h3
+                        <h2
                             style={{
                                 margin: 0,
                                 fontSize: 15,
@@ -445,7 +445,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                             }}
                         >
                             {event.title}
-                        </h3>
+                        </h2>
                         <Badge variant={variant} size="sm">
                             {label}
                         </Badge>

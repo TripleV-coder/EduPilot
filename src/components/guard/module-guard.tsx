@@ -36,9 +36,9 @@ export function ModuleGuard({ children }: { children: React.ReactNode }) {
                 <div style={{ width: 72, height: 72, borderRadius: 20, background: "var(--eduflow-surface-sunken)", display: "grid", placeItems: "center" }}>
                     <Icon name="settings" size={32} color="var(--eduflow-text-tertiary)" />
                 </div>
-                <h3 className="eduflow-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                <h1 className="eduflow-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
                     Module « {required.label} » non activé
-                </h3>
+                </h1>
                 <p style={{ fontSize: 13, color: "var(--eduflow-text-tertiary)", maxWidth: 420, lineHeight: 1.55, margin: 0 }}>
                     {required.description} Votre établissement ne l&apos;a pas activé : aucune donnée de
                     ce type n&apos;est collectée.

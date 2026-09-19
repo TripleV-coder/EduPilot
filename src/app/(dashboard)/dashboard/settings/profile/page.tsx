@@ -171,9 +171,9 @@ export default function ProfileSettingsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="users" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Photo de profil
-                        </h3>
+                        </h2>
                     </div>
                     <div className="flex flex-col items-start gap-5 px-5 py-5 sm:flex-row sm:items-center">
                         <div
@@ -253,9 +253,9 @@ export default function ProfileSettingsPage() {
                     >
                         <Icon name="info" size={18} color="var(--brand-700)" />
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Informations de base
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     margin: "2px 0 0",

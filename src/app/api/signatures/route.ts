@@ -17,6 +17,19 @@ const createSchema = z.object({
     payload: z.unknown(),
 });
 
+async function documentBelongsToSchool(docType: (typeof DOC_TYPES)[number], docId: string, schoolId: string): Promise<boolean> {
+    switch (docType) {
+        case "REPORT_CARD":
+            return Boolean(await prisma.studentProfile.findFirst({ where: { id: docId, schoolId }, select: { id: true } }));
+        case "CERTIFICATE":
+            return Boolean(await prisma.certificate.findFirst({ where: { id: docId, student: { schoolId } }, select: { id: true } }));
+        default:
+            // Autorisation parentale et contrat : aucun modèle ni écran ne les porte
+            // encore (TECH_DEBT) ; la signature reste rangée dans l'école active.
+            return true;
+    }
+}
+
 function clientIp(request: Request): string {
     return getClientIp(request.headers);
 }
@@ -72,6 +85,12 @@ export const POST = createApiHandler(
 
         if (!canSignDocType(context.session.user.role, docType)) {
             return NextResponse.json({ error: "Vous n'êtes pas autorisé à signer ce document." }, { status: 403 });
+        }
+
+        // Le document signé doit exister dans l'école : sinon une signature
+        // pouvait viser n'importe quel identifiant. (Bulletin : docId = élève.)
+        if (!(await documentBelongsToSchool(docType, docId, schoolId))) {
+            return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
         }
 
         const user = await prisma.user.findUnique({

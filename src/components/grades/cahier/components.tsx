@@ -379,9 +379,9 @@ export function EmptyHero({
                 >
                     <Icon name={icon} size={26} color="var(--brand-700)" />
                 </div>
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                     {title}
-                </h3>
+                </h2>
                 <p
                     style={{
                         fontSize: 13,

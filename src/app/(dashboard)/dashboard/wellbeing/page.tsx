@@ -327,9 +327,9 @@ function EmptyWellbeingState() {
             >
                 <Icon name="sparkle" size={36} color="var(--brand-700)" />
             </div>
-            <h3 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 8px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 8px" }}>
                 Cellule d&apos;écoute prête à démarrer
-            </h3>
+            </h2>
             <p
                 style={{
                     fontSize: 13,
@@ -436,9 +436,9 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                 }}
             >
                 <div>
-                    <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         Signalements récents · cellule d&apos;écoute
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 11,
@@ -731,9 +731,9 @@ function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
                     borderBottom: "1px solid var(--border-subtle)",
                 }}
             >
-                <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                     Agenda psychologue · 7 prochains jours
-                </h3>
+                </h2>
                 <p
                     style={{
                         fontSize: 11,

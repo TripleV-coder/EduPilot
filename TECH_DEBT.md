@@ -56,6 +56,12 @@ d'échecs de connexion).
 | TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
 | TD-017 | « Facturation en masse » sans modèle de données : la page envoie `{classLevelId, feeId, academicYearId}`, l'API attend `{paymentIds}` → toujours 400 | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 (avis de paiement) |
 | TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 |
+| TD-019 | Contributions aux cagnottes déclaratives : un parent enregistre une contribution « payée » sans aucune vérification | 2j | 3 | 3 | 1,5 | 🔴 Ouvert — **décision produit** |
+| TD-020 | Analyse IA d'un élève : un enseignant est limité à son école, pas à ses classes (les analyses de classe, elles, le sont) | 0,5j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
+| TD-021 | Attestation de bonne conduite émise sans consulter les incidents ; signatures « autorisation parentale » et « contrat » sans modèle ni écran | 1j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
+| TD-022 | Rôle STAFF : les API élèves, annonces et IA le refusent ; son menu est réduit à accueil, vie scolaire, paramètres | 2j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
+| TD-023 | Durée d'examen non contrôlée côté serveur sur le parcours de la page (session créée à la soumission, pas au démarrage) | 1j | 3 | 2 | 1,5 | 🟡 Ouvert |
+| TD-024 | Pages qui lancent leurs requêtes avant leur PageGuard (403 inutiles quand le rôle est refusé) ; motif « sous-identifiant qui remplace la contrainte » à relire route par route (corrigé dans le cahier de notes) | 3j | 2 | 2 | 0,7 | 🟡 Ouvert |
 
 ---
 

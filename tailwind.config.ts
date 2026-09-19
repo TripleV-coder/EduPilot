@@ -17,6 +17,14 @@ const config: Config = {
   		}
   	},
   	extend: {
+  		// text-success / text-warning / text-primary / text-destructive :
+  		// variantes sombres réservées au texte (contraste AA), bg/border inchangés.
+  		textColor: {
+  			success: { DEFAULT: 'hsl(var(--success-text))' },
+  			warning: { DEFAULT: 'hsl(var(--warning-text))' },
+  			primary: { DEFAULT: 'hsl(var(--primary-text))' },
+  			destructive: { DEFAULT: 'hsl(var(--destructive-text))' },
+  		},
   		fontFamily: {
   			display: [
   				'var(--font-display)',

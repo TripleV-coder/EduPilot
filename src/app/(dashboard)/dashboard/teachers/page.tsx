@@ -373,13 +373,12 @@ export default function TeachersPage() {
                                         <RoleActionGuard
                                             allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
                                         >
-                                            <Button
+                                            <Button aria-label={`Supprimer ${fullName}`}
                                                 variant="ghost"
                                                 size="sm"
                                                 icon="x"
                                                 onClick={(e) => requestDelete(e, teacher.id, fullName)}
                                             >
-                                                {""}
                                             </Button>
                                         </RoleActionGuard>
                                     );

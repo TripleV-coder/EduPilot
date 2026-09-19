@@ -39,6 +39,8 @@ export interface CardProps {
     onClick?: React.MouseEventHandler<HTMLDivElement>;
     /** Force le feedback de survol (cartes rendues cliquables via un Link parent). */
     interactive?: boolean;
+    /** Carte bascule (sélection on/off) : annoncé comme bouton pressé. */
+    pressed?: boolean;
     className?: string;
 }
 
@@ -49,6 +51,7 @@ export function Card({
     style,
     onClick,
     interactive,
+    pressed,
     className,
 }: CardProps) {
     const v = VARIANT_TOKENS[variant];
@@ -61,6 +64,20 @@ export function Card({
     return (
         <div
             onClick={onClick}
+            // Une carte cliquable doit l'être aussi au clavier (Tab, Entrée, Espace).
+            role={onClick ? "button" : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            aria-pressed={onClick ? pressed : undefined}
+            onKeyDown={
+                onClick
+                    ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.currentTarget.click();
+                          }
+                      }
+                    : undefined
+            }
             className={className}
             onMouseEnter={isInteractive ? () => setHov(true) : undefined}
             onMouseLeave={isInteractive ? () => setHov(false) : undefined}

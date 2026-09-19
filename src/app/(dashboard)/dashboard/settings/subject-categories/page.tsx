@@ -256,7 +256,7 @@ export default function SubjectCategoriesSettingsPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">Afficher les inactives</span>
-                <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+                <Switch aria-label="Afficher les catégories inactives" checked={showInactive} onCheckedChange={setShowInactive} />
               </div>
             </div>
           </CardHeader>

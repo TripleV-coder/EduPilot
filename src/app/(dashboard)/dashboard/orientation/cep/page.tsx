@@ -179,9 +179,9 @@ export default function OrientationCepPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="school" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Configurer la session CEP
-                        </h3>
+                        </h2>
                     </div>
                     <div className="px-5 py-5">
                         <div
@@ -270,9 +270,9 @@ export default function OrientationCepPage() {
                             >
                                 <Icon name="school" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Session CEP à préparer
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -339,12 +339,12 @@ export default function OrientationCepPage() {
 
                         {/* Cycle primaire info */}
                         <Card padding={20}>
-                            <h3
+                            <h2
                                 className="eduflow-display"
                                 style={{ fontSize: 16, margin: "0 0 12px" }}
                             >
                                 Le cycle primaire &amp; le CEP
-                            </h3>
+                            </h2>
                             <div
                                 style={{
                                     display: "grid",
@@ -388,12 +388,12 @@ export default function OrientationCepPage() {
                                     borderBottom: "1px solid var(--eduflow-border-subtle)",
                                 }}
                             >
-                                <h3
+                                <h2
                                     className="eduflow-display"
                                     style={{ fontSize: 16, margin: 0 }}
                                 >
                                     Pronostic CEP · {data.class.name}
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         fontSize: 11,

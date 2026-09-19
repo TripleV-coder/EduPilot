@@ -203,10 +203,10 @@ export default function MedicalRecordsPage() {
                     {/* Colonne de gauche : Recherche des élèves */}
                     <Card className="h-[750px] flex flex-col shadow-sm">
                         <div className="p-4 border-b">
-                            <h3 className="font-semibold text-base mb-3 flex items-center gap-2">
+                            <h2 className="font-semibold text-base mb-3 flex items-center gap-2">
                                 <Users className="w-4 h-4 text-primary" />
                                 Registre des Élèves
-                            </h3>
+                            </h2>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -512,7 +512,7 @@ export default function MedicalRecordsPage() {
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-muted/5 border-l">
                                 <Activity className="w-16 h-16 text-muted-foreground/20 mb-4" />
-                                <h3 className="text-xl font-display font-semibold text-foreground/80">Infirmerie d'Établissement</h3>
+                                <h2 className="text-xl font-display font-semibold text-foreground/80">Infirmerie d'Établissement</h2>
                                 <p className="text-muted-foreground text-sm max-w-sm mt-2">Sélectionnez un élève dans le registre à gauche pour consulter ou mettre à jour son dossier médical.</p>
                             </div>
                         )}

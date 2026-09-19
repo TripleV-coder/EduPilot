@@ -86,6 +86,13 @@ const PUBLIC_ROUTES = new Set([
   "/disabled",
   // Page hors-ligne servie par le service worker (fallback navigation)
   "/offline",
+  // Fichiers publics générés par l'app : robots et moteurs, aperçus de liens,
+  // installation PWA. Sans session, ils étaient redirigés vers /login.
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.json",
+  "/opengraph-image",
+  "/twitter-image",
 ]);
 
 /**

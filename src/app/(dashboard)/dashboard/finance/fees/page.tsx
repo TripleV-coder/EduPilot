@@ -125,7 +125,7 @@ export default function FeesManagementPage() {
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
-                        <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+                        <Button aria-label="Retour aux finances" variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
                     </Link>
                     <PageHeader
                         title="Configuration des Frais"
@@ -208,7 +208,7 @@ export default function FeesManagementPage() {
                                             <Label className="text-base font-medium">Ce frais est-il obligatoire pour tout étudiant ?</Label>
                                             <p className="text-xs text-muted-foreground">Si oui, le système facturera automatiquement lors de l'inscription.</p>
                                         </div>
-                                        <Switch name="isRequired" defaultChecked />
+                                        <Switch aria-label="Frais obligatoire pour tous les élèves" name="isRequired" defaultChecked />
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
@@ -264,7 +264,7 @@ export default function FeesManagementPage() {
                                                 <span className="text-[10px] text-muted-foreground block mb-0.5">Montant unitaire</span>
                                                 <span className="font-bold text-xl text-primary">{formatCurrency(fee.amount)}</span>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button aria-label="Supprimer le frais" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>

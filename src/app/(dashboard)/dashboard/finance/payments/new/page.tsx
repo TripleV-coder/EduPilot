@@ -221,7 +221,7 @@ export default function NewPaymentPage() {
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
-                        <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+                        <Button aria-label="Retour aux finances" variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
                     </Link>
                     <PageHeader
                         title="Nouvel Encaissement"
@@ -283,17 +283,18 @@ export default function NewPaymentPage() {
                                 {students.length > 0 && !selectedStudentId && (
                                     <div className="border rounded-md overflow-hidden bg-card max-h-60 overflow-y-auto">
                                         {students.map(stu => (
-                                            <div
+                                            <button
+                                                type="button"
                                                 key={stu.id}
                                                 onClick={() => { setSelectedStudentId(stu.id); setSearchTerm(""); }}
-                                                className="p-3 border-b last:border-0 hover:bg-muted/50 cursor-pointer text-sm"
+                                                className="block w-full text-left p-3 border-b last:border-0 hover:bg-muted/50 focus-visible:bg-muted/50 cursor-pointer text-sm"
                                             >
                                                 <div className="font-medium">{stu.user?.firstName} {stu.user?.lastName}</div>
                                                 <div className="text-xs text-muted-foreground flex justify-between">
                                                     <span>{stu.matricule}</span>
                                                     <span className="bg-secondary/10 text-secondary px-1 rounded">{stu.class?.name || "Aucune classe"}</span>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 )}

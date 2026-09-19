@@ -47,9 +47,10 @@ export function PageGuard({
             return (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                     <div className="text-4xl mb-4">🔒</div>
-                    <h2 className="text-xl font-semibold text-foreground mb-2">
+                    {/* Cet écran remplace toute la page : c'est son titre principal. */}
+                    <h1 className="text-xl font-semibold text-foreground mb-2">
                         Accès refusé
-                    </h2>
+                    </h1>
                     <p className="text-sm text-muted-foreground max-w-md">
                         Vous n&apos;avez pas les permissions nécessaires pour accéder à
                         cette page. Contactez votre administrateur si vous pensez qu&apos;il

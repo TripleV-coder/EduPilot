@@ -166,8 +166,11 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
                                                     const key: SlotKey = `${dayIdx}-${period.start}`;
                                                     const isActive = activeSlots.has(key);
                                                     return (
-                                                        <div
+                                                        <button
+                                                            type="button"
                                                             key={`${DAYS[i]}-${period.id}`}
+                                                            aria-pressed={isActive}
+                                                            aria-label={`${DAYS[i]} ${period.start} : ${isActive ? "disponible" : "indisponible"}`}
                                                             onClick={() => toggleSlot(dayIdx, period.start)}
                                                             className={`p-3 border rounded transition-colors cursor-pointer flex items-center justify-center text-xs font-medium select-none ${
                                                                 isActive
@@ -176,7 +179,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
                                                             }`}
                                                         >
                                                             {isActive ? "Disponible" : "Indisponible"}
-                                                        </div>
+                                                        </button>
                                                     );
                                                 })
                                             )}

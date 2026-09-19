@@ -154,7 +154,7 @@ export default function NotificationsSettingsPage() {
                   Active l'affichage temps réel dans le centre de notifications et les badges du header.
                 </p>
               </div>
-              <Switch
+              <Switch aria-label="Messages et annonces in-app"
                 checked={preferences.inAppMessages}
                 onCheckedChange={(checked) => updatePreference("inAppMessages", checked)}
               />
@@ -178,7 +178,7 @@ export default function NotificationsSettingsPage() {
                 <Label className="text-base text-foreground">Nouvelle connexion détectée</Label>
                 <p className="text-sm text-muted-foreground">Email lors d'une connexion inhabituelle.</p>
               </div>
-              <Switch
+              <Switch aria-label="Nouvelle connexion détectée"
                 checked={preferences.securityNewLogin}
                 onCheckedChange={(checked) => updatePreference("securityNewLogin", checked)}
               />
@@ -188,7 +188,7 @@ export default function NotificationsSettingsPage() {
                 <Label className="text-base text-foreground">Alertes de sécurité et conformité</Label>
                 <p className="text-sm text-muted-foreground">Maintenance, RGPD et évènements sensibles de compte.</p>
               </div>
-              <Switch
+              <Switch aria-label="Alertes de sécurité et conformité"
                 checked={preferences.securityUpdates}
                 onCheckedChange={(checked) => updatePreference("securityUpdates", checked)}
               />
@@ -198,7 +198,7 @@ export default function NotificationsSettingsPage() {
                 <Label className="text-base text-foreground">Digest hebdomadaire</Label>
                 <p className="text-sm text-muted-foreground">Résumé académique et vie scolaire de la semaine.</p>
               </div>
-              <Switch
+              <Switch aria-label="Digest hebdomadaire"
                 checked={preferences.weeklyDigest}
                 onCheckedChange={(checked) => updatePreference("weeklyDigest", checked)}
               />
@@ -208,7 +208,7 @@ export default function NotificationsSettingsPage() {
                 <Label className="text-base text-foreground">Nouveautés EduPilot</Label>
                 <p className="text-sm text-muted-foreground">Communications produit non critiques.</p>
               </div>
-              <Switch
+              <Switch aria-label="Nouveautés EduPilot"
                 checked={preferences.productUpdates}
                 onCheckedChange={(checked) => updatePreference("productUpdates", checked)}
               />
@@ -233,7 +233,7 @@ export default function NotificationsSettingsPage() {
                 Les SMS classiques restent gérés par les campagnes dédiées et les droits métier.
               </p>
             </div>
-            <Switch
+            <Switch aria-label="Activer les SMS critiques"
               checked={preferences.criticalSms}
               onCheckedChange={(checked) => updatePreference("criticalSms", checked)}
             />

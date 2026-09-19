@@ -315,12 +315,12 @@ export default function BepcPrepPage() {
                                 }}
                             >
                                 <div>
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Annales BEPC · examens disponibles
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,

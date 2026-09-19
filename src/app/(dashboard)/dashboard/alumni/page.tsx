@@ -140,7 +140,7 @@ export default function AlumniPage() {
                                 gap: 8,
                             }}
                         >
-                            <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>Annuaire des anciens</h3>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>Annuaire des anciens</h2>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 <Chip active={filter === "all"} onClick={() => setFilter("all")}>Tous</Chip>
                                 {fields.map(([f, c]) => (

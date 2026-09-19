@@ -73,7 +73,7 @@ export default function NewExamPage() {
 
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
-            <Button variant="outline" size="icon">
+            <Button aria-label="Retour aux examens" variant="outline" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -98,14 +98,14 @@ export default function NewExamPage() {
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
-                <Label>Titre <span className="text-destructive">*</span></Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+                <Label htmlFor="exam-titre">Titre <span className="text-destructive">*</span></Label>
+                <Input id="exam-titre" value={title} onChange={(e) => setTitle(e.target.value)} />
               </div>
 
               <div className="space-y-2">
                 <Label>Matière / Classe <span className="text-destructive">*</span></Label>
                 <Select value={classSubjectId} onValueChange={setClassSubjectId}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Matière et classe">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -120,17 +120,17 @@ export default function NewExamPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Points total</Label>
-                  <Input type="number" min={1} value={totalPoints} onChange={(e) => setTotalPoints(Number(e.target.value))} />
+                  <Label htmlFor="exam-points-total">Points total</Label>
+                  <Input id="exam-points-total" type="number" min={1} value={totalPoints} onChange={(e) => setTotalPoints(Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Durée (minutes)</Label>
-                  <Input type="number" min={1} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+                  <Label htmlFor="exam-duree-minutes">Durée (minutes)</Label>
+                  <Input id="exam-duree-minutes" type="number" min={1} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <Switch checked={isPublished} onCheckedChange={setIsPublished} />
+                <Switch aria-label="Publier maintenant" checked={isPublished} onCheckedChange={setIsPublished} />
                 <Label>{t("common.publishNow")}</Label>
               </div>
             </CardContent>

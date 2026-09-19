@@ -293,11 +293,11 @@ export default function OrientationMePage() {
                             >
                                 <Icon name="sparkle" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 {data.indicative?.recommendations.length
                                     ? "Ton estimation personnelle, en attendant le conseil"
                                     : "Tes recommandations arrivent bientôt"}
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -476,12 +476,12 @@ export default function OrientationMePage() {
                                             "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Tes 3 vœux · classés par préférence
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,

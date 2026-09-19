@@ -136,9 +136,9 @@ export default function LocaleSettingsPage() {
                     >
                         <Icon name="tag" size={18} color="var(--brand-700)" />
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Langue de l&apos;interface
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     margin: "2px 0 0",
@@ -166,9 +166,9 @@ export default function LocaleSettingsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="clock" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Formats & fuseau horaire
-                        </h3>
+                        </h2>
                     </div>
                     <div
                         className="grid gap-4 px-5 py-5"

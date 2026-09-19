@@ -155,12 +155,12 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                         <GraduationCap className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold uppercase tracking-tight">Performances par Classe</h3>
+                        <h2 className="text-sm font-bold uppercase tracking-tight">Performances par Classe</h2>
                         <p className="text-[10px] text-muted-foreground font-medium">Analysez les résultats et la progression académique.</p>
                     </div>
                 </div>
                 <Select value={selectedClassId} onValueChange={(v) => { setSelectedClassId(v); setSelectedSubjectId(""); }}>
-                    <SelectTrigger className="w-[240px] h-10 font-bold">
+                    <SelectTrigger aria-label="Classe" className="w-[240px] h-10 font-bold">
                         <SelectValue placeholder="Choisir une classe" />
                     </SelectTrigger>
                     <SelectContent>

@@ -167,7 +167,7 @@ export default function AccessControlPage() {
                             alignItems: "center",
                         }}
                     >
-                        <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>Points de scan</h3>
+                        <h2 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>Points de scan</h2>
                         <Badge variant={scanPoints.some((p) => p.isActive) ? "success" : "neutral"} size="sm">
                             {scanPoints.filter((p) => p.isActive).length} actif{scanPoints.filter((p) => p.isActive).length > 1 ? "s" : ""}
                         </Badge>
@@ -448,12 +448,12 @@ export default function AccessControlPage() {
                             }}
                         >
                             <div>
-                                <h3
+                                <h2
                                     className="eduflow-display"
                                     style={{ fontSize: 16, margin: 0 }}
                                 >
                                     Passages en direct
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         fontSize: 11,

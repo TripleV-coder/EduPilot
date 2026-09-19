@@ -171,7 +171,7 @@ export default function CurriculumConfigPage() {
                     </CardHeader>
                     <CardContent>
                         <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                            <SelectTrigger className="w-full max-w-md">
+                            <SelectTrigger aria-label="Classe" className="w-full max-w-md">
                                 <SelectValue placeholder="Choisir une classe..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -239,7 +239,7 @@ export default function CurriculumConfigPage() {
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         {entry.classSubjectId && (
-                                                            <Button
+                                                            <Button aria-label="Supprimer"
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="text-destructive hover:text-destructive"
@@ -261,7 +261,7 @@ export default function CurriculumConfigPage() {
                                 <div className="flex-1">
                                     <Label className="text-xs text-muted-foreground mb-1 block">Ajouter une matière</Label>
                                     <Select value={assignSubjectId} onValueChange={setAssignSubjectId}>
-                                        <SelectTrigger>
+                                        <SelectTrigger aria-label="Ajouter une matière">
                                             <SelectValue placeholder="Sélectionner une matière..." />
                                         </SelectTrigger>
                                         <SelectContent>

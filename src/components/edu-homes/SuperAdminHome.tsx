@@ -127,9 +127,9 @@ export function SuperAdminHome({ userName, data }: SuperAdminHomeProps) {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Établissements
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 11,
@@ -421,9 +421,9 @@ export function SuperAdminHome({ userName, data }: SuperAdminHomeProps) {
                             className="flex items-center justify-between border-b px-5 py-4"
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
-                            <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Activité administrative
-                            </h3>
+                            </h2>
                         </div>
                         <div style={{ padding: "6px 4px" }}>
                             {data.recentActivity.length === 0 ? (

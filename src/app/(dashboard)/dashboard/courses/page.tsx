@@ -45,8 +45,9 @@ export default function CoursesPage() {
         session?.user?.role || ""
     );
 
+    // La progression n'existe que pour l'élève (route réservée au rôle STUDENT).
     const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: CourseProgress[] }>(
-        "/api/courses/progress",
+        session?.user?.role === "STUDENT" ? "/api/courses/progress" : null,
         fetcher
     );
     const progressMap: Record<string, CourseProgress> = {};
@@ -249,9 +250,9 @@ export default function CoursesPage() {
                             >
                                 <Icon name="book" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Aucun cours créé
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -302,7 +303,7 @@ export default function CoursesPage() {
                                     <div className="px-5 py-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0 flex-1">
-                                                <h3
+                                                <h2
                                                     className="eduflow-display"
                                                     style={{
                                                         margin: 0,
@@ -313,7 +314,7 @@ export default function CoursesPage() {
                                                     }}
                                                 >
                                                     {course.title}
-                                                </h3>
+                                                </h2>
                                                 <p
                                                     style={{
                                                         margin: "4px 0 0",

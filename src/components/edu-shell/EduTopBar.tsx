@@ -11,7 +11,7 @@ import { useCommandPalette } from "@/components/edu-shell/CommandPaletteProvider
 import { fetcher } from "@/lib/fetcher";
 import { toggleLightDark } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ROLE_LABELS, AI_ASSISTANT_NAV_LINK } from "./role-nav";
+import { ROLE_LABELS, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 
 const iconBtnClass =
     "grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent cursor-pointer transition-colors hover:bg-[var(--eduflow-surface-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50";
@@ -113,11 +113,13 @@ export function EduTopBar() {
 
             {searchButton}
 
-            <Link href={AI_ASSISTANT_NAV_LINK.href} className="hidden md:inline-flex">
-                <Button variant="ghost" size="sm" icon={AI_ASSISTANT_NAV_LINK.icon}>
-                    {AI_ASSISTANT_NAV_LINK.label}
-                </Button>
-            </Link>
+            {canUseAiAssistant(session?.user?.role) ? (
+                <Link href={AI_ASSISTANT_NAV_LINK.href} className="hidden md:inline-flex">
+                    <Button variant="ghost" size="sm" icon={AI_ASSISTANT_NAV_LINK.icon}>
+                        {AI_ASSISTANT_NAV_LINK.label}
+                    </Button>
+                </Link>
+            ) : null}
 
             <button
                 type="button"

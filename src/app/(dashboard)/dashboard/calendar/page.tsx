@@ -230,6 +230,8 @@ export default function CalendarPage() {
                 "TEACHER",
                 "STUDENT",
                 "PARENT",
+                // Personnel de vie scolaire : l'API des événements le sert (événements qui le ciblent).
+                "STAFF",
             ]}
         >
             <PageShell className="pb-12">
@@ -420,7 +422,7 @@ function CalendarHeader({
             style={{ borderBottom: "1px solid var(--eduflow-border-subtle)" }}
         >
             <div className="flex items-center gap-3">
-                <h3
+                <h2
                     className="eduflow-display"
                     style={{
                         fontSize: 22,
@@ -430,7 +432,7 @@ function CalendarHeader({
                     }}
                 >
                     {format(cursor, "MMMM yyyy", { locale: fr })}
-                </h3>
+                </h2>
             </div>
             <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={onToday}>

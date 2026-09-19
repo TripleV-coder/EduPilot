@@ -286,7 +286,7 @@ export default function ExamsPlanningPage() {
                         }}
                     >
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <Button
+                            <Button aria-label="Semaine précédente"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setWeekStart((w) => addDays(w, -7))}
@@ -297,13 +297,13 @@ export default function ExamsPlanningPage() {
                                     style={{ transform: "scaleX(-1)" }}
                                 />
                             </Button>
-                            <h3
+                            <h2
                                 className="eduflow-display"
                                 style={{ fontSize: 16, margin: 0 }}
                             >
                                 Semaine du {fmtRangeLabel(weekStart)}
-                            </h3>
-                            <Button
+                            </h2>
+                            <Button aria-label="Semaine suivante"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setWeekStart((w) => addDays(w, 7))}

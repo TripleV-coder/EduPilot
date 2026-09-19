@@ -78,7 +78,7 @@ export default function ExamDetailPage() {
     return (
       <div className="text-center py-16">
         <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h3 className="text-lg font-medium">Examen non trouvé</h3>
+        <h2 className="text-lg font-medium">Examen non trouvé</h2>
         <Link href="/dashboard/exams">
           <Button variant="outline" className="mt-4">{t("common.back")}</Button>
         </Link>
@@ -95,7 +95,7 @@ export default function ExamDetailPage() {
 
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
-            <Button variant="outline" size="icon">
+            <Button aria-label="Retour" variant="outline" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>

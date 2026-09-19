@@ -365,7 +365,7 @@ export default function ParentsPage() {
                                                 "DIRECTOR",
                                             ]}
                                         >
-                                            <Button
+                                            <Button aria-label={`Supprimer ${fullName}`}
                                                 variant="ghost"
                                                 size="sm"
                                                 icon="x"
@@ -378,7 +378,6 @@ export default function ParentsPage() {
                                                     )
                                                 }
                                             >
-                                                {""}
                                             </Button>
                                         </RoleActionGuard>
                                     );

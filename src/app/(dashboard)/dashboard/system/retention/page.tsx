@@ -107,7 +107,7 @@ export default function SystemRetentionPage() {
                             <CardContent className="pt-6 text-center space-y-4">
                                 <ShieldCheck className="w-12 h-12 text-primary mx-auto" />
                                 <div>
-                                    <h3 className="font-semibold text-foreground">Conformité RGPD</h3>
+                                    <h2 className="font-semibold text-foreground">Conformité RGPD</h2>
                                     <p className="text-sm text-muted-foreground mt-2">
                                         Le paramétrage des durées de conservation garantit la conformité de l&apos;établissement vis-à-vis de la réglementation sur les données personnelles.
                                     </p>
@@ -138,7 +138,7 @@ export default function SystemRetentionPage() {
                                         <div className="space-y-2">
                                             <Label className="text-sm text-muted-foreground">Élèves inactifs/anciens</Label>
                                             <Select defaultValue="5years">
-                                                <SelectTrigger className="bg-background">
+                                                <SelectTrigger aria-label="Conservation — élèves inactifs ou anciens" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -152,7 +152,7 @@ export default function SystemRetentionPage() {
                                         <div className="space-y-2">
                                             <Label className="text-sm text-muted-foreground">Bulletins et Notes</Label>
                                             <Select defaultValue="10years">
-                                                <SelectTrigger className="bg-background">
+                                                <SelectTrigger aria-label="Conservation — bulletins et notes" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -175,7 +175,7 @@ export default function SystemRetentionPage() {
                                         <div className="space-y-2">
                                             <Label className="text-sm text-muted-foreground">Historique de Connexion</Label>
                                             <Select defaultValue="6months">
-                                                <SelectTrigger className="bg-background">
+                                                <SelectTrigger aria-label="Conservation — historique de connexion" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -189,7 +189,7 @@ export default function SystemRetentionPage() {
                                         <div className="space-y-2">
                                             <Label className="text-sm text-muted-foreground">Audit de Sécurité (Modifications)</Label>
                                             <Select defaultValue="1year">
-                                                <SelectTrigger className="bg-background">
+                                                <SelectTrigger aria-label="Conservation — audit de sécurité" className="bg-background">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>

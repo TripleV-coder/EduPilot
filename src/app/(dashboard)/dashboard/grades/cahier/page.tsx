@@ -429,12 +429,12 @@ export default function CahierDeNotesPage() {
                                                         size={18}
                                                         color="var(--brand-700)"
                                                     />
-                                                    <h3
+                                                    <h2
                                                         className="eduflow-display"
                                                         style={{ fontSize: 16, margin: 0 }}
                                                     >
                                                         {subjectName}
-                                                    </h3>
+                                                    </h2>
                                                 </div>
                                                 <Badge variant="neutral" size="sm">
                                                     {subjectEvals.length} éval
@@ -615,9 +615,9 @@ export default function CahierDeNotesPage() {
                                         borderColor: "var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                         Récapitulatif par élève
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,

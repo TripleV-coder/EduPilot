@@ -251,9 +251,9 @@ export default function AnnouncementsPage() {
                             style={{ borderColor: "var(--brand-100)" }}
                         >
                             <Icon name="bell" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Rédiger une nouvelle annonce
-                            </h3>
+                            </h2>
                         </div>
                         <form
                             onSubmit={handleCreateAnnouncement}
@@ -515,7 +515,7 @@ function AnnouncementCard({
                             <Icon name={typeIcon} size={18} />
                         </div>
                         <div className="min-w-0">
-                            <h3
+                            <h2
                                 style={{
                                     margin: 0,
                                     fontSize: 16,
@@ -525,7 +525,7 @@ function AnnouncementCard({
                                 }}
                             >
                                 {announcement.title}
-                            </h3>
+                            </h2>
                             <div
                                 className="mt-1 flex flex-wrap items-center gap-2"
                                 style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}

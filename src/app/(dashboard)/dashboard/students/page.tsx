@@ -12,6 +12,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { Permission } from "@/lib/rbac/permissions";
+import { useRBAC } from "@/lib/hooks/use-rbac";
 import { t } from "@/lib/i18n";
 
 import {
@@ -76,8 +77,12 @@ export default function StudentsPage() {
         if (target > currentPage) studentsPage.next();
         else if (target < currentPage) studentsPage.prev();
     };
+    // Filtre par classe : seulement pour les rôles qui lisent les classes
+    // (parent et comptable voient la liste des élèves sans ce filtre).
+    const { canAccess } = useRBAC();
+    const canReadClasses = canAccess({ permission: Permission.CLASS_READ });
     const { data: classesData } = useSWR<ClassesResponse | ClassOption[]>(
-        "/api/classes",
+        canReadClasses ? "/api/classes" : null,
         fetcher
     );
 
@@ -430,8 +435,7 @@ export default function StudentsPage() {
                                                 onClick={() => markStudentTransition(student.id)}
                                                 aria-label="Voir l'élève"
                                             >
-                                                <Button variant="ghost" size="sm" icon="search">
-                                                    {""}
+                                                <Button aria-label={`Voir la fiche de ${fullName}`} variant="ghost" size="sm" icon="search">
                                                 </Button>
                                             </Link>
                                             <RoleActionGuard
@@ -441,7 +445,7 @@ export default function StudentsPage() {
                                                     "DIRECTOR",
                                                 ]}
                                             >
-                                                <Button
+                                                <Button aria-label={`Supprimer ${fullName}`}
                                                     variant="ghost"
                                                     size="sm"
                                                     icon="x"
@@ -449,7 +453,6 @@ export default function StudentsPage() {
                                                         requestDelete(e, student.id, fullName)
                                                     }
                                                 >
-                                                    {""}
                                                 </Button>
                                             </RoleActionGuard>
                                         </div>

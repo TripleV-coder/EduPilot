@@ -35,10 +35,21 @@ export interface NavGroup {
 export const AI_ASSISTANT_NAV_LINK: NavLink = {
     icon: "sparkle",
     label: "Assistant IA",
-    href: "/dashboard/ai-assistant",
+    // Route canonique : /dashboard/ai-assistant n'est qu'une redirection (next.config.js).
+    href: "/dashboard/ai",
     matchPrefix: true,
     requiresModule: "ai",
 };
+
+/**
+ * Rôles admis sur /dashboard/ai (garde de la page et gouvernance IA). Le lien
+ * n'est montré qu'à eux : le comptable et le personnel tombaient sur « Accès refusé ».
+ */
+const AI_ASSISTANT_ROLES = new Set(["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]);
+
+export function canUseAiAssistant(role: string | undefined | null): boolean {
+    return Boolean(role && AI_ASSISTANT_ROLES.has(role));
+}
 
 export interface NavCounts {
     students?: number;
@@ -72,6 +83,13 @@ export const ROLE_LABELS: Record<string, string> = {
  * Source de vérité : navigation groupée par rôle, limitée à 5–8 actions clés.
  */
 export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
+    // Aucun lien vers une page que la garde refuse à ce rôle.
+    return rawNavGroupsForRole(role)
+        .map((group) => ({ ...group, links: group.links.filter((link) => link !== AI_ASSISTANT_NAV_LINK || canUseAiAssistant(role)) }))
+        .filter((group) => group.links.length > 0);
+}
+
+function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
     switch (role) {
         case "SUPER_ADMIN":
             return [
@@ -146,7 +164,6 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "pencil", label: "Mes notes", href: "/dashboard/grades", matchPrefix: true, requiresModule: "grades" },
                         { icon: "book", label: "Devoirs", href: "/dashboard/homework", countKey: "homework", matchPrefix: true, requiresModule: "schedule" },
                         { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
-                        { icon: "users", label: "Ma classe", href: "/dashboard/classes", matchPrefix: true, requiresModule: "classes" },
                         { icon: "sparkle", label: "Mon orientation", href: "/dashboard/orientation/me", matchPrefix: true },
                         { icon: "sms", label: "Messagerie", href: "/dashboard/messages", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
@@ -175,9 +192,8 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
-                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true, requiresModule: "students" },
+                        // Élèves et annonces : routes fermées au personnel (STAFF) côté API.
                         { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true, requiresModule: "schedule" },
-                        { icon: "bell", label: "Communication", href: "/dashboard/announcements", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],

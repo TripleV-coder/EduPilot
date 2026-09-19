@@ -343,17 +343,15 @@ export default function ClassesPage() {
                                 cell: (cls) => (
                                     <div className="flex items-center justify-end gap-1">
                                         <Link href={`/dashboard/classes/${cls.id}`} aria-label="Voir la classe">
-                                            <Button variant="ghost" size="sm" icon="search">
-                                                {""}
+                                            <Button aria-label={`Voir la classe ${cls.name}`} variant="ghost" size="sm" icon="search">
                                             </Button>
                                         </Link>
-                                        <Button
+                                        <Button aria-label={`Supprimer la classe ${cls.name}`}
                                             variant="ghost"
                                             size="sm"
                                             icon="x"
                                             onClick={(e) => requestDelete(e, cls.id, cls.name)}
                                         >
-                                            {""}
                                         </Button>
                                     </div>
                                 ),

@@ -27,7 +27,7 @@ export function SectionToolbar({
       )}
     >
       <div className="space-y-1">
-        {title ? <h3 className="text-sm font-bold uppercase tracking-wider">{title}</h3> : null}
+        {title ? <h2 className="text-sm font-bold uppercase tracking-wider">{title}</h2> : null}
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
       <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">

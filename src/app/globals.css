@@ -158,6 +158,14 @@
     --info-border:    212 52% 78%;
     --info-bg:        212 78% 96%;
 
+    /* Texte sur fond clair ou teinté (badges « bg-xxx à 10 % ») : mêmes teintes, plus
+       sombres, pour tenir 4,5:1 (axe color-contrast). Fonds et bordures
+       gardent les jetons ci-dessus. */
+    --success-text:     151 46% 28%;
+    --warning-text:     36 71% 29%;
+    --primary-text:     221 83% 45%;
+    --destructive-text: 7 51% 40%;
+
     /* ─── EXPLORER (thème sombre de la carte 3D) ─────────────── */
     --explorer-bg:                  222 47% 6%;
     --explorer-bg-elevated:         220 43% 9%;
@@ -314,6 +322,11 @@
     --info-light:     212 26% 16%;
     --info-border:    212 30% 31%;
     --info-bg:        212 26% 16%;
+
+    --success-text:     151 44% 52%;
+    --warning-text:     35 76% 56%;
+    --primary-text:     217 91% 60%;
+    --destructive-text: 0 63% 45%;
 
     /* Ombres dark */
     --shadow-xs:  0 1px 2px 0 hsl(0 0% 0% / 0.20);

@@ -399,9 +399,9 @@ function JournalCard({
                 }}
             >
                 <div>
-                    <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         Journal des opérations
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 11,
@@ -655,9 +655,9 @@ function ExpensesCard({
                     borderBottom: "1px solid var(--border-subtle)",
                 }}
             >
-                <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
+                <h2 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
                     Postes principaux · charges
-                </h3>
+                </h2>
                 <p
                     style={{
                         fontSize: 11,

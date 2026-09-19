@@ -67,7 +67,7 @@ export function SignatureBlock({ docType, docId, payload, canSign = false, title
         <Card padding={0}>
             <div className="flex items-center gap-2 border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
                 <Icon name="pencil" size={18} color="var(--brand-700)" />
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>{title}</h3>
+                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>{title}</h2>
             </div>
 
             <div className="px-5 py-4">

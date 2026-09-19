@@ -185,12 +185,12 @@ export default function TransportPage() {
                                         gap: 8,
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Suivi GPS
-                                    </h3>
+                                    </h2>
                                     <div style={{ display: "flex", gap: 6 }}>
                                         <Chip
                                             active={direction === "all"}
@@ -236,14 +236,14 @@ export default function TransportPage() {
                                         >
                                             <Icon name="school" size={26} color="var(--brand-700)" />
                                         </div>
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: "0 0 6px" }}
                                         >
                                             {data.configured
                                                 ? "Carte GPS non branchée"
                                                 : "Module GPS à configurer"}
-                                        </h3>
+                                        </h2>
                                         <p
                                             style={{
                                                 fontSize: 12,
@@ -271,12 +271,12 @@ export default function TransportPage() {
                                             "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Lignes · état temps réel
-                                    </h3>
+                                    </h2>
                                 </div>
                                 <div style={{ flex: 1, overflow: "auto" }}>
                                     {data.lines.length === 0 ? (

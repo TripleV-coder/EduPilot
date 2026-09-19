@@ -265,9 +265,9 @@ function BillingBarChart({
             }}
         >
             <div className="flex items-end justify-between mb-3.5">
-                <h3 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>
+                <h2 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>
                     Encaissements vs facturation · 12 mois
-                </h3>
+                </h2>
                 <div className="flex gap-3.5" style={{ fontSize: 11 }}>
                     <span className="inline-flex items-center gap-1.5">
                         <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--eduflow-brand-700)" }} />

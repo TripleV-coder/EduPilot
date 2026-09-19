@@ -256,10 +256,11 @@ export default function EvaluationTypesPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(type)}>
+                                                    <Button aria-label={`Modifier le type ${type.name}`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(type)}>
                                                         <Edit2 className="w-4 h-4" />
                                                     </Button>
                                                     <Button
+                                                        aria-label={`Supprimer le type ${type.name}`}
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"

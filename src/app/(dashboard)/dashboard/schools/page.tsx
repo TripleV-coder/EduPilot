@@ -93,12 +93,12 @@ export default function SchoolsPage() {
                                         <Icon name="school" size={18} color="var(--brand-700)" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h3
+                                        <h2
                                             className="truncate text-sm font-semibold"
                                             style={{ color: "var(--eduflow-text-primary)" }}
                                         >
                                             {school.name}
-                                        </h3>
+                                        </h2>
                                         <p className="mt-0.5 text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
                                             {school.type} · {school.level} ·{" "}
                                             {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}

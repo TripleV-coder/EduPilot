@@ -71,7 +71,7 @@ export default function AcademicLevelsPage() {
                             <Card className="border-border shadow-sm border-dashed">
                                 <CardContent className="pt-6 text-center space-y-3">
                                     <Network className="w-10 h-10 text-primary mx-auto opacity-80" />
-                                    <h3 className="font-semibold">Construction</h3>
+                                    <h2 className="font-semibold">Construction</h2>
                                     <p className="text-sm text-muted-foreground">
                                         Un cycle comporte des Niveaux (ex: Lycée {'>'} Seconde).
                                         Certains niveaux ont des Séries (ex: Terminale {'>'} Terminale C).
@@ -116,7 +116,7 @@ export default function AcademicLevelsPage() {
                                                 {groupLevels.map((lvl) => (
                                                     <div key={lvl.id} className="p-4 hover:bg-muted/10 flex justify-between items-center group">
                                                         <div>
-                                                            <h4 className="font-medium text-foreground">{lvl.name}</h4>
+                                                            <h3 className="font-medium text-foreground">{lvl.name}</h3>
                                                             <p className="text-xs text-muted-foreground mt-1">Code: {lvl.code}</p>
                                                         </div>
                                                         <Badge variant="secondary" className="group-hover:bg-primary/10 group-hover:text-primary transition-colors">

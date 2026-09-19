@@ -254,12 +254,12 @@ export default function AcademicConfigPage() {
                     <>
                         {/* System toggle */}
                         <Card padding={24}>
-                            <h3
+                            <h2
                                 className="eduflow-display"
                                 style={{ fontSize: 18, margin: "0 0 6px" }}
                             >
                                 Système de découpage
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -316,7 +316,7 @@ export default function AcademicConfigPage() {
                                             "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
@@ -326,7 +326,7 @@ export default function AcademicConfigPage() {
                                             ? "2 semestres"
                                             : "Périodes"}{" "}
                                         · dates
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,
@@ -460,17 +460,17 @@ export default function AcademicConfigPage() {
                                         alignItems: "center",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Vacances &amp; jours fériés
-                                    </h3>
+                                    </h2>
                                     <Link
                                         href="/dashboard/calendar"
                                         style={{ textDecoration: "none" }}
                                     >
-                                        <Button variant="ghost" size="sm" icon="plus" />
+                                        <Button variant="ghost" size="sm" icon="plus" aria-label="Ajouter des vacances dans le calendrier" />
                                     </Link>
                                 </div>
                                 {data.holidays.length === 0 ? (

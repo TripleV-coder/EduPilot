@@ -169,7 +169,7 @@ export default function NewClassPage() {
                                 <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-success">Classe créée avec succès !</h3>
+                                <h2 className="text-xl font-bold text-success">Classe créée avec succès !</h2>
                                 <p className="text-sm text-muted-foreground">Redirection vers la liste des classes...</p>
                             </div>
                         ) : (

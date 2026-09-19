@@ -111,7 +111,7 @@ export default function FinanceReconciliationPage() {
                     <div className="md:col-span-1 space-y-4">
                         <Card className="border-border shadow-sm">
                             <CardContent className="pt-6">
-                                <h3 className="font-medium text-foreground mb-2">{t("appActions.importStatement")}</h3>
+                                <h2 className="font-medium text-foreground mb-2">{t("appActions.importStatement")}</h2>
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Importez votre relevé bancaire (CSV) pour faire correspondre automatiquement les paiements.
                                 </p>
@@ -125,7 +125,7 @@ export default function FinanceReconciliationPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <AlertCircle className="w-5 h-5" />
-                                    <h3 className="font-medium">Paiements en attente</h3>
+                                    <h2 className="font-medium">Paiements en attente</h2>
                                 </div>
                                 <p className="text-2xl font-bold">{isLoading ? "..." : `${pendingCount} virements`}</p>
                                 <p className="text-sm opacity-80 mt-1">Nécessitent une validation manuelle</p>

@@ -243,9 +243,9 @@ function BenchmarkPageContent() {
                             borderBottom: "1px solid var(--border-subtle)",
                         }}
                     >
-                        <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Comparatif détaillé · vous vs moyennes
-                        </h3>
+                        </h2>
                         <p
                             style={{
                                 fontSize: 11,

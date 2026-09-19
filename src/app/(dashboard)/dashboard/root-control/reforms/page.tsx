@@ -215,7 +215,7 @@ export default function ReformsPage() {
                                         <div className="col-span-3"><Input value={s.code} onChange={e => updateSubject("CEP", i, "code", e.target.value)} /></div>
                                         <div className="col-span-6"><Input value={s.name} onChange={e => updateSubject("CEP", i, "name", e.target.value)} /></div>
                                         <div className="col-span-2 text-center"><Input type="number" step="0.5" value={s.coefficient} onChange={e => updateSubject("CEP", i, "coefficient", parseFloat(e.target.value))} /></div>
-                                        <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeSubject("CEP", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
+                                        <div className="col-span-1"><Button aria-label="Supprimer" variant="ghost" size="icon" onClick={() => removeSubject("CEP", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
@@ -251,7 +251,7 @@ export default function ReformsPage() {
                                         <div className="col-span-3"><Input value={s.code} onChange={e => updateSubject("BEPC", i, "code", e.target.value)} /></div>
                                         <div className="col-span-6"><Input value={s.name} onChange={e => updateSubject("BEPC", i, "name", e.target.value)} /></div>
                                         <div className="col-span-2 text-center"><Input type="number" step="0.5" value={s.coefficient} onChange={e => updateSubject("BEPC", i, "coefficient", parseFloat(e.target.value))} /></div>
-                                        <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeSubject("BEPC", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
+                                        <div className="col-span-1"><Button aria-label="Supprimer" variant="ghost" size="icon" onClick={() => removeSubject("BEPC", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
@@ -287,7 +287,7 @@ export default function ReformsPage() {
                                         <div className="col-span-3"><Input value={s.code} onChange={e => updateSubject("BAC", i, "code", e.target.value)} /></div>
                                         <div className="col-span-6"><Input value={s.name} onChange={e => updateSubject("BAC", i, "name", e.target.value)} /></div>
                                         <div className="col-span-2 text-center"><Input type="number" step="0.5" value={s.coefficient} onChange={e => updateSubject("BAC", i, "coefficient", parseFloat(e.target.value))} /></div>
-                                        <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeSubject("BAC", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
+                                        <div className="col-span-1"><Button aria-label="Supprimer" variant="ghost" size="icon" onClick={() => removeSubject("BAC", i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
                                     </div>
                                 ))}
                                 <div className="flex justify-end pt-4">
@@ -316,7 +316,7 @@ export default function ReformsPage() {
                                 <div className="space-y-4 pb-4">
                                     {mentions.map((m, i) => (
                                         <div key={i} className="flex flex-wrap gap-4 items-end p-4 rounded-xl border border-border/40 bg-muted/20 relative group">
-                                            <Button 
+                                            <Button aria-label="Supprimer" 
                                                 variant="ghost" 
                                                 size="icon" 
                                                 onClick={() => setMentions(prev => prev.filter((_, idx) => idx !== i))} 

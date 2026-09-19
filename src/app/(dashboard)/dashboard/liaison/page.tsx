@@ -14,7 +14,7 @@ import {
     Icon,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageError, PageLoading } from "@/components/layout/page-states";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 import { SubLabel } from "@/components/edu-homes/_shared";
 
 type Variant = "success" | "warning" | "danger" | "info" | "neutral";
@@ -80,6 +80,8 @@ export default function LiaisonPage() {
     const [data, setData] = useState<LiaisonData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Personnel sans élève désigné : état vide explicite, pas une erreur.
+    const [needsStudent, setNeedsStudent] = useState(false);
     const [filter, setFilter] = useState<Filter>("all");
     const [composeTo, setComposeTo] = useState("");
     const [composeBody, setComposeBody] = useState("");
@@ -89,8 +91,14 @@ export default function LiaisonPage() {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch("/api/liaison");
+                // L'élève peut être désigné par l'URL (?studentId=), comme l'API le permet.
+                const studentId = new URLSearchParams(window.location.search).get("studentId");
+                const res = await fetch(studentId ? `/api/liaison?studentId=${encodeURIComponent(studentId)}` : "/api/liaison");
                 const body = await res.json();
+                if (res.status === 400 && !studentId) {
+                    setNeedsStudent(true);
+                    return;
+                }
                 if (!res.ok) throw new Error(body.error || "Erreur");
                 setData(body);
                 if (body.recipients?.[0]) setComposeTo(body.recipients[0].id);
@@ -191,6 +199,15 @@ export default function LiaisonPage() {
                 ) : null}
 
                 {error ? <PageError message={error} /> : null}
+
+                {needsStudent ? (
+                    <PageEmpty
+                        icon="book"
+                        title="Choisissez un élève"
+                        description="Le cahier de liaison se consulte élève par élève. Il s'ouvre directement pour les parents et les élèves ; pour le personnel, les échanges avec les familles passent par la messagerie."
+                        actions={[{ label: "Ouvrir la messagerie", href: "/dashboard/messages" }]}
+                    />
+                ) : null}
 
                 {data && data.toSignCount > 0 ? (
                     <Card
@@ -457,6 +474,7 @@ export default function LiaisonPage() {
                                     }}
                                 >
                                     <select
+                                        aria-label="Destinataire"
                                         value={composeTo}
                                         onChange={(e) => setComposeTo(e.target.value)}
                                         disabled={data.recipients.length === 0}

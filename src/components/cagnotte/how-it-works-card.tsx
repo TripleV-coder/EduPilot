@@ -60,12 +60,12 @@ export function HowItWorksCard() {
                     <Icon name="sparkle" size={24} color="#fff" />
                 </div>
                 <div>
-                    <h3
+                    <h2
                         className="eduflow-display"
                         style={{ fontSize: 16, fontWeight: 700, color: "var(--brand-900)", margin: 0 }}
                     >
                         100% transparent · 100% reversé
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 12,

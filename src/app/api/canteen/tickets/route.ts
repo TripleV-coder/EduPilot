@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
 
 /**
  * Get meal tickets for current user or their children
@@ -61,35 +63,52 @@ const schoolId = getActiveSchoolId(session);
 
 });
 
+/** Carnet : entre 1 et 200 repas crédités en une fois. */
+const purchaseSchema = z.object({
+    userId: z.string().min(1).max(64),
+    amount: z.number().int().min(1).max(200).default(10),
+});
+
 /**
- * Purchase a new ticket
+ * Crédite un carnet de tickets repas, encaissé au guichet.
+ *
+ * Réservé à l'administration et à la comptabilité : la route était ouverte à
+ * tout compte connecté, sans paiement — un élève ou un parent se créditait
+ * autant de repas qu'il voulait, pour n'importe quel utilisateur.
  */
 export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
-const schoolId = getActiveSchoolId(session);
+        const schoolId = getActiveSchoolId(session);
         if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
-        const { userId, amount } = await request.json();
-        const normalizedAmount = Number(amount ?? 10);
 
-        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-            return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
+        const parsed = purchaseSchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ error: "Montant invalide (1 à 200 repas)" }, { status: 400 });
+        }
+        const { userId, amount } = parsed.data;
+
+        const beneficiary = await prisma.user.findFirst({
+            where: { id: userId, schoolId, isActive: true },
+            select: { id: true },
+        });
+        if (!beneficiary) {
+            return NextResponse.json({ error: "Bénéficiaire introuvable dans cet établissement" }, { status: 404 });
         }
 
         const ticket = await prisma.mealTicket.create({
             data: {
                 schoolId,
-                userId: userId || session.user.id,
+                userId: beneficiary.id,
                 qrCode: `TKT-${crypto.randomUUID().slice(0, 12).toUpperCase()}`,
-                balance: normalizedAmount,
+                balance: amount,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
             }
         });
 
         return NextResponse.json(ticket);
-    
     } catch (error) {
+        logger.error("Canteen ticket purchase failed", error as Error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
-
-});
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] });

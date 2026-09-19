@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
-import { AI_ASSISTANT_NAV_LINK } from "./role-nav";
+import { AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 
 type MobileNavItem = {
     key: string;
@@ -83,7 +83,7 @@ export function EduMobileNav() {
     const role = session?.user?.role ?? null;
 
     const items: MobileNavItem[] = React.useMemo(() => {
-        const base = mobileItemsForRole(role);
+        const base = mobileItemsForRole(role).filter((item) => item.key !== "ai" || canUseAiAssistant(role));
         return [
             ...base,
             {
