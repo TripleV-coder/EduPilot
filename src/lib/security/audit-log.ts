@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { logger } from "@/lib/utils/logger";
+import { getClientIp } from "@/lib/security/client-ip";
 
 export type AuditValue = Record<string, unknown> | unknown[] | null | undefined;
 
@@ -10,6 +11,8 @@ export interface AuditLogData {
     action: string;
     entity: string;
     entityId?: string;
+    /** Établissement concerné : la purge de conservation s'appuie dessus. */
+    schoolId?: string | null;
     oldValues?: AuditValue;
     newValues?: AuditValue;
     severity?: "INFO" | "WARNING" | "CRITICAL";
@@ -44,11 +47,17 @@ function sanitizeAuditData(data: AuditValue): AuditValue {
 }
 
 export async function createAuditLog(data: AuditLogData) {
-    const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for")?.split(",")[0] ||
-        headersList.get("x-real-ip") ||
-        "unknown";
-    const userAgent = headersList.get("user-agent") || "unknown";
+    // Hors requête (tâche planifiée, script, test) : headers() lève une erreur.
+    // L'entrée d'audit est alors écrite sans adresse ni navigateur (Lot 6).
+    let ip = "unknown";
+    let userAgent = "unknown";
+    try {
+        const headersList = await headers();
+        ip = getClientIp(headersList);
+        userAgent = headersList.get("user-agent") || "unknown";
+    } catch {
+        // pas de requête en cours
+    }
 
     try {
         const sanitizedOld = sanitizeAuditData(data.oldValues);
@@ -66,6 +75,7 @@ export async function createAuditLog(data: AuditLogData) {
                 action: data.action,
                 entity: data.entity,
                 entityId: data.entityId,
+                schoolId: data.schoolId ?? undefined,
                 oldValues: (sanitizedOld ?? undefined) as Prisma.InputJsonValue | undefined,
                 newValues: newValuesWithSeverity as Prisma.InputJsonValue,
                 ipAddress: ip,
@@ -121,6 +131,13 @@ export const auditLog = {
             severity: "CRITICAL",
         }),
 
+    /**
+     * Événement de sécurité. L'action porte le nom de l'événement
+     * (`SECURITY_EVENT_<EVENT>`) : sans cela, une anonymisation, un
+     * verrouillage de compte et une alerte de connexion partageaient la même
+     * action « SECURITY_EVENT » et n'étaient plus distinguables dans le
+     * journal (Lot 6 — traçabilité).
+     */
     securityEvent: (
         userId: string | undefined,
         event: string,
@@ -128,7 +145,7 @@ export const auditLog = {
     ) =>
         createAuditLog({
             userId,
-            action: "SECURITY_EVENT",
+            action: `SECURITY_EVENT_${event}`,
             entity: "SECURITY",
             severity: "CRITICAL",
             newValues: { event, ...details },

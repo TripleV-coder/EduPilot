@@ -2,9 +2,8 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import useSWR from "swr";
 
-import { fetcher } from "@/lib/fetcher";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { PublicHeader } from "@/components/public/public-header";
 import { SCHOOL_TYPE_LABELS, SCHOOL_LEVEL_LABELS, schoolTypeLabel } from "@/components/public/labels";
 
@@ -19,13 +18,6 @@ interface SchoolCard {
     region: string | null;
     type: string | null;
     offeredLevels: string[];
-}
-interface DirectoryResponse {
-    page: number;
-    totalPages: number;
-    total: number;
-    regions: string[];
-    schools: SchoolCard[];
 }
 
 const inputStyle: React.CSSProperties = {
@@ -44,28 +36,25 @@ function DirectoryInner() {
     const [region, setRegion] = useState("");
     const [type, setType] = useState("");
     const [level, setLevel] = useState("");
-    const [page, setPage] = useState(1);
 
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (region) params.set("region", region);
     if (type) params.set("type", type);
     if (level) params.set("level", level);
-    params.set("page", String(page));
 
-    const { data, isLoading, error } = useSWR<DirectoryResponse>(
+    // Lot 3 : pagination par curseur (12 par page) ; le hook repart de la
+    // première page dès qu'un filtre change l'adresse.
+    const directory = useCursorPagination<SchoolCard, { regions: string[] }>(
         `/api/public/schools?${params.toString()}`,
-        fetcher,
-        { keepPreviousData: true },
+        { limit: 12 },
     );
-
-    const resetPageThen = (fn: () => void) => {
-        setPage(1);
-        fn();
-    };
+    const { isLoading, error } = directory;
+    const resetPageThen = (fn: () => void) => fn();
 
     return (
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
+        // <main> (M8, a11y) : zone principale unique ; même mise en page que le div d'origine.
+        <main style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
             <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 6px" }}>
                 Annuaire des établissements
             </h1>
@@ -85,7 +74,7 @@ function DirectoryInner() {
                 />
                 <select value={region} onChange={(e) => resetPageThen(() => setRegion(e.target.value))} style={inputStyle} aria-label="Région">
                     <option value="">Toutes les régions</option>
-                    {(data?.regions ?? []).map((r) => (
+                    {(directory.response?.regions ?? []).map((r) => (
                         <option key={r} value={r}>{r}</option>
                     ))}
                 </select>
@@ -105,14 +94,14 @@ function DirectoryInner() {
 
             {error ? (
                 <p style={{ color: "var(--eduflow-danger-600)" }}>Impossible de charger l&apos;annuaire.</p>
-            ) : isLoading && !data ? (
+            ) : isLoading && !directory.response ? (
                 <p style={{ color: "var(--eduflow-text-tertiary)" }}>Chargement…</p>
-            ) : data && data.schools.length === 0 ? (
+            ) : directory.response && directory.items.length === 0 ? (
                 <p style={{ color: "var(--eduflow-text-tertiary)" }}>Aucun établissement ne correspond à ta recherche.</p>
             ) : (
                 <>
                     <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-                        {data?.schools.map((s) => (
+                        {directory.items.map((s) => (
                             <Link
                                 key={s.id}
                                 href={`/ecole/${s.code}`}
@@ -161,22 +150,22 @@ function DirectoryInner() {
                     </div>
 
                     {/* Pagination */}
-                    {data && data.totalPages > 1 ? (
+                    {directory.totalPages && directory.totalPages > 1 ? (
                         <div className="flex items-center justify-center gap-3" style={{ marginTop: 28 }}>
-                            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={pagerBtn}>
+                            <button type="button" onClick={directory.prev} disabled={!directory.hasPreviousPage} style={pagerBtn}>
                                 Précédent
                             </button>
                             <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
-                                Page {data.page} / {data.totalPages}
+                                Page {directory.page} / {directory.totalPages}
                             </span>
-                            <button type="button" onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))} disabled={page >= data.totalPages} style={pagerBtn}>
+                            <button type="button" onClick={directory.next} disabled={!directory.hasNextPage} style={pagerBtn}>
                                 Suivant
                             </button>
                         </div>
                     ) : null}
                 </>
             )}
-        </div>
+        </main>
     );
 }
 

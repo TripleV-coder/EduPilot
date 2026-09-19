@@ -592,6 +592,96 @@
 .edu-stagger > *:nth-child(11) { animation-delay: 550ms; }
 .edu-stagger > *:nth-child(n+12) { animation-delay: 605ms; } /* cap : items au-delà entrent ensemble */
 
+/* ─── ENTRÉES (équivalents CSS des animations framer-motion) ─────────
+   La bibliothèque d'animation pesait 117 Ko sur CHAQUE page, écran de
+   connexion compris, parce qu'une poignée d'écrans l'utilisaient (perf
+   2026-09-18). Ces règles reprennent exactement les mêmes distances, durées
+   et courbes — `cubic-bezier(0.16, 1, 0.3, 1)` est l'écriture CSS de
+   l'easing `[0.16, 1, 0.3, 1]` utilisé partout dans le projet.
+
+   Réglables par variable, sur l'élément : --edu-enter-dy (distance verticale),
+   --edu-enter-dx (horizontale), --edu-enter-s (échelle de départ),
+   --edu-enter-d (durée), --edu-enter-delay (retard).
+
+   Le bloc global `prefers-reduced-motion` plus haut les neutralise. */
+@keyframes eduEnterUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--edu-enter-dy, 8px)) scale(var(--edu-enter-s, 1));
+  }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes eduEnterSide {
+  from { opacity: 0; transform: translateX(var(--edu-enter-dx, -8px)); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes eduGrowWidth {
+  from { width: 0; }
+  to   { width: var(--edu-grow-to, 100%); }
+}
+
+.edu-enter-up {
+  animation: eduEnterUp var(--edu-enter-d, 220ms) cubic-bezier(0.16, 1, 0.3, 1)
+    var(--edu-enter-delay, 0ms) both;
+}
+
+.edu-enter-side {
+  animation: eduEnterSide var(--edu-enter-d, 220ms) cubic-bezier(0.16, 1, 0.3, 1)
+    var(--edu-enter-delay, 0ms) both;
+}
+
+.edu-grow-width {
+  animation: eduGrowWidth var(--edu-enter-d, 500ms) ease var(--edu-enter-delay, 200ms) both;
+}
+
+/* Cascade des écrans de chargement : reprend exactement les variantes
+   framer-motion d'origine (retard de 50 ms, pas de 80 ms, entrée de 15 px en
+   350 ms, courbe cubic-bezier(0.4, 0, 0.2, 1)). */
+@keyframes eduLoadingIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to   { opacity: 1; transform: none; }
+}
+.edu-stagger-loading > * {
+  animation: eduLoadingIn 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.edu-stagger-loading > *:nth-child(1) { animation-delay: 50ms; }
+.edu-stagger-loading > *:nth-child(2) { animation-delay: 130ms; }
+.edu-stagger-loading > *:nth-child(3) { animation-delay: 210ms; }
+.edu-stagger-loading > *:nth-child(4) { animation-delay: 290ms; }
+.edu-stagger-loading > *:nth-child(5) { animation-delay: 370ms; }
+.edu-stagger-loading > *:nth-child(6) { animation-delay: 450ms; }
+.edu-stagger-loading > *:nth-child(n+7) { animation-delay: 530ms; }
+
+/* Battement du gris de chargement (ex-`pulseAnimation`). */
+@keyframes eduPulseBg {
+  0%, 100% { background-color: hsl(var(--muted)); }
+  50%      { background-color: hsl(var(--muted-foreground) / 0.3); }
+}
+.edu-pulse-bg { animation: eduPulseBg 1.5s ease-in-out infinite; }
+
+/* Repli/dépli à hauteur automatique, sans mesurer en JavaScript.
+   `visibility: hidden` en fin de repli est indispensable : une hauteur nulle et
+   une opacité nulle laissent le contenu dans l'arbre d'accessibilité, donc
+   atteignable au clavier et lu par un lecteur d'écran. Un test E2E l'a
+   constaté (le bouton d'une étape repliée captait un libellé de la page). */
+.edu-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms ease, opacity 200ms ease;
+}
+.edu-collapse > * {
+  overflow: hidden;
+  min-height: 0;
+  visibility: visible;
+}
+.edu-collapse[data-collapsed="true"] { grid-template-rows: 0fr; opacity: 0; }
+.edu-collapse[data-collapsed="true"] > * {
+  visibility: hidden;
+  transition: visibility 0s linear 200ms;
+}
+
 /* ─── CHAMP DE FORMULAIRE COHÉRENT ───────────────────────────────────
    Traitement unifié des inputs/textarea hors composant <Input> (dialogs,
    formulaires ad hoc) : même bordure, rayon, et anneau de focus marque

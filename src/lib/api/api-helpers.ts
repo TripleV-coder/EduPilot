@@ -9,8 +9,19 @@ import { Permission, hasPermission, roleSatisfies } from "@/lib/rbac/permissions
 import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { checkRateLimit as checkUnifiedRateLimit, API_RATE_LIMIT } from "@/lib/auth/rate-limiter";
+import { checkRateLimitKey, API_RATE_LIMIT } from "@/lib/rate-limit";
 import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
+import { getClientIp, UNKNOWN_IP } from "@/lib/security/client-ip";
+import { REQUEST_ID_HEADER, requestIdFromHeaders, runWithRequestId } from "@/lib/system/request-context";
+import { logger } from "@/lib/utils/logger";
+import { isZodError } from "@/lib/is-zod-error";
+import { moduleForApiPath } from "@/lib/modules/catalog";
+import { entityIdFromPath, sensitiveAreaForPath, shouldLogRead } from "@/lib/security/sensitive-data";
+import { createAuditLog } from "@/lib/security/audit-log";
+import { getEnabledModules } from "@/lib/modules/school-modules";
+import { InvalidCursorError } from "@/lib/api/pagination";
+import { runWithDbContext } from "@/lib/db/db-context";
+import { dbContextForSession } from "@/lib/db/session-db-context";
 
 // ============================================
 // CUID VALIDATION
@@ -146,80 +157,7 @@ export function handlePrismaError(error: unknown): { status: number; body: { err
     return { status: 500, body: { error: "Erreur inattendue." } };
 }
 
-// ============================================
-// PAGINATION HELPERS
-// ============================================
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
-  skip: number;
-}
-
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
-export function getPaginationParams(
-  request: NextRequest,
-  options: { defaultLimit?: number; maxLimit?: number } = {}
-): PaginationParams {
-  const { defaultLimit = 20, maxLimit = 100 } = options;
-  const searchParams = request.nextUrl?.searchParams ?? new URL(request.url).searchParams;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-  const limit = Math.min(
-    maxLimit,
-    Math.max(1, parseInt(searchParams.get("limit") || String(defaultLimit)))
-  );
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
-}
-
-export function createPaginationMeta(total: number, params: PaginationParams): PaginationMeta {
-  const totalPages = Math.ceil(total / params.limit);
-  return {
-    page: params.page,
-    limit: params.limit,
-    total,
-    totalPages,
-    hasNextPage: params.page < totalPages,
-    hasPreviousPage: params.page > 1,
-  };
-}
-
-export function createPaginatedResponse<T>(
-    data: T[],
-    pageOrTotal: number,
-    limitOrParams?: number | { page: number; limit: number; skip: number },
-    totalArg?: number
-) {
-    // Override signature: (data, page, limit, total)
-    if (typeof limitOrParams === "number" && typeof totalArg === "number") {
-        const page = pageOrTotal;
-        const limit = limitOrParams;
-        const total = totalArg;
-        const totalPages = Math.ceil(total / limit);
-        return NextResponse.json({
-            data,
-            pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
-        });
-    }
-    
-    // Original signature: (data, total, PaginationParams)
-    const total = pageOrTotal;
-    const params = limitOrParams as PaginationParams;
-    return NextResponse.json({
-        data,
-        pagination: createPaginationMeta(total, params),
-    });
-}
-
-// Rate limiting is now handled via the unified checkRateLimit from @/lib/auth/rate-limiter
+// Rate limiting is now handled via the unified checkRateLimitKey from @/lib/rate-limit
 
 // ============================================
 // ROUTE HANDLER (AUTH, RBAC, TENANT)
@@ -263,6 +201,8 @@ interface HandlerOptions {
     allowedRoles?: string[];
     rateLimit?: boolean;
     rateLimitCount?: number;
+    /** Taille maximale du corps de requête (octets) ; défaut DEFAULT_MAX_BODY_BYTES. */
+    maxBodyBytes?: number;
 }
 
 type RouteHandler = (
@@ -273,8 +213,124 @@ type RouteHandler = (
 
 type RouteContext = { params?: Promise<Record<string, string>> };
 
+// ============================================
+// CORPS DE REQUÊTE (audit M3)
+// ============================================
+
+/**
+ * Trace une consultation ou une modification de données sensibles (Lot 6).
+ * Silencieuse en cas d'échec : `createAuditLog` intercepte déjà ses erreurs,
+ * une trace manquée ne doit jamais faire échouer la requête de l'utilisateur.
+ */
+async function recordSensitiveAccess(
+    request: NextRequest,
+    session: Session,
+    _status: number,
+): Promise<void> {
+    const pathname = new URL(request.url).pathname;
+    const area = sensitiveAreaForPath(pathname);
+    if (!area) return;
+
+    const isRead = request.method === "GET" || request.method === "HEAD";
+    if (isRead && !shouldLogRead(`${session.user.id}|${pathname}`)) return;
+
+    await createAuditLog({
+        userId: session.user.id,
+        action: isRead ? "DATA_ACCESS" : "DATA_MODIFICATION",
+        entity: area.entity,
+        entityId: entityIdFromPath(pathname),
+        schoolId: getActiveSchoolId(session) ?? null,
+        newValues: { method: request.method, path: pathname, category: area.category },
+        severity: isRead ? "INFO" : "WARNING",
+    });
+}
+
+/** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
+export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+type BodyInspection = "ok" | "too-large" | "invalid-json";
+
+function isJsonContentType(request: Request): boolean {
+    return (request.headers.get("content-type") ?? "").toLowerCase().includes("application/json");
+}
+
+/**
+ * Vérifie le corps AVANT le handler, sans le consommer (lecture d'un clone) :
+ *  - Content-Length au-delà de la limite → refus sans rien lire ;
+ *  - corps en flux sans Content-Length → lu jusqu'à la limite au plus ;
+ *  - JSON déclaré mais syntaxiquement invalide → refus, quelle que soit la
+ *    gestion d'erreurs propre au handler.
+ */
+async function inspectRequestBody(request: Request, limit: number): Promise<BodyInspection> {
+    if (!BODY_METHODS.has(request.method) || !request.body) return "ok";
+
+    const declared = request.headers.get("content-length");
+    if (declared !== null && Number(declared) > limit) return "too-large";
+
+    const json = isJsonContentType(request);
+    if (declared !== null && !json) return "ok";
+
+    const reader = request.clone().body!.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > limit) {
+            // Flux dupliqué par clone() : l'annulation n'aboutit qu'une fois
+            // les DEUX branches annulées. La branche d'origine ne sera jamais
+            // lue (413) : on l'annule aussi, ce qui libère la connexion.
+            await Promise.all([
+                reader.cancel().catch(() => undefined),
+                request.body?.cancel().catch(() => undefined),
+            ]);
+            return "too-large";
+        }
+        if (json) chunks.push(value);
+    }
+
+    if (!json) return "ok";
+    const text = new TextDecoder().decode(Buffer.concat(chunks));
+    if (text.trim() === "") return "ok"; // corps vide : le handler décide
+    try {
+        JSON.parse(text);
+        return "ok";
+    } catch {
+        return "invalid-json";
+    }
+}
+
+function payloadTooLarge(limit: number): NextResponse {
+    const megabytes = Math.round((limit / (1024 * 1024)) * 10) / 10;
+    return NextResponse.json(
+        { error: `Requête trop volumineuse (limite : ${megabytes} Mo).`, code: "PAYLOAD_TOO_LARGE" },
+        { status: 413 },
+    );
+}
+
+function invalidJson(): NextResponse {
+    return NextResponse.json(
+        { error: "Le corps de la requête n'est pas un JSON valide.", code: "INVALID_JSON" },
+        { status: 400 },
+    );
+}
+
 export function createApiHandler(handler: RouteHandler, options: HandlerOptions = {}) {
     return async (request: NextRequest, routeContext?: RouteContext) => {
+        // Identifiant de la requête (Lot 7) : repris de l'appelant s'il en
+        // fournit un sain, sinon généré. Toute ligne de journal écrite pendant
+        // la requête le porte, et la réponse le renvoie — y compris en erreur,
+        // pour que la personne puisse le citer.
+        const requestId = requestIdFromHeaders(request.headers);
+        const response = await runWithRequestId(requestId, () => runHandler(request, routeContext));
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
+    };
+
+    async function runHandler(request: NextRequest, routeContext?: RouteContext) {
         const t = defaultT;
         try {
             // ── RATE LIMITING ──
@@ -285,17 +341,17 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             const edgeAlreadyLimited =
                 request.headers?.get?.("x-edupilot-edge-rl") === "1";
             if (options.rateLimit !== false && !edgeAlreadyLimited) {
-                const ip = request.headers?.get?.("x-forwarded-for") || "anonymous";
+                const ip = request.headers ? getClientIp(request.headers) : UNKNOWN_IP;
                 const pathname = request.nextUrl?.pathname || (request.url ? new URL(request.url).pathname : "/api");
                 const rlKey = `rl:api:${ip}:${pathname}`;
                 const limitCount = options.rateLimitCount || API_RATE_LIMIT.maxAttempts;
                 
-                const rl = await checkUnifiedRateLimit(rlKey, {
+                const rl = await checkRateLimitKey(rlKey, {
                     ...API_RATE_LIMIT,
                     maxAttempts: limitCount
                 });
                 
-                if (!rl.allowed) {
+                if (!rl.success) {
                     return NextResponse.json(
                         { error: "Trop de requêtes. Veuillez réessayer plus tard.", code: "TOO_MANY_REQUESTS" },
                         { status: 429, headers: { "Retry-After": "60" } }
@@ -346,6 +402,29 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
+            // ── MODULE DÉSACTIVÉ PAR L'ÉTABLISSEMENT (Lot 6, minimisation) ──
+            // Un module éteint n'est pas seulement masqué dans la navigation :
+            // son API est fermée. Une école sans infirmerie ne détient aucune
+            // donnée de santé, même par appel direct.
+            if (options.requireAuth !== false && session?.user && session.user.role !== "SUPER_ADMIN") {
+                const moduleDefinition = moduleForApiPath(new URL(request.url).pathname);
+                const moduleSchoolId = moduleDefinition ? getActiveSchoolId(session) : null;
+                if (moduleDefinition && moduleSchoolId) {
+                    const enabled = await getEnabledModules(moduleSchoolId);
+                    // `null` = école introuvable ou base indisponible : on ne bloque pas.
+                    if (enabled && !enabled.includes(moduleDefinition.id)) {
+                        return NextResponse.json(
+                            {
+                                error: `Le module « ${moduleDefinition.label} » n'est pas activé pour votre établissement.`,
+                                code: "MODULE_DISABLED",
+                                module: moduleDefinition.id,
+                            },
+                            { status: 403 },
+                        );
+                    }
+                }
+            }
+
             if (options.allowedRoles && options.allowedRoles.length > 0 && session?.user) {
                 if (!roleSatisfies(session.user.role, options.allowedRoles)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -362,17 +441,66 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
-            return await handler(
-                request,
-                {
-                    session: session as Session,
-                    params: routeContext?.params ?? Promise.resolve({}),
-                },
-                t,
+            // Corps vérifié après les contrôles d'accès : une requête refusée
+            // n'est jamais lue.
+            const bodyLimit = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+            const body = await inspectRequestBody(request, bodyLimit);
+            if (body === "too-large") return payloadTooLarge(bodyLimit);
+            if (body === "invalid-json") return invalidJson();
+
+            // Contexte d'établissement transmis à PostgreSQL pour toute la
+            // requête (audit M2) ; sans session, aucun : les tables sensibles
+            // restent fermées, sauf contexte système déclaré par la route.
+            const response = await runWithDbContext(dbContextForSession(session), () =>
+                handler(
+                    request,
+                    {
+                        session: session as Session,
+                        params: routeContext?.params ?? Promise.resolve({}),
+                    },
+                    t,
+                ),
             );
+
+            // ── TRAÇABILITÉ DES DONNÉES SENSIBLES (Lot 6) ──
+            // Notes, santé, paiements et rôles : toute modification réussie et
+            // toute consultation laissent une trace. Posée ici, au passage
+            // central, aucune route ne peut l'oublier. Les consultations sont
+            // dédupliquées sur 5 min : sans cela la revalidation automatique
+            // des écrans rendrait le journal illisible.
+            if (session?.user && response.status < 400) {
+                await recordSensitiveAccess(request, session, response.status);
+            }
+
+            return response;
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            console.error("[API Error]", { path: request.url, error: message });
+            // Erreurs de validation non interceptées par le handler : faute du
+            // client (400 détaillé), pas du serveur (audit M3).
+            if (isZodError(error)) {
+                return NextResponse.json(
+                    {
+                        error: "Données invalides",
+                        code: "VALIDATION_ERROR",
+                        details: error.issues.map((issue) => ({
+                            path: issue.path.join("."),
+                            message: issue.message,
+                        })),
+                    },
+                    { status: 400 },
+                );
+            }
+            if (error instanceof SyntaxError && /JSON/i.test(error.message)) {
+                return invalidJson();
+            }
+            if (error instanceof InvalidCursorError) {
+                return NextResponse.json({ error: error.message, code: "INVALID_CURSOR" }, { status: 400 });
+            }
+
+            // Journal expurgé (Lot 6) et identifié (Lot 7). L'URL brute
+            // contenait la chaîne de requête, où transitent des données
+            // personnelles (email, matricule) : seul le chemin est écrit.
+            const path = request.nextUrl?.pathname ?? (request.url ? new URL(request.url).pathname : "/api");
+            logger.error("Erreur non interceptée d'une route API", error, { module: "api", path });
 
             // Handle Prisma-specific errors with appropriate HTTP status codes
             if (
@@ -388,5 +516,5 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 { status: 500 }
             );
         }
-    };
+    }
 }

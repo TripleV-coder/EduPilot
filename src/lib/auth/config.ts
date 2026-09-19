@@ -12,14 +12,15 @@ import {
 } from "./account-lockout";
 import { verifyToken, findMatchingBackupCode } from "./two-factor";
 import {
-  checkRateLimit,
+  checkRateLimitKey,
   createRateLimitKey,
   resetRateLimit,
   MFA_VERIFY_RATE_LIMIT,
-} from "./rate-limiter";
+} from "@/lib/rate-limit";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
+import { InvalidTwoFactorSignin, withSigninErrorMapping } from "./login-failure";
 
 /**
  * Extended user type for authentication.
@@ -50,6 +51,8 @@ export interface AuthUser {
   accessibleSchoolIds: string[];
   isTwoFactorEnabled: boolean;
   isTwoFactorAuthenticated: boolean;
+  /** Compte créé par un tiers : mot de passe provisoire à remplacer (M1). */
+  mustChangePassword: boolean;
   permissions?: Permission[]; // Union of permissions
   avatar?: string | null;
 }
@@ -125,7 +128,9 @@ export const authConfig: NextAuthConfig = {
         password: { label: "Mot de passe", type: "password" },
         twoFactorCode: { label: "Code 2FA", type: "text" },
       },
-      async authorize(credentials): Promise<AuthUser | null> {
+      // M10 : une panne de base devient `code=service_unavailable`, jamais un
+      // faux « identifiants invalides » (voir ./login-failure).
+      authorize: withSigninErrorMapping(async (credentials): Promise<AuthUser | null> => {
         const validatedFields = loginSchema.safeParse(credentials);
 
         if (!validatedFields.success) {
@@ -150,6 +155,7 @@ export const authConfig: NextAuthConfig = {
             isTwoFactorEnabled: true,
             twoFactorSecret: true,
             twoFactorBackupCodes: true,
+            mustChangePassword: true,
             avatar: true,
           },
         });
@@ -224,7 +230,7 @@ export const authConfig: NextAuthConfig = {
                     newValues: { message: 'Invalid 2FA code' },
                   },
                 });
-                throw new Error("Code 2FA incorrect");
+                throw new InvalidTwoFactorSignin();
               }
               // Supprimer le backup code utilisé (à usage unique)
               const updatedCodes = hashedBackupCodes.filter((_, i) => i !== backupIndex);
@@ -280,10 +286,11 @@ export const authConfig: NextAuthConfig = {
           accessibleSchoolIds,
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
+          mustChangePassword: user.mustChangePassword === true,
           permissions: getRolePermissions(effectiveRoles),
           avatar: user.avatar,
         };
-      },
+      }),
     }),
   ],
   callbacks: {
@@ -304,6 +311,7 @@ export const authConfig: NextAuthConfig = {
         token.lastName = authUser.lastName;
         token.isTwoFactorEnabled = authUser.isTwoFactorEnabled;
         token.isTwoFactorAuthenticated = authUser.isTwoFactorAuthenticated;
+        token.mustChangePassword = authUser.mustChangePassword;
         token.avatar = authUser.avatar;
       }
 
@@ -316,11 +324,11 @@ export const authConfig: NextAuthConfig = {
           if (userId) {
             // Un TOTP ne vaut que 6 chiffres : sans plafond de tentatives, il
             // est devinable par force brute depuis une session pré-2FA.
-            const mfaRl = await checkRateLimit(
+            const mfaRl = await checkRateLimitKey(
               createRateLimitKey("mfa-verify", userId),
               MFA_VERIFY_RATE_LIMIT,
             );
-            if (!mfaRl.allowed) {
+            if (!mfaRl.success) {
               await prisma.auditLog.create({
                 data: {
                   userId,
@@ -472,6 +480,7 @@ export const authConfig: NextAuthConfig = {
         session.user.lastName = token.lastName;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
         session.user.isTwoFactorAuthenticated = token.isTwoFactorAuthenticated as boolean;
+        session.user.mustChangePassword = token.mustChangePassword === true;
         session.user.avatar = token.avatar as string | null | undefined;
       }
       return session;

@@ -16,7 +16,7 @@ import {
     Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
+import { fetchAllPages } from "@/lib/api/fetch-all-pages";
 
 type Evaluation = {
     id: string;
@@ -32,8 +32,6 @@ type Evaluation = {
     };
     type?: { name: string };
 };
-
-type EvalsResponse = Evaluation[] | { evaluations?: Evaluation[]; data?: Evaluation[] };
 
 type DayKey = 0 | 1 | 2 | 3 | 4;
 type Slot = "AM" | "PM";
@@ -77,6 +75,13 @@ function addDays(d: Date, n: number): Date {
     return out;
 }
 
+/** Jour local au format AAAA-MM-JJ (filtre from/to de /api/evaluations). */
+function toDayParam(d: Date): string {
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${month}-${day}`;
+}
+
 function fmtShortDate(d: Date): string {
     return d.toLocaleDateString("fr-FR", { day: "2-digit" });
 }
@@ -93,27 +98,29 @@ export default function ExamsPlanningPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Seule la semaine affichée est chargée (filtre serveur from/to), toutes
+    // pages comprises : plus de chargement de toutes les évaluations de l'école.
     useEffect(() => {
+        let cancelled = false;
         const load = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch("/api/evaluations");
-                const body: EvalsResponse = await res.json();
-                if (!res.ok)
-                    throw new Error((body as { error?: string }).error || "Erreur");
-                const list = Array.isArray(body)
-                    ? body
-                    : body.evaluations ?? body.data ?? [];
-                setEvals(list);
+                const list = await fetchAllPages<Evaluation>(
+                    `/api/evaluations?from=${toDayParam(weekStart)}&to=${toDayParam(addDays(weekStart, 4))}`
+                );
+                if (!cancelled) setEvals(list);
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Erreur inconnue");
+                if (!cancelled) setError(err instanceof Error ? err.message : "Erreur inconnue");
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
         load();
-    }, []);
+        return () => {
+            cancelled = true;
+        };
+    }, [weekStart]);
 
     const friday = useMemo(() => addDays(weekStart, 4), [weekStart]);
 

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { runAsSystem } from "@/lib/db/db-context";
 import { SupportedProvider } from "@/lib/finance/types";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
@@ -40,6 +41,8 @@ function verifyPaystackSignature(rawBody: string, signature: string): boolean {
         return false;
     }
 }
+
+const SYSTEM_REASON = "webhook:payments";
 
 export const POST = createApiHandler(async (req) => {
     try {
@@ -88,9 +91,11 @@ export const POST = createApiHandler(async (req) => {
             return NextResponse.json({ received: true }); // Acknowledge anyway
         }
 
-        const payment = await prisma.payment.findFirst({
+        // Signature vérifiée : le fournisseur n'a pas de session, les écritures
+        // de paiement passent en contexte système déclaré (audit M2).
+        const payment = await runAsSystem(SYSTEM_REASON, () => prisma.payment.findFirst({
             where: { reference: String(transactionId) }
-        });
+        }));
 
         if (!payment) {
             logger.warn("Webhook received for unknown transaction", { module: "api/payments/webhook", transactionId });
@@ -114,27 +119,27 @@ export const POST = createApiHandler(async (req) => {
                     expected: payment.amount,
                     received: amountPaid
                 });
-                await prisma.payment.update({
+                await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
                     where: { id: payment.id },
                     data: { status: 'CANCELLED' } // Reject partial/fraudulent payment
-                });
+                }));
                 return NextResponse.json({ received: true });
             }
 
-            await prisma.payment.update({
+            await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
                 where: { id: payment.id },
                 data: {
                     status: 'VERIFIED',
                     paidAt: new Date()
                 }
-            });
+            }));
         } else if (status === 'failed') {
-            await prisma.payment.update({
+            await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
                 where: { id: payment.id },
                 data: {
                     status: 'CANCELLED'
                 }
-            });
+            }));
         }
 
         await invalidateByPath(CACHE_PATHS.payments).catch(() => { });

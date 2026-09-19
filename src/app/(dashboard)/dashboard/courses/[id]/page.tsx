@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -51,7 +52,7 @@ export default function CourseDetailPage() {
     const params = useParams();
     const id = params.id as string;
 
-    const { data: course, error, isLoading } = useSWR<CourseDetail>(
+    const { data: course, error, isLoading, mutate } = useSWR<CourseDetail>(
         `/api/courses/${id}`,
         fetcher
     );
@@ -64,7 +65,21 @@ export default function CourseDetailPage() {
         );
     }
 
-    if (error || !course) {
+    // Une panne de chargement et un cours qui n'existe pas sont deux choses
+    // différentes (audit M10) : annoncer « Cours non trouvé » sur une coupure
+    // réseau envoie chercher ailleurs quelque chose qui est bien là.
+    if (error) {
+        return (
+            <PageShell>
+                <PageError
+                    message="Impossible de charger ce cours."
+                    onRetry={() => void mutate()}
+                />
+            </PageShell>
+        );
+    }
+
+    if (!course) {
         return (
             <div className="flex flex-col items-center justify-center py-24 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive/50 mb-4" />

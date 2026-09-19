@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -8,14 +11,26 @@ import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { t } from "@/lib/i18n";
-import { EvaluationList } from "@/components/evaluations/EvaluationList";
+import { EvaluationList, type EvaluationListItem } from "@/components/evaluations/EvaluationList";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
+import { exportEvaluationsCsv } from "@/lib/evaluations/evaluations-csv";
 import { EvaluationSheet } from "@/components/evaluations/EvaluationSheet";
-import { PerformanceBarChart } from "@/components/charts/PerformanceBarChart";
-import { SubjectRadarChart } from "@/components/charts/SubjectRadarChart";
+
 
 import { Badge, Button, Card, Chip, FilterBar, Icon, MetricCard } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageEmpty, PageLoading } from "@/components/layout/page-states";
+import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const PerformanceBarChart = dynamic(() => import("@/components/charts/PerformanceBarChart").then((m) => m.PerformanceBarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const SubjectRadarChart = dynamic(() => import("@/components/charts/SubjectRadarChart").then((m) => m.SubjectRadarChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type GradeStats = {
     average: number;
@@ -38,26 +53,7 @@ const TABS = [
     { id: "stats", label: "Statistiques & analyse", icon: "chart" as const },
 ];
 
-function exportEvaluationsCsv(evaluations: unknown) {
-    const rows = Array.isArray(evaluations) ? evaluations : [];
-    if (rows.length === 0) return;
-    const headers = ["Titre", "Type", "Date", "Classe", "Matière"];
-    const lines = rows.map((item: Record<string, unknown>) => [
-        String(item.title ?? ""),
-        String(item.type ?? ""),
-        item.date ? new Date(String(item.date)).toLocaleDateString("fr-FR") : "",
-        String((item.class as { name?: string } | undefined)?.name ?? ""),
-        String((item.subject as { name?: string } | undefined)?.name ?? ""),
-    ]);
-    const csv = [headers, ...lines].map((line) => line.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "evaluations.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
-}
+const EVALUATIONS_PAGE_SIZE = 20;
 
 export default function GradesPage() {
     return (
@@ -73,16 +69,20 @@ function GradesContent() {
     const [activeTab, setActiveTab] = useState<"list" | "stats">("list");
     const [activeFilter, setActiveFilter] = useState<"all" | "devoir" | "interro" | "compo">("all");
 
-    const { data: evaluations, isLoading: evalsLoading } = useSWR(
+    const evaluationsBaseUrl =
         activeFilter === "all"
             ? "/api/evaluations"
-            : `/api/evaluations?type=${activeFilter.toUpperCase()}`,
-        fetcher
-    );
-    const { data: statsData, isLoading: statsLoading } = useSWR<StatsResponse>(
-        "/api/grades/statistics",
-        fetcher
-    );
+            : `/api/evaluations?type=${activeFilter.toUpperCase()}`;
+    const evaluationsPage = useCursorPagination<EvaluationListItem>(evaluationsBaseUrl, {
+        limit: EVALUATIONS_PAGE_SIZE,
+    });
+    const evalsLoading = evaluationsPage.isLoading;
+    const {
+        data: statsData,
+        isLoading: statsLoading,
+        error: statsError,
+        mutate: reloadStats,
+    } = useSWR<StatsResponse>("/api/grades/statistics", fetcher);
 
     const isAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
@@ -102,7 +102,7 @@ function GradesContent() {
                 ]}
                 actions={
                     <>
-                        <Button variant="ghost" icon="download" onClick={() => exportEvaluationsCsv(evaluations)}>
+                        <Button variant="ghost" icon="download" onClick={() => void exportEvaluationsCsv(evaluationsBaseUrl)}>
                             {t("common.export")}
                         </Button>
                         <Link href="/dashboard/grades/bulletins">
@@ -186,7 +186,30 @@ function GradesContent() {
                     {evalsLoading ? (
                         <PageLoading label="Chargement des évaluations…" />
                     ) : (
-                        <EvaluationList evaluations={evaluations || []} isLoading={false} />
+                        <>
+                            <EvaluationList evaluations={evaluationsPage.items} isLoading={false} />
+                            {evaluationsPage.totalPages && evaluationsPage.totalPages > 1 ? (
+                                <div className="flex items-center justify-end gap-3 px-4 py-3">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={evaluationsPage.prev}
+                                        disabled={!evaluationsPage.hasPreviousPage}
+                                    >
+                                        Précédent
+                                    </Button>
+                                    <span className="eduflow-tabular text-sm">
+                                        Page {evaluationsPage.page} / {evaluationsPage.totalPages}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={evaluationsPage.next}
+                                        disabled={!evaluationsPage.hasNextPage}
+                                    >
+                                        Suivant
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </>
                     )}
                 </Card>
             ) : null}
@@ -196,7 +219,17 @@ function GradesContent() {
                 <div className="flex flex-col gap-4">
                     {statsLoading ? <PageLoading label="Chargement des statistiques…" /> : null}
 
-                    {!statsLoading && !stats ? (
+                    {/* Sans ce cas, une panne du calcul affichait « aucune
+                        statistique disponible », que l'enseignant pouvait lire
+                        comme « aucune note saisie ». */}
+                    {statsError ? (
+                        <PageError
+                            message="Impossible de calculer les statistiques."
+                            onRetry={() => void reloadStats()}
+                        />
+                    ) : null}
+
+                    {!statsLoading && !statsError && !stats ? (
                         <PageEmpty
                             icon="chart"
                             title="Aucune statistique disponible"

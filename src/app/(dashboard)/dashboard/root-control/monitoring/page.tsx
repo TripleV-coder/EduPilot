@@ -1,79 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Server, Database, Activity, HardDrive, Cpu, AlertTriangle, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Server, Database, Activity, HardDrive, Cpu, Archive, AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatTime } from "@/lib/utils/formatters";
+import { formatAge, formatBytes, useRootMonitoring } from "@/hooks/use-root-monitoring";
 
 
-
-type RecentError = {
-    id: string;
-    action: string;
-    entity: string;
-    entityId: string | null;
-    createdAt: string;
-    userId: string | null;
-    user: { email: string | null; firstName: string | null; lastName: string | null } | null;
-};
-
-type MonitoringData = {
-    timestamp: string;
-    database: {
-        health: { responseTime: number; status: string };
-        connectionPool: { status: string };
-    };
-    cache: {
-        connected: boolean;
-        hitRate: number;
-        memory: string | null;
-    };
-    system: {
-        maintenanceMode: boolean;
-        activeSessions: number;
-        recentLogins: number;
-        pendingDataRequests: number;
-    };
-    errors: {
-        last24h: number;
-        recent: RecentError[];
-        byType: { type: string; count: number }[];
-    };
-    alerts: {
-        level: string;
-        message: string;
-        timestamp: string;
-    }[];
-};
 
 export default function RootMonitoringPage() {
-    const [data, setData] = useState<MonitoringData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        fetch("/api/root/monitoring", { credentials: "include", cache: "no-store" })
-            .then(res => {
-                if (!res.ok) throw new Error("Erreur serveur");
-                return res.json();
-            })
-            .then(resData => {
-                if (!cancelled) setData(resData);
-            })
-            .catch(err => {
-                if (!cancelled) setError(err.message);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
-        return () => { cancelled = true; };
-    }, []);
+    const { data, loading, error } = useRootMonitoring();
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
@@ -173,6 +112,104 @@ export default function RootMonitoringPage() {
                                     </div>
                                     <h3 className="font-semibold text-lg">Logs & Erreurs</h3>
                                     <p className="text-sm text-muted-foreground mt-1">{data.errors.last24h} erreurs / 24h</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Lot 7 — ce dont l'exploitant a besoin sans ouvrir un
+                            terminal : place, mémoire, dernière sauvegarde. */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                            <Card className="border-border">
+                                <CardContent className="pt-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="p-3 bg-primary/10 rounded-full">
+                                            <Cpu className="w-5 h-5 text-primary" />
+                                        </div>
+                                        {data.host.memory.usedPercent >= 90 ? (
+                                            <Badge variant="destructive">Saturée</Badge>
+                                        ) : (
+                                            <Badge className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-bg))] border-[hsl(var(--success-border))]">
+                                                Normale
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold text-lg">Mémoire</h3>
+                                    <Progress value={data.host.memory.usedPercent} className="mt-3" />
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                        {data.host.memory.usedPercent} % utilisée — {data.host.memory.freeMb} Mo libres sur {data.host.memory.totalMb} Mo
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Application : {data.host.memory.rssMb} Mo
+                                    </p>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-border">
+                                <CardContent className="pt-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="p-3 bg-primary/10 rounded-full">
+                                            <HardDrive className="w-5 h-5 text-primary" />
+                                        </div>
+                                        {!data.host.disk ? (
+                                            <Badge variant="outline" className="text-muted-foreground">Indisponible</Badge>
+                                        ) : data.host.disk.usedPercent >= 90 ? (
+                                            <Badge variant="destructive">Presque plein</Badge>
+                                        ) : (
+                                            <Badge className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-bg))] border-[hsl(var(--success-border))]">
+                                                Suffisant
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold text-lg">Espace disque</h3>
+                                    {data.host.disk ? (
+                                        <>
+                                            <Progress value={data.host.disk.usedPercent} className="mt-3" />
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {data.host.disk.freeGb} Go libres sur {data.host.disk.totalGb} Go
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            Mesure impossible sur ce système de fichiers.
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card className={`border-border ${data.host.backup.status === "ok" ? "" : "border-destructive/30 bg-destructive/5"}`}>
+                                <CardContent className="pt-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="p-3 bg-primary/10 rounded-full">
+                                            <Archive className="w-5 h-5 text-primary" />
+                                        </div>
+                                        {data.host.backup.status === "ok" ? (
+                                            <Badge className="bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-bg))] border-[hsl(var(--success-border))]">
+                                                À jour
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="destructive">
+                                                {data.host.backup.status === "stale" ? "Trop ancienne" : "Aucune"}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold text-lg">Dernière sauvegarde</h3>
+                                    {data.host.backup.lastSuccessAt ? (
+                                        <>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {formatAge(data.host.backup.ageHours)} — {formatBytes(data.host.backup.sizeBytes)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {data.host.backup.archives} archive(s) conservée(s)
+                                                {data.host.backup.rowCount !== null && ` — ${data.host.backup.rowCount} lignes`}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            {data.host.backup.status === "unavailable"
+                                                ? "Répertoire de sauvegarde introuvable (BACKUP_DIR)."
+                                                : "Aucune sauvegarde n'a encore été faite."}
+                                        </p>
+                                    )}
                                 </CardContent>
                             </Card>
                         </div>

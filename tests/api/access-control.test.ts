@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
         scanLog: { create: vi.fn(), findMany: vi.fn(), count: vi.fn() },
         studentProfile: { findFirst: vi.fn() },
         badge: { findUnique: vi.fn(), upsert: vi.fn() },
+        $transaction: vi.fn(),
         class: { findUnique: vi.fn() },
         enrollment: { findMany: vi.fn() },
         auditLog: { create: vi.fn() },
@@ -112,6 +113,22 @@ describe("badges/regenerate", () => {
         expect(res.status).toBe(200);
         expect(body.regenerated).toBe(2); // dédupliqué
         expect(prisma.badge.upsert).toHaveBeenCalledTimes(2);
+    });
+
+    // Audit M5 (N+1) : un upsert par élève, hors transaction — une erreur au
+    // milieu laissait la classe à moitié régénérée.
+    it("régénère tous les badges dans une seule transaction (audit M5)", async () => {
+        vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: SCHOOL } as never);
+        vi.mocked(prisma.enrollment.findMany).mockResolvedValue([{ studentId: "s1" }, { studentId: "s2" }] as never);
+        vi.mocked(prisma.badge.upsert).mockResolvedValue({} as never);
+        vi.mocked(prisma.$transaction).mockResolvedValue([{}, {}] as never);
+
+        const res = await regenerate(makeRequest("http://localhost/api/access-control/badges/regenerate", {
+            method: "POST", body: { classId: cuid("classa") },
+        }));
+        expect(res.status).toBe(200);
+        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(prisma.$transaction).mock.calls[0][0] as unknown[]).toHaveLength(2);
     });
 
     it("404 pour une classe d'une autre école", async () => {

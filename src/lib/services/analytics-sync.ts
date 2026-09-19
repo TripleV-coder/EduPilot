@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { generateStudentAnalytics } from "@/lib/services/student-analytics";
+import { forEachWithConcurrency } from "@/lib/utils/concurrency";
 
 const analyticsInclude = {
   student: {
@@ -419,6 +420,9 @@ export async function syncAnalyticsAfterStudentActivityChange(
     }
   }));
 }
+/** Élèves recalculés simultanément par la synchronisation d'un établissement. */
+const SCHOOL_SYNC_CONCURRENCY = 4;
+
 export async function syncAllStudentsForSchool(
   schoolId: string,
   academicYearId: string
@@ -435,26 +439,29 @@ export async function syncAllStudentsForSchool(
   const periods = await prisma.period.findMany({
     where: { academicYearId },
     select: { id: true },
+    orderBy: { sequence: "asc" },
   });
 
   let processed = 0;
   let errors = 0;
 
-  for (const enrollment of enrollments) {
+  // Audit N8 : 2 982 instantanés recalculés un par un (733 s mesurées). Les
+  // élèves sont désormais traités par lots de SCHOOL_SYNC_CONCURRENCY en
+  // parallèle (en deçà du pool de connexions, partagé avec l'application),
+  // leurs périodes restant séquentielles et dans l'ordre. Un élève inscrit
+  // deux fois n'est plus recalculé deux fois (même instantané).
+  const studentIds = [...new Set(enrollments.map((enrollment) => enrollment.studentId))];
+  await forEachWithConcurrency(studentIds, SCHOOL_SYNC_CONCURRENCY, async (studentId) => {
     for (const period of periods) {
       try {
-        await persistStudentAnalyticsSnapshot(
-          enrollment.studentId,
-          period.id,
-          academicYearId
-        );
+        await persistStudentAnalyticsSnapshot(studentId, period.id, academicYearId);
         processed++;
       } catch (err) {
         errors++;
-        console.error(`Failed to sync student ${enrollment.studentId} for period ${period.id}:`, err as Error);
+        console.error(`Failed to sync student ${studentId} for period ${period.id}:`, err as Error);
       }
     }
-  }
+  });
 
   return { processed, errors };
 }

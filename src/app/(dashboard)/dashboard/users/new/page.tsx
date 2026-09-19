@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
 export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, UserPlus, CheckCircle, Info } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { t } from "@/lib/i18n";
 import { Permission } from "@/lib/rbac/permissions";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,12 +25,11 @@ import {
     FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useSWRConfig } from "swr";
+import { useCreateAccount } from "@/hooks/use-create-account";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { getErrorMessage } from "@/lib/utils/error-message";
-
-const STANDARD_PASSWORD = "00000000";
+import { PageError } from "@/components/layout/page-states";
 
 const formSchema = z.object({
     firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
@@ -38,7 +37,6 @@ const formSchema = z.object({
     email: z.string().email("Email invalide").toLowerCase().trim(),
     phone: z.string().optional(),
     role: z.enum(["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "TEACHER", "STUDENT", "PARENT"]),
-    password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
     schoolId: z.string().optional(),
     schoolName: z.string().optional(),
     schoolAddress: z.string().optional(),
@@ -71,7 +69,6 @@ type CreateUserPayload = {
     email: string;
     phone?: string;
     role: UserFormValues["role"];
-    password: string;
     schoolId?: string;
     school?: {
         name: string;
@@ -87,14 +84,18 @@ type CreateUserPayload = {
 
 export default function NewUserPage() {
     const { toast } = useToast();
-    const { mutate } = useSWRConfig();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
+    // Envoi et mot de passe provisoire généré par le serveur (N31) : hooks/use-create-account.
+    const { loading, error, success, provisionalPassword, submit, fail, reset } = useCreateAccount({
+        endpoint: "/api/users",
+        revalidatePrefix: "/api/users",
+    });
     const { user } = useRBAC();
     const isSuperAdmin = user?.role === "SUPER_ADMIN";
+    // Rôle présélectionné par le lien d'appel (ex. « Ajouter un parent » → ?role=PARENT)
+    const requestedRole = formSchema.shape.role.safeParse(useSearchParams().get("role"));
+    const initialRole: UserFormValues["role"] = requestedRole.success ? requestedRole.data : "TEACHER";
 
-    const { data: schoolsData } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
+    const { data: schoolsData, error: loadError, mutate: reloadOptions } = useSWR<SchoolOption[] | SchoolsResponse>(isSuperAdmin ? "/api/schools?limit=200" : null, fetcher);
     const schools: SchoolOption[] = Array.isArray(schoolsData)
         ? schoolsData
         : schoolsData?.data || schoolsData?.schools || [];
@@ -106,8 +107,7 @@ export default function NewUserPage() {
             lastName: "",
             email: "",
             phone: "",
-            role: "TEACHER",
-            password: STANDARD_PASSWORD,
+            role: initialRole,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",
@@ -123,10 +123,6 @@ export default function NewUserPage() {
     const watchedRole = useWatch({ control: form.control, name: "role" });
 
     const onSubmit = async (values: UserFormValues) => {
-        setLoading(true);
-        setError(null);
-        setSuccess(false);
-
         try {
             if (values.role === "SCHOOL_ADMIN" && isSuperAdmin && !values.schoolName) {
                 throw new Error("Le nom de l'établissement est requis pour créer un Admin. École.");
@@ -142,7 +138,6 @@ export default function NewUserPage() {
                 email: values.email,
                 phone: values.phone,
                 role: values.role,
-                password: values.password,
                 schoolId: values.schoolId,
             };
 
@@ -160,47 +155,27 @@ export default function NewUserPage() {
                 delete payload.schoolId;
             }
 
-            const res = await fetch("/api/users", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                if (data.details && Array.isArray(data.details)) {
-                    throw new Error(`${data.details[0].path.join('.')}: ${data.details[0].message}`);
-                }
-                throw new Error(data.error || "Une erreur est survenue lors de l'enregistrement");
-            }
-
-            setSuccess(true);
-
-            // Revalidate the users list
-            mutate(key => typeof key === 'string' && key.startsWith('/api/users'));
+            const outcome = await submit(payload);
+            if (!outcome.ok) throw new Error(outcome.error);
 
         } catch (err) {
-            setError(getErrorMessage(err));
+            fail(getErrorMessage(err));
             toast({
                 title: "Erreur",
                 description: getErrorMessage(err),
                 variant: "destructive"
             });
-        } finally {
-            setLoading(false);
         }
     };
 
     const resetForm = () => {
-        setSuccess(false);
+        reset();
         form.reset({
             firstName: "",
             lastName: "",
             email: "",
             phone: "",
-            role: "TEACHER",
-            password: STANDARD_PASSWORD,
+            role: initialRole,
             schoolId: undefined,
             schoolName: "",
             schoolAddress: "",
@@ -261,7 +236,7 @@ export default function NewUserPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center bg-muted/50 p-2 rounded">
                                             <span className="text-xs font-semibold text-muted-foreground">Mot de passe temporaire :</span>
-                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{STANDARD_PASSWORD}</code>
+                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{provisionalPassword}</code>
                                         </div>
                                     </div>
                                 </Card>
@@ -277,6 +252,10 @@ export default function NewUserPage() {
                             </div>
                         ) : (
                             <Form {...form}>
+                                {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
+                                {loadError ? (
+                                    <PageError message="Impossible de charger la liste des établissements." onRetry={() => void reloadOptions()} />
+                                ) : null}
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField
@@ -353,6 +332,7 @@ export default function NewUserPage() {
                                                             <SelectItem value="DIRECTOR">Directeur</SelectItem>
                                                             <SelectItem value="ACCOUNTANT">Comptable</SelectItem>
                                                             <SelectItem value="TEACHER">Enseignant</SelectItem>
+                                                            <SelectItem value="PARENT">Parent</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormDescription className="text-xs">
@@ -391,19 +371,6 @@ export default function NewUserPage() {
                                                 )}
                                             />
                                         )}
-                                        <div className="hidden">
-                                            <FormField
-                                                control={form.control}
-                                                name="password"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormControl>
-                                                            <Input type="hidden" {...field} />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
                                     </div>
 
                                     {isSuperAdmin && watchedRole === "SCHOOL_ADMIN" && (

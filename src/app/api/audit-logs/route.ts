@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -21,9 +22,10 @@ export const GET = createApiHandler(
     if (!dateRange.success) return dateRange.response;
     const { startDate, endDate } = dateRange;
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 500 :
+    // l'écran du journal affiche les 500 dernières entrées (?limit=500) et les filtre.
+    // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 50, maxLimit: 500 });
 
     const where: Prisma.AuditLogWhereInput = {};
 
@@ -80,7 +82,7 @@ export const GET = createApiHandler(
 
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
-        where,
+        where: list.where(where),
         select: {
           id: true,
           action: true,
@@ -100,22 +102,14 @@ export const GET = createApiHandler(
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.auditLog.count({ where }),
+      list.needsTotal ? prisma.auditLog.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      logs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    return NextResponse.json(list.page(logs, (log) => log.createdAt, total));
   },
   {
     requireAuth: true,

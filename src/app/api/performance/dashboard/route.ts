@@ -5,36 +5,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { checkPerformanceThresholds, sendPerformanceAlerts, type PerformanceMetrics } from "@/lib/performance/alerts";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 
-/**
- * GET /api/performance/dashboard
- * Performance metrics dashboard
- * @swagger
- * /api/performance/dashboard:
- *   get:
- *     summary: Dashboard de performance
- *     description: Récupère les métriques de performance de l'application
- *     tags: [Performance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Métriques de performance
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 webVitals:
- *                   type: object
- *                 apiPerformance:
- *                   type: object
- *                 cacheStats:
- *                   type: object
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/performance/dashboard — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }) => {
     // Only SUPER_ADMIN and SCHOOL_ADMIN can access performance dashboard

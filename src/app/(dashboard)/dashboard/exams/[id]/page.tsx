@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,7 @@ export default function ExamDetailPage() {
   const { toast } = useToast();
   const id = params.id as string;
 
-  const { data: exam, error, isLoading } = useSWR<ExamDetail>(`/api/exams/${id}`, fetcher);
+  const { data: exam, error, isLoading, error: loadError, mutate: reloadPage } = useSWR<ExamDetail>(`/api/exams/${id}`, fetcher);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
@@ -88,6 +89,10 @@ export default function ExamDetailPage() {
   return (
     <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
       <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger cet examen." onRetry={() => void reloadPage()} />
+                ) : null}
+
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
             <Button variant="outline" size="icon">

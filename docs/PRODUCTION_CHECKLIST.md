@@ -55,20 +55,25 @@ npx prisma migrate status
 # Créer données de base (uniquement 1ère fois)
 npx tsx scripts/seed-reference-data.ts
 
-# ⚠️ NE PAS utiliser create-test-data.ts en production !
+# ⚠️ Aucune donnée de démonstration en production : le seed refuse toute base
+# qui ne porte pas le marqueur « jetable » (règle 6).
 ```
 
 #### C. Backup Automatique
+
+> Procédure complète et à jour : **`docs/EXPLOITATION.md` §4**. Les sauvegardes
+> sont **chiffrées** et la restauration est vérifiée par recomptage des lignes ;
+> les anciens scripts non chiffrés ont été supprimés.
+
 ```bash
-# Configurer cron job pour backups quotidiens
-# Éditer : scripts/backup/crontab.example
-0 2 * * * /app/scripts/backup/backup.sh
+# Planification : scripts/cron/edupilot.cron (sauvegarde quotidienne à 02h00)
+sudo cp scripts/cron/edupilot.cron /etc/cron.d/edupilot
 
-# Tester backup manuel
-./scripts/backup/backup.sh
+# Sauvegarde manuelle (BACKUP_PASSPHRASE_FILE obligatoire)
+scripts/backup/postgres-backup.sh
 
-# Tester restore
-./scripts/backup/restore.sh backup-2025-03-23.sql
+# Restauration : exige de retaper le nom de la base
+scripts/backup/postgres-restore.sh <archive>.sql.gz.enc --confirm <base>
 ```
 
 ---
@@ -274,8 +279,8 @@ vercel rollback
 # 2. Rollback DB (si migration problématique)
 npx prisma migrate resolve --rolled-back <migration_name>
 
-# 3. Restaurer backup DB
-./scripts/backup/restore.sh backup-pre-deploy.sql
+# 3. Restaurer backup DB (voir docs/EXPLOITATION.md §4.3)
+scripts/backup/postgres-restore.sh <archive>.sql.gz.enc --confirm <base>
 
 # 4. Vérifier services
 curl https://edupilot.com/api/health
@@ -389,8 +394,8 @@ pm2 restart edupilot
 # Voir métriques
 pm2 monit
 
-# Backup DB manuel
-./scripts/backup/backup.sh
+# Backup DB manuel (chiffré — voir docs/EXPLOITATION.md §4)
+scripts/backup/postgres-backup.sh
 
 # Vérifier état services
 systemctl status postgresql

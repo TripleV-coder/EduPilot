@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -125,7 +125,7 @@ export const POST = createApiHandler(async (request, context) => {
         type: "SUCCESS",
         title: "Inscription événement",
         message: `Vous êtes inscrit à l'événement: ${event.title}`,
-        link: `/events/${event.id}`,
+        link: "/dashboard/events",
       },
     });
 

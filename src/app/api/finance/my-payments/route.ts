@@ -1,6 +1,5 @@
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { Permission } from "@/lib/rbac/permissions";
 import { Prisma } from "@prisma/client";
 
 interface Payment {

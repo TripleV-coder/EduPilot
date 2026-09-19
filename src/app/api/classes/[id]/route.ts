@@ -14,8 +14,13 @@ export const GET = createApiHandler(
 
         const schoolId = getActiveSchoolId(session);
 
-        const classData = await prisma.class.findUnique({
-            where: { id: classId as string },
+        // Classe d'un autre établissement → 404 : ses élèves sont de toute façon
+        // masqués par la RLS (audit M2), le chargement des inscriptions échouerait.
+        const classData = await prisma.class.findFirst({
+            where: {
+                id: classId as string,
+                ...(session.user.role === "SUPER_ADMIN" ? {} : { schoolId }),
+            },
             include: {
                 classLevel: true,
                 mainTeacher: {

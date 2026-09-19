@@ -1,27 +1,46 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import {
-  averageNumbers,
-  normalizeGradeTo20,
-  roundTo,
-} from "@/lib/analytics/helpers";
+import { roundTo } from "@/lib/analytics/helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { roleSatisfies } from "@/lib/rbac/permissions";
+import { getOwnStudentIds } from "@/lib/auth/family-scope";
+import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import {
+  aggregateGradeStatistics,
+  averageGrade,
+  rankStudents,
+  type GradeBucket,
+  type GradeStatsScope,
+} from "@/lib/services/grade-statistics";
 
-type AggregateBucket = {
-  average: number;
-  count: number;
-};
+/** Rôles qui voient le classement nominatif de n'importe quelle classe de leur établissement. */
+const RANKING_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
-function mergeClassSubjectWhere(
-  current: Record<string, unknown>,
-  updates: Record<string, unknown>
-): Record<string, unknown> {
-  return { ...current, ...updates };
+function roundBuckets(buckets: Record<string, GradeBucket>): Record<string, GradeBucket> {
+  return Object.fromEntries(
+    Object.entries(buckets).map(([key, value]) => [key, { ...value, average: roundTo(value.average) }])
+  );
 }
 
-// GET /api/grades/statistics - Get grade statistics
+/** Enseignant de la classe : une de ses matières, ou professeur principal. */
+async function teachesClass(userId: string, classId: string): Promise<boolean> {
+  const [subjects, main] = await Promise.all([
+    prisma.classSubject.count({ where: { classId, teacher: { userId } } }),
+    prisma.class.count({ where: { id: classId, mainTeacher: { userId } } }),
+  ]);
+  return subjects + main > 0;
+}
+
+/**
+ * GET /api/grades/statistics — statistiques de notes.
+ *
+ * Agrégats calculés en base (C3). Périmètre (N10) : établissement actif ;
+ * un PARENT n'accède qu'aux notes de ses enfants, un STUDENT qu'aux siennes ;
+ * le classement nominatif (type=class) est réservé à la direction et aux
+ * enseignants de la classe — les autres ne reçoivent que le rang demandé.
+ */
 export const GET = createApiHandler(
   async (request, context) => {
   try {
@@ -39,312 +58,112 @@ export const GET = createApiHandler(
     const subjectId = searchParams.get("subjectId");
     const periodId = searchParams.get("periodId");
     const type = searchParams.get("type"); // "student" | "class" | "subject"
+    const role = session.user.role;
     const activeSchoolId = getActiveSchoolId(session);
 
-    const where: Record<string, unknown> = {
-      deletedAt: null,
-      value: { not: null },
-      isAbsent: false,
-      isExcused: false,
+    if (role !== "SUPER_ADMIN" && !activeSchoolId) {
+      return NextResponse.json(
+        { error: "Accès refusé : aucun établissement associé", code: "NO_SCHOOL" },
+        { status: 403 }
+      );
+    }
+
+    // Périmètre famille (N10)
+    const ownStudentIds = await getOwnStudentIds(role, session.user.id);
+    if (ownStudentIds !== null && studentId && !ownStudentIds.includes(studentId)) {
+      return NextResponse.json(
+        { error: "Accès refusé : cet élève n'est pas dans votre périmètre", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+    const studentIds = studentId ? [studentId] : ownStudentIds;
+
+    const scope: GradeStatsScope = {
+      schoolId: role === "SUPER_ADMIN" ? null : activeSchoolId,
+      classId,
+      subjectId,
+      periodId,
+      studentIds,
     };
 
-    const classSubjectWhere: Record<string, unknown> = {};
-    const evaluationWhere: Record<string, unknown> = {};
+    /**
+     * Perf (2026-09-18) : l'agrégation parcourt toutes les notes du périmètre
+     * (~400 ms sur la base de l'audit, 131 208 notes). C'est le coût de
+     * l'agrégation elle-même — EXPLAIN montre des parcours déjà indexés — et il
+     * était payé à chaque affichage de la page Notes, même sans changement.
+     *
+     * La clé inclut l'identifiant de la personne et tous les paramètres : deux
+     * comptes ne partagent jamais une réponse, et le périmètre famille (N10)
+     * reste exact. Les écritures de notes purgent déjà le préfixe
+     * `/api/grades` (`invalidateByPath`), donc une note saisie est visible tout
+     * de suite ; à défaut, la fenêtre est d'une minute.
+     */
+    const cacheKey = generateCacheKey(
+      "/api/grades/statistics",
+      searchParams,
+      `${session.user.id}:${activeSchoolId ?? "sans-ecole"}`,
+    );
 
-    if (session.user.role !== "SUPER_ADMIN") {
-      if (!activeSchoolId) {
-        return NextResponse.json(
-          {
-            error: "Accès refusé : aucun établissement associé",
-            code: "NO_SCHOOL",
-          },
-          { status: 403 }
-        );
-      }
-
-      classSubjectWhere.class = {
-        schoolId: activeSchoolId,
-      };
-    }
-
-    if (classId) {
-      Object.assign(
-        classSubjectWhere,
-        mergeClassSubjectWhere(classSubjectWhere, { classId })
-      );
-    }
-
-    if (subjectId) {
-      Object.assign(
-        classSubjectWhere,
-        mergeClassSubjectWhere(classSubjectWhere, { subjectId })
-      );
-    }
-
-    if (Object.keys(classSubjectWhere).length > 0) {
-      evaluationWhere.classSubject = classSubjectWhere;
-    }
-
-    if (periodId) {
-      evaluationWhere.periodId = periodId;
-    }
-
-    if (Object.keys(evaluationWhere).length > 0) {
-      where.evaluation = evaluationWhere;
-    }
-
-    if (studentId) {
-      where.studentId = studentId;
-    }
-
-    const grades = await prisma.grade.findMany({
-      where,
-      include: {
-        evaluation: {
-          include: {
-            classSubject: {
-              include: {
-                subject: true,
-                class: true,
-              },
-            },
-            period: true,
-            type: true,
-          },
-        },
-        student: {
-          include: {
-            user: {
-              select: { firstName: true, lastName: true },
-            },
-          },
-        },
-      },
-    });
-
-    const stats = {
-      totalGrades: 0,
-      average: 0,
-      highest: 0,
-      lowest: 0,
-      passRate: 0,
-      gradeDistribution: {
-        excellent: 0,
-        good: 0,
-        average: 0,
-        poor: 0,
-      },
-      bySubject: {} as Record<string, AggregateBucket>,
-      byType: {} as Record<string, AggregateBucket>,
-    };
-
-    const normalizedValues: number[] = [];
-
-    for (const grade of grades) {
-      const value = normalizeGradeTo20(
-        Number(grade.value),
-        Number(grade.evaluation.maxGrade)
-      );
-
-      if (value === null) continue;
-
-      normalizedValues.push(value);
-
-      const subjectName = grade.evaluation.classSubject.subject.name;
-      if (!stats.bySubject[subjectName]) {
-        stats.bySubject[subjectName] = { average: 0, count: 0 };
-      }
-      stats.bySubject[subjectName].average += value;
-      stats.bySubject[subjectName].count += 1;
-
-      const typeName = grade.evaluation.type.name;
-      if (!stats.byType[typeName]) {
-        stats.byType[typeName] = { average: 0, count: 0 };
-      }
-      stats.byType[typeName].average += value;
-      stats.byType[typeName].count += 1;
-
-      if (value >= 16) stats.gradeDistribution.excellent++;
-      else if (value >= 14) stats.gradeDistribution.good++;
-      else if (value >= 10) stats.gradeDistribution.average++;
-      else stats.gradeDistribution.poor++;
-    }
-
-    stats.totalGrades = normalizedValues.length;
-
-    if (normalizedValues.length > 0) {
-      stats.average = averageNumbers(normalizedValues) ?? 0;
-      // reduce plutôt que Math.max(...arr) : le spread d'un grand tableau
-      // (dizaines de milliers de notes) dépasse la taille de pile d'appels.
-      stats.highest = normalizedValues.reduce((max, v) => (v > max ? v : max), -Infinity);
-      stats.lowest = normalizedValues.reduce((min, v) => (v < min ? v : min), Infinity);
-      stats.passRate =
-        (normalizedValues.filter((value) => value >= 10).length /
-          normalizedValues.length) *
-        100;
-
-      for (const [subject, bucket] of Object.entries(stats.bySubject)) {
-        stats.bySubject[subject].average = bucket.average / bucket.count;
-      }
-
-      for (const [gradeType, bucket] of Object.entries(stats.byType)) {
-        stats.byType[gradeType].average = bucket.average / bucket.count;
-      }
-    }
+    // `await` indispensable : sans lui, un rejet échapperait au try/catch de la route.
+    return await withCache(async () => {
+    const stats = await aggregateGradeStatistics(scope);
 
     let trend: "up" | "down" | "stable" | null = null;
-
-    if (periodId) {
+    if (periodId && stats.totalGrades > 0) {
       const currentPeriod = await prisma.period.findUnique({
         where: { id: periodId },
         select: { academicYearId: true, sequence: true },
       });
-
-      if (currentPeriod) {
-        const previousPeriod = await prisma.period.findFirst({
-          where: {
-            academicYearId: currentPeriod.academicYearId,
-            sequence: { lt: currentPeriod.sequence },
-          },
-          orderBy: { sequence: "desc" },
-          select: { id: true },
-        });
-
-        if (previousPeriod) {
-          const previousGrades = await prisma.grade.findMany({
-            where: {
-              ...where,
-              evaluation: {
-                ...evaluationWhere,
-                periodId: previousPeriod.id,
-              },
-            },
-            include: {
-              evaluation: {
-                select: { maxGrade: true },
-              },
-            },
-          });
-
-          const previousAverage = averageNumbers(
-            previousGrades.map((grade) =>
-              normalizeGradeTo20(Number(grade.value), Number(grade.evaluation.maxGrade))
-            )
-          );
-
-          if (previousAverage !== null && stats.totalGrades > 0) {
-            if (stats.average > previousAverage + 0.5) trend = "up";
-            else if (stats.average < previousAverage - 0.5) trend = "down";
-            else trend = "stable";
-          }
+      const previousPeriod = currentPeriod
+        ? await prisma.period.findFirst({
+            where: { academicYearId: currentPeriod.academicYearId, sequence: { lt: currentPeriod.sequence } },
+            orderBy: { sequence: "desc" },
+            select: { id: true },
+          })
+        : null;
+      if (previousPeriod) {
+        const previousAverage = await averageGrade({ ...scope, periodId: previousPeriod.id });
+        if (previousAverage !== null) {
+          if (stats.average > previousAverage + 0.5) trend = "up";
+          else if (stats.average < previousAverage - 0.5) trend = "down";
+          else trend = "stable";
         }
       }
     }
 
-    let ranking: {
-      totalStudents: number;
-      rank: number | null;
-      topStudent: {
-        studentId: string;
-        studentName: string;
-        average: number;
-        gradeCount: number;
-      } | null;
-      bottomStudent: {
-        studentId: string;
-        studentName: string;
-        average: number;
-        gradeCount: number;
-      } | null;
-      students?: Array<{
-        studentId: string;
-        studentName: string;
-        average: number;
-        gradeCount: number;
-      }>;
-    } | null = null;
+    let ranking:
+      | {
+          totalStudents: number;
+          rank: number | null;
+          topStudent: ReturnType<typeof roundRanked> | null;
+          bottomStudent: ReturnType<typeof roundRanked> | null;
+          students?: Array<ReturnType<typeof roundRanked>>;
+        }
+      | null = null;
 
     if (type === "class" && classId) {
-      const rankingClassSubjectWhere: Record<string, unknown> = {
-        ...classSubjectWhere,
-        classId,
-      };
+      const ranked = (
+        await rankStudents({ schoolId: scope.schoolId, classId, periodId })
+      ).map(roundRanked);
+      const focusId = studentId ?? (role === "STUDENT" ? ownStudentIds?.[0] ?? null : null);
+      const rankIndex = focusId ? ranked.findIndex((student) => student.studentId === focusId) : -1;
+      const canSeeNames =
+        roleSatisfies(role, RANKING_ROLES) || (role === "TEACHER" && (await teachesClass(session.user.id, classId)));
 
-      const rankingGrades = await prisma.grade.findMany({
-        where: {
-          deletedAt: null,
-          value: { not: null },
-          isAbsent: false,
-          isExcused: false,
-          evaluation: {
-            ...(periodId ? { periodId } : {}),
-            classSubject: rankingClassSubjectWhere,
-          },
-        },
-        include: {
-          evaluation: {
-            select: { maxGrade: true },
-          },
-          student: {
-            include: {
-              user: {
-                select: { firstName: true, lastName: true },
-              },
-            },
-          },
-        },
-      });
-
-      const studentMap = new Map<
-        string,
-        {
-          studentId: string;
-          studentName: string;
-          total: number;
-          count: number;
-        }
-      >();
-
-      for (const grade of rankingGrades) {
-        const value = normalizeGradeTo20(
-          Number(grade.value),
-          Number(grade.evaluation.maxGrade)
-        );
-        if (value === null) continue;
-
-        const existing = studentMap.get(grade.studentId) ?? {
-          studentId: grade.studentId,
-          studentName: `${grade.student.user.firstName} ${grade.student.user.lastName}`,
-          total: 0,
-          count: 0,
-        };
-
-        existing.total += value;
-        existing.count += 1;
-        studentMap.set(grade.studentId, existing);
-      }
-
-      const validStats = Array.from(studentMap.values())
-        .filter((student) => student.count > 0)
-        .map((student) => ({
-          studentId: student.studentId,
-          studentName: student.studentName,
-          average: student.total / student.count,
-          gradeCount: student.count,
-        }))
-        .sort((left, right) => right.average - left.average);
-
-      const rankIndex = studentId
-        ? validStats.findIndex((student) => student.studentId === studentId)
-        : -1;
-
-      ranking = {
-        totalStudents: validStats.length,
-        rank: rankIndex >= 0 ? rankIndex + 1 : null,
-        topStudent: validStats[0] ?? null,
-        bottomStudent: validStats[validStats.length - 1] ?? null,
-        students: validStats,
-      };
+      ranking = canSeeNames
+        ? {
+            totalStudents: ranked.length,
+            rank: rankIndex >= 0 ? rankIndex + 1 : null,
+            topStudent: ranked[0] ?? null,
+            bottomStudent: ranked[ranked.length - 1] ?? null,
+            students: ranked,
+          }
+        : {
+            totalStudents: ranked.length,
+            rank: rankIndex >= 0 ? rankIndex + 1 : null,
+            topStudent: null,
+            bottomStudent: null,
+          };
     }
 
     return NextResponse.json({
@@ -354,23 +173,13 @@ export const GET = createApiHandler(
         highest: roundTo(stats.highest),
         lowest: roundTo(stats.lowest),
         passRate: roundTo(stats.passRate),
-        gradeDistribution: stats.gradeDistribution,
-        bySubject: Object.fromEntries(
-          Object.entries(stats.bySubject).map(([key, value]) => [
-            key,
-            { ...value, average: roundTo(value.average) },
-          ])
-        ),
-        byType: Object.fromEntries(
-          Object.entries(stats.byType).map(([key, value]) => [
-            key,
-            { ...value, average: roundTo(value.average) },
-          ])
-        ),
+        bySubject: roundBuckets(stats.bySubject),
+        byType: roundBuckets(stats.byType),
       },
       trend,
       ranking,
     });
+    }, { ttl: CACHE_TTL_SHORT, key: cacheKey });
   } catch (error) {
     logger.error("Error fetching grade statistics", error as Error);
     return NextResponse.json(
@@ -384,3 +193,7 @@ export const GET = createApiHandler(
 
   }
 );
+
+function roundRanked(student: { studentId: string; studentName: string; average: number; gradeCount: number }) {
+  return { ...student, average: roundTo(student.average) };
+}

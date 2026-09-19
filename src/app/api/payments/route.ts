@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
-import { createApiHandler, translateError, getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -9,58 +10,7 @@ import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
-/**
- * GET /api/payments
- * Liste des paiements
- * @swagger
- * /api/payments:
- *   get:
- *     summary: Liste des paiements
- *     description: Récupère la liste paginée des paiements avec filtres optionnels
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: studentId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par élève
- *       - name: feeId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par frais
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *           maximum: 100
- *     responses:
- *       200:
- *         description: Liste des paiements
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Payment'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, session.user.id);
@@ -73,7 +23,16 @@ export const GET = createApiHandler(
       const feeId = searchParams.get("feeId");
       const activeSchoolId = getActiveSchoolId(session);
 
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
+      // Lot 3 : format curseur par défaut, ?page= toléré (ancien format). Tri sur la
+      // date d'encaissement, nullable : curseur positionnel.
+      const list = getListWindow(request, {
+        positional: true,
+        orderBy: [{ paidAt: "desc" }, { id: "desc" }],
+        defaultLimit: 50,
+        maxLimit: 200,
+      });
+      const respond = <Row extends { id: string }>(rows: Row[], total: number | undefined) =>
+        NextResponse.json(list.page(rows, () => 0, total));
 
       const where: PaymentWhereFilter = {};
       if (studentId) where.studentId = studentId;
@@ -130,19 +89,21 @@ export const GET = createApiHandler(
                 },
               },
             },
-            orderBy: { paidAt: "desc" },
-            skip,
-            take: limit,
+            orderBy: list.orderBy,
+            skip: list.skip,
+            take: list.take,
           }),
-          prisma.payment.count({
-            where: {
-              studentId: { in: childrenIds },
-              ...where,
-            },
-          }),
+          list.needsTotal
+            ? prisma.payment.count({
+                where: {
+                  studentId: { in: childrenIds },
+                  ...where,
+                },
+              })
+            : Promise.resolve(undefined),
         ]);
 
-        return createPaginatedResponse(payments, total, { page, limit, skip });
+        return respond(payments, total);
       }
 
       if (session.user.role === "STUDENT") {
@@ -152,7 +113,7 @@ export const GET = createApiHandler(
         });
 
         if (!studentProfile) {
-          return createPaginatedResponse([], 0, { page, limit, skip });
+          return respond([], 0);
         }
 
         if (studentId && studentId !== studentProfile.id) {
@@ -188,19 +149,21 @@ export const GET = createApiHandler(
                 },
               },
             },
-            orderBy: { paidAt: "desc" },
-            skip,
-            take: limit,
+            orderBy: list.orderBy,
+            skip: list.skip,
+            take: list.take,
           }),
-          prisma.payment.count({
-            where: {
-              studentId: studentProfile.id,
-              ...where,
-            },
-          }),
+          list.needsTotal
+            ? prisma.payment.count({
+                where: {
+                  studentId: studentProfile.id,
+                  ...where,
+                },
+              })
+            : Promise.resolve(undefined),
         ]);
 
-        return createPaginatedResponse(payments, total, { page, limit, skip });
+        return respond(payments, total);
       }
 
       const [payments, total] = await Promise.all([
@@ -229,14 +192,14 @@ export const GET = createApiHandler(
               },
             },
           },
-          orderBy: { paidAt: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.payment.count({ where }),
+        list.needsTotal ? prisma.payment.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return createPaginatedResponse(payments, total, { page, limit, skip });
+      return respond(payments, total);
     };
 
     const response = await cachedHandler(handler, request);
@@ -248,59 +211,7 @@ export const GET = createApiHandler(
   }
 );
 
-/**
- * POST /api/payments
- * Enregistrer un paiement
- * @swagger
- * /api/payments:
- *   post:
- *     summary: Enregistrer un paiement
- *     description: Crée un nouveau paiement pour un élève
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - studentId
- *               - feeId
- *               - amount
- *               - method
- *             properties:
- *               studentId:
- *                 type: string
- *               feeId:
- *                 type: string
- *               amount:
- *                 type: number
- *                 format: decimal
- *               method:
- *                 type: string
- *                 enum: [CASH, MOBILE_MONEY, BANK_TRANSFER, CARD]
- *               reference:
- *                 type: string
- *               notes:
- *                 type: string
- *     responses:
- *       200:
- *         description: Paiement créé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Payment'
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- */
+/** POST /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const POST = createApiHandler(
   async (request, { session }, t) => {
     const body = await request.json();

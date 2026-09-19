@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -18,61 +19,7 @@ const createHomeworkSchema = z.object({
   isPublished: z.boolean().optional(),
 });
 
-/**
- * GET /api/homework
- * List homework assignments
- * @swagger
- * /api/homework:
- *   get:
- *     summary: Liste des devoirs
- *     description: Récupère la liste paginée des devoirs avec filtres optionnels
- *     tags: [Homework]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: classSubjectId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par matière de classe
- *       - name: studentId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par élève (pour voir ses devoirs)
- *       - name: upcoming
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Filtrer uniquement les devoirs à venir
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des devoirs
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 homeworks:
- *                   type: array
- *                   items:
- *                     type: object
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/homework — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, context) => {
   try {
@@ -82,9 +29,9 @@ export const GET = createApiHandler(
     const classSubjectId = searchParams.get("classSubjectId");
     const studentId = searchParams.get("studentId");
     const upcoming = searchParams.get("upcoming") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    // Lot 3 : curseur sur l'échéance par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "dueDate", direction: "asc", defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     interface HomeworkWhereFilter {
@@ -193,7 +140,7 @@ export const GET = createApiHandler(
 
     const [homeworks, total] = await Promise.all([
       prisma.homework.findMany({
-        where,
+        where: list.where(where),
         include: {
           classSubject: {
             include: {
@@ -242,11 +189,11 @@ export const GET = createApiHandler(
             },
           }),
         },
-        orderBy: { dueDate: "asc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.homework.count({ where }),
+      list.needsTotal ? prisma.homework.count({ where }) : Promise.resolve(undefined),
     ]);
 
     // Map submissions if included (response shape: mySubmission + omit submissions from payload)
@@ -259,15 +206,7 @@ export const GET = createApiHandler(
       }) as unknown as typeof homeworks;
     }
 
-    return NextResponse.json({
-      homeworks: homeworksWithSubmissions,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    return NextResponse.json(list.page(homeworksWithSubmissions, (hw) => hw.dueDate, total));
   } catch (error) {
     logger.error(" fetching homework:", error as Error);
     return NextResponse.json(
@@ -371,7 +310,7 @@ const body = await request.json();
         type: "INFO" as const,
         title: "Nouveau devoir",
         message: `${homework.classSubject.subject.name}: ${homework.title} - À rendre le ${new Date(homework.dueDate).toLocaleDateString("fr-FR")}`,
-        link: `/homework/${homework.id}`,
+        link: `/dashboard/homework/${homework.id}`,
       }));
 
       await prisma.notification.createMany({

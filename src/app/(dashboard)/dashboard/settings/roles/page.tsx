@@ -4,7 +4,8 @@ import { useState } from "react";
 import useSWR from "swr";
 import type { UserRole } from "@prisma/client";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageHeader } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Permission, getRoleName } from "@/lib/rbac/permissions";
 import {
     PERMISSION_MATRIX,
@@ -63,7 +64,7 @@ const COLOR_PALETTE: Record<RoleDescriptor["color"], {
 export default function RolesPermissionsPage() {
     const [selectedRole, setSelectedRole] = useState<UserRole>("DIRECTOR");
 
-    const { data: roleCountsData } = useSWR<{ counts: Record<string, number> }>(
+    const { data: roleCountsData, error: roleCountsError, mutate: reloadRoleCounts } = useSWR<{ counts: Record<string, number> }>(
         "/api/users/role-counts",
         fetcher,
     );
@@ -88,6 +89,16 @@ export default function RolesPermissionsPage() {
                         { label: "Rôles" },
                     ]}
                 />
+
+                {/* Sans ce cas, une panne affichait « 0 utilisateur » pour
+                    chaque rôle : un écran d'établissement vide, alors que rien
+                    ne l'était. */}
+                {roleCountsError ? (
+                    <PageError
+                        message="Impossible de charger le nombre d'utilisateurs par rôle."
+                        onRetry={() => void reloadRoleCounts()}
+                    />
+                ) : null}
 
                 <div className="grid gap-3.5" style={{ gridTemplateColumns: "280px 1fr" }}>
                     {/* Role list */}

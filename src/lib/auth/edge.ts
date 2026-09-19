@@ -24,6 +24,7 @@ export const { auth: edgeAuth } = NextAuth({
                 session.user.lastName = token.lastName as string;
                 session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
                 session.user.isTwoFactorAuthenticated = token.isTwoFactorAuthenticated as boolean;
+                session.user.mustChangePassword = token.mustChangePassword === true;
             }
             return session;
         },

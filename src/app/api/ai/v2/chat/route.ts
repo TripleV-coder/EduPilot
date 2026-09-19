@@ -3,12 +3,11 @@
  * Handles chat requests with streaming support for authenticated users only
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { aiService } from '@/lib/ai/ai-service';
 import { checkN8nHealth } from '@/lib/ai/n8n-client';
 import { logger } from '@/lib/utils/logger';
-import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
@@ -135,7 +134,6 @@ export const POST = createApiHandler(async (request, context) => {
 // Get service status (authenticated endpoint)
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
     const status = aiService.getStatus();
     const n8nHealth = await checkN8nHealth();

@@ -1,20 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 
-import {
-    Avatar,
-    Badge,
-    Button,
-    Card,
-    Icon,
-    Logo,
-    Spinner,
-    type IconName,
-} from "@/components/edu";
-import { SubLabel } from "@/components/edu-homes/_shared";
-import { RoleOnboardShell, StatTile, ShortcutCard, LabelledInput } from "./shell";
+import { RoleOnboardShell, ShortcutCard } from "./shell";
 
 // Extrait de dashboard/onboarding/page.tsx (1441 lignes) lors de la
 // découpe par rôle (P3.1, 2026-06-11). Logique inchangée.

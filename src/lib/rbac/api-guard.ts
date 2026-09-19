@@ -9,11 +9,6 @@ import { UserRole } from "@prisma/client";
 import {
   ADMIN_ROLES,
   SCHOOL_ADMIN_ROLES,
-  STUDENT_MANAGER_ROLES,
-  TEACHER_MANAGER_ROLES,
-  GRADE_MANAGER_ROLES,
-  FINANCE_MANAGER_ROLES,
-  REPORT_VIEWER_ROLES,
   isAllowedRole,
 } from "./permissions";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -76,51 +71,6 @@ export function requireSchoolAdmin(
   session: Session | null
 ): { authorized: boolean; response?: NextResponse } {
   return requireRoles(session, SCHOOL_ADMIN_ROLES);
-}
-
-/**
- * Require roles that can manage students
- */
-export function requireStudentManager(
-  session: Session | null
-): { authorized: boolean; response?: NextResponse } {
-  return requireRoles(session, STUDENT_MANAGER_ROLES);
-}
-
-/**
- * Require roles that can manage teachers
- */
-export function requireTeacherManager(
-  session: Session | null
-): { authorized: boolean; response?: NextResponse } {
-  return requireRoles(session, TEACHER_MANAGER_ROLES);
-}
-
-/**
- * Require roles that can manage grades
- */
-export function requireGradeManager(
-  session: Session | null
-): { authorized: boolean; response?: NextResponse } {
-  return requireRoles(session, GRADE_MANAGER_ROLES);
-}
-
-/**
- * Require roles that can manage finances
- */
-export function requireFinanceManager(
-  session: Session | null
-): { authorized: boolean; response?: NextResponse } {
-  return requireRoles(session, FINANCE_MANAGER_ROLES);
-}
-
-/**
- * Require roles that can view reports
- */
-export function requireReportViewer(
-  session: Session | null
-): { authorized: boolean; response?: NextResponse } {
-  return requireRoles(session, REPORT_VIEWER_ROLES);
 }
 
 // ============================================

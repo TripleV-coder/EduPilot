@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "@/app/api/system/retention/route";
 import { auth } from "@/lib/auth";
-import { enforceDataRetentionPolicies } from "@/lib/security/rgpd";
+import { enforceDataRetentionPolicies } from "@/lib/security/retention";
 import { makeRequest, makeSession } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/security/rgpd", () => ({
+vi.mock("@/lib/security/retention", () => ({
   enforceDataRetentionPolicies: vi.fn(),
 }));
 
@@ -16,8 +16,8 @@ const CRON_SECRET = "test-cron-secret-0123456789abcdef";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(enforceDataRetentionPolicies).mockResolvedValue([
-    { school: "École A", dataType: "AUDIT_LOGS", deletedCount: 120, retentionYears: 5 },
-    { school: "École B", dataType: "NOTIFICATIONS", deletedCount: 8, retentionYears: 1 },
+    { schoolId: "school-a", school: "École A", dataType: "AUDIT_LOGS", action: "delete", deletedCount: 120, retentionMonths: 60 },
+    { schoolId: "school-b", school: "École B", dataType: "NOTIFICATIONS", action: "delete", deletedCount: 8, retentionMonths: 12 },
   ]);
   delete process.env.CRON_SECRET;
 });
@@ -27,11 +27,41 @@ afterEach(() => {
 });
 
 describe("POST /api/system/retention", () => {
-  it("should return 401 without session", async () => {
+  // Audit N2 : ce test exigeait « Non authentifié », le refus du garde de
+  // session par défaut de createApiHandler. Ce garde passait AVANT le contrôle
+  // du CRON_SECRET : un cron (sans session) ne pouvait jamais s'exécuter. Le
+  // refus vient désormais du contrôle de la route elle-même.
+  it("should return 401 without session nor bearer token", async () => {
     vi.mocked(auth).mockResolvedValue(null);
     const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
     expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Non authentifié");
+    expect((await res.json()).error).toBe("Non autorisé");
+    expect(enforceDataRetentionPolicies).not.toHaveBeenCalled();
+  });
+
+  it("should run enforcement for a cron call carrying the secret and no session (N2)", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
+    process.env.CRON_SECRET = CRON_SECRET;
+    const res = await POST(makeRequest("http://localhost/api/system/retention", {
+      method: "POST",
+      body: {},
+      headers: { Authorization: `Bearer ${CRON_SECRET}` },
+    }));
+
+    expect(res.status).toBe(200);
+    expect(enforceDataRetentionPolicies).toHaveBeenCalledTimes(1);
+  });
+
+  it("should refuse a SUPER_ADMIN session whose second factor is pending", async () => {
+    const root = makeSession("SUPER_ADMIN", { id: "root2", email: "root@edupilot.app" });
+    vi.mocked(auth).mockResolvedValue({
+      ...root,
+      user: { ...root.user, isTwoFactorEnabled: true, isTwoFactorAuthenticated: false },
+    });
+    const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
+
+    expect(res.status).toBe(401);
+    expect(enforceDataRetentionPolicies).not.toHaveBeenCalled();
   });
 
   it("should refuse a non-super-admin session without a valid bearer token", async () => {
@@ -80,6 +110,18 @@ describe("POST /api/system/retention", () => {
 
     expect(res.status).toBe(200);
     expect(body.totalDeleted).toBe(128);
+  });
+
+  it("reports a failed policy instead of hiding it (N57)", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(enforceDataRetentionPolicies).mockResolvedValue([
+      { schoolId: "school-a", school: "École A", dataType: "MEDICAL_RECORDS", action: "delete", deletedCount: 0, retentionMonths: 12, error: "db down" },
+    ]);
+    const res = await POST(makeRequest("http://localhost/api/system/retention", { method: "POST", body: {} }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(false);
+    expect(body.errors).toBe(1);
   });
 
   it("should return 500 when enforcement fails", async () => {

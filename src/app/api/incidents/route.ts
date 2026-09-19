@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { incidentCreateSchema } from "@/lib/validations/incident";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 /**
  * GET /api/incidents
@@ -22,9 +23,10 @@ export const GET = createApiHandler(
       const severity = searchParams.get("severity");
       const resolved = searchParams.get("resolved");
       const periodId = searchParams.get("periodId");
-      const page = parseInt(searchParams.get("page") || "1");
-      const limit = parseInt(searchParams.get("limit") || "20");
-      const skip = (page - 1) * limit;
+      // N16 : taille plafonnée, saisie non numérique → valeurs par défaut. Plafond 200 :
+      // le tableau des risques et la page des alertes chargent ?limit=200.
+      // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "date", direction: "desc", defaultLimit: 20, maxLimit: 200 });
 
       const where: Prisma.BehaviorIncidentWhereInput = {};
 
@@ -82,7 +84,7 @@ export const GET = createApiHandler(
 
       const [incidents, total] = await Promise.all([
         prisma.behaviorIncident.findMany({
-          where,
+          where: list.where(where),
           include: {
             student: {
               include: {
@@ -103,22 +105,14 @@ export const GET = createApiHandler(
             },
             sanctions: true,
           },
-          orderBy: { date: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.behaviorIncident.count({ where }),
+        list.needsTotal ? prisma.behaviorIncident.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return NextResponse.json({
-        incidents,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      return NextResponse.json(list.page(incidents, (incident) => incident.date, total));
     } catch (error) {
       logger.error(" fetching incidents:", error as Error);
       return NextResponse.json(
@@ -192,7 +186,7 @@ export const POST = createApiHandler(
         type: (incident.severity === "CRITICAL" || incident.severity === "HIGH" ? "WARNING" : "INFO") as NotificationType,
         title: "Incident de comportement",
         message: `Un incident de type "${validatedData.incidentType}" a été signalé concernant ${incident.student.user.firstName} ${incident.student.user.lastName}`,
-        link: `/incidents/${incident.id}`,
+        link: `/dashboard/incidents/${incident.id}`,
       }));
 
       if (parentNotifications.length > 0) {
@@ -209,7 +203,7 @@ export const POST = createApiHandler(
             type: "WARNING",
             title: "Incident signalé",
             message: `Un incident de comportement a été enregistré`,
-            link: `/incidents/${incident.id}`,
+            link: `/dashboard/incidents/${incident.id}`,
           },
         });
       }

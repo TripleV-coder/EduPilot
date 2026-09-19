@@ -1,5 +1,6 @@
 import type { UserRole } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { runAsSystem } from "@/lib/db/db-context";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
 import { getTeacherSchoolIdsForUser } from "@/lib/teachers/school-assignments";
 
@@ -13,11 +14,23 @@ function uniqueSchoolIds(...groups: Array<Array<string | null | undefined>>) {
   );
 }
 
-export async function getAccessibleSchoolIdsForUser(input: {
+type SchoolAccessInput = {
   userId: string;
   role: UserRole;
   primarySchoolId: string | null;
-}) {
+};
+
+/**
+ * Établissements accessibles, calculés à la connexion et au changement
+ * d'école. Contexte système déclaré (audit M2) : c'est ce calcul qui fonde le
+ * contexte d'établissement des requêtes suivantes ; il lit l'école de l'élève
+ * ou des enfants d'un parent, que la RLS masquerait sans contexte.
+ */
+export function getAccessibleSchoolIdsForUser(input: SchoolAccessInput) {
+  return runAsSystem("auth:school-access", () => computeAccessibleSchoolIds(input));
+}
+
+async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
   const { userId, role, primarySchoolId } = input;
   const organizationAccess = await getOrganizationAccessForUser(userId);
 

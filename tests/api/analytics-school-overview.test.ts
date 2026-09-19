@@ -8,9 +8,11 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     academicYear: { findFirst: vi.fn(), findUnique: vi.fn() },
-    studentProfile: { count: vi.fn() },
+    studentProfile: { count: vi.fn(), findMany: vi.fn() },
     enrollment: { count: vi.fn() },
     studentAnalytics: { findMany: vi.fn() },
+    subjectPerformance: { groupBy: vi.fn() },
+    subject: { findMany: vi.fn() },
     attendance: { groupBy: vi.fn() },
     period: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   },
@@ -18,6 +20,11 @@ vi.mock("@/lib/prisma", () => ({
 
 const AY = cuid("ay1");
 
+// Audit C3 : la route ne charge plus l'élève ni ses performances par matière
+// avec chaque analyse (champs minimaux) ; noms/classes viennent de
+// studentProfile.findMany pour les seuls élèves affichés, et le résumé par
+// matière de subjectPerformance.groupBy. Le calcul réel est vérifié sur
+// PostgreSQL : tests/integration-db/analytics-school-overview.test.ts.
 function makeAnalytics(overrides: Record<string, unknown> = {}) {
   return {
     id: cuid("an1"),
@@ -28,24 +35,17 @@ function makeAnalytics(overrides: Record<string, unknown> = {}) {
     performanceLevel: "GOOD",
     generalAverage: 15.5,
     period: { id: cuid("p2"), name: "Semestre 2", sequence: 2 },
-    student: {
-      id: FIXTURES.studentA,
-      user: { firstName: "Awa", lastName: "Diallo" },
-      enrollments: [{ class: { name: "6A" } }],
-    },
-    subjectPerformances: [
-      {
-        subjectId: "s1",
-        average: 16,
-        subject: { name: "Maths", code: "MAT" },
-      },
-    ],
     ...overrides,
   } as never;
 }
 
 describe("GET /api/analytics/school/overview", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.subjectPerformance.groupBy).mockResolvedValue([] as never);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([] as never);
+  });
 
   it("should return 401 when unauthenticated", async () => {
     vi.mocked(auth).mockResolvedValue(null);
@@ -89,8 +89,17 @@ describe("GET /api/analytics/school/overview", () => {
     vi.mocked(prisma.enrollment.count).mockResolvedValue(115);
     vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([
       makeAnalytics({ id: cuid("an1"), riskLevel: "LOW", performanceLevel: "EXCELLENT", generalAverage: 17 }),
-      makeAnalytics({ id: cuid("an2"), studentId: FIXTURES.studentB, riskLevel: "HIGH", performanceLevel: "WEAK", generalAverage: 7, student: { id: FIXTURES.studentB, user: { firstName: "Jean", lastName: "Mensah" }, enrollments: [{ class: { name: "5A" } }] }, period: { id: cuid("p2"), name: "Semestre 2", sequence: 2 }, subjectPerformances: [{ subjectId: "s1", average: 6, subject: { name: "Maths", code: "MAT" } }] }),
+      makeAnalytics({ id: cuid("an2"), studentId: FIXTURES.studentB, riskLevel: "HIGH", performanceLevel: "WEAK", generalAverage: 7 }),
     ]);
+    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([
+      { id: FIXTURES.studentA, user: { firstName: "Awa", lastName: "Diallo" }, enrollments: [{ class: { name: "6A" } }] },
+      { id: FIXTURES.studentB, user: { firstName: "Jean", lastName: "Mensah" }, enrollments: [{ class: { name: "5A" } }] },
+    ] as never);
+    // Maths : performances 16 et 6 → moyenne 11, une réussite sur deux
+    vi.mocked(prisma.subjectPerformance.groupBy)
+      .mockResolvedValueOnce([{ subjectId: "s1", _avg: { average: 11 }, _count: { _all: 2 } }] as never)
+      .mockResolvedValueOnce([{ subjectId: "s1", _count: { _all: 1 } }] as never);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ id: "s1", name: "Maths" }] as never);
     vi.mocked(prisma.attendance.groupBy).mockResolvedValue([
       { status: "PRESENT", _count: 800 },
       { status: "ABSENT", _count: 50 },
@@ -119,12 +128,20 @@ describe("GET /api/analytics/school/overview", () => {
 
     expect(body.topStudents).toHaveLength(1);
     expect(body.topStudents[0].student.user.firstName).toBe("Awa");
+    expect(body.topStudents[0].student.class.name).toBe("6A");
     expect(body.atRiskStudents).toHaveLength(1);
     expect(body.atRiskStudents[0].student.id).toBe(FIXTURES.studentB);
+    expect(body.atRiskStudents[0].student.class.name).toBe("5A");
+    // Noms chargés pour les seuls élèves affichés
+    expect(prisma.studentProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: [FIXTURES.studentA, FIXTURES.studentB] } } })
+    );
 
     expect(body.subjectSummary).toHaveLength(1);
+    expect(body.subjectSummary[0].subject).toBe("Maths");
     expect(body.subjectSummary[0].grade).toBe(11);
     expect(body.subjectSummary[0].passRate).toBe(50);
+    expect(body.subjectSummary[0].studentsCount).toBe(2);
 
     expect(body.attendanceDistribution.present).toBe(800);
     expect(body.attendanceDistribution.absent).toBe(50);

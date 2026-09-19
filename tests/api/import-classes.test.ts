@@ -12,10 +12,11 @@ vi.mock("@/lib/api/cache-helpers", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), findMany: vi.fn() },
     school: { findUnique: vi.fn() },
-    class: { findFirst: vi.fn(), create: vi.fn() },
-    classLevel: { findFirst: vi.fn(), create: vi.fn() },
+    class: { findMany: vi.fn(), create: vi.fn() },
+    classLevel: { findMany: vi.fn() },
+    teacherProfile: { findUnique: vi.fn() },
     teacherSchoolAssignment: { findFirst: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -38,12 +39,19 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockTransaction();
   vi.mocked(prisma.school.findUnique).mockResolvedValue({ id: FIXTURES.schoolA } as never);
-  vi.mocked(prisma.classLevel.findFirst).mockResolvedValue({ id: cuid("level1") } as never);
+  vi.mocked(prisma.classLevel.findMany).mockResolvedValue([{ id: cuid("level1"), code: "6EME", name: "Sixième" }] as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
-  vi.mocked(prisma.class.findFirst).mockResolvedValue(null);
+  vi.mocked(prisma.user.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.class.findMany).mockResolvedValue([]);
   vi.mocked(prisma.class.create).mockResolvedValue({ id: cuid("class1") } as never);
 });
 
+// Règle 4 (Lot 5, N47) : les cas « niveau manquant créé », « enseignant
+// inconnu → classe sans titulaire », « doublon ignoré » et « erreurs de
+// validation → 200 » exigeaient l'import PARTIEL ou des données inventées
+// (niveau créé en PRIMARY) — les défauts corrigés. Import en tout ou rien : 422,
+// rien d'écrit. Les requêtes par ligne (findFirst) sont remplacées par des
+// lectures groupées (findMany).
 describe("POST /api/import/classes", () => {
   it("should return 401 without session", async () => {
     vi.mocked(auth).mockResolvedValue(null);
@@ -78,11 +86,11 @@ describe("POST /api/import/classes", () => {
     expect((await res.json()).error).toBe("School context required");
   });
 
-  it("should create classes and reuse existing levels", async () => {
+  it("should create classes on existing levels (by code or name)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const body = makeBody([
       { name: "6ème A", level: "6EME", capacity: 35 },
-      { name: "6ème B", level: "6EME", capacity: 30 },
+      { name: "6ème B", level: "sixième", capacity: 30 },
     ]);
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body }));
     const result = await res.json();
@@ -90,8 +98,6 @@ describe("POST /api/import/classes", () => {
     expect(res.status).toBe(200);
     expect(result.created).toBe(2);
     expect(result.errors).toHaveLength(0);
-    expect(prisma.classLevel.findFirst).toHaveBeenCalledTimes(2);
-    expect(prisma.classLevel.create).not.toHaveBeenCalled();
     expect(prisma.class.create).toHaveBeenCalledTimes(2);
     expect(prisma.class.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ schoolId: FIXTURES.schoolA, classLevelId: cuid("level1"), capacity: 35 }),
@@ -99,27 +105,23 @@ describe("POST /api/import/classes", () => {
     expect(invalidateByPath).toHaveBeenCalled();
   });
 
-  it("should create the class level when missing", async () => {
+  it("rejects an unknown level instead of creating it as primary (422)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
-    vi.mocked(prisma.classLevel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.classLevel.create).mockResolvedValue({ id: cuid("level2") } as never);
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: makeBody([{ name: "5ème A", level: "5EME" }]) }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(prisma.classLevel.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ code: "5EME", schoolId: FIXTURES.schoolA }),
-    }));
+    expect(res.status).toBe(422);
+    expect(result.errors).toEqual([expect.objectContaining({ row: 1, field: "level" })]);
+    expect(prisma.class.create).not.toHaveBeenCalled();
   });
 
   it("should assign the main teacher when found and assigned to school", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      teacherProfile: { id: cuid("prof1") },
-    } as never);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { email: "t@school.bj", teacherProfile: { id: cuid("prof1") } },
+    ] as never);
     vi.mocked(prisma.teacherSchoolAssignment.findFirst).mockResolvedValue({ id: cuid("asg1") } as never);
-    const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: makeBody([{ name: "6ème C", level: "6EME", mainTeacherEmail: "t@school.bj" }]) }));
+    const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: makeBody([{ name: "6ème C", level: "6EME", mainTeacherEmail: "T@school.bj" }]) }));
     const result = await res.json();
 
     expect(res.status).toBe(200);
@@ -129,36 +131,33 @@ describe("POST /api/import/classes", () => {
     }));
   });
 
-  it("should create the class without main teacher when email is unknown", async () => {
+  it("rejects an unknown main teacher instead of a class without one (422)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: makeBody([{ name: "6ème D", level: "6EME", mainTeacherEmail: "ghost@school.bj" }]) }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(prisma.class.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ mainTeacherId: undefined }),
-    }));
+    expect(res.status).toBe(422);
+    expect(result.errors).toEqual([expect.objectContaining({ row: 1, field: "mainTeacherEmail" })]);
+    expect(prisma.class.create).not.toHaveBeenCalled();
   });
 
-  it("should report duplicate class names as errors", async () => {
+  it("rejects duplicate class names, in the file and in the school (422)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
-    vi.mocked(prisma.class.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: cuid("existing") } as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([{ name: "6ème Z" }] as never);
     const body = makeBody([
       { name: "6ème A", level: "6EME" },
       { name: "6ème A", level: "6EME" },
+      { name: "6ème Z", level: "6EME" },
     ]);
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].row).toBe(2);
-    expect(result.errors[0].error).toContain("already exists");
+    expect(res.status).toBe(422);
+    expect(result.errors.map((e: { row: number }) => e.row)).toEqual([1, 2, 3]);
+    expect(prisma.class.create).not.toHaveBeenCalled();
   });
 
-  it("should collect validation errors for invalid rows", async () => {
+  it("rejects the whole file on a validation error (422)", async () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const body = makeBody([
       { name: "", level: "6EME" },
@@ -167,10 +166,10 @@ describe("POST /api/import/classes", () => {
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body }));
     const result = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(result.created).toBe(1);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].error).toBe("Validation failed");
+    expect(res.status).toBe(422);
+    expect(result.created).toBe(0);
+    expect(result.errors).toEqual([expect.objectContaining({ row: 1, field: "name" })]);
+    expect(prisma.class.create).not.toHaveBeenCalled();
   });
 
   it("should return 500 on unexpected database failure", async () => {

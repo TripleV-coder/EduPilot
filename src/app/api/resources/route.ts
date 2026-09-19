@@ -7,6 +7,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { buildCursorPage, getCursorParams, InvalidCursorError, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 const createResourceSchema = z.object({
   title: z.string().min(3).max(200),
@@ -36,9 +37,10 @@ const { searchParams } = new URL(request.url);
     const classLevelId = searchParams.get("classLevelId");
     const category = searchParams.get("category");
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    // Lot 3 : curseur (keyset), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
     const activeSchoolId = getActiveSchoolId(session);
 
     const where: Prisma.ResourceWhereInput = {
@@ -88,7 +90,7 @@ const { searchParams } = new URL(request.url);
 
     const [resources, total] = await Promise.all([
       prisma.resource.findMany({
-        where,
+        where: cursorPage.cursor ? { AND: [where, keysetWhere("createdAt", "desc", cursorPage.cursor)] } : where,
         include: {
           subject: {
             select: {
@@ -113,23 +115,16 @@ const { searchParams } = new URL(request.url);
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: keysetOrderBy("createdAt", "desc"),
+        take: cursorPage.limit + 1,
       }),
-      prisma.resource.count({ where }),
+      cursorPage.withTotal ? prisma.resource.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      resources,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    const { data, pagination } = buildCursorPage(resources, cursorPage.limit, (resource) => resource.createdAt);
+    return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
   } catch (error) {
+    if (error instanceof InvalidCursorError) throw error; // 400 INVALID_CURSOR (createApiHandler)
     logger.error(" fetching resources:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des ressources" },

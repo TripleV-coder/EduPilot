@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useFirstLogin } from "@/hooks/use-first-login";
 import Link from "next/link";
 
 import { useForm } from "react-hook-form";
@@ -30,13 +31,9 @@ const firstLoginSchema = z
 type FirstLoginFormData = z.infer<typeof firstLoginSchema>;
 
 function FirstLoginForm() {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams?.get("token");
-
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isSuccess, setIsSuccess] = useState(false);
+    const { mode, isLoading, error, isSuccess, submit } = useFirstLogin({ token });
 
     const {
         register,
@@ -46,45 +43,14 @@ function FirstLoginForm() {
         resolver: zodResolver(firstLoginSchema),
     });
 
-    const onSubmit = async (data: FirstLoginFormData) => {
-        if (!token) {
-            setError("Le lien d'accès est invalide ou manquant.");
-            return;
-        }
+    const onSubmit = (data: FirstLoginFormData) =>
+        submit({ currentPassword: data.currentPassword, newPassword: data.newPassword });
 
-        setIsLoading(true);
-        setError(null);
+    if (mode === "loading") {
+        return <FirstLoginSpinner />;
+    }
 
-        try {
-            const response = await fetch("/api/auth/first-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token,
-                    currentPassword: data.currentPassword,
-                    newPassword: data.newPassword,
-                    useMagicLink: false,
-                }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                setError(result.error || "Une erreur est survenue.");
-            } else {
-                setIsSuccess(true);
-                setTimeout(() => {
-                    router.push("/login?firstLogin=1");
-                }, 3000);
-            }
-        } catch {
-            setError("Erreur de connexion au serveur.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (!token) {
+    if (mode === "invalid") {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div
@@ -263,28 +229,30 @@ export default function FirstLoginPage() {
             title="Première connexion"
             subtitle="Bienvenue ! Définissez votre mot de passe définitif pour sécuriser votre accès."
         >
-            <Suspense
-                fallback={
-                    <div
-                        className="flex items-center justify-center p-8"
-                        aria-label="Chargement en cours"
-                    >
-                        <div
-                            className="animate-spin"
-                            style={{
-                                width: 32,
-                                height: 32,
-                                border: "3px solid var(--brand-100)",
-                                borderTopColor: "var(--brand-600)",
-                                borderRadius: "50%",
-                            }}
-                        />
-                    </div>
-                }
-            >
+            <Suspense fallback={<FirstLoginSpinner />}>
                 <FirstLoginForm />
             </Suspense>
         </AuthShell>
+    );
+}
+
+function FirstLoginSpinner() {
+    return (
+        <div
+            className="flex items-center justify-center p-8"
+            aria-label="Chargement en cours"
+        >
+            <div
+                className="animate-spin"
+                style={{
+                    width: 32,
+                    height: 32,
+                    border: "3px solid var(--brand-100)",
+                    borderTopColor: "var(--brand-600)",
+                    borderRadius: "50%",
+                }}
+            />
+        </div>
     );
 }
 

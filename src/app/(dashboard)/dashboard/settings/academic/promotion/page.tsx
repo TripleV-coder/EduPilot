@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   ArrowUpRight, Users, GraduationCap, 
   Loader2, Save, 
-  ChevronRight, Lock, History, UserMinus
+  ChevronRight, CalendarRange, UserMinus
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
@@ -67,9 +70,13 @@ function PromotionEngineContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, PromotionStatus>>({});
 
-  const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
+  const { data: classesData, error: loadError, mutate: reloadPage } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
   const classes: ClassOption[] = Array.isArray(classesData) ? classesData : classesData?.data || [];
-  const { data: academicYears } = useSWR<AcademicYearOption[]>("/api/academic-years", fetcher);
+  const {
+    data: academicYears,
+    error: yearsError,
+    mutate: reloadYears,
+  } = useSWR<AcademicYearOption[]>("/api/academic-years", fetcher);
 
   // Effectif complet de la classe (année courante), y compris les élèves sans
   // note : ils doivent aussi pouvoir être promus / diplômés / déscolarisés.
@@ -77,7 +84,8 @@ function PromotionEngineContent() {
     data: rosterData,
     isLoading: rosterLoading,
   } = useSWR<{ data: RosterStudent[] }>(
-    selectedClassId ? `/api/students?classId=${selectedClassId}&limit=100` : null,
+    // Effectif complet de la classe (N19) : la route accepte jusqu'à 1000 avec ?classId=
+    selectedClassId ? `/api/students?classId=${selectedClassId}&limit=1000` : null,
     fetcher
   );
 
@@ -205,14 +213,12 @@ function PromotionEngineContent() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader 
           title="Promotion & Fin d'Année" 
-          description="Gérez le passage des élèves en classe supérieure et la clôture de l'exercice académique."
+          description="Gérez le passage des élèves en classe supérieure pour l'année suivante."
         />
-        <div className="flex items-center gap-2">
-           <Button variant="destructive" className="h-10 px-6 rounded-xl font-bold uppercase gap-2 shadow-lg shadow-destructive/20">
-             <Lock className="w-4 h-4" />
-             Clôturer l&apos;Année
-           </Button>
-        </div>
+
+            {loadError ? (
+                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+            ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -243,7 +249,7 @@ function PromotionEngineContent() {
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{c.name}</span>
                     <span className={cn("text-[10px] font-medium uppercase opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
-                      {c.classLevel?.level || "Niveau 1"}
+                      {c.classLevel?.level ?? ""}
                     </span>
                   </div>
                   <ChevronRight className="w-4 h-4 opacity-50" />
@@ -252,16 +258,44 @@ function PromotionEngineContent() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-none bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] p-6">
-             <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[hsl(var(--success))]/10 flex items-center justify-center shrink-0">
-                   <History className="w-5 h-5 text-[hsl(var(--success))]" />
-                </div>
-                <div className="space-y-1">
-                   <h4 className="font-bold text-sm">Archivage automatique</h4>
-                   <p className="text-xs text-muted-foreground leading-relaxed">En clôturant l&apos;année, toutes les notes sont figées et les bulletins finaux sont générés en arrière-plan.</p>
-                </div>
-             </div>
+          <Card className="border-none shadow-none bg-muted/20">
+            <CardHeader className="p-4 border-b border-border/50">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <CalendarRange className="w-4 h-4 text-primary" />
+                Année de destination
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              {yearsError ? (
+                <PageError message="Impossible de charger les années académiques." onRetry={() => void reloadYears()} />
+              ) : !academicYears ? (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Chargement des années…
+                </p>
+              ) : targetYearOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Aucune année postérieure à l&apos;année en cours.{" "}
+                  <Link href="/dashboard/settings/academic" className="font-semibold text-primary underline-offset-2 hover:underline">
+                    Créez l&apos;année suivante
+                  </Link>{" "}
+                  avant d&apos;appliquer les promotions.
+                </p>
+              ) : (
+                <Select value={targetYearId} onValueChange={setTargetYearId}>
+                  <SelectTrigger aria-label="Année académique de destination" className="bg-background">
+                    <SelectValue placeholder="Choisir l'année de destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {targetYearOptions.map((year) => (
+                      <SelectItem key={year.id} value={year.id}>
+                        {year.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </CardContent>
           </Card>
         </div>
 

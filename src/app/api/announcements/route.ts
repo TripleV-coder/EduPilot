@@ -6,7 +6,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 const createAnnouncementSchema = z.object({
@@ -21,62 +22,7 @@ const createAnnouncementSchema = z.object({
   attachments: z.array(z.string().url()).optional(),
 });
 
-/**
- * GET /api/announcements
- * List announcements
- * @swagger
- * /api/announcements:
- *   get:
- *     summary: Liste des annonces
- *     description: Récupère les annonces publiées avec filtres optionnels
- *     tags: [Notifications]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: type
- *         in: query
- *         schema:
- *           type: string
- *         description: Type d'annonce
- *       - name: priority
- *         in: query
- *         schema:
- *           type: string
- *           enum: [LOW, MEDIUM, HIGH, URGENT]
- *         description: Priorité de l'annonce
- *       - name: includeExpired
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Inclure les annonces expirées
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des annonces
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 announcements:
- *                   type: array
- *                   items:
- *                     type: object
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/announcements — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(async (request, { session }) => {
   try {
     // Cache key based on user role, school, and query params
@@ -97,7 +43,14 @@ export const GET = createApiHandler(async (request, { session }) => {
       const type = searchParams.get("type");
       const priority = searchParams.get("priority");
       const includeExpired = searchParams.get("includeExpired") === "true";
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // Lot 3 : format curseur par défaut, ?page= toléré (ancien format). Tri composé
+      // (priorité puis date de publication, nullable) : curseur positionnel.
+      const list = getListWindow(request, {
+        positional: true,
+        orderBy: [{ priority: "desc" }, { publishedAt: "desc" }, { id: "desc" }],
+        defaultLimit: 20,
+        maxLimit: 100,
+      });
 
       const where: Prisma.AnnouncementWhereInput = {
         isPublished: true,
@@ -137,7 +90,7 @@ export const GET = createApiHandler(async (request, { session }) => {
 
       const [announcements, total] = await Promise.all([
         prisma.announcement.findMany({
-          where,
+          where: list.where(where),
           select: {
             id: true,
             title: true,
@@ -163,25 +116,14 @@ export const GET = createApiHandler(async (request, { session }) => {
               },
             },
           },
-          orderBy: [
-            { priority: "desc" },
-            { publishedAt: "desc" },
-          ],
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.announcement.count({ where }),
+        list.needsTotal ? prisma.announcement.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return NextResponse.json({
-        announcements,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      return NextResponse.json(list.page(announcements, () => 0, total));
     };
 
     const response = await cachedHandler(handler, request);
@@ -283,7 +225,7 @@ export const POST = createApiHandler(
             type: announcement.priority === "URGENT" ? "WARNING" : "INFO",
             title: `Nouvelle annonce: ${announcement.title}`,
             message: announcement.content.substring(0, 150) + (announcement.content.length > 150 ? "..." : ""),
-            link: `/announcements/${announcement.id}`,
+            link: "/dashboard/announcements",
           }));
 
           await prisma.notification.createMany({

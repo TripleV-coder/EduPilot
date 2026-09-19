@@ -1,28 +1,60 @@
 /**
- * Validation des variables d'environnement requises.
- * Appelé une seule fois au démarrage du serveur (dans layout.tsx racine ou instrumentation.ts).
+ * Environnement — module unique (L3, décision du propriétaire du 2026-09-18).
  *
- * En production, toute variable manquante fait crasher l'app immédiatement
- * avec un message d'erreur explicite — plutôt que de découvrir le problème
- * silencieusement en prod.
+ * Remplace `lib/config/env.ts` et `lib/config/env-validation.ts`, qui
+ * portaient deux validations aux règles divergentes (piège N5 : l'une
+ * respectait SKIP_ENV_VALIDATION, l'autre non).
+ *
+ * Deux portées, volontairement distinctes :
+ *  - `validateCriticalEnv()` : base et secret de session seulement. Exécutée à
+ *    l'import de Prisma, donc aussi pendant `next build` et dans les scripts.
+ *  - `validateEnv()` : jeu complet, exécutée une fois au démarrage du serveur
+ *    (`instrumentation.ts`). En production, toute variable manquante empêche
+ *    le démarrage, plutôt que d'être découverte en service.
  */
 
 interface EnvVar {
     name: string;
     required: "always" | "production";
     description: string;
+    /** Exigée seulement si cette condition est vraie (ex. selon le fournisseur d'email). */
+    when?: () => boolean;
+    /** Contrôle de forme, appliqué quand la variable est présente. */
+    check?: (value: string) => string | null;
 }
+
+const EXAMPLE_SECRET = "generate-a-secure-secret-with-openssl-rand-base64-32";
+const MIN_SECRET_LENGTH = 32;
+
+function checkSessionSecret(value: string): string | null {
+    if (value === EXAMPLE_SECRET) return "valeur d'exemple non remplacée";
+    if (value.length < MIN_SECRET_LENGTH) {
+        return `secret trop court (${value.length} caractères, minimum ${MIN_SECRET_LENGTH})`;
+    }
+    return null;
+}
+
+function checkDatabaseUrl(value: string): string | null {
+    if (!value.startsWith("postgresql://") && !value.startsWith("postgres://")) {
+        return "format attendu postgresql://utilisateur:motdepasse@hôte:port/base";
+    }
+    return null;
+}
+
+const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
 
 const ENV_VARS: EnvVar[] = [
     {
         name: "DATABASE_URL",
         required: "always",
         description: "URL de connexion PostgreSQL",
+        check: checkDatabaseUrl,
     },
     {
         name: "NEXTAUTH_SECRET",
         required: "always",
         description: "Secret de chiffrement des sessions JWT (openssl rand -base64 32)",
+        check: checkSessionSecret,
     },
     {
         name: "NEXTAUTH_URL",
@@ -37,12 +69,19 @@ const ENV_VARS: EnvVar[] = [
     {
         name: "EMAIL_PROVIDER",
         required: "production",
-        description: "Fournisseur email (resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
+        description: "Fournisseur email (smtp, resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
     },
     {
         name: "EMAIL_API_KEY",
         required: "production",
-        description: "Clé API du fournisseur email",
+        description: "Clé API du fournisseur email (resend / sendgrid)",
+        when: () => !usesSmtp(),
+    },
+    {
+        name: "SMTP_HOST",
+        required: "production",
+        description: "Serveur SMTP (EMAIL_PROVIDER=smtp)",
+        when: usesSmtp,
     },
     {
         name: "EMAIL_FROM",
@@ -50,15 +89,19 @@ const ENV_VARS: EnvVar[] = [
         description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
     },
     {
-        name: "UPSTASH_REDIS_REST_URL",
+        name: "SIGNATURE_SALT",
         required: "production",
-        description: "URL Upstash Redis pour le rate limiting distribué",
+        description: "Sel du hachage des adresses IP des signatures électroniques (openssl rand -hex 32)",
     },
     {
-        name: "UPSTASH_REDIS_REST_TOKEN",
+        name: "EDUPILOT_PEER_TOKEN",
         required: "production",
-        description: "Token Upstash Redis pour le rate limiting distribué",
+        description:
+            "Posé automatiquement par le préchargement de l'IP client : démarrer le serveur avec " +
+            "`node --require ./scripts/server/client-ip-preload.cjs` (sans lui, le rate-limit ne peut pas identifier les clients)",
     },
+    // Upstash n'est plus exigé (décision du 2026-09-12) : un seul processus,
+    // rate-limit et cache en mémoire, aucune adresse IP envoyée hors machine.
 ];
 
 /**
@@ -78,6 +121,7 @@ export function validateEnv(): void {
     const errors: string[] = [];
 
     for (const envVar of ENV_VARS) {
+        if (envVar.when && !envVar.when()) continue;
         const value = process.env[envVar.name];
         const isMissing = !value || value.trim() === "";
 
@@ -87,8 +131,11 @@ export function validateEnv(): void {
             value?.includes("your-") ||
             value?.includes("xxxxx");
 
-        if (isMissing || isPlaceholder) {
-            const msg = `${envVar.name} — ${envVar.description}`;
+        const malformed = !isMissing && envVar.check ? envVar.check(value) : null;
+
+        if (isMissing || isPlaceholder || malformed) {
+            const reason = malformed ? ` (${malformed})` : "";
+            const msg = `${envVar.name} — ${envVar.description}${reason}`;
             if (envVar.required === "always" || isProd) {
                 errors.push(msg);
             } else {
@@ -118,13 +165,83 @@ export function validateEnv(): void {
 }
 
 /**
- * Vérifie si le service email est configuré.
- * Retourne true si toutes les variables email sont présentes.
+ * Validation minimale, exécutée à l'import de Prisma — donc dans les scripts,
+ * les tâches planifiées et pendant `next build`.
+ *
+ * N5 : les secrets ne servent pas à construire (l'étape de build du Dockerfile
+ * n'en définit aucun) et sont vérifiés au démarrage par `validateEnv()`.
+ * La phase de build et SKIP_ENV_VALIDATION sont donc ignorées ici aussi.
  */
-export function isEmailConfigured(): boolean {
-    return !!(
-        process.env.EMAIL_PROVIDER &&
-        process.env.EMAIL_API_KEY &&
-        process.env.EMAIL_FROM
-    );
+export function validateCriticalEnv(): void {
+    if (process.env.NODE_ENV === "test") return;
+    if (
+        process.env.NEXT_PHASE === "phase-production-build" ||
+        process.env.SKIP_ENV_VALIDATION === "true"
+    ) {
+        return;
+    }
+
+    // Lectures littérales : l'inventaire `.env.example` ↔ code (M6) repose sur
+    // la présence du nom dans la source (tests/lib/config/env-documentation).
+    const critical = [
+        { name: "DATABASE_URL", value: process.env.DATABASE_URL, check: checkDatabaseUrl },
+        { name: "NEXTAUTH_SECRET", value: process.env.NEXTAUTH_SECRET, check: checkSessionSecret },
+    ];
+
+    const errors: string[] = [];
+
+    for (const { name, value, check } of critical) {
+        if (!value || value.trim() === "") {
+            errors.push(`${name} — variable manquante`);
+            continue;
+        }
+        const malformed = check(value);
+        if (malformed) errors.push(`${name} — ${malformed}`);
+    }
+
+    if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_APP_URL) {
+        console.warn(
+            "⚠️  NEXT_PUBLIC_APP_URL non défini — http://localhost:3000 par défaut"
+        );
+    }
+
+    if (errors.length > 0) {
+        console.error(
+            "\n❌ [EduPilot] Configuration invalide — démarrage impossible :\n" +
+                errors.map((e) => `   • ${e}`).join("\n") +
+                "\n\nConsultez .env.example pour référence.\n"
+        );
+        throw new Error("Critical environment variables missing or invalid. Check logs.");
+    }
 }
+
+function getEnv(key: string): string | undefined {
+    if (typeof process === "undefined") return undefined;
+    return process.env[key];
+}
+
+const nodeEnv = getEnv("NODE_ENV") ?? "development";
+
+/** Lecture typée des réglages consultés à chaud (ex-`lib/config/env.ts`). */
+export const appEnv = {
+    nodeEnv,
+    isProduction: nodeEnv === "production",
+    isTest: nodeEnv === "test",
+
+    allowBackupApi: getEnv("ALLOW_BACKUP_API") === "true",
+    allowBackupApiInProduction: getEnv("ALLOW_BACKUP_API_IN_PRODUCTION") === "true",
+
+    ai: {
+        enabled: getEnv("AI_ENABLED") !== "false",
+        providers: (getEnv("AI_PROVIDER") ?? "")
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean),
+        hasExternalKeys: Boolean(
+            getEnv("GROQ_API_KEY") ||
+                getEnv("OPENAI_API_KEY") ||
+                getEnv("ANTHROPIC_API_KEY") ||
+                getEnv("GOOGLE_AI_API_KEY")
+        ),
+    },
+};

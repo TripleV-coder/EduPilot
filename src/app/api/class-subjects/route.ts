@@ -10,11 +10,6 @@ import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 
-interface ClassSubjectWhereFilter {
-  classId?: string;
-  teacherId?: string;
-}
-
 export const GET = createApiHandler(
   async (request, { session }, _t) => {
     const { searchParams } = new URL(request.url);

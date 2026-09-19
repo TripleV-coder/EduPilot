@@ -125,7 +125,9 @@ export default function CoursesPage() {
                 return r.json();
             })
             .then((data) => {
-                if (!cancelled) setCourses(Array.isArray(data) ? data : data.courses ?? []);
+                // N23 : la route renvoie { data, pagination } ; la clé `courses` n'a jamais
+                // existé (liste toujours vide).
+                if (!cancelled) setCourses(Array.isArray(data) ? data : data.data ?? []);
             })
             .catch((e) => {
                 if (!cancelled) setError(e.message);

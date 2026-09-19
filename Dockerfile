@@ -59,10 +59,20 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copier le schéma Prisma pour les migrations runtime
+# Préchargements serveur : IP client fiable pour le rate-limit (audit H3) et
+# arrêt propre sur SIGTERM (Lot 7) — voir ENTRYPOINT.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/client-ip-preload.cjs ./client-ip-preload.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/graceful-shutdown.cjs ./graceful-shutdown.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Schéma et migrations, appliquées au démarrage par l'entrypoint.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+# Le CLI Prisma (`migrate deploy`) : il n'est pas dans la sortie standalone,
+# qui ne trace que ce que le code importe. Ses moteurs viennent de l'étape de
+# build, donc compilés pour Alpine (musl), comme le reste de l'image.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 
 USER nextjs
 
@@ -72,4 +82,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-CMD ["node", "server.js"]
+# Sans reverse proxy : TRUSTED_PROXY_HOPS=0 (défaut). Derrière nginx/Caddy : 1.
+# L'entrypoint applique les migrations puis `exec`ute le serveur, qui devient
+# PID 1 et reçoit donc lui-même le SIGTERM de `docker stop` (arrêt propre).
+ENTRYPOINT ["/bin/sh", "./docker-entrypoint.sh"]

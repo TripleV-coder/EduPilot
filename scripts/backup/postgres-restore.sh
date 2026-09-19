@@ -1,126 +1,110 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Restauration d'une sauvegarde chiffrée EduPilot (Lot 7).
+#
+#   scripts/backup/postgres-restore.sh <fichier.sql.gz.enc> --confirm <nom_de_la_base>
+#
+# La restauration ÉCRASE la base visée par DATABASE_URL. Elle exige donc de
+# retaper le nom de cette base. À la fin, elle recompte les lignes table par
+# table et les compare au manifeste écrit lors de la sauvegarde : si un
+# écart apparaît, le script sort en erreur.
+#
+# Variables : DATABASE_URL, BACKUP_PASSPHRASE_FILE (mêmes que la sauvegarde).
+set -euo pipefail
 
-#####################################################################
-# Script de restauration PostgreSQL pour EduPilot
-# Auteur: Système EduPilot
-# Date: 22 Décembre 2025
-#####################################################################
+die() { echo "[ERREUR] $*" >&2; exit 1; }
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 
-# Couleurs pour les logs
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+ARCHIVE="${1:-}"
+CONFIRM=""
+shift || true
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --confirm) CONFIRM="${2:-}"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 
-# Vérifier les arguments
-if [ $# -eq 0 ]; then
-    echo -e "${RED}[ERREUR]${NC} Aucun fichier de sauvegarde spécifié"
-    echo "Usage: $0 <chemin_vers_backup.sql.gz>"
-    echo ""
-    echo "Sauvegardes disponibles:"
-    find /var/backups/edupilot/postgres -name "edupilot_*.sql.gz" -type f -printf "%T@ %p\n" | sort -rn | cut -d' ' -f2- | head -10
-    exit 1
-fi
+[ -n "$ARCHIVE" ] || die "Usage : $0 <fichier.sql.gz.enc> --confirm <nom_de_la_base>"
+[ -r "$ARCHIVE" ] || die "Fichier illisible : $ARCHIVE"
+[ -n "${DATABASE_URL:-}" ] || die "DATABASE_URL n'est pas définie."
+[ -n "${BACKUP_PASSPHRASE_FILE:-}" ] || die "BACKUP_PASSPHRASE_FILE n'est pas définie."
+[ -r "${BACKUP_PASSPHRASE_FILE}" ] || die "Phrase secrète illisible : ${BACKUP_PASSPHRASE_FILE}"
 
-BACKUP_FILE="$1"
+for tool in psql openssl gzip sha256sum; do
+  command -v "$tool" >/dev/null 2>&1 || die "Outil manquant : $tool"
+done
 
-# Vérifier que le fichier existe
-if [ ! -f "$BACKUP_FILE" ]; then
-    echo -e "${RED}[ERREUR]${NC} Fichier de sauvegarde non trouvé: $BACKUP_FILE"
-    exit 1
-fi
+eval "$(node -e '
+const u = new URL(process.env.DATABASE_URL);
+const q = (v) => `'"'"'${String(v).replace(/'"'"'/g, `'"'"'\\'"'"''"'"'`)}'"'"'`;
+console.log(`DB_USER=${q(decodeURIComponent(u.username))}`);
+console.log(`DB_PASS=${q(decodeURIComponent(u.password))}`);
+console.log(`DB_HOST=${q(u.hostname)}`);
+console.log(`DB_PORT=${q(u.port || "5432")}`);
+console.log(`DB_NAME=${q(u.pathname.replace(/^\//, ""))}`);
+')"
 
-# Charger les variables d'environnement
-if [ -f "$(dirname "$0")/../../.env" ]; then
-    export $(cat "$(dirname "$0")/../../.env" | grep -v '^#' | xargs)
+[ "$CONFIRM" = "$DB_NAME" ] || die "Restauration REFUSÉE. Ajoutez « --confirm $DB_NAME » : cette opération écrase la base « $DB_NAME » sur $DB_HOST:$DB_PORT."
+
+# Intégrité avant toute écriture.
+if [ -r "${ARCHIVE}.sha256" ]; then
+  EXPECTED="$(cut -d' ' -f1 < "${ARCHIVE}.sha256")"
+  ACTUAL="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
+  [ "$EXPECTED" = "$ACTUAL" ] || die "Empreinte SHA256 incorrecte : le fichier est altéré ou incomplet. Rien n'a été restauré."
+  log "Empreinte vérifiée."
 else
-    echo -e "${RED}[ERREUR]${NC} Fichier .env non trouvé"
-    exit 1
+  log "[AVERTISSEMENT] Pas de fichier .sha256 : intégrité non vérifiable."
 fi
 
-# Extraire les informations de connexion
-DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-DB_PASS=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
-
-echo "=========================================="
-echo "Restauration PostgreSQL EduPilot"
-echo "=========================================="
-echo "Fichier: $BACKUP_FILE"
-echo "Base de données: $DB_NAME"
-echo "Hôte: $DB_HOST:$DB_PORT"
-echo ""
-
-# Vérifier le checksum si disponible
-if [ -f "${BACKUP_FILE}.sha256" ]; then
-    echo -e "${YELLOW}[INFO]${NC} Vérification du checksum..."
-    EXPECTED_CHECKSUM=$(cat "${BACKUP_FILE}.sha256")
-    ACTUAL_CHECKSUM=$(sha256sum "$BACKUP_FILE" | cut -d' ' -f1)
-
-    if [ "$EXPECTED_CHECKSUM" = "$ACTUAL_CHECKSUM" ]; then
-        echo -e "${GREEN}[OK]${NC} Checksum validé"
-    else
-        echo -e "${RED}[ERREUR]${NC} Checksum invalide! Le fichier peut être corrompu."
-        echo "Attendu: $EXPECTED_CHECKSUM"
-        echo "Obtenu: $ACTUAL_CHECKSUM"
-        read -p "Continuer quand même? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
-    fi
-fi
-
-# Confirmation
-echo -e "${YELLOW}[AVERTISSEMENT]${NC} Cette opération va ÉCRASER toutes les données actuelles!"
-read -p "Êtes-vous sûr de vouloir continuer? (yes/no) " -r
-echo
-if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-    echo "Restauration annulée"
-    exit 0
-fi
-
-# Créer une sauvegarde de sécurité avant restauration
-echo -e "${YELLOW}[INFO]${NC} Création d'une sauvegarde de sécurité..."
-SAFETY_BACKUP="/tmp/edupilot_pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
 export PGPASSWORD="$DB_PASS"
-if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" | gzip > "$SAFETY_BACKUP"; then
-    echo -e "${GREEN}[OK]${NC} Sauvegarde de sécurité créée: $SAFETY_BACKUP"
-else
-    echo -e "${RED}[ERREUR]${NC} Échec de la sauvegarde de sécurité"
-    unset PGPASSWORD
-    exit 1
+trap 'unset PGPASSWORD' EXIT
+PSQL=(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1)
+
+log "Restauration dans « $DB_NAME » ($DB_HOST:$DB_PORT) — le contenu actuel est remplacé."
+"${PSQL[@]}" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' >/dev/null
+
+set -o pipefail
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "file:${BACKUP_PASSPHRASE_FILE}" -in "$ARCHIVE" \
+  | gzip -dc \
+  | "${PSQL[@]}" -q \
+  || die "Échec de la restauration : la base est dans un état intermédiaire, relancez la commande."
+
+log "Données restaurées. Vérification…"
+
+COUNTS_SQL="SELECT coalesce(json_object_agg(table_name, rows), '{}'::json)::text FROM (
+  SELECT c.relname AS table_name,
+         (xpath('/row/cnt/text()', query_to_xml(format('SELECT count(*) AS cnt FROM public.%I', c.relname), false, true, '')))[1]::text::bigint AS rows
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r'
+) t;"
+AFTER="$("${PSQL[@]}" -At -c "$COUNTS_SQL")"
+
+META="${ARCHIVE%.sql.gz.enc}.meta.json"
+if [ ! -r "$META" ]; then
+  log "[AVERTISSEMENT] Manifeste absent ($META) : comparaison impossible, lignes restaurées affichées seules."
+  node -e 'const c=JSON.parse(process.argv[1]); for (const [t,n] of Object.entries(c).sort()) console.log(`  ${t.padEnd(36)} ${String(n).padStart(9)}`);' "$AFTER"
+  exit 0
 fi
 
-# Restauration
-echo -e "${YELLOW}[INFO]${NC} Démarrage de la restauration..."
+node -e '
+const [metaFile, afterJson] = process.argv.slice(1);
+const before = JSON.parse(require("fs").readFileSync(metaFile, "utf8")).rowCounts ?? {};
+const after = JSON.parse(afterJson);
+const tables = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+const diffs = [];
+for (const t of tables) {
+  const b = Number(before[t] ?? 0), a = Number(after[t] ?? 0);
+  if (b !== a) diffs.push({ table: t, avant: b, apres: a });
+}
+console.log(`  ${tables.length} table(s) comparée(s), ${Object.values(after).reduce((n, v) => n + Number(v), 0)} ligne(s) restaurée(s).`);
+if (diffs.length === 0) {
+  console.log("  Aucun écart : la restauration est conforme au manifeste.");
+  process.exit(0);
+}
+console.error(`  ${diffs.length} ÉCART(S) :`);
+for (const d of diffs) console.error(`    ${d.table.padEnd(36)} avant ${String(d.avant).padStart(9)} · après ${String(d.apres).padStart(9)}`);
+process.exit(1);
+' "$META" "$AFTER" || die "Restauration INCOMPLÈTE : le nombre de lignes ne correspond pas au manifeste."
 
-# Décompresser et restaurer
-if gunzip -c "$BACKUP_FILE" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
-    echo -e "${GREEN}[SUCCÈS]${NC} Restauration terminée avec succès!"
-    echo ""
-    echo "Sauvegarde de sécurité conservée: $SAFETY_BACKUP"
-    echo "Vous pouvez la supprimer avec: rm $SAFETY_BACKUP"
-else
-    echo -e "${RED}[ERREUR]${NC} Échec de la restauration"
-    echo ""
-    echo "Tentative de restauration de la sauvegarde de sécurité..."
-    if gunzip -c "$SAFETY_BACKUP" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
-        echo -e "${GREEN}[OK]${NC} Sauvegarde de sécurité restaurée"
-    else
-        echo -e "${RED}[ERREUR CRITIQUE]${NC} Impossible de restaurer la sauvegarde de sécurité!"
-        echo "Sauvegarde: $SAFETY_BACKUP"
-    fi
-    unset PGPASSWORD
-    exit 1
-fi
-
-unset PGPASSWORD
-
-echo "=========================================="
-echo "Restauration terminée"
-echo "=========================================="
-
-exit 0
+log "Restauration terminée et vérifiée."

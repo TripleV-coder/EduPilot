@@ -343,11 +343,20 @@ async function generateFeesReport(
 
   const fees = await prisma.fee.findMany({
     where,
-    include: {
-      _count: { select: { payments: true } },
-    },
     orderBy: { createdAt: "desc" },
   });
+
+  // Nombre de paiements par frais en une requête groupée : `_count` dans la
+  // liste se traduit par une jointure sur un agrégat de tous les paiements,
+  // que le planificateur peut réexécuter pour chaque frais sous RLS (audit M2).
+  const paymentGroups = fees.length
+    ? await prisma.payment.groupBy({
+        by: ["feeId"],
+        where: { feeId: { in: fees.map((f) => f.id) } },
+        _count: { _all: true },
+      })
+    : [];
+  const paymentsByFee = new Map(paymentGroups.map((group) => [group.feeId, group._count._all]));
 
   return {
     fees: fees.map((f) => ({
@@ -355,7 +364,7 @@ async function generateFeesReport(
       name: f.name,
       amount: f.amount,
       dueDate: f.dueDate,
-      paymentsCount: f._count.payments,
+      paymentsCount: paymentsByFee.get(f.id) ?? 0,
       isRequired: f.isRequired,
     })),
     totalFees: fees.reduce((sum, f) => sum + Number(f.amount), 0),

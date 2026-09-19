@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "@/lib/rbac/permissions";
@@ -15,6 +15,7 @@ import {
     Phone, Syringe
 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { fetchStudentList } from "@/lib/api/student-list";
 
 type EmergencyContact = {
     id: string;
@@ -82,17 +83,14 @@ export default function MedicalRecordsPage() {
     const fetchStudents = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/students?limit=100");
-            if (res.ok) {
-                const data = await res.json();
-                const studentList = data.students || [];
-                setStudents(studentList);
-                if (studentList.length === 1) {
-                    fetchMedicalRecord(studentList[0]);
-                }
+            const studentList = await fetchStudentList<Student>("limit=100");
+            setStudents(studentList);
+            if (studentList.length === 1) {
+                fetchMedicalRecord(studentList[0]);
             }
         } catch (error) {
             console.error("Failed to fetch students", error);
+            toast.error("Impossible de charger la liste des élèves.");
         } finally {
             setLoading(false);
         }

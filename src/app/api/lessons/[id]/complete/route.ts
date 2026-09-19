@@ -124,7 +124,7 @@ const studentProfile = await prisma.studentProfile.findUnique({
           type: "SUCCESS",
           title: "Cours terminé !",
           message: `Félicitations ! Vous avez terminé le cours "${course.title}"`,
-          link: `/courses/${course.id}`,
+          link: `/dashboard/courses/${course.id}`,
         },
       });
 
@@ -149,7 +149,7 @@ const studentProfile = await prisma.studentProfile.findUnique({
             type: "INFO",
             title: "Cours terminé par un élève",
             message: `${session.user.firstName} ${session.user.lastName} a terminé le cours "${course.title}"`,
-            link: `/courses/${course.id}`,
+            link: `/dashboard/courses/${course.id}`,
           },
         });
       }

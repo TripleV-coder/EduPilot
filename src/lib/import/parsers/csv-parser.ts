@@ -217,14 +217,3 @@ export function generateCsv(
 
     return [headerLine, ...dataLines].join("\n");
 }
-
-/**
- * Parse uploaded file as CSV
- */
-export async function parseUploadedCsv(
-    file: File,
-    options: CsvParseOptions = {}
-): Promise<CsvParseResult> {
-    const content = await fileToString(file);
-    return parseCsvContent(content, options);
-}

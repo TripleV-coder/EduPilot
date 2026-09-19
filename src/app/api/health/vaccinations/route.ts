@@ -15,6 +15,7 @@ import {
   requireHealthRole,
 } from "@/lib/health/access";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 const vaccinationSchema = z.object({
   medicalRecordId: z.string().cuid(),
@@ -47,12 +48,10 @@ async function getVaccinationStats({
     "Varicelle",
   ];
 
+  // Seuls les noms des vaccins servent au calcul de couverture.
   const medicalRecords = await prisma.medicalRecord.findMany({
     where: medicalRecordWhere,
-    include: {
-      student: { select: { id: true, user: { select: { firstName: true, lastName: true } } } },
-      vaccinations: true,
-    },
+    select: { vaccinations: { select: { vaccineName: true } } },
   });
 
   const now = new Date();
@@ -74,11 +73,16 @@ async function getVaccinationStats({
             { nextDueDate: { lt: now } },
           ],
         },
-        include: {
+        // Seuls l'identifiant, le vaccin, l'échéance et le nom de l'élève sont
+        // renvoyés : pas de dossier médical ni de profil élève complet en mémoire.
+        select: {
+          id: true,
+          vaccineName: true,
+          nextDueDate: true,
           medicalRecord: {
-            include: {
+            select: {
               student: {
-                include: {
+                select: {
                   user: { select: { firstName: true, lastName: true } },
                 },
               },
@@ -155,6 +159,39 @@ export const GET = createApiHandler(
         medicalRecordWhere.student = { schoolId: session.user.schoolId! };
       }
 
+      const vaccinationStats = await getVaccinationStats({
+        medicalRecordWhere,
+        vaccinationWhere,
+        includeOverdue,
+      });
+
+      // Liste de l'équipe sans élève précis : paginée et minimale (C3,
+      // minimisation des données de santé) ; statistiques de couverture
+      // conservées. Modes élève/dossier inchangés.
+      const listMode = !medicalRecordId && !studentId && session.user.role !== "PARENT" && session.user.role !== "STUDENT";
+      if (listMode) {
+        const page = getCursorParams(searchParams);
+        const [rows, total] = await Promise.all([
+          prisma.vaccination.findMany({
+            where: { AND: [vaccinationWhere, keysetWhere("dateGiven", "desc", page.cursor)] },
+            include: {
+              medicalRecord: {
+                select: { studentId: true, student: { select: { user: { select: { firstName: true, lastName: true } } } } },
+              },
+            },
+            orderBy: keysetOrderBy("dateGiven", "desc"),
+            take: page.limit + 1,
+          }),
+          page.withTotal ? prisma.vaccination.count({ where: vaccinationWhere }) : Promise.resolve(undefined),
+        ]);
+        const result = buildCursorPage(rows, page.limit, (row) => row.dateGiven);
+        return NextResponse.json({
+          vaccinations: result.data,
+          pagination: total === undefined ? result.pagination : { ...result.pagination, total },
+          stats: vaccinationStats,
+        });
+      }
+
       const vaccinations = await prisma.vaccination.findMany({
         where: vaccinationWhere,
         include: {
@@ -169,12 +206,6 @@ export const GET = createApiHandler(
           },
         },
         orderBy: { dateGiven: "desc" },
-      });
-
-      const vaccinationStats = await getVaccinationStats({
-        medicalRecordWhere,
-        vaccinationWhere,
-        includeOverdue,
       });
 
       return NextResponse.json({

@@ -36,7 +36,6 @@ export async function apiFetch<T = unknown>(
   } = options;
 
   const requestId = providedRequestId ?? generateRequestId();
-  const _url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const headers = new Headers(init.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
   if (!headers.has("Content-Type")) {

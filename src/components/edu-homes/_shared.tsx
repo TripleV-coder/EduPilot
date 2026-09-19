@@ -5,7 +5,6 @@ import {
     PageHeader as UnifiedPageHeader,
     type PageBreadcrumb,
 } from "@/components/layout/page-shell";
-import { Button } from "@/components/edu";
 
 export function PageHeader({
     greeting,
@@ -48,40 +47,6 @@ export function SubLabel({ children }: { children: React.ReactNode }) {
         >
             {children}
         </div>
-    );
-}
-
-export function PrimaryCta({
-    label,
-    icon,
-    iconRight,
-    onClick,
-}: {
-    label: string;
-    icon?: React.ComponentProps<typeof Button>["icon"];
-    iconRight?: React.ComponentProps<typeof Button>["iconRight"];
-    onClick?: () => void;
-}) {
-    return (
-        <Button icon={icon} iconRight={iconRight} onClick={onClick}>
-            {label}
-        </Button>
-    );
-}
-
-export function SecondaryCta({
-    label,
-    icon,
-    onClick,
-}: {
-    label: string;
-    icon?: React.ComponentProps<typeof Button>["icon"];
-    onClick?: () => void;
-}) {
-    return (
-        <Button variant="secondary" icon={icon} onClick={onClick}>
-            {label}
-        </Button>
     );
 }
 

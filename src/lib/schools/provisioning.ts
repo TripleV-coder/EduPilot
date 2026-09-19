@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { hash } from "bcryptjs";
 import { Prisma, SchoolLevel, SchoolType, SiteType, UserRole } from "@prisma/client";
+import { DEFAULT_ENABLED_MODULES } from "@/lib/modules/catalog";
+import { defaultRetentionPoliciesForNewSchool } from "@/lib/security/retention-defaults";
 
 function trimOrNull(value?: string | null) {
   const trimmed = value?.trim();
@@ -211,6 +213,14 @@ export async function createSchoolWithDefaults(
           maxGrade: 20,
           passingGrade: 10,
         },
+      },
+      // Lot 6 (minimisation) : socle seul ; santé, discipline, IA, badges, RH,
+      // cantine, transport, cours en ligne, anciens élèves et signature sont à
+      // activer par l'école (décision du propriétaire du 2026-09-14).
+      enabledModules: [...DEFAULT_ENABLED_MODULES],
+      // Lot 6 : durées de conservation décidées le 2026-09-14, actives dès la création.
+      dataRetentionPolicies: {
+        create: defaultRetentionPoliciesForNewSchool(),
       },
       academicYears: {
         create: {

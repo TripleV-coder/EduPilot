@@ -2,11 +2,50 @@ import { describe, it, expect } from "vitest";
 import {
   suggestMapping,
   applyMapping,
+  ignoredColumnNotices,
+  PARENT_EMAIL_NOTICE,
   STUDENT_FIELDS,
   TEACHER_FIELDS,
   CLASS_FIELDS,
   PARENT_FIELDS,
 } from "@/lib/import/mapping-utils";
+
+/**
+ * N50 — la colonne « Email parent » de l'import des élèves était proposée,
+ * acceptée, puis jamais utilisée (aucun rattachement, aucun avertissement).
+ * Le rattachement passe par l'import « Parents » (matricule de l'enfant).
+ */
+describe("N50 — colonne « Email parent » à l'import des élèves", () => {
+  it("n'est plus proposée comme champ des élèves", () => {
+    expect(STUDENT_FIELDS.map((f) => f.key)).not.toContain("parentEmail");
+  });
+
+  it("n'est jamais rattachée à l'email de l'élève", () => {
+    const headers = ["Email", "Email parent", "Parent email", "Email du parent", "Courriel tuteur"];
+    const mapping = suggestMapping(headers, STUDENT_FIELDS);
+    expect(mapping["Email"]).toBe("email");
+    for (const header of headers.slice(1)) expect(mapping[header]).toBeUndefined();
+  });
+
+  it("est signalée à l'utilisateur, avec le chemin vers l'import des parents", () => {
+    expect(ignoredColumnNotices(["Nom", "Prénom", "E-mail du Parent"], "STUDENTS")).toEqual([PARENT_EMAIL_NOTICE]);
+    expect(PARENT_EMAIL_NOTICE).toMatch(/import « Parents »/);
+  });
+
+  it("reste l'email du parent lui-même dans l'import « Parents »", () => {
+    expect(suggestMapping(["Email parent"], PARENT_FIELDS)["Email parent"]).toBe("email");
+  });
+
+  it("n'est pas non plus rattachée à l'email d'un enseignant ou d'un professeur principal", () => {
+    expect(suggestMapping(["Email parent"], TEACHER_FIELDS)["Email parent"]).toBeUndefined();
+    expect(suggestMapping(["Email parent"], CLASS_FIELDS)["Email parent"]).toBeUndefined();
+  });
+
+  it("ne signale rien pour un fichier sans cette colonne ni pour les autres imports", () => {
+    expect(ignoredColumnNotices(["Nom", "Prénom", "Email"], "STUDENTS")).toEqual([]);
+    expect(ignoredColumnNotices(["Nom", "Email parent"], "PARENTS")).toEqual([]);
+  });
+});
 
 describe("suggestMapping", () => {
   it("mappe les correspondances exactes (clé ou label)", () => {

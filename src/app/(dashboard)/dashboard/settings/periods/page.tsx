@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
+import { PageHeader } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarRange, Plus, CheckCircle2, Clock, CalendarX, Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,13 +41,13 @@ function getPeriodStatus(startDate: string, endDate: string): { label: string; s
         };
     } else if (now > end) {
         return {
-            label: "Termin\u00e9",
+            label: "Terminé",
             style: "bg-muted text-muted-foreground border-border",
             icon: <CalendarX className="w-3 h-3" />,
         };
     } else {
         return {
-            label: "Planifi\u00e9",
+            label: "Planifié",
             style: "bg-muted text-muted-foreground border-border",
             icon: <Clock className="w-3 h-3" />,
         };
@@ -129,7 +128,7 @@ export default function AcademicPeriodsPage() {
                     body: JSON.stringify({ name: formName, startDate: formStart, endDate: formEnd, sequence: formSequence }),
                 });
                 if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Erreur"); }
-                toast({ title: "Succ\u00e8s", description: "P\u00e9riode modifi\u00e9e." });
+                toast({ title: "Succès", description: "Période modifiée." });
             } else {
                 const res = await fetch("/api/periods", {
                     method: "POST",
@@ -140,7 +139,7 @@ export default function AcademicPeriodsPage() {
                     }),
                 });
                 if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Erreur"); }
-                toast({ title: "Succ\u00e8s", description: "P\u00e9riode cr\u00e9\u00e9e." });
+                toast({ title: "Succès", description: "Période créée." });
             }
             mutate(periodsKey);
             resetForm();
@@ -181,12 +180,12 @@ export default function AcademicPeriodsPage() {
             <div className="space-y-6 max-w-4xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="S\u00e9quences et P\u00e9riodes"
-                        description="D\u00e9coupez l'ann\u00e9e scolaire en trimestres ou semestres"
+                        title="Séquences et Périodes"
+                        description="Découpez l'année scolaire en trimestres ou semestres"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Param\u00e8tres" },
-                            { label: "P\u00e9riodes" },
+                            { label: "Paramètres" },
+                            { label: "Périodes" },
                         ]}
                     />
                     <div className="flex items-center gap-3">
@@ -202,7 +201,7 @@ export default function AcademicPeriodsPage() {
                         </Select>
                         <Button className="gap-2 shadow-sm" onClick={() => { resetForm(); setShowForm(true); setFormSequence(periods.length + 1); }}>
                             <Plus className="w-4 h-4" />
-                            Nouvelle P\u00e9riode
+                            Nouvelle Période
                         </Button>
                     </div>
                 </div>
@@ -227,7 +226,7 @@ export default function AcademicPeriodsPage() {
                     <Card className="border-primary/30 shadow-sm">
                         <CardContent className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold">{editingId ? "Modifier la p\u00e9riode" : "Nouvelle p\u00e9riode"}</h3>
+                                <h3 className="text-lg font-semibold">{editingId ? "Modifier la période" : "Nouvelle période"}</h3>
                                 <Button variant="ghost" size="icon" onClick={resetForm}><X className="h-4 w-4" /></Button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,7 +246,7 @@ export default function AcademicPeriodsPage() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Date de d\u00e9but</Label>
+                                    <Label>Date de début</Label>
                                     <Input type="date" value={formStart} onChange={(e) => setFormStart(e.target.value)} />
                                 </div>
                                 <div className="space-y-2">
@@ -255,7 +254,7 @@ export default function AcademicPeriodsPage() {
                                     <Input type="date" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Num\u00e9ro de s\u00e9quence</Label>
+                                    <Label>Numéro de séquence</Label>
                                     <Input type="number" min={1} value={formSequence} onChange={(e) => setFormSequence(Number(e.target.value))} />
                                 </div>
                             </div>
@@ -282,8 +281,8 @@ export default function AcademicPeriodsPage() {
                 {!periodsLoading && periods.length === 0 && selectedYearId && (
                     <div className="text-center py-16 border border-dashed border-border rounded-xl bg-muted/30">
                         <CalendarRange className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                        <h3 className="text-lg font-medium text-foreground">Aucune p\u00e9riode d\u00e9finie</h3>
-                        <p className="text-sm text-muted-foreground mt-2">Cr\u00e9ez des p\u00e9riodes pour cette ann\u00e9e scolaire.</p>
+                        <h3 className="text-lg font-medium text-foreground">Aucune période définie</h3>
+                        <p className="text-sm text-muted-foreground mt-2">Créez des périodes pour cette année scolaire.</p>
                     </div>
                 )}
 
@@ -318,7 +317,7 @@ export default function AcademicPeriodsPage() {
                                                 <span className="flex items-center gap-1">
                                                     <CalendarRange className="w-4 h-4" /> {weeks} Semaines
                                                 </span>
-                                                <span>S\u00e9quence: <strong className="text-foreground">{period.sequence}</strong></span>
+                                                <span>Séquence: <strong className="text-foreground">{period.sequence}</strong></span>
                                                 <span>Type: <strong className="text-foreground">{period.type === "TRIMESTER" ? "Trimestre" : period.type === "SEMESTER" ? "Semestre" : "Hybride"}</strong></span>
                                             </div>
                                         </div>

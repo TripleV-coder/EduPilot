@@ -9,6 +9,7 @@ import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 
 import { Button, Card, Icon, SaveStatus } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { useAutoSave } from "@/hooks/use-autosave";
 
 interface LocalePrefs {
@@ -58,7 +59,7 @@ const CURRENCY_OPTIONS = [
 ];
 
 export default function LocaleSettingsPage() {
-    const { data: profileData, mutate } = useSWR<ProfileResponse>(
+    const { data: profileData, mutate, error: loadError, mutate: reloadPage } = useSWR<ProfileResponse>(
         "/api/user/profile",
         fetcher
     );
@@ -123,6 +124,10 @@ export default function LocaleSettingsPage() {
                         { label: "Langue & région" },
                     ]}
                 />
+
+            {loadError ? (
+                <PageError message="Impossible de charger vos préférences de langue." onRetry={() => void reloadPage()} />
+            ) : null}
 
                 <Card padding={0}>
                     <div

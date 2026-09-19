@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { GraduationCap, Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2, Layers } from "lucide-react";
+import { Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2, Layers } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
@@ -160,11 +159,12 @@ export default function ClassLevelsSettingsPage() {
                                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                             required
                                         >
+                                            {/* Valeurs de l'enum SchoolLevel (N39) : « MIDDLE », « HIGH »,
+                                                « UNIVERSITY » étaient refusées par l'API (400). */}
                                             <option value="">Sélectionner...</option>
                                             <option value="PRIMARY">Primaire</option>
-                                            <option value="MIDDLE">Collège</option>
-                                            <option value="HIGH">Lycée</option>
-                                            <option value="UNIVERSITY">Supérieur</option>
+                                            <option value="SECONDARY_COLLEGE">Collège</option>
+                                            <option value="SECONDARY_LYCEE">Lycée</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">

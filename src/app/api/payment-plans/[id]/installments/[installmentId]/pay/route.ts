@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
@@ -148,7 +148,7 @@ export const POST = createApiHandler(
           type: "SUCCESS",
           title: "Paiement reçu",
           message: `Votre paiement de ${installment.amount} a été reçu${planCompleted ? ". Plan de paiement terminé !" : ""}`,
-          link: `/payments/plans/${id}`,
+          link: "/dashboard/finance",
         },
       });
 
@@ -160,7 +160,7 @@ export const POST = createApiHandler(
             type: "SUCCESS",
             title: "Paiement reçu",
             message: `Paiement de ${installment.amount} reçu pour ${installment.paymentPlan.student.user.firstName}${planCompleted ? ". Plan de paiement terminé !" : ""}`,
-            link: `/payments/plans/${id}`,
+            link: "/dashboard/finance",
           })),
         });
       }

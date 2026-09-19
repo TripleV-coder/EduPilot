@@ -123,14 +123,21 @@ describe("GET /api/health/emergency-contacts", () => {
     expect(res.status).toBe(404);
   });
 
-  it("should scope SCHOOL_ADMIN to their school", async () => {
+  // Audit C3 (minimisation des données de santé) : ce test exigeait, pour la
+  // liste de l'équipe sans élève précis, un findMany de TOUS les contacts de
+  // l'école. Ce mode est désormais paginé ; le périmètre de l'école reste vérifié.
+  it("should scope SCHOOL_ADMIN to their school (paginated list mode)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.emergencyContact.findMany).mockResolvedValue([makeContact()]);
+    vi.mocked(prisma.emergencyContact.count).mockResolvedValue(1 as never);
     const res = await GET(makeRequest("http://localhost/api/health/emergency-contacts"), { session: makeSession("SCHOOL_ADMIN") });
     expect(res.status).toBe(200);
-    expect(prisma.emergencyContact.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { medicalRecord: { student: { schoolId: FIXTURES.schoolA } } } })
-    );
+    const args = vi.mocked(prisma.emergencyContact.findMany).mock.calls[0][0] as unknown as {
+      where: { AND: unknown[] };
+      take: number;
+    };
+    expect(args.where.AND[0]).toEqual({ medicalRecord: { student: { schoolId: FIXTURES.schoolA } } });
+    expect(args.take).toBe(21);
   });
 });
 

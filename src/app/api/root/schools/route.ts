@@ -1,14 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireRoot } from "@/lib/security/require-root";
-import { getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 import { SchoolType, SchoolLevel } from "@prisma/client";
-import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { authLimiter, checkRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import {
   createOrganization,
   createOrganizationMembership,
@@ -16,6 +15,7 @@ import {
   createSchoolWithDefaults,
 } from "@/lib/schools/provisioning";
 import { schoolDeploymentSchema, schoolQuotaUpdateSchema } from "@/lib/validations/root";
+import { generateTempPassword } from "@/lib/auth/password-generator";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
@@ -28,7 +28,8 @@ export const GET = createApiHandler(
   if (guard) return guard;
 
   try {
-    const { page, limit, skip } = getPaginationParams(request);
+    // Lot 3 : curseur sur la date de création par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc" });
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const type = url.searchParams.get("type");
@@ -51,10 +52,10 @@ export const GET = createApiHandler(
 
     const [schools, total, studentCounts, userCounts] = await Promise.all([
       prisma.school.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
+        where: list.where(where),
+        skip: list.skip,
+        take: list.take,
+        orderBy: list.orderBy,
         select: {
           id: true,
           name: true,
@@ -90,7 +91,7 @@ export const GET = createApiHandler(
           },
         },
       }),
-      prisma.school.count({ where }),
+      list.needsTotal ? prisma.school.count({ where }) : Promise.resolve(undefined),
       prisma.studentProfile.groupBy({
         by: ["schoolId"],
         _count: true,
@@ -128,22 +129,19 @@ export const GET = createApiHandler(
       schoolIds.map((id) => [id, (assignedMap.get(id) ?? 0) + (legacyMap.get(id) ?? 0)] as const)
     );
 
-    return createPaginatedResponse(
-      schools.map((s) => {
-        return {
-          ...s,
-          stats: {
-            users: userCountBySchool.get(s.id) ?? 0,
-            classes: s._count.classes,
-            students: studentCountBySchool.get(s.id) ?? 0,
-            teachers: teacherCountBySchool.get(s.id) ?? 0,
-          },
-          _count: undefined,
-        };
-      }),
-      total,
-      { page, limit, skip }
-    );
+    const rows = schools.map((s) => {
+      return {
+        ...s,
+        stats: {
+          users: userCountBySchool.get(s.id) ?? 0,
+          classes: s._count.classes,
+          students: studentCountBySchool.get(s.id) ?? 0,
+          teachers: teacherCountBySchool.get(s.id) ?? 0,
+        },
+        _count: undefined,
+      };
+    });
+    return NextResponse.json(list.page(rows, (school) => school.createdAt, total));
   } catch (error) {
     logger.error("Error fetching root schools", error as Error);
     return NextResponse.json(
@@ -228,6 +226,11 @@ export const POST = createApiHandler(
     const body = await request.json();
     const validatedData = schoolDeploymentSchema.parse(body);
     
+    // N31 : jamais de mot de passe standard. Sans saisie, mot de passe provisoire
+    // unique (haché par createSchoolAdminUser, qui impose mustChangePassword),
+    // renvoyé une seule fois au super-administrateur.
+    const provisionalAdminPassword = validatedData.adminPassword ? null : generateTempPassword();
+
     const result = await prisma.$transaction(async (tx) => {
       let organization = null;
 
@@ -260,7 +263,7 @@ export const POST = createApiHandler(
 
       const adminUser = await createSchoolAdminUser(tx, school.id, {
         email: validatedData.adminEmail,
-        password: validatedData.adminPassword,
+        password: validatedData.adminPassword ?? (provisionalAdminPassword as string),
         firstName: validatedData.adminFirstName,
         lastName: validatedData.adminLastName,
       });
@@ -293,7 +296,8 @@ export const POST = createApiHandler(
         id: result.adminUser.id, 
         email: result.adminUser.email,
         firstName: result.adminUser.firstName,
-        lastName: result.adminUser.lastName
+        lastName: result.adminUser.lastName,
+        ...(provisionalAdminPassword ? { provisionalPassword: provisionalAdminPassword } : {}),
       }
     }, { status: 201 });
   } catch (error) {

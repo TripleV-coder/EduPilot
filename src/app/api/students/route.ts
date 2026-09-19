@@ -3,74 +3,23 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { studentCreateSchema } from "@/lib/validations/user";
+import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import { isZodError } from "@/lib/is-zod-error";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizePlainText } from "@/lib/sanitize";
-import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { Permission } from "@/lib/rbac/permissions";
 import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
-const DEFAULT_PASSWORD = "00000000";
 
-/**
- * GET /api/students
- * @swagger
- * /api/students:
- *   get:
- *     summary: Liste des élèves
- *     description: Récupère la liste paginée des élèves avec filtres optionnels
- *     tags: [Students]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: classId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par classe
- *       - name: academicYearId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par année académique
- *       - name: search
- *         in: query
- *         schema:
- *           type: string
- *         description: Recherche par nom, prénom ou matricule
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *           maximum: 100
- *     responses:
- *       200:
- *         description: Liste des élèves
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Student'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/students — contrat décrit par docs/openapi.json (npm run docs:openapi). */
+/** Plafond de sécurité d'un effectif de classe (?classId=) : aucune classe réelle ne l'atteint. */
+const CLASS_ROSTER_MAX = 1000;
+
 export const GET = createApiHandler(
   async (request, { session }) => {
     const { searchParams } = new URL(request.url);
@@ -79,7 +28,18 @@ export const GET = createApiHandler(
     const search = searchParams.get("search");
     const status = searchParams.get("status");
 
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // N19 : l'effectif d'une classe est borné par nature et ne doit jamais être
+    // tronqué (appel, saisie de notes, bulletins, promotion) : plafond de sécurité
+    // CLASS_ROSTER_MAX avec ?classId=, 100 pour les listes de l'établissement.
+    const listLimits = { defaultLimit: 20, maxLimit: classId ? CLASS_ROSTER_MAX : 100 };
+    // Lot 3 : curseur (keyset), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(searchParams, listLimits);
+    const emptyList = () =>
+      NextResponse.json({
+        data: [],
+        pagination: { limit: cursorPage.limit, nextCursor: null, hasNextPage: false, ...(cursorPage.withTotal ? { total: 0 } : {}) },
+      });
 
     if (!academicYearId && session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
       const currentYear = await prisma.academicYear.findFirst({
@@ -106,7 +66,7 @@ export const GET = createApiHandler(
 
       const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
       if (childrenIds.length === 0) {
-        return createPaginatedResponse([], 0, { page, limit, skip });
+        return emptyList();
       }
 
       where.id = { in: childrenIds };
@@ -117,7 +77,7 @@ export const GET = createApiHandler(
       });
       
       if (!studentProfile) {
-        return createPaginatedResponse([], 0, { page, limit, skip });
+        return emptyList();
       }
       
       where.id = studentProfile.id;
@@ -157,7 +117,7 @@ export const GET = createApiHandler(
 
     const [students, total] = await Promise.all([
       prisma.studentProfile.findMany({
-        where,
+        where: cursorPage.cursor ? { AND: [where, keysetWhere("user.lastName", "asc", cursorPage.cursor)] } : where,
         select: {
           id: true,
           matricule: true,
@@ -199,11 +159,10 @@ export const GET = createApiHandler(
             take: 1, // Only need first active enrollment
           }
         },
-        skip,
-        take: limit,
-        orderBy: { user: { lastName: "asc" } }
+        orderBy: keysetOrderBy("user.lastName", "asc"),
+        take: cursorPage.limit + 1,
       }),
-      prisma.studentProfile.count({ where })
+      cursorPage.withTotal ? prisma.studentProfile.count({ where }) : Promise.resolve(undefined),
     ]);
 
     interface StudentRowWithUser {
@@ -220,7 +179,8 @@ export const GET = createApiHandler(
         academicYear: { id: string; name: string; isCurrent: boolean; }
       }>;
     }
-    const formattedStudents = students.map((student) => {
+    const cursorResult = buildCursorPage(students, cursorPage.limit, (student) => student.user.lastName);
+    const formattedStudents = cursorResult.data.map((student) => {
       const row = student as unknown as StudentRowWithUser;
       return {
         ...row,
@@ -235,7 +195,10 @@ export const GET = createApiHandler(
       };
     });
 
-    return createPaginatedResponse(formattedStudents, total, { page, limit, skip });
+    return NextResponse.json({
+      data: formattedStudents,
+      pagination: { ...cursorResult.pagination, ...(total !== undefined ? { total } : {}) },
+    });
   },
   {
     allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT"],
@@ -309,8 +272,10 @@ export const POST = createApiHandler(
       }
     }
 
-    const passwordToSet = validatedData.password || DEFAULT_PASSWORD;
-    const hashedPassword = await bcrypt.hash(passwordToSet, 10);
+    // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
+    // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
+    const provisional = validatedData.password ? null : await issueProvisionalPassword();
+    const hashedPassword = provisional?.hash ?? (await bcrypt.hash(validatedData.password as string, 10));
 
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -322,7 +287,8 @@ export const POST = createApiHandler(
           role: "STUDENT",
           schoolId: targetSchoolId,
           phone: validatedData.phone,
-          mustChangePassword: !validatedData.password,
+          // Mot de passe connu de l'auteur de la création : à changer (M1).
+          mustChangePassword: true,
         },
       });
 
@@ -362,7 +328,10 @@ export const POST = createApiHandler(
     });
 
     logger.info("Student created", { studentId: result.id, createdBy: session.user.id });
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(
+      provisional ? { ...result, provisionalPassword: provisional.plain } : result,
+      { status: 201 },
+    );
   },
   {
     requireAuth: true,

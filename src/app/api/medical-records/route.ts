@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { createApiHandler } from "@/lib/api/api-helpers";

@@ -9,12 +9,16 @@ node_modules/
 .env.production.example
 .env.*.local
 
-# Uploads
-uploads/
+# Uploads (stockage à la racine uniquement : un motif non ancré excluait
+# aussi la route src/app/api/uploads/, jamais versionnée)
+/uploads/
 
 # Database dumps
 *.sql
 db_dump_*.sql
+# Exception : les migrations Prisma sont l'historique du schéma et doivent être
+# versionnées (C1). L'exclusion générale ci-dessus continue de protéger les dumps.
+!prisma/migrations/**/*.sql
 
 # Logs
 *.log
@@ -24,6 +28,7 @@ db_dump_*.sql
 tsconfig.tsbuildinfo
 
 # Test/coverage artifacts
+.quality-tmp/
 e2e/.auth/
 coverage/
 playwright-report/

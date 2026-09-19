@@ -15,10 +15,9 @@ import {
     Chip,
     Progress,
     Sparkline,
-    Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 
 type Homework = {
     id: string;
@@ -76,7 +75,7 @@ function ratioVariant(ratio: number): "brand" | "success" | "warning" | "danger"
 
 export default function LMSPage() {
     const [filter, setFilter] = useState<Filter>("ongoing");
-    const { data: raw, isLoading } = useSWR<HomeworkResponse>(
+    const { data: raw, isLoading, error, mutate } = useSWR<HomeworkResponse>(
         "/api/homework?limit=50",
         fetcher
     );
@@ -184,7 +183,16 @@ export default function LMSPage() {
 
                 {isLoading ? <PageLoading label="Chargement des devoirs…" /> : null}
 
-                {!isLoading ? (
+                {/* Sans ce cas, une panne affichait « aucun devoir » à un
+                    élève qui en avait. */}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger les devoirs."
+                        onRetry={() => void mutate()}
+                    />
+                ) : null}
+
+                {!isLoading && !error ? (
                     <div
                         style={{
                             display: "grid",

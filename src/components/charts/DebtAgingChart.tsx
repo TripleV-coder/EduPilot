@@ -1,10 +1,10 @@
 "use client";
 
 import { 
-    BarChart, Bar, XAxis, YAxis, Tooltip, Legend, 
+    BarChart, Bar, XAxis, YAxis, Tooltip, 
     ResponsiveContainer, Cell 
 } from "recharts";
-import { CHART_COLORS, FR_TOOLTIP_STYLE } from "./chart-theme";
+import { FR_TOOLTIP_STYLE } from "./chart-theme";
 
 interface DebtAgingData {
     range: string; // "0-30j", "30-60j", etc.

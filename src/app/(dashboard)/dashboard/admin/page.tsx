@@ -6,7 +6,6 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ADMIN_ROLES } from "@/lib/rbac/permissions";
 import { Users, School, Activity, AlertCircle, Database } from "lucide-react";
 
 type SystemStats = {

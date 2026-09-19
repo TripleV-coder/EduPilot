@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -10,22 +11,28 @@ import {
     Upload, CheckCircle2, AlertTriangle, ArrowRight, Loader2, Database,
     UserPlus, GraduationCap, BookOpen, FileText, ChevronRight, FileSpreadsheet,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { readSpreadsheetRows } from "@/lib/import/read-spreadsheet";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fetcher } from "@/lib/fetcher";
 import {
-    applyMapping, suggestMapping,
+    applyMapping, suggestMapping, ignoredColumnNotices,
     STUDENT_FIELDS, TEACHER_FIELDS, CLASS_FIELDS, PARENT_FIELDS,
     type FieldDefinition,
 } from "@/lib/import/mapping-utils";
 import { runValidations, readyCount, type ValidationCheck } from "@/lib/import/validators";
+import { listFrom } from "@/lib/api/list-payload";
+import { exportToCSV } from "@/lib/utils/export";
+import { buildCredentialsExport, readImportCredentials, type ImportCredential } from "@/lib/import/credentials-export";
 import {
     IMPORT_TYPE_LABELS,
     type SupportedImportType,
 } from "@/lib/import/types";
 
 type ImportStep = "SELECT_UPLOAD" | "REVIEW" | "SUCCESS";
+
+/** Erreur d'import : { row, field?, message } (import en tout ou rien, N46) ou ancien format { row, error }. */
+type ImportErrorEntry = { row?: number; field?: string; message?: string; error?: string; details?: unknown };
 
 const IMPORT_TYPES: Array<{
     id: SupportedImportType;
@@ -40,7 +47,7 @@ const IMPORT_TYPES: Array<{
         previewType: "students",
         endpoint: "/api/import/students",
         label: "Élèves",
-        description: "Importez votre base d'élèves, matricules et contacts parents.",
+        description: "Importez votre base d'élèves, leurs classes et matricules.",
         icon: UserPlus,
     },
     {
@@ -105,24 +112,36 @@ function ImportWizardPage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
     const [importedCount, setImportedCount] = useState(0);
-    const [importErrors, setImportErrors] = useState<Array<{ row?: number; error?: string; details?: string }>>([]);
+    const [importErrors, setImportErrors] = useState<ImportErrorEntry[]>([]);
+    const [importRejected, setImportRejected] = useState(false);
+    // Informations sans blocage renvoyées par l'import (N50).
+    const [importWarnings, setImportWarnings] = useState<string[]>([]);
+    // Mots de passe provisoires (un par compte créé), renvoyés une seule fois par l'import (M1).
+    const [credentials, setCredentials] = useState<ImportCredential[]>([]);
 
     const selectedConfig = selectedType ? IMPORT_TYPES.find((it) => it.id === selectedType) ?? null : null;
     const targetFields = selectedType ? FIELDS_BY_TYPE[selectedType] : [];
     const targetFieldsByKey = useMemo(() => new Map(targetFields.map((f) => [f.key, f])), [targetFields]);
 
-    const { data: classesData } = useSWR<{ classes?: Array<{ name: string }> }>(
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR<unknown>(
         selectedType === "STUDENTS" || selectedType === "CLASSES" ? "/api/classes" : null,
         fetcher,
     );
+    // N25 : la route renvoie { data, pagination } (la clé `classes` n'existait pas :
+    // les noms de classe importés n'étaient jamais vérifiés).
     const knownClassNames = useMemo(
-        () => (classesData?.classes ?? []).map((c) => c.name),
+        () => listFrom<{ name: string }>(classesData).map((c) => c.name),
         [classesData],
     );
 
     const mappedRows = useMemo(
         () => (selectedType ? applyMapping(fileData, mapping) : []),
         [selectedType, fileData, mapping],
+    );
+    // Colonnes du fichier ignorées délibérément (N50), signalées avant l'import.
+    const columnNotices = useMemo(
+        () => (selectedType ? ignoredColumnNotices(headers, selectedType) : []),
+        [selectedType, headers],
     );
 
     const validations: ValidationCheck[] = useMemo(() => {
@@ -149,34 +168,48 @@ function ImportWizardPage() {
         setProgress(0);
         setImportedCount(0);
         setImportErrors([]);
+        setImportRejected(false);
+        setImportWarnings([]);
+        setCredentials([]);
+    }
+
+    // Après un import d'élèves : enchaîner directement sur le rattachement des parents.
+    function continueWithParents() {
+        resetFlow();
+        setSelectedType("PARENTS");
     }
 
     function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file || !selectedType) return;
         setFileName(file.name);
+        // Lecture par les octets du fichier (N45) : UTF-8 avec ou sans BOM,
+        // Windows-1252, XLSX/XLS — lib/import/read-spreadsheet.
         const reader = new FileReader();
-        reader.onload = (evt) => {
-            const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: "binary" });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
-            const raw = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
-            if (raw.length === 0) return;
-            const parsedHeaders = (raw[0] as string[]).map((h) => String(h ?? "").trim()).filter(Boolean);
-            const rows = raw.slice(1)
-                .filter((r) => Array.isArray(r) && r.some((cell) => String(cell ?? "").trim() !== ""))
-                .map((r) => {
-                    const obj: Record<string, unknown> = {};
-                    parsedHeaders.forEach((h, idx) => { obj[h] = r[idx]; });
-                    return obj;
+        reader.onload = async (evt) => {
+            const buffer = evt.target?.result;
+            if (!(buffer instanceof ArrayBuffer)) return;
+            let parsedHeaders: string[];
+            let rows: Array<Record<string, unknown>>;
+            try {
+                // La bibliothèque de lecture est chargée ici, à la demande (Lot 8).
+                ({ headers: parsedHeaders, rows } = await readSpreadsheetRows(new Uint8Array(buffer), file.name));
+            } catch {
+                toast({
+                    title: "Fichier illisible",
+                    description: "Ce fichier n'a pas pu être ouvert. Vérifiez qu'il s'agit bien d'un CSV, d'un XLSX ou d'un XLS, puis réessayez.",
+                    variant: "destructive",
                 });
+                return;
+            }
+            if (parsedHeaders.length === 0) return;
             setHeaders(parsedHeaders);
             setFileData(rows);
             setMapping(suggestMapping(parsedHeaders, FIELDS_BY_TYPE[selectedType]));
+            setImportRejected(false);
             setStep("REVIEW");
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     }
 
     async function startImport() {
@@ -190,10 +223,32 @@ function ImportWizardPage() {
                 body: JSON.stringify({ data: mappedRows }),
             });
             const result = await res.json();
+            // Import refusé en entier (N46) : rien n'a été écrit, rapport ligne par ligne.
+            if ((res.status === 422 || res.status === 409) && Array.isArray(result?.errors)) {
+                setProgress(100);
+                setImportedCount(0);
+                setImportErrors(result.errors);
+                setCredentials([]);
+                setImportWarnings(columnNotices);
+                setImportRejected(true);
+                setStep("SUCCESS");
+                toast({
+                    title: "Import refusé",
+                    description: `Aucun enregistrement créé : ${result.errors.length} erreur(s) à corriger dans le fichier.`,
+                    variant: "destructive",
+                });
+                return;
+            }
             if (!res.ok) throw new Error(result?.error || "Erreur lors de l'injection");
             setProgress(100);
             setImportedCount(Number(result?.created ?? result?.count ?? 0));
             setImportErrors(Array.isArray(result?.errors) ? result.errors : []);
+            setCredentials(readImportCredentials(result));
+            const serverWarnings: string[] = Array.isArray(result?.warnings)
+                ? result.warnings.map((w: { message?: string }) => w?.message).filter((m: unknown): m is string => typeof m === "string")
+                : [];
+            setImportWarnings([...new Set([...columnNotices, ...serverWarnings])]);
+            setImportRejected(false);
             setStep("SUCCESS");
             toast({ title: "Importation réussie", description: `${result?.created ?? 0} enregistrements ajoutés.` });
         } catch (err) {
@@ -226,6 +281,10 @@ function ImportWizardPage() {
                     { label: "Import" },
                 ]}
             />
+
+            {loadError ? (
+                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+            ) : null}
 
             {/* Mini stepper */}
             <div className="flex items-center gap-3" style={{ color: "var(--eduflow-text-tertiary)" }}>
@@ -431,6 +490,27 @@ function ImportWizardPage() {
                             </div>
                         </div>
 
+                        {columnNotices.length > 0 && (
+                            <div
+                                role="status"
+                                className="rounded-xl p-4"
+                                style={{
+                                    background: "var(--eduflow-warning-50)",
+                                    border: "1px solid var(--eduflow-border-subtle)",
+                                    color: "var(--eduflow-warning-800)",
+                                    fontSize: 12,
+                                }}
+                            >
+                                <SubLabel style={{ color: "var(--eduflow-warning-800)" }}>Colonne non importée</SubLabel>
+                                {columnNotices.map((notice) => (
+                                    <p key={notice} className="mt-2 flex gap-2">
+                                        <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                        {notice}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+
                         <div
                             className="rounded-xl p-4"
                             style={{
@@ -500,8 +580,16 @@ function ImportWizardPage() {
                 <SuccessCard
                     importedCount={importedCount}
                     importErrors={importErrors}
+                    credentials={credentials}
                     onReset={resetFlow}
                     typeLabel={selectedType ? IMPORT_TYPE_LABELS[selectedType] : "enregistrements"}
+                    rejected={importRejected}
+                    notices={importWarnings}
+                    onNextStep={
+                        selectedType === "STUDENTS" && !importRejected && importedCount > 0
+                            ? { label: "Importer les parents", onClick: continueWithParents }
+                            : undefined
+                    }
                 />
             )}
         </PageShell>
@@ -623,13 +711,24 @@ function SelectAndUpload({
 function SuccessCard({
     importedCount,
     importErrors,
+    credentials,
     onReset,
     typeLabel,
+    rejected,
+    notices,
+    onNextStep,
 }: {
     importedCount: number;
-    importErrors: Array<{ row?: number; error?: string; details?: string }>;
+    importErrors: ImportErrorEntry[];
+    credentials: ImportCredential[];
     onReset: () => void;
     typeLabel: string;
+    /** Import refusé en entier (N46) : rien n'a été écrit. */
+    rejected: boolean;
+    /** Informations sans blocage : données fournies mais non utilisées (N50). */
+    notices: string[];
+    /** Étape suivante du parcours (après les élèves : les parents). */
+    onNextStep?: { label: string; onClick: () => void };
 }) {
     return (
         <div
@@ -643,35 +742,91 @@ function SuccessCard({
                 className="w-16 h-16 grid place-items-center mx-auto rounded-2xl"
                 style={{ background: "rgba(255,255,255,0.18)" }}
             >
-                <CheckCircle2 className="w-8 h-8" />
+                {rejected ? <AlertTriangle className="w-8 h-8" /> : <CheckCircle2 className="w-8 h-8" />}
             </div>
             <h2 className="mt-4" style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.025em" }}>
-                {fmtInt(importedCount)} {typeLabel} importés
+                {rejected ? `Import refusé : aucun enregistrement créé` : `${fmtInt(importedCount)} ${typeLabel} importés`}
             </h2>
             <p style={{ fontSize: 14, opacity: 0.9 }}>
-                La base de données a été mise à jour.
+                {rejected
+                    ? "Corrigez les lignes ci-dessous dans le fichier, puis importez-le de nouveau."
+                    : "La base de données a été mise à jour."}
             </p>
             {importErrors.length > 0 && (
                 <div
-                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    role={rejected ? "alert" : undefined}
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left max-h-80 overflow-y-auto"
                     style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
                 >
                     <p className="font-bold">Lignes en erreur · {importErrors.length}</p>
-                    {importErrors.slice(0, 6).map((err, idx) => (
+                    {importErrors.map((err, idx) => (
                         <p key={idx} className="mt-1">
-                            {err.row ? `Ligne ${err.row} · ` : ""}{err.error || err.details || "—"}
+                            {err.row ? `Ligne ${err.row} · ` : ""}
+                            {err.field ? `${err.field} · ` : ""}
+                            {err.message || err.error || (typeof err.details === "string" ? err.details : "—")}
                         </p>
                     ))}
                 </div>
             )}
-            <Button
-                variant="secondary"
-                onClick={onReset}
-                className="mt-6"
-                style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
-            >
-                Nouvel import
-            </Button>
+            {notices.length > 0 && (
+                <div
+                    role="status"
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                >
+                    <p className="font-bold">À savoir</p>
+                    {notices.map((notice) => (
+                        <p key={notice} className="mt-1 flex gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            {notice}
+                        </p>
+                    ))}
+                </div>
+            )}
+            {credentials.length > 0 && (
+                <div
+                    className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                >
+                    <p className="font-bold">Mots de passe provisoires · {credentials.length}</p>
+                    <p className="mt-1">
+                        Un mot de passe différent par compte, affiché une seule fois : téléchargez-les maintenant et
+                        transmettez-les aux titulaires. Chacun devra choisir son propre mot de passe à la première connexion.
+                    </p>
+                    <Button
+                        variant="secondary"
+                        onClick={() => exportToCSV(buildCredentialsExport(credentials, typeLabel))}
+                        className="mt-3"
+                        style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
+                    >
+                        Télécharger les identifiants (CSV)
+                    </Button>
+                </div>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {onNextStep && (
+                    <Button
+                        variant="secondary"
+                        onClick={onNextStep.onClick}
+                        className="gap-2"
+                        style={{ background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }}
+                    >
+                        {onNextStep.label}
+                        <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                )}
+                <Button
+                    variant="secondary"
+                    onClick={onReset}
+                    style={
+                        onNextStep
+                            ? { background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.6)" }
+                            : { background: "#fff", color: "var(--eduflow-brand-800)", border: 0 }
+                    }
+                >
+                    Nouvel import
+                </Button>
+            </div>
         </div>
     );
 }

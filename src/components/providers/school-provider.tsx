@@ -23,6 +23,9 @@ interface SchoolInfoData {
 
 interface SchoolContextData {
     schools: AccessibleSchool[];
+    /** Modules actifs de l'école active (Lot 6) ; absent = rien n'est masqué. */
+    enabledModules?: string[];
+    offeredLevels?: string[];
 }
 
 interface SchoolContextType {
@@ -37,6 +40,8 @@ interface SchoolContextType {
     accessibleSchools: AccessibleSchool[];
     /** Cycles offerts par l'école active (PRIMARY/SECONDARY_COLLEGE/SECONDARY_LYCEE). */
     offeredLevels: string[];
+    /** Modules activés par l'école (Lot 6) ; liste vide tant qu'ils sont inconnus. */
+    enabledModules: string[];
     isLoading: boolean;
     isSwitchingSchool: boolean;
     error: unknown;
@@ -132,7 +137,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         }
     );
 
-    const { data: academicYears, error: yearsError } = useSWR<AcademicYear[]>(
+    const { error: yearsError } = useSWR<AcademicYear[]>(
         isGlobalMode ? `/api/academic-years` : (session?.user?.schoolId ? `/api/academic-years?schoolId=${session.user.schoolId}` : null),
         fetcher,
         {
@@ -217,7 +222,11 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         schoolName: isGlobalMode ? "Console Globale" : (schoolName || "Établissement"),
         currentPeriodName: isGlobalMode ? null : (currentPeriod?.name || null),
         accessibleSchools,
-        offeredLevels: (schoolInfo?.offeredLevels as string[] | undefined) ?? [],
+        // /api/schools/[id] est réservé à l'administration ; /api/schools/context
+        // est appelé par tous les rôles, c'est donc lui qui porte ces réglages.
+        offeredLevels:
+            (schoolInfo?.offeredLevels as string[] | undefined) ?? schoolContextData?.offeredLevels ?? [],
+        enabledModules: schoolContextData?.enabledModules ?? [],
         isLoading: status === "loading",
         isSwitchingSchool,
         error: schoolError || yearsError || periodsError,

@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roundTo } from "@/lib/analytics/helpers";
+import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
+
+function monthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
 
 /**
  * GET /api/analytics/bi
@@ -14,6 +19,10 @@ import { roundTo } from "@/lib/analytics/helpers";
  *  - Payment-method breakdown (pie)
  *  - Top 5 subjects by average grade
  *  - Last AI insight if available (otherwise null)
+ *
+ * Paiements et analyses sont agrégés par PostgreSQL (M5) : rien n'est chargé
+ * ligne à ligne, et le taux de réussite porte sur le dernier instantané de
+ * CHAQUE élève (il était calculé sur les 500 plus récents seulement).
  */
 export const GET = createApiHandler(
     async (request, { session }) => {
@@ -31,44 +40,53 @@ export const GET = createApiHandler(
             schoolId,
             ...(academicYearId ? { academicYearId } : {}),
         };
+        const scope = { schoolId, academicYearId };
 
-        // ── Students count ─────────────────────────────────
-        const studentCount = await prisma.studentProfile.count({
-            where: {
-                user: { schoolId, isActive: true },
-            },
-        });
+        const [studentCount, fees, collectedByMethod, collectedByMonth, attendanceAgg, snapshots] = await Promise.all([
+            prisma.studentProfile.count({
+                where: {
+                    user: { schoolId, isActive: true },
+                },
+            }),
+            // Définitions de frais (par niveau et par nature) : quelques dizaines par
+            // établissement, bornées par nature — pas de ligne par élève.
+            prisma.fee.findMany({
+                where: feeWhere,
+                select: { amount: true, createdAt: true },
+            }),
+            prisma.payment.groupBy({
+                by: ["method"],
+                where: {
+                    status: { in: ["VERIFIED", "RECONCILED"] },
+                    fee: feeWhere,
+                },
+                _sum: { amount: true },
+            }),
+            collectedByLocalMonth(scope, twelveMonthsAgo),
+            prisma.attendance.groupBy({
+                by: ["status"],
+                where: {
+                    class: { schoolId },
+                },
+                _count: { _all: true },
+            }),
+            latestSnapshotStats(scope),
+        ]);
 
-        // ── Finance totals + payments ──────────────────────
-        const fees = await prisma.fee.findMany({
-            where: feeWhere,
-            select: { amount: true, createdAt: true },
-        });
+        // ── Finance totals + payment method breakdown ──────
         const totalFees = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-
-        const payments = await prisma.payment.findMany({
-            where: {
-                status: { in: ["VERIFIED", "RECONCILED"] },
-                fee: feeWhere,
-            },
-            select: { amount: true, method: true, paidAt: true, createdAt: true },
-        });
-
-        const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalCollected = collectedByMethod.reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
         const collectionRate = totalFees > 0 ? (totalCollected / totalFees) * 100 : 0;
 
-        // ── Payment method breakdown ───────────────────────
-        const methodTotals = new Map<string, number>();
-        for (const p of payments) {
-            const key = p.method ?? "OTHER";
-            methodTotals.set(key, (methodTotals.get(key) ?? 0) + Number(p.amount));
-        }
-        const paymentMix = Array.from(methodTotals.entries())
-            .map(([method, amount]) => ({
-                method,
-                amount: roundTo(amount, 0),
-                share: totalCollected > 0 ? roundTo((amount / totalCollected) * 100, 1) : 0,
-            }))
+        const paymentMix = collectedByMethod
+            .map((row) => {
+                const amount = Number(row._sum.amount ?? 0);
+                return {
+                    method: row.method,
+                    amount: roundTo(amount, 0),
+                    share: totalCollected > 0 ? roundTo((amount / totalCollected) * 100, 1) : 0,
+                };
+            })
             .sort((a, b) => b.amount - a.amount);
 
         // ── 12-month billed-vs-collected ───────────────────
@@ -76,7 +94,7 @@ export const GET = createApiHandler(
         for (let i = 0; i < 12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
             months.push({
-                key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+                key: monthKey(d),
                 label: d.toLocaleDateString("fr-FR", { month: "short" }),
                 billed: 0,
                 collected: 0,
@@ -85,16 +103,12 @@ export const GET = createApiHandler(
         const monthIndex = new Map(months.map((m, i) => [m.key, i]));
         for (const f of fees) {
             if (f.createdAt < twelveMonthsAgo) continue;
-            const k = `${f.createdAt.getFullYear()}-${String(f.createdAt.getMonth() + 1).padStart(2, "0")}`;
-            const idx = monthIndex.get(k);
+            const idx = monthIndex.get(monthKey(f.createdAt));
             if (idx !== undefined) months[idx].billed += Number(f.amount);
         }
-        for (const p of payments) {
-            const when = p.paidAt ?? p.createdAt;
-            if (when < twelveMonthsAgo) continue;
-            const k = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}`;
-            const idx = monthIndex.get(k);
-            if (idx !== undefined) months[idx].collected += Number(p.amount);
+        for (const row of collectedByMonth) {
+            const idx = monthIndex.get(row.month);
+            if (idx !== undefined) months[idx].collected += row.amount;
         }
         const monthly = months.map((m) => ({
             label: m.label,
@@ -103,13 +117,6 @@ export const GET = createApiHandler(
         }));
 
         // ── Attendance rate ────────────────────────────────
-        const attendanceAgg = await prisma.attendance.groupBy({
-            by: ["status"],
-            where: {
-                class: { schoolId },
-            },
-            _count: { _all: true },
-        });
         const attendanceTotal = attendanceAgg.reduce((sum, a) => sum + a._count._all, 0);
         const attendancePresent = attendanceAgg
             .filter((a) => a.status === "PRESENT" || a.status === "LATE")
@@ -117,51 +124,9 @@ export const GET = createApiHandler(
         const attendanceRate = attendanceTotal > 0 ? (attendancePresent / attendanceTotal) * 100 : 0;
 
         // ── Pass rate + top subjects from latest StudentAnalytics ──
-        const recentAnalytics = await prisma.studentAnalytics.findMany({
-            where: {
-                student: { user: { schoolId } },
-                ...(academicYearId ? { academicYearId } : {}),
-            },
-            orderBy: { createdAt: "desc" },
-            take: 500,
-            select: {
-                studentId: true,
-                generalAverage: true,
-                createdAt: true,
-                subjectPerformances: {
-                    select: {
-                        average: true,
-                        subject: { select: { name: true } },
-                    },
-                },
-            },
-        });
-        const latestByStudent = new Map<string, typeof recentAnalytics[number]>();
-        for (const a of recentAnalytics) {
-            if (!latestByStudent.has(a.studentId)) latestByStudent.set(a.studentId, a);
-        }
-        const latest = Array.from(latestByStudent.values());
-        const studentCountWithGrade = latest.length;
-        const passing = latest.filter((a) => Number(a.generalAverage ?? 0) >= 10).length;
-        const passRate = studentCountWithGrade > 0 ? (passing / studentCountWithGrade) * 100 : 0;
-
-        const subjectTotals = new Map<string, { sum: number; count: number }>();
-        for (const a of latest) {
-            for (const sp of a.subjectPerformances ?? []) {
-                const name = sp.subject?.name ?? "—";
-                const value = Number(sp.average ?? 0);
-                if (!Number.isFinite(value)) continue;
-                const cur = subjectTotals.get(name) ?? { sum: 0, count: 0 };
-                cur.sum += value;
-                cur.count += 1;
-                subjectTotals.set(name, cur);
-            }
-        }
-        const topSubjects = Array.from(subjectTotals.entries())
-            .map(([subject, { sum, count }]) => ({
-                subject,
-                average: roundTo(sum / Math.max(count, 1), 2),
-            }))
+        const passRate = snapshots.total > 0 ? (snapshots.passing / snapshots.total) * 100 : 0;
+        const topSubjects = snapshots.subjects
+            .map((row) => ({ subject: row.subject ?? "—", average: roundTo(row.average, 2) }))
             .sort((a, b) => b.average - a.average)
             .slice(0, 5);
 

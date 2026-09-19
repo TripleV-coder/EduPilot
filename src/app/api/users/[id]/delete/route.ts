@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const deleteAccountSchema = z.object({
   reason: z.string().optional(),
@@ -94,7 +95,7 @@ export const POST = createApiHandler(
             role: userToDelete.role,
             reason: validatedData.reason,
           },
-          ipAddress: request.headers.get("x-forwarded-for") || "unknown",
+          ipAddress: getClientIp(request.headers),
           userAgent: request.headers.get("user-agent") || "unknown",
         },
       });

@@ -22,6 +22,7 @@ import {
     type UserRole,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../../src/lib/security/consent-defaults";
 
 const prisma = new PrismaClient();
 export { prisma };
@@ -85,7 +86,7 @@ export async function createUser(
     password: string = "Password123!"
 ) {
     const hashedPassword = await hashPassword(password);
-    return prisma.user.create({
+    const user = await prisma.user.create({
         data: {
             email,
             password: hashedPassword,
@@ -96,6 +97,20 @@ export async function createUser(
             phone: await generatePhone(),
         },
     });
+    // Lot 6 : jeu de démonstration — conditions déjà acceptées, sinon chaque
+    // compte seedé arriverait sur l'écran de consentement. Un compte réel, lui,
+    // le voit bien à sa première connexion.
+    await prisma.dataConsent.create({
+        data: {
+            userId: user.id,
+            consentType: CONSENT_TERMS,
+            subjectUserId: user.id,
+            isGranted: true,
+            version: LEGAL_TERMS_VERSION,
+            grantedAt: new Date(),
+        },
+    });
+    return user;
 }
 
 // ============================================

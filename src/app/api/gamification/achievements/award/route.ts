@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { gamificationService } from "@/lib/gamification/service";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";

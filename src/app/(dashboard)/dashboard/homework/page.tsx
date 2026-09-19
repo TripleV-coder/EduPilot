@@ -34,7 +34,8 @@ type HomeworkItem = {
     createdBy?: { firstName: string; lastName: string };
 };
 
-type HomeworkResponse = { homeworks?: HomeworkItem[] };
+// Format paginé du projet : { data, pagination }
+type HomeworkResponse = { data?: HomeworkItem[] };
 
 export default function HomeworkPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -57,7 +58,7 @@ export default function HomeworkPage() {
 
     const allHomeworks: HomeworkItem[] = Array.isArray(response)
         ? response
-        : response?.homeworks ?? [];
+        : response?.data ?? [];
 
     const homeworks = allHomeworks.filter((hw) => {
         if (selectedStatus === "PUBLISHED" && !hw.isPublished) return false;

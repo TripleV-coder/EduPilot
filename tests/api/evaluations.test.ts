@@ -8,9 +8,13 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     teacherProfile: { findFirst: vi.fn() },
     classSubject: { findUnique: vi.fn(), findMany: vi.fn() },
-    evaluation: { findMany: vi.fn(), create: vi.fn() },
+    evaluation: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() },
+    grade: { groupBy: vi.fn() },
     period: { findUnique: vi.fn() },
     evaluationType: { findUnique: vi.fn() },
+    parentProfile: { findUnique: vi.fn() },
+    studentProfile: { findUnique: vi.fn() },
+    enrollment: { findMany: vi.fn() },
   },
 }));
 
@@ -48,7 +52,21 @@ function evaluationFixture(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.grade.groupBy).mockResolvedValue([] as never);
 });
+
+// Audit C3 / N9 : les tests GET exigeaient une liste brute, non paginée,
+// incluant les notes (tableau JSON), et un TEACHER résolu en deux requêtes.
+// Le contrat est désormais { data, pagination } (format unique du projet),
+// sans notes individuelles, avec un périmètre par rôle ; le comportement réel
+// est prouvé sur vrai PostgreSQL par tests/integration-db/evaluations-list.test.ts.
+function findManyArgs() {
+  return vi.mocked(prisma.evaluation.findMany).mock.calls[0][0] as unknown as {
+    where: { AND: [{ AND: unknown[] }, unknown] };
+    select: Record<string, unknown>;
+    take: number;
+  };
+}
 
 describe("GET /api/evaluations", () => {
   it("retourne 401 sans session", async () => {
@@ -57,21 +75,35 @@ describe("GET /api/evaluations", () => {
     expect(res.status).toBe(401);
   });
 
-  it("liste les évaluations d'un SCHOOL_ADMIN filtrées par école", async () => {
+  it("renvoie une page { data, pagination } limitée à l'école d'un SCHOOL_ADMIN, sans notes", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    // Le nombre de notes vient d'une requête groupée sur les évaluations de la
+    // page (audit M2 : `_count` dans la liste dégénérait sous RLS) ; il était
+    // auparavant simulé par `_count: { grades: 3 }` dans les lignes.
     vi.mocked(prisma.evaluation.findMany).mockResolvedValue([evaluationFixture()] as never);
+    vi.mocked(prisma.grade.groupBy).mockResolvedValue([{ evaluationId, _count: { _all: 3 } }] as never);
+    vi.mocked(prisma.evaluation.count).mockResolvedValue(1 as never);
 
     const res = await GET(makeRequest(evaluationRoute));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toHaveLength(1);
-    const args = vi.mocked(prisma.evaluation.findMany).mock.calls[0][0];
-    expect(args.where.classSubject).toEqual({ class: { schoolId: FIXTURES.schoolA } });
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].gradeCount).toBe(3);
+    expect(vi.mocked(prisma.grade.groupBy).mock.calls[0][0]).toMatchObject({
+      by: ["evaluationId"],
+      where: { evaluationId: { in: [evaluationId] } },
+    });
+    expect(body.pagination).toMatchObject({ limit: 20, hasNextPage: false, nextCursor: null, total: 1 });
+    const args = findManyArgs();
+    expect(args.where.AND[0].AND).toContainEqual({ classSubject: { class: { schoolId: FIXTURES.schoolA } } });
+    expect(args.select.grades).toBeUndefined();
+    expect(args.take).toBe(21);
   });
 
   it("filtre par classSubjectId, periodId et classId", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.evaluation.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.evaluation.count).mockResolvedValue(0 as never);
 
     const res = await GET(
       makeRequest(
@@ -79,40 +111,44 @@ describe("GET /api/evaluations", () => {
       )
     );
     expect(res.status).toBe(200);
-    const args = vi.mocked(prisma.evaluation.findMany).mock.calls[0][0];
-    expect(args.where.classSubjectId).toBe(classSubjectId);
-    expect(args.where.periodId).toBe(periodId);
-    expect(args.where.classSubject.classId).toBe(cuid("classe6b"));
+    const filters = findManyArgs().where.AND[0].AND;
+    expect(filters).toContainEqual({ classSubjectId });
+    expect(filters).toContainEqual({ periodId });
+    expect(filters).toContainEqual({ classSubject: { classId: cuid("classe6b") } });
   });
 
-  it("ne renvoie que les évaluations des matières d'un TEACHER", async () => {
+  it("restreint un TEACHER à ses propres matières en une seule requête", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
-    vi.mocked(prisma.teacherProfile.findFirst).mockResolvedValue({
-      id: teacherProfileId,
-    } as unknown as TeacherProfile);
-    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([
-      { id: classSubjectId },
-      { id: cuid("classsubj2") },
-    ] as never);
-    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([evaluationFixture()] as never);
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.evaluation.count).mockResolvedValue(0 as never);
 
     const res = await GET(makeRequest(evaluationRoute));
     expect(res.status).toBe(200);
-    const args = vi.mocked(prisma.evaluation.findMany).mock.calls[0][0];
-    expect(args.where.classSubjectId).toEqual({ in: [classSubjectId, cuid("classsubj2")] });
+    expect(findManyArgs().where.AND[0].AND).toContainEqual({ classSubject: { teacher: { userId: teacherUserId } } });
+    expect(prisma.teacherProfile.findFirst).not.toHaveBeenCalled();
   });
 
-  it("renvoie [] pour un TEACHER sans profil ni matière", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
-    vi.mocked(prisma.teacherProfile.findFirst).mockResolvedValue(null);
+  it("renvoie une page vide à un PARENT sans enfant lié, sans lire les évaluations (N9)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
+    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue(null);
+
     const res = await GET(makeRequest(evaluationRoute));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(await res.json()).toEqual({ data: [], pagination: { limit: 20, nextCursor: null, hasNextPage: false, total: 0 } });
+    expect(prisma.evaluation.findMany).not.toHaveBeenCalled();
+  });
+
+  it("refuse un curseur invalide (400)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    const res = await GET(makeRequest(`${evaluationRoute}?cursor=forge`));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("INVALID_CURSOR");
   });
 
   it("retourne 500 si prisma échoue", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.evaluation.findMany).mockRejectedValue(new Error("db down"));
+    vi.mocked(prisma.evaluation.count).mockResolvedValue(0 as never);
     const res = await GET(makeRequest(evaluationRoute));
     expect(res.status).toBe(500);
   });
@@ -258,7 +294,9 @@ describe("POST /api/evaluations", () => {
     });
   });
 
-  it("propague une erreur de validation vers le handler générique (500, pas de catch Zod)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("convertit une erreur de validation non interceptée en 400 VALIDATION_ERROR (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     const res = await POST(
       makeRequest(evaluationRoute, {
@@ -266,7 +304,8 @@ describe("POST /api/evaluations", () => {
         body: { classSubjectId: "bad-id", periodId, typeId, date: "pas-une-date" },
       })
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
   });
 
   it("retourne 500 si prisma échoue", async () => {

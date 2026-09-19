@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma, type SchoolType, type SchoolLevel } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 /** Champs strictement publics exposés dans l'annuaire (jamais d'effectifs/finances). */
@@ -34,7 +35,6 @@ export const GET = createApiHandler(
     const region = url.searchParams.get("region")?.trim() ?? "";
     const typeParam = url.searchParams.get("type")?.trim() ?? "";
     const levelParam = url.searchParams.get("level")?.trim() ?? "";
-    const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
 
     const where: Prisma.SchoolWhereInput = {
         isPublic: true,
@@ -47,14 +47,17 @@ export const GET = createApiHandler(
             : {}),
     };
 
+    // Lot 3 : curseur (keyset sur le nom), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(url.searchParams, { defaultLimit: PAGE_SIZE, maxLimit: 48 });
+
     const [total, schools, regions] = await Promise.all([
-        prisma.school.count({ where }),
+        cursorPage.withTotal ? prisma.school.count({ where }) : Promise.resolve(undefined),
         prisma.school.findMany({
-            where,
+            where: cursorPage.cursor ? { AND: [where, keysetWhere("name", "asc", cursorPage.cursor)] } : where,
             select: PUBLIC_SELECT,
-            orderBy: { name: "asc" },
-            skip: (page - 1) * PAGE_SIZE,
-            take: PAGE_SIZE,
+            orderBy: keysetOrderBy("name", "asc"),
+            take: cursorPage.limit + 1,
         }),
         // Régions distinctes pour alimenter le filtre.
         prisma.school.findMany({
@@ -65,13 +68,13 @@ export const GET = createApiHandler(
         }),
     ]);
 
+    const regionNames = regions.map((r) => r.region).filter(Boolean);
+
+    const { data, pagination } = buildCursorPage(schools, cursorPage.limit, (school) => school.name);
     return NextResponse.json({
-        page,
-        pageSize: PAGE_SIZE,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-        regions: regions.map((r) => r.region).filter(Boolean),
-        schools,
+        data,
+        regions: regionNames,
+        pagination: { ...pagination, ...(total !== undefined ? { total } : {}) },
     });
     },
     { requireAuth: false },

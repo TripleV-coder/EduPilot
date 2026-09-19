@@ -5,7 +5,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { FilePlus2, AlertCircle, ArrowRight, Zap, ListChecks } from "lucide-react";
+import { FilePlus2, AlertCircle, Zap, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,8 @@ export default function BulkInvoicePage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedLevel, setSelectedLevel] = useState("");
     const [selectedFee, setSelectedFee] = useState("");
-    const [selectedYear, setSelectedYear] = useState("");
+    // Aucun sélecteur d'année sur cette page : valeur toujours vide (voir TECH_DEBT)
+    const [selectedYear] = useState("");
     const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
     const [fees, setFees] = useState<FeeOption[]>([]);
     const [error, setError] = useState<string | null>(null);

@@ -1,163 +1,83 @@
 "use client";
 
-import { motion, Variants, type TargetAndTransition } from "framer-motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
 // Animation variants for staggered loading effect
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: {
-      duration: 0.4,
-    },
-  },
-};
-
-const pulseAnimation: TargetAndTransition = {
-  background: ["hsl(var(--muted))", "hsl(var(--muted-foreground) / 0.3)", "hsl(var(--muted))"],
-  transition: {
-    duration: 1.5,
-    repeat: Infinity,
-    ease: "easeInOut",
-  },
-};
-
 export default function AnalyticsLoading() {
   return (
-    <motion.div
-      className="container mx-auto p-6 space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <div className="edu-stagger-loading container mx-auto p-6 space-y-6">
       {/* Header Skeleton */}
-      <motion.div variants={itemVariants} className="space-y-2">
-        <motion.div
-          className="h-8 w-64 rounded-lg"
-          animate={pulseAnimation}
-        />
-        <motion.div
-          className="h-4 w-96 rounded-lg"
-          animate={pulseAnimation}
-        />
-      </motion.div>
+      <div className="space-y-2">
+        <div className="edu-pulse-bg h-8 w-64 rounded-lg" />
+        <div className="edu-pulse-bg h-4 w-96 rounded-lg" />
+      </div>
 
       {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <motion.div key={i} variants={itemVariants} custom={i}>
+          <div key={i}>
             <Card className="overflow-hidden">
               <CardHeader className="pb-2">
-                <motion.div
-                  className="h-4 w-24 rounded"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-4 w-24 rounded" />
               </CardHeader>
               <CardContent className="space-y-3">
-                <motion.div
-                  className="h-8 w-32 rounded"
-                  animate={pulseAnimation}
-                />
-                <motion.div
-                  className="h-3 w-20 rounded"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-8 w-32 rounded" />
+                <div className="edu-pulse-bg h-3 w-20 rounded" />
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Main Chart */}
-        <motion.div variants={itemVariants} className="lg:col-span-2">
+        <div className="lg:col-span-2">
           <Card className="overflow-hidden">
             <CardHeader>
-              <motion.div
-                className="h-5 w-40 rounded"
-                animate={pulseAnimation}
-              />
+              <div className="edu-pulse-bg h-5 w-40 rounded" />
             </CardHeader>
             <CardContent>
-              <motion.div
-                className="h-[300px] w-full rounded-lg"
-                animate={pulseAnimation}
-              />
+              <div className="edu-pulse-bg h-[300px] w-full rounded-lg" />
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Secondary Charts */}
         {[...Array(2)].map((_, i) => (
-          <motion.div key={i} variants={itemVariants} custom={i + 3}>
+          <div key={i}>
             <Card className="overflow-hidden">
               <CardHeader>
-                <motion.div
-                  className="h-5 w-32 rounded"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-5 w-32 rounded" />
               </CardHeader>
               <CardContent>
-                <motion.div
-                  className="h-[200px] w-full rounded-lg"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-[200px] w-full rounded-lg" />
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Data Table Skeleton */}
-      <motion.div variants={itemVariants}>
+      <div>
         <Card className="overflow-hidden">
           <CardHeader>
-            <motion.div
-              className="h-5 w-48 rounded"
-              animate={pulseAnimation}
-            />
+            <div className="edu-pulse-bg h-5 w-48 rounded" />
           </CardHeader>
           <CardContent className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex gap-4 items-center">
-                <motion.div
-                  className="h-10 w-10 rounded-full"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <motion.div
-                    className="h-4 w-48 rounded"
-                    animate={pulseAnimation}
-                  />
-                  <motion.div
-                    className="h-3 w-24 rounded"
-                    animate={pulseAnimation}
-                  />
+                  <div className="edu-pulse-bg h-4 w-48 rounded" />
+                  <div className="edu-pulse-bg h-3 w-24 rounded" />
                 </div>
-                <motion.div
-                  className="h-8 w-24 rounded"
-                  animate={pulseAnimation}
-                />
+                <div className="edu-pulse-bg h-8 w-24 rounded" />
               </div>
             ))}
           </CardContent>
         </Card>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

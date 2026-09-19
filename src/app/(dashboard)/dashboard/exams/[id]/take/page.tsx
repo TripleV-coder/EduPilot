@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageShell } from "@/components/layout/page-shell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { PageError } from "@/components/layout/page-states";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -20,7 +21,6 @@ import {
     ChevronRight, 
     Send,
     Loader2,
-    CheckCircle2,
     Trophy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -43,11 +43,10 @@ type ExamData = {
 
 export default function TakeExamPage() {
     const params = useParams();
-    const router = useRouter();
     const { toast } = useToast();
     const id = params.id as string;
 
-    const { data: exam, error, isLoading } = useSWR<ExamData>(`/api/exams/${id}`, fetcher);
+    const { data: exam, error, isLoading, error: loadError, mutate: reloadPage } = useSWR<ExamData>(`/api/exams/${id}`, fetcher);
 
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -164,6 +163,10 @@ export default function TakeExamPage() {
     return (
         <PageGuard roles={["STUDENT"]}>
             <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 {/* Header with Timer */}
                 <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border px-2">
                     <div className="flex items-center gap-4">

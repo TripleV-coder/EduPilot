@@ -52,12 +52,13 @@ export default function AppointmentsPage() {
     const debouncedSearch = useDebounce(searchQuery, 300);
 
     const statusQuery = statusFilter !== "ALL" ? `&status=${statusFilter}` : "";
-    const { data, error, isLoading, mutate } = useSWR<{ appointments?: Appointment[] }>(
+    // Format paginé du projet : { data, pagination }
+    const { data, error, isLoading, mutate } = useSWR<{ data?: Appointment[] }>(
         `/api/appointments?limit=200${statusQuery}`,
         fetcher
     );
 
-    const appointments = data?.appointments ?? [];
+    const appointments = data?.data ?? [];
 
     const filteredAppointments = useMemo(() => {
         if (!debouncedSearch) return appointments;

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import bcrypt from "bcryptjs";
 import { teacherCreateSchema } from "@/lib/validations/user";
+import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
 import {
   buildTeacherSchoolAssignments,
@@ -22,9 +23,9 @@ import {
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
-const DEFAULT_PASSWORD = "00000000";
 
 /**
  * GET /api/teachers
@@ -35,9 +36,14 @@ export const GET = createApiHandler(
     const session = context.session;
 
     const searchParams = new URL(request.url).searchParams;
-    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50")));
-    const skip = (page - 1) * limit;
+    // Lot 8 : format de pagination unique du projet (curseur keyset sur le nom).
+    // Cette route était restée sur l'ancien mode ?page= / { teachers, pagination }.
+    const list = getListWindow(request, {
+      sortField: "user.lastName",
+      direction: "asc",
+      defaultLimit: 50,
+      maxLimit: 100,
+    });
     const search = searchParams.get("search") ?? "";
     const status = searchParams.get("status");
     const activeSchoolId = getActiveSchoolId(session);
@@ -73,7 +79,7 @@ export const GET = createApiHandler(
     const handler = async () => {
       const [teachers, total] = await Promise.all([
         prisma.teacherProfile.findMany({
-          where,
+          where: list.where(where),
           include: {
             user: {
               select: {
@@ -99,11 +105,10 @@ export const GET = createApiHandler(
               orderBy: [{ isPrimary: "desc" }, { school: { name: "asc" } }],
             },
           },
-          orderBy: { user: { lastName: "asc" } },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          take: list.take,
         }),
-        prisma.teacherProfile.count({ where }),
+        list.needsTotal ? prisma.teacherProfile.count({ where }) : Promise.resolve(undefined),
       ]);
 
       // Deduplicate subjects per teacher
@@ -123,10 +128,9 @@ export const GET = createApiHandler(
         };
       });
 
-      return NextResponse.json({
-        teachers: teachersWithUniqueSubjects,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      });
+      return NextResponse.json(
+        list.page(teachersWithUniqueSubjects, (teacher) => teacher.user.lastName, total),
+      );
     };
 
     const response = await withCache(handler, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
@@ -210,7 +214,10 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
       }
 
-      const hashedPassword = await bcrypt.hash(validatedData.password || DEFAULT_PASSWORD, 10);
+      // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
+      // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
+      const provisional = validatedData.password ? null : await issueProvisionalPassword();
+      const hashedPassword = provisional?.hash ?? (await bcrypt.hash(validatedData.password as string, 10));
 
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -223,7 +230,8 @@ export const POST = createApiHandler(
             roles: ["TEACHER"],
             schoolId: targetSchoolId,
             phone: validatedData.phone,
-            mustChangePassword: !validatedData.password,
+            // Mot de passe connu de l'auteur de la création : à changer (M1).
+            mustChangePassword: true,
           }
         });
 
@@ -264,7 +272,10 @@ export const POST = createApiHandler(
       logger.info("Teacher created", { teacherId: result.profile.id, createdBy: session.user.id });
 
       await invalidateByPath(CACHE_PATHS.teachers).catch(() => {});
-      return NextResponse.json(result, { status: 201 });
+      return NextResponse.json(
+        provisional ? { ...result, provisionalPassword: provisional.plain } : result,
+        { status: 201 },
+      );
     } catch (error) {
       logger.error("Error creating teacher", error);
 

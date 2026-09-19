@@ -1,121 +1,126 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Sauvegarde PostgreSQL chiffrée d'EduPilot (Lot 7).
+#
+#   scripts/backup/postgres-backup.sh
+#
+# Produit trois fichiers par sauvegarde, dans BACKUP_DIR :
+#   edupilot_<horodatage>.sql.gz.enc        dump chiffré (AES-256)
+#   edupilot_<horodatage>.sql.gz.enc.sha256 empreinte du fichier chiffré
+#   edupilot_<horodatage>.meta.json         base, taille, empreinte et
+#                                           NOMBRE DE LIGNES PAR TABLE
+#
+# Le fichier .meta.json est ce qui permet à la restauration de prouver qu'elle
+# a tout remis : elle recompte et compare table par table.
+#
+# Variables :
+#   DATABASE_URL              (obligatoire) base à sauvegarder
+#   BACKUP_PASSPHRASE_FILE    (obligatoire) fichier contenant la phrase secrète
+#                             de chiffrement, en mode 600. Sans lui, le script
+#                             REFUSE de s'exécuter : une sauvegarde en clair
+#                             d'une base scolaire n'a pas à exister.
+#   BACKUP_DIR                défaut /var/backups/edupilot/postgres
+#   BACKUP_RETENTION_DAYS     défaut 30
+#   BACKUP_KEEP_MIN           défaut 7 — jamais moins de N sauvegardes, quel
+#                             que soit leur âge (une machine arrêtée un mois
+#                             ne doit pas se réveiller sans aucune sauvegarde)
+set -euo pipefail
 
-#####################################################################
-# Script de sauvegarde automatique PostgreSQL pour EduPilot
-# Auteur: Système EduPilot
-# Date: 22 Décembre 2025
-#####################################################################
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/edupilot/postgres}"
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
+KEEP_MIN="${BACKUP_KEEP_MIN:-7}"
+DATE="$(date +%Y%m%d_%H%M%S)"
 
-# Configuration
-BACKUP_DIR="/var/backups/edupilot/postgres"
-LOG_DIR="/var/log/edupilot/backups"
-RETENTION_DAYS=30  # Garder les sauvegardes pendant 30 jours
-DATE=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="$LOG_DIR/backup_${DATE}.log"
+die() { echo "[ERREUR] $*" >&2; exit 1; }
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 
-# Couleurs pour les logs
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+[ -n "${DATABASE_URL:-}" ] || die "DATABASE_URL n'est pas définie."
+[ -n "${BACKUP_PASSPHRASE_FILE:-}" ] || die "BACKUP_PASSPHRASE_FILE n'est pas définie : la sauvegarde doit être chiffrée."
+[ -r "${BACKUP_PASSPHRASE_FILE}" ] || die "Phrase secrète illisible : ${BACKUP_PASSPHRASE_FILE}"
+[ -s "${BACKUP_PASSPHRASE_FILE}" ] || die "Phrase secrète vide : ${BACKUP_PASSPHRASE_FILE}"
 
-# Charger les variables d'environnement depuis .env
-if [ -f "$(dirname "$0")/../../.env" ]; then
-    export $(cat "$(dirname "$0")/../../.env" | grep -v '^#' | xargs)
-else
-    echo -e "${RED}[ERREUR]${NC} Fichier .env non trouvé"
-    exit 1
-fi
+for tool in pg_dump psql openssl gzip sha256sum; do
+  command -v "$tool" >/dev/null 2>&1 || die "Outil manquant : $tool (paquet postgresql-client pour pg_dump et psql)."
+done
 
-# Extraire les informations de connexion depuis DATABASE_URL
-# Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-DB_PASS=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+# L'URL est découpée par Node : le découpage en sed cassait sur un mot de passe
+# contenant @ ou : et sur les paramètres ?schema=.
+eval "$(node -e '
+const u = new URL(process.env.DATABASE_URL);
+const q = (v) => `'"'"'${String(v).replace(/'"'"'/g, `'"'"'\\'"'"''"'"'`)}'"'"'`;
+console.log(`DB_USER=${q(decodeURIComponent(u.username))}`);
+console.log(`DB_PASS=${q(decodeURIComponent(u.password))}`);
+console.log(`DB_HOST=${q(u.hostname)}`);
+console.log(`DB_PORT=${q(u.port || "5432")}`);
+console.log(`DB_NAME=${q(u.pathname.replace(/^\//, ""))}`);
+')"
 
-# Fonction de logging
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERREUR]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCÈS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[AVERTISSEMENT]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-# Créer les répertoires si nécessaire
 mkdir -p "$BACKUP_DIR"
-mkdir -p "$LOG_DIR"
+BASE="$BACKUP_DIR/edupilot_${DATE}"
+ARCHIVE="${BASE}.sql.gz.enc"
+META="${BASE}.meta.json"
 
-log "=========================================="
-log "Début de la sauvegarde PostgreSQL"
-log "=========================================="
-log "Base de données: $DB_NAME"
-log "Hôte: $DB_HOST:$DB_PORT"
-
-# Nom du fichier de sauvegarde
-BACKUP_FILE="$BACKUP_DIR/edupilot_${DATE}.sql.gz"
-
-# Exécuter la sauvegarde
-log "Création de la sauvegarde..."
+log "Sauvegarde de « $DB_NAME » ($DB_HOST:$DB_PORT) vers $ARCHIVE"
 export PGPASSWORD="$DB_PASS"
+trap 'unset PGPASSWORD' EXIT
 
-if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-    --format=plain \
-    --verbose \
-    --file=- 2>> "$LOG_FILE" | gzip > "$BACKUP_FILE"; then
+# Nombre de lignes par table, EXACT (pas l'estimation du planificateur) :
+# c'est la référence que la restauration devra retrouver.
+COUNTS_SQL="SELECT coalesce(json_object_agg(table_name, rows), '{}'::json)::text FROM (
+  SELECT c.relname AS table_name,
+         (xpath('/row/cnt/text()', query_to_xml(format('SELECT count(*) AS cnt FROM public.%I', c.relname), false, true, '')))[1]::text::bigint AS rows
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r'
+) t;"
+COUNTS="$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -At -c "$COUNTS_SQL")"
 
-    # Vérifier la taille du fichier
-    BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-    log_success "Sauvegarde créée avec succès: $BACKUP_FILE"
-    log "Taille de la sauvegarde: $BACKUP_SIZE"
+# pg_dump | gzip | openssl : le dump en clair ne touche jamais le disque.
+set -o pipefail
+pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --format=plain --no-owner --no-privileges \
+  | gzip -9 \
+  | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass "file:${BACKUP_PASSPHRASE_FILE}" -out "$ARCHIVE" \
+  || die "Échec de la sauvegarde (pg_dump, gzip ou openssl)."
 
-    # Calculer le checksum
-    CHECKSUM=$(sha256sum "$BACKUP_FILE" | cut -d' ' -f1)
-    log "Checksum SHA256: $CHECKSUM"
-    echo "$CHECKSUM" > "${BACKUP_FILE}.sha256"
+# Relecture immédiate : une sauvegarde qu'on ne sait pas déchiffrer n'en est
+# pas une. Le dump est déchiffré et décompressé vers /dev/null.
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "file:${BACKUP_PASSPHRASE_FILE}" -in "$ARCHIVE" \
+  | gzip -dc > /dev/null \
+  || die "Le fichier produit n'est pas relisible : sauvegarde considérée en échec."
 
-else
-    log_error "Échec de la sauvegarde"
-    exit 1
+CHECKSUM="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
+echo "$CHECKSUM" > "${ARCHIVE}.sha256"
+SIZE_BYTES="$(stat -c%s "$ARCHIVE")"
+SIZE_HUMAN="$(du -h "$ARCHIVE" | cut -f1)"
+
+node -e '
+const [file, db, date, checksum, bytes, counts] = process.argv.slice(1);
+require("fs").writeFileSync(file, JSON.stringify({
+  database: db, createdAt: date, checksumSha256: checksum,
+  sizeBytes: Number(bytes), rowCounts: JSON.parse(counts),
+}, null, 2));
+' "$META" "$DB_NAME" "$(date -Iseconds)" "$CHECKSUM" "$SIZE_BYTES" "$COUNTS"
+
+# Ces deux lignes sont lues par /api/system/backup : ne pas en changer la forme.
+log "Taille de la sauvegarde: $SIZE_HUMAN"
+log "Checksum SHA256: $CHECKSUM"
+
+# Rotation : on supprime au-delà de RETENTION_DAYS, mais jamais les KEEP_MIN
+# plus récentes.
+mapfile -t ALL < <(find "$BACKUP_DIR" -maxdepth 1 -name 'edupilot_*.sql.gz.enc' -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
+DELETED=0
+for ((i = KEEP_MIN; i < ${#ALL[@]}; i++)); do
+  f="${ALL[$i]}"
+  if [ -n "$(find "$f" -mtime "+${RETENTION_DAYS}" 2>/dev/null)" ]; then
+    rm -f "$f" "${f}.sha256" "${f%.sql.gz.enc}.meta.json"
+    DELETED=$((DELETED + 1))
+  fi
+done
+log "Rotation : $DELETED sauvegarde(s) supprimée(s) (au-delà de ${RETENTION_DAYS} jours, minimum ${KEEP_MIN} conservées)."
+log "Sauvegardes présentes : ${#ALL[@]}."
+
+if [ -n "${BACKUP_WEBHOOK_URL:-}" ] && command -v curl >/dev/null 2>&1; then
+  curl -fsS -X POST "$BACKUP_WEBHOOK_URL" -H 'Content-Type: application/json' \
+    -d "{\"text\":\"Sauvegarde EduPilot réussie ($SIZE_HUMAN)\"}" >/dev/null || true
 fi
 
-unset PGPASSWORD
-
-# Nettoyer les anciennes sauvegardes
-log "Nettoyage des sauvegardes de plus de $RETENTION_DAYS jours..."
-DELETED_COUNT=$(find "$BACKUP_DIR" -name "edupilot_*.sql.gz" -type f -mtime +$RETENTION_DAYS -delete -print | wc -l)
-if [ $DELETED_COUNT -gt 0 ]; then
-    log_success "Suppression de $DELETED_COUNT anciennes sauvegardes"
-else
-    log "Aucune sauvegarde à supprimer"
-fi
-
-# Statistiques des sauvegardes
-TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "edupilot_*.sql.gz" -type f | wc -l)
-TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
-
-log "=========================================="
-log "Sauvegarde terminée avec succès"
-log "Nombre total de sauvegardes: $TOTAL_BACKUPS"
-log "Espace disque utilisé: $TOTAL_SIZE"
-log "=========================================="
-
-# Optionnel: Envoyer une notification
-if command -v curl &> /dev/null && [ ! -z "$BACKUP_WEBHOOK_URL" ]; then
-    curl -X POST "$BACKUP_WEBHOOK_URL" \
-        -H "Content-Type: application/json" \
-        -d "{\"text\":\"✅ Sauvegarde EduPilot réussie: $BACKUP_SIZE\"}" \
-        &> /dev/null
-fi
-
-exit 0
+log "Sauvegarde terminée."

@@ -15,6 +15,7 @@ import {
   requireHealthRole,
 } from "@/lib/health/access";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 const medicalRecordSchema = z.object({
   studentId: z.string().cuid(),
@@ -66,6 +67,34 @@ export const GET = createApiHandler(
         where.studentId = ownStudentProfile.id;
       } else if (session.user.role !== "SUPER_ADMIN") {
         where.student = { schoolId: session.user.schoolId! };
+      }
+
+      // Liste de l'équipe sans élève précis (aucun écran ne l'utilise ; la page
+      // Médical interroge élève par élève) : paginée et réduite à
+      // l'identification — plus de dossiers complets de toute l'école (C3,
+      // minimisation des données de santé).
+      const listMode = !recordId && !studentId && session.user.role !== "PARENT" && session.user.role !== "STUDENT";
+      if (listMode) {
+        const page = getCursorParams(searchParams);
+        const [rows, total] = await Promise.all([
+          prisma.medicalRecord.findMany({
+            where: { AND: [where, keysetWhere("updatedAt", "desc", page.cursor)] },
+            select: {
+              id: true,
+              studentId: true,
+              updatedAt: true,
+              student: { select: { user: { select: { firstName: true, lastName: true } } } },
+            },
+            orderBy: keysetOrderBy("updatedAt", "desc"),
+            take: page.limit + 1,
+          }),
+          page.withTotal ? prisma.medicalRecord.count({ where }) : Promise.resolve(undefined),
+        ]);
+        const result = buildCursorPage(rows, page.limit, (row) => row.updatedAt);
+        return NextResponse.json({
+          medicalRecords: result.data,
+          pagination: total === undefined ? result.pagination : { ...result.pagination, total },
+        });
       }
 
       const medicalRecords = await prisma.medicalRecord.findMany({

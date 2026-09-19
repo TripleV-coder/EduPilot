@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSchool } from "@/components/providers/school-provider";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { listFrom } from "@/lib/api/list-payload";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
@@ -41,7 +42,10 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
   const { academicYearId } = useSchool();
   const [loading, setLoading] = useState(false);
 
-  const { data: classes } = useSWR<Class[]>("/api/classes", fetcher);
+  // N25 : la route renvoie { data, pagination } — traitée comme un tableau, la
+  // liste des classes plantait à l'ouverture (`.map` sur un objet).
+  const { data: classesPayload } = useSWR<unknown>("/api/classes", fetcher);
+  const classes = listFrom<Class>(classesPayload);
   const { data: periods } = useSWR<Period[]>(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
   const { data: evalTypes } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
 
@@ -74,7 +78,9 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
       }
 
       toast({ title: "Succès", description: "L'évaluation a été créée." });
-      mutate("/api/evaluations");
+      // La liste est paginée (clés /api/evaluations?limit=…&cursor=…) : on
+      // revalide toutes ses variantes, filtres compris.
+      mutate((key) => typeof key === "string" && key.startsWith("/api/evaluations"));
       onOpenChange(false);
       form.reset();
     } catch (error) {
@@ -98,14 +104,15 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
               <div className="space-y-2">
                 <Label className="text-[11px] font-bold uppercase text-muted-foreground">Étape 1 : Classe & Matière</Label>
                 <div className="space-y-3">
+                  {/* N26 : la classe est un état local, hors du formulaire — Label et
+                      SelectTrigger simples : FormLabel/FormControl exigent un <FormField>
+                      et faisaient planter la fiche à l'ouverture. */}
                   <FormItem>
-                    <FormLabel className="text-xs">Classe</FormLabel>
+                    <Label htmlFor="evaluation-class" className="text-xs">Classe</Label>
                     <Select onValueChange={setPickedClassId} value={pickedClassId}>
-                      <FormControl>
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger id="evaluation-class" className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {classes?.map((c) => (
                           <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>

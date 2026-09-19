@@ -1,9 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { assertDisposableDatabase } from './lib/disposable-guard.mjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Règle 6 / N17 : remplace le mot de passe de TOUS les comptes actifs.
+  // Base marquée jetable obligatoire, jamais une base réelle.
+  await assertDisposableDatabase(prisma, 'scripts/reset-passwords.ts');
+
   const testPassword = 'Test123456!';
   const hashedPassword = await bcrypt.hash(testPassword, 12);
   

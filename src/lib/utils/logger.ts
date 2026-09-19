@@ -18,12 +18,59 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
+  /** Requête à l'origine de la ligne, quand il y en a une (Lot 7). */
+  requestId?: string;
   context?: LogContext;
   error?: {
     name: string;
     message: string;
     stack?: string;
   };
+}
+
+// ---------------------------------------------------------------------------
+// N56 (Lot 6) — aucune donnée personnelle dans les journaux. Des appels réels y
+// écrivaient l'email de la personne, un numéro de téléphone ou le texte d'une
+// erreur citant un email. Le masquage est fait ici, pour tous les appelants :
+// message, contexte (même imbriqué) et texte des erreurs.
+// ---------------------------------------------------------------------------
+
+const MASKED = "[masqué]";
+const EMAIL = /([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})/g;
+// 8 à 15 chiffres, séparés au plus par un espace ou un point ; jamais collés à
+// des lettres (identifiants) ni séparés par des tirets (dates).
+const PHONE = /(?<![\w+])\+?\d(?:[ .]?\d){7,14}(?!\w)/g;
+const SECRET_KEY = /pass(?:word|wd)?|token|secret|authorization|cookie|otp|api[-_]?key/i;
+const PERSONAL_KEY = /^(?:firstName|lastName|fullName|birthPlace|dateOfBirth|birthDate|address|nationality)$/i;
+const MAX_DEPTH = 6;
+
+export function redactText(text: string): string {
+  return text
+    .replace(EMAIL, (_match, first: string, domain: string) => `${first}***@${domain}`)
+    .replace(PHONE, (match) => `[tél. ***${match.replace(/\D/g, "").slice(-2)}]`);
+}
+
+function redactValue(value: unknown, key: string | undefined, depth: number): unknown {
+  if (key !== undefined && (SECRET_KEY.test(key) || PERSONAL_KEY.test(key))) return MASKED;
+  if (typeof value === "string") return redactText(value);
+  if (depth >= MAX_DEPTH || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, undefined, depth + 1));
+  if (value instanceof Date) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactValue(v, k, depth + 1)]),
+  );
+}
+
+/**
+ * Identifiant de la requête en cours (Lot 7).
+ *
+ * Injecté par `api-helpers` plutôt qu'importé : ce module est aussi chargé par
+ * le middleware, où `node:async_hooks` n'existe pas.
+ */
+let requestIdProvider: (() => string | undefined) | null = null;
+
+export function setRequestIdProvider(provider: () => string | undefined): void {
+  requestIdProvider = provider;
 }
 
 /**
@@ -63,22 +110,24 @@ function createLogEntry(
   context?: LogContext,
   error?: unknown
 ): LogEntry {
+  const requestId = requestIdProvider?.();
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
-    message,
+    message: redactText(message),
+    ...(requestId ? { requestId } : {}),
   };
 
   if (context) {
-    entry.context = context;
+    entry.context = redactValue(context, undefined, 0) as LogContext;
   }
 
   if (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     entry.error = {
       name: err.name,
-      message: err.message,
-      stack: err.stack,
+      message: redactText(err.message),
+      stack: err.stack ? redactText(err.stack) : undefined,
     };
   }
 
@@ -209,16 +258,4 @@ export function logApiError(
     path,
     userId,
   });
-}
-
-/**
- * Log database query (only in development)
- */
-export function logDatabaseQuery(query: string, duration?: number): void {
-  if (process.env.NODE_ENV === "development") {
-    logger.debug("Database Query", {
-      query,
-      duration: duration ? `${duration}ms` : undefined,
-    });
-  }
 }

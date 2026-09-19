@@ -75,66 +75,70 @@ export class AutomationService {
 
     /**
      * Detect classes with high absenteeism in the last 7 days
+     *
+     * Audit N8 : un groupBy par classe puis une lecture des administrateurs par
+     * classe en alerte. Désormais : une requête pour les classes, une pour les
+     * présences de toutes les classes, une pour les administrateurs concernés.
      */
     async checkAbsenteeismAlerts() {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         const classes = await prisma.class.findMany({
-            where: { deletedAt: null },
-            select: { 
-                id: true, 
-                name: true, 
-                schoolId: true,
-                enrollments: {
-                    where: { status: "ACTIVE" },
-                    take: 1
-                }
-            }
+            where: { deletedAt: null, enrollments: { some: { status: "ACTIVE" } } },
+            select: { id: true, name: true, schoolId: true },
+        });
+        if (classes.length === 0) return 0;
+
+        const counts = await prisma.attendance.groupBy({
+            by: ["classId", "status"],
+            where: {
+                classId: { in: classes.map((cls) => cls.id) },
+                date: { gte: sevenDaysAgo },
+            },
+            _count: { _all: true },
+        });
+
+        const perClass = new Map<string, { total: number; absent: number }>();
+        for (const row of counts) {
+            if (!row.classId) continue;
+            const tally = perClass.get(row.classId) ?? { total: 0, absent: 0 };
+            tally.total += row._count._all;
+            if (row.status === "ABSENT") tally.absent += row._count._all;
+            perClass.set(row.classId, tally);
+        }
+
+        const flagged = classes.flatMap((cls) => {
+            const tally = perClass.get(cls.id);
+            if (!tally || tally.total === 0) return [];
+            const rate = (tally.absent / tally.total) * 100;
+            return rate > 15 ? [{ cls, rate }] : [];
+        });
+        if (flagged.length === 0) return 0;
+
+        // Notify Director and School Admin
+        const admins = await prisma.user.findMany({
+            where: {
+                schoolId: { in: [...new Set(flagged.map(({ cls }) => cls.schoolId))] },
+                role: { in: ["DIRECTOR", "SCHOOL_ADMIN"] },
+                isActive: true,
+            },
+            select: { id: true, schoolId: true },
         });
 
         let alertsSent = 0;
+        for (const { cls, rate } of flagged) {
+            const userIds = admins.filter((admin) => admin.schoolId === cls.schoolId).map((admin) => admin.id);
+            if (userIds.length === 0) continue;
 
-        for (const cls of classes) {
-            if (cls.enrollments.length === 0) continue;
-
-            const attendances = await prisma.attendance.groupBy({
-                by: ['status'],
-                where: {
-                    classId: cls.id,
-                    date: { gte: sevenDaysAgo }
-                },
-                _count: true
+            await createBulkNotifications({
+                userIds,
+                type: "WARNING",
+                title: "Alerte Absentéisme",
+                message: `La classe ${cls.name} présente un taux d'absence élevé de ${rate.toFixed(1)}% sur les 7 derniers jours.`,
+                link: `/dashboard/analytics?classId=${cls.id}`
             });
-
-            const total = attendances.reduce((sum, a) => sum + a._count, 0);
-            const absent = attendances.find(a => a.status === 'ABSENT')?._count || 0;
-
-            if (total > 0) {
-                const rate = (absent / total) * 100;
-                if (rate > 15) {
-                    // Notify Director and School Admin
-                    const admins = await prisma.user.findMany({
-                        where: {
-                            schoolId: cls.schoolId,
-                            role: { in: ["DIRECTOR", "SCHOOL_ADMIN"] },
-                            isActive: true
-                        },
-                        select: { id: true }
-                    });
-
-                    if (admins.length > 0) {
-                        await createBulkNotifications({
-                            userIds: admins.map(a => a.id),
-                            type: "WARNING",
-                            title: "Alerte Absentéisme",
-                            message: `La classe ${cls.name} présente un taux d'absence élevé de ${rate.toFixed(1)}% sur les 7 derniers jours.`,
-                            link: `/dashboard/analytics?classId=${cls.id}`
-                        });
-                        alertsSent++;
-                    }
-                }
-            }
+            alertsSent++;
         }
 
         return alertsSent;

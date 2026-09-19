@@ -100,21 +100,17 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = "i
 }
 
 /**
- * Set user context
+ * Rattache l'utilisateur à l'erreur — **sans son adresse électronique**.
+ *
+ * Sentry est un service tiers : l'identifiant interne et le rôle suffisent
+ * pour retrouver la personne dans EduPilot, alors que l'adresse serait une
+ * donnée personnelle exportée hors de l'établissement.
  */
-export function setUserContext(userId: string, email?: string, role?: string) {
+export function setUserContext(userId: string, _email?: string, role?: string) {
   Sentry.setUser({
     id: userId,
-    email,
     role,
   });
-}
-
-/**
- * Clear user context
- */
-export function clearUserContext() {
-  Sentry.setUser(null);
 }
 
 /**
@@ -126,15 +122,5 @@ export function addBreadcrumb(message: string, category: string, level: Sentry.S
     category,
     level,
     data,
-  });
-}
-
-/**
- * Start transaction for performance monitoring
- */
-export function startTransaction(name: string, op: string) {
-  return Sentry.startSpan({
-    name,
-    op,
   });
 }

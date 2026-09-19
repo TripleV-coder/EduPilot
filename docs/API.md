@@ -1,523 +1,139 @@
-# 📚 Documentation API - EduPilot
+# API EduPilot — conventions
 
-## Table des matières
-
-- [Introduction](#introduction)
-- [Authentification](#authentification)
-- [Endpoints par Module](#endpoints-par-module)
-- [Codes de statut](#codes-de-statut)
-- [Rate Limiting](#rate-limiting)
-- [Erreurs](#erreurs)
-
----
-
-## Introduction
-
-L'API EduPilot est une API REST qui permet de gérer tous les aspects d'un établissement scolaire. Cette API est conçue pour être utilisée par différents types d'utilisateurs (administrateurs, professeurs, élèves, parents) avec des permissions granulaires basées sur les rôles (RBAC).
-
-**Base URL**: `https://votre-domaine.com/api`
-
-**Version**: 1.0.0
+> **La liste des routes n'est plus tenue à la main.** Elle est produite depuis
+> le code : [`docs/openapi.json`](openapi.json), régénérée par
+> `npm run docs:openapi` et servie par `GET /api/docs` (page lisible :
+> `/api/docs/swagger-ui`). Elle couvre **287 chemins et 463 opérations**, avec
+> pour chacun la session, les rôles et les permissions réellement appliqués par
+> `createApiHandler`, et les corps de requête convertis depuis les schémas Zod.
+>
+> Ce fichier ne décrit plus que ce qu'une spécification exprime mal : les
+> conventions communes à toutes les routes. Il était auparavant une liste
+> manuelle de 33 routes sur 288, périmée (audit M9).
 
 ---
 
 ## Authentification
 
-### NextAuth.js Session-Based
+Session **next-auth**, portée par un cookie. Il n'y a ni jeton Bearer ni clé
+d'API pour les routes applicatives ; seules les tâches planifiées présentent un
+secret (voir plus bas).
 
-EduPilot utilise NextAuth.js pour l'authentification. Toutes les requêtes authentifiées nécessitent une session valide.
+- Les comptes à second facteur doivent l'avoir validé : une session
+  pré-2FA reçoit **403 `MFA_REQUIRED`**, y compris sur les routes d'API.
+- Un compte dont le mot de passe est provisoire est renvoyé vers le changement
+  de mot de passe avant tout accès.
+- Les routes publiques sont déclarées dans `proxy.ts`. Trois le sont par
+  chemin **exact** — `/api/health`, `/api/system/automation`,
+  `/api/system/retention` — pour que `/api/health/vaccinations`, par exemple,
+  reste protégée. Les autres le sont par préfixe : `/api/auth`, `/api/setup`,
+  `/api/explorer`, `/api/docs`, `/api/public`, et les webhooks de paiement
+  (`/api/payments/webhook`, `…/fedapay/webhook`, `…/momo/webhook`), dont la
+  signature est vérifiée par la route elle-même. Tout le reste exige une
+  session.
+- Les deux routes de tâches planifiées sont publiques au middleware mais
+  exigent `Authorization: Bearer <CRON_SECRET>`, comparé en temps constant.
 
-#### Login
+## Isolation entre établissements
 
-```http
-POST /api/auth/signin
-Content-Type: application/json
+Chaque route lit l'établissement de l'appelant depuis sa session, jamais depuis
+un paramètre de la requête. Une ressource d'un autre établissement répond
+**404**, pas 403 : l'existence n'est pas révélée. Le paramètre `?schoolId=`
+d'un autre établissement répond **403**.
 
-{
-  "email": "user@school.com",
-  "password": "votre-mot-de-passe"
-}
-```
+Les tables sensibles sont en outre protégées par la **RLS PostgreSQL**
+(`FORCE ROW LEVEL SECURITY`), avec un rôle applicatif non propriétaire : une
+requête qui échapperait au filtre applicatif ne verrait rien.
 
-**Réponse**:
+## Pagination — un seul format
+
+Toutes les listes répondent :
+
 ```json
 {
-  "user": {
-    "id": "cuid123",
-    "email": "user@school.com",
-    "firstName": "Jean",
-    "lastName": "Dupont",
-    "role": "TEACHER",
-    "schoolId": "school123"
-  }
-}
-```
-
-#### Logout
-
-```http
-POST /api/auth/signout
-```
-
----
-
-## Endpoints par Module
-
-### 👤 Utilisateurs
-
-#### GET `/api/users`
-
-Récupérer la liste des utilisateurs.
-
-**Permissions**: `SUPER_ADMIN`, `SCHOOL_ADMIN`, `DIRECTOR`
-
-**Query Parameters**:
-- `schoolId` (string, optionnel): Filtrer par école
-- `role` (string, optionnel): Filtrer par rôle
-- `page` (number, défaut: 1): Page de pagination
-- `pageSize` (number, défaut: 20): Taille de page
-
-**Réponse**:
-```json
-{
-  "data": [
-    {
-      "id": "user123",
-      "email": "prof@school.com",
-      "firstName": "Marie",
-      "lastName": "Martin",
-      "role": "TEACHER",
-      "isActive": true,
-      "createdAt": "2024-01-15T10:00:00Z"
-    }
-  ],
+  "data": [ … ],
   "pagination": {
-    "page": 1,
-    "pageSize": 20,
-    "total": 150,
-    "totalPages": 8
+    "limit": 20,
+    "hasNextPage": true,
+    "nextCursor": "eyJ2IjoiMjAyNi0wOS0xOFQxMDowMDowMC4wMDBaIiwiaWQiOiJjOSJ9",
+    "total": 137
   }
 }
 ```
 
-#### GET `/api/users/[id]`
-
-Récupérer un utilisateur spécifique.
-
-**Permissions**: Tous les utilisateurs authentifiés (propre profil), `ADMIN` roles (tous les profils)
-
-**Réponse**:
-```json
-{
-  "id": "user123",
-  "email": "prof@school.com",
-  "firstName": "Marie",
-  "lastName": "Martin",
-  "role": "TEACHER",
-  "phone": "+33612345678",
-  "avatar": "https://...",
-  "schoolId": "school123",
-  "isActive": true,
-  "createdAt": "2024-01-15T10:00:00Z",
-  "teacherProfile": {
-    "matricule": "T001",
-    "specialization": "Mathématiques"
-  }
-}
-```
-
-#### POST `/api/users`
-
-Créer un nouvel utilisateur.
-
-**Permissions**: `SUPER_ADMIN`, `SCHOOL_ADMIN`, `DIRECTOR`
-
-**Body**:
-```json
-{
-  "email": "nouveau@school.com",
-  "firstName": "Pierre",
-  "lastName": "Durand",
-  "role": "TEACHER",
-  "schoolId": "school123",
-  "phone": "+33612345678"
-}
-```
-
-**Réponse**: `201 Created`
-```json
-{
-  "id": "newuser123",
-  "email": "nouveau@school.com",
-  "firstName": "Pierre",
-  "lastName": "Durand",
-  "role": "TEACHER",
-  "firstLoginToken": "token123"
-}
-```
-
-#### PATCH `/api/users/[id]`
-
-Mettre à jour un utilisateur.
-
-**Permissions**: Propriétaire ou `ADMIN` roles
-
-**Body**:
-```json
-{
-  "firstName": "Pierre",
-  "phone": "+33698765432"
-}
-```
-
-#### DELETE `/api/users/[id]`
-
-Supprimer un utilisateur (soft delete).
-
-**Permissions**: `SUPER_ADMIN`, `SCHOOL_ADMIN`
-
-**Réponse**: `204 No Content`
-
----
-
-### 🏫 Écoles
-
-#### GET `/api/schools`
-
-Liste des écoles (SUPER_ADMIN uniquement).
-
-#### GET `/api/schools/[id]`
-
-Détails d'une école.
-
-#### POST `/api/schools`
-
-Créer une nouvelle école (SUPER_ADMIN uniquement).
-
----
-
-### 👨‍🎓 Élèves
-
-#### GET `/api/students`
-
-Liste des élèves.
-
-**Query Parameters**:
-- `schoolId` (string, requis sauf SUPER_ADMIN)
-- `classId` (string, optionnel)
-- `academicYearId` (string, optionnel)
-- `search` (string, optionnel): Recherche par nom ou matricule
-
-**Réponse**:
-```json
-{
-  "data": [
-    {
-      "id": "student123",
-      "userId": "user123",
-      "matricule": "E2024001",
-      "dateOfBirth": "2010-05-15",
-      "gender": "MALE",
-      "user": {
-        "firstName": "Thomas",
-        "lastName": "Bernard",
-        "email": "thomas.bernard@school.com"
-      },
-      "currentClass": {
-        "id": "class123",
-        "name": "6ème A"
-      }
-    }
-  ]
-}
-```
-
-#### GET `/api/students/[id]`
-
-Détails d'un élève avec toutes ses informations.
-
-#### POST `/api/students`
-
-Inscrire un nouvel élève.
-
----
-
-### 📚 Notes & Évaluations
-
-#### GET `/api/grades`
-
-Liste des notes.
-
-**Query Parameters**:
-- `studentId` (string, optionnel)
-- `classId` (string, optionnel)
-- `subjectId` (string, optionnel)
-- `periodId` (string, optionnel)
-
-**Réponse**:
-```json
-{
-  "data": [
-    {
-      "id": "grade123",
-      "value": 15.5,
-      "coefficient": 2,
-      "evaluation": {
-        "title": "Contrôle Chapitre 1",
-        "date": "2024-03-15",
-        "maxGrade": 20,
-        "subject": {
-          "name": "Mathématiques"
-        }
-      },
-      "student": {
-        "firstName": "Thomas",
-        "lastName": "Bernard"
-      }
-    }
-  ]
-}
-```
-
-#### POST `/api/grades`
-
-Enregistrer une note.
-
-**Permissions**: `TEACHER`, `ADMIN`
-
-**Body**:
-```json
-{
-  "evaluationId": "eval123",
-  "studentId": "student123",
-  "value": 16,
-  "comment": "Très bon travail"
-}
-```
-
-#### PATCH `/api/grades/[id]`
-
-Modifier une note existante.
-
-#### DELETE `/api/grades/[id]`
-
-Supprimer une note (soft delete avec audit).
-
----
-
-### 💰 Finance & Paiements
-
-#### GET `/api/finance/payments`
-
-Liste des paiements.
-
-**Query Parameters**:
-- `studentId` (string, optionnel)
-- `status` (string, optionnel): `PENDING`, `VERIFIED`, `RECONCILED`
-- `startDate` (date, optionnel)
-- `endDate` (date, optionnel)
-
-#### POST `/api/finance/payments`
-
-Enregistrer un paiement.
-
-**Body**:
-```json
-{
-  "studentId": "student123",
-  "feeId": "fee123",
-  "amount": 150000,
-  "method": "MOBILE_MONEY_MTN",
-  "reference": "TXN123456",
-  "paidAt": "2024-03-20T10:30:00Z"
-}
-```
-
-#### GET `/api/finance/dashboard`
-
-Tableau de bord financier (statistiques).
-
-**Réponse**:
-```json
-{
-  "totalRevenue": 15000000,
-  "pendingPayments": 2500000,
-  "paidStudents": 450,
-  "totalStudents": 500,
-  "recentPayments": [...],
-  "monthlyRevenue": [...]
-}
-```
-
----
-
-### 📊 Présences
-
-#### GET `/api/attendance`
-
-Liste des présences.
-
-#### POST `/api/attendance`
-
-Enregistrer les présences d'une classe.
-
-**Body**:
-```json
-{
-  "classId": "class123",
-  "date": "2024-03-20",
-  "attendances": [
-    {
-      "studentId": "student123",
-      "status": "PRESENT"
-    },
-    {
-      "studentId": "student456",
-      "status": "ABSENT",
-      "reason": "Maladie"
-    }
-  ]
-}
-```
-
----
-
-### 📝 Devoirs
-
-#### GET `/api/homework`
-
-Liste des devoirs.
-
-#### POST `/api/homework`
-
-Créer un devoir.
-
-#### POST `/api/homework/[id]/submit`
-
-Soumettre un devoir (élève).
-
----
-
-### 💬 Messages
-
-#### GET `/api/messages`
-
-Liste des messages de l'utilisateur.
-
-#### POST `/api/messages`
-
-Envoyer un message.
-
-**Body**:
-```json
-{
-  "recipientId": "user456",
-  "subject": "Réunion parents-professeurs",
-  "content": "Bonjour, je souhaiterais organiser une réunion..."
-}
-```
-
----
-
-### 🔔 Notifications
-
-#### GET `/api/notifications`
-
-Liste des notifications de l'utilisateur.
-
-#### PATCH `/api/notifications/[id]/read`
-
-Marquer comme lue.
-
-#### POST `/api/notifications/read-all`
-
-Marquer toutes les notifications comme lues.
-
----
-
-### 📈 Analytiques
-
-#### GET `/api/analytics/student/[id]`
-
-Analytiques d'un élève (moyennes, progression, etc.).
-
-#### GET `/api/analytics/class/[id]`
-
-Analytiques d'une classe.
-
-#### GET `/api/analytics/school`
-
-Analytiques globales de l'école.
-
----
-
-## Codes de statut
-
-| Code | Description |
-|------|-------------|
-| 200 | Succès |
-| 201 | Ressource créée |
-| 204 | Succès sans contenu |
-| 400 | Requête invalide |
-| 401 | Non authentifié |
-| 403 | Accès refusé |
-| 404 | Ressource non trouvée |
-| 422 | Entité non traitable (validation échouée) |
-| 429 | Trop de requêtes (rate limit) |
-| 500 | Erreur serveur |
-
----
-
-## Rate Limiting
-
-EduPilot implémente un rate limiting pour protéger l'API :
-
-- **API générale**: 100 requêtes / minute / IP
-- **Authentification**: 5 essais / 15 minutes / IP
-- **Endpoints sensibles**: 20 requêtes / minute / IP
-- **Upload**: 10 fichiers / minute / utilisateur
-
-Les headers de réponse incluent :
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1647856800
-```
-
----
-
-## Erreurs
-
-Format standard des erreurs :
+- `?limit=` fixe la taille, plafonnée par chaque route.
+- `?cursor=` demande la suite : repasser la valeur de `nextCursor`.
+- `total` n'est présent que sur la **première page** (un `count()` sur une
+  grande table coûte cher, et ne sert qu'une fois).
+- `nextCursor` est **opaque** : ne rien en déduire, il peut porter une valeur
+  de tri ou une position selon la route.
+- **`?page=` n'existe plus** (retiré au Lot 8). Il est ignoré sans erreur : un
+  client resté en arrière reçoit la première page.
+- Un curseur illisible répond **400 `INVALID_CURSOR`**.
+
+## Corps de requête
+
+`application/json`. Plafond de **1 Mo** par défaut (5 Mo sur les routes de
+téléversement), au-delà : **413 `PAYLOAD_TOO_LARGE`**.
+
+- JSON illisible → **400 `INVALID_JSON`** ;
+- corps refusé par le schéma Zod → **400 `VALIDATION_ERROR`**, avec le détail
+  par champ dans `details`.
+
+## Limites de débit
+
+Par adresse de client, établie par le serveur — jamais par un en-tête fourni
+par le client (`X-Forwarded-For` n'est lu que si un proxy de confiance est
+déclaré par `TRUSTED_PROXY_HOPS`).
+
+| Famille | Limite |
+|---|---|
+| API générale | 100 requêtes / minute |
+| Opérations sensibles (paiements, notes, comptes) | 20 / minute |
+| Téléversement | 10 / minute |
+| Authentification (mot de passe oublié, vérification) | 5 / 15 minutes |
+| **Échecs** de connexion | 10 / 15 minutes |
+| Vérification du second facteur | 5 / 10 minutes |
+
+Une connexion réussie **rend** l'unité consommée : seuls les échecs comptent,
+pour qu'une école derrière une seule adresse publique ne se bloque pas
+elle-même.
+
+Au dépassement : **429 `TOO_MANY_REQUESTS`**, avec `Retry-After` en secondes.
+Le middleware ajoute `X-RateLimit-Remaining` aux réponses qu'il laisse passer.
+
+## Forme des erreurs
 
 ```json
-{
-  "error": "Validation failed",
-  "message": "Email is required",
-  "code": "VALIDATION_ERROR",
-  "details": {
-    "field": "email",
-    "rule": "required"
-  }
-}
+{ "error": "Message en français, destiné à la personne", "code": "CODE_STABLE", "details": { … } }
 ```
 
-### Codes d'erreur courants
+`error` peut changer de formulation ; **`code` est le contrat**.
 
-| Code | Description |
-|------|-------------|
-| `VALIDATION_ERROR` | Données invalides |
-| `UNAUTHORIZED` | Session expirée ou invalide |
-| `FORBIDDEN` | Permissions insuffisantes |
-| `NOT_FOUND` | Ressource introuvable |
-| `CONFLICT` | Conflit (ex: email déjà utilisé) |
-| `RATE_LIMIT_EXCEEDED` | Trop de requêtes |
-| `INTERNAL_ERROR` | Erreur serveur |
+| Code | Statut | Sens |
+|---|---|---|
+| `INVALID_JSON` | 400 | Corps illisible |
+| `VALIDATION_ERROR` | 400 | Refusé par le schéma Zod (`details` par champ) |
+| `INVALID_REFERENCE` | 400 | Référence vers un enregistrement inexistant |
+| `RELATION_VIOLATION` | 400 | Contrainte relationnelle |
+| `INVALID_CURSOR` | 400 | Curseur de pagination illisible |
+| `NO_SCHOOL` | 403 | Compte sans établissement |
+| `MFA_REQUIRED` | 403 | Second facteur non validé |
+| `MODULE_DISABLED` | 403 | Module désactivé par l'établissement |
+| `NOT_FOUND` | 404 | Inexistant, ou hors de l'établissement |
+| `DUPLICATE` | 409 | Un enregistrement identique existe déjà |
+| `PAYLOAD_TOO_LARGE` | 413 | Corps au-delà du plafond |
+| `TOO_MANY_REQUESTS` | 429 | Limite de débit atteinte |
+| `MAINTENANCE` | 503 | Mode maintenance (`Retry-After: 120`) |
+| `INTERNAL_ERROR` | 500 | Erreur interne ; le détail va au journal, pas à la réponse |
 
----
+## Identifiant de requête
 
-## Support
+Chaque réponse porte `x-request-id`, repris dans **chaque ligne de journal** de
+la requête. C'est ce qu'il faut communiquer pour faire retrouver une trace.
 
-Pour toute question ou problème, contactez l'équipe technique :
-- Email: support@edupilot.bj
-- Documentation complète: https://docs.edupilot.bj
+## Traçabilité
+
+Les consultations et modifications de données sensibles — notes, santé,
+paiements, rôles — sont écrites dans `AuditLog`. Aucune donnée personnelle en
+clair ne va dans les journaux applicatifs.

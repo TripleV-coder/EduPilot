@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
   dedupeLatestAnalyticsByStudent,
@@ -7,6 +7,11 @@ import {
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import {
+  DASHBOARD_ANALYTICS_SELECT,
+  loadStudentIdentities,
+  summarizeSubjectsWithPassRate,
+} from "@/lib/services/analytics-dashboard/queries";
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
   const scoredAnalytics = analytics
@@ -72,33 +77,18 @@ export const GET = createApiHandler(async (request, context) => {
     });
 
     // 2. Academic performance overview
+    // C3 : champs utiles aux indicateurs seulement, période filtrée par la base ;
+    // noms, classes et matières par requêtes ciblées (analytics-dashboard/queries).
     const analytics = await prisma.studentAnalytics.findMany({
       where: {
         academicYearId: yearId,
         student: { schoolId },
+        ...(periodId ? { periodId } : {}),
       },
-      include: {
-        period: {
-          select: { id: true, name: true, sequence: true },
-        },
-        student: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
-            enrollments: {
-              where: { academicYearId: yearId, status: "ACTIVE" },
-              include: { class: { select: { name: true } } },
-            },
-          },
-        },
-        subjectPerformances: {
-          include: {
-            subject: { select: { name: true, code: true } },
-          },
-        },
-      },
+      select: DASHBOARD_ANALYTICS_SELECT,
     });
     const currentAnalytics = periodId
-      ? analytics.filter((item) => item.periodId === periodId)
+      ? analytics
       : dedupeLatestAnalyticsByStudent(analytics);
     const avgGeneral = averageGeneral(currentAnalytics);
 
@@ -118,58 +108,38 @@ export const GET = createApiHandler(async (request, context) => {
       critical: currentAnalytics.filter(a => a.riskLevel === "CRITICAL").length,
     };
 
-    const topStudents = currentAnalytics
+    const topAnalytics = currentAnalytics
       .filter((item) => item.generalAverage !== null && Number(item.generalAverage) >= 15)
       .sort((left, right) => Number(right.generalAverage) - Number(left.generalAverage))
-      .slice(0, 10)
-      .map((a) => ({
-      student: {
-        user: a.student.user,
-        class: a.student.enrollments[0]?.class || { name: "N/A" },
-      },
-      generalAverage: Number(a.generalAverage),
-      period: a.period,
-    }));
-
-    const atRiskStudents = currentAnalytics
+      .slice(0, 10);
+    const atRiskAnalytics = currentAnalytics
       .filter((item) => item.riskLevel === "HIGH" || item.riskLevel === "CRITICAL")
       .sort((left, right) => Number(left.generalAverage || 0) - Number(right.generalAverage || 0))
-      .slice(0, 10)
-      .map((a) => ({
-      student: {
-        id: a.student.id,
-        user: a.student.user,
-        class: a.student.enrollments[0]?.class || { name: "N/A" },
-      },
+      .slice(0, 10);
+
+    const [identities, subjectSummary] = await Promise.all([
+      loadStudentIdentities([...topAnalytics, ...atRiskAnalytics].map((item) => item.studentId), yearId),
+      summarizeSubjectsWithPassRate(currentAnalytics.map((item) => item.id)),
+    ]);
+    const studentView = (studentId: string) => {
+      const identity = identities.get(studentId);
+      return {
+        user: identity?.user ?? { firstName: "", lastName: "" },
+        class: { name: identity?.className ?? "N/A" },
+      };
+    };
+
+    const topStudents = topAnalytics.map((a) => ({
+      student: studentView(a.studentId),
       generalAverage: Number(a.generalAverage),
       period: a.period,
     }));
 
-    const subjectStats: Record<string, { name: string; totalAverage: number; count: number; passCount: number }> = {};
-    for (const analyticsItem of currentAnalytics) {
-      for (const perf of analyticsItem.subjectPerformances) {
-        if (perf.average === null) continue;
-        const key = perf.subjectId;
-        if (!subjectStats[key]) {
-          subjectStats[key] = { name: perf.subject.name, totalAverage: 0, count: 0, passCount: 0 };
-        }
-        subjectStats[key].totalAverage += Number(perf.average || 0);
-        subjectStats[key].count += 1;
-        if (Number(perf.average || 0) >= 10) {
-          subjectStats[key].passCount += 1;
-        }
-      }
-    }
-
-    const subjectSummary = Object.entries(subjectStats).map(([id, s]) => ({
-      subjectId: id,
-      subject: s.name,
-      name: s.name, // compatibility
-      grade: s.count > 0 ? roundTo(s.totalAverage / s.count) : 0,
-      average: s.count > 0 ? roundTo(s.totalAverage / s.count) : 0, // compatibility
-      passRate: s.count > 0 ? roundTo((s.passCount / s.count) * 100) : 0,
-      studentsCount: s.count,
-    })).sort((a, b) => b.grade - a.grade);
+    const atRiskStudents = atRiskAnalytics.map((a) => ({
+      student: { id: a.studentId, ...studentView(a.studentId) },
+      generalAverage: Number(a.generalAverage),
+      period: a.period,
+    }));
 
     // 6. Attendance overview
     const attendanceStats = await prisma.attendance.groupBy({
@@ -215,10 +185,22 @@ export const GET = createApiHandler(async (request, context) => {
             periodId: previousPeriod.id,
             student: { schoolId },
           },
+          select: { studentId: true, generalAverage: true },
         });
 
         const prevAvg = averageGeneral(previousAnalytics);
         const currentAvg = averageGeneral(currentPeriodAnalytics);
+        // Index par élève (au lieu d'un find par élève : O(n²) sur une école entière).
+        const previousByStudent = new Map<string, number[]>();
+        for (const previous of previousAnalytics) {
+          const averages = previousByStudent.get(previous.studentId) ?? [];
+          averages.push(Number(previous.generalAverage || 0));
+          previousByStudent.set(previous.studentId, averages);
+        }
+        const countAgainstPrevious = (predicate: (current: number, previous: number) => boolean) =>
+          currentPeriodAnalytics.filter((a) =>
+            (previousByStudent.get(a.studentId) ?? []).some((previous) => predicate(Number(a.generalAverage || 0), previous))
+          ).length;
 
         periodComparison = {
           previousPeriod: previousPeriod.name,
@@ -227,12 +209,8 @@ export const GET = createApiHandler(async (request, context) => {
           improvement: currentAvg > 0 && prevAvg > 0
             ? currentAvg - prevAvg
             : 0,
-          studentsImproved: currentPeriodAnalytics.filter(a =>
-            previousAnalytics.find(p => p.studentId === a.studentId && (Number(a.generalAverage || 0) > Number(p.generalAverage || 0)))
-          ).length,
-          studentsDeclined: currentPeriodAnalytics.filter(a =>
-            previousAnalytics.find(p => p.studentId === a.studentId && (Number(a.generalAverage || 0) < Number(p.generalAverage || 0)))
-          ).length,
+          studentsImproved: countAgainstPrevious((current, previous) => current > previous),
+          studentsDeclined: countAgainstPrevious((current, previous) => current < previous),
         };
       }
     }

@@ -8,8 +8,6 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
 const eventSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   description: z.string().optional(),

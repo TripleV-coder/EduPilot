@@ -1,14 +1,24 @@
 "use client";
 
-import React, { useMemo } from "react";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DebtAgingChart } from "@/components/charts/DebtAgingChart";
+
 import { 
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { FR_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const DebtAgingChart = dynamic(() => import("@/components/charts/DebtAgingChart").then((m) => m.DebtAgingChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type FinanceAnalyticsData = {
     totalRevenue?: number | string;

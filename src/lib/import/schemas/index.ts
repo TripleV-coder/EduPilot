@@ -2,7 +2,6 @@ import { z } from "zod";
 
 // Shared Schemas
 const phoneSchema = z.string().optional();
-const _emailSchema = z.string().email("Email invalide").optional().or(z.literal(""));
 
 // 1. Teacher Import Schema
 export const importTeacherSchema = z.object({
@@ -50,7 +49,8 @@ export const importStudentSchema = z.object({
     dateOfBirth: z.string().optional(), // DD/MM/YYYY or ISO
     gender: z.enum(["M", "F"]).optional(),
     birthPlace: z.string().optional(),
-    address: z.string().optional(),
+    // N54 : enregistrée (StudentProfile.address) ; même limite que la fiche utilisateur.
+    address: z.string().max(255, "Adresse trop longue (255 caractères maximum)").optional(),
     className: z.string().optional(), // To link to a Class
     parentEmail: z.string().email().optional().or(z.literal("")), // To link to a Parent
     matricule: z.string().optional(), // If providing custom matricule

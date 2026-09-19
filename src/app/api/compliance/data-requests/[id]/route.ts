@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -168,7 +168,7 @@ export const PATCH = createApiHandler(async (request, context) => {
           validatedData.status === "COMPLETED" ? "complétée" :
           validatedData.status === "REJECTED" ? "rejetée" : "mise en cours de traitement"
         }`,
-        link: `/compliance/data-requests/${id}`,
+        link: "/dashboard/compliance",
       },
     });
 

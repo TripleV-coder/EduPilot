@@ -1,8 +1,22 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 
-import { EduCommandPalette } from "./EduCommandPalette";
+/**
+ * Perf (2026-09-18) : la palette de commandes était montée sur **chaque** page
+ * du tableau de bord alors qu'elle ne s'ouvre qu'au Ctrl+K. Son code (et le
+ * catalogue de navigation qu'elle embarque) était donc téléchargé et exécuté
+ * par tout le monde, y compris sur un téléphone en réseau lent, pour une
+ * fonction que la plupart des gens n'utilisent jamais.
+ *
+ * Elle est désormais chargée à la première ouverture, puis reste montée. Le
+ * raccourci, le contexte et le comportement sont inchangés.
+ */
+const EduCommandPalette = dynamic(
+    () => import("./EduCommandPalette").then((m) => m.EduCommandPalette),
+    { ssr: false },
+);
 
 type CommandPaletteContextValue = {
     open: () => void;
@@ -29,6 +43,12 @@ export function CommandPaletteProvider({
     children: React.ReactNode;
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
+    // Une fois ouverte, la palette reste montée : pas de second chargement.
+    const [everOpened, setEverOpened] = React.useState(false);
+
+    React.useEffect(() => {
+        if (isOpen) setEverOpened(true);
+    }, [isOpen]);
 
     const open = React.useCallback(() => setIsOpen(true), []);
     const close = React.useCallback(() => setIsOpen(false), []);
@@ -59,7 +79,7 @@ export function CommandPaletteProvider({
     return (
         <CommandPaletteContext.Provider value={value}>
             {children}
-            <EduCommandPalette open={isOpen} onOpenChange={setIsOpen} />
+            {everOpened ? <EduCommandPalette open={isOpen} onOpenChange={setIsOpen} /> : null}
         </CommandPaletteContext.Provider>
     );
 }

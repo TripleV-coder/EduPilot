@@ -16,14 +16,6 @@ export function applyTheme(theme: ThemeValue) {
     root.classList.toggle("dark", prefersDark);
 }
 
-export function readStoredTheme(): ThemeValue {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") {
-        return stored;
-    }
-    return "system";
-}
-
 export function persistTheme(theme: ThemeValue) {
     localStorage.setItem(STORAGE_KEY, theme);
     applyTheme(theme);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -20,17 +20,6 @@ const createScholarshipSchema = z.object({
   notes: z.string().optional(),
 }).refine(data => data.amount !== undefined || data.percentage !== undefined, {
   message: "Either amount or percentage must be provided",
-});
-
-const _updateScholarshipSchema = z.object({
-  name: z.string().min(3).max(200).optional(),
-  type: z.enum(["MERIT", "NEED_BASED", "ATHLETIC", "PARTIAL", "FULL", "OTHER"]).optional(),
-  amount: z.number().positive().optional(),
-  percentage: z.number().int().min(1).max(100).optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional().nullable(),
-  isActive: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
 });
 
 // GET /api/scholarships - List scholarships
@@ -88,11 +77,17 @@ export const GET = createApiHandler(async (request, context) => {
       where.isActive = isActive === "true";
     }
 
+    // Audit C3 (minimisation) : chaque bourse embarquait le profil élève
+    // complet (adresse, date et lieu de naissance, nationalité…) et la classe
+    // avec son niveau. Seuls les champs affichés par la page sortent. La liste
+    // reste complète : la page calcule ses indicateurs sur l'ensemble.
     const scholarships = await prisma.scholarship.findMany({
       where,
       include: {
         student: {
-          include: {
+          select: {
+            id: true,
+            matricule: true,
             user: {
               select: {
                 id: true,
@@ -102,13 +97,7 @@ export const GET = createApiHandler(async (request, context) => {
             },
             enrollments: {
               where: { status: "ACTIVE" },
-              include: {
-                class: {
-                  include: {
-                    classLevel: true,
-                  },
-                },
-              },
+              select: { class: { select: { name: true } } },
             },
           },
         },
@@ -194,7 +183,7 @@ export const POST = createApiHandler(
           type: "SUCCESS",
           title: "Bourse accordée",
           message: `Vous avez reçu une bourse: ${scholarship.name} (${scholarship.percentage ? `${scholarship.percentage}%` : `${scholarship.amount}`})`,
-          link: `/scholarships/${scholarship.id}`,
+          link: "/dashboard/scholarships",
         },
       });
 
@@ -206,7 +195,7 @@ export const POST = createApiHandler(
             type: "SUCCESS",
             title: "Bourse accordée",
             message: `${student.user.firstName} ${student.user.lastName} a reçu une bourse: ${scholarship.name}`,
-            link: `/scholarships/${scholarship.id}`,
+            link: "/dashboard/scholarships",
           })),
         });
       }

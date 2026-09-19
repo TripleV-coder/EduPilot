@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma, EventType } from "@prisma/client";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const createEventSchema = z.object({
   title: z.string().min(3),
@@ -27,9 +28,9 @@ export const GET = createApiHandler(async (request, context) => {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const upcoming = searchParams.get("upcoming") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    // Lot 3 : curseur sur la date de début par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "startDate", direction: "asc", defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.SchoolEventWhereInput = {
       isPublished: true,
@@ -44,7 +45,7 @@ export const GET = createApiHandler(async (request, context) => {
 
     const [events, total] = await Promise.all([
       prisma.schoolEvent.findMany({
-        where,
+        where: list.where(where),
         include: {
           createdBy: {
             select: { firstName: true, lastName: true },
@@ -53,17 +54,14 @@ export const GET = createApiHandler(async (request, context) => {
             select: { participations: true },
           },
         },
-        orderBy: { startDate: "asc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.schoolEvent.count({ where }),
+      list.needsTotal ? prisma.schoolEvent.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      events,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
+    return NextResponse.json(list.page(events, (event) => event.startDate, total));
   
     } catch (error) {
     logger.error(" fetching events:", error as Error);
@@ -118,7 +116,7 @@ export const POST = createApiHandler(async (request, context) => {
           type: "INFO" as const,
           title: "Nouvel événement",
           message: `${validatedData.title} - ${new Date(validatedData.startDate).toLocaleDateString("fr-FR")}`,
-          link: `/events/${event.id}`,
+          link: "/dashboard/events",
         })),
       });
     }

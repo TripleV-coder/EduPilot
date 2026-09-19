@@ -252,10 +252,11 @@ describe("POST /api/payments/initiate", () => {
     };
     expect(createArgs.data.status).toBe("PENDING");
     expect(createArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      data: { reference: string };
-    };
-    expect(updateArgs.data.reference).toBe("TXN-1");
+    // Audit N7 : ce test exigeait que la référence soit remplacée par
+    // l'identifiant du fournisseur (« TXN-1 »). Or les webhooks MoMo et FedaPay
+    // rapprochent par NOTRE référence (externalId / merchant_reference) : la
+    // remplacer rendait le paiement introuvable, qui restait PENDING.
+    expect(prisma.payment.update).not.toHaveBeenCalled();
     expect(providerMock.initiatePayment).toHaveBeenCalledWith(
       50000,
       "XOF",

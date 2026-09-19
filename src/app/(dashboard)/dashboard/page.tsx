@@ -10,6 +10,9 @@ import {
 } from "@/lib/services/analytics-dashboard";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { runWithDbContext } from "@/lib/db/db-context";
+import { dbContextForSession } from "@/lib/db/session-db-context";
+import type { Session } from "next-auth";
 import {
     DirectorHome,
     TeacherHome,
@@ -27,6 +30,12 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
+    // Page rendue hors de createApiHandler : même contexte d'établissement
+    // que les API pour les lectures des tables sensibles (audit M2).
+    return runWithDbContext(dbContextForSession(session), () => renderDashboard(session));
+}
+
+async function renderDashboard(session: Session) {
     const cookieStore = await cookies();
     const role = session.user.role;
     const userName = session.user.name ?? session.user.email ?? "Utilisateur";

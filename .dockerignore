@@ -14,6 +14,8 @@ coverage
 .github
 infrastructure
 scripts
+# …sauf les préchargements et l'entrée du conteneur, copiés par le Dockerfile.
+!scripts/server
 *.log
 logs
 .DS_Store

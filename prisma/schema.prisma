@@ -70,6 +70,10 @@ model School {
   type                   SchoolType                @default(PRIVATE)
   level                  SchoolLevel
   offeredLevels          SchoolLevel[]             @default([])
+  // Lot 6 (minimisation) : modules actifs de l'école. Défaut = socle
+  // (lib/modules/catalog). Les écoles existantes reçoivent tout le catalogue
+  // par la migration 20260917100000_school_enabled_modules.
+  enabledModules         String[]                  @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
   siteType               SiteType                  @default(MAIN)
   address                String?
   city                   String?
@@ -1181,6 +1185,11 @@ model DataConsent {
   id          String    @id @default(cuid())
   userId      String
   consentType String
+  /// Personne concernée par le consentement : l'auteur lui-même, ou l'enfant
+  /// pour lequel un parent répond (Lot 6). Jamais nul : l'unicité en dépend.
+  subjectUserId String  @default("")
+  /// Version du document acceptée (conditions, politique de confidentialité).
+  version     String?
   isGranted   Boolean   @default(false)
   grantedAt   DateTime?
   revokedAt   DateTime?
@@ -1190,8 +1199,9 @@ model DataConsent {
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, consentType])
+  @@unique([userId, consentType, subjectUserId])
   @@index([userId])
+  @@index([subjectUserId, consentType])
   @@map("data_consents")
 }
 
@@ -1199,7 +1209,7 @@ model DataRetentionPolicy {
   id              String   @id @default(cuid())
   schoolId        String
   dataType        String
-  retentionPeriod Int
+  retentionPeriod Int // en mois (Lot 6, N57 — migration 20260914160000)
   isActive        Boolean  @default(true)
   description     String?
   createdAt       DateTime @default(now())

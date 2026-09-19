@@ -34,9 +34,30 @@ export const STUDENT_FIELDS: FieldDefinition[] = [
     { key: "birthPlace", label: "Lieu de naissance", required: false, type: "string" },
     { key: "address", label: "Adresse", required: false, type: "string" },
     { key: "className", label: "Classe", required: false, type: "string" },
-    { key: "parentEmail", label: "Email parent", required: false, type: "email" },
+    // N50 : pas de champ « Email parent » — le rattachement passe par l'import « Parents ».
     { key: "matricule", label: "Matricule", required: false, type: "string" },
 ];
+
+/**
+ * N50 — texte unique (écran et serveur). La colonne « Email parent » était
+ * proposée à l'import des élèves puis jamais utilisée : aucun rattachement,
+ * aucun avertissement. Un email saisi dans un tableur ne suffit pas à relier un
+ * adulte aux données d'un mineur : l'import « Parents » relie chaque parent à
+ * ses enfants par leur matricule.
+ */
+export const PARENT_EMAIL_NOTICE =
+    "Colonne « Email parent » non utilisée : aucun parent n'est rattaché par cet import. Rattachez les parents avec l'import « Parents » (matricule de l'enfant).";
+
+function isParentEmailHeader(header: string): boolean {
+    const normalized = header.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    return /mail|courriel/.test(normalized) && /parent|tuteur/.test(normalized);
+}
+
+/** Colonnes du fichier que l'import ignore délibérément et qu'il faut signaler (N50). */
+export function ignoredColumnNotices(headers: string[], type: string): string[] {
+    if (type === "STUDENTS" && headers.some(isParentEmailHeader)) return [PARENT_EMAIL_NOTICE];
+    return [];
+}
 
 export const CLASS_FIELDS: FieldDefinition[] = [
     { key: "name", label: "Nom", required: true, type: "string", description: "Ex: 6ème A" },
@@ -103,7 +124,9 @@ function similarity(a: string, b: string): number {
 const FIELD_ALIASES: Record<string, string[]> = {
     firstName: ["prénom", "prenom", "first name", "firstname", "given name"],
     lastName: ["nom", "last name", "lastname", "nom de famille", "surname"],
-    email: ["email", "e-mail", "mail", "courriel", "adresse email"],
+    // Les en-têtes « … parent » ne sont retenus que par l'import « Parents » (voir suggestMapping, N50) :
+    // le fichier des élèves, repris tel quel pour les parents, se rattache alors tout seul.
+    email: ["email", "e-mail", "mail", "courriel", "adresse email", "email parent", "email du parent", "e-mail parent", "courriel parent"],
     phone: ["téléphone", "telephone", "phone", "tel", "mobile", "portable"],
     dateOfBirth: ["date de naissance", "naissance", "birth date", "dob", "né le", "ne le"],
     gender: ["genre", "sexe", "gender", "sex"],
@@ -114,7 +137,6 @@ const FIELD_ALIASES: Record<string, string[]> = {
     level: ["niveau", "level", "grade"],
     capacity: ["capacité", "capacite", "capacity", "effectif"],
     birthPlace: ["lieu de naissance", "lieu naissance", "birth place", "birthplace"],
-    parentEmail: ["email parent", "parent email", "email du parent"],
     cin: ["cin", "cni", "carte identité", "id card"],
     job: ["profession", "métier", "metier", "job", "occupation"],
     childrenMatricules: ["matricules enfants", "enfants", "children", "students"],
@@ -130,6 +152,10 @@ export function suggestMapping(
     const mapping: Record<string, string> = {};
 
     for (const header of sourceHeaders) {
+        // N50 : l'email d'un parent ne se rattache qu'à l'import « Parents ». Ailleurs, la
+        // ressemblance l'enverrait vers l'email de l'élève (ou de l'enseignant) : compte faux.
+        if (targetFields !== PARENT_FIELDS && isParentEmailHeader(header)) continue;
+
         let bestMatch: { field: string; score: number } = { field: "", score: 0 };
 
         for (const field of targetFields) {

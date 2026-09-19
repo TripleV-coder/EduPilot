@@ -17,9 +17,18 @@ export function cuid(seed: string): string {
 let requestCounter = 0;
 
 /**
+ * Jeton du préchargement serveur simulé (audit H3). Les requêtes de test sont
+ * des clients distincts ; depuis H3, seule une chaîne X-Forwarded-For signée
+ * par le préchargement identifie le client — un XFF nu est ignoré (c'était le
+ * contournement du rate-limit que ce helper exploitait sans le vouloir).
+ */
+const TEST_PEER_TOKEN = "e".repeat(64);
+process.env.EDUPILOT_PEER_TOKEN ??= TEST_PEER_TOKEN;
+
+/**
  * Requête simulée compatible avec les handlers Next (url, nextUrl, headers,
- * json). Chaque requête reçoit une IP unique pour isoler le rate limiting
- * in-memory de createApiHandler entre les tests.
+ * json). Chaque requête reçoit une adresse de socket unique (chaîne signée)
+ * pour isoler le rate limiting in-memory de createApiHandler entre les tests.
  */
 export function makeRequest(
   url: string,
@@ -30,6 +39,7 @@ export function makeRequest(
   const headers = new Headers({
     "Content-Type": "application/json",
     "x-forwarded-for": `10.0.${Math.floor(requestCounter / 256)}.${requestCounter % 256}`,
+    "x-edupilot-peer-token": process.env.EDUPILOT_PEER_TOKEN ?? TEST_PEER_TOKEN,
     ...init?.headers,
   });
   return {

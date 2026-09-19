@@ -13,9 +13,10 @@ vi.mock("@/lib/teachers/school-assignments", () => ({
 vi.mock("@/lib/prisma", () => ({
   default: {
     classSubject: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
-    teacherProfile: { findUnique: vi.fn() },
+    teacherProfile: { findUnique: vi.fn(), findMany: vi.fn() },
     class: { findUnique: vi.fn() },
-    subject: { findUnique: vi.fn() },
+    subject: { findUnique: vi.fn(), findMany: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -108,10 +109,13 @@ describe("POST /api/class-subjects", () => {
     expect(res.status).toBe(403);
   });
 
-  it("should return 500 on invalid body (zod error uncaught by the route)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("should return 400 VALIDATION_ERROR on invalid body (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     const res = await POST(makeRequest("http://localhost/api/class-subjects", { method: "POST", body: { classId: "bad" } }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
   });
 
   it("should return 404 when the class does not exist", async () => {
@@ -183,10 +187,18 @@ describe("POST /api/class-subjects", () => {
   });
 });
 
+// Audit M5 (N+1) : la route relisait matière, enseignant et liaison existante
+// pour chaque affectation (findUnique / findFirst). Elle les lit désormais en
+// une requête par modèle (findMany) avant d'écrire le lot en une transaction :
+// les cas ci-dessous simulent les mêmes données via findMany, assertions inchangées.
 describe("POST /api/class-subjects/batch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isTeacherAssignedToSchool).mockResolvedValue(true);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.teacherProfile.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
   });
 
   const batchBody = { assignments: [ASSIGNMENT_BODY] };
@@ -203,10 +215,13 @@ describe("POST /api/class-subjects/batch", () => {
     expect(res.status).toBe(403);
   });
 
-  it("should return 500 on empty assignments (zod error uncaught by the route)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("should return 400 VALIDATION_ERROR on empty assignments (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", { method: "POST", body: { assignments: [] } }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
   });
 
   it("should return 404 when the class does not exist", async () => {
@@ -220,7 +235,7 @@ describe("POST /api/class-subjects/batch", () => {
   it("should return 404 when the subject does not exist", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.subject.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([] as never);
     const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", { method: "POST", body: batchBody }));
     expect(res.status).toBe(404);
   });
@@ -228,17 +243,18 @@ describe("POST /api/class-subjects/batch", () => {
   it("should forbid a subject from another school", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.subject.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolB } as never);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ id: cuid("subj1"), schoolId: FIXTURES.schoolB }] as never);
     const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", { method: "POST", body: batchBody }));
     expect(res.status).toBe(403);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("should create new assignments and sync the class", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.subject.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.classSubject.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ id: cuid("subj1"), schoolId: FIXTURES.schoolA }] as never);
+    vi.mocked(prisma.teacherProfile.findMany).mockResolvedValue([{ id: cuid("teach1") }] as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.classSubject.create).mockResolvedValue(makeClassSubject());
 
     const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", { method: "POST", body: batchBody }));
@@ -254,14 +270,47 @@ describe("POST /api/class-subjects/batch", () => {
   it("should update existing assignments", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.subject.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
-    vi.mocked(prisma.classSubject.findFirst).mockResolvedValue(makeClassSubject());
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([{ id: cuid("subj1"), schoolId: FIXTURES.schoolA }] as never);
+    vi.mocked(prisma.teacherProfile.findMany).mockResolvedValue([{ id: cuid("teach1") }] as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: cuid("class1"), subjectId: cuid("subj1") }] as never);
     vi.mocked(prisma.classSubject.update).mockResolvedValue(makeClassSubject());
 
     const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", { method: "POST", body: batchBody }));
     expect(res.status).toBe(200);
     expect(prisma.classSubject.update).toHaveBeenCalled();
     expect(prisma.classSubject.create).not.toHaveBeenCalled();
+  });
+
+  // Audit M5 (N+1) : lecture de la matière, de l'enseignant et de la liaison
+  // existante pour CHAQUE affectation, puis écriture classe par classe.
+  it("should validate the whole batch with one query per model and write it in one transaction (audit M5)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.subject.findMany).mockResolvedValue([
+      { id: cuid("subj1"), schoolId: FIXTURES.schoolA },
+      { id: cuid("subj2"), schoolId: FIXTURES.schoolA },
+    ] as never);
+    vi.mocked(prisma.teacherProfile.findMany).mockResolvedValue([{ id: cuid("teach1") }] as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: cuid("class1"), subjectId: cuid("subj1") }] as never);
+
+    const res = await POST_BATCH(makeRequest("http://localhost/api/class-subjects/batch", {
+      method: "POST",
+      body: { assignments: [ASSIGNMENT_BODY, { ...ASSIGNMENT_BODY, subjectId: cuid("subj2") }] },
+    }));
+
+    expect(res.status).toBe(200);
+    expect(prisma.subject.findUnique).not.toHaveBeenCalled();
+    expect(prisma.teacherProfile.findUnique).not.toHaveBeenCalled();
+    expect(prisma.classSubject.findFirst).not.toHaveBeenCalled();
+    expect(prisma.subject.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.teacherProfile.findMany).toHaveBeenCalledTimes(1);
+    expect(isTeacherAssignedToSchool).toHaveBeenCalledTimes(1); // un enseignant, vérifié une fois
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // subj1 existe → mise à jour ; subj2 absente → création ; puis synchronisation
+    expect(prisma.classSubject.update).toHaveBeenCalledTimes(1);
+    expect(prisma.classSubject.create).toHaveBeenCalledTimes(1);
+    expect(prisma.classSubject.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { classId: cuid("class1"), subjectId: { notIn: [cuid("subj1"), cuid("subj2")] } } }),
+    );
   });
 });

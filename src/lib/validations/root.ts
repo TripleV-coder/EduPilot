@@ -19,7 +19,9 @@ export const schoolDeploymentSchema = z.object({
   adminFirstName: z.string().min(2, "Prénom trop court"),
   adminLastName: z.string().min(2, "Nom trop court"),
   adminEmail: z.string().email("Email admin invalide"),
-  adminPassword: veryStrongPasswordSchema, // P13: Strong password validation for admin accounts
+  // P13 : fort s'il est saisi. Facultatif : sans saisie, le serveur génère un
+  // mot de passe provisoire unique, à changer à la première connexion (N31).
+  adminPassword: veryStrongPasswordSchema.optional(),
 }).superRefine((data, ctx) => {
   if (data.organizationMode === "CREATE" && !data.organizationName?.trim()) {
     ctx.addIssue({

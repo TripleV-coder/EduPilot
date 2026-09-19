@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,7 @@ export default function NewExamPage() {
   const [duration, setDuration] = useState(60);
   const [isPublished, setIsPublished] = useState(false);
 
-  const { data: classSubjects } = useSWR<ClassSubjectWithTeacher[]>("/api/class-subjects", fetcher);
+  const { data: classSubjects, error: loadError, mutate: reloadPage } = useSWR<ClassSubjectWithTeacher[]>("/api/class-subjects", fetcher);
   const subjects = Array.isArray(classSubjects) ? classSubjects : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,6 +67,10 @@ export default function NewExamPage() {
   return (
     <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
       <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger les matières : la création d'un examen n'est pas possible pour l'instant." onRetry={() => void reloadPage()} />
+                ) : null}
+
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exams">
             <Button variant="outline" size="icon">

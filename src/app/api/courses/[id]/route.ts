@@ -221,7 +221,7 @@ export const PATCH = createApiHandler(
           type: "INFO",
           title: "Nouveau cours disponible",
           message: `Le cours "${updatedCourse.title}" est maintenant disponible`,
-          link: `/courses/${id}`,
+          link: `/dashboard/courses/${id}`,
         })),
       });
     }
@@ -245,6 +245,10 @@ export const DELETE = createApiHandler(
   try {
     const { id } = await context.params;
     const session = context.session;
+    // Isolation par établissement (balayage du Lot 4) : sans ce garde, un
+    // administrateur de n'importe quelle école supprimait le cours d'une autre.
+    const guard = await assertModelAccess(session, "course", id, "Cours non trouvé");
+    if (guard) return guard;
 
     const course = await prisma.course.findUnique({
       where: { id: id },

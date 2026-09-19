@@ -13,8 +13,7 @@ import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/utils/logger";
-import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { authLimiter, checkRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 heures

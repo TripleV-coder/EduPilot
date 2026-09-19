@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageEmpty } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  ShieldAlert, AlertCircle, 
+  ShieldAlert, 
   ArrowRight, Filter, Download
 } from "lucide-react";
 import { RiskMatrix, type RiskMatrixPoint } from "@/components/charts/RiskMatrix";
@@ -23,6 +23,8 @@ import type { Class } from "@/lib/types";
 type AnalyticsStudent = {
   studentId: string;
   studentName: string;
+  /** Classe active de l'élève (renvoyée par l'API depuis le Lot 3). */
+  className?: string | null;
   averageGrade: number | null;
   attendanceRate: number | null;
   riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
@@ -107,12 +109,18 @@ function AlertsRisksContent() {
     ? "/api/incidents?limit=200"
     : `/api/incidents?limit=200&classId=${classId}`;
 
-  const { data: analyticsData, isLoading: analyticsLoading } = useSWR<AnalyticsStudent[]>(analyticsUrl, fetcher);
-  const { data: incidentsData, isLoading: incidentsLoading } = useSWR<{ incidents: IncidentApiItem[] }>(incidentsUrl, fetcher);
+  const {
+    data: analyticsData,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    mutate: reloadAnalytics,
+  } = useSWR<AnalyticsStudent[]>(analyticsUrl, fetcher);
+  // Format paginé du projet : { data, pagination }
+  const { data: incidentsData, isLoading: incidentsLoading } = useSWR<{ data?: IncidentApiItem[] }>(incidentsUrl, fetcher);
 
   const riskRows = useMemo<RiskRow[]>(() => {
     const analytics = Array.isArray(analyticsData) ? analyticsData : [];
-    const incidents = incidentsData?.incidents || [];
+    const incidents = incidentsData?.data || [];
 
     const incidentsByStudent = incidents.reduce<Record<string, number>>((acc, item) => {
       acc[item.studentId] = (acc[item.studentId] || 0) + 1;
@@ -129,7 +137,7 @@ function AlertsRisksContent() {
           riskLevelHint: row.riskLevel,
         });
 
-        const className = row.student?.enrollments?.[0]?.class?.name || "Non assignée";
+        const className = row.className || row.student?.enrollments?.[0]?.class?.name || "Non assignée";
         const trend: RiskRow["trend"] = score >= 70 ? "up" : score <= 30 ? "down" : "stable";
 
         return {
@@ -270,6 +278,18 @@ function AlertsRisksContent() {
                       <tr>
                         <td colSpan={7} className="px-4 py-10">
                           <PageLoading label="Chargement des risques…" />
+                        </td>
+                      </tr>
+                    ) : analyticsError ? (
+                      // Une panne de chargement affichait « aucun élève à
+                      // risque » : le plus rassurant des messages, et le plus
+                      // faux.
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10">
+                          <PageError
+                            message="Impossible de charger les indicateurs de risque."
+                            onRetry={() => void reloadAnalytics()}
+                          />
                         </td>
                       </tr>
                     ) : riskRows.length === 0 ? (

@@ -12,6 +12,7 @@ import { CreditCard, Save, AlertCircle, CheckCircle, ArrowLeft, Search, User, Do
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { fetchStudentList } from "@/lib/api/student-list";
 
 type StudentOption = {
     id: string;
@@ -80,11 +81,7 @@ export default function NewPaymentPage() {
 
         const searchStudents = async () => {
             try {
-                const res = await fetch(`/api/students?search=${encodeURIComponent(searchTerm)}&limit=10`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setStudents(Array.isArray(data) ? data : data.students || []);
-                }
+                setStudents(await fetchStudentList<StudentOption>(`search=${encodeURIComponent(searchTerm)}&limit=10`));
             } catch {
                 setError("Erreur lors de la recherche d'élèves.");
             }
@@ -351,7 +348,13 @@ export default function NewPaymentPage() {
                                                 required
                                                 disabled={!selectedStudentId}
                                             >
-                                                <option value="">Sélectionner un frais...</option>
+                                                <option value="">
+                                                    {loading
+                                                        ? "Chargement des frais…"
+                                                        : fees.length === 0
+                                                          ? "Aucun frais configuré"
+                                                          : "Sélectionner un frais..."}
+                                                </option>
                                                 {fees.map(f => (
                                                     <option key={f.id} value={f.id}>
                                                         {f.name} ({(f.amount).toLocaleString('fr-BJ')} FCFA)

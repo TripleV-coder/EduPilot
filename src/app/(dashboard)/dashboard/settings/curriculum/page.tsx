@@ -2,13 +2,14 @@
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Trash2, Loader2, Save } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { BookOpen, Plus, Trash2, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
@@ -42,7 +43,7 @@ export default function CurriculumConfigPage() {
     const [saving, setSaving] = useState(false);
 
     // Fetch classes
-    const { data: classesData } = useSWR<{ data?: ClassOption[]; classes?: ClassOption[] }>(
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR<{ data?: ClassOption[]; classes?: ClassOption[] }>(
         schoolId ? "/api/classes?limit=200" : null,
         fetcher,
         { revalidateOnFocus: false }
@@ -155,6 +156,10 @@ export default function CurriculumConfigPage() {
                         { label: "Curriculum" },
                     ]}
                 />
+
+            {loadError ? (
+                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+            ) : null}
 
                 {/* Class selector */}
                 <Card>

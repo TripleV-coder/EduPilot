@@ -31,7 +31,8 @@ export default defineConfig({
                 storageState: "e2e/.auth/admin.json",
             },
             dependencies: ["setup"],
-            testIgnore: /.*\.setup\.ts/,
+            // Le démarrage à vide exige une base NEUVE : playwright.fresh.config.ts.
+            testIgnore: [/.*\.setup\.ts/, /fresh-install\//],
         },
     ],
     webServer: process.env.E2E_NO_SERVER

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import React from "react";
+import { LEGAL_TERMS_VERSION } from "@/lib/security/consent-defaults";
 
 interface LegalLayoutProps {
     title: string;
@@ -66,7 +67,7 @@ export function LegalLayout({ title, lastUpdated, children, otherLink }: LegalLa
                         marginBottom: 32,
                     }}
                 >
-                    Dernière mise à jour : {lastUpdated}
+                    Dernière mise à jour : {lastUpdated} · version {LEGAL_TERMS_VERSION}
                 </p>
 
                 <div

@@ -57,7 +57,7 @@ export const POST = createApiHandler(
       return NextResponse.json(result);
     } catch (error) {
       if (error instanceof PromotionError) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ error: error.message }, { status: error.status });
       }
       throw error;
     }

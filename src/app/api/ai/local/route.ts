@@ -3,7 +3,7 @@
  * Exposes the unified AI service status and governance actions.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { AIServiceError, aiService } from "@/lib/ai/ai-service";
 import { isZodError } from "@/lib/is-zod-error";
 import { logger } from "@/lib/utils/logger";
@@ -54,7 +54,6 @@ const modelSchema = z.object({
  */
 export const GET = createApiHandler(async (request, context) => {
     try {
-        const session = context.session;
 
     const status = aiService.getStatus();
 

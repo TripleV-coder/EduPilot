@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -142,7 +142,7 @@ export const DELETE = createApiHandler(
           type: "WARNING",
           title: "Plan de paiement annulé",
           message: "Votre plan de paiement a été annulé",
-          link: `/payments/plans/${id}`,
+          link: "/dashboard/finance",
         },
       });
 

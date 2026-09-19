@@ -77,6 +77,13 @@ const ADMIN_SETTINGS: SettingItem[] = [
         accent: "brand",
     },
     {
+        icon: "settings",
+        title: "Modules de l'établissement",
+        desc: "N'activer que ce dont l'école se sert",
+        href: "/dashboard/settings/modules",
+        accent: "brand",
+    },
+    {
         icon: "school",
         title: "Niveaux d'étude",
         desc: "Configuration des cycles et classes",

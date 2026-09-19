@@ -5,8 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Building, Plus, Search, Settings, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +112,8 @@ export default function RootSchoolsPage() {
     const [assignAdminAsOrganizationManager, setAssignAdminAsOrganizationManager] = useState(true);
     const [selectedPlanId, setSelectedPlanId] = useState("none");
     const [selectedActiveState, setSelectedActiveState] = useState("true");
+    // N31 : identifiants de l'administrateur créé, affichés une seule fois.
+    const [createdAdminCredential, setCreatedAdminCredential] = useState<{ email: string; provisionalPassword: string } | null>(null);
     
     const { data, error, isLoading, mutate } = useSWR<{ data: SchoolStat[] }>(
         `/api/root/schools?search=${encodeURIComponent(searchTerm)}&limit=50`,
@@ -177,7 +178,8 @@ export default function RootSchoolsPage() {
             adminFirstName: formData.get("adminFirstName") as string,
             adminLastName: formData.get("adminLastName") as string,
             adminEmail: formData.get("adminEmail") as string,
-            adminPassword: formData.get("adminPassword") as string,
+            // Vide : le serveur génère un mot de passe provisoire unique (N31).
+            adminPassword: (formData.get("adminPassword") as string) || undefined,
         };
 
         try {
@@ -190,6 +192,12 @@ export default function RootSchoolsPage() {
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.error || "Erreur lors de la création");
+            }
+
+            const created = await res.json().catch(() => ({}));
+            const provisional = created?.admin?.provisionalPassword;
+            if (typeof provisional === "string") {
+                setCreatedAdminCredential({ email: created.admin.email, provisionalPassword: provisional });
             }
 
             toast({
@@ -527,8 +535,8 @@ export default function RootSchoolsPage() {
                                                     <Label htmlFor="admin-password" className="flex items-center gap-2">
                                                         <Lock className="w-3 h-3 text-muted-foreground" /> Mot de passe temporaire
                                                     </Label>
-                                                    <Input id="admin-password" name="adminPassword" type="password" defaultValue="00000000" className="h-11 focus-visible:ring-primary" required />
-                                                    <p className="text-[10px] text-muted-foreground">Valeur standard: 00000000 (changement obligatoire au premier login).</p>
+                                                    <Input id="admin-password" name="adminPassword" type="password" autoComplete="new-password" className="h-11 focus-visible:ring-primary" />
+                                                    <p className="text-[10px] text-muted-foreground">Laisser vide pour générer un mot de passe provisoire unique. Changement obligatoire à la première connexion.</p>
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -748,6 +756,35 @@ export default function RootSchoolsPage() {
                                 </DialogFooter>
                             </form>
                         )}
+                    </DialogContent>
+                </Dialog>
+                <Dialog
+                    open={!!createdAdminCredential}
+                    onOpenChange={(open) => {
+                        if (!open) setCreatedAdminCredential(null);
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Identifiants de l&apos;administrateur</DialogTitle>
+                            <DialogDescription>
+                                Mot de passe provisoire affiché une seule fois : transmettez-le à l&apos;administrateur de
+                                l&apos;établissement. Il devra en choisir un nouveau à la première connexion.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {createdAdminCredential && (
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-xs">
+                                <p className="text-muted-foreground">Email de connexion :</p>
+                                <p className="font-mono text-sm">{createdAdminCredential.email}</p>
+                                <p className="text-muted-foreground">Mot de passe provisoire :</p>
+                                <p className="font-mono text-sm select-all">{createdAdminCredential.provisionalPassword}</p>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button type="button" onClick={() => setCreatedAdminCredential(null)}>
+                                J&apos;ai transmis ces identifiants
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </PageShell>

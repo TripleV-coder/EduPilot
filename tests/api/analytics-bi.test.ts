@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "@/app/api/analytics/bi/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -9,13 +10,33 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { count: vi.fn() },
     fee: { findMany: vi.fn() },
-    payment: { findMany: vi.fn() },
+    payment: { groupBy: vi.fn() },
     attendance: { groupBy: vi.fn() },
-    studentAnalytics: { findMany: vi.fn() },
   },
+}));
+// Agrégats SQL (série mensuelle, derniers instantanés) : prouvés contre un vrai
+// PostgreSQL par tests/integration-db/analytics-bi.test.ts.
+vi.mock("@/lib/services/analytics/bi-aggregates", () => ({
+  collectedByLocalMonth: vi.fn(),
+  latestSnapshotStats: vi.fn(),
 }));
 
 const SCHOOL = FIXTURES.schoolA;
+const NO_SNAPSHOT = { total: 0, passing: 0, subjects: [] };
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function mockEmptyData() {
+  vi.mocked(prisma.studentProfile.count).mockResolvedValue(0);
+  vi.mocked(prisma.fee.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.payment.groupBy).mockResolvedValue([] as never);
+  vi.mocked(prisma.attendance.groupBy).mockResolvedValue([] as never);
+  vi.mocked(collectedByLocalMonth).mockResolvedValue([]);
+  vi.mocked(latestSnapshotStats).mockResolvedValue(NO_SNAPSHOT);
+}
 
 describe("GET /api/analytics/bi", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -52,28 +73,17 @@ describe("GET /api/analytics/bi", () => {
     vi.mocked(prisma.fee.findMany).mockResolvedValue([
       { amount: 100000, createdAt: new Date() },
     ] as never);
-    vi.mocked(prisma.payment.findMany).mockResolvedValue([
-      { amount: 40000, method: "CASH", paidAt: new Date(), createdAt: new Date() },
+    vi.mocked(prisma.payment.groupBy).mockResolvedValue([
+      { method: "CASH", _sum: { amount: 40000 } },
     ] as never);
+    vi.mocked(collectedByLocalMonth).mockResolvedValue([{ month: currentMonthKey(), amount: 40000 }]);
     vi.mocked(prisma.attendance.groupBy).mockResolvedValue([
       { status: "PRESENT", _count: { _all: 90 } },
       { status: "LATE", _count: { _all: 10 } },
       { status: "ABSENT", _count: { _all: 20 } },
     ] as never);
-    vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([
-      {
-        studentId: FIXTURES.studentA,
-        generalAverage: 12,
-        createdAt: new Date(),
-        subjectPerformances: [{ average: 16, subject: { name: "Maths" } }],
-      },
-      {
-        studentId: FIXTURES.studentB,
-        generalAverage: 8,
-        createdAt: new Date(),
-        subjectPerformances: [{ average: 8, subject: { name: "Maths" } }],
-      },
-    ] as never);
+    // Deux élèves : 12 (réussite) et 8 ; Maths 16 et 8 → 12
+    vi.mocked(latestSnapshotStats).mockResolvedValue({ total: 2, passing: 1, subjects: [{ subject: "Maths", average: 12 }] });
 
     const res = await GET(makeRequest("http://localhost/api/analytics/bi"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
@@ -98,11 +108,7 @@ describe("GET /api/analytics/bi", () => {
 
   it("should apply academicYearId filter when provided", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentProfile.count).mockResolvedValue(0);
-    vi.mocked(prisma.fee.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.payment.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.attendance.groupBy).mockResolvedValue([] as never);
-    vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([] as never);
+    mockEmptyData();
 
     const ay = "cay1ay1ay1ay1ay1ay1ay1a";
     const res = await GET(makeRequest(`http://localhost/api/analytics/bi?academicYearId=${ay}`), { session: makeSession("DIRECTOR") });
@@ -110,16 +116,14 @@ describe("GET /api/analytics/bi", () => {
     expect(prisma.fee.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ academicYearId: ay }) })
     );
-    expect(prisma.studentAnalytics.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ academicYearId: ay }) })
-    );
+    expect(latestSnapshotStats).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }));
+    expect(collectedByLocalMonth).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }), expect.any(Date));
   });
 
   it("should return 500 when a query fails", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentProfile.count).mockResolvedValue(1);
-    vi.mocked(prisma.fee.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.payment.findMany).mockRejectedValue(new Error("boom"));
+    mockEmptyData();
+    vi.mocked(prisma.payment.groupBy).mockRejectedValue(new Error("boom"));
     const res = await GET(makeRequest("http://localhost/api/analytics/bi"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Une erreur interne est survenue. Veuillez réessayer.");
@@ -127,11 +131,7 @@ describe("GET /api/analytics/bi", () => {
 
   it("should handle empty fee data with zero rates", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: SCHOOL }));
-    vi.mocked(prisma.studentProfile.count).mockResolvedValue(0);
-    vi.mocked(prisma.fee.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.payment.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.attendance.groupBy).mockResolvedValue([] as never);
-    vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([] as never);
+    mockEmptyData();
 
     const res = await GET(makeRequest(`http://localhost/api/analytics/bi?schoolId=${SCHOOL}`), { session: makeSession("SUPER_ADMIN", { schoolId: SCHOOL }) });
     expect(res.status).toBe(200);

@@ -9,8 +9,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Palette, Plus, Tags } from "lucide-react";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
+import { PageHeader } from "@/components/layout/page-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "@/lib/security/consent";
 
 /**
  * GET /api/compliance/dashboard
@@ -151,6 +152,26 @@ export const GET = createApiHandler(async (request, context) => {
       {}
     );
 
+    // N59 (Lot 6) : indicateurs lus par la page Conformité, qui ne les recevait pas
+    // et affichait ses valeurs de repli (85 % de conformité, 100 % de consentements).
+    const requestScope = schoolId ? { user: { schoolId } } : {};
+    const policyScope = schoolId ? { schoolId } : {};
+    const [completedDataRequests, totalDataRequests, activePolicies, acceptedTerms] = await Promise.all([
+      prisma.dataAccessRequest.count({ where: { ...requestScope, status: "COMPLETED" } }),
+      prisma.dataAccessRequest.count({ where: requestScope }),
+      prisma.dataRetentionPolicy.count({ where: { ...policyScope, isActive: true } }),
+      // Lot 6 : comptes ayant accepté la version courante des conditions.
+      prisma.dataConsent.count({
+        where: {
+          consentType: CONSENT_TERMS,
+          isGranted: true,
+          version: LEGAL_TERMS_VERSION,
+          ...(schoolId ? { user: { schoolId } } : {}),
+        },
+      }),
+    ]);
+    const inactivePolicies = Math.max(0, retentionPolicies - activePolicies);
+
     // Calculate compliance score (0-100)
     let complianceScore = 100;
 
@@ -175,6 +196,13 @@ export const GET = createApiHandler(async (request, context) => {
     });
 
     return NextResponse.json({
+      overallScore: Math.max(0, complianceScore),
+      // Part des comptes ayant accepté la version courante des conditions
+      // (Lot 6). `null` seulement s'il n'y a aucun compte : jamais un chiffre inventé.
+      consentRate: totalUsers > 0 ? Math.round((acceptedTerms / totalUsers) * 100) : null,
+      pendingPolicies: inactivePolicies,
+      dataRequestsSummary: { pending: pendingDataRequests, completed: completedDataRequests, total: totalDataRequests },
+      retentionStatus: { active: activePolicies, inactive: inactivePolicies },
       summary: {
         totalUsers,
         activeUsers,
@@ -218,6 +246,15 @@ export const GET = createApiHandler(async (request, context) => {
             },
           ]
           : []),
+        ...(inactivePolicies > 0
+          ? [
+            {
+              level: "info",
+              message: `${inactivePolicies} règle(s) de conservation à activer`,
+              action: "Revoir les durées de conservation",
+            },
+          ]
+          : []),
         ...(inactiveUsers > 10
           ? [
             {
@@ -238,4 +275,6 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 
-});
+// N60 (Lot 6) : réservé à l'administration, comme la page ; auparavant tout compte
+// connecté lisait les compteurs et les demandes RGPD récentes (noms et emails).
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

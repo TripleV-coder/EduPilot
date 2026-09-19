@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-shell";
-import { PageLoading, PageEmpty } from "@/components/layout/page-states";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetcher } from "@/lib/fetcher";
 
@@ -131,7 +130,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
 
     const analytics = Array.isArray(analyticsPayload) ? analyticsPayload : [];
     const students = extractCollection<StudentDirectoryItem>(studentsPayload, ["students", "data"]);
-    const incidents = extractCollection<BehaviorIncidentItem>(incidentsPayload, ["incidents"]);
+    const incidents = extractCollection<BehaviorIncidentItem>(incidentsPayload, ["data", "incidents"]);
 
     const allRows = useMemo<RiskRow[]>(() => {
         const incidentsByStudent = incidents.reduce<Record<string, number>>((accumulator, incident) => {

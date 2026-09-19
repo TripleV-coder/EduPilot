@@ -16,11 +16,11 @@ vi.mock("@/lib/prisma", () => ({
 }));
 // Le routeur utilise le rate limiter in-memory/Redis : mock de checkRateLimit
 // pour contrôler le comportement 429 sans état partagé entre tests.
-vi.mock("@/lib/auth/rate-limiter", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/auth/rate-limiter")>();
+vi.mock("@/lib/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/rate-limit")>();
   return {
     ...actual,
-    checkRateLimit: checkRateLimitMock,
+    checkRateLimitKey: checkRateLimitMock,
   };
 });
 // bcryptjs : hash réel coûteux (12 rounds) → mock au niveau module.
@@ -43,7 +43,7 @@ const VALID_BODY = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  checkRateLimitMock.mockResolvedValue({ allowed: true, remaining: 3, resetTime: Date.now() + 60_000 });
+  checkRateLimitMock.mockResolvedValue({ success: true, remaining: 3, reset: new Date(Date.now() + 60_000) });
   // Le mock global @prisma/client (tests/setup.ts) n'expose pas
   // TransactionIsolationLevel : la route y accède à l'appel de $transaction.
   (Prisma as { TransactionIsolationLevel?: Record<string, string> }).TransactionIsolationLevel = {
@@ -93,8 +93,8 @@ describe("POST /api/auth/initial-setup", () => {
     // route (clé rl:initial-setup:*) bloque.
     checkRateLimitMock.mockImplementation(async (key: string) =>
       key.startsWith("rl:initial-setup:")
-        ? { allowed: false, remaining: 0, resetTime: Date.now() + 60_000 }
-        : { allowed: true, remaining: 100, resetTime: Date.now() + 60_000 }
+        ? { success: false, remaining: 0, reset: new Date(Date.now() + 60_000) }
+        : { success: true, remaining: 100, reset: new Date(Date.now() + 60_000) }
     );
 
     const res = await post(VALID_BODY);

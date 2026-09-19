@@ -1,11 +1,16 @@
 "use client";
 
+import type React from "react";
+
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { motion } from "framer-motion";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,21 +19,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Permission } from "@/lib/rbac/permissions";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
-    Shield, Search, Loader2, Plus, AlertTriangle, MessageSquareWarning,
-    FileWarning, CheckCircle2, MoreVertical, MapPin, CalendarClock, User, Filter, ArrowUpDown,
+    Shield, Search, Plus, AlertTriangle, 
+    CheckCircle2, MoreVertical, MapPin, CalendarClock, Filter, ArrowUpDown,
     BarChart3, Clock, TrendingUp, TrendingDown
 } from "lucide-react";
 import Link from "next/link";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { RiskPieChart } from "@/components/charts/RiskPieChart";
-import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
+
+
+
 import { PageCallout } from "@/components/layout/page-callout";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
 import { getIncidentSeverityClass } from "@/lib/ui/status-styles";
 import type { Period } from "@/lib/types";
+
+// Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
+// dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
+const RiskPieChart = dynamic(() => import("@/components/charts/RiskPieChart").then((m) => m.RiskPieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const CategoryPieChart = dynamic(() => import("@/components/charts/CategoryPieChart").then((m) => m.CategoryPieChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
+const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-lg" />,
+});
 
 type Incident = {
     id: string;
@@ -82,10 +102,6 @@ export default function IncidentsPage() {
         return count;
     }, [searchTerm, selectedPeriodId, selectedSeverity, selectedType, selectedStatus]);
 
-    const markIncidentTransition = (incidentId: string) => {
-        if (typeof window === "undefined") return;
-        window.sessionStorage.setItem("edupilot-incident-transition", incidentId);
-    };
     const resetFilters = () => {
         setSearchTerm("");
         setSelectedType("ALL");
@@ -95,7 +111,7 @@ export default function IncidentsPage() {
     };
 
     // Fetch incident statistics
-    const { data: statsData } = useSWR<IncidentStats>("/api/incidents/statistics?period=month", fetcher);
+    const { data: statsData, error: loadError, mutate: reloadPage } = useSWR<IncidentStats>("/api/incidents/statistics?period=month", fetcher);
 
     useEffect(() => {
         // Fetch current academic year periods
@@ -126,7 +142,8 @@ export default function IncidentsPage() {
             if (res.ok) {
                 const data = await res.json();
 
-                let filtered = data.incidents || [];
+                // Format paginé du projet : { data, pagination }
+                let filtered = data.data || [];
                 if (debouncedSearch) {
                     const l = debouncedSearch.toLowerCase();
                     filtered = filtered.filter((i: Incident) =>
@@ -282,7 +299,7 @@ export default function IncidentsPage() {
             header: "",
             cell: ({ row }) => (
                 <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/dashboard/incidents/${row.original.id}`} onClick={() => markIncidentTransition(row.original.id)}>
+                    <Link href={`/dashboard/incidents/${row.original.id}`}>
                         <MoreVertical className="w-4 h-4 text-muted-foreground" />
                     </Link>
                 </Button>
@@ -293,6 +310,10 @@ export default function IncidentsPage() {
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
             <PageShell>
+                {loadError ? (
+                    <PageError message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 <PageHeader
                     title="Vie scolaire et discipline"
                     description="Suivez les incidents disciplinaires, retards et sanctions des élèves."
@@ -511,9 +532,9 @@ export default function IncidentsPage() {
                             />
                         </div>
                     ) : (
-                        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                        <div className="edu-enter-up" style={{ "--edu-enter-dy": "6px", "--edu-enter-d": "200ms" } as React.CSSProperties}>
                             <DataTable columns={incidentColumns} data={incidents} />
-                        </motion.div>
+                        </div>
                     )}
                 </Card>
             </PageShell>

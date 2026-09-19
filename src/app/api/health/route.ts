@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getRedisClient } from "@/lib/cache/redis";
+import { inflightRequests, isShuttingDown } from "@/lib/system/shutdown";
 
 /**
  * GET /api/health — Public health check endpoint
@@ -11,6 +12,16 @@ import { getRedisClient } from "@/lib/cache/redis";
 export const GET = createApiHandler(
     async () => {
         const timestamp = new Date().toISOString();
+
+        // Arrêt en cours (Lot 7) : on l'annonce avant de fermer, pour qu'un
+        // répartiteur ou une surveillance cesse d'envoyer du trafic ici
+        // pendant que les requêtes en cours se terminent.
+        if (isShuttingDown()) {
+            return NextResponse.json(
+                { status: "shutting_down", timestamp, inflight: inflightRequests() },
+                { status: 503, headers: { "Retry-After": "30", "Connection": "close" } },
+            );
+        }
 
         try {
             // Verify database connectivity

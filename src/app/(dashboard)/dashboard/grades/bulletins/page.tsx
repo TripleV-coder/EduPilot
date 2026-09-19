@@ -7,7 +7,7 @@ import { useReactToPrint } from "react-to-print";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 
-import { Badge, Button, Card, Icon, Logo, Spinner } from "@/components/edu";
+import { Badge, Button, Card, Icon, Logo } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
 
@@ -135,7 +135,8 @@ export default function BulletinsPage() {
         }
         const fetchStudents = async () => {
             try {
-                const stuRes = await fetch(`/api/students?classId=${selectedClass}&limit=100`);
+                // Effectif complet de la classe (N19) : jusqu'à 1000 avec ?classId=
+                const stuRes = await fetch(`/api/students?classId=${selectedClass}&limit=1000`);
                 if (stuRes.ok) {
                     const d = await stuRes.json();
                     setStudents(Array.isArray(d) ? d : d.data || d.students || []);

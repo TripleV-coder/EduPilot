@@ -22,12 +22,16 @@ import { seedAcademicData } from "./seeds/seed-academic-data";
 import { seedExtras } from "./seeds/seed-extras";
 
 import { appEnv } from "../src/lib/config/env";
+import { assertDisposableDatabase } from "../scripts/lib/disposable-guard.mjs";
 
 async function main() {
   if (appEnv.isProduction) {
     console.error("❌ Le script de seed complet ne doit jamais être exécuté en production.");
     process.exit(1);
   }
+  // Règle 6 / N17 : le seed EFFACE la base puis crée des comptes de
+  // démonstration (Password123!). Base marquée jetable obligatoire.
+  await assertDisposableDatabase(prisma, "prisma/seed.ts");
   console.log("\n" + "=".repeat(60));
   console.log("🌱 EDUPILOT - GÉNÉRATION DE DONNÉES DE TEST COMPLÈTES");
   console.log("=".repeat(60) + "\n");

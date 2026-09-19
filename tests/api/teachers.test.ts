@@ -95,12 +95,14 @@ describe("GET /api/teachers", () => {
     vi.mocked(prisma.teacherProfile.findMany).mockResolvedValue([makeTeacher()]);
     vi.mocked(prisma.teacherProfile.count).mockResolvedValue(1);
 
-    const res = await GET(makeRequest("http://localhost/api/teachers?page=1&limit=10&search=paul&status=ACTIVE"));
+    // Lot 8 : cette route passe au format de pagination unique du projet
+    // (curseur keyset sur le nom) — elle était restée sur ?page= / { teachers }.
+    const res = await GET(makeRequest("http://localhost/api/teachers?limit=10&search=paul&status=ACTIVE"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.teachers).toHaveLength(1);
-    expect(body.teachers[0].subjects).toHaveLength(2);
-    expect(body.pagination).toEqual(expect.objectContaining({ page: 1, limit: 10, total: 1 }));
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].subjects).toHaveLength(2);
+    expect(body.pagination).toEqual(expect.objectContaining({ limit: 10, hasNextPage: false, total: 1 }));
   });
 });
 

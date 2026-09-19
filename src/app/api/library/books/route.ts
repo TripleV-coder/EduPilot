@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { libraryService } from "@/lib/library/service";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import prisma from "@/lib/prisma";

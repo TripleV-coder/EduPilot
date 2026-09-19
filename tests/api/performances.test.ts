@@ -4,12 +4,19 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
+// Audit C3 : ces tests alimentaient la route de classes → matières →
+// évaluations → notes complètes (class.findMany), c'est-à-dire le chargement
+// en mémoire que le correctif supprime. Ils fournissent désormais les
+// évaluations de la période et les sommes par évaluation (grade.groupBy) ;
+// les chiffres attendus sont inchangés. Le calcul réel est prouvé sur vrai
+// PostgreSQL par tests/integration-db/performances.test.ts.
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     academicYear: { findFirst: vi.fn() },
     period: { findMany: vi.fn() },
-    class: { findMany: vi.fn() },
+    evaluation: { findMany: vi.fn() },
+    grade: { groupBy: vi.fn() },
   },
 }));
 
@@ -21,32 +28,21 @@ function makePeriod(id: string, name: string) {
   return { id, name, startDate: new Date("2020-01-01"), endDate: new Date("2020-12-31") };
 }
 
-function makeClass(overrides: Record<string, unknown> = {}) {
+function evaluationOf(id: string, cls: { id: string; name: string; levelId: string; level: string }, subject: { id: string; name: string }) {
   return {
-    id: "cl1",
-    name: "6A",
-    schoolId: FIXTURES.schoolA,
-    classLevelId: "l1",
-    classLevel: { name: "Sixième" },
-    classSubjects: [
-      {
-        id: "cs1",
-        subject: { id: "s1", name: "Maths" },
-        evaluations: [
-          { id: "ev1", periodId: "p1", grades: [{ value: 12 }, { value: 14 }, { value: 16 }] },
-        ],
-      },
-      {
-        id: "cs2",
-        subject: { id: "s2", name: "Français" },
-        evaluations: [
-          { id: "ev2", periodId: "p1", grades: [{ value: 10 }] },
-        ],
-      },
-    ],
-    ...overrides,
-  } as never;
+    id,
+    classSubject: {
+      subjectId: subject.id,
+      subject: { name: subject.name },
+      class: { id: cls.id, name: cls.name, classLevelId: cls.levelId, classLevel: { name: cls.level } },
+    },
+  };
 }
+
+const SIXIEME = { id: "cl1", name: "6A", levelId: "l1", level: "Sixième" };
+const CM2 = { id: "cl2", name: "CM2A", levelId: "l2", level: "CM2" };
+const MATHS = { id: "s1", name: "Maths" };
+const FRANCAIS = { id: "s2", name: "Français" };
 
 describe("GET /api/performances", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -86,25 +82,17 @@ describe("GET /api/performances", () => {
     vi.mocked(prisma.period.findMany).mockResolvedValue([
       makePeriod("p1", "Trimestre 1"),
       makePeriod("p2", "Trimestre 2"),
-    ]);
-    vi.mocked(prisma.class.findMany).mockResolvedValue([
-      makeClass(),
-      makeClass({
-        id: "cl2",
-        name: "CM2A",
-        classLevelId: "l2",
-        classLevel: { name: "CM2" },
-        classSubjects: [
-          {
-            id: "cs3",
-            subject: { id: "s1", name: "Maths" },
-            evaluations: [
-              { id: "ev3", periodId: "p1", grades: [{ value: 8 }, { value: 10 }] },
-            ],
-          },
-        ],
-      }),
-    ]);
+    ] as never);
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([
+      evaluationOf("ev1", SIXIEME, MATHS), // 12, 14, 16
+      evaluationOf("ev2", SIXIEME, FRANCAIS), // 10
+      evaluationOf("ev3", CM2, MATHS), // 8, 10
+    ] as never);
+    vi.mocked(prisma.grade.groupBy).mockResolvedValue([
+      { evaluationId: "ev1", _sum: { value: 42 }, _count: { value: 3 } },
+      { evaluationId: "ev2", _sum: { value: 10 }, _count: { value: 1 } },
+      { evaluationId: "ev3", _sum: { value: 18 }, _count: { value: 2 } },
+    ] as never);
 
     const res = await GET(makeRequest("http://localhost/api/performances?periodId=p1"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
@@ -133,8 +121,8 @@ describe("GET /api/performances", () => {
     expect(prisma.academicYear.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { schoolId: FIXTURES.schoolA, isCurrent: true } })
     );
-    expect(prisma.class.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { schoolId: FIXTURES.schoolA } })
+    expect(prisma.evaluation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { periodId: "p1", classSubject: { class: { schoolId: FIXTURES.schoolA } } } })
     );
   });
 
@@ -144,25 +132,26 @@ describe("GET /api/performances", () => {
     vi.mocked(prisma.period.findMany).mockResolvedValue([
       makePeriod("p9", "Période 1"),
       makePeriod("p10", "Période 2"),
-    ]);
-    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
+    ] as never);
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([]);
     const res = await GET(makeRequest("http://localhost/api/performances"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.activePeriodId).toBe("p9");
+    expect(prisma.grade.groupBy).not.toHaveBeenCalled();
   });
 
   it("should not scope SUPER_ADMIN to a school", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN"));
     vi.mocked(prisma.academicYear.findFirst).mockResolvedValue(makeYear());
-    vi.mocked(prisma.period.findMany).mockResolvedValue([makePeriod("p1", "Trimestre 1")]);
-    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([makePeriod("p1", "Trimestre 1")] as never);
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([]);
     await GET(makeRequest("http://localhost/api/performances?periodId=p1"), { session: makeSession("SUPER_ADMIN") });
     expect(prisma.academicYear.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { isCurrent: true } })
     );
-    expect(prisma.class.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { schoolId: undefined } })
+    expect(prisma.evaluation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { periodId: "p1" } })
     );
   });
 

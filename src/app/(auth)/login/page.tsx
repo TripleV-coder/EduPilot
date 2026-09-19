@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { getLoginErrorMessage } from "@/lib/auth/login-errors";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -91,7 +92,7 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Email ou mot de passe incorrect");
+        setError(getLoginErrorMessage(result.error, result.code));
       } else {
         router.push("/dashboard");
         router.refresh();

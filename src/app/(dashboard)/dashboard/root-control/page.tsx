@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading } from "@/components/layout/page-states";
+import { PageLoading, PageError } from "@/components/layout/page-states";
 import { Badge, Button, MetricCard } from "@/components/edu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -9,12 +9,8 @@ import {
   Activity,
   Building2,
   Clock,
-  HardDrive,
   MapPin,
   ShieldAlert,
-  Users,
-  Zap,
-  type LucideIcon,
 } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -47,32 +43,6 @@ type RootSummary = {
   recentActivity: RootRecentActivity[];
 };
 
-function InfraStatCard({ title, value, subValue, icon: Icon, color }: {
-  title: string;
-  value: string | number;
-  subValue?: string;
-  icon: LucideIcon;
-  color: string;
-}) {
-  return (
-    <Card className="relative overflow-hidden border border-border/60 bg-foreground text-background shadow-xl group">
-      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-10", color)} />
-      <CardContent className="relative z-10 p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-background/70">{title}</p>
-            <h3 className="mt-2 text-3xl font-black">{value}</h3>
-            {subValue ? <p className="mt-1 text-[10px] font-medium text-background/60">{subValue}</p> : null}
-          </div>
-          <div className={cn("rounded-2xl border border-background/20 bg-background/5 p-3 transition-transform group-hover:scale-110", color.replace("from-", "text-"))}>
-            <Icon className="h-6 w-6" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function formatActor(activity: RootRecentActivity) {
   const firstName = activity.user?.firstName || "Système";
   const lastName = activity.user?.lastName || "";
@@ -95,7 +65,10 @@ function EmptyBlock({ label }: { label: string }) {
 }
 
 export default function RootDashboard() {
-  const { data: stats, isLoading } = useSWR<RootSummary>("/api/root/analytics/summary", fetcher);
+  const { data: stats, isLoading, error, mutate } = useSWR<RootSummary>(
+    "/api/root/analytics/summary",
+    fetcher,
+  );
 
   const recentSchools = stats?.recentSchools || [];
   const recentActivity = stats?.recentActivity || [];
@@ -131,7 +104,15 @@ export default function RootDashboard() {
 
         {isLoading ? <PageLoading label="Chargement des métriques réseau…" /> : null}
 
-        {!isLoading ? (
+        {/* Sans ce cas, une panne affichait un réseau à 0 établissement. */}
+        {error ? (
+          <PageError
+            message="Impossible de charger les métriques réseau."
+            onRetry={() => void mutate()}
+          />
+        ) : null}
+
+        {!isLoading && !error ? (
         <>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Établissements actifs" value={String(stats?.totalSchools ?? 0)} icon="school" />

@@ -74,7 +74,8 @@ export default function AuditLogsPage() {
                 const res = await fetch("/api/audit-logs?limit=500");
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                if (!cancelled) setLogs(Array.isArray(data.logs) ? data.logs : []);
+                // Format paginé du projet : { data, pagination } (les 500 dernières entrées)
+                if (!cancelled) setLogs(Array.isArray(data.data) ? data.data : []);
             } catch (err) {
                 if (!cancelled) setError((err as Error).message);
             } finally {

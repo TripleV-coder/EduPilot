@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { writeFile, mkdir, readFile, appendFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -224,7 +224,8 @@ export const POST = createApiHandler(async (request, context) => {
     );
   }
 
-});
+  // Fichier de 5 Mo + enveloppe multipart (champs, en-têtes de parties).
+}, { maxBodyBytes: MAX_FILE_SIZE + 256 * 1024 });
 
 /**
  * GET /api/upload

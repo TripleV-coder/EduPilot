@@ -1,0 +1,45 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  EduPilot — tâches planifiées de l'installation locale (Lot 7)           ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+#
+# Remplace Vercel Cron : l'application tourne sur une machine locale, c'est
+# donc cron qui la réveille.
+#
+# Installation :
+#   1. adapter EDUPILOT_DIR, l'utilisateur et les chemins ci-dessous ;
+#   2. mettre les secrets dans /etc/edupilot/cron.env (mode 600, propriétaire
+#      root) — surtout PAS dans ce fichier, qui est lisible par tous :
+#          CRON_SECRET=...
+#          APP_URL=http://127.0.0.1:3000
+#          DATABASE_URL=postgresql://...
+#          BACKUP_PASSPHRASE_FILE=/etc/edupilot/backup.key
+#          BACKUP_DIR=/var/backups/edupilot/postgres
+#   3. sudo cp scripts/cron/edupilot.cron /etc/cron.d/edupilot
+#      sudo chmod 644 /etc/cron.d/edupilot && sudo systemctl restart cron
+#   4. vérifier le lendemain : grep edupilot /var/log/syslog
+#
+# Chaque ligne charge d'abord /etc/edupilot/cron.env, puis lance la commande.
+# Les sorties vont dans /var/log/edupilot/ : prévoir une rotation (logrotate).
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+EDUPILOT_DIR=/opt/edupilot
+MAILTO=""
+
+# Le 6e champ de chaque ligne est l'utilisateur : « edupilot » ci-dessous.
+# cron ne fait aucune substitution de variable dans ce champ-là, il faut donc
+# l'écrire en clair si vous changez de compte.
+
+# ── Sauvegarde chiffrée — tous les jours à 02h00 ───────────────────────────
+0 2 * * *   edupilot  set -a; . /etc/edupilot/cron.env; set +a; $EDUPILOT_DIR/scripts/backup/postgres-backup.sh >> /var/log/edupilot/backup.log 2>&1
+
+# ── Maintenance quotidienne et relances — tous les jours à 06h00 ───────────
+# (analyses par élève, alertes d'absentéisme, relances de paiement)
+0 6 * * *   edupilot  set -a; . /etc/edupilot/cron.env; set +a; $EDUPILOT_DIR/scripts/cron/run-task.sh automation >> /var/log/edupilot/automation.log 2>&1
+
+# ── Conservation des données — tous les lundis à 03h30 ─────────────────────
+# ATTENTION : cette tâche EFFACE selon les durées réglées par chaque école.
+# Laissez-la commentée tant que vous n'avez pas regardé l'aperçu :
+#   scripts/cron/run-task.sh retention --dry
+# ou l'écran Conformité → Rétention des données.
+# 30 3 * * 1  edupilot  set -a; . /etc/edupilot/cron.env; set +a; $EDUPILOT_DIR/scripts/cron/run-task.sh retention >> /var/log/edupilot/retention.log 2>&1

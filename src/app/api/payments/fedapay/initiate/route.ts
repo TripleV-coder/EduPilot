@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
+import { livePaymentsGuard } from "@/lib/payments/live-mode";
 
 const bodySchema = z.object({ paymentId: z.string().cuid() });
 
@@ -19,6 +20,11 @@ const STAFF = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"];
  */
 export const POST = createApiHandler(async (request, context) => {
     const session = context.session;
+
+    // Règle 11 : une configuration d'argent réel non autorisée est refusée
+    // avant tout appel au fournisseur, session et paiement même valides.
+    const liveBlocked = livePaymentsGuard();
+    if (liveBlocked) return liveBlocked;
 
     if (!isFedaPayConfigured()) {
         return NextResponse.json(
@@ -98,6 +104,15 @@ export const POST = createApiHandler(async (request, context) => {
     const origin = new URL(request.url).origin;
 
     try {
+        // Référence enregistrée AVANT la création chez FedaPay : si le
+        // processus s'arrête juste après, le webhook (merchant_reference)
+        // retrouve quand même le paiement. Référence déterministe et paiement
+        // toujours PENDING : sans effet si l'appel échoue.
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: { reference, method: "MOBILE_MONEY_MTN" },
+        });
+
         const checkout = await createFedaPayCheckout({
             amount,
             description: payment.fee?.name ? `Frais : ${payment.fee.name}` : "Frais scolaires",
@@ -108,11 +123,6 @@ export const POST = createApiHandler(async (request, context) => {
                 lastname: payer.lastName ?? "EduPilot",
                 email: payer.email,
             },
-        });
-
-        await prisma.payment.update({
-            where: { id: payment.id },
-            data: { reference, method: "MOBILE_MONEY_MTN" },
         });
 
         logger.info("FedaPay: transaction initiée", {

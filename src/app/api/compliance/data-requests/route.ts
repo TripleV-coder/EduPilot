@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma, DataAccessStatus } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
@@ -7,6 +7,7 @@ import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 const createDataRequestSchema = z.object({
   requestType: z.enum(["EXPORT", "RECTIFICATION", "DELETION", "PORTABILITY"]),
@@ -23,9 +24,9 @@ export const GET = createApiHandler(async (request, context) => {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
+    // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+    // Lot 3 : curseur sur la date de demande par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "requestedAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
     const where: Prisma.DataAccessRequestWhereInput = {};
 
@@ -51,7 +52,7 @@ export const GET = createApiHandler(async (request, context) => {
 
     const [requests, total] = await Promise.all([
       prisma.dataAccessRequest.findMany({
-        where,
+        where: list.where(where),
         include: {
           user: {
             select: {
@@ -69,22 +70,14 @@ export const GET = createApiHandler(async (request, context) => {
             },
           },
         },
-        orderBy: { requestedAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
       }),
-      prisma.dataAccessRequest.count({ where }),
+      list.needsTotal ? prisma.dataAccessRequest.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json({
-      requests,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    return NextResponse.json(list.page(requests, (row) => row.requestedAt, total));
   
     } catch (error) {
     logger.error(" fetching data requests:", error as Error);
@@ -165,7 +158,7 @@ export const POST = createApiHandler(async (request, context) => {
           type: "WARNING",
           title: "Nouvelle demande RGPD",
           message: `${session.user.firstName} ${session.user.lastName} a soumis une demande de type: ${validatedData.requestType}`,
-          link: `/compliance/data-requests/${dataRequest.id}`,
+          link: "/dashboard/compliance",
         })),
       });
     }

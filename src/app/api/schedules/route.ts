@@ -7,12 +7,6 @@ import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from 
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
-interface ScheduleWhereFilter {
-  classId?: string;
-  dayOfWeek?: number;
-  classSubjectId?: { in: string[] };
-}
-
 /**
  * GET /api/schedules
  * Obtenir l'emploi du temps
@@ -67,24 +61,21 @@ export const GET = createApiHandler(
       where.class = { schoolId: scopedSchoolId || undefined };
     }
 
+    // C3 : chaque créneau embarquait TOUTES les matières de sa classe avec
+    // leurs enseignants (8,9 Mo sur la base de l'audit), mais pas la matière
+    // du créneau que les écrans affichent. On inclut la matière du créneau.
+    // Liste bornée par nature (créneaux hebdomadaires d'un établissement) :
+    // pas de pagination.
     const schedules = await prisma.schedule.findMany({
       where,
       include: {
-        class: {
-          include: {
-            classLevel: true,
-            classSubjects: {
-              include: {
-                subject: true,
-                teacher: {
-                  include: {
-                    user: {
-                      select: { firstName: true, lastName: true },
-                    },
-                  },
-                },
-              },
-            },
+        class: { select: { id: true, name: true } },
+        classSubject: {
+          select: {
+            id: true,
+            teacherId: true,
+            subject: { select: { id: true, name: true } },
+            teacher: { select: { id: true, user: { select: { firstName: true, lastName: true } } } },
           },
         },
       },

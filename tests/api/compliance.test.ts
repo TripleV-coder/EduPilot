@@ -63,7 +63,7 @@ describe("GET /api/compliance/data-requests", () => {
     expect(res.status).toBe(401);
   });
 
-  it("liste les demandes d'un STUDENT (paginé, body.requests)", async () => {
+  it("liste les demandes d'un STUDENT (paginé, format curseur { data, pagination })", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.dataAccessRequest.findMany).mockResolvedValue([requestRecord()]);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(1);
@@ -74,7 +74,9 @@ describe("GET /api/compliance/data-requests", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.requests).toHaveLength(1);
+    // Lot 3 : format unique du projet par défaut ; l'ancien format (body.requests)
+    // reste servi avec ?page= (tests/integration-db/list-cursor-journals.test.ts).
+    expect(body.data).toHaveLength(1);
     expect(body.pagination.total).toBe(1);
     const where = vi.mocked(prisma.dataAccessRequest.findMany).mock.calls[0][0] as {
       where: { userId?: string; status?: string; user?: { schoolId: string } };

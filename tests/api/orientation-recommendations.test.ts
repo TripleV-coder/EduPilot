@@ -8,7 +8,7 @@ import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    studentOrientation: { findUnique: vi.fn(), update: vi.fn() },
+    studentOrientation: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     orientationRecommendation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   },
@@ -76,22 +76,30 @@ describe("POST /api/orientation/[id]/recommendations", () => {
 
   it("should return 404 when orientation not found", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentOrientation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(null);
     const res = await POST_RECS(makeRequest("http://localhost/api/orientation/o1/recommendations", { method: "POST", body: VALID_REC_BODY }), { session: makeSession("DIRECTOR"), params: Promise.resolve({ id: ORIENTATION_ID }) });
     expect(res.status).toBe(404);
     expect((await res.json()).error).toBe("Dossier d'orientation introuvable");
   });
 
-  it("should forbid cross-school access", async () => {
+  // Audit M2 : le dossier est cherché dans l'établissement de la session.
+  // Celui d'une autre école n'est pas trouvé (404 ; la base ne renvoie rien,
+  // d'où le double qui renvoie null) au lieu d'être lu puis refusé (403) :
+  // sous RLS, son élève est masqué et la lecture échouait (500).
+  it("should not find an orientation of another school (404)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentOrientation.findUnique).mockResolvedValue(makeOrientation({ student: { schoolId: FIXTURES.schoolB } }));
+    vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(null);
     const res = await POST_RECS(makeRequest("http://localhost/api/orientation/o1/recommendations", { method: "POST", body: VALID_REC_BODY }), { session: makeSession("DIRECTOR"), params: Promise.resolve({ id: ORIENTATION_ID }) });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(vi.mocked(prisma.studentOrientation.findFirst).mock.calls[0][0]).toMatchObject({
+      where: { id: ORIENTATION_ID, student: { schoolId: FIXTURES.schoolA } },
+    });
+    expect(prisma.orientationRecommendation.create).not.toHaveBeenCalled();
   });
 
   it("should create the recommendation and promote a PENDING orientation", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentOrientation.findUnique).mockResolvedValue(makeOrientation({ status: "PENDING" }));
+    vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(makeOrientation({ status: "PENDING" }));
     vi.mocked(prisma.orientationRecommendation.create).mockResolvedValue({
       id: RECOMMENDATION_ID,
       orientationId: ORIENTATION_ID,
@@ -133,7 +141,7 @@ describe("POST /api/orientation/[id]/recommendations", () => {
 
   it("should promote an ANALYZED orientation as well", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentOrientation.findUnique).mockResolvedValue(makeOrientation({ status: "ANALYZED" }));
+    vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(makeOrientation({ status: "ANALYZED" }));
     vi.mocked(prisma.orientationRecommendation.create).mockResolvedValue({ id: RECOMMENDATION_ID } as never);
     vi.mocked(prisma.studentOrientation.update).mockResolvedValue(makeOrientation({ status: "RECOMMENDED" }));
     const res = await POST_RECS(makeRequest("http://localhost/api/orientation/o1/recommendations", { method: "POST", body: VALID_REC_BODY }), { session: makeSession("DIRECTOR"), params: Promise.resolve({ id: ORIENTATION_ID }) });
@@ -143,7 +151,7 @@ describe("POST /api/orientation/[id]/recommendations", () => {
 
   it("should return 500 on prisma error", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.studentOrientation.findUnique).mockResolvedValue(makeOrientation({ status: "PENDING" }));
+    vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(makeOrientation({ status: "PENDING" }));
     vi.mocked(prisma.orientationRecommendation.create).mockRejectedValue(new Error("db down"));
     const res = await POST_RECS(makeRequest("http://localhost/api/orientation/o1/recommendations", { method: "POST", body: VALID_REC_BODY }), { session: makeSession("DIRECTOR"), params: Promise.resolve({ id: ORIENTATION_ID }) });
     expect(res.status).toBe(500);

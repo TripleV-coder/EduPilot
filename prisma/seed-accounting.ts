@@ -9,6 +9,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { assertDisposableDatabase } from "../scripts/lib/disposable-guard.mjs";
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,9 @@ function daysAgo(days: number): Date {
 }
 
 async function main() {
+  // Règle 6 / N17 : données de démonstration ou comptes de test —
+  // base marquée jetable obligatoire (scripts/db/mark-disposable.mjs).
+  await assertDisposableDatabase(prisma, "prisma/seed-accounting.ts");
     const schools = await prisma.school.findMany({
         where: { isActive: true },
         select: { id: true, name: true },

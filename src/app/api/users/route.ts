@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { userSchema } from "@/lib/validations/user";
+import { strongPasswordSchema } from "@/lib/validations/auth";
+import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import type { UserWhereFilter } from "@/lib/types/api";
-import type { UserRole } from "@prisma/client";
+import type { Prisma, UserRole } from "@prisma/client";
 import { SchoolLevel, SchoolType } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeRequestBody, sanitizePlainText } from "@/lib/sanitize";
-import { createApiHandler, getPaginationParams, createPaginatedResponse, translateError } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { checkStudentQuota, checkTeacherQuota } from "@/lib/saas/quotas";
 import { canCreateRole, roleSatisfies } from "@/lib/rbac/permissions";
@@ -42,7 +45,9 @@ export const GET = createApiHandler(
     }
 
     // Pagination parameters
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+    // Lot 3 : curseur (keyset), total sur la première page seulement.
+    // L'ancien mode ?page= a été retiré au Lot 8.
+    const cursorPage = getCursorParams(searchParams, { defaultLimit: 20, maxLimit: 100 });
 
     // Build where clause based on user role with proper typing
     const where: UserWhereFilter = {};
@@ -68,7 +73,9 @@ export const GET = createApiHandler(
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
-        where,
+        where: cursorPage.cursor
+          ? { AND: [where as Prisma.UserWhereInput, keysetWhere("createdAt", "desc", cursorPage.cursor)] }
+          : where,
         select: {
           id: true,
           email: true,
@@ -101,14 +108,14 @@ export const GET = createApiHandler(
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: keysetOrderBy("createdAt", "desc"),
+        take: cursorPage.limit + 1,
       }),
-      prisma.user.count({ where }),
+      cursorPage.withTotal ? prisma.user.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return createPaginatedResponse(users, total, { page, limit, skip });
+    const { data, pagination } = buildCursorPage(users, cursorPage.limit, (user) => user.createdAt);
+    return NextResponse.json({ data, pagination: { ...pagination, ...(total !== undefined ? { total } : {}) } });
   },
   {
     requireAuth: true,
@@ -135,6 +142,8 @@ export const POST = createApiHandler(
 
     const createUserSchema = userSchema.extend({
       school: schoolCreateSchema.optional(),
+      // Facultatif : sans mot de passe, un provisoire unique est généré (N31).
+      password: strongPasswordSchema.optional(),
     });
 
     const validatedData = createUserSchema.parse(sanitizedBody);
@@ -246,17 +255,10 @@ export const POST = createApiHandler(
       }
     }
 
-    // Password is required for new users
-    if (!validatedData.password) {
-      return NextResponse.json(
-        { ...translateError(API_ERRORS.INVALID_DATA, t), error: t("api.issues.password_required") || "Le mot de passe est obligatoire" },
-        // Ideally should have a key for password required in i18n
-        { status: 400 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(validatedData.password, 12);
+    // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
+    // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
+    const provisional = validatedData.password ? null : await issueProvisionalPassword(12);
+    const hashedPassword = provisional?.hash ?? (await bcrypt.hash(validatedData.password as string, 12));
 
     let result: { user: { id: string; email: string; firstName: string; lastName: string; phone: string | null; role: UserRole; isActive: boolean; schoolId: string | null; createdAt: Date } };
     try {
@@ -289,6 +291,8 @@ export const POST = createApiHandler(
             roles: [validatedData.role], // Initialize array with primary role
             schoolId: resolvedSchoolId,
             password: hashedPassword,
+            // Compte créé par un tiers : mot de passe à changer (M1).
+            mustChangePassword: true,
           },
           select: {
             id: true,
@@ -324,6 +328,12 @@ export const POST = createApiHandler(
             }),
             skipDuplicates: true,
           });
+        }
+
+        // Démarrage à vide (N37) : sans profil parent, le compte ne peut
+        // rattacher aucun enfant (/api/parents/link-child répond 404).
+        if (validatedData.role === "PARENT") {
+          await tx.parentProfile.create({ data: { userId: user.id } });
         }
 
         return { user };
@@ -369,7 +379,10 @@ export const POST = createApiHandler(
     }
 
     logger.info("User created", { userId: result.user.id, createdBy: session.user.id });
-    return NextResponse.json(result.user, { status: 201 });
+    return NextResponse.json(
+      provisional ? { ...result.user, provisionalPassword: provisional.plain } : result.user,
+      { status: 201 },
+    );
   },
   {
     requireAuth: true,

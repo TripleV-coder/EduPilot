@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { checkRateLimit, authLimiter, apiLimiter, strictLimiter } from "@/lib/rate-limit";
 import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -22,7 +23,23 @@ function buildCsp(nonce: string): string {
       ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
       : "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob:",
     "worker-src 'self' blob:",
-    "style-src 'self' 'unsafe-inline'",
+    // L1 (audit) — mesuré le 2026-09-17, pas supposé. La directive unique
+    // `style-src` est séparée en deux, pour dire précisément ce qui est
+    // autorisé et pourquoi :
+    //  - `style-src-elem` : les <style> injectés à l'exécution. Le passage à
+    //    `'nonce-…'` a été essayé et VÉRIFIÉ dans un navigateur : la
+    //    bibliothèque de notifications (sonner 2.0.7) injecte 14 859
+    //    caractères de CSS sans nonce — elle n'en accepte aucun — et tous les
+    //    toasts de l'application perdaient leur style. Le design étant gelé
+    //    (règle 9), `'unsafe-inline'` est conservé ici. Risque consigné dans
+    //    docs/EXPLOITATION.md : une injection HTML réussie pourrait poser une
+    //    feuille de style (exfiltration par sélecteur d'attribut, habillage
+    //    trompeur) — mais pas exécuter de script, `script-src` restant noncé.
+    //  - `style-src-attr` : l'attribut style= des composants React, dont
+    //    l'application est saturée. Aucun vecteur d'injection : ces valeurs
+    //    viennent du code, jamais d'une saisie.
+    "style-src-elem 'self' 'unsafe-inline'",
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
     "font-src 'self' data:",
     IS_PROD
@@ -78,6 +95,9 @@ const PUBLIC_ROUTES = new Set([
  */
 const MFA_VERIFY_ROUTE = "/mfa-verify";
 
+/** Écran de choix du mot de passe définitif (compte créé par un tiers, M1). */
+const PASSWORD_CHANGE_ROUTE = "/first-login";
+
 const GUEST_ONLY_ROUTES = new Set([
   "/login",
   "/register",
@@ -116,21 +136,28 @@ const STRICT_RATE_LIMIT_PREFIXES = [
   "/api/root",
 ];
 
+// La connexion NextAuth (`/api/auth/callback/credentials`) n'est pas ici : ce
+// limiteur compte aussi les succès (5 / 15 min), ce qui bloquerait une école
+// entière derrière une même IP publique. Ses ÉCHECS sont limités par IP dans
+// `app/api/auth/[...nextauth]/route.ts` (audit H4).
 const AUTH_RATE_LIMIT_PREFIXES = [
   "/api/auth/login",
   "/api/auth/forgot-password",
 ];
 
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+/**
+ * Routes d'API ouvertes au middleware par chemin EXACT (audit H1/H2) : le
+ * healthcheck (Docker, supervision) et les crons, qui vérifient eux-mêmes
+ * CRON_SECRET. Pas de préfixe : /api/health/* contient des données de santé.
+ */
+const PUBLIC_API_ROUTES = new Set([
+  "/api/health",
+  "/api/system/automation",
+  "/api/system/retention",
+]);
 
 function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_ROUTES.has(pathname)) return true;
+  if (PUBLIC_ROUTES.has(pathname) || PUBLIC_API_ROUTES.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -155,7 +182,7 @@ export default async function proxy(request: NextRequest) {
   let apiRateLimitRemaining: number | undefined;
 
   if (isApi) {
-    const ip = getClientIp(request);
+    const ip = getClientIp(request.headers);
     let limiter = apiLimiter;
 
     if (AUTH_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))) {
@@ -190,7 +217,11 @@ export default async function proxy(request: NextRequest) {
 
   if (isGuestOnly) {
     const session = await auth();
-    if (session?.user?.id) {
+    // Une session tenue de changer son mot de passe provisoire (M1) doit
+    // pouvoir ouvrir /first-login : c'est sa seule sortie de cet état.
+    const isPasswordChangeExit =
+      pathname === PASSWORD_CHANGE_ROUTE && session?.user?.mustChangePassword === true;
+    if (session?.user?.id && !isPasswordChangeExit) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return pageResponse(request);
@@ -243,6 +274,21 @@ export default async function proxy(request: NextRequest) {
     const mfaUrl = new URL(MFA_VERIFY_ROUTE, request.url);
     mfaUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(mfaUrl);
+  }
+
+  // ── MOT DE PASSE PROVISOIRE À CHANGER (M1) ──
+  // Compte créé par un tiers (admin, import) : tant que le titulaire n'a pas
+  // choisi son mot de passe, la session est confinée à /first-login (les
+  // routes /api/auth/*, publiques, restent joignables pour changer le mot de
+  // passe, lire la session et se déconnecter).
+  if (session.user.mustChangePassword === true) {
+    if (isApi) {
+      return NextResponse.json(
+        { error: "Vous devez choisir un nouveau mot de passe", code: "PASSWORD_CHANGE_REQUIRED" },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL(PASSWORD_CHANGE_ROUTE, request.url));
   }
 
   // ── MODE MAINTENANCE ──

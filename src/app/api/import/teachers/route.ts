@@ -1,28 +1,27 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { logger } from "@/lib/utils/logger";
-import { importTeacherSchema } from "@/lib/import/schemas";
-import { hash } from "bcryptjs";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
-import { buildTeacherSchoolAssignments } from "@/lib/teachers/school-assignments";
-
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { generateImportPassword } from "@/lib/import/initial-password";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { importTeachersAllOrNothing } from "@/lib/import/teacher-import";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
+/**
+ * POST /api/import/teachers — { data: ImportTeacher[], schoolId? }
+ * Tout ou rien (Lot 5, N47) : 200 { created, credentials, errors: [] } ;
+ * sinon 422/409 { created: 0, errors: [{ row, field?, message }] }, rien d'écrit.
+ */
 export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;
 
         const body = await request.json();
-        const { data, schoolId: bodySchoolId } = body; // Expecting { data: ImportTeacher[], schoolId? }
+        const { data, schoolId: bodySchoolId } = body;
 
         if (!Array.isArray(data)) {
             return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
-
         }
 
         if (data.length > 500) {
@@ -32,21 +31,6 @@ export const POST = createApiHandler(
             );
         }
 
-        const results = {
-            created: 0,
-            errors: [] as Array<{
-                row: number;
-                error: string;
-                details?: unknown;
-                data?: unknown;
-                email?: string;
-            }>,
-        };
-
-        // Secret aléatoire par lot — jamais de mot de passe partagé connu (cf. lib/import/initial-password)
-        const DEFAULT_IMPORT_PASSWORD = generateImportPassword();
-
-        // Resolve school context once
         let schoolId = getActiveSchoolId(session) || null;
         if (session.user.role === "SUPER_ADMIN") {
             const { searchParams } = new URL(request.url);
@@ -70,7 +54,6 @@ export const POST = createApiHandler(
             return NextResponse.json({ error: "School not found" }, { status: 400 });
         }
 
-        // Quota check once before processing rows
         const quota = await checkTeacherQuota(schoolId);
         if (!quota.allowed) {
             return NextResponse.json({
@@ -86,89 +69,12 @@ export const POST = createApiHandler(
             }, { status: 403 });
         }
 
-        for (const [index, item] of data.entries()) {
-            const validation = importTeacherSchema.safeParse(item);
-
-            if (!validation.success) {
-                results.errors.push({
-                    row: index + 1,
-                    error: "Validation failed",
-                    details: validation.error.issues,
-                    data: item,
-                });
-                continue;
-            }
-
-            const teacherData = validation.data;
-
-            // Check if user exists
-            const existingUser = await prisma.user.findUnique({
-                where: { email: teacherData.email },
-            });
-
-            if (existingUser) {
-                results.errors.push({
-                    row: index + 1,
-                    error: "Email already exists",
-                    email: teacherData.email,
-                });
-                continue;
-            }
-
-            // Create User and Teacher
-            try {
-                const hashedPassword = await hash(DEFAULT_IMPORT_PASSWORD, 10);
-
-                await prisma.$transaction(async (tx) => {
-                    const user = await tx.user.create({
-                        data: {
-                            email: teacherData.email,
-                            password: hashedPassword,
-                            firstName: teacherData.firstName,
-                            lastName: teacherData.lastName,
-                            role: "TEACHER",
-                            roles: ["TEACHER"],
-                            schoolId: schoolId,
-                            phone: teacherData.phone,
-                            mustChangePassword: true,
-                        },
-                    });
-
-                    const profile = await tx.teacherProfile.create({
-                        data: {
-                            userId: user.id,
-                            specialization: teacherData.subjects || "General",
-                            schoolId: schoolId || "",
-                        },
-                    });
-
-                    await tx.teacherSchoolAssignment.createMany({
-                        data: buildTeacherSchoolAssignments({
-                            teacherId: profile.id,
-                            userId: user.id,
-                            primarySchoolId: schoolId || "",
-                            schoolIds: [schoolId || ""],
-                        }),
-                        skipDuplicates: true,
-                    });
-                });
-
-                results.created++;
-            } catch (err) {
-                logger.error("Error creating teacher", err, { module: "api/import/teachers", row: index + 1 });
-                results.errors.push({
-                    row: index + 1,
-                    error: "Database error",
-                    details: err instanceof Error ? err.message : String(err),
-                });
-            }
-        }
-
-        if (results.created > 0) {
+        const outcome = await importTeachersAllOrNothing(schoolId, data);
+        if (outcome.status === 200 && outcome.body.created > 0) {
             await invalidateByPath(CACHE_PATHS.teachers).catch(() => { });
             await invalidateByPath(CACHE_PATHS.users).catch(() => { });
         }
-        return NextResponse.json(results);
+        return NextResponse.json(outcome.body, { status: outcome.status });
     },
     { allowedRoles: ALLOWED_ROLES },
 );

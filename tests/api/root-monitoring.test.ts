@@ -47,7 +47,9 @@ describe("GET /api/root/monitoring", () => {
       { action: "LOGIN_ERROR", _count: 3 },
     ] as never);
     vi.mocked(prisma.session.count).mockResolvedValue(12);
-    vi.mocked(prisma.auditLog.count).mockResolvedValue(8);
+    // `count` sert deux fois : les connexions (action LOGIN) et les erreurs.
+    vi.mocked(prisma.auditLog.count).mockImplementation((async (args: { where?: { action?: unknown } }) =>
+      args?.where?.action === "LOGIN" ? 8 : 0) as never);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(2);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);
 
@@ -107,7 +109,9 @@ describe("GET /api/root/monitoring", () => {
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue(errors);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
     vi.mocked(prisma.session.count).mockResolvedValue(0);
-    vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
+    // 25 erreurs en base ; la liste affichée n'en montre que les 10 dernières.
+    vi.mocked(prisma.auditLog.count).mockImplementation((async (args: { where?: { action?: unknown } }) =>
+      args?.where?.action === "LOGIN" ? 0 : 25) as never);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);
     const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
@@ -124,5 +128,58 @@ describe("GET /api/root/monitoring", () => {
     const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Erreur lors de la récupération du monitoring");
+  });
+});
+/**
+ * Lot 7 — l'écran d'exploitation doit répondre sans terminal : reste-t-il de
+ * la place et de la mémoire, et la dernière sauvegarde a-t-elle réussi ?
+ */
+describe("GET /api/root/monitoring — état de la machine", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ "?column?": 1 }]);
+    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
+    vi.mocked(prisma.session.count).mockResolvedValue(0);
+    vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
+    vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
+    vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);
+  });
+
+  it("expose mémoire, disque, sauvegarde et durée de fonctionnement", async () => {
+    const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
+    const body = await res.json();
+
+    expect(body.host.memory.rssMb).toBeGreaterThan(0);
+    expect(body.host.memory.usedPercent).toBeLessThanOrEqual(100);
+    expect(body.host).toHaveProperty("disk");
+    expect(["ok", "stale", "none", "unavailable"]).toContain(body.host.backup.status);
+    expect(body.host.uptimeSeconds).toBeGreaterThanOrEqual(0);
+  });
+
+  it("alerte quand aucune sauvegarde n'est visible", async () => {
+    process.env.BACKUP_DIR = "/repertoire/inexistant/edupilot";
+    try {
+      const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
+      const body = await res.json();
+      expect(body.host.backup.status).toBe("unavailable");
+      expect(body.alerts.map((a: { message: string }) => a.message)).toContain(
+        "Aucune sauvegarde visible : vérifiez BACKUP_DIR et la tâche planifiée",
+      );
+    } finally {
+      delete process.env.BACKUP_DIR;
+    }
+  });
+
+  it("ne divulgue aucun chemin du serveur (audit L5)", async () => {
+    process.env.BACKUP_DIR = "/var/backups/secret-interne/edupilot";
+    try {
+      const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
+      const text = JSON.stringify(await res.json());
+      expect(text).not.toContain("secret-interne");
+    } finally {
+      delete process.env.BACKUP_DIR;
+    }
   });
 });

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { paymentSchema } from "@/lib/validations/finance";
 import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import {
     buildPaymentDateWhere,
@@ -22,8 +23,10 @@ export const GET = createApiHandler(
         const dateRange = parseDateRangeParams(searchParams);
         if (!dateRange.success) return dateRange.response;
         const { startDate, endDate } = dateRange;
-        const page = parseInt(searchParams.get("page") || "1");
-        const pageSize = parseInt(searchParams.get("pageSize") || "20");
+        // N16 : taille plafonnée à 100, saisie non numérique → valeurs par défaut.
+        // Lot 3 : curseur sur la date de création (?limit=). L'ancien mode
+        // ?page=&pageSize= a été retiré au Lot 8.
+        const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
         const where: Prisma.PaymentWhereInput = {};
 
@@ -50,7 +53,7 @@ export const GET = createApiHandler(
 
         const [payments, total] = await Promise.all([
             prisma.payment.findMany({
-                where,
+                where: list.where(where),
                 include: {
                     student: {
                         include: {
@@ -60,28 +63,19 @@ export const GET = createApiHandler(
                     fee: { select: { id: true, name: true, amount: true } },
                     // receiver info?
                 },
-                skip: (page - 1) * pageSize,
-                take: pageSize,
-                orderBy: { createdAt: "desc" },
+                skip: list.skip,
+                take: list.take,
+                orderBy: list.orderBy,
             }),
-            prisma.payment.count({ where }),
+            list.needsTotal ? prisma.payment.count({ where }) : Promise.resolve(undefined),
         ]);
 
-        return NextResponse.json({
-            data: payments,
-            meta: {
-                total,
-                page,
-                pageSize,
-                totalPages: Math.ceil(total / pageSize),
-            }
-        });
+        return NextResponse.json(list.page(payments, (payment) => payment.createdAt, total));
     }
     , { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] });
 
 export const POST = createApiHandler(
     async (request: NextRequest, { session: authSession }) => {
-        const _userRole = authSession.user.role;
         const body = await request.json();
         const validatedData = paymentSchema.parse(body);
 

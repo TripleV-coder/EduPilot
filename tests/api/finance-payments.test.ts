@@ -75,14 +75,15 @@ describe("GET /api/finance/payments", () => {
     vi.mocked(prisma.payment.findMany).mockResolvedValue([paymentRecord()] as never);
     vi.mocked(prisma.payment.count).mockResolvedValue(1);
 
+    // Lot 8 : ?page=&pageSize= retiré ; format unique { data, pagination }.
     const res = await GET(
-      makeRequest("http://localhost/api/finance/payments?page=1&pageSize=20")
+      makeRequest("http://localhost/api/finance/payments?limit=20")
     );
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.data).toHaveLength(1);
-    expect(body.meta).toEqual({ total: 1, page: 1, pageSize: 20, totalPages: 1 });
+    expect(body.pagination).toMatchObject({ limit: 20, hasNextPage: false, total: 1 });
     // Isolation tenant : filtre école posé via la relation fee
     expect(vi.mocked(prisma.payment.findMany).mock.calls[0][0].where.fee).toEqual({
       schoolId: FIXTURES.schoolA,
@@ -95,15 +96,16 @@ describe("GET /api/finance/payments", () => {
     vi.mocked(prisma.payment.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.payment.count).mockResolvedValue(0);
 
+    // Lot 8 : la taille vient de ?limit= ; le curseur remplace ?page=.
     await GET(
       makeRequest(
-        `http://localhost/api/finance/payments?page=2&pageSize=5&studentId=${FIXTURES.studentA}&feeId=${FIXTURES.feeA}&method=CASH&status=VERIFIED`
+        `http://localhost/api/finance/payments?limit=5&studentId=${FIXTURES.studentA}&feeId=${FIXTURES.feeA}&method=CASH&status=VERIFIED`
       )
     );
 
     const args = vi.mocked(prisma.payment.findMany).mock.calls[0][0] as {
       where: Record<string, unknown>;
-      skip: number;
+      skip: number | undefined;
       take: number;
     };
     expect(args.where).toMatchObject({
@@ -112,8 +114,9 @@ describe("GET /api/finance/payments", () => {
       method: "CASH",
       status: "VERIFIED",
     });
-    expect(args.skip).toBe(5);
-    expect(args.take).toBe(5);
+    expect(args.skip).toBeUndefined();
+    // Une ligne de plus que la limite : c'est elle qui dit s'il y a une suite.
+    expect(args.take).toBe(6);
   });
 
   it("retourne 500 sur erreur prisma", async () => {
@@ -138,12 +141,15 @@ describe("POST /api/finance/payments", () => {
     expect(res.status).toBe(403);
   });
 
-  it("retourne 500 sur un body invalide (ZodError non converti en 400 par cette route)", async () => {
+  // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
+  // serveur. createApiHandler la convertit désormais en 400 détaillé.
+  it("retourne 400 VALIDATION_ERROR sur un body invalide, sans paiement créé (audit M3)", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     const res = await POST(
       makeRequest("http://localhost/api/finance/payments", { method: "POST", body: { amount: 50000 } })
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("VALIDATION_ERROR");
     expect(prisma.payment.create).not.toHaveBeenCalled();
   });
 

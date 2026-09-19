@@ -3,7 +3,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { computeContentHash, hashIp, canSignDocType } from "@/lib/signatures/signature";
+import { computeContentHash, hashIp, canSignDocType, getSignatureSalt } from "@/lib/signatures/signature";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const DOC_TYPES = ["REPORT_CARD", "CERTIFICATE", "PARENT_AUTHORIZATION", "STAFF_CONTRACT"] as const;
 
@@ -17,7 +18,7 @@ const createSchema = z.object({
 });
 
 function clientIp(request: Request): string {
-    return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    return getClientIp(request.headers);
 }
 
 /**
@@ -101,7 +102,7 @@ export const POST = createApiHandler(
                 method,
                 signatureData: signatureData ?? null,
                 contentHash,
-                ipHash: hashIp(clientIp(request), process.env.SIGNATURE_SALT ?? "edupilot"),
+                ipHash: hashIp(clientIp(request), getSignatureSalt()),
             },
             select: { id: true, signedAt: true },
         });

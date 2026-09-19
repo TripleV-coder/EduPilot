@@ -5,8 +5,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { authLimiter, checkRateLimit } from "@/lib/rate-limit";
-import { getClientIdentifier } from "@/lib/api/middleware-rate-limit";
+import { authLimiter, checkRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const forgotPasswordSchema = z.object({

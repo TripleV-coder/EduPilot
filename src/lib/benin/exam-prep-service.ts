@@ -1,6 +1,5 @@
 import prisma from "@/lib/prisma";
 import { configService } from "@/lib/services/config-service";
-import { cepSubjects, bepcSubjects } from "@/lib/benin/config";
 
 export interface ExamSubject {
     code: string;

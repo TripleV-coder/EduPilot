@@ -2,66 +2,16 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { classSchema } from "@/lib/validations/school";
-import { createApiHandler, translateError, getPaginationParams, createPaginatedResponse } from "@/lib/api/api-helpers";
+import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import type { ClassWhereFilter } from "@/lib/types/api";
 import { Permission } from "@/lib/rbac/permissions";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 
-/**
- * GET /api/classes
- * @swagger
- * /api/classes:
- *   get:
- *     summary: Liste des classes
- *     description: Récupère la liste paginée des classes
- *     tags: [Classes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: schoolId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par établissement
- *       - name: classLevelId
- *         in: query
- *         schema:
- *           type: string
- *         description: Filtrer par niveau
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 50
- *           maximum: 200
- *     responses:
- *       200:
- *         description: Liste des classes
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Class'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- */
+/** GET /api/classes — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
     const { searchParams } = new URL(request.url);
@@ -73,8 +23,17 @@ export const GET = createApiHandler(
     const classLevelId = searchParams.get("classLevelId");
     const search = searchParams.get("search");
 
-    // Pagination
-    const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 50, maxLimit: 200 });
+    // Pagination — Lot 3 : format curseur par défaut, ?page= toléré (ancien format).
+    // Tri composé (niveau puis nom) : curseur positionnel. Les classes d'un
+    // établissement sont bornées par nature : 200 par défaut (au lieu de 50), pour
+    // que les sélecteurs qui appellent /api/classes sans limite reçoivent toutes
+    // les classes — au-delà de 50, les suivantes disparaissaient des listes.
+    const list = getListWindow(request, {
+      positional: true,
+      orderBy: [{ classLevel: { sequence: "asc" } }, { name: "asc" }, { id: "asc" }],
+      defaultLimit: 200,
+      maxLimit: 200,
+    });
 
     if (session.user.role !== "SUPER_ADMIN" && !schoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
@@ -126,17 +85,21 @@ export const GET = createApiHandler(
               },
             },
           },
-          orderBy: [{ classLevel: { sequence: "asc" } }, { name: "asc" }],
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.class.count({ where }),
+        list.needsTotal ? prisma.class.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return createPaginatedResponse(classes, total, { page, limit, skip });
+      return NextResponse.json(list.page(classes, () => 0, total));
     };
 
-    const response = await withCache(handler, { ttl: CACHE_TTL_MEDIUM, key: cacheKey });
+    // Deux formes de réponse (curseur ou ancien ?page=) : même transtypage que finance/stats.
+    const response = await withCache(
+      handler as () => Promise<NextResponse<Record<string, unknown>>>,
+      { ttl: CACHE_TTL_MEDIUM, key: cacheKey },
+    );
     return withHttpCache(response, request, {
       private: true,
       maxAge: CACHE_TTL_MEDIUM,

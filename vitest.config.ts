@@ -7,7 +7,10 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
-    exclude: ['node_modules', '.next', 'prisma'],
+    // tests/integration-db : suite séparée sur vrai PostgreSQL
+    // (`npm run test:integration`, vitest.integration.config.ts) — le setup
+    // global de cette config mocke Prisma, incompatible avec elle.
+    exclude: ['node_modules', '.next', 'prisma', 'tests/integration-db/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -20,7 +23,6 @@ export default defineConfig({
       exclude: [
         'src/lib/types/**',
         '**/*.d.ts',
-        'src/lib/swagger.ts',
       ],
       // Seuils par périmètre (glob), à monter au fil des nouveaux tests :
       //  - src/lib/**        : cœur métier testé (baseline 2026-06-11 : 41/33/40)

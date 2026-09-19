@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     school: { findUnique: vi.fn() },
     paymentPlan: { findMany: vi.fn() },
-    payment: { findMany: vi.fn() },
+    payment: { findMany: vi.fn(), groupBy: vi.fn() },
     fee: { findMany: vi.fn() },
   },
 }));
@@ -151,9 +151,11 @@ describe("GET /api/finance/reports/generate", () => {
         amount: 100000,
         dueDate: null,
         isRequired: true,
-        _count: { payments: 5 },
       },
     ] as never);
+    // Nombre de paiements par frais : requête groupée (audit M2 — `_count`
+    // dans la liste dégénère sous RLS) ; auparavant simulé par `_count` dans la ligne.
+    vi.mocked(prisma.payment.groupBy).mockResolvedValue([{ feeId: FIXTURES.feeA, _count: { _all: 5 } }] as never);
 
     const res = await GET(
       makeRequest("http://localhost/api/finance/reports/generate?reportType=fees")
@@ -170,6 +172,10 @@ describe("GET /api/finance/reports/generate", () => {
     expect(vi.mocked(prisma.fee.findMany).mock.calls[0][0].where).toEqual({
       schoolId: FIXTURES.schoolA,
       isActive: true,
+    });
+    expect(vi.mocked(prisma.payment.groupBy).mock.calls[0][0]).toMatchObject({
+      by: ["feeId"],
+      where: { feeId: { in: [FIXTURES.feeA] } },
     });
   });
 

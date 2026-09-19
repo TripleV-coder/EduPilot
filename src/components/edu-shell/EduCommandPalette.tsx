@@ -6,6 +6,8 @@ import { useSession, signOut } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { navForRole, AI_ASSISTANT_NAV_LINK } from "./role-nav";
+import { useSchool } from "@/components/providers/school-provider";
+import { moduleForPagePath } from "@/lib/modules/catalog";
 
 type Action = {
     id: string;
@@ -87,7 +89,21 @@ const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | und
     },
 ];
 
-function buildActions(role: string | undefined | null, router: ReturnType<typeof useRouter>): Action[] {
+/**
+ * Une action qui mène à un module éteint est retirée de la palette (Lot 6).
+ * Liste de modules vide = encore inconnue : on ne masque rien.
+ */
+function allowedByModules(action: Action, enabledModules: string[]): boolean {
+    if (enabledModules.length === 0 || !action.href) return true;
+    const required = moduleForPagePath(action.href);
+    return !required || enabledModules.includes(required.id);
+}
+
+function buildActions(
+    role: string | undefined | null,
+    router: ReturnType<typeof useRouter>,
+    enabledModules: string[],
+): Action[] {
     const navItems = navForRole(role).map<Action>((n, i) => ({
         id: `nav-${i}-${n.href}`,
         label: n.label,
@@ -97,7 +113,9 @@ function buildActions(role: string | undefined | null, router: ReturnType<typeof
         keywords: `${n.label} ${n.href}`,
         category: "Navigation",
     }));
-    return [...roleQuickActions(role), ...navItems, ...STATIC_ACTIONS(router, role)];
+    return [...roleQuickActions(role), ...navItems, ...STATIC_ACTIONS(router, role)].filter((a) =>
+        allowedByModules(a, enabledModules),
+    );
 }
 
 export interface EduCommandPaletteProps {
@@ -109,6 +127,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const router = useRouter();
     const { data: session } = useSession();
     const role = session?.user?.role ?? null;
+    const { enabledModules } = useSchool();
 
     const [query, setQuery] = React.useState("");
     const [activeIndex, setActiveIndex] = React.useState(0);
@@ -116,7 +135,10 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const panelRef = React.useRef<HTMLDivElement | null>(null);
     const triggerRef = React.useRef<HTMLElement | null>(null);
 
-    const actions = React.useMemo(() => buildActions(role, router), [role, router]);
+    const actions = React.useMemo(
+        () => buildActions(role, router, enabledModules),
+        [role, router, enabledModules],
+    );
 
     const filtered = React.useMemo(() => {
         const q = query.trim().toLowerCase();

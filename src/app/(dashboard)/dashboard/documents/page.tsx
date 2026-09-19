@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import useSWR from "swr";
 import { toast } from "sonner";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -10,7 +9,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageLoading } from "@/components/layout/page-states";
 import { Badge, Button, Card, Icon } from "@/components/edu";
 import { Permission } from "@/lib/rbac/permissions";
-import { fetcher } from "@/lib/fetcher";
+import { useStudentList } from "@/hooks/use-student-list";
 import { t } from "@/lib/i18n";
 import {
     Select,
@@ -31,8 +30,7 @@ export default function DocumentGeneratorPage() {
     const [selectedDoc, setSelectedDoc] = useState("CERTIFICATE_ENROLLMENT");
     const [generating, setGenerating] = useState(false);
 
-    const { data, isLoading } = useSWR<{ students?: Student[] }>("/api/students", fetcher);
-    const students = data?.students ?? [];
+    const { students, isLoading } = useStudentList<Student>("");
 
     const handleGenerate = async () => {
         if (!selectedStudent) {

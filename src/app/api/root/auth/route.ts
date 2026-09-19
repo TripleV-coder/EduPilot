@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { timingSafeEqual, createHash } from "node:crypto";
-import { isRootUserEmail } from "@/lib/security/root-access";
+import { hasValidRootSession } from "@/lib/security/root-access";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 function safeCompare(a: string, b: string): boolean {
@@ -25,7 +25,8 @@ export const POST = createApiHandler(
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  if (session.user.role !== "SUPER_ADMIN" || !isRootUserEmail(session.user.email ?? "")) {
+  // SUPER_ADMIN, et membre de ROOT_USER_EMAILS si la liste est définie (N36).
+  if (!hasValidRootSession(session)) {
     return NextResponse.json({ error: "Accès root refusé" }, { status: 403 });
   }
 

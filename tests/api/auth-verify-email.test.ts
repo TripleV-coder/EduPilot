@@ -14,8 +14,11 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn(), updateMany: vi.fn() },
   },
 }));
-vi.mock("@/lib/rate-limit", () => ({
-  authLimiter: { name: "auth" },
+// L3 : `@/lib/rate-limit` est désormais le module unique (limiteurs, clés,
+// mappage de routes, identifiant client). Mock PARTIEL : seule la fonction
+// contrôlée par ce test est remplacée, tout le reste garde son code réel.
+vi.mock("@/lib/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
   checkRateLimit: checkRateLimitMock,
 }));
 // @/lib/email charge nodemailer → mock au niveau module.

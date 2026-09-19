@@ -75,7 +75,6 @@ export async function sendPerformanceAlertsToSlack(alerts: Alert[]): Promise<voi
 
   try {
     const critical = alerts.filter((a) => a.type === "critical");
-    const _warning = alerts.filter((a) => a.type === "warning");
     const color = critical.length > 0 ? "#ef4444" : "#f59e0b";
     const text = formatAlertsSummary(alerts);
 

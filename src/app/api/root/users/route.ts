@@ -3,7 +3,8 @@ import { Prisma, UserRole } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { isRootUserEmail } from "@/lib/security/root-access";
-import { getPaginationParams, createPaginatedResponse, createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export const GET = createApiHandler(
     if (guard) return guard;
 
     try {
-      const { page, limit, skip } = getPaginationParams(request);
+      // Lot 3 : curseur sur la date de création par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "createdAt", direction: "desc" });
       const url = new URL(request.url);
       const search = url.searchParams.get("search") || "";
       const role = url.searchParams.get("role");
@@ -48,10 +50,10 @@ export const GET = createApiHandler(
 
       const [users, total] = await Promise.all([
         prisma.user.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { createdAt: "desc" },
+          where: list.where(where),
+          skip: list.skip,
+          take: list.take,
+          orderBy: list.orderBy,
           select: {
             id: true,
             email: true,
@@ -77,18 +79,15 @@ export const GET = createApiHandler(
             },
           },
         }),
-        prisma.user.count({ where }),
+        list.needsTotal ? prisma.user.count({ where }) : Promise.resolve(undefined),
       ]);
 
-      return createPaginatedResponse(
-        users.map((u) => ({
-          ...u,
-          sessionCount: u._count.sessions,
-          _count: undefined,
-        })),
-        total,
-        { page, limit, skip }
-      );
+      const rows = users.map((u) => ({
+        ...u,
+        sessionCount: u._count.sessions,
+        _count: undefined,
+      }));
+      return NextResponse.json(list.page(rows, (user) => user.createdAt, total));
     } catch (error) {
       logger.error("Error fetching root users", error as Error);
       return NextResponse.json(

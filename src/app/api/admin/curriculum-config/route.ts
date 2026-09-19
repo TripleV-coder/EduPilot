@@ -6,12 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { createApiHandler, translateError, type TranslationFn } from "@/lib/api/api-helpers";
+import { createApiHandler, type TranslationFn } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { validateCoefficient, validateGrade } from "@/lib/benin-curriculum-system";
+import { validateCoefficient } from "@/lib/benin-curriculum-system";
 
 // ============================================
 // SCHÉMAS DE VALIDATION
@@ -34,10 +33,6 @@ const assignSubjectSchema = z.object({
 const updateCoefficientSchema = z.object({
   classSubjectId: z.string(),
   coefficient: z.number().min(0.01).max(10),
-});
-
-const removeSubjectSchema = z.object({
-  classSubjectId: z.string(),
 });
 
 // ============================================
@@ -105,7 +100,7 @@ export const POST = createApiHandler(
         );
       }
 
-      const { schoolId, name, code, category, description } = parsed.data;
+      const { schoolId, name, code, category } = parsed.data;
 
       // Vérifier l'école existe
       const school = await prisma.school.findUnique({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -21,6 +21,7 @@ import {
     Spinner,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError } from "@/components/layout/page-states";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -146,16 +147,10 @@ function studentClass(s: Incident["student"]): string {
     return s?.enrollments?.[0]?.class?.name ?? "";
 }
 
-function getCount(b: StatsBucket | number | undefined): number {
-    if (b === undefined || b === null) return 0;
-    if (typeof b === "number") return b;
-    return b.count ?? 0;
-}
-
 export default function DisciplinePage() {
     const [filter, setFilter] = useState<FilterCategory>("all");
 
-    const { data: incRaw, isLoading: incLoading } = useSWR<IncidentsResponse>(
+    const { data: incRaw, isLoading: incLoading, error: loadError, mutate: reloadPage } = useSWR<IncidentsResponse>(
         "/api/incidents?limit=50",
         fetcher
     );
@@ -226,6 +221,10 @@ export default function DisciplinePage() {
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <PageShell className="pb-12">
+                {loadError ? (
+                    <PageError message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
+                ) : null}
+
                 <PageHeader
                     title="Discipline & comportement"
                     description="Suivi des sanctions, retards et manquements au règlement intérieur"

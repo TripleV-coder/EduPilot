@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma, PaymentPlanStatus } from "@prisma/client";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
@@ -267,7 +267,7 @@ export const POST = createApiHandler(
           type: "INFO",
           title: "Plan de paiement créé",
           message: `Un plan de paiement en ${validatedData.installments} mensualités a été créé pour ${fee.name}`,
-          link: `/payments/plans/${paymentPlan.id}`,
+          link: "/dashboard/finance",
         },
       });
 
@@ -279,7 +279,7 @@ export const POST = createApiHandler(
             type: "INFO",
             title: "Plan de paiement créé",
             message: `Un plan de paiement en ${validatedData.installments} mensualités a été créé pour ${student.user.firstName} ${student.user.lastName}`,
-            link: `/payments/plans/${paymentPlan.id}`,
+            link: "/dashboard/finance",
           })),
         });
       }

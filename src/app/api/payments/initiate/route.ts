@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { SupportedProvider } from "@/lib/finance/types";
 import { isMomoConfigured } from "@/lib/finance/providers/momo";
 import { isFedaPayConfigured } from "@/lib/payments/fedapay";
+import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
@@ -39,6 +40,11 @@ function resolveProvider(requested: string): SupportedProvider {
 export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;
+
+        // Règle 11 : une configuration d'argent réel non autorisée est refusée
+        // avant tout appel au fournisseur.
+        const liveBlocked = livePaymentsGuard();
+        if (liveBlocked) return liveBlocked;
 
         try {
             const body = await request.json();
@@ -158,12 +164,18 @@ export const POST = createApiHandler(
                 { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
             );
 
-            if (result.transactionId) {
-                await prisma.payment.update({
-                    where: { id: paymentRecord.id },
-                    data: { reference: result.transactionId }
-                });
-            }
+            // N7 : `reference` est NOTRE clé de rapprochement, transmise au
+            // fournisseur (MoMo externalId, FedaPay merchant_reference) et
+            // renvoyée par ses webhooks. Elle ne doit jamais être remplacée par
+            // l'identifiant du fournisseur — sinon le paiement devient
+            // introuvable et reste PENDING. Elle est déjà en base avant l'appel
+            // (transaction ci-dessus) : un arrêt brutal ici ne perd rien.
+            logger.info("Paiement initié chez le fournisseur", {
+                paymentId: paymentRecord.id,
+                reference: paymentRecord.reference,
+                provider: resolvedProvider,
+                providerTransactionId: result.transactionId,
+            });
 
             return NextResponse.json({
                 paymentUrl: result.paymentUrl,

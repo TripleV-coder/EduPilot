@@ -5,7 +5,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
-import { createApiHandler, getPaginationParams } from "@/lib/api/api-helpers";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { getListWindow } from "@/lib/api/list-window";
 
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
@@ -19,60 +20,7 @@ const createMessageSchema = z.object({
   parentId: z.string().cuid().optional(), // For replies
 });
 
-/**
- * GET /api/messages
- * List user's messages (inbox/sent)
- * @swagger
- * /api/messages:
- *   get:
- *     summary: Liste des messages
- *     description: Récupère les messages (boîte de réception, envoyés, archivés)
- *     tags: [Messages]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: type
- *         in: query
- *         schema:
- *           type: string
- *           enum: [inbox, sent, archived]
- *           default: inbox
- *         description: Type de messages à récupérer
- *       - name: unreadOnly
- *         in: query
- *         schema:
- *           type: boolean
- *           default: false
- *         description: Filtrer uniquement les messages non lus (pour inbox)
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Liste des messages
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 messages:
- *                   type: array
- *                   items:
- *                     type: object
- *                 unreadCount:
- *                   type: integer
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
+/** GET /api/messages — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(async (request, context) => {
   try {
     // Cache key based on user and query params
@@ -85,7 +33,8 @@ export const GET = createApiHandler(async (request, context) => {
       const { searchParams } = new URL(request.url);
       const type = searchParams.get("type") || "inbox"; // inbox | sent | archived
       const unreadOnly = searchParams.get("unreadOnly") === "true";
-      const { page, limit, skip } = getPaginationParams(request, { defaultLimit: 20, maxLimit: 100 });
+      // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+      const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
       interface MessageWhereFilter {
         senderId?: string;
@@ -114,7 +63,7 @@ export const GET = createApiHandler(async (request, context) => {
 
       const [messages, total, unreadCount] = await Promise.all([
         prisma.message.findMany({
-          where,
+          where: list.where(where),
           select: {
             id: true,
             subject: true,
@@ -152,11 +101,11 @@ export const GET = createApiHandler(async (request, context) => {
               },
             },
           },
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
+          orderBy: list.orderBy,
+          skip: list.skip,
+          take: list.take,
         }),
-        prisma.message.count({ where }),
+        list.needsTotal ? prisma.message.count({ where }) : Promise.resolve(undefined),
         type === "inbox"
           ? prisma.message.count({
             where: {
@@ -168,16 +117,7 @@ export const GET = createApiHandler(async (request, context) => {
           : Promise.resolve(0),
       ]);
 
-      return NextResponse.json({
-        messages,
-        unreadCount,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
+      return NextResponse.json({ ...list.page(messages, (message) => message.createdAt, total), unreadCount });
     };
 
     const response = await cachedHandler(handler, request);

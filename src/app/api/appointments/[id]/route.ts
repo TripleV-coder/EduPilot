@@ -268,7 +268,7 @@ export const PATCH = createApiHandler(
                 type: notifConfig.type,
                 title: notifConfig.title,
                 message: notifConfig.message,
-                link: `/appointments/${id}`,
+                link: "/dashboard/appointments",
               },
             }),
             prisma.notification.create({
@@ -277,7 +277,7 @@ export const PATCH = createApiHandler(
                 type: notifConfig.type,
                 title: notifConfig.title,
                 message: notifConfig.message,
-                link: `/appointments/${id}`,
+                link: "/dashboard/appointments",
               },
             }),
           ]);

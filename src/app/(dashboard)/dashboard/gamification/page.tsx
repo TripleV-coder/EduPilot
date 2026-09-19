@@ -22,7 +22,6 @@ import {
     Button,
     Card,
     Icon,
-    Spinner,
     type IconName,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";

@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
+import { ModuleGuard } from "@/components/guard/module-guard";
 
 type SidebarContextType = {
     isOpen: boolean;
@@ -246,7 +247,7 @@ export function DashboardLayoutClient({
                                 density === "dense" ? "p-3 md:p-4" : "p-4 md:p-8"
                             )}
                         >
-                            {children}
+                            <ModuleGuard>{children}</ModuleGuard>
                         </main>
                         <div className="contents print:hidden">
                             <DashboardFooter />

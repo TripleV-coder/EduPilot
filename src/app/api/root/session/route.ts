@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasValidRootSession, isRootUserEmail } from "@/lib/security/root-access";
+import { hasValidRootSession } from "@/lib/security/root-access";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
@@ -17,10 +17,8 @@ export const GET = createApiHandler(
     return NextResponse.json({ isRoot: false });
   }
 
-  const isRoot =
-    session.user.role === "SUPER_ADMIN" &&
-    isRootUserEmail(session.user.email ?? "") &&
-    hasValidRootSession(session);
+  // SUPER_ADMIN, et membre de ROOT_USER_EMAILS si la liste est définie (N36).
+  const isRoot = hasValidRootSession(session);
 
   return NextResponse.json({ isRoot });
     },

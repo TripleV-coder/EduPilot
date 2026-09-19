@@ -21,6 +21,11 @@ services:
     environment:
       # En production, POSTGRES_PASSWORD doit impérativement être défini via les secrets d'infra.
       DATABASE_URL: "postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public"
+      # Migrations appliquées au démarrage (entrypoint). Quand la RLS est en
+      # place (audit M2), DATABASE_URL utilise le rôle non propriétaire
+      # `edupilot_app`, qui n'a pas le droit de modifier le schéma : la
+      # connexion propriétaire passe par cette variable.
+      MIGRATE_DATABASE_URL: "${MIGRATE_DATABASE_URL:-postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public}"
       NODE_ENV: production
     depends_on:
       postgres:
@@ -42,7 +47,10 @@ services:
     container_name: edupilot-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Boucle locale seulement : une base scolaire n'a rien à écouter sur le
+      # réseau de l'établissement. Port hôte 5433 par défaut, pour ne pas
+      # entrer en conflit avec un PostgreSQL déjà installé sur la machine.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-edupilot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -67,7 +75,8 @@ services:
     container_name: edupilot-n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      # Interface d'automatisation : boucle locale, jamais le réseau.
+      - "127.0.0.1:5678:5678"
     environment:
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: 5678
@@ -97,7 +106,8 @@ services:
     container_name: edupilot-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Boucle locale seulement.
+      - "127.0.0.1:6379:6379"
     # En production, REDIS_PASSWORD doit être fourni par l'environnement sans valeur par défaut faible.
     command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
     volumes:

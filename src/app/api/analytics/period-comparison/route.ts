@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";

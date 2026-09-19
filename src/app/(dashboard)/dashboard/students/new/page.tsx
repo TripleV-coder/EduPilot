@@ -35,6 +35,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { PageError } from "@/components/layout/page-states";
 
 type StudentFormValues = z.infer<typeof studentCreateSchema>;
 
@@ -55,7 +56,7 @@ export default function NewStudentPage() {
     const [showPassword, setShowPassword] = useState(false);
 
     // Fetch classes and academic years
-    const { data: classesData } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
+    const { data: classesData, error: loadError, mutate: reloadOptions } = useSWR<ClassOption[] | { data?: ClassOption[] }>("/api/classes", fetcher);
     const { data: yearsData } = useSWR<AcademicYearOption[] | { data?: AcademicYearOption[] }>("/api/academic-years", fetcher);
     const { data: nationalities } = useSWR("/api/reference/nationalities", fetcher);
 
@@ -145,6 +146,10 @@ export default function NewStudentPage() {
                 </div>
 
                 <Form {...form}>
+                    {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
+                    {loadError ? (
+                        <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadOptions()} />
+                    ) : null}
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                         <Card className="border-border shadow-sm">

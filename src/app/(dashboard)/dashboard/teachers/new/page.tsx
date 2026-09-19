@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { FormPageTemplate } from "@/components/layout/form-page-template";
 export type { PageShellProps } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,19 +21,17 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useSWRConfig } from "swr";
-import { getErrorMessage } from "@/lib/utils/error-message";
-
-const STANDARD_PASSWORD = "00000000";
+import { useCreateAccount } from "@/hooks/use-create-account";
 
 type TeacherFormValues = z.infer<typeof teacherCreateSchema>;
 
 export default function NewTeacherPage() {
     const { toast } = useToast();
-    const { mutate } = useSWRConfig();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
+    // Envoi et mot de passe provisoire généré par le serveur (N31) : hooks/use-create-account.
+    const { loading, error, success, provisionalPassword, submit, reset } = useCreateAccount({
+        endpoint: "/api/teachers",
+        revalidatePrefix: "/api/teachers",
+    });
 
     // additionalSchoolIds (.default) et hireDate (coerce) rendent le type
     // d'entrée ≠ type de sortie : trois génériques au lieu d'un cast.
@@ -45,7 +42,6 @@ export default function NewTeacherPage() {
             lastName: "",
             email: "",
             phone: "",
-            password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
             hireDate: undefined,
@@ -53,54 +49,26 @@ export default function NewTeacherPage() {
     });
 
     const onSubmit = async (values: TeacherFormValues) => {
-        setLoading(true);
-        setError(null);
-        setSuccess(false);
-
-        try {
-            const formData = {
-                ...values,
-                hireDate: values.hireDate ? new Date(values.hireDate).toISOString() : undefined
-            };
-
-            const res = await fetch("/api/teachers", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                if (data.details && Array.isArray(data.details)) {
-                    throw new Error(`${data.details[0].path.join('.')}: ${data.details[0].message}`);
-                }
-                throw new Error(data.error || "Une erreur est survenue lors de l'enregistrement");
-            }
-
-            setSuccess(true);
-            mutate(key => typeof key === 'string' && key.startsWith('/api/teachers'));
-
-        } catch (err) {
-            setError(getErrorMessage(err));
+        const outcome = await submit({
+            ...values,
+            hireDate: values.hireDate ? new Date(values.hireDate).toISOString() : undefined
+        });
+        if (!outcome.ok) {
             toast({
                 title: "Erreur",
-                description: getErrorMessage(err),
+                description: outcome.error,
                 variant: "destructive"
             });
-        } finally {
-            setLoading(false);
         }
     };
 
     const resetForm = () => {
-        setSuccess(false);
+        reset();
         form.reset({
             firstName: "",
             lastName: "",
             email: "",
             phone: "",
-            password: STANDARD_PASSWORD,
             matricule: `PROF-${new Date().getFullYear()}-`,
             specialization: "",
             hireDate: undefined,
@@ -154,7 +122,7 @@ export default function NewTeacherPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center bg-muted/50 p-2 rounded">
                                             <span className="text-xs font-semibold text-muted-foreground">Mot de passe temporaire :</span>
-                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{STANDARD_PASSWORD}</code>
+                                            <code className="text-sm font-mono font-bold select-all bg-background px-2 py-1 rounded border">{provisionalPassword}</code>
                                         </div>
                                     </div>
                                 </Card>
@@ -275,19 +243,6 @@ export default function NewTeacherPage() {
                                                     </FormItem>
                                                 )}
                                             />
-                                            <div className="hidden">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="password"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormControl>
-                                                                <Input type="hidden" {...field} />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
                                         </div>
                                     </div>
 
