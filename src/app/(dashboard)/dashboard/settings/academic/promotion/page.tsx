@@ -395,6 +395,13 @@ function PromotionEngineContent() {
                      {decidedStudents.length} décision(s) seront appliquées vers l&apos;année cible.
                      {undecidedCount > 0 && ` ${undecidedCount} élève(s) « à décider » resteront inchangés.`}
                    </p>
+                   <p className="text-xs text-muted-foreground mt-1">
+                     Toutes les classes promues, clôturez l&apos;année source depuis{" "}
+                     <Link href="/dashboard/settings/academic" className="font-semibold text-primary underline-offset-2 hover:underline">
+                       Années académiques
+                     </Link>{" "}
+                     pour figer ses notes et présences.
+                   </p>
                 </div>
              </div>
              <Button

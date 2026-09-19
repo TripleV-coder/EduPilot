@@ -242,29 +242,8 @@ function WalletPageContent() {
         <PageShell className="pb-12">
             <PageHeader
                 title="Wallet école · Mobile Money & banques"
-                description="MTN · Moov · Celtiis · Ecobank · BoA · rapprochement temps réel · KYC validé Flutterwave"
+                description="Soldes des comptes Mobile Money et bancaires de l'établissement"
                 breadcrumbs={[...walletBreadcrumbs]}
-                actions={
-                    <>
-                        <Badge variant="success" icon="check">
-                            KYC validé · BCEAO
-                        </Badge>
-                        <Button variant="secondary" icon="download" disabled title="Génération PDF multibanque — à activer">
-                            Relevé multibanque
-                        </Button>
-                        <Button
-                            icon="plus"
-                            disabled={!momoConfigured}
-                            title={
-                                momoConfigured
-                                    ? "Créer un décaissement Mobile Money"
-                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
-                            }
-                        >
-                            Décaissement
-                        </Button>
-                    </>
-                }
             />
 
             {!momoConfigured && (

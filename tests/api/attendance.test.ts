@@ -23,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     attendance: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), groupBy: vi.fn() },
+    academicYear: { findFirst: vi.fn() },
   },
 }));
 
@@ -135,7 +136,7 @@ describe("POST /api/attendance/justifications", () => {
 
   it("should reject justifying a PRESENT student", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
-    vi.mocked(prisma.attendance.findUnique).mockResolvedValue({ status: "PRESENT", studentId: "s1", date: new Date() } as never);
+    vi.mocked(prisma.attendance.findUnique).mockResolvedValue({ status: "PRESENT", studentId: "s1", date: new Date(), class: { schoolId: "school-1" } } as never);
 
     const res = await POST_JUST(makeRequest("http://localhost/api/attendance/justifications", { method: "POST", body: { attendanceId: "a1", reason: "Malade" } }));
     expect(res.status).toBe(400);
@@ -143,7 +144,7 @@ describe("POST /api/attendance/justifications", () => {
 
   it("should update attendance to EXCUSED and sync analytics", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
-    vi.mocked(prisma.attendance.findUnique).mockResolvedValue({ status: "ABSENT", studentId: "s1", date: new Date() } as never);
+    vi.mocked(prisma.attendance.findUnique).mockResolvedValue({ status: "ABSENT", studentId: "s1", date: new Date(), class: { schoolId: "school-1" } } as never);
     vi.mocked(prisma.attendance.update).mockResolvedValue({ id: "a1", status: "EXCUSED" } as never);
 
     const res = await POST_JUST(makeRequest("http://localhost/api/attendance/justifications", { method: "POST", body: { attendanceId: "a1", reason: "Malade", justificationDocument: "https://doc.fr/justif.pdf" } }));

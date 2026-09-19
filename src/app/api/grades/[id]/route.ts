@@ -6,6 +6,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
 import { syncAnalyticsAfterGradeChange } from "@/lib/services/analytics-sync";
+import { guardPeriodWritable } from "@/lib/academic/year-lock";
 import { assertModelAccess } from "@/lib/security/tenant";
 
 const gradeUpdateSchema = z.object({
@@ -77,6 +78,9 @@ export const PATCH = createApiHandler(
     if (!existingGrade) {
       return NextResponse.json(translateError(API_ERRORS.NOT_FOUND("Note"), t), { status: 404 });
     }
+
+    const yearLock = await guardPeriodWritable(existingGrade.evaluation.periodId);
+    if (yearLock) return yearLock;
 
     // Teachers can only update grades for their own class subjects
     if (session.user.role === "TEACHER") {
@@ -157,6 +161,9 @@ export const DELETE = createApiHandler(
     if (!existingGrade) {
       return NextResponse.json(translateError(API_ERRORS.NOT_FOUND("Note"), t), { status: 404 });
     }
+
+    const yearLock = await guardPeriodWritable(existingGrade.evaluation.periodId);
+    if (yearLock) return yearLock;
 
     // Teachers can only delete grades for their own class subjects
     if (session.user.role === "TEACHER") {

@@ -3,6 +3,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { AttendanceStatus } from "@prisma/client";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
+import { guardAttendanceDateWritable } from "@/lib/academic/year-lock";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytics-sync";
 import { logger } from "@/lib/utils/logger";
@@ -52,6 +53,9 @@ const body = await request.json();
         { status: 403 }
       );
     }
+
+    const yearLock = await guardAttendanceDateWritable(classRecord.schoolId, new Date(date));
+    if (yearLock) return yearLock;
 
     if (session.user.role === "TEACHER") {
       const teacherProfile = await prisma.teacherProfile.findUnique({

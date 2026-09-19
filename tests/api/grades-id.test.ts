@@ -21,6 +21,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     grade: { findUnique: vi.fn(), update: vi.fn() },
     teacherProfile: { findUnique: vi.fn() },
+    period: { findUnique: vi.fn() },
   },
 }));
 
@@ -44,6 +45,7 @@ function existingGrade(overrides: Record<string, unknown> = {}) {
     isExcused: false,
     comment: null,
     evaluation: {
+      periodId: "period-1",
       maxGrade: 20,
       classSubject: { teacherId: teacherProfileId },
     },
@@ -125,6 +127,25 @@ describe("PATCH /api/grades/[id]", () => {
       params
     );
     expect(response.status).toBe(403);
+    expect(prisma.grade.update).not.toHaveBeenCalled();
+  });
+
+  it("refuse (409) de modifier une note d'une année clôturée", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.grade.findUnique).mockResolvedValue(existingGrade() as unknown as Grade);
+    vi.mocked(prisma.period.findUnique).mockResolvedValueOnce({
+      academicYear: { id: "ay1", name: "2025-2026", status: "CLOSED" },
+    } as never);
+
+    const response = await PATCH(
+      makeRequest(`http://localhost:3000/api/grades/${gradeId}`, {
+        method: "PATCH",
+        body: { value: 15 },
+      }),
+      params
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual(expect.objectContaining({ code: "ACADEMIC_YEAR_CLOSED" }));
     expect(prisma.grade.update).not.toHaveBeenCalled();
   });
 

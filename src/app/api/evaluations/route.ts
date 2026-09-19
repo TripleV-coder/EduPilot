@@ -5,6 +5,7 @@ import { evaluationSchema } from "@/lib/validations/evaluation";
 import type { Prisma } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import { guardPeriodWritable } from "@/lib/academic/year-lock";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { getOwnStudentIds } from "@/lib/auth/family-scope";
@@ -203,6 +204,9 @@ export const POST = createApiHandler(
         );
       }
     }
+
+    const yearLock = await guardPeriodWritable(period.id);
+    if (yearLock) return yearLock;
 
     // Verify evaluation type belongs to same school
     const evalType = await prisma.evaluationType.findUnique({

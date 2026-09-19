@@ -1,3 +1,4 @@
+import { guardAttendanceDateWritable } from "@/lib/academic/year-lock";
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
@@ -103,8 +104,13 @@ export const POST = createApiHandler(
 
     const currentAttendance = await prisma.attendance.findUnique({
       where: { id: attendanceId },
-      select: { status: true, studentId: true, date: true }
+      select: { status: true, studentId: true, date: true, class: { select: { schoolId: true } } }
     });
+
+    if (currentAttendance) {
+      const yearLock = await guardAttendanceDateWritable(currentAttendance.class.schoolId, currentAttendance.date);
+      if (yearLock) return yearLock;
+    }
 
     if (currentAttendance?.status === "PRESENT") {
       return NextResponse.json({ error: "Impossible de justifier un élève marqué comme présent." }, { status: 400 });
