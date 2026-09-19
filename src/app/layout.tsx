@@ -28,6 +28,7 @@ import { SkipToContent } from "@/components/a11y/skip-to-content";
 import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { Toaster as SonnerToaster } from "sonner";
+import { siteUrl } from "@/lib/seo/site-url";
 
 // Rendu dynamique forcé : indispensable pour la CSP à nonce par requête
 // (cf. src/proxy.ts). Un nonce ne peut pas s'appliquer à du HTML prérendu
@@ -42,6 +43,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+    // Base des URL absolues (Open Graph, canonique) : l'adresse de production déclarée.
+    metadataBase: siteUrl(),
     title: {
         default: "EduPilot",
         template: "%s — EduPilot",
@@ -60,9 +63,8 @@ export const metadata: Metadata = {
     openGraph: {
         title: "EduPilot",
         description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
-        url: "https://edupilot.bj",
+        url: "/",
         siteName: "EduPilot",
-        images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
         locale: "fr_FR",
         type: "website",
     },
@@ -70,7 +72,6 @@ export const metadata: Metadata = {
         card: "summary_large_image",
         title: "EduPilot",
         description: "Système de Gestion Scolaire Intelligent pour les établissements du Bénin",
-        images: ["/og-image.jpg"],
     },
 };
 

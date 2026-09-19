@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { SkipToContent } from "@/components/a11y/skip-to-content";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardLayoutClient } from "@/components/dashboard/DashboardLayoutClient";
@@ -12,6 +13,11 @@ import { ConsentScreen } from "@/components/compliance/consent-screen";
 import { getPendingConsent } from "@/lib/security/consent";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
+
+// Espace connecté : jamais indexé par les moteurs de recherche.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({
     children,

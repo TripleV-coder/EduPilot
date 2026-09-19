@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, type ReactNode } from "react";
+import { memo, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type PageBreadcrumb = { label: string; href?: string };
@@ -12,6 +12,8 @@ export type PageHeaderProps = {
     breadcrumbs?: PageBreadcrumb[];
     actions?: ReactNode;
     className?: string;
+    /** Titre de l'onglet s'il doit différer du titre affiché (ex. salutation). */
+    documentTitle?: string;
 };
 
 export const PageHeader = memo(function PageHeader({
@@ -20,7 +22,15 @@ export const PageHeader = memo(function PageHeader({
     breadcrumbs,
     actions,
     className,
+    documentTitle,
 }: PageHeaderProps) {
+    // WCAG 2.4.2 : chaque page a son propre titre d'onglet (les pages client ne
+    // peuvent pas exporter de metadata ; toutes affichaient « EduPilot »).
+    const tabTitle = documentTitle ?? title;
+    useEffect(() => {
+        if (tabTitle) document.title = `${tabTitle} — EduPilot`;
+    }, [tabTitle]);
+
     return (
         <div className={cn("flex flex-wrap items-end justify-between gap-3", className)}>
             <div className="min-w-0 flex-1">

@@ -46,6 +46,16 @@ describe("routes ouvertes au middleware sans session", () => {
         expect(await anonymousStatus(pathname)).not.toBe(401);
     });
 
+    it.each(["/robots.txt", "/sitemap.xml", "/manifest.json", "/opengraph-image", "/twitter-image"])(
+        "%s est servi sans redirection vers /login",
+        async (pathname) => {
+            const { default: proxy } = await import("@/proxy");
+            const res = await proxy(makeRequest(pathname));
+            expect(res.status).not.toBe(401);
+            expect(res.headers.get("location") ?? "").not.toContain("/login");
+        }
+    );
+
     it.each([
         "/api/health/medical-records",
         "/api/health/vaccinations",
