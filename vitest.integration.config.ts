@@ -23,6 +23,15 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 60_000,
     hookTimeout: 180_000,
+    // Couverture fusionnée avec celle des tests unitaires
+    // (scripts/quality/coverage-merge.mjs) : même périmètre, tout src/.
+    coverage: {
+      provider: 'v8',
+      reporter: ['json'],
+      reportsDirectory: 'coverage/integration',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['**/*.d.ts'],
+    },
   },
   resolve: {
     alias: {
