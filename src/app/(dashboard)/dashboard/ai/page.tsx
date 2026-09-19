@@ -574,7 +574,7 @@ function MessageBubble({
                             : "1px solid var(--eduflow-border-subtle)",
                         boxShadow: isUser
                             ? "var(--eduflow-shadow-sm)"
-                            : "var(--eduflow-shadow-xs)",
+                            : "var(--eduflow-shadow-sm)",
                         fontWeight: isUser ? 500 : 400,
                     }}
                 >

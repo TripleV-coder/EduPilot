@@ -539,7 +539,7 @@ function ImportWizardPage() {
                                 onClick={startImport}
                                 disabled={isProcessing || ready === 0}
                                 className="w-full mt-3.5 h-12 gap-3 font-bold uppercase tracking-tighter shadow-md"
-                                style={{ background: "var(--eduflow-gradient-cta)", color: "#fff", border: 0 }}
+                                style={{ background: "var(--gradient-cta)", color: "#fff", border: 0 }}
                             >
                                 {isProcessing
                                     ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -642,7 +642,7 @@ function SelectAndUpload({
                                     <type.icon className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1">
-                                    <h4 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>{type.label}</h4>
+                                    <h2 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>{type.label}</h2>
                                     <p className="m-0" style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                                         {type.description}
                                     </p>
@@ -671,6 +671,7 @@ function SelectAndUpload({
                 >
                     <input
                         type="file"
+                        aria-label="Fichier à importer (Excel ou CSV)"
                         accept=".xlsx, .xls, .csv"
                         onChange={handleFile}
                         disabled={!selectedType}
@@ -734,7 +735,7 @@ function SuccessCard({
         <div
             className="rounded-xl p-8 text-center"
             style={{
-                background: "var(--eduflow-gradient-cta)",
+                background: "var(--gradient-cta)",
                 color: "#fff",
             }}
         >

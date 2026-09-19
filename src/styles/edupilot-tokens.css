@@ -190,6 +190,39 @@
 }
 
 /* ──────────────────────────────────────────────────────────
+   Alias --eduflow-brand-* / --eduflow-accent-*
+   65 usages dans le code référençaient ces noms sans qu'ils existent : les
+   fonds de marque tombaient à transparent (texte blanc sur blanc, onboarding
+   et carte « Top insight IA » illisibles). Redéclarés sur chaque élément qui
+   redéfinit la palette, pour suivre --brand-* (hex) et --accent-* (HSL).
+   ────────────────────────────────────────────────────────── */
+:root,
+[data-eduflow-palette],
+.eduflow-scope {
+  --eduflow-brand-50: var(--brand-50);
+  --eduflow-brand-100: var(--brand-100);
+  --eduflow-brand-200: var(--brand-200);
+  --eduflow-brand-300: var(--brand-300);
+  --eduflow-brand-400: var(--brand-400);
+  --eduflow-brand-500: var(--brand-500);
+  --eduflow-brand-600: var(--brand-600);
+  --eduflow-brand-700: var(--brand-700);
+  --eduflow-brand-800: var(--brand-800);
+  --eduflow-brand-900: var(--brand-900);
+  --eduflow-accent-50: hsl(var(--accent-50));
+  --eduflow-accent-100: hsl(var(--accent-100));
+  --eduflow-accent-200: hsl(var(--accent-200));
+  --eduflow-accent-300: hsl(var(--accent-300));
+  --eduflow-accent-400: hsl(var(--accent-400));
+  --eduflow-accent-500: hsl(var(--accent-500));
+  --eduflow-accent-600: hsl(var(--accent-600));
+  --eduflow-accent-700: hsl(var(--accent-700));
+  --eduflow-accent-800: hsl(var(--accent-800));
+  --eduflow-accent-900: hsl(var(--accent-900));
+  --eduflow-accent-950: hsl(var(--accent-950));
+}
+
+/* ──────────────────────────────────────────────────────────
    Palette swaps — keep brand-600 = the CTA hue
    ────────────────────────────────────────────────────────── */
 [data-eduflow-palette="deepblue"] {

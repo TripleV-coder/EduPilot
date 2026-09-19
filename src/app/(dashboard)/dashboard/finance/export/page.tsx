@@ -101,7 +101,7 @@ export default function FinanceExportPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <label
                                         htmlFor="excel"
-                                        className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer transition-colors ${format === 'excel' ? 'border-primary text-primary bg-accent' : 'border-muted bg-popover hover:bg-accent hover:text-accent-foreground'}`}
+                                        className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer transition-colors ${format === 'excel' ? 'border-primary bg-primary/5 text-foreground' : 'border-muted bg-popover hover:bg-accent hover:text-accent-foreground'}`}
                                     >
                                         <input type="radio" id="excel" name="format" value="excel" checked={format === "excel"} onChange={() => setFormat("excel")} className="sr-only" />
                                         <FileSpreadsheet className="mb-3 h-6 w-6" />
@@ -109,7 +109,7 @@ export default function FinanceExportPage() {
                                     </label>
                                     <label
                                         htmlFor="csv"
-                                        className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer transition-colors ${format === 'csv' ? 'border-primary text-primary bg-accent' : 'border-muted bg-popover hover:bg-accent hover:text-accent-foreground'}`}
+                                        className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer transition-colors ${format === 'csv' ? 'border-primary bg-primary/5 text-foreground' : 'border-muted bg-popover hover:bg-accent hover:text-accent-foreground'}`}
                                     >
                                         <input type="radio" id="csv" name="format" value="csv" checked={format === "csv"} onChange={() => setFormat("csv")} className="sr-only" />
                                         <FileText className="mb-3 h-6 w-6" />
@@ -138,10 +138,10 @@ export default function FinanceExportPage() {
                     <div className="space-y-6">
                         <Card className="border-border shadow-sm border-dashed bg-muted/20">
                             <CardContent className="pt-6">
-                                <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                <h2 className="font-medium text-foreground mb-2 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-primary"></span>
                                     Export Comptable Standard
-                                </h3>
+                                </h2>
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Cet export est compatible avec la majorité des logiciels de comptabilité (Sage, Cegid, QuickBooks). Il inclut les comptes liés aux scolarités.
                                 </p>
@@ -153,10 +153,10 @@ export default function FinanceExportPage() {
 
                         <Card className="border-border shadow-sm border-dashed bg-muted/20">
                             <CardContent className="pt-6">
-                                <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                <h2 className="font-medium text-foreground mb-2 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-warning"></span>
                                     Liste de Relance
-                                </h3>
+                                </h2>
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Génère la liste exacte des parents à relancer ce mois-ci, avec leurs numéros de téléphone et le montant du solde.
                                 </p>

@@ -38,15 +38,17 @@ const DAYS = [
 
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7 to 17
 
+// Fonds opaques : des teintes translucides s'additionnaient quand des créneaux
+// se chevauchent, et le texte passait sous 4,5:1 (axe color-contrast).
 const SUBJECT_COLORS = [
-    "bg-blue-500/15 border-blue-500/30 text-blue-700",
-    "bg-emerald-500/15 border-emerald-500/30 text-emerald-700",
-    "bg-purple-500/15 border-purple-500/30 text-purple-700",
-    "bg-amber-500/15 border-amber-500/30 text-amber-700",
-    "bg-rose-500/15 border-rose-500/30 text-rose-700",
-    "bg-cyan-500/15 border-cyan-500/30 text-cyan-700",
-    "bg-indigo-500/15 border-indigo-500/30 text-indigo-700",
-    "bg-pink-500/15 border-pink-500/30 text-pink-700",
+    "bg-blue-100 border-blue-300 text-blue-900 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-100",
+    "bg-emerald-100 border-emerald-300 text-emerald-900 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-100",
+    "bg-purple-100 border-purple-300 text-purple-900 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-100",
+    "bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100",
+    "bg-rose-100 border-rose-300 text-rose-900 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-100",
+    "bg-cyan-100 border-cyan-300 text-cyan-900 dark:bg-cyan-950 dark:border-cyan-800 dark:text-cyan-100",
+    "bg-indigo-100 border-indigo-300 text-indigo-900 dark:bg-indigo-950 dark:border-indigo-800 dark:text-indigo-100",
+    "bg-pink-100 border-pink-300 text-pink-900 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-100",
 ];
 
 function hashString(str: string): number {
@@ -95,7 +97,8 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
     });
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        // Zone défilante horizontale : atteignable au clavier pour faire défiler la semaine.
+        <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Grille hebdomadaire de l'emploi du temps">
             <div
                 className="grid min-w-[800px]"
                 style={{

@@ -30,11 +30,11 @@ export function RiskMatrix({ students }: RiskMatrixProps) {
         </div>
 
         {/* Labels Quadrants */}
-        <div className="absolute top-2 left-2 text-[10px] font-bold text-destructive/40 uppercase tracking-tighter">Échec scolaire</div>
-        <div className="absolute bottom-2 right-2 text-[10px] font-bold text-destructive/40 uppercase tracking-tighter">Décrochage</div>
+        <div className="absolute top-2 left-2 text-[10px] font-bold text-destructive uppercase tracking-tighter">Échec scolaire</div>
+        <div className="absolute bottom-2 right-2 text-[10px] font-bold text-destructive uppercase tracking-tighter">Décrochage</div>
         
-        <div className="absolute top-4 right-4 text-[9px] font-bold text-destructive/60 bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
-        <div className="absolute bottom-4 left-4 text-[9px] font-bold text-emerald-600/60 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
+        <div className="absolute top-4 right-4 text-[9px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
+        <div className="absolute bottom-4 left-4 text-[9px] font-bold text-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
 
         {/* Points */}
         {students.map((s) => (
