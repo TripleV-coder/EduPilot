@@ -13,11 +13,13 @@ describe("role-nav — parcours 5–8 actions par rôle", () => {
     });
 
     it("chaque rôle expose entre 5 et 8 actions clés", () => {
-        for (const role of ["SCHOOL_ADMIN", "TEACHER", "PARENT", "STUDENT", "ACCOUNTANT", "STAFF", "SUPER_ADMIN"]) {
+        for (const role of ["SCHOOL_ADMIN", "TEACHER", "PARENT", "STUDENT", "ACCOUNTANT", "SUPER_ADMIN"]) {
             const count = linkCount(role);
             expect(count).toBeGreaterThanOrEqual(5);
             expect(count).toBeLessThanOrEqual(8);
         }
+        // Personnel : seuls les liens que ses droits servent (accueil, vie scolaire, paramètres).
+        expect(linkCount("STAFF")).toBe(3);
     });
 
     it("défaut sûr : offeredLevels vide → navigation complète du rôle", () => {
@@ -34,10 +36,12 @@ describe("role-nav — parcours 5–8 actions par rôle", () => {
         }
     });
 
-    it("tous les rôles ont accès à l'Assistant IA dans la nav", () => {
-        for (const role of ["SCHOOL_ADMIN", "TEACHER", "PARENT", "STUDENT", "ACCOUNTANT", "STAFF", "SUPER_ADMIN"]) {
-            const flat = navForRole(role);
-            expect(flat.some((l) => l.href === "/dashboard/ai-assistant")).toBe(true);
+    it("l'Assistant IA n'apparaît qu'aux rôles admis par la page et la gouvernance IA", () => {
+        for (const role of ["SCHOOL_ADMIN", "TEACHER", "PARENT", "STUDENT", "SUPER_ADMIN"]) {
+            expect(navForRole(role).some((l) => l.href === "/dashboard/ai")).toBe(true);
+        }
+        for (const role of ["ACCOUNTANT", "STAFF"]) {
+            expect(navForRole(role).some((l) => l.href === "/dashboard/ai")).toBe(false);
         }
     });
 });

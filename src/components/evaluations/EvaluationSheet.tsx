@@ -44,10 +44,12 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
 
   // N25 : la route renvoie { data, pagination } — traitée comme un tableau, la
   // liste des classes plantait à l'ouverture (`.map` sur un objet).
-  const { data: classesPayload } = useSWR<unknown>("/api/classes", fetcher);
+  // Chargé à l'ouverture seulement : la feuille est montée sur la page des notes
+  // pour tous les rôles, y compris l'élève à qui /api/classes répond 403.
+  const { data: classesPayload } = useSWR<unknown>(open ? "/api/classes" : null, fetcher);
   const classes = listFrom<Class>(classesPayload);
-  const { data: periods } = useSWR<Period[]>(academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
-  const { data: evalTypes } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
+  const { data: periods } = useSWR<Period[]>(open && academicYearId ? `/api/periods?academicYearId=${academicYearId}` : null, fetcher);
+  const { data: evalTypes } = useSWR<EvaluationType[]>(open ? "/api/evaluation-types" : null, fetcher);
 
   // z.coerce + .default rendent le type d'entrée ≠ type de sortie : les
   // trois génériques remplacent le cast du resolver.

@@ -34,6 +34,15 @@ describe("RBAC permissions", () => {
       expect(hasPermission("STUDENT", Permission.GRADE_DELETE)).toBe(false);
     });
 
+    it("TEACHER et ACCOUNTANT lisent les années (filtres de leurs pages), sans pouvoir les modifier ni les clôturer", () => {
+      for (const role of ["TEACHER", "ACCOUNTANT"] as UserRole[]) {
+        expect(hasPermission(role, Permission.ACADEMIC_YEAR_READ)).toBe(true);
+        expect(hasPermission(role, Permission.ACADEMIC_YEAR_UPDATE)).toBe(false);
+        expect(hasPermission(role, Permission.ACADEMIC_YEAR_CLOSE)).toBe(false);
+      }
+      expect(hasPermission("STUDENT" as UserRole, Permission.ACADEMIC_YEAR_READ)).toBe(false);
+    });
+
     it("unknown role returns false", () => {
       expect(hasPermission("UNKNOWN" as UserRole, Permission.SCHOOL_READ)).toBe(false);
     });

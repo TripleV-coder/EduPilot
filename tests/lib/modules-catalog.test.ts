@@ -70,15 +70,15 @@ describe("catalogue des modules (Lot 6)", () => {
 
   it("la navigation masque le lien d'un module éteint", () => {
     const withAi = visibleNavGroups("TEACHER", [], [...ALL_MODULE_IDS]);
-    expect(withAi.flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai-assistant")).toBe(true);
+    expect(withAi.flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai")).toBe(true);
 
     const withoutAi = visibleNavGroups("TEACHER", [], ALL_MODULE_IDS.filter((m) => m !== "ai"));
-    expect(withoutAi.flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai-assistant")).toBe(false);
+    expect(withoutAi.flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai")).toBe(false);
     // Les liens du socle restent.
     expect(withoutAi.flatMap((g) => g.links).some((l) => l.href === "/dashboard/attendance")).toBe(true);
   });
 
   it("sans liste de modules connue, rien n'est masqué (défaut sûr)", () => {
-    expect(visibleNavGroups("TEACHER", [], undefined).flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai-assistant")).toBe(true);
+    expect(visibleNavGroups("TEACHER", [], undefined).flatMap((g) => g.links).some((l) => l.href === "/dashboard/ai")).toBe(true);
   });
 });

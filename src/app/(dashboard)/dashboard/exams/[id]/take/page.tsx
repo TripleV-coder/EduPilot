@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -62,39 +62,31 @@ export default function TakeExamPage() {
         }
     }, [exam, timeLeft]);
 
-    // Timer logic
+    // Refs lues par la soumission : à l'expiration, ce sont les réponses de
+    // l'instant qui partent (une closure pouvait en perdre une saisie dans la
+    // dernière seconde), et un seul envoi part même si deux déclencheurs se croisent.
+    const answersRef = useRef(answers);
+    answersRef.current = answers;
+    const submittingRef = useRef(false);
+
+    // Timer logic : l'intervalle ne fait que décompter ; l'envoi est un effet à part.
     useEffect(() => {
         if (timeLeft === null || timeLeft <= 0 || isFinished) return;
-
         const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev === null || prev <= 1) {
-                    clearInterval(timer);
-                    autoSubmit();
-                    return 0;
-                }
-                return prev - 1;
-            });
+            setTimeLeft((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
         }, 1000);
-
         return () => clearInterval(timer);
-    }, [timeLeft, isFinished]);
-
-    const autoSubmit = useCallback(() => {
-        if (!isFinished) {
-            toast({ title: "Temps écoulé !", description: "Votre examen est soumis automatiquement." });
-            handleSubmit();
-        }
-    }, [isFinished, answers]);
+    }, [timeLeft === null || timeLeft <= 0, isFinished]);
 
     const handleSubmit = async () => {
-        if (isSubmitting) return;
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setIsSubmitting(true);
         try {
             const res = await fetch(`/api/exams/${id}/submit`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ answers }),
+                body: JSON.stringify({ answers: answersRef.current }),
             });
 
             if (!res.ok) throw new Error("Erreur lors de la soumission");
@@ -104,11 +96,20 @@ export default function TakeExamPage() {
             setIsFinished(true);
             toast({ title: "Examen terminé", description: "Vos réponses ont été enregistrées." });
         } catch (err) {
+            submittingRef.current = false;
             toast({ title: "Erreur", description: "Impossible de soumettre l'examen.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    // Temps écoulé : soumission automatique, une seule fois.
+    useEffect(() => {
+        if (timeLeft === 0 && !isFinished && !submittingRef.current) {
+            toast({ title: "Temps écoulé !", description: "Votre examen est soumis automatiquement." });
+            void handleSubmit();
+        }
+    }, [timeLeft, isFinished]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);

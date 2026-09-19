@@ -368,6 +368,9 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
   TEACHER: [
     // Teaching and grading
     Permission.SCHOOL_READ,
+    // Filtres par année des pages performances, orientation et analyses
+    // (lecture seule ; /api/academic-years leur répondait 403).
+    Permission.ACADEMIC_YEAR_READ,
     Permission.STUDENT_READ,
     Permission.CLASS_READ,
     Permission.SUBJECT_READ,
@@ -434,6 +437,8 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
   ACCOUNTANT: [
     // Financial operations (P3: added SCHOOL_READ for tenant-isolation consistency)
     Permission.SCHOOL_READ,
+    // Filtres par année des pages finances et frais (lecture seule).
+    Permission.ACADEMIC_YEAR_READ,
     Permission.STUDENT_READ,
     Permission.FEE_CREATE,
     Permission.FEE_READ,

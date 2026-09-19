@@ -15,17 +15,14 @@ interface AccessibleSchool {
     isActive: boolean;
 }
 
-interface SchoolInfoData {
-    name: string;
-    offeredLevels?: string[];
-    data?: { name?: string };
-}
-
 interface SchoolContextData {
     schools: AccessibleSchool[];
     /** Modules actifs de l'école active (Lot 6) ; absent = rien n'est masqué. */
     enabledModules?: string[];
     offeredLevels?: string[];
+    schoolName?: string | null;
+    /** Années de l'école active, lisibles par tous les rôles. */
+    academicYears?: Array<Pick<AcademicYear, "id" | "name" | "isCurrent">>;
 }
 
 interface SchoolContextType {
@@ -76,15 +73,16 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     // Level 1: Hydrate from Cookies/LocalStorage for instant UI
     const [academicYearId, setAcademicYearId] = useState<string | null>(() => getCookie('edupilot_year_id'));
     const [periodId, setPeriodId] = useState<string | null>(() => getCookie('edupilot_period_id'));
-    const [schoolName, setSchoolName] = useState<string | null>(null);
     const [isOffline, setIsOffline] = useState(false);
     const [isSwitchingSchool, setIsSwitchingSchool] = useState(false);
     const previousSchoolIdRef = useRef<string | null | undefined>(undefined);
 
     const isGlobalMode = session?.user?.role === "SUPER_ADMIN" && !session.user.schoolId;
 
-    const { data: schoolContextData } = useSWR<SchoolContextData>(
-        session?.user ? "/api/schools/context" : null,
+    // L'école active fait partie de la clé : après un changement d'école, le
+    // contexte (nom, modules, années) est rechargé au lieu de rester en cache.
+    const { data: schoolContextData, error: contextError } = useSWR<SchoolContextData>(
+        session?.user ? `/api/schools/context?schoolId=${session.user.schoolId ?? ""}` : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -123,39 +121,27 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         }
     }, [session?.user?.schoolId]);
 
-    // Level 2: Fetch with SWR (Automatic Fallback to Cache)
-    const { data: schoolInfo, error: schoolError } = useSWR<SchoolInfoData>(
-        session?.user?.schoolId ? `/api/schools/${session.user.schoolId}` : null,
-        fetcher,
-        { 
-            refreshInterval: 0, 
-            revalidateOnFocus: false,
-            onSuccess: (data) => {
-                const name = data.name || data.data?.name || null;
-                if (name !== schoolName) setSchoolName(name);
-            }
-        }
-    );
-
+    // Années : la vue réseau du super-admin lit toutes les années ; les autres
+    // rôles lisent celles de leur école dans le contexte (les routes
+    // d'administration leur répondaient 403 : aucune année, aucune période).
     const { error: yearsError } = useSWR<AcademicYear[]>(
-        isGlobalMode ? `/api/academic-years` : (session?.user?.schoolId ? `/api/academic-years?schoolId=${session.user.schoolId}` : null),
-        fetcher,
-        {
-            onSuccess: (data) => {
-                if (data && Array.isArray(data) && !academicYearId) {
-                    // Only auto-select if NOT in global mode
-                    if (!isGlobalMode) {
-                        const current = data.find((y) => y.isCurrent);
-                        const targetId = current?.id || data[0]?.id || null;
-                        if (targetId) {
-                            setAcademicYearId(targetId);
-                            setCookie('edupilot_year_id', targetId);
-                        }
-                    }
-                }
-            }
-        }
+        isGlobalMode ? `/api/academic-years` : null,
+        fetcher
     );
+    const schoolYears = isGlobalMode ? null : schoolContextData?.academicYears;
+
+    useEffect(() => {
+        if (!schoolYears) return;
+        // Année mémorisée d'une autre école ou supprimée : on revient à l'année courante.
+        if (academicYearId && schoolYears.some((y) => y.id === academicYearId)) return;
+        const current = schoolYears.find((y) => y.isCurrent);
+        const targetId = current?.id || schoolYears[0]?.id || null;
+        setAcademicYearId(targetId);
+        setPeriodId(null);
+        if (targetId) setCookie("edupilot_year_id", targetId);
+        else clearCookie("edupilot_year_id");
+        clearCookie("edupilot_period_id");
+    }, [schoolYears, academicYearId]);
 
     // Fetch periods for the selected academic year
     const { data: periods, error: periodsError } = useSWR<Period[]>(
@@ -219,17 +205,15 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         setAcademicYearId,
         setPeriodId,
         setActiveSchoolId,
-        schoolName: isGlobalMode ? "Console Globale" : (schoolName || "Établissement"),
+        schoolName: isGlobalMode ? "Console Globale" : (schoolContextData?.schoolName || "Établissement"),
         currentPeriodName: isGlobalMode ? null : (currentPeriod?.name || null),
         accessibleSchools,
-        // /api/schools/[id] est réservé à l'administration ; /api/schools/context
-        // est appelé par tous les rôles, c'est donc lui qui porte ces réglages.
-        offeredLevels:
-            (schoolInfo?.offeredLevels as string[] | undefined) ?? schoolContextData?.offeredLevels ?? [],
+        // Lus dans /api/schools/context, la seule route que tous les rôles appellent.
+        offeredLevels: schoolContextData?.offeredLevels ?? [],
         enabledModules: schoolContextData?.enabledModules ?? [],
         isLoading: status === "loading",
         isSwitchingSchool,
-        error: schoolError || yearsError || periodsError,
+        error: contextError || yearsError || periodsError,
         isOffline,
     };
 

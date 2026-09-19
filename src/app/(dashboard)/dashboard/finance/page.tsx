@@ -101,7 +101,11 @@ const formatCurrency = (amount: number): string => `${FR_NUM.format(amount)} FCF
 
 export default function FinanceDashboardPage() {
     const { data: session } = useSession();
-    const { schoolId } = useSchool();
+    const { schoolId: activeSchoolId } = useSchool();
+    // Le parent a sa propre vue (ParentFinanceView) : aucune requête du tableau
+    // de bord de l'établissement ne doit partir pour lui (403 à chaque visite).
+    const isParent = session?.user?.role === "PARENT";
+    const schoolId = isParent ? null : activeSchoolId;
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>("ALL");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
     const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
