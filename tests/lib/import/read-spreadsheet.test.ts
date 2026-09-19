@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
-import { readSpreadsheetRows } from "@/lib/import/read-spreadsheet";
+import { decodeText, readSpreadsheetRows } from "@/lib/import/read-spreadsheet";
 
 /**
  * Lot 5 (N45) — l'écran d'import lisait les fichiers par readAsBinaryString
@@ -34,6 +34,13 @@ describe("N45 — lecture des fichiers d'import (encodages, séparateurs, Excel)
 
     it("CSV en Windows-1252 (Excel français), apostrophe typographique comprise", async () => {
         expect((await readSpreadsheetRows(toCp1252(TEXT), "eleves.csv")).rows).toEqual(EXPECTED);
+    });
+
+    it("Windows-1252 : toute la plage 0x80–0x9F suit la table WHATWG, quel que soit le moteur", () => {
+        // 0xFF invalide en UTF-8 : force le repli Windows-1252.
+        expect(decodeText(Uint8Array.from([0x80, 0x85, 0x8c, 0x91, 0x92, 0x93, 0x94, 0x96, 0x9c, 0x9f, 0xe9, 0xff]))).toBe(
+            "€…Œ‘’“”–œŸéÿ",
+        );
     });
 
     it("CSV séparé par des virgules", async () => {

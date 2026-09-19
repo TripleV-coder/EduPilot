@@ -36,12 +36,30 @@ function startsWith(bytes: Uint8Array, signature: number[]): boolean {
     return signature.every((byte, index) => bytes[index] === byte);
 }
 
+/**
+ * Octets 0x80–0x9F de Windows-1252 (table WHATWG). Le reste coïncide avec
+ * latin-1. Décodage fait à la main : le `TextDecoder("windows-1252")` de
+ * Node 20 décode en latin-1 et change « N’Diaye » en « N\u0092Diaye ».
+ */
+const CP1252_HIGH = [
+    0x20ac, 0x81, 0x201a, 0x192, 0x201e, 0x2026, 0x2020, 0x2021, 0x2c6, 0x2030, 0x160, 0x2039, 0x152, 0x8d, 0x17d, 0x8f,
+    0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x2dc, 0x2122, 0x161, 0x203a, 0x153, 0x9d, 0x17e, 0x178,
+];
+
+function decodeWindows1252(bytes: Uint8Array): string {
+    let text = "";
+    for (const byte of bytes) {
+        text += String.fromCharCode(byte >= 0x80 && byte <= 0x9f ? CP1252_HIGH[byte - 0x80] : byte);
+    }
+    return text;
+}
+
 export function decodeText(bytes: Uint8Array): string {
     let text: string;
     try {
         text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     } catch {
-        text = new TextDecoder("windows-1252").decode(bytes);
+        text = decodeWindows1252(bytes);
     }
     return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }

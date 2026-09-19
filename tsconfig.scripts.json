@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noUnusedLocals": false
+  },
+  "include": ["next-env.d.ts", "prisma/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

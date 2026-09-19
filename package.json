@@ -9,7 +9,7 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "next build && node scripts/build/copy-instrumentation.mjs",
     "start": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --require ./scripts/server/client-ip-preload.cjs --require ./scripts/server/graceful-shutdown.cjs\" next start",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -21,7 +21,7 @@ import { seedPeople } from "./seeds/seed-people";
 import { seedAcademicData } from "./seeds/seed-academic-data";
 import { seedExtras } from "./seeds/seed-extras";
 
-import { appEnv } from "../src/lib/config/env";
+import { appEnv } from "../src/lib/env";
 import { assertDisposableDatabase } from "../scripts/lib/disposable-guard.mjs";
 
 async function main() {
