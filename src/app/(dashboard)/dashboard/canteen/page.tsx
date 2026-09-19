@@ -115,11 +115,14 @@ export default function CanteenPage() {
                 body: JSON.stringify({ userId, amount: 10 }),
             });
             if (res.ok) {
-                toast.success("Tickets achetés avec succès.");
+                toast.success("Carnet crédité.");
                 mutateTickets();
+            } else {
+                const body = await res.json().catch(() => ({}));
+                toast.error(body.error || "Impossible de créditer le carnet.");
             }
         } catch {
-            toast.error("Échec de l'achat.");
+            toast.error("Impossible de créditer le carnet.");
         }
     };
 
@@ -245,7 +248,7 @@ export default function CanteenPage() {
                                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                                     >
                                         <Icon name="calendar" size={14} color="var(--brand-700)" />
-                                        <h3
+                                        <h2
                                             style={{
                                                 margin: 0,
                                                 fontSize: 13,
@@ -255,7 +258,7 @@ export default function CanteenPage() {
                                             }}
                                         >
                                             {formatDateLong(menu.date)}
-                                        </h3>
+                                        </h2>
                                     </div>
                                     <div className="flex flex-col gap-3 px-5 py-4">
                                         {menu.starter ? (
@@ -485,13 +488,24 @@ export default function CanteenPage() {
                                         )}
                                     </div>
 
-                                    <Button
-                                        full
-                                        icon="money"
-                                        onClick={() => handlePurchase(summary.userId)}
+                                    {/* Crédit encaissé au guichet : les parents et élèves rechargent
+                                        auprès de l'intendance (la route refuse leur requête). */}
+                                    <RoleActionGuard
+                                        allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
+                                        fallback={
+                                            <p style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", margin: 0, textAlign: "center" }}>
+                                                Rechargement auprès de l&apos;intendance de l&apos;établissement.
+                                            </p>
+                                        }
                                     >
-                                        Acheter un carnet (10 repas)
-                                    </Button>
+                                        <Button
+                                            full
+                                            icon="money"
+                                            onClick={() => handlePurchase(summary.userId)}
+                                        >
+                                            Créditer un carnet (10 repas)
+                                        </Button>
+                                    </RoleActionGuard>
                                 </div>
                             </Card>
                         ))}

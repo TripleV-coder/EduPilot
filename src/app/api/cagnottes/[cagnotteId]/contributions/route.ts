@@ -37,9 +37,10 @@ export const POST = createApiHandler(
         };
 
         const numericAmount = Number(amountFcfa ?? 0);
-        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        // Plafond : au-delà, BigInt dépassait la colonne bigint (erreur 500).
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 100_000_000) {
             return NextResponse.json(
-                { error: "Le montant (FCFA) doit être strictement positif." },
+                { error: "Le montant (FCFA) doit être compris entre 1 et 100 000 000." },
                 { status: 400 },
             );
         }

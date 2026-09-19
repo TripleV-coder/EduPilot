@@ -4023,7 +4023,7 @@
     "/api/analytics/sync-all": {
       "post": {
         "summary": "POST /api/analytics/sync-all",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
         "tags": [
           "analytics"
         ],
@@ -4041,6 +4041,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -5733,7 +5739,7 @@
       },
       "post": {
         "summary": "POST /api/canteen/tickets",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "canteen"
         ],
@@ -5751,6 +5757,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -8174,6 +8186,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -8343,24 +8358,17 @@
     "/api/explorer/overview": {
       "get": {
         "summary": "GET /api/explorer/overview",
-        "description": "Session requise.",
+        "description": "Accessible sans session.",
         "tags": [
           "explorer"
         ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
+        "security": [],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -8374,24 +8382,17 @@
     "/api/explorer/schools": {
       "get": {
         "summary": "GET /api/explorer/schools",
-        "description": "Session requise.",
+        "description": "Accessible sans session.",
         "tags": [
           "explorer"
         ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
+        "security": [],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9001,6 +9002,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

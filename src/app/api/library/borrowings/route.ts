@@ -4,6 +4,19 @@ import { libraryService } from "@/lib/library/service";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { logger } from "@/lib/utils/logger";
+
+/** Erreurs métier du service traduites ; tout le reste reste dans le journal. */
+const LIBRARY_ERRORS: Record<string, string> = {
+    "Book not available": "Ce livre n'est plus disponible.",
+    "Invalid record": "Emprunt introuvable ou déjà rendu.",
+};
+
+function libraryError(error: unknown, fallback: string, status: number) {
+    const known = error instanceof Error ? LIBRARY_ERRORS[error.message] : undefined;
+    if (!known) logger.error(`[library] ${fallback}`, error as Error);
+    return NextResponse.json({ error: known ?? fallback }, { status: known ? 400 : status });
+}
 
 // Helper to get studentProfileId from userId
 async function getStudentProfileId(userId: string): Promise<string | null> {
@@ -39,14 +52,14 @@ try {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
-        const record = await libraryService.borrowBook(
-            studentProfile.id,
-            bookId,
-            new Date(dueDate)
-        );
+        const due = new Date(dueDate);
+        if (typeof dueDate !== "string" || Number.isNaN(due.getTime()) || due.getTime() <= Date.now()) {
+            return NextResponse.json({ error: "Date de retour invalide." }, { status: 400 });
+        }
+        const record = await libraryService.borrowBook(studentProfile.id, bookId, due);
         return NextResponse.json(record);
     } catch (error) {
-        return NextResponse.json({ error: error instanceof Error ? error.message : "Borrow failed" }, { status: 400 });
+        return libraryError(error, "Emprunt impossible.", 500);
     }
 
 });
@@ -78,7 +91,7 @@ try {
         const returned = await libraryService.returnBook(recordId);
         return NextResponse.json(returned);
     } catch (error) {
-        return NextResponse.json({ error: error instanceof Error ? error.message : "Return failed" }, { status: 400 });
+        return libraryError(error, "Retour impossible.", 500);
     }
 
 });
@@ -111,7 +124,7 @@ try {
         const records = await libraryService.getStudentBorrowings(studentId);
         return NextResponse.json(records);
     } catch (error) {
-        return NextResponse.json({ error: error instanceof Error ? error.message : "Error fetching borrowings" }, { status: 500 });
+        return libraryError(error, "Impossible de charger les emprunts.", 500);
     }
 
 });

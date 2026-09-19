@@ -199,6 +199,7 @@ describe("POST /api/orientation/generate-ai", () => {
       body: { studentId: FIXTURES.studentA, academicYearId: "ay1" },
     }), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("provider down");
+    // Le détail du fournisseur reste dans le journal serveur.
+    expect((await res.json()).error).toBe("Erreur lors de la génération de l'avis IA");
   });
 });

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { runAsSystem } from "@/lib/db/db-context";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,16 +35,25 @@ function latLngToVector3(lat: number, lng: number, radius: number) {
 /**
  * GET /api/explorer/schools
  * Liste des établissements avec coordonnées pour le globe (auth optionnelle).
+ * Anonyme : seules les écoles publiées (isPublic), comme l'annuaire public.
  */
 export const GET = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
-    let where: { isActive: boolean; id?: string } = { isActive: true };
-    if (session?.user?.role !== "SUPER_ADMIN" && session?.user?.schoolId) {
-      where = { ...where, id: getActiveSchoolId(session) };
+    // Session en attente du second facteur : traitée comme anonyme (route publique,
+    // createApiHandler ne l'arrête pas quand requireAuth vaut false).
+    const anonymous =
+      !session?.user || (session.user.isTwoFactorEnabled && !session.user.isTwoFactorAuthenticated);
+    let where: { isActive: boolean; isPublic?: boolean; id?: string } = { isActive: true };
+    if (anonymous) {
+      where = { ...where, isPublic: true };
+    } else if (session.user.role !== "SUPER_ADMIN" && session.user.schoolId) {
+      where = { ...where, id: getActiveSchoolId(session) ?? undefined };
     }
 
-    const schools = await prisma.school.findMany({
+    // Sans session, aucun contexte RLS : les effectifs (tables sous RLS) des
+    // écoles publiées sont comptés explicitement au titre du système.
+    const findSchools = () => prisma.school.findMany({
       where,
       include: {
         _count: { 
@@ -57,6 +67,7 @@ export const GET = createApiHandler(async (request, context) => {
       },
       orderBy: { name: "asc" },
     });
+    const schools = anonymous ? await runAsSystem("explorateur public : écoles publiées", findSchools) : await findSchools();
 
     const radius = 5;
     const items = schools.map((school, i) => {
@@ -102,4 +113,4 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 
-});
+}, { requireAuth: false });

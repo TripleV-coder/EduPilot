@@ -8,7 +8,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     examTemplate: { findUnique: vi.fn() },
-    examSession: { findFirst: vi.fn(), create: vi.fn(), upsert: vi.fn(), update: vi.fn() },
+    examSession: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     examAnswer: { deleteMany: vi.fn(), createMany: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     enrollment: { findFirst: vi.fn() },
@@ -34,11 +34,12 @@ function examTemplate(overrides: Record<string, unknown> = {}) {
     id: examId,
     isPublished: true,
     totalPoints: 20,
+    passingScore: 10,
     questions: [
       { id: questionA, correctAnswer: "B", points: 12, type: "MCQ", question: "Q1", order: 1, options: [] },
       { id: questionB, correctAnswer: "C", points: 8, type: "MCQ", question: "Q2", order: 2, options: [] },
     ],
-    classSubject: { class: { id: cuid("classe6a"), schoolId: FIXTURES.schoolA } },
+    classSubject: { classId: cuid("classe6a"), class: { id: cuid("classe6a"), schoolId: FIXTURES.schoolA } },
     ...overrides,
   };
 }
@@ -224,7 +225,9 @@ describe("POST /api/exams/[id]/submit", () => {
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
     } as unknown as StudentProfile);
-    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as unknown as ExamTemplate);
+    mockExamLookups(examTemplate());
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "enr-1" } as unknown as Enrollment);
+    vi.mocked(prisma.examSession.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
     vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
@@ -253,7 +256,7 @@ describe("POST /api/exams/[id]/submit", () => {
       expect.objectContaining({ questionId: questionA, isCorrect: true, pointsEarned: 12 }),
       expect.objectContaining({ questionId: questionB, isCorrect: false, pointsEarned: 0 }),
     ]);
-    // Les anciennes réponses sont purgées avant ré-écriture (resoumission idempotente)
+    // Réponses d'une tentative interrompue purgées avant écriture
     expect(prisma.examAnswer.deleteMany).toHaveBeenCalledWith({
       where: { examSessionId },
     });
@@ -264,7 +267,9 @@ describe("POST /api/exams/[id]/submit", () => {
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
     } as unknown as StudentProfile);
-    vi.mocked(prisma.examTemplate.findUnique).mockResolvedValue(examTemplate() as unknown as ExamTemplate);
+    mockExamLookups(examTemplate());
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "enr-1" } as unknown as Enrollment);
+    vi.mocked(prisma.examSession.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
     vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);

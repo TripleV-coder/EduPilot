@@ -146,6 +146,7 @@ describe("POST /api/analytics/sync-all", () => {
 
   it("should sync using the provided academic year", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
     vi.mocked(syncAllStudentsForSchool).mockResolvedValue({ processed: 42, errors: 1 });
     const res = await POST_SYNC_ALL(makeRequest("http://localhost/api/analytics/sync-all", { method: "POST", body: { academicYearId: AY } }), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
@@ -154,7 +155,10 @@ describe("POST /api/analytics/sync-all", () => {
     expect(body.processed).toBe(42);
     expect(body.errors).toBe(1);
     expect(syncAllStudentsForSchool).toHaveBeenCalledWith(FIXTURES.schoolA, AY);
-    expect(prisma.academicYear.findFirst).not.toHaveBeenCalled();
+    // L'année fournie est rattachée à l'établissement avant toute synchronisation.
+    expect(prisma.academicYear.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: AY, schoolId: FIXTURES.schoolA }) })
+    );
   });
 
   it("should resolve the current year when none is provided", async () => {
@@ -171,9 +175,11 @@ describe("POST /api/analytics/sync-all", () => {
 
   it("should return 500 when the sync fails", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
     vi.mocked(syncAllStudentsForSchool).mockRejectedValue(new Error("boom"));
     const res = await POST_SYNC_ALL(makeRequest("http://localhost/api/analytics/sync-all", { method: "POST", body: { academicYearId: AY } }), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("boom");
+    // Message générique : le détail de l'erreur reste dans le journal serveur.
+    expect((await res.json()).error).toBe("Erreur lors de la synchronisation globale");
   });
 });

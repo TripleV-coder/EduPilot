@@ -3,6 +3,11 @@ import { logger } from "@/lib/utils/logger";
 import { aiService, OrientationRecommendation } from "@/lib/ai/ai-service";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
+/** Erreur du service IA (message destiné à l'utilisateur), reconnue sans dépendre de la classe. */
+function isAIServiceError(error: unknown): error is { message: string; status: number } {
+    return error instanceof Error && error.name === "AIServiceError" && typeof (error as { status?: unknown }).status === "number";
+}
+
 export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
@@ -23,7 +28,7 @@ export const POST = createApiHandler(async (request, context) => {
         });
 
         if (!result.success) {
-            throw new Error("L'analyse IA a échoué");
+            return NextResponse.json({ error: "L'analyse IA a échoué" }, { status: 500 });
         }
 
         return NextResponse.json({
@@ -46,9 +51,11 @@ export const POST = createApiHandler(async (request, context) => {
     
     } catch (error) {
         logger.error("AI Orientation Generation:", error);
-        return NextResponse.json({ 
-            error: error instanceof Error ? error.message : "Erreur lors de la génération de l'avis IA" 
-        }, { status: 500 });
+        // Seules les erreurs du service IA portent un message destiné à l'utilisateur.
+        if (isAIServiceError(error)) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
+        return NextResponse.json({ error: "Erreur lors de la génération de l'avis IA" }, { status: 500 });
     }
 
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });
