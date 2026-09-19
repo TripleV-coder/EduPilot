@@ -4,13 +4,28 @@ import { logger } from "@/lib/utils/logger";
 import { jsPDF } from "jspdf";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { z } from "zod";
+
+const generateSchema = z.object({
+    documentType: z.enum(["CERTIFICATE_ENROLLMENT", "BEHAVIOR_REPORT"]),
+    studentId: z.string().min(1).max(64),
+    academicYearId: z.string().min(1).max(64).optional(),
+});
+
+/**
+ * POST /api/documents/generate — certificat de scolarité, attestation de conduite.
+ * Documents signés par la direction : réservés à ses rôles (comme la page).
+ */
 
 export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
 
-        const body = await request.json();
-        const { documentType, studentId, academicYearId } = body;
+        const parsed = generateSchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ error: "Type de document ou élève invalide" }, { status: 400 });
+        }
+        const { documentType, studentId, academicYearId } = parsed.data;
 
         const student = await prisma.studentProfile.findUnique({
             where: { id: studentId },
@@ -31,6 +46,15 @@ export const POST = createApiHandler(async (request, context) => {
         }
 
         const enrollment = student.enrollments[0];
+        // Un certificat de scolarité n'atteste que d'une inscription réelle
+        // (il affirmait « régulièrement inscrit en classe de : Non assigné »).
+        if (documentType === "CERTIFICATE_ENROLLMENT" && !enrollment) {
+            return NextResponse.json(
+                { error: "Aucune inscription pour cette année : certificat impossible." },
+                { status: 409 }
+            );
+        }
+        const school = await prisma.school.findUnique({ where: { id: student.schoolId }, select: { name: true } });
 
         // Generate PDF
         const doc = new jsPDF();
@@ -38,11 +62,12 @@ export const POST = createApiHandler(async (request, context) => {
         doc.setFont("helvetica");
         doc.setFontSize(22);
         doc.setTextColor(33, 37, 41);
-        doc.text("EDUPILOT", 105, 20, { align: "center" });
+        // L'établissement émetteur, pas le logiciel.
+        doc.text((school?.name ?? "Établissement").toUpperCase(), 105, 20, { align: "center" });
 
         doc.setFontSize(10);
         doc.setTextColor(108, 117, 125);
-        doc.text("Système de Gestion Scolaire d'Excellence", 105, 26, { align: "center" });
+        doc.text("Document émis via EduPilot", 105, 26, { align: "center" });
 
         doc.setLineWidth(0.5);
         doc.setDrawColor(200, 200, 200);
@@ -95,6 +120,7 @@ export const POST = createApiHandler(async (request, context) => {
                 action: "GENERATE",
                 entity: "Document",
                 entityId: student.id,
+                schoolId: student.schoolId,
                 oldValues: undefined,
                 newValues: { documentType, studentId }
             }
@@ -110,4 +136,4 @@ export const POST = createApiHandler(async (request, context) => {
         return NextResponse.json({ error: "Erreur lors de la génération" }, { status: 500 });
     }
 
-}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] });
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

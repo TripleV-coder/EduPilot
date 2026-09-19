@@ -88,8 +88,10 @@ const createReportSchema = z.object({
 export const POST = createApiHandler(
     async (request, { session }) => {
         try {
+            // Un dossier appartient toujours à une école : super-admin compris,
+            // sans école active la création échouait en 500 (schoolId nul).
             const schoolId = getActiveSchoolId(session);
-            if (!schoolId && session.user.role !== "SUPER_ADMIN") {
+            if (!schoolId) {
                 return NextResponse.json(
                     { error: "Aucun établissement actif associé au compte." },
                     { status: 400 }
@@ -109,7 +111,7 @@ export const POST = createApiHandler(
             // L'élève désigné doit appartenir à l'école (anti cross-tenant)
             if (data.reportedUserId) {
                 const reported = await prisma.user.findFirst({
-                    where: { id: data.reportedUserId, ...(schoolId ? { schoolId } : {}) },
+                    where: { id: data.reportedUserId, schoolId },
                     select: { id: true },
                 });
                 if (!reported) {
@@ -119,7 +121,7 @@ export const POST = createApiHandler(
 
             const report = await prisma.wellbeingReport.create({
                 data: {
-                    schoolId: schoolId!,
+                    schoolId,
                     tag: data.tag,
                     category: data.category,
                     excerpt: data.excerpt,
@@ -138,6 +140,8 @@ export const POST = createApiHandler(
                     action: "CREATE_WELLBEING_REPORT",
                     entity: "WellbeingReport",
                     entityId: report.id,
+                    // La purge de conservation s'appuie sur l'école du journal.
+                    schoolId,
                 },
             });
 
