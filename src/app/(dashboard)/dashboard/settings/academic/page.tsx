@@ -8,7 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { Calendar, Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2 } from "lucide-react";
+import { Calendar, Plus, Save, AlertCircle, CheckCircle, Lock, LockOpen } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { useRBAC } from "@/lib/hooks/use-rbac";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
@@ -18,7 +27,12 @@ type AcademicYear = {
     startDate: string;
     endDate: string;
     isCurrent: boolean;
+    status: "PLANNING" | "ACTIVE" | "ARCHIVED" | "CLOSED";
 };
+
+type StatusAction = { year: AcademicYear; action: "close" | "reopen"; activeEnrollments?: number };
+
+const isLocked = (year: AcademicYear) => year.status === "CLOSED" || year.status === "ARCHIVED";
 
 export default function AcademicSettingsPage() {
     const [years, setYears] = useState<AcademicYear[]>([]);
@@ -28,6 +42,11 @@ export default function AcademicSettingsPage() {
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
     const [isAdding, setIsAdding] = useState(false);
+    const [pendingAction, setPendingAction] = useState<StatusAction | null>(null);
+    const [changingStatus, setChangingStatus] = useState(false);
+    const { canAccess } = useRBAC();
+    const canClose = canAccess({ permission: Permission.ACADEMIC_YEAR_CLOSE });
+    const canReopen = canAccess({ roles: ["SUPER_ADMIN", "SCHOOL_ADMIN"], permission: Permission.ACADEMIC_YEAR_CLOSE });
 
     const fetchYears = async () => {
         setLoading(true);
@@ -84,6 +103,35 @@ export default function AcademicSettingsPage() {
             setError(getErrorMessage(err));
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleStatusChange = async () => {
+        if (!pendingAction) return;
+        const { year, action, activeEnrollments } = pendingAction;
+        setChangingStatus(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/academic-years/${year.id}/status`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                // Le second passage confirme une clôture malgré des élèves non promus.
+                body: JSON.stringify(action === "close" ? { action, force: activeEnrollments !== undefined } : { action }),
+            });
+            const data = await res.json();
+            if (res.status === 409 && data.code === "ACTIVE_ENROLLMENTS") {
+                setPendingAction({ year, action, activeEnrollments: data.activeEnrollments });
+                return;
+            }
+            if (!res.ok) throw new Error(data.error || "Une erreur est survenue");
+            setPendingAction(null);
+            showSuccess(action === "close" ? `Année ${year.name} clôturée` : `Année ${year.name} rouverte`);
+            fetchYears();
+        } catch (err) {
+            setPendingAction(null);
+            setError(getErrorMessage(err));
+        } finally {
+            setChangingStatus(false);
         }
     };
 
@@ -156,7 +204,7 @@ export default function AcademicSettingsPage() {
 
                                 <div className="flex items-center space-x-2">
                                     <input type="checkbox" id="isCurrent" name="isCurrent" className="rounded border-border text-primary focus:ring-primary" />
-                                    <Label htmlFor="isCurrent" className="font-normal cursor-pointer">Définir comme l'année académique active actuelle (Clôturera automatiquement la précédente)</Label>
+                                    <Label htmlFor="isCurrent" className="font-normal cursor-pointer">Définir comme l'année académique active actuelle (l'année actuelle perd ce statut, sans être clôturée)</Label>
                                 </div>
 
                                 <div className="flex justify-end gap-3 pt-2">
@@ -187,6 +235,12 @@ export default function AcademicSettingsPage() {
                                     <div>
                                         <div className="flex items-center gap-3 mb-1">
                                             <h3 className="font-bold text-lg">{year.name}</h3>
+                                            {isLocked(year) && (
+                                                <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1">
+                                                    <Lock className="h-3 w-3" />
+                                                    {year.status === "ARCHIVED" ? "Archivée" : "Clôturée"}
+                                                </span>
+                                            )}
                                             {year.isCurrent && (
                                                 <span className="bg-secondary/10 text-secondary dark:bg-secondary/20 text-xs px-2 py-0.5 rounded-full font-medium">
                                                     Année Active Actuelle
@@ -199,39 +253,65 @@ export default function AcademicSettingsPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {!year.isCurrent && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled
-                                                title="Le backend actuel n'expose aucune route de mise à jour pour une année académique existante."
-                                            >
-                                                Activation indisponible
-                                            </Button>
+                                        {isLocked(year) ? (
+                                            canReopen && year.status === "CLOSED" && (
+                                                <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ year, action: "reopen" })}>
+                                                    <LockOpen className="h-4 w-4" />
+                                                    Rouvrir
+                                                </Button>
+                                            )
+                                        ) : (
+                                            canClose && (
+                                                <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ year, action: "close" })}>
+                                                    <Lock className="h-4 w-4" />
+                                                    Clôturer
+                                                </Button>
+                                            )
                                         )}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled
-                                            title="Le backend actuel n'expose aucune route d'édition pour une année académique existante."
-                                        >
-                                            <Edit2 className="h-4 w-4 text-muted-foreground" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled
-                                            className="hover:text-destructive hover:bg-destructive/10"
-                                            title="Le backend actuel n'expose aucune route d'archivage ou suppression pour une année académique."
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))
                     )}
                 </div>
+
+                <Dialog open={pendingAction !== null} onOpenChange={(open) => !open && !changingStatus && setPendingAction(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                {pendingAction?.action === "close" ? `Clôturer l'année ${pendingAction.year.name} ?` : `Rouvrir l'année ${pendingAction?.year.name} ?`}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {pendingAction?.action === "close"
+                                    ? "Les notes, évaluations et présences de cette année seront figées : plus aucune saisie ni modification ne sera acceptée. Seule l'administration pourra la rouvrir."
+                                    : "Les notes, évaluations et présences de cette année redeviendront modifiables. Cette action est journalisée."}
+                            </DialogDescription>
+                        </DialogHeader>
+                        {pendingAction?.activeEnrollments !== undefined && (
+                            <div className="p-3 rounded-lg bg-[hsl(var(--warning-bg))] border border-[hsl(var(--warning-border))] text-sm flex gap-2">
+                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <p>
+                                    {pendingAction.activeEnrollments} inscription(s) sont encore actives : ces élèves n'ont pas été promus.
+                                    Effectuez la promotion avant de clôturer, ou confirmez pour clôturer quand même.
+                                </p>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" disabled={changingStatus} onClick={() => setPendingAction(null)}>{t("common.cancel")}</Button>
+                            <Button
+                                variant={pendingAction?.action === "close" ? "destructive" : "default"}
+                                disabled={changingStatus}
+                                onClick={handleStatusChange}
+                                className="gap-2"
+                            >
+                                {changingStatus && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />}
+                                {pendingAction?.action === "close"
+                                    ? pendingAction.activeEnrollments !== undefined ? "Clôturer quand même" : "Clôturer"
+                                    : "Rouvrir"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </PageGuard>
     );

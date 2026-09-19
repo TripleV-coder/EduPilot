@@ -14,6 +14,7 @@ vi.mock("@/lib/prisma", () => ({
     class: { findUnique: vi.fn() },
     teacherProfile: { findUnique: vi.fn() },
     enrollment: { count: vi.fn() },
+    academicYear: { findFirst: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -76,6 +77,26 @@ describe("POST /api/attendance/bulk", () => {
     vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1" } as never);
     const res = await POST(makeRequest("http://localhost/api/attendance/bulk", { method: "POST", body: BASE_BODY }));
     expect(res.status).toBe(403);
+  });
+
+  it("refuse (409) une présence datée dans une année clôturée", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: "u1" }));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({
+      id: "cl1",
+      schoolId: FIXTURES.schoolA,
+      mainTeacher: { userId: "u1" },
+      classSubjects: [],
+    } as never);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValueOnce({ id: "ay1", name: "2025-2026" } as never);
+    const res = await POST(makeRequest("http://localhost/api/attendance/bulk", { method: "POST", body: BASE_BODY }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual(expect.objectContaining({ code: "ACADEMIC_YEAR_CLOSED" }));
+    expect(vi.mocked(prisma.academicYear.findFirst).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        where: expect.objectContaining({ schoolId: FIXTURES.schoolA, status: { in: ["CLOSED", "ARCHIVED"] } }),
+      })
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("should block unenrolled students (anti-fraud)", async () => {

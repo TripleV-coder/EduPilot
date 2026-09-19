@@ -55,7 +55,7 @@ d'échecs de connexion).
 | TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | 🟡 Ouvert |
 | TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
 | TD-017 | « Facturation en masse » sans modèle de données : la page envoie `{classLevelId, feeId, academicYearId}`, l'API attend `{paymentIds}` → toujours 400 | 3j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
-| TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
+| TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 |
 
 ---
 
@@ -224,6 +224,14 @@ Relevés au nettoyage du 2026-09-18 (déclarations jamais lues).
   Promotion n'avait aucun gestionnaire, et un encart promettait notes figées et
   bulletins générés : retirés, le sélecteur d'année de destination manquant a
   été ajouté à leur place.
+
+  **Corrigé le 2026-09-19** : `PATCH /api/academic-years/[id]/status`
+  (`close` / `reopen`, audité ; réouverture réservée à SCHOOL_ADMIN /
+  SUPER_ADMIN ; clôture refusée en 409 tant que des inscriptions sont actives,
+  sauf confirmation). Une année `CLOSED` ou `ARCHIVED` refuse en 409
+  (`ACADEMIC_YEAR_CLOSED`) toute écriture d'évaluation, de note et de présence
+  (garde `src/lib/academic/year-lock.ts`, branchée sur les 5 routes d'écriture).
+  Boutons Clôturer / Rouvrir sur la page Années académiques.
 
 ---
 

@@ -5,6 +5,7 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { syncAnalyticsAfterGradeChange } from "@/lib/services/analytics-sync";
+import { guardPeriodWritable } from "@/lib/academic/year-lock";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 
 export const POST = createApiHandler(
@@ -32,6 +33,9 @@ export const POST = createApiHandler(
                 { status: 404 }
                 );
                 }
+
+                const yearLock = await guardPeriodWritable(evaluation.periodId);
+                if (yearLock) return yearLock;
 
                 if (evaluation.period.endDate < new Date()) {
             return NextResponse.json(
