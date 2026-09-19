@@ -87,12 +87,12 @@ export function PageEmpty({
                 <Icon name={icon} size={24} color="var(--eduflow-text-tertiary)" />
             </div>
             <div>
-                <h3
+                <h2
                     className="text-base font-semibold"
                     style={{ color: "var(--eduflow-text-primary)" }}
                 >
                     {title}
-                </h3>
+                </h2>
                 {description ? (
                     <p
                         className="mx-auto mt-1 max-w-md text-sm leading-relaxed"

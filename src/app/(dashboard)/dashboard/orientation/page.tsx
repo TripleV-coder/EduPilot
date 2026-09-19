@@ -531,7 +531,7 @@ export default function OrientationPage() {
                                 <div className="p-3 bg-primary/10 w-fit rounded-xl mb-4 text-primary">
                                     <GraduationCap className="w-6 h-6" />
                                 </div>
-                                <h3 className="text-2xl font-bold">{students.length}</h3>
+                                <p className="text-2xl font-bold">{students.length}</p>
                                 <p className="text-sm text-muted-foreground font-medium">Élèves éligibles (Post-BEPC)</p>
                             </CardContent>
                         </Card>
@@ -540,16 +540,16 @@ export default function OrientationPage() {
                                 <div className="p-3 bg-warning/10 w-fit rounded-xl mb-4 text-warning">
                                     <FileText className="w-6 h-6" />
                                 </div>
-                                <h3 className="text-2xl font-bold">{orientations.length}</h3>
+                                <p className="text-2xl font-bold">{orientations.length}</p>
                                 <p className="text-sm text-muted-foreground font-medium">Dossiers d'orientation ouverts</p>
                             </CardContent>
                         </Card>
                         <Card className="shadow-sm border-border bg-muted/10">
                             <CardContent className="p-6 space-y-3">
-                                <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                                     <BookOpen className="w-4 h-4" />
                                     Guide d'Orientation Post-BEPC
-                                </h4>
+                                </h2>
                                 <ul className="text-sm space-y-2 text-foreground/80">
                                     <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-success shrink-0" /> Séries Scientifiques (C, D, E)</li>
                                     <li className="flex gap-2"><ArrowRight className="w-4 h-4 text-primary shrink-0" /> Séries Littéraires (A, Littérature)</li>

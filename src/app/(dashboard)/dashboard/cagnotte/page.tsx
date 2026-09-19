@@ -199,12 +199,12 @@ function EmptyCagnotteState() {
             >
                 <Icon name="sparkle" size={36} color="var(--brand-700)" />
             </div>
-            <h3
+            <h2
                 className="eduflow-display"
                 style={{ fontSize: 18, margin: "0 0 8px" }}
             >
                 Aucune cagnotte ouverte
-            </h3>
+            </h2>
             <p
                 style={{
                     fontSize: 13,
@@ -245,7 +245,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                 <Badge variant={tone} size="sm">
                     J−{c.daysLeft}
                 </Badge>
-                <h3
+                <h2
                     className="eduflow-display"
                     style={{
                         fontSize: 17,
@@ -255,7 +255,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                     }}
                 >
                     {c.title}
-                </h3>
+                </h2>
                 <p
                     style={{
                         fontSize: 11,

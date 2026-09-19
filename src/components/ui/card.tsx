@@ -65,7 +65,9 @@ const CardTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <h3
+  // h2 : le titre de page (PageHeader) est le h1 ; un h3 sautait un niveau
+  // sur presque toutes les pages (axe heading-order).
+  <h2
     ref={ref}
     className={cn("font-semibold leading-none tracking-tight", className)}
     {...props}

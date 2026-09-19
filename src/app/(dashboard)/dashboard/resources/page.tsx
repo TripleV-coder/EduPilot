@@ -149,13 +149,13 @@ export default function ResourcesPage() {
                                         >
                                             <Icon name={resourceIcon(resource.type)} size={24} color="var(--brand-600)" />
                                         </div>
-                                        <h3
+                                        <h2
                                             className="line-clamp-2 text-sm font-semibold"
                                             title={resource.title}
                                             style={{ color: "var(--eduflow-text-primary)" }}
                                         >
                                             {resource.title}
-                                        </h3>
+                                        </h2>
                                         <div className="mt-2 flex flex-wrap justify-center gap-1">
                                             {resource.subject?.name ? (
                                                 <Badge variant="brand" size="sm">

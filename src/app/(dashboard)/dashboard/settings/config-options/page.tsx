@@ -283,8 +283,9 @@ export default function ConfigOptionsSettingsPage() {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Catégorie</span>
+                  <span className="text-sm text-muted-foreground" id="config-options-category-label">Catégorie</span>
                   <select
+                    aria-labelledby="config-options-category-label"
                     value={selectedCategory}
                     onChange={(event) => setSelectedCategory(event.target.value)}
                     className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
@@ -299,7 +300,7 @@ export default function ConfigOptionsSettingsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">Afficher les inactives</span>
-                  <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+                  <Switch aria-label="Afficher les options inactives" checked={showInactive} onCheckedChange={setShowInactive} />
                 </div>
               </div>
             </div>

@@ -112,7 +112,7 @@ export default function NewTeacherPage() {
                                 <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-success">Enseignant créé avec succès !</h3>
+                                <h2 className="text-xl font-bold text-success">Enseignant créé avec succès !</h2>
 
                                 <Card className="bg-background max-w-md mx-auto p-4 text-left border-dashed shadow-sm">
                                     <p className="text-sm text-muted-foreground mb-2 flex flex-center gap-2">
@@ -140,7 +140,7 @@ export default function NewTeacherPage() {
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                                     <div className="space-y-5">
-                                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">État Civil</h3>
+                                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">État Civil</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}
@@ -198,7 +198,7 @@ export default function NewTeacherPage() {
                                     </div>
 
                                     <div className="space-y-5 pt-4 border-t border-border">
-                                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profil Professionnel</h3>
+                                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profil Professionnel</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}

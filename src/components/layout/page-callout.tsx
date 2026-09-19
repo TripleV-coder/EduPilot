@@ -45,7 +45,7 @@ export function PageCallout({
   return (
     <div className={cn("rounded-xl border border-dashed p-8 text-center", toneClasses[tone], className)}>
       <Icon className={cn("mx-auto mb-4 h-10 w-10", iconClasses[tone])} aria-hidden="true" />
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <h2 className="text-base font-semibold text-foreground">{title}</h2>
       {description ? (
         <p className="mx-auto mt-2 max-w-prose text-sm text-muted-foreground">{description}</p>
       ) : null}

@@ -302,7 +302,7 @@ function PayrollEditor({
     return (
         <Card padding={0}>
             <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Fiche de paie — {editor.name}</h3>
+                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Fiche de paie — {editor.name}</h2>
                 <button type="button" onClick={onClose} aria-label="Fermer"><Icon name="x" size={18} /></button>
             </div>
             <div className="space-y-4 px-5 py-5">
@@ -343,8 +343,8 @@ function LineEditor({
             </div>
             {lines.map((l, i) => (
                 <div key={i} className="flex items-center gap-2">
-                    <input type="text" placeholder="Libellé" value={l.label} onChange={(e) => onEdit(i, { label: e.target.value })} style={{ ...editorInput, flex: 1 }} />
-                    <input type="number" min={0} placeholder="Montant" value={l.amount} onChange={(e) => onEdit(i, { amount: Number(e.target.value) })} style={{ ...editorInput, width: 140 }} />
+                    <input type="text" placeholder="Libellé" aria-label={`${title} — libellé de la ligne ${i + 1}`} value={l.label} onChange={(e) => onEdit(i, { label: e.target.value })} style={{ ...editorInput, flex: 1 }} />
+                    <input type="number" min={0} placeholder="Montant" aria-label={`${title} — montant de la ligne ${i + 1}`} value={l.amount} onChange={(e) => onEdit(i, { amount: Number(e.target.value) })} style={{ ...editorInput, width: 140 }} />
                     <button type="button" onClick={() => onRemove(i)} aria-label="Supprimer la ligne"><Icon name="x" size={16} color="var(--eduflow-danger-600)" /></button>
                 </div>
             ))}

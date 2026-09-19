@@ -90,7 +90,7 @@ export default function NewHomeworkPage() {
       <div className="space-y-6 max-w-3xl mx-auto pb-10">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/homework">
-            <Button variant="outline" size="icon">
+            <Button aria-label="Retour aux devoirs" variant="outline" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -117,7 +117,7 @@ export default function NewHomeworkPage() {
               <div className="space-y-2">
                 <Label>Matière / Classe <span className="text-destructive">*</span></Label>
                 <Select value={classSubjectId} onValueChange={setClassSubjectId}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Matière et classe">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -131,8 +131,8 @@ export default function NewHomeworkPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Titre <span className="text-destructive">*</span></Label>
-                <Input
+                <Label htmlFor="homework-titre">Titre <span className="text-destructive">*</span></Label>
+                <Input id="homework-titre"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   
@@ -140,8 +140,8 @@ export default function NewHomeworkPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Description <span className="text-destructive">*</span></Label>
-                <Textarea
+                <Label htmlFor="homework-description">Description <span className="text-destructive">*</span></Label>
+                <Textarea id="homework-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   
@@ -151,16 +151,16 @@ export default function NewHomeworkPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Date limite <span className="text-destructive">*</span></Label>
-                  <Input
+                  <Label htmlFor="homework-date-limite">Date limite <span className="text-destructive">*</span></Label>
+                  <Input id="homework-date-limite"
                     type="datetime-local"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Note maximale</Label>
-                  <Input
+                  <Label htmlFor="homework-note-maximale">Note maximale</Label>
+                  <Input id="homework-note-maximale"
                     type="number"
                     min={0}
                     max={100}
@@ -169,8 +169,8 @@ export default function NewHomeworkPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Coefficient</Label>
-                  <Input
+                  <Label htmlFor="homework-coefficient">Coefficient</Label>
+                  <Input id="homework-coefficient"
                     type="number"
                     min={0.1}
                     max={10}
@@ -182,7 +182,7 @@ export default function NewHomeworkPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Switch checked={isPublished} onCheckedChange={setIsPublished} />
+                <Switch aria-label="Publier maintenant" checked={isPublished} onCheckedChange={setIsPublished} />
                 <Label>{t("common.publishNow")}</Label>
               </div>
             </CardContent>

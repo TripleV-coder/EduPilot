@@ -336,12 +336,12 @@ function EmptyWalletState() {
             >
                 <Icon name="money" size={36} color="var(--brand-700)" />
             </div>
-            <h3
+            <h2
                 className="eduflow-display"
                 style={{ fontSize: 18, margin: "0 0 8px", color: "var(--eduflow-text-primary)" }}
             >
                 Aucun compte Wallet configuré
-            </h3>
+            </h2>
             <p
                 style={{
                     fontSize: 13,
@@ -589,9 +589,9 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                 }}
             >
                 <div>
-                    <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         Transactions en direct · auto-rapprochement
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 11,

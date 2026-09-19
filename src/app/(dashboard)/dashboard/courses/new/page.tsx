@@ -240,10 +240,10 @@ export default function NewCoursePage() {
                         {/* Modules Builder */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
                                     <Layers className="w-5 h-5 text-primary" />
                                     Structure du cours (Modules)
-                                </h3>
+                                </h2>
                                 <Button 
                                     type="button" 
                                     variant="outline" 
@@ -268,6 +268,7 @@ export default function NewCoursePage() {
                                                 render={({ field }) => (
                                                     <Input 
                                                         {...field} 
+                                                        aria-label={`Titre du module ${moduleIndex + 1}`}
                                                         className="h-8 bg-transparent border-none font-bold focus-visible:ring-0 px-0 max-w-sm" 
                                                         onClick={(e) => e.stopPropagation()}
                                                     />
@@ -275,10 +276,20 @@ export default function NewCoursePage() {
                                             />
                                         </div>
                                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeModule(moduleIndex)}>
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Supprimer le module" onClick={() => removeModule(moduleIndex)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
-                                            {expandedModule === moduleIndex ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                aria-expanded={expandedModule === moduleIndex}
+                                                aria-label={expandedModule === moduleIndex ? "Replier le module" : "Déplier le module"}
+                                                onClick={() => setExpandedModule(expandedModule === moduleIndex ? null : moduleIndex)}
+                                            >
+                                                {expandedModule === moduleIndex ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                            </Button>
                                         </div>
                                     </div>
 
@@ -345,7 +356,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                 control={control}
                                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.title`}
                                 render={({ field }) => (
-                                    <Input {...field} className="h-7 bg-transparent border-none font-semibold focus-visible:ring-0 px-0 min-w-[200px]" />
+                                    <Input {...field} aria-label={`Titre de la leçon ${lessonIndex + 1}`} className="h-7 bg-transparent border-none font-semibold focus-visible:ring-0 px-0 min-w-[200px]" />
                                 )}
                             />
                         </div>
@@ -355,7 +366,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.type`}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger className="h-7 w-[100px] text-[10px] uppercase font-bold">
+                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-[10px] uppercase font-bold">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -366,7 +377,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                     </Select>
                                 )}
                             />
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(lessonIndex)}>
+                            <Button aria-label="Supprimer la leçon" type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(lessonIndex)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                         </div>
@@ -378,7 +389,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
-                                    <Textarea className="min-h-[80px] text-sm" {...field} />
+                                    <Textarea aria-label={`Contenu de la leçon ${lessonIndex + 1}`} className="min-h-[80px] text-sm" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -404,8 +415,8 @@ function LessonUrlFields({ moduleIndex, lessonIndex, control }: { moduleIndex: n
                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.videoUrl`}
                 render={({ field }) => (
                     <div className="flex items-center gap-2">
-                        <Video className="w-4 h-4 text-primary" />
-                        <Input {...field} className="h-8 text-xs" />
+                        <Video className="w-4 h-4 text-primary" aria-hidden />
+                        <Input {...field} aria-label={`Lien de la vidéo — leçon ${lessonIndex + 1}`} className="h-8 text-xs" />
                     </div>
                 )}
             />
@@ -419,8 +430,8 @@ function LessonUrlFields({ moduleIndex, lessonIndex, control }: { moduleIndex: n
                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.fileUrl`}
                 render={({ field }) => (
                     <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-primary" />
-                        <Input {...field} className="h-8 text-xs" />
+                        <FileText className="w-4 h-4 text-primary" aria-hidden />
+                        <Input {...field} aria-label={`Lien du document PDF — leçon ${lessonIndex + 1}`} className="h-8 text-xs" />
                     </div>
                 )}
             />

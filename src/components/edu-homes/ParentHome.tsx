@@ -112,9 +112,9 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                                 style={{ borderColor: "var(--eduflow-border-subtle)" }}
                             >
                                 <div>
-                                    <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                         Performances par matière
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,
@@ -178,9 +178,9 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                                 className="border-b px-5 py-4"
                                 style={{ borderColor: "var(--eduflow-border-subtle)" }}
                             >
-                                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                     Activité récente
-                                </h3>
+                                </h2>
                             </div>
                             <div className="px-2 py-2">
                                 {data.children.slice(0, 3).map((child) => {
@@ -376,9 +376,9 @@ function PaymentsSection({
                 style={{ borderColor: "var(--eduflow-border-subtle)" }}
             >
                 <div>
-                    <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                         Paiements de scolarité
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 11,

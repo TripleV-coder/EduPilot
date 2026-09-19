@@ -20,6 +20,8 @@ const Progress = React.forwardRef<
       "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
       className
     )}
+    // Sans value, Radix annonce une barre « indéterminée » (aucun aria-valuenow).
+    value={value}
     {...props}
   >
     <ProgressPrimitive.Indicator

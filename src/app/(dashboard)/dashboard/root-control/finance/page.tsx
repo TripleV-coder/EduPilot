@@ -68,7 +68,7 @@ export default function RootFinancePage() {
                         </div>
                         <CardContent className="p-8 space-y-2">
                             <p className="text-background/70 text-xs font-bold uppercase tracking-widest">MRR (Chiffre mensuel)</p>
-                            <h3 className="text-4xl font-black">{summary.totalMonthlyRevenue.toLocaleString()} <span className="text-xl">FCFA</span></h3>
+                            <h2 className="text-4xl font-black">{summary.totalMonthlyRevenue.toLocaleString()} <span className="text-xl">FCFA</span></h2>
                             <div className="flex items-center gap-1.5 text-success text-xs font-bold mt-4">
                                 <ArrowUpRight className="w-4 h-4" />
                                 <span>+12.5% vs mois dernier</span>
@@ -79,7 +79,7 @@ export default function RootFinancePage() {
                     <Card className="border border-border/50 bg-card shadow-sm">
                         <CardContent className="p-8 space-y-2">
                             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">ARPU (Moyenne/École)</p>
-                            <h3 className="text-4xl font-black text-foreground">{Math.round(summary.averageRevenuePerTenant).toLocaleString()} <span className="text-xl">FCFA</span></h3>
+                            <h2 className="text-4xl font-black text-foreground">{Math.round(summary.averageRevenuePerTenant).toLocaleString()} <span className="text-xl">FCFA</span></h2>
                             <div className="flex items-center gap-1.5 text-primary text-xs font-bold mt-4">
                                 <Building2 className="w-4 h-4" />
                                 <span>Basé sur {summary.activeTenants} établissements</span>
@@ -90,7 +90,7 @@ export default function RootFinancePage() {
                     <Card className="border border-border/50 bg-card shadow-sm">
                         <CardContent className="p-8 space-y-2">
                             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Taux de Recouvrement</p>
-                            <h3 className="text-4xl font-black text-foreground">{summary.collectionRate.toFixed(1)}%</h3>
+                            <h2 className="text-4xl font-black text-foreground">{summary.collectionRate.toFixed(1)}%</h2>
                             <div className="flex items-center gap-1.5 text-success text-xs font-bold mt-4">
                                 <ShieldCheck className="w-4 h-4" />
                                 <span>Basé sur les paiements validés</span>

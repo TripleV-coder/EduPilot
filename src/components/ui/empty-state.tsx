@@ -186,7 +186,7 @@ export function EmptyState({
 
       {/* Text */}
       <div className="space-y-1.5">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
         {description && (
           <p className="text-sm text-muted-foreground leading-relaxed">
             {description}

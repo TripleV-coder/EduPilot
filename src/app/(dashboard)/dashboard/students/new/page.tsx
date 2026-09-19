@@ -273,6 +273,7 @@ export default function NewStudentPage() {
                                         <FormControl>
                                             <div className="relative">
                                                 <Input
+                                                    aria-label="Mot de passe provisoire"
                                                     type={showPassword ? "text" : "password"}
                                                     
                                                     {...field}
@@ -281,6 +282,7 @@ export default function NewStudentPage() {
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
+                                                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                                                     onClick={() => setShowPassword(!showPassword)}
                                                     className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:text-foreground"
                                                 >

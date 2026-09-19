@@ -146,7 +146,7 @@ export default function RootCurriculumPage() {
                             <div className="space-y-2">
                                 <Label>Établissement</Label>
                                 <Select value={selectedSchoolId} onValueChange={(v) => { setSelectedSchoolId(v); setSelectedClassId(""); }}>
-                                    <SelectTrigger>
+                                    <SelectTrigger aria-label="Établissement">
                                         <SelectValue placeholder="Choisir une école" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -157,7 +157,7 @@ export default function RootCurriculumPage() {
                             <div className="space-y-2">
                                 <Label>Classe</Label>
                                 <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={!selectedSchoolId}>
-                                    <SelectTrigger>
+                                    <SelectTrigger aria-label="Classe">
                                         <SelectValue placeholder="Choisir une classe" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -232,7 +232,7 @@ export default function RootCurriculumPage() {
                                     <tr className="bg-primary/5">
                                         <td colSpan={2} className="px-6 py-4">
                                             <Select value={assignSubject.subjectId} onValueChange={v => setAssignSubject({...assignSubject, subjectId: v})}>
-                                                <SelectTrigger className="h-8 text-xs">
+                                                <SelectTrigger aria-label="Ajouter une matière" className="h-8 text-xs">
                                                     <SelectValue placeholder="Ajouter une matière..." />
                                                 </SelectTrigger>
                                                 <SelectContent>

@@ -293,12 +293,12 @@ export default function WhatsAppPage() {
                                             "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Modèles WhatsApp · {TEMPLATES.length} pré-écrits
-                                    </h3>
+                                    </h2>
                                     <p
                                         style={{
                                             fontSize: 11,

@@ -218,9 +218,9 @@ function WellbeingReportContent() {
                                 borderBottom: "1px solid var(--eduflow-border-subtle)",
                             }}
                         >
-                            <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
                                 Rendez-vous psychologue liés
-                            </h3>
+                            </h2>
                         </div>
                         {data.appointments.length === 0 ? (
                             <p

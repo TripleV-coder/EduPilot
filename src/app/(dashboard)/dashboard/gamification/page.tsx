@@ -259,9 +259,9 @@ export default function GamificationPage() {
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <Icon name="trophy" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Classement des étoiles montantes
-                            </h3>
+                            </h2>
                         </div>
                         {loading ? (
                             <PageLoading label="Chargement du classement…" />
@@ -289,9 +289,9 @@ export default function GamificationPage() {
                     <Card padding={20}>
                         <div className="flex items-center gap-2 mb-4">
                             <Icon name="sparkle" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Badges disponibles
-                            </h3>
+                            </h2>
                         </div>
                         <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
                         <div className="flex flex-col gap-3">

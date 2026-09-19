@@ -204,9 +204,9 @@ export function StudentHome({ userName, schoolName, periodName, data }: StudentH
                         className="border-b px-5 py-4"
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Mes matières
-                        </h3>
+                        </h2>
                         <p
                             style={{
                                 fontSize: 11,
@@ -292,9 +292,9 @@ export function StudentHome({ userName, schoolName, periodName, data }: StudentH
                 <div className="flex flex-col gap-4">
                     <Card>
                         <div className="mb-3 flex items-center justify-between">
-                            <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Évolution
-                            </h3>
+                            </h2>
                             <Badge variant={averageVariant} size="sm">
                                 {data.myAverage.toFixed(1).replace(".", ",")}/20
                             </Badge>

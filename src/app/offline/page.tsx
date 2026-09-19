@@ -12,7 +12,7 @@ export const dynamic = "force-static";
 
 export default function OfflinePage() {
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background p-6">
+    <main className="min-h-dvh flex items-center justify-center bg-background p-6">
       <div className="max-w-md w-full text-center">
         <div className="mx-auto w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-6">
           <WifiOff className="h-8 w-8 text-muted-foreground" />
@@ -29,6 +29,6 @@ export default function OfflinePage() {
           Réessayer
         </Link>
       </div>
-    </div>
+    </main>
   );
 }

@@ -85,7 +85,7 @@ export function AnalyticsContextBar() {
 
             {accessibleSchools.length > 1 && (
                 <Select value={schoolId || "ALL"} onValueChange={(v) => setActiveSchoolId(v === "ALL" ? null : v)}>
-                    <SelectTrigger className="h-10 w-[200px] text-xs">
+                    <SelectTrigger aria-label="Établissement" className="h-10 w-[200px] text-xs">
                         <SelectValue placeholder="Établissement" />
                     </SelectTrigger>
                     <SelectContent>
@@ -98,7 +98,7 @@ export function AnalyticsContextBar() {
             )}
 
             <Select value={academicYearId} onValueChange={setAcademicYearId}>
-                <SelectTrigger className="h-10 w-[150px] text-xs">
+                <SelectTrigger aria-label="Année scolaire" className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Année" />
                 </SelectTrigger>
                 <SelectContent>
@@ -110,7 +110,7 @@ export function AnalyticsContextBar() {
             </Select>
 
             <Select value={periodId} onValueChange={setPeriodId}>
-                <SelectTrigger className="h-10 w-[150px] text-xs">
+                <SelectTrigger aria-label="Période" className="h-10 w-[150px] text-xs">
                     <SelectValue placeholder="Période" />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,7 +143,7 @@ export function AnalyticsContextBar() {
             />
 
             <Select value={studentSegment} onValueChange={(v) => setStudentSegment(v as StudentSegment)}>
-                <SelectTrigger className="h-10 w-[190px] text-xs">
+                <SelectTrigger aria-label="Segment d'élèves" className="h-10 w-[190px] text-xs">
                     <SelectValue placeholder="Segment" />
                 </SelectTrigger>
                 <SelectContent>
@@ -173,10 +173,12 @@ function MultiSelectPopover({ label, options, selected, onToggle }: { label: str
                 <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
                     {options.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Aucune option</p>}
                     {options.map(opt => (
-                        <div key={opt.id} className="flex items-center gap-2 p-1 hover:bg-muted/50 rounded cursor-pointer" onClick={() => onToggle(opt.id)}>
+                        // Un <label> relie la ligne à la case : un seul basculement par clic
+                        // (le onClick de la ligne doublait celui de la case), et au clavier.
+                        <label key={opt.id} className="flex items-center gap-2 p-1 hover:bg-muted/50 rounded cursor-pointer">
                             <Checkbox checked={selected.includes(opt.id)} onCheckedChange={() => onToggle(opt.id)} />
                             <span className="text-xs truncate">{opt.name}</span>
-                        </div>
+                        </label>
                     ))}
                 </div>
             </PopoverContent>

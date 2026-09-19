@@ -145,7 +145,7 @@ export default function NewIncidentPage() {
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-medium">Détails de l'élève</h3>
+                                    <h2 className="text-lg font-medium">Détails de l'élève</h2>
 
                                     <FormField
                                         control={form.control}
@@ -174,7 +174,7 @@ export default function NewIncidentPage() {
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-medium border-t border-border pt-4">Informations sur l'incident</h3>
+                                    <h2 className="text-lg font-medium border-t border-border pt-4">Informations sur l'incident</h2>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField

@@ -150,9 +150,9 @@ export default function ExamsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Aucun examen disponible
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -200,7 +200,7 @@ export default function ExamsPage() {
                                         <Icon name="cards" size={20} />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{
                                                 margin: 0,
@@ -211,7 +211,7 @@ export default function ExamsPage() {
                                             }}
                                         >
                                             {exam.title}
-                                        </h3>
+                                        </h2>
                                         <div
                                             className="mt-1 flex flex-wrap items-center gap-2"
                                             style={{
@@ -269,8 +269,7 @@ export default function ExamsPage() {
                                             href={`/dashboard/exams/${exam.id}/take`}
                                             aria-label="Prévisualiser"
                                         >
-                                            <Button variant="ghost" size="sm" icon="search">
-                                                {""}
+                                            <Button aria-label={`Passer l'examen ${exam.title}`} variant="ghost" size="sm" icon="search">
                                             </Button>
                                         </Link>
                                         <RoleActionGuard
@@ -281,13 +280,12 @@ export default function ExamsPage() {
                                                 "TEACHER",
                                             ]}
                                         >
-                                            <Button
+                                            <Button aria-label={`Supprimer l'examen ${exam.title}`}
                                                 variant="ghost"
                                                 size="sm"
                                                 icon="x"
                                                 onClick={() => handleDelete(exam.id, exam.title)}
                                             >
-                                                {""}
                                             </Button>
                                         </RoleActionGuard>
                                     </div>

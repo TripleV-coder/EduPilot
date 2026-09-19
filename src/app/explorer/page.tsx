@@ -108,7 +108,7 @@ export default function ExplorerRoutePage() {
     );
 
     return (
-        <div
+        <main
             className="eduflow-scope min-h-screen"
             style={{
                 background:
@@ -188,9 +188,9 @@ export default function ExplorerRoutePage() {
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <Icon name="grid" size={18} color="var(--brand-700)" />
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Établissements
-                            </h3>
+                            </h2>
                             <Badge variant="neutral" size="sm">
                                 {filteredSchools.length} sur {schools.length}
                             </Badge>
@@ -364,7 +364,7 @@ export default function ExplorerRoutePage() {
                     ) : null}
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
 
@@ -390,7 +390,7 @@ function SchoolDetailPanel({
                 <div className="flex items-start gap-3">
                     <Avatar name={school.name} size="lg" status="online" />
                     <div className="min-w-0">
-                        <h3
+                        <h2
                             className="eduflow-display"
                             style={{
                                 margin: 0,
@@ -401,7 +401,7 @@ function SchoolDetailPanel({
                             }}
                         >
                             {school.name}
-                        </h3>
+                        </h2>
                         <div
                             className="mt-1 flex flex-wrap items-center gap-2"
                             style={{

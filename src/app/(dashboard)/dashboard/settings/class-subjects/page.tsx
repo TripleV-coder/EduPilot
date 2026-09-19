@@ -161,9 +161,9 @@ export default function ClassSubjectsPage() {
                         <Card className="border-border shadow-sm">
                             <CardContent className="p-4 space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Sélectionner une classe</label>
+                                    <label htmlFor="class-subjects-class" className="text-sm font-medium">Sélectionner une classe</label>
                                     <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                                        <SelectTrigger className="bg-background">
+                                        <SelectTrigger id="class-subjects-class" className="bg-background">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -230,7 +230,7 @@ export default function ClassSubjectsPage() {
                                                                 updateAssignment(a.id, { teacherId: v === "unassigned" ? null : v })
                                                             }
                                                         >
-                                                            <SelectTrigger className="h-8 bg-transparent border-0 ring-0 focus:ring-0">
+                                                            <SelectTrigger aria-label={`Enseignant — ${a.subjectName}`} className="h-8 bg-transparent border-0 ring-0 focus:ring-0">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -250,6 +250,7 @@ export default function ClassSubjectsPage() {
                                                             type="number"
                                                             step={0.5}
                                                             className="h-8 w-16 px-2"
+                                                            aria-label={`Coefficient — ${a.subjectName}`}
                                                             value={a.coefficient}
                                                             onChange={(e) => updateAssignment(a.id, { coefficient: e.target.value })}
                                                         />
@@ -259,6 +260,7 @@ export default function ClassSubjectsPage() {
                                                             type="number"
                                                             step={0.5}
                                                             className="h-8 w-16 px-2"
+                                                            aria-label={`Heures par semaine — ${a.subjectName}`}
                                                             value={a.weeklyHours}
                                                             onChange={(e) => updateAssignment(a.id, { weeklyHours: e.target.value })}
                                                         />

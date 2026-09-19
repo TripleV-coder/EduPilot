@@ -242,9 +242,9 @@ export default function BulletinsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Configurer le bulletin
-                        </h3>
+                        </h2>
                     </div>
                     <div className="px-5 py-5">
                         <div
@@ -360,9 +360,9 @@ export default function BulletinsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Aucun bulletin généré
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,

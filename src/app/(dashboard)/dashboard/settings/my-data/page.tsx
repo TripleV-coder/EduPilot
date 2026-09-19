@@ -152,7 +152,7 @@ export default function MyDataSettingsPage() {
                                 <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-muted/20">
                                 <FileText className="w-8 h-8 text-primary shrink-0" />
                                 <div className="flex-1">
-                                    <h4 className="font-semibold text-foreground">Archive Complète (JSON & PDF)</h4>
+                                    <h3 className="font-semibold text-foreground">Archive Complète (JSON & PDF)</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Comprend votre profil, l'historique de présence, et les bulletins disponibles.</p>
                                 </div>
                                 <Button className="gap-2 shrink-0" onClick={handleExportData} disabled={exporting}>
@@ -173,9 +173,9 @@ export default function MyDataSettingsPage() {
                         </CardHeader>
                         <CardContent className="pt-6 space-y-4">
                             <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                                <h4 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-2">
                                     <ShieldCheck className="w-4 h-4 text-warning" /> Attention aux obligations légales
-                                </h4>
+                                </h3>
                                 <p className="text-sm text-muted-foreground">
                                     La suppression définitive de votre compte est irréversible.
                                     Notez que certaines données liées à la facturation ou au registre scolaire peuvent être conservées légalement par l'établissement pour une durée minimale, même après la fermeture du compte.
@@ -209,7 +209,7 @@ export default function MyDataSettingsPage() {
                                             className={`flex justify-between items-center ${!isLast ? "border-b border-border pb-4" : ""}`}
                                         >
                                             <div>
-                                                <h4 className="font-medium text-foreground text-sm">{row.title}</h4>
+                                                <h3 className="font-medium text-foreground text-sm">{row.title}</h3>
                                                 <p className="text-xs text-muted-foreground mt-0.5">{row.desc}</p>
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -283,14 +283,14 @@ function ChildConsentSection() {
     return (
         <div className="mt-6 border-t border-border pt-4 space-y-4">
             <div>
-                <h4 className="font-medium text-foreground text-sm">Données de mes enfants</h4>
+                <h3 className="font-medium text-foreground text-sm">Données de mes enfants</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                     Vous répondez pour chaque enfant qui vous est rattaché. Un retrait est enregistré avec sa date.
                 </p>
             </div>
             {data.children.map((child) => (
                 <div key={child.studentId} className="flex justify-between items-center">
-                    <h4 className="font-medium text-foreground text-sm">{child.firstName} {child.lastName}</h4>
+                    <h3 className="font-medium text-foreground text-sm">{child.firstName} {child.lastName}</h3>
                     <div className="flex items-center gap-3">
                         <Badge
                             variant="outline"

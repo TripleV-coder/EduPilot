@@ -38,6 +38,16 @@ export function EduSidebar() {
 
     const sidebarWidth = isOpen ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
 
+    // Le voile se ferme au clic ; le menu mobile doit aussi se fermer au clavier.
+    React.useEffect(() => {
+        if (!isMobileOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setIsMobileOpen(false);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isMobileOpen, setIsMobileOpen]);
+
     return (
         <>
             <div

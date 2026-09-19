@@ -18,9 +18,9 @@ export function StepFamille({
         setForm((f) => ({ ...f, [key]: value }));
     return (
         <>
-            <h3 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
                 Famille / responsable légal
-            </h3>
+            </h2>
             <p
                 style={{
                     fontSize: 12,

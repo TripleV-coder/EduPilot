@@ -81,12 +81,12 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
             <Icon name="warning" size={18} color="var(--eduflow-danger-600)" />
           </div>
           <div>
-            <h3
+            <h2
               className="eduflow-display"
               style={{ fontSize: 16, margin: 0, color: "var(--eduflow-text-primary)" }}
             >
               Élève à risque
-            </h3>
+            </h2>
             <p
               style={{
                 margin: "2px 0 0",
@@ -276,12 +276,12 @@ export function StudentOrientationAction({ studentId }: { studentId: string }) {
             <Icon name="school" size={18} color="var(--brand-700)" />
           </div>
           <div>
-            <h3
+            <h2
               className="eduflow-display"
               style={{ fontSize: 16, margin: 0, color: "var(--eduflow-text-primary)" }}
             >
               Proposer une orientation
-            </h3>
+            </h2>
             <p
               style={{
                 margin: "2px 0 0",
@@ -428,12 +428,12 @@ export function StudentInterventionPlan({ studentId }: { studentId: string }) {
             <Icon name="check" size={18} color="var(--eduflow-success-700)" />
           </div>
           <div>
-            <h3
+            <h2
               className="eduflow-display"
               style={{ fontSize: 16, margin: 0, color: "var(--eduflow-text-primary)" }}
             >
               Plan d&apos;intervention
-            </h3>
+            </h2>
             <p
               style={{
                 margin: "2px 0 0",

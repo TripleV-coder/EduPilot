@@ -250,9 +250,9 @@ function CagnotteDetailContent() {
                             }}
                         >
                             <div>
-                                <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                     Journal public
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         fontSize: 11,
@@ -434,9 +434,9 @@ function CagnotteDetailContent() {
                                 borderBottom: "1px solid var(--eduflow-border-subtle)",
                             }}
                         >
-                            <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
                                 Contributions · {data.contributions.length}
-                            </h3>
+                            </h2>
                         </div>
                         {data.contributions.slice(0, 12).map((c, i) => (
                             <div

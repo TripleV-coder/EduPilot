@@ -224,9 +224,9 @@ export default function SecuritySettingsPage() {
                         <div className="flex items-start gap-3">
                             <Icon name="settings" size={18} color="var(--brand-700)" />
                             <div>
-                                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                     Authentification à double facteur (2FA)
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         margin: "2px 0 0",
@@ -444,9 +444,9 @@ export default function SecuritySettingsPage() {
                     >
                         <Icon name="settings" size={18} color="var(--brand-700)" />
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Mot de passe
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     margin: "2px 0 0",

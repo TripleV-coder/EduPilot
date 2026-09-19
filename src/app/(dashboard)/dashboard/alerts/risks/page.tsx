@@ -225,7 +225,7 @@ function AlertsRisksContent() {
                  </div>
                  <div className="md:col-span-5 space-y-4">
                     <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                       <h4 className="text-xs font-bold uppercase tracking-tight mb-2">Légende Matrice</h4>
+                       <h3 className="text-xs font-bold uppercase tracking-tight mb-2">Légende Matrice</h3>
                        <div className="space-y-3">
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse mt-0.5" />
@@ -389,7 +389,7 @@ function AlertsRisksContent() {
            </Card>
            
            <Card className="border-none shadow-none bg-success/10 border border-success/20 p-4 space-y-4">
-              <h4 className="text-[11px] font-bold uppercase tracking-widest text-success">Action Rapide</h4>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-success">Action Rapide</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Besoin d&apos;une synthèse pour un conseil de classe ? L&apos;assistant IA peut générer un rapport complet des élèves à risque.
               </p>

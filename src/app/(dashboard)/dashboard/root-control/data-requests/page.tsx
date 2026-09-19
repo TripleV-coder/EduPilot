@@ -105,21 +105,21 @@ export default function RootDataRequestsPage() {
                     <Card className="border-border shadow-sm">
                         <CardContent className="pt-6 text-center">
                             <ShieldCheck className="w-8 h-8 text-primary mx-auto mb-2" />
-                            <h3 className="text-2xl font-bold">{requests.length}</h3>
+                            <h2 className="text-2xl font-bold">{requests.length}</h2>
                             <p className="text-sm text-muted-foreground">Demandes trouvées</p>
                         </CardContent>
                     </Card>
                     <Card className="border-border shadow-sm border-t-2 border-t-warning">
                         <CardContent className="pt-6 text-center">
                             <Clock className="w-8 h-8 text-warning mx-auto mb-2" />
-                            <h3 className="text-2xl font-bold">{requests.filter(r => r.status === "PENDING").length}</h3>
+                            <h2 className="text-2xl font-bold">{requests.filter(r => r.status === "PENDING").length}</h2>
                             <p className="text-sm text-muted-foreground">Demandes en attente</p>
                         </CardContent>
                     </Card>
                     <Card className="border-border shadow-sm border-t-2 border-t-[hsl(var(--success))]">
                         <CardContent className="pt-6 text-center">
                             <CheckCircle className="w-8 h-8 text-[hsl(var(--success))] mx-auto mb-2" />
-                            <h3 className="text-2xl font-bold">{requests.filter(r => r.status === "COMPLETED").length}</h3>
+                            <h2 className="text-2xl font-bold">{requests.filter(r => r.status === "COMPLETED").length}</h2>
                             <p className="text-sm text-muted-foreground">Demandes traitées</p>
                         </CardContent>
                     </Card>

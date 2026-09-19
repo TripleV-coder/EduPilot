@@ -189,9 +189,9 @@ export default function AppearanceSettingsPage() {
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Modes d&apos;affichage
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     margin: "2px 0 0",
@@ -233,9 +233,9 @@ export default function AppearanceSettingsPage() {
                     >
                         <Icon name="settings" size={18} color="var(--brand-700)" />
                         <div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Thème
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     margin: "2px 0 0",

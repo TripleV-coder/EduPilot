@@ -390,7 +390,7 @@ function PromotionEngineContent() {
                    <Save className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                   <h3 className="text-lg font-black tracking-tight">Appliquer les promotions</h3>
+                   <h2 className="text-lg font-black tracking-tight">Appliquer les promotions</h2>
                    <p className="text-xs text-muted-foreground">
                      {decidedStudents.length} décision(s) seront appliquées vers l&apos;année cible.
                      {undecidedCount > 0 && ` ${undecidedCount} élève(s) « à décider » resteront inchangés.`}

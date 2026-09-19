@@ -151,7 +151,7 @@ export default function ComplianceDashboardPage() {
                             <Card className="border-border shadow-sm border-t-4 border-t-success">
                                 <CardContent className="pt-6 text-center">
                                     <ShieldCheck className="w-8 h-8 text-success mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold text-success">{dashboard.overallScore}%</h3>
+                                    <p className="text-3xl font-bold text-success">{dashboard.overallScore}%</p>
                                     <p className="text-sm font-medium mt-1 text-success">Score de Conformité</p>
                                 </CardContent>
                             </Card>
@@ -159,9 +159,9 @@ export default function ComplianceDashboardPage() {
                             <Card className="border-border shadow-sm">
                                 <CardContent className="pt-6 text-center">
                                     <Users className="w-8 h-8 text-primary mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold">
+                                    <p className="text-3xl font-bold">
                                         {dashboard.consentRate === null ? "—" : `${dashboard.consentRate}%`}
-                                    </h3>
+                                    </p>
                                     <p className="text-sm text-muted-foreground mt-1">
                                         Comptes ayant accepté les conditions{dashboard.consentRate === null ? " · non mesuré" : ""}
                                     </p>
@@ -171,7 +171,7 @@ export default function ComplianceDashboardPage() {
                             <Card className="border-border shadow-sm border-t-4 border-t-warning">
                                 <CardContent className="pt-6 text-center">
                                     <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-2" />
-                                    <h3 className="text-3xl font-bold">{dashboard.pendingPolicies}</h3>
+                                    <p className="text-3xl font-bold">{dashboard.pendingPolicies}</p>
                                     <p className="text-sm text-muted-foreground mt-1">Règles de conservation à activer</p>
                                 </CardContent>
                             </Card>

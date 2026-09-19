@@ -415,7 +415,7 @@ export default function TeacherDetailPage() {
                       {session?.user?.role === "SUPER_ADMIN" ? (
                         <div className="space-y-4 rounded-lg border p-4">
                           <div>
-                            <h3 className="text-sm font-semibold">Affectations établissements</h3>
+                            <h2 className="text-sm font-semibold">Affectations établissements</h2>
                             <p className="text-sm text-muted-foreground">
                               Choisissez les établissements accessibles par cet enseignant et définissez l’école principale.
                             </p>

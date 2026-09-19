@@ -204,7 +204,8 @@ export function RoleOnboardShell({
                 </div>
             </aside>
 
-            <main style={{ display: "flex", flexDirection: "column", background: "var(--eduflow-surface-card)" }}>
+            {/* Section, pas <main> : le shell du tableau de bord fournit déjà le repère principal. */}
+            <section style={{ display: "flex", flexDirection: "column", background: "var(--eduflow-surface-card)" }}>
                 <header
                     style={{
                         padding: "20px 36px",
@@ -266,7 +267,7 @@ export function RoleOnboardShell({
                         {nextLabel}
                     </Button>
                 </footer>
-            </main>
+            </section>
         </div>
     );
 }

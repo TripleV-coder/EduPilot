@@ -108,7 +108,7 @@ function SchoolCyclesContent() {
                         {data.cycles.map((c) => {
                             const on = current.has(c.level);
                             return (
-                                <Card key={c.level} interactive onClick={() => toggle(c.level)} padding={18}>
+                                <Card key={c.level} interactive pressed={on} onClick={() => toggle(c.level)} padding={18}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                                         <div
                                             aria-hidden

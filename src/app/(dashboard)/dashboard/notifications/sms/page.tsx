@@ -341,9 +341,9 @@ export default function TemplatesPage() {
                 }}
               >
                 <div>
-                  <h3 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                  <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                     {active.name}
-                  </h3>
+                  </h2>
                   <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                     Multi-canaux · {active.autoTrigger ?? "Déclenché manuellement"}
                   </div>
@@ -376,6 +376,7 @@ export default function TemplatesPage() {
                   <div>
                     <SubLabel>SMS · 160 caractères par segment</SubLabel>
                     <textarea
+                      aria-label="Texte du SMS"
                       value={currentBody}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={6}

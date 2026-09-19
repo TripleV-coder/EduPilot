@@ -226,7 +226,7 @@ export default function NewUserPage() {
                                 <div className="mx-auto w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center mb-4">
                                     <CheckCircle className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-success">Utilisateur créé avec succès !</h3>
+                                <h2 className="text-xl font-bold text-success">Utilisateur créé avec succès !</h2>
 
                                 <Card className="bg-background max-w-md mx-auto p-4 text-left border-dashed shadow-sm">
                                     <p className="text-sm text-muted-foreground mb-2 flex flex-center gap-2">

@@ -83,7 +83,7 @@ export default function CourseDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center py-24 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive/50 mb-4" />
-                <h3 className="text-xl font-bold">Cours non trouvé</h3>
+                <h2 className="text-xl font-bold">Cours non trouvé</h2>
                 <Link href="/dashboard/courses" className="mt-4">
                     <Button variant="outline">Retour à la liste</Button>
                 </Link>
@@ -123,10 +123,10 @@ export default function CourseDetailPage() {
                         </Card>
 
                         <div className="space-y-4">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
                                 <Layers className="w-5 h-5 text-primary" />
                                 Programme du cours
-                            </h3>
+                            </h2>
                             
                             {course.modules.sort((a, b) => a.order - b.order).map((module) => (
                                 <Card key={module.id} className="border-border shadow-sm overflow-hidden">

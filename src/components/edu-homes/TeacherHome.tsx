@@ -82,9 +82,9 @@ export function TeacherHome({ userName, schoolName, periodName, data }: TeacherH
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <div>
-                                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                     Mes classes — {periodName ?? "période en cours"}
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         fontSize: 11,
@@ -162,9 +162,9 @@ export function TeacherHome({ userName, schoolName, periodName, data }: TeacherH
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <div>
-                                <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                     Élèves à suivre
-                                </h3>
+                                </h2>
                                 <p
                                     style={{
                                         fontSize: 11,
@@ -343,9 +343,9 @@ function TodayScheduleCard({ schedule }: { schedule: TeacherTodaySlot[] }) {
                 style={{ borderColor: "var(--eduflow-border-subtle)" }}
             >
                 <div>
-                    <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                         Aujourd&apos;hui
-                    </h3>
+                    </h2>
                     <p
                         style={{
                             fontSize: 11,

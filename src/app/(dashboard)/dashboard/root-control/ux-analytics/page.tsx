@@ -226,9 +226,9 @@ function SectionHeader({ icon, title }: { icon: "sparkle" | "info" | "cards"; ti
             style={{ borderColor: "var(--eduflow-border-subtle)" }}
         >
             <Icon name={icon} size={18} color="var(--brand-700)" />
-            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                 {title}
-            </h3>
+            </h2>
         </div>
     );
 }

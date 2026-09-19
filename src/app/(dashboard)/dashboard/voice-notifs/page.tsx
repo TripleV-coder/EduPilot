@@ -402,12 +402,12 @@ function VoiceNotifsContent() {
                             gap: 8,
                         }}
                     >
-                        <h3
+                        <h2
                             className="eduflow-display"
                             style={{ fontSize: 15, margin: 0 }}
                         >
                             Campagnes récentes
-                        </h3>
+                        </h2>
                         <Badge variant="brand" size="sm">
                             {numberFr.format(campaigns.length)} affichée
                             {campaigns.length > 1 ? "s" : ""}
@@ -417,12 +417,12 @@ function VoiceNotifsContent() {
                     {campaigns.length === 0 ? (
                         <div style={{ padding: 36, textAlign: "center" }}>
                             <Icon name="sparkle" size={28} color="var(--brand-600)" />
-                            <h4
+                            <h3
                                 className="eduflow-display"
                                 style={{ fontSize: 15, margin: "12px 0 0" }}
                             >
                                 Aucune campagne vocale pour l&apos;instant
-                            </h4>
+                            </h3>
                             <p
                                 style={{
                                     fontSize: 12,

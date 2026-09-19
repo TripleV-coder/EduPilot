@@ -546,8 +546,9 @@ export default function ClassDetailsPage() {
                         <Card>
                             <CardContent className="py-4">
                                 <div className="flex items-center gap-4">
-                                    <label className="text-sm font-medium">Matière :</label>
+                                    <label htmlFor="class-subject-filter" className="text-sm font-medium">Matière :</label>
                                     <select
+                                        id="class-subject-filter"
                                         className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                         value={selectedSubjectId || ""}
                                         onChange={(e) => setSelectedSubjectId(e.target.value || null)}

@@ -221,7 +221,7 @@ function AddRoomForm({
                                 value={form.type}
                                 onValueChange={(val) => setForm({ ...form, type: val })}
                             >
-                                <SelectTrigger className={errors.type ? "border-destructive" : ""}>
+                                <SelectTrigger aria-label="Type de salle" className={errors.type ? "border-destructive" : ""}>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -381,7 +381,7 @@ function EditRoomDialog({
                             value={form.type}
                             onValueChange={(val) => setForm({ ...form, type: val })}
                         >
-                            <SelectTrigger className={errors.type ? "border-destructive" : ""}>
+                            <SelectTrigger aria-label="Type de salle" className={errors.type ? "border-destructive" : ""}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -628,9 +628,9 @@ export default function RoomsPage() {
                                         </Badge>
                                     </div>
 
-                                    <h3 className="font-bold text-lg text-foreground">
+                                    <h2 className="font-bold text-lg text-foreground">
                                         {room.name}
-                                    </h3>
+                                    </h2>
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 mb-4">
                                         <MapPin className="w-3.5 h-3.5" /> {room.building}
                                     </div>
@@ -671,7 +671,7 @@ export default function RoomsPage() {
                                         >
                                             Modifier
                                         </Button>
-                                        <Button
+                                        <Button aria-label="Supprimer la salle"
                                             variant="outline"
                                             className="h-8 text-xs text-destructive hover:text-destructive shrink-0"
                                             onClick={() => handleDelete(room.id)}
@@ -692,7 +692,7 @@ export default function RoomsPage() {
                                 <div className="p-3 bg-background rounded-full mb-3 shadow-sm border border-border">
                                     <Plus className="w-6 h-6 text-muted-foreground" />
                                 </div>
-                                <h3 className="font-medium text-foreground">Nouvelle Salle</h3>
+                                <h2 className="font-medium text-foreground">Nouvelle Salle</h2>
                                 <p className="text-sm text-muted-foreground mt-1 px-4">
                                     Créer un nouvel espace d&apos;apprentissage
                                 </p>

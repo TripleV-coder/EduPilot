@@ -236,7 +236,7 @@ export default function RootSystemMapPage() {
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-base font-bold">{organization.name}</h3>
+                            <h2 className="text-base font-bold">{organization.name}</h2>
                             <Badge variant="outline" className="font-mono text-[10px]">{organization.code}</Badge>
                             <Badge
                               variant="outline"

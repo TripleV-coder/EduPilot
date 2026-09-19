@@ -360,12 +360,12 @@ export default function NotificationsCenterPage() {
                                         >
                                             <Icon name="bell" size={26} color="var(--brand-700)" />
                                         </div>
-                                        <h3
+                                        <h2
                                             className="eduflow-display"
                                             style={{ fontSize: 18, margin: 0 }}
                                         >
                                             Tout est calme
-                                        </h3>
+                                        </h2>
                                         <p
                                             style={{
                                                 fontSize: 13,
@@ -487,12 +487,12 @@ function NotifGroup({
                     alignItems: "center",
                 }}
             >
-                <h3
+                <h2
                     className="eduflow-display"
                     style={{ fontSize: 14, margin: 0, fontWeight: 700 }}
                 >
                     {group.title}
-                </h3>
+                </h2>
                 <span
                     style={{
                         fontSize: 11,
@@ -639,7 +639,7 @@ function PreviewCard({ preview }: { preview: NonNullable<Preview> }) {
                 <Badge variant={preview.accent} size="sm">
                     {preview.badge}
                 </Badge>
-                <h3
+                <h2
                     className="eduflow-display"
                     style={{
                         fontSize: 16,
@@ -648,7 +648,7 @@ function PreviewCard({ preview }: { preview: NonNullable<Preview> }) {
                     }}
                 >
                     {preview.title}
-                </h3>
+                </h2>
                 <p
                     style={{
                         fontSize: 11,

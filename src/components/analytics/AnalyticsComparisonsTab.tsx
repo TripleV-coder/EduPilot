@@ -39,7 +39,7 @@ export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: An
                         <Scale className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold uppercase tracking-tight">Comparaisons Analytiques</h3>
+                        <h2 className="text-sm font-bold uppercase tracking-tight">Comparaisons Analytiques</h2>
                         <p className="text-[10px] text-muted-foreground font-medium">Comparez les performances entre classes ou entre périodes.</p>
                     </div>
                 </div>
@@ -66,7 +66,7 @@ export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: An
                         <span className="text-xs font-bold uppercase text-muted-foreground">Classe à analyser</span>
                     </div>
                     <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                        <SelectTrigger className="w-[200px] h-9 text-xs">
+                        <SelectTrigger aria-label="Classe à analyser" className="w-[200px] h-9 text-xs">
                             <SelectValue placeholder="Choisir une classe" />
                         </SelectTrigger>
                         <SelectContent>

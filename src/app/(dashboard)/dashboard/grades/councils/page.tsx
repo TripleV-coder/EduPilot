@@ -226,9 +226,9 @@ export default function CouncilsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
-                        <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                             Configurer le conseil
-                        </h3>
+                        </h2>
                     </div>
                     <div className="px-5 py-5">
                         <div
@@ -301,9 +301,9 @@ export default function CouncilsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h3 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
                                 Aucun conseil préparé
-                            </h3>
+                            </h2>
                             <p
                                 style={{
                                     fontSize: 13,
@@ -379,12 +379,12 @@ export default function CouncilsPage() {
                                         borderBottom: "1px solid var(--eduflow-border-subtle)",
                                     }}
                                 >
-                                    <h3
+                                    <h2
                                         className="eduflow-display"
                                         style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Élèves · validation bulletins
-                                    </h3>
+                                    </h2>
                                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         <Chip
                                             active={filter === "all"}

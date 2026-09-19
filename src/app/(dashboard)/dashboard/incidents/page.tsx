@@ -296,11 +296,11 @@ export default function IncidentsPage() {
         },
         {
             id: "actions",
-            header: "",
+            header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => (
                 <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/dashboard/incidents/${row.original.id}`}>
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                    <Link href={`/dashboard/incidents/${row.original.id}`} aria-label="Ouvrir l'incident">
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" aria-hidden />
                     </Link>
                 </Button>
             ),

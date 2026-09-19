@@ -129,7 +129,7 @@ export default function ComplianceDashboardPage() {
                                             <span className="bg-destructive/10 text-destructive px-2 py-0.5 rounded text-xs font-semibold">Critique</span>
                                         )}
                                     </div>
-                                    <Progress value={data.summary.complianceScore} className="h-2 mt-4"
+                                    <Progress aria-label="Score de conformité" value={data.summary.complianceScore} className="h-2 mt-4"
                                         indicatorColor={
                                             data.summary.complianceScore >= 90 ? "bg-[hsl(var(--success))]" :
                                                 data.summary.complianceScore >= 70 ? "bg-warning" : "bg-destructive"

@@ -440,7 +440,7 @@ export default function UsersPage() {
                                                     )}
                                                 </Td>
                                                 <Td center>
-                                                    <Button
+                                                    <Button aria-label={`Supprimer ${fullName}`}
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="x"
@@ -453,7 +453,6 @@ export default function UsersPage() {
                                                             )
                                                         }
                                                     >
-                                                        {""}
                                                     </Button>
                                                 </Td>
                                             </tr>
