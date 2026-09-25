@@ -91,7 +91,7 @@ function CagnottePageContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cagnottes & pots communs"
                     description="Chargement des cagnottes actives…"
@@ -104,7 +104,7 @@ function CagnottePageContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cagnottes & pots communs"
                     description="Impossible de charger les cagnottes"
@@ -120,7 +120,7 @@ function CagnottePageContent() {
 
     return (
         <>
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Cagnottes & pots communs"
                 description="Sorties scolaires · fournitures partagées · cadeaux profs · 100% transparent"
@@ -161,10 +161,10 @@ function CagnottePageContent() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .cag-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                     .cag-banner {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -201,7 +201,7 @@ function EmptyCagnotteState() {
             </div>
             <h2
                 className="eduflow-display"
-                style={{ fontSize: 18, margin: "0 0 8px" }}
+                style={{ fontSize: 16, margin: "0 0 8px" }}
             >
                 Aucune cagnotte ouverte
             </h2>
@@ -358,7 +358,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                                     background: `var(--${tone}-600)`,
                                     border: "2px solid var(--surface-card)",
                                     color: "#fff",
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: 700,
                                     display: "grid",
                                     placeItems: "center",
@@ -377,7 +377,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                                     background: "var(--surface-sunken)",
                                     border: "2px solid var(--surface-card)",
                                     color: "var(--text-secondary)",
-                                    fontSize: 9,
+                                    fontSize: 11,
                                     fontWeight: 700,
                                     display: "grid",
                                     placeItems: "center",

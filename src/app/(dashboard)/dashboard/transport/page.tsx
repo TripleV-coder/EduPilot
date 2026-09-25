@@ -71,7 +71,7 @@ export default function TransportPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Transport scolaire"
                     description={
@@ -238,7 +238,7 @@ export default function TransportPage() {
                                         </div>
                                         <h2
                                             className="eduflow-display"
-                                            style={{ fontSize: 18, margin: "0 0 6px" }}
+                                            style={{ fontSize: 16, margin: "0 0 6px" }}
                                         >
                                             {data.configured
                                                 ? "Carte GPS non branchée"
@@ -334,7 +334,7 @@ export default function TransportPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -393,7 +393,7 @@ export default function TransportPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .transport-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

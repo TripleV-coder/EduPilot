@@ -261,10 +261,8 @@ export default function TemplatesPage() {
                     <div
                       style={{
                         padding: "10px 14px",
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
                         color: "var(--eduflow-text-tertiary)",
                         background: "var(--eduflow-surface-sunken)",
                       }}
@@ -433,7 +431,7 @@ export default function TemplatesPage() {
                           type="button"
                           onClick={() => setDraft((currentBody || "") + " " + v)}
                           style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             padding: "3px 8px",
                             borderRadius: 6,
                             background: "var(--brand-50)",
@@ -473,7 +471,7 @@ export default function TemplatesPage() {
                       >
                         <div
                           style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             color: "var(--eduflow-text-tertiary)",
                             marginBottom: 6,
                           }}
@@ -509,10 +507,10 @@ export default function TemplatesPage() {
       <style jsx global>{`
         @media (max-width: 960px) {
           .tpl-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: minmax(0, 1fr) !important;
           }
           .tpl-edit {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: minmax(0, 1fr) !important;
           }
         }
       `}</style>

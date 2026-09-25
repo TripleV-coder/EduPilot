@@ -6,7 +6,7 @@ import { Permission } from "@/lib/rbac/permissions";
 export default function DebtRiskPage() {
     return (
         <PageGuard permission={[Permission.FINANCE_READ, Permission.PAYMENT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
-            <PageShell className="pb-12">
+            <PageShell>
                 <DebtRiskBoard />
             </PageShell>
         </PageGuard>

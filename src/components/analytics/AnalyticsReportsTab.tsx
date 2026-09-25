@@ -156,14 +156,14 @@ export function AnalyticsReportsTab() {
                                 <Layout className="w-4 h-4" />
                             </div>
                             <div>
-                                <CardTitle className="text-sm font-bold uppercase tracking-tight">Configuration du Rapport</CardTitle>
-                                <CardDescription className="text-[10px]">Personnalisez le contenu et l&apos;ordre des sections.</CardDescription>
+                                <CardTitle className="text-sm font-bold tracking-tight">Configuration du Rapport</CardTitle>
+                                <CardDescription className="text-[11px]">Personnalisez le contenu et l&apos;ordre des sections.</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Titre du document</label>
+                            <label className="text-[11px] font-bold text-muted-foreground">Titre du document</label>
                             <Input
                                 value={reportTitle}
                                 onChange={(e) => setReportTitle(e.target.value)}
@@ -172,7 +172,7 @@ export function AnalyticsReportsTab() {
                         </div>
 
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sections à inclure (Glisser pour réordonner)</label>
+                            <label className="text-[11px] font-bold text-muted-foreground">Sections à inclure (Glisser pour réordonner)</label>
                             <div className="space-y-2">
                                 {reportBlockOrder.map((key) => (
                                     <div
@@ -194,9 +194,9 @@ export function AnalyticsReportsTab() {
                                         />
                                         <div className="flex-1">
                                             <p className="text-sm font-bold">{blockLabels[key].label}</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium">{blockLabels[key].desc}</p>
+                                            <p className="text-[11px] text-muted-foreground font-medium">{blockLabels[key].desc}</p>
                                         </div>
-                                        {reportBlocks[key] && <Badge variant="secondary" className="text-[9px] font-bold bg-primary/5 text-primary border-primary/10">Inclus</Badge>}
+                                        {reportBlocks[key] && <Badge variant="secondary" className="text-[11px] font-bold bg-primary/5 text-primary border-primary/10">Inclus</Badge>}
                                     </div>
                                 ))}
                             </div>
@@ -207,13 +207,13 @@ export function AnalyticsReportsTab() {
 
             {/* Actions & History */}
             <div className="lg:col-span-1 space-y-6">
-                <Card className="dashboard-block border-border shadow-lg overflow-hidden" data-reveal>
+                <Card className="dashboard-block border-border overflow-hidden" data-reveal>
                     <CardHeader className="bg-primary text-primary-foreground">
-                        <CardTitle className="text-sm font-bold uppercase tracking-widest">Actions</CardTitle>
+                        <CardTitle className="text-sm font-bold">Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-3">
                         <Button
-                            className="w-full h-12 gap-3 font-bold uppercase tracking-tighter shadow-md action-critical"
+                            className="w-full h-12 gap-3 font-bold tracking-tighter shadow-md action-critical"
                             onClick={() => handleExport("PDF")}
                             disabled={busy !== null}
                         >
@@ -222,14 +222,14 @@ export function AnalyticsReportsTab() {
                         </Button>
                         <Button
                             variant="outline"
-                            className="w-full h-12 gap-3 font-bold uppercase tracking-tighter"
+                            className="w-full h-12 gap-3 font-bold tracking-tighter"
                             onClick={() => handleExport("CSV")}
                             disabled={busy !== null}
                         >
                             {busy === "CSV" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                             {busy === "CSV" ? "Génération…" : "Exporter CSV"}
                         </Button>
-                        <p className="text-[10px] text-center text-muted-foreground mt-4 italic">
+                        <p className="text-[11px] text-center text-muted-foreground mt-4 italic">
                             Le rapport inclura les filtres actuellement actifs dans la barre de contexte globale.
                         </p>
                     </CardContent>
@@ -237,7 +237,7 @@ export function AnalyticsReportsTab() {
 
                 <Card className="dashboard-block border-border bg-muted/5" data-reveal>
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                        <CardTitle className="text-[11px] font-bold text-muted-foreground flex items-center gap-2">
                             <Clock className="w-3.5 h-3.5" />
                             Rapports récents
                         </CardTitle>
@@ -256,11 +256,11 @@ export function AnalyticsReportsTab() {
                                     >
                                         <div>
                                             <p className="text-xs font-bold">{entry.title}</p>
-                                            <p className="text-[10px] text-muted-foreground">
+                                            <p className="text-[11px] text-muted-foreground">
                                                 {entry.format} · {new Date(entry.generatedAt).toLocaleString("fr-FR")}
                                             </p>
                                         </div>
-                                        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                                        <span className="text-[11px] font-bold text-muted-foreground">
                                             {entry.format}
                                         </span>
                                     </div>

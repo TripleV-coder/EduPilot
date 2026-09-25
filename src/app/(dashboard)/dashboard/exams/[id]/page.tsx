@@ -20,6 +20,7 @@ import { t } from "@/lib/i18n";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { useSession } from "next-auth/react";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type ExamDetail = {
   id: string;
@@ -69,7 +70,7 @@ export default function ExamDetailPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
       </div>
     );
   }

@@ -147,8 +147,8 @@ export default function OrientationCepPage() {
                 <PageHeader
                     greeting={
                         data
-                            ? `Passage CM2 → 6ᵉ · CEP · ${data.class.name}`
-                            : "Passage CM2 → 6ᵉ · CEP"
+                            ? `Passage de CM2 en 6ᵉ · CEP · ${data.class.name}`
+                            : "Passage de CM2 en 6ᵉ · CEP"
                     }
                     sub={
                         data
@@ -179,7 +179,7 @@ export default function OrientationCepPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="school" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Configurer la session CEP
                         </h2>
                     </div>
@@ -227,7 +227,7 @@ export default function OrientationCepPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -270,7 +270,7 @@ export default function OrientationCepPage() {
                             >
                                 <Icon name="school" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Session CEP à préparer
                             </h2>
                             <p
@@ -363,8 +363,6 @@ export default function OrientationCepPage() {
                                                 fontSize: 11,
                                                 fontWeight: 700,
                                                 color: `var(--eduflow-${c.color}-700)`,
-                                                textTransform: "uppercase",
-                                                letterSpacing: "0.08em",
                                                 marginBottom: 6,
                                             }}
                                         >
@@ -433,12 +431,10 @@ export default function OrientationCepPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
-                                                        letterSpacing: "0.06em",
-                                                        textTransform: "uppercase",
                                                         whiteSpace: "nowrap",
                                                     }}
                                                 >
@@ -571,7 +567,7 @@ export default function OrientationCepPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .cycles-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -600,8 +596,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

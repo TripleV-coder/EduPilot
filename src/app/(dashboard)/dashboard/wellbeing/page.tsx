@@ -164,7 +164,7 @@ function WellbeingPageContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cellule d'écoute & bien-être"
                     description="Chargement…"
@@ -177,7 +177,7 @@ function WellbeingPageContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cellule d'écoute & bien-être"
                     description="Impossible de charger les données"
@@ -196,7 +196,7 @@ function WellbeingPageContent() {
 
     return (
         <>
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Cellule d'écoute & bien-être"
                 description="Climat scolaire · signalements anonymes · suivi psychologique · prévention harcèlement"
@@ -293,7 +293,7 @@ function WellbeingPageContent() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .wb-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -327,7 +327,7 @@ function EmptyWellbeingState() {
             >
                 <Icon name="sparkle" size={36} color="var(--brand-700)" />
             </div>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 8px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 8px" }}>
                 Cellule d&apos;écoute prête à démarrer
             </h2>
             <p
@@ -371,10 +371,8 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                     color: `var(--${tone}-700)`,
                 }}
             >
@@ -502,7 +500,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--text-tertiary)",
                                         marginTop: 2,
                                     }}
@@ -544,7 +542,7 @@ function ClimatePulseCard({
 }) {
     return (
         <Card padding={20}>
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
+            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
             {weeks.length === 0 ? (
                 <p
                     style={{
@@ -606,7 +604,7 @@ function ClimatePulseCard({
                                 />
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--text-tertiary)",
                                     }}
                                 >
@@ -676,10 +674,8 @@ function SosCard() {
         >
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
                     opacity: 0.8,
                 }}
             >
@@ -776,10 +772,9 @@ function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
                             <div style={{ textAlign: "center" }}>
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--text-tertiary)",
                                         fontWeight: 700,
-                                        textTransform: "uppercase",
                                     }}
                                 >
                                     {FR_DAY.format(date).replace(".", "")}
@@ -801,7 +796,7 @@ function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--text-tertiary)",
                                     }}
                                 >
@@ -857,7 +852,7 @@ function AiSignalsCard() {
                             lineHeight: 1.55,
                         }}
                     >
-                        Croisement absences + chute notes + commentaires enseignants → alerte
+                        Croisement absences, chute des notes et commentaires enseignants pour déclencher une alerte
                         si pattern de décrochage. Modèle entraîné sur 8 000 trajectoires
                         anonymisées.
                     </p>
@@ -869,7 +864,7 @@ function AiSignalsCard() {
                             fontWeight: 600,
                         }}
                     >
-                        Module IA à activer côté infra → les rapports {`AUTO_IA`} apparaissent
+                        Module IA à activer côté infrastructure : les rapports {`AUTO_IA`} apparaissent
                         ici une fois branché.
                     </p>
                 </div>

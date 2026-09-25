@@ -283,7 +283,7 @@ export default function GradesEntryPage() {
             }
             if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
             setSuccess(true);
-            window.scrollTo(0, 0);
+            document.getElementById("main-content")?.scrollTo({ top: 0 });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
@@ -453,7 +453,7 @@ export default function GradesEntryPage() {
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
             <PageShell
-                className={`pb-32 ${isFocusMode ? "max-w-7xl" : "max-w-6xl"}`}
+                className="pb-32"
             >
                 <div className="flex items-center gap-3">
                     {!isFocusMode ? (
@@ -481,7 +481,7 @@ export default function GradesEntryPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -509,7 +509,7 @@ export default function GradesEntryPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--brand-500)",
+                            border: "1px solid var(--eduflow-brand-200)",
                             background: "var(--brand-50)",
                         }}
                     >
@@ -552,7 +552,7 @@ export default function GradesEntryPage() {
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <Icon name="cards" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Paramètres de l&apos;évaluation
                             </h2>
                         </div>
@@ -673,7 +673,7 @@ export default function GradesEntryPage() {
                                 <div>
                                     <h3
                                         className="eduflow-display"
-                                        style={{ fontSize: 18, margin: 0 }}
+                                        style={{ fontSize: 16, margin: 0 }}
                                     >
                                         Saisie rapide{subjectName ? ` · ${subjectName}` : ""}
                                         {className ? ` · ${className}` : ""}
@@ -844,7 +844,7 @@ export default function GradesEntryPage() {
                                                                         <div
                                                                             className="eduflow-mono"
                                                                             style={{
-                                                                                fontSize: 10,
+                                                                                fontSize: 11,
                                                                                 color: "var(--eduflow-text-tertiary)",
                                                                             }}
                                                                         >

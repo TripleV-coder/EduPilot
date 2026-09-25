@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import type { AcademicYear, ClassLevel } from "@prisma/client";
+import { Spinner } from "@/components/edu";
 
 type Fee = {
     id: string;
@@ -214,7 +215,7 @@ export default function FeesManagementPage() {
                                 <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
                                     <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
                                     <Button type="submit" disabled={saving} className="gap-2">
-                                        {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : <Save className="h-4 w-4" />}
+                                        {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                         {t("common.save")}
                                     </Button>
                                 </div>
@@ -225,7 +226,7 @@ export default function FeesManagementPage() {
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {loading ? (
-                        <div className="col-span-full py-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+                        <div className="col-span-full py-12 flex justify-center"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                     ) : fees.length === 0 ? (
                         <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
                             <DollarSign className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -236,7 +237,7 @@ export default function FeesManagementPage() {
                         fees.map((fee) => (
                             <Card key={fee.id} className="border-border hover:shadow-md transition-shadow relative overflow-hidden group">
                                 {!fee.isRequired && (
-                                    <div className="absolute top-0 right-0 bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-1 rounded-bl-lg">
+                                    <div className="absolute top-0 right-0 bg-secondary/10 text-secondary text-[11px] font-bold px-2 py-1 rounded-bl-lg">
                                         Optionnel
                                     </div>
                                 )}
@@ -248,12 +249,12 @@ export default function FeesManagementPage() {
 
                                             <div className="flex gap-2 flex-wrap mt-3">
                                                 {fee.classLevelCode && (
-                                                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                                    <span className="text-[11px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                                                         Niv: {fee.classLevel?.name || fee.classLevelCode}
                                                     </span>
                                                 )}
                                                 {fee.academicYearId && (
-                                                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                                                    <span className="text-[11px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                                                         {fee.academicYear?.name || "Année spécifique"}
                                                     </span>
                                                 )}
@@ -261,10 +262,10 @@ export default function FeesManagementPage() {
                                         </div>
                                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-end">
                                             <div>
-                                                <span className="text-[10px] text-muted-foreground block mb-0.5">Montant unitaire</span>
+                                                <span className="text-[11px] text-muted-foreground block mb-0.5">Montant unitaire</span>
                                                 <span className="font-bold text-xl text-primary">{formatCurrency(fee.amount)}</span>
                                             </div>
-                                            <Button aria-label="Supprimer le frais" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button aria-label="Supprimer le frais" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity max-md:h-11 max-md:w-11">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>

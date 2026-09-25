@@ -6,7 +6,7 @@ import { Permission } from "@/lib/rbac/permissions";
 export default function DropoutRiskPage() {
     return (
         <PageGuard permission={Permission.ANALYTICS_VIEW} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <PageShell className="pb-12">
+            <PageShell>
                 <StudentRiskBoard
                     mode="dropout"
                     title="Décrochage"

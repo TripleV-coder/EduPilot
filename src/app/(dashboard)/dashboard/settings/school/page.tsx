@@ -215,7 +215,7 @@ export default function SchoolIdentityPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+            <div className="space-y-4 pb-12">
                 <PageHeader
                     title="Paramètres"
                     description="Configuration de l'établissement, branding, conformité"
@@ -255,7 +255,7 @@ export default function SchoolIdentityPage() {
                             </div>
                         ) : (
                             <>
-                                <div className="grid gap-8" style={{ gridTemplateColumns: "1fr 320px", marginBottom: 24 }}>
+                                <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 320px", marginBottom: 24 }}>
                                     <div className="flex flex-col gap-3.5">
                                         <Field label="Nom officiel" required>
                                             <Input
@@ -450,7 +450,7 @@ export default function SchoolIdentityPage() {
                                             rel="noreferrer"
                                             style={{ display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 600, color: "var(--brand-700)" }}
                                         >
-                                            Voir la fiche publique ↗
+                                            Voir la fiche publique
                                         </a>
                                     ) : null}
 
@@ -541,10 +541,8 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
             }}
         >
@@ -571,15 +569,13 @@ function Field({
                     style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
                         color: "var(--eduflow-text-secondary)",
                     }}
                 >
                     {label}{required && <span style={{ color: "var(--eduflow-danger-600)" }}> *</span>}
                 </span>
                 {hint && (
-                    <span style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                    <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                         {hint}
                     </span>
                 )}

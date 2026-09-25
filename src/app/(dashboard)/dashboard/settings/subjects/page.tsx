@@ -13,6 +13,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { BookOpen, Plus, Save, AlertCircle, CheckCircle, Bookmark, FileText } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type Subject = {
     id: string;
@@ -251,7 +252,7 @@ export default function SubjectsSettingsPage() {
                                         <div className="flex justify-end gap-3 pt-2">
                                             <Button type="button" variant="outline" onClick={() => setIsAddingSubject(false)}>{t("common.cancel")}</Button>
                                             <Button type="submit" disabled={saving} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                                                {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : <Save className="h-4 w-4" />}
+                                                {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                                 Sauvegarder
                                             </Button>
                                         </div>
@@ -262,7 +263,7 @@ export default function SubjectsSettingsPage() {
 
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {loading ? (
-                                <div className="col-span-full py-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+                                <div className="col-span-full py-12 flex justify-center"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                             ) : subjects.length === 0 ? (
                                 <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
                                     <Bookmark className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -277,12 +278,12 @@ export default function SubjectsSettingsPage() {
                                                 <div>
                                                     <h3 className="font-bold text-base flex items-center gap-2">
                                                         {subject.name}
-                                                        {!subject.isActive && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded uppercase">Inactif</span>}
+                                                        {!subject.isActive && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Inactif</span>}
                                                     </h3>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{subject.code}</span>
                                                         {subject.category && (
-                                                            <span className="text-[10px] bg-primary/10 text-primary dark:bg-primary/20 px-1.5 py-0.5 rounded">
+                                                            <span className="text-[11px] bg-primary/10 text-primary dark:bg-primary/20 px-1.5 py-0.5 rounded">
                                                                 {subject.category}
                                                             </span>
                                                         )}
@@ -348,7 +349,7 @@ export default function SubjectsSettingsPage() {
                                         <div className="flex justify-end gap-3 pt-2">
                                             <Button type="button" variant="outline" onClick={() => setIsAddingEvalType(false)}>{t("common.cancel")}</Button>
                                             <Button type="submit" disabled={saving} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
-                                                {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : <Save className="h-4 w-4" />}
+                                                {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                                 Sauvegarder
                                             </Button>
                                         </div>
@@ -359,7 +360,7 @@ export default function SubjectsSettingsPage() {
 
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {loading ? (
-                                <div className="col-span-full py-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
+                                <div className="col-span-full py-12 flex justify-center"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                             ) : evalTypes.length === 0 ? (
                                 <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
                                     <FileText className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />

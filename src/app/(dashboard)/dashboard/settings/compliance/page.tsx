@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Permission } from "@/lib/rbac/permissions";
 import { Shield, AlertCircle, CheckCircle, Database, Users, Activity, FileText, Bell } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Spinner } from "@/components/edu";
 
 type ComplianceAlert = {
     level: string;
@@ -96,7 +97,7 @@ export default function ComplianceDashboardPage() {
 
                 {loading && (
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
                     </div>
                 )}
 
@@ -226,7 +227,7 @@ export default function ComplianceDashboardPage() {
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm text-left">
-                                            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-y">
+                                            <thead className="text-xs text-muted-foreground bg-muted/50 border-y">
                                                 <tr>
                                                     <th className="px-4 py-3 font-medium">Utilisateur</th>
                                                     <th className="px-4 py-3 font-medium">Type</th>
@@ -242,7 +243,7 @@ export default function ComplianceDashboardPage() {
                                                             <span className="block text-xs text-muted-foreground">{req.user?.email}</span>
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <span className="bg-secondary/10 text-secondary text-[10px] px-2 py-1 rounded-full uppercase font-medium">
+                                                            <span className="bg-secondary/10 text-secondary text-[11px] px-2 py-1 rounded-full font-medium">
                                                                 {req.requestType}
                                                             </span>
                                                         </td>
@@ -250,7 +251,7 @@ export default function ComplianceDashboardPage() {
                                                             {new Date(req.requestedAt).toLocaleDateString('fr-FR')}
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-medium ${req.status === 'PENDING' ? 'bg-warning/10 text-warning' :
+                                                            <span className={`text-[11px] px-2 py-1 rounded-full uppercase font-medium ${req.status === 'PENDING' ? 'bg-warning/10 text-warning' :
                                                                 req.status === 'COMPLETED' ? 'bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]' :
                                                                     'bg-destructive/10 text-destructive'
                                                                 }`}>

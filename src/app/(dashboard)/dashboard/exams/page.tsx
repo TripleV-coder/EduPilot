@@ -106,7 +106,7 @@ export default function ExamsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -150,7 +150,7 @@ export default function ExamsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Aucun examen disponible
                             </h2>
                             <p
@@ -337,10 +337,8 @@ function Stat({
         >
             <div
                 style={{
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >

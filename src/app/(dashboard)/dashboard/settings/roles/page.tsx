@@ -78,7 +78,7 @@ export default function RolesPermissionsPage() {
             permission={Permission.USER_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <div className="space-y-4 max-w-[1280px] mx-auto pb-12">
+            <div className="space-y-4 pb-12">
                 <PageHeader
                     title="Rôles & permissions"
                     description={`${ROLE_DESCRIPTORS.length} rôles · ${totalUsers} utilisateurs · contrôle d'accès fin`}
@@ -191,12 +191,11 @@ export default function RolesPermissionsPage() {
                                     {["Module", "Lire", "Créer", "Modifier", "Supprimer"].map((h) => (
                                         <th
                                             key={h}
-                                            className="text-left font-bold uppercase"
+                                            className="text-left font-bold"
                                             style={{
                                                 padding: "10px 16px",
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: "var(--eduflow-text-tertiary)",
-                                                letterSpacing: "0.06em",
                                             }}
                                         >
                                             {h}

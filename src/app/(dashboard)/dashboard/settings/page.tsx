@@ -156,7 +156,7 @@ export default function SettingsPage() {
     const adminFiltered = useMemo(() => filterByQuery(ADMIN_SETTINGS, search), [search]);
 
     return (
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Paramètres"
                 description="Préférences de ton compte et configuration de l'établissement."
@@ -250,8 +250,6 @@ function Section({
                         style={{
                             fontSize: 11,
                             fontWeight: 700,
-                            letterSpacing: "0.14em",
-                            textTransform: "uppercase",
                             color: "var(--brand-700)",
                         }}
                     >

@@ -24,6 +24,7 @@ import { fetcher } from "@/lib/fetcher";
 import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -362,7 +363,7 @@ export default function ClassDetailsPage() {
                                         <div className="flex justify-end gap-3 pt-2">
                                             <Button type="button" variant="outline" onClick={() => setIsAssigning(false)}>{t("common.cancel")}</Button>
                                             <Button type="submit" disabled={assigningLoading} className="gap-2">
-                                                {assigningLoading ? <span className="animate-spin rounded-full h-4 w-4 border-b-2" /> : <CheckCircle className="h-4 w-4" />}
+                                                {assigningLoading ? <Spinner size={16} /> : <CheckCircle className="h-4 w-4" />}
                                                 Assigner
                                             </Button>
                                         </div>
@@ -537,7 +538,7 @@ export default function ClassDetailsPage() {
                                 )}
                             </>
                         ) : (
-                            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+                            <div className="flex justify-center py-12"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                         )}
                     </TabsContent>
 
@@ -600,7 +601,7 @@ export default function ClassDetailsPage() {
                                 )}
                             </>
                         ) : selectedSubjectId ? (
-                            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+                            <div className="flex justify-center py-12"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                         ) : (
                             <Card className="border-dashed border-2">
                                 <CardContent className="py-16 text-center">

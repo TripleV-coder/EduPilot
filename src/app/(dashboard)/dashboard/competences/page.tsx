@@ -98,7 +98,7 @@ export default function CompetencesPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Évaluations par compétences"
                     description={
@@ -128,7 +128,7 @@ export default function CompetencesPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Configurer la grille
                         </h2>
                     </div>
@@ -176,7 +176,7 @@ export default function CompetencesPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -219,7 +219,7 @@ export default function CompetencesPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Grille MEMP à calculer
                             </h2>
                             <p
@@ -232,7 +232,7 @@ export default function CompetencesPage() {
                                 }}
                             >
                                 Choisis une classe (et éventuellement une matière) pour ventiler les
-                                évaluations existantes sur les 6 compétences MEMP (C1 → C6) selon le
+                                évaluations existantes sur les 6 compétences MEMP (C1 à C6) selon le
                                 titre de chaque évaluation.
                             </p>
                         </div>
@@ -258,10 +258,8 @@ export default function CompetencesPage() {
                                                     textAlign: "left",
                                                     background:
                                                         "var(--eduflow-surface-sunken)",
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     fontWeight: 700,
-                                                    letterSpacing: "0.06em",
-                                                    textTransform: "uppercase",
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
                                                 }}
@@ -276,10 +274,8 @@ export default function CompetencesPage() {
                                                             padding: "12px 14px",
                                                             background:
                                                                 "var(--eduflow-surface-sunken)",
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             fontWeight: 700,
-                                                            letterSpacing: "0.06em",
-                                                            textTransform: "uppercase",
                                                             color: `var(--eduflow-${STATUS_META[k].color}-700)`,
                                                             textAlign: "center",
                                                             borderLeft:
@@ -373,7 +369,7 @@ export default function CompetencesPage() {
                             className="insight-grid"
                         >
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -397,7 +393,7 @@ export default function CompetencesPage() {
                                 </p>
                             </Card>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -427,7 +423,7 @@ export default function CompetencesPage() {
                                     border: "1px solid var(--eduflow-danger-200)",
                                 }}
                             >
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -459,7 +455,7 @@ export default function CompetencesPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .insight-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -487,8 +483,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

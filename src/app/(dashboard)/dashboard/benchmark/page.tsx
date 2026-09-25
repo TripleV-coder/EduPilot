@@ -64,8 +64,6 @@ function RankBlock({
                 style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
                     opacity: 0.85,
                 }}
             >
@@ -119,7 +117,7 @@ function BenchmarkPageContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Benchmark national · MEMP open data"
                     description="Chargement du dernier snapshot…"
@@ -132,7 +130,7 @@ function BenchmarkPageContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Benchmark national · MEMP open data"
                     description="Impossible de charger le benchmark"
@@ -147,7 +145,7 @@ function BenchmarkPageContent() {
 
     if (!snapshot) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Benchmark national · MEMP open data"
                     description="Positionnement de votre établissement parmi les collèges du Bénin · anonymisé"
@@ -174,7 +172,7 @@ function BenchmarkPageContent() {
 
     return (
         <>
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Benchmark national · MEMP open data"
                 description={`Positionnement de votre établissement · anonymisé · snapshot du ${capturedAt}`}
@@ -286,11 +284,9 @@ function BenchmarkPageContent() {
                                                 style={{
                                                     padding: "10px 14px",
                                                     textAlign: i === 0 ? "left" : "right",
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     fontWeight: 700,
                                                     color: "var(--text-tertiary)",
-                                                    letterSpacing: "0.06em",
-                                                    textTransform: "uppercase",
                                                 }}
                                             >
                                                 {h}
@@ -400,7 +396,7 @@ function BenchmarkPageContent() {
                             border: "1px solid var(--success-200)",
                         }}
                     >
-                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Vos points forts · à mettre en avant</p>
+                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Vos points forts · à mettre en avant</p>
                         {strengths.length === 0 ? (
                             <p
                                 style={{
@@ -458,7 +454,7 @@ function BenchmarkPageContent() {
                             border: "1px solid var(--warning-200)",
                         }}
                     >
-                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Axes d&apos;amélioration prioritaires</p>
+                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Axes d&apos;amélioration prioritaires</p>
                         {improvements.length === 0 ? (
                             <p
                                 style={{
@@ -559,7 +555,7 @@ function BenchmarkPageContent() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .bench-rank-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                     .bench-rank-grid > div {
                         border-left: 0 !important;
@@ -569,7 +565,7 @@ function BenchmarkPageContent() {
                         border-top: 0 !important;
                     }
                     .bench-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

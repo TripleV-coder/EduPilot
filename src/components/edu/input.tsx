@@ -93,7 +93,7 @@ export function Input({
                                     : "var(--eduflow-text-tertiary)",
                                 transition: "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
                                 letterSpacing: filled ? "0.04em" : 0,
-                                textTransform: filled ? "uppercase" : "none",
+                                textTransform: filled ? "" : "none",
                             }}
                         >
                             {label}

@@ -233,8 +233,6 @@ export function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -300,8 +298,6 @@ export function FieldText({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -338,10 +334,8 @@ export function Th({ children, width }: { children: React.ReactNode; width?: num
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
                 width,
             }}

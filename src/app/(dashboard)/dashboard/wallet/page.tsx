@@ -10,6 +10,7 @@ import { fetcher } from "@/lib/fetcher";
 import { Badge, Button, Card, Icon } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { Banknote, Landmark, Repeat, Smartphone, type LucideIcon } from "lucide-react";
 
 type AccountKind = "BANK" | "MTN" | "MOOV" | "CELTIIS" | "CASH" | "OTHER";
 type Direction = "INFLOW" | "OUTFLOW";
@@ -71,13 +72,15 @@ const KIND_LABEL: Record<AccountKind, string> = {
     OTHER: "Autre",
 };
 
-const KIND_ICON: Record<AccountKind, string> = {
-    BANK: "🏦",
-    MTN: "📱",
-    MOOV: "📲",
-    CELTIIS: "💳",
-    CASH: "💰",
-    OTHER: "🔁",
+// Icônes vectorielles (thémables, lisibles partout) plutôt qu'émojis,
+// dont le rendu dépend de la police du téléphone.
+const KIND_ICON: Record<AccountKind, LucideIcon> = {
+    BANK: Landmark,
+    MTN: Smartphone,
+    MOOV: Smartphone,
+    CELTIIS: Smartphone,
+    CASH: Banknote,
+    OTHER: Repeat,
 };
 
 const KIND_FALLBACK_COLOR: Record<AccountKind, string> = {
@@ -208,7 +211,7 @@ function WalletPageContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Wallet école · Mobile Money & banques"
                     description="Chargement du solde consolidé…"
@@ -221,7 +224,7 @@ function WalletPageContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Wallet école · Mobile Money & banques"
                     description="Impossible de charger le wallet"
@@ -239,7 +242,7 @@ function WalletPageContent() {
     const availableBalance = Math.max(0, totalBalanceN - pendingDisbursementsAmount);
 
     return (
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Wallet école · Mobile Money & banques"
                 description="Soldes des comptes Mobile Money et bancaires de l'établissement"
@@ -250,7 +253,7 @@ function WalletPageContent() {
                 <Card
                     padding={14}
                     style={{
-                        borderLeft: "3px solid var(--brand-500)",
+                        border: "1px solid var(--eduflow-brand-200)",
                         background: "var(--brand-50)",
                     }}
                 >
@@ -302,7 +305,7 @@ function WalletPageContent() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .wallet-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -338,7 +341,7 @@ function EmptyWalletState() {
             </div>
             <h2
                 className="eduflow-display"
-                style={{ fontSize: 18, margin: "0 0 8px", color: "var(--eduflow-text-primary)" }}
+                style={{ fontSize: 16, margin: "0 0 8px", color: "var(--eduflow-text-primary)" }}
             >
                 Aucun compte Wallet configuré
             </h2>
@@ -365,7 +368,7 @@ function EmptyWalletState() {
                     textDecoration: "none",
                 }}
             >
-                Configurer dans Paramètres →
+                Configurer dans les paramètres
             </a>
         </Card>
     );
@@ -436,8 +439,6 @@ function WalletHero({
                             style={{
                                 fontSize: 11,
                                 fontWeight: 700,
-                                letterSpacing: "0.14em",
-                                textTransform: "uppercase",
                                 opacity: 0.7,
                             }}
                         >
@@ -525,13 +526,14 @@ function WalletHero({
                 >
                     {accounts.slice(0, 5).map((acc) => {
                         const color = acc.colorHex ?? KIND_FALLBACK_COLOR[acc.kind];
+                        const KindIcon = KIND_ICON[acc.kind];
                         return (
                             <div key={acc.id}>
-                                <div style={{ fontSize: 18, marginBottom: 4 }} aria-hidden>
-                                    {KIND_ICON[acc.kind]}
+                                <div style={{ marginBottom: 4 }} aria-hidden>
+                                    <KindIcon size={18} strokeWidth={1.75} />
                                 </div>
                                 <div style={{ fontSize: 12, fontWeight: 700 }}>{acc.name}</div>
-                                <div style={{ fontSize: 10, opacity: 0.6 }}>
+                                <div style={{ fontSize: 11, opacity: 0.6 }}>
                                     {acc.accountRef ?? KIND_LABEL[acc.kind]}
                                 </div>
                                 <div
@@ -665,7 +667,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             {tx.reference ? (
                                                 <div
                                                     style={{
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color: "var(--text-tertiary)",
                                                         marginTop: 2,
                                                         fontFamily:
@@ -708,7 +710,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             </span>
                                             <div
                                                 style={{
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     color: "var(--text-tertiary)",
                                                 }}
                                             >
@@ -729,7 +731,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
 function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[] }) {
     return (
         <Card>
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
+            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
             <div style={{ marginTop: 10 }}>
                 {disbursements.length === 0 ? (
                     <div
@@ -776,7 +778,7 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
                             </div>
                             <div
                                 style={{
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: "var(--text-tertiary)",
                                     marginTop: 2,
                                 }}
@@ -794,7 +796,7 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
 function FeesSavingsCard() {
     return (
         <Card>
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Frais Mobile Money économisés · 12 mois</p>
+            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Frais Mobile Money économisés · 12 mois</p>
             <div
                 className="eduflow-display tabular"
                 style={{

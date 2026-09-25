@@ -13,6 +13,7 @@ import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { useSchool } from "@/components/providers/school-provider";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
@@ -40,6 +41,7 @@ interface SubjectOption {
 export default function CurriculumConfigPage() {
     const { schoolId } = useSchool();
     const [selectedClassId, setSelectedClassId] = useState<string>("");
+    const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     // Fetch classes
@@ -123,7 +125,6 @@ export default function CurriculumConfigPage() {
 
     // ── Remove subject from class ──
     const handleRemove = useCallback(async (classSubjectId: string) => {
-        if (!confirm("Retirer cette matière du curriculum ?")) return;
         try {
             const res = await fetch(`/api/admin/curriculum-config?classSubjectId=${classSubjectId}`, {
                 method: "DELETE",
@@ -146,6 +147,18 @@ export default function CurriculumConfigPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <ConfirmActionDialog
+                open={pendingRemoveId !== null}
+                onOpenChange={(open) => { if (!open) setPendingRemoveId(null); }}
+                title="Retirer cette matière du curriculum ?"
+                description="La matière ne sera plus proposée pour cette classe. Si des notes existent déjà, le retrait sera refusé."
+                confirmLabel="Retirer"
+                onConfirm={async () => {
+                    const id = pendingRemoveId;
+                    setPendingRemoveId(null);
+                    if (id) await handleRemove(id);
+                }}
+            />
             <PageShell className="max-w-4xl">
                 <PageHeader
                     title="Programmes scolaires"
@@ -243,7 +256,7 @@ export default function CurriculumConfigPage() {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="text-destructive hover:text-destructive"
-                                                                onClick={() => handleRemove(entry.classSubjectId!)}
+                                                                onClick={() => setPendingRemoveId(entry.classSubjectId!)}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>

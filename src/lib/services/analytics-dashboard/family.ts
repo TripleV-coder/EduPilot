@@ -2,6 +2,7 @@
 // lors de la découpe par rôle (P3.1, 2026-06-11). Logique inchangée.
 
 import prisma from "@/lib/prisma";
+import { computeStudentFeeDues } from "@/lib/finance/expected-fees";
 import { roundTo } from "@/lib/analytics/helpers";
 
 export async function getStudentDashboardData(userId: string, yearId: string) {
@@ -44,7 +45,8 @@ export async function getStudentDashboardData(userId: string, yearId: string) {
   return {
     myAverage: roundTo(myAverage),
     myRank: latestAnalytics?.classRank ?? null,
-    attendanceRate: totalAtt > 0 ? roundTo((presentCount / totalAtt) * 100) : 0,
+    // Aucun appel enregistré : pas de « 0 % » qui ressemblerait à une mesure.
+    attendanceRate: totalAtt > 0 ? roundTo((presentCount / totalAtt) * 100) : null,
     subjectPerformances: latestAnalytics ? latestAnalytics.subjectPerformances.map(sp => ({
       name: sp.subject.name,
       average: Number(sp.average || 0),
@@ -119,7 +121,7 @@ export async function getParentDashboardData(userId: string, yearId: string) {
     state: "paid" | "due" | "overdue";
   };
 
-  const pendingPayments: ParentPayment[] = installments
+  const allPayments: ParentPayment[] = installments
     .filter((i) => {
       if (i.status === "PAID") return true;
       const d = new Date(i.dueDate);
@@ -136,22 +138,43 @@ export async function getParentDashboardData(userId: string, yearId: string) {
         dueDate: paid && i.paidAt ? i.paidAt.toISOString() : i.dueDate.toISOString(),
         state: paid ? "paid" : overdue ? "overdue" : "due",
       } satisfies ParentPayment;
-    })
-    .slice(0, 12);
+    });
 
-  const totalDue = pendingPayments
+  // Frais facturés sans échéancier : sans eux, un parent qui devait des frais
+  // voyait « 0 FCFA » à payer.
+  const feeDues = await computeStudentFeeDues(studentIds);
+  for (const due of feeDues) {
+    if (due.dueDate && due.dueDate > horizon) continue;
+    allPayments.push({
+      id: `due:${due.feeId}:${due.studentId}`,
+      childName: studentFirstName.get(due.studentId) ?? "Enfant",
+      label: due.feeName,
+      amount: due.remaining,
+      dueDate: due.dueDate ? due.dueDate.toISOString() : null,
+      state: due.dueDate && due.dueDate < today ? "overdue" : "due",
+    });
+  }
+
+  // Total calculé sur toute la liste, avant la troncature d'affichage.
+  const totalDue = allPayments
     .filter((p) => p.state !== "paid")
     .reduce((acc, p) => acc + p.amount, 0);
+  const pendingPayments = allPayments.slice(0, 12);
 
-  const nextDueDate = pendingPayments
-    .filter((p) => p.state !== "paid" && p.dueDate)
+  // « Prochaine » échéance = la plus proche À VENIR ; les échéances passées
+  // sont comptées à part comme retards (sinon « prochaine : 15 septembre »
+  // s'affichait le 25).
+  const nextDueDate = allPayments
+    .filter((p) => p.state === "due" && p.dueDate)
     .map((p) => new Date(p.dueDate as string).getTime())
     .sort((a, b) => a - b)[0] ?? null;
+  const overdueCount = allPayments.filter((p) => p.state === "overdue").length;
 
   return {
     children,
     pendingPayments,
     totalDue,
     nextDueDate: nextDueDate ? new Date(nextDueDate).toISOString() : null,
+    overdueCount,
   };
 }

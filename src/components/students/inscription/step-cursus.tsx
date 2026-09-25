@@ -34,7 +34,7 @@ export function StepCursus({
         }));
     return (
         <>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 6px" }}>
                 Cursus &amp; affectation
             </h2>
             <p

@@ -307,7 +307,7 @@ function CagnotteDetailContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -459,7 +459,7 @@ function CagnotteDetailContent() {
                                         borderRadius: "50%",
                                         background: "var(--brand-600)",
                                         color: "#fff",
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         fontWeight: 700,
                                         display: "grid",
                                         placeItems: "center",

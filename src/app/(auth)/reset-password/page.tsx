@@ -124,7 +124,7 @@ function ResetPasswordForm() {
 
     if (isSuccess) {
         return (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+            <div className=""
                 style={{ display: "flex", flexDirection: "column", gap: 18 }}
             >
                 <div
@@ -176,7 +176,7 @@ function ResetPasswordForm() {
     return (
         <>
             {error ? (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+                <div className=""
                     role="alert"
                     style={{
                         display: "flex",
@@ -244,7 +244,7 @@ export default function ResetPasswordPage() {
             <Suspense
                 fallback={
                     <div
-                        className="flex items-center justify-center p-8"
+                        className="flex items-center justify-center p-5"
                         aria-label="Chargement en cours"
                     >
                         <div

@@ -60,6 +60,7 @@ export function RoleOnboardShell({
             }}
         >
             <aside
+                aria-label="Étapes de la configuration"
                 style={{
                     padding: "40px 32px",
                     background: `linear-gradient(170deg, var(--eduflow-${color}-700), var(--eduflow-${color}-900, var(--eduflow-${color}-800)))`,
@@ -91,10 +92,8 @@ export function RoleOnboardShell({
                             padding: "4px 10px",
                             borderRadius: 999,
                             background: "rgba(255,255,255,0.18)",
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
                         }}
                     >
                         {role}
@@ -104,8 +103,6 @@ export function RoleOnboardShell({
                     style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.14em",
-                        textTransform: "uppercase",
                         opacity: 0.75,
                         marginBottom: 14,
                     }}
@@ -140,8 +137,6 @@ export function RoleOnboardShell({
                         style={{
                             fontSize: 11,
                             fontWeight: 700,
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
                             opacity: 0.7,
                             marginBottom: 12,
                         }}
@@ -287,10 +282,8 @@ export function StatTile({
         <Card padding={14}>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                 }}
             >
                 {label}
@@ -308,7 +301,7 @@ export function StatTile({
             </div>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -397,8 +390,6 @@ export function LabelledInput({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

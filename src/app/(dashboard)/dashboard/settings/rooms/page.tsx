@@ -652,7 +652,7 @@ export default function RoomsPage() {
                                                     {room.features.map((f) => (
                                                         <span
                                                             key={f}
-                                                            className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground border border-border"
+                                                            className="text-[11px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground border border-border"
                                                         >
                                                             {f}
                                                         </span>

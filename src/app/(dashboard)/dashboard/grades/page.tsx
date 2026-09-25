@@ -92,7 +92,7 @@ function GradesContent() {
     const stats = statsData?.statistics;
 
     return (
-        <PageShell className="max-w-[1400px] pb-12">
+        <PageShell>
             <PageHeader
                 title="Notes et évaluations"
                 description="Gérez les devoirs, saisissez les notes et suivez les performances académiques."
@@ -146,8 +146,6 @@ function GradesContent() {
                                     }`,
                                     fontSize: 12,
                                     fontWeight: active ? 700 : 600,
-                                    letterSpacing: "0.04em",
-                                    textTransform: "uppercase",
                                     color: active
                                         ? "var(--brand-700)"
                                         : "var(--eduflow-text-tertiary)",
@@ -300,7 +298,7 @@ function GradesContent() {
                                 <Card padding={20}>
                                     <div className="flex items-center justify-between">
                                         <p
-                                            className="text-xs font-semibold uppercase tracking-wide"
+                                            className="text-xs font-semibold"
                                             style={{ color: "var(--eduflow-text-tertiary)" }}
                                         >
                                             Distribution des résultats
@@ -330,7 +328,7 @@ function GradesContent() {
                                 <Card padding={20}>
                                     <div className="flex items-center justify-between">
                                         <p
-                                            className="text-xs font-semibold uppercase tracking-wide"
+                                            className="text-xs font-semibold"
                                             style={{ color: "var(--eduflow-text-tertiary)" }}
                                         >
                                             Radar par matière
@@ -356,7 +354,7 @@ function GradesContent() {
                             <Card padding={20}>
                                 <div className="mb-3 flex items-center justify-between">
                                     <p
-                                        className="text-xs font-semibold uppercase tracking-wide"
+                                        className="text-xs font-semibold"
                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                     >
                                         Classement par matière

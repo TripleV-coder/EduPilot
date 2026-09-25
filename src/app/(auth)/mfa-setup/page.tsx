@@ -122,7 +122,7 @@ export default function MfaSetupPage() {
                 title="2FA activée"
                 subtitle="Conservez ces codes de secours en lieu sûr — ils ne seront plus affichés."
             >
-                <div className="animate-in fade-in zoom-in-95 duration-300"
+                <div className=""
                     style={{ display: "flex", flexDirection: "column", gap: 20 }}
                 >
                     <div
@@ -164,8 +164,6 @@ export default function MfaSetupPage() {
                             style={{
                                 fontSize: 11,
                                 fontWeight: 700,
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 8,
                             }}
@@ -211,7 +209,6 @@ export default function MfaSetupPage() {
                                             border: "1px solid var(--eduflow-border-subtle)",
                                             borderRadius: 8,
                                             fontSize: 13,
-                                            letterSpacing: "0.06em",
                                             fontWeight: 600,
                                         }}
                                     >
@@ -250,7 +247,7 @@ export default function MfaSetupPage() {
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 {error ? (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+                    <div className=""
                         id={ERROR_ID}
                         role="alert"
                         style={{
@@ -336,7 +333,6 @@ export default function MfaSetupPage() {
                                 fontSize: 12,
                                 fontWeight: 600,
                                 color: "var(--eduflow-text-primary)",
-                                letterSpacing: "0.06em",
                             }}
                         >
                             {secret}

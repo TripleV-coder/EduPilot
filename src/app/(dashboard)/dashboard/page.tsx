@@ -159,8 +159,13 @@ async function renderDashboard(session: Session) {
         case "director":
         default:
             return (
-                <PageShell>
-                    <DirectorHome {...homeProps} data={payload.data} />
+                // Le contenu a déjà sa marge (main) : pas de seconde marge ici.
+                <PageShell className="px-0 py-0 md:px-0">
+                    <DirectorHome
+                        {...homeProps}
+                        focus={role === "ACCOUNTANT" ? "finance" : "school"}
+                        data={payload.data}
+                    />
                 </PageShell>
             );
     }
@@ -220,8 +225,6 @@ function NoYearFallback() {
                         color: "var(--eduflow-text-on-brand)",
                         fontSize: 12,
                         fontWeight: 600,
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
                     }}
                 >
                     Ouvrir les paramètres académiques
@@ -250,8 +253,6 @@ function DashboardErrorFallback() {
                         color: "var(--eduflow-text-on-brand)",
                         fontSize: 12,
                         fontWeight: 600,
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
                     }}
                 >
                     Réessayer

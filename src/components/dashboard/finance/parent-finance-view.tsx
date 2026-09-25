@@ -86,7 +86,7 @@ export function ParentFinanceView() {
     };
 
     if (error) return <div className="p-4 text-destructive">Erreur de chargement des données financières</div>;
-    if (isLoading) return <div className="p-8 text-center">Chargement...</div>;
+    if (isLoading) return <div className="p-5 text-center">Chargement...</div>;
 
     return (
         <div className="space-y-6">
@@ -152,12 +152,12 @@ export function ParentFinanceView() {
                                     <div className="flex items-center gap-4">
                                         <div className="text-right">
                                             <p className="font-bold text-sm">{formatCurrency(payment.amount)}</p>
-                                            <p className="text-[10px] text-secondary font-medium">Validé</p>
+                                            <p className="text-[11px] text-secondary font-medium">Validé</p>
                                         </div>
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
-                                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                            className="h-8 w-8 text-muted-foreground hover:text-primary max-md:h-11 max-md:w-11"
                                             onClick={() => generateReceipt(payment)}
                                             title="Imprimer le reçu"
                                         >

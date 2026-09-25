@@ -124,7 +124,7 @@ export default function AcademicLevelsPage() {
                                                         </Badge>
                                                     </div>
                                                 ))}
-                                                <div className="p-4 hover:bg-muted/10 flex justify-between items-center bg-muted/5 border-l-4 border-l-primary">
+                                                <div className="p-4 hover:bg-muted/10 flex justify-between items-center bg-muted/5">
                                                     <Button variant="ghost" size="sm" className="h-8 w-full justify-start text-primary hover:text-primary hover:bg-primary/10 gap-2">
                                                         <Plus className="w-4 h-4" />
                                                         Ajouter un niveau

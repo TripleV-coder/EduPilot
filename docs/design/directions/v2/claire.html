@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr" data-theme="claire">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EduPilot · Aperçu — Claire, aérée, douce</title>
+<!-- Aperçu v2 · Ambiance : Claire, aérée, douce · Références : Google Classroom (aéré, cartes de classes) + Notion/Linear (typographie nette, clavier). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { 
+  --bg:#FFFFFF; --surface:#F7F9FC; --card:#FFFFFF; --line:#E6EAF0; --ink:#1F2937; --muted:#5B6474;
+  --accent:#2F6BDE; --accent-ink:#FFFFFF; --accent-soft:#EAF1FD; --radius:18px; --radius-sm:12px;
+  --nav-active-bg:#EAF1FD; --nav-active-ink:#1E4FB3; --shadow:0 1px 2px rgba(16,24,40,.04);
+  --m-blue:#EAF1FD; --m-blue-ink:#1E4FB3; --m-green:#E7F5EC; --m-green-ink:#16713C;
+  --m-orange:#FDF1E3; --m-orange-ink:#9A4A07; --m-purple:#F1ECFD; --m-purple-ink:#5B34C4;
+  --m-pink:#FCEBF1; --m-pink-ink:#A3134D; --m-teal:#E3F4F3; --m-teal-ink:#0E6664;
+  --gap:28px; --pad:26px;
+  --font: "Figtree", system-ui, sans-serif; --toast-bg:#1F2937; --toast-ink:#fff; --toast-action:#9DBBFF; --hold-fill:#1D4ED8; }
+* { box-sizing: border-box; }
+html, body { margin: 0; overflow-x: clip; }
+body { font-family: var(--font); font-size: 15px; line-height: 1.55; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.skip { position: absolute; left: 12px; top: -60px; background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 8px; z-index: 90; }
+.skip:focus { top: 12px; }
+kbd { font: 500 12px var(--font); color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+
+/* Barre d'aperçu (hors produit) */
+.preview-bar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 20px; background: #111827; color: #fff; font-size: 14px; }
+.preview-bar .demo { margin-left: auto; color: #C7CDD8; font-size: 13px; }
+.seg { display: inline-flex; background: #1F2937; border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: #D5DAE3; font: 500 14px var(--font); cursor: pointer; }
+.seg button[aria-selected="true"] { background: #fff; color: #111827; }
+
+/* Coque */
+.app { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: calc(100dvh - 54px); }
+.side { border-right: 1px solid var(--line); padding: 16px 12px 16px 0; display: flex; flex-direction: column; gap: 8px; background: var(--bg); position: sticky; top: 54px; height: calc(100dvh - 54px); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 6px 20px 16px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 16px; }
+.side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.side a { display: flex; align-items: center; gap: 14px; height: 44px; padding: 0 20px; color: var(--ink); text-decoration: none; font-weight: 500; border-radius: 0 999px 999px 0; }
+.side a svg { color: var(--muted); }
+.side a:hover { background: var(--surface); }
+.side a[aria-current="page"] { background: var(--nav-active-bg); color: var(--nav-active-ink); font-weight: 600; }
+.side a[aria-current="page"] svg { color: currentColor; }
+.school { margin-top: auto; display: flex; gap: 10px; align-items: center; padding: 12px 20px; border-top: 1px solid var(--line); }
+.school-dot { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--muted); }
+.s-name { font-weight: 600; font-size: 14px; } .s-sub { color: var(--muted); font-size: 13px; }
+
+.main-col { min-width: 0; background: var(--bg); }
+.top { display: flex; align-items: center; gap: 12px; padding: 14px 40px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.menu-btn { display: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; color: var(--ink); cursor: pointer; place-items: center; }
+.search { flex: 1; max-width: 640px; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; border-radius: 12px; border: 1px solid transparent; background: var(--surface); color: var(--muted); font: 400 15px var(--font); cursor: pointer; text-align: left; }
+.search:hover { border-color: var(--line); }
+.search .ph { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn { margin-left: auto; position: relative; width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.icon-btn:hover { background: var(--surface); }
+.badge { position: absolute; top: 6px; right: 6px; min-width: 18px; height: 18px; border-radius: 9px; background: #D93025; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
+.me { width: 38px; height: 38px; border-radius: 50%; background: #7E3BD6; color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 600; }
+
+main { padding: 36px 40px 72px; max-width: 1240px; }
+.page-head { margin-bottom: 32px; }
+.page-head h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.page-head p { margin: 4px 0 0; color: var(--muted); }
+.view { display: grid; gap: var(--gap); }
+.view[hidden], [hidden] { display: none !important; }
+.block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--pad); box-shadow: var(--shadow); min-width: 0; }
+.block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.block h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.link { color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; }
+.link:hover { text-decoration: underline; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap); }
+.two.wide-left { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+
+/* Actions rapides */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.tiles.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.two .tiles.compact { grid-template-columns: 1fr 1fr; }
+.tiles.compact kbd { display: none; }
+.tile { position: relative; display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 16px 18px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 600 15px var(--font); text-align: left; cursor: pointer; transition: transform 160ms cubic-bezier(0.23,1,0.32,1), border-color 150ms ease, background 150ms ease; }
+.tiles.compact .tile { min-height: 56px; padding: 10px 14px; font-size: 14px; }
+.tile:active { transform: scale(0.97); }
+.tile kbd { margin-left: auto; }
+.tile-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.tiles.compact .tile-ico { width: 34px; height: 34px; border-radius: 10px; }
+@media (hover: hover) and (pointer: fine) { .tile:hover { border-color: color-mix(in srgb, var(--dot) 40%, var(--line)); } }
+
+/* À surveiller */
+.watch { list-style: none; margin: 0; padding: 0; display: grid; }
+.watch-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+.watch-item:first-child { border-top: 0; padding-top: 0; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 14px; }
+.w-name { font-weight: 600; } .w-sub { color: var(--muted); font-size: 14px; }
+.btn { height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--accent); font: 600 14px var(--font); cursor: pointer; white-space: nowrap; transition: transform 160ms cubic-bezier(0.23,1,0.32,1), background 150ms ease; }
+.btn:hover { background: var(--accent-soft); }
+.btn:active { transform: scale(0.97); }
+
+/* Ma journée */
+.day { list-style: none; margin: 0; padding: 0; }
+.day-row { display: grid; grid-template-columns: 56px 18px minmax(0, 1fr); gap: 12px; padding: 12px 0; position: relative; }
+.day-row time { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.day-row .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); margin-top: 6px; position: relative; z-index: 1; }
+.day-row:not(:last-child)::after { content: ""; position: absolute; left: 72px; top: 26px; bottom: -14px; width: 2px; background: var(--line); }
+.day-row.done .dot { background: var(--muted); border-color: var(--muted); }
+.day-row.done .d-title { color: var(--muted); }
+.day-row.now .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.d-title { font-weight: 600; } .d-sub { color: var(--muted); font-size: 14px; }
+.now-tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 999px; }
+
+/* Mes classes (esprit Google Classroom) */
+.class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.class-card { display: block; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; text-decoration: none; color: var(--ink); background: var(--card); transition: box-shadow 150ms ease; }
+.class-card:hover { box-shadow: 0 4px 14px rgba(16,24,40,.08); }
+.banner { position: relative; padding: 18px 18px 16px; min-height: 92px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.c-name { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.c-prof { font-size: 14px; opacity: .9; }
+.c-body { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; font-size: 14px; color: var(--muted); }
+.c-att { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Vue d'ensemble */
+.figs { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.fig { padding: 4px 0; }
+.fig dt { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.fig-dot { width: 8px; height: 8px; border-radius: 50%; }
+.fig dd { margin: 0; }
+.fig-v { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 6px !important; }
+.fig-n { color: var(--muted); font-size: 14px; }
+
+/* ── Variantes d'ambiance ── */
+.m-blue { background: var(--m-blue); color: var(--m-blue-ink); } .m-green { background: var(--m-green); color: var(--m-green-ink); }
+.m-orange { background: var(--m-orange); color: var(--m-orange-ink); } .m-purple { background: var(--m-purple); color: var(--m-purple-ink); }
+.m-pink { background: var(--m-pink); color: var(--m-pink-ink); } .m-teal { background: var(--m-teal); color: var(--m-teal-ink); }
+.tile.m-blue, .tile.m-green, .tile.m-orange, .tile.m-purple, .tile.m-pink, .tile.m-teal { background: var(--card); color: var(--ink); }
+
+/* Claire : pastel doux partout */
+[data-theme="claire"] .tile .tile-ico { background: color-mix(in srgb, var(--dot) 12%, #fff); color: var(--dot); }
+[data-theme="claire"] .banner { color: var(--ink); }
+[data-theme="claire"] .banner .c-prof { color: var(--muted); }
+[data-theme="claire"] .class-card .banner { background: color-mix(in srgb, var(--dot) 10%, #fff); }
+[data-theme="claire"] .avatar { background: color-mix(in srgb, var(--dot) 12%, #fff); color: var(--dot); }
+
+/* Colorée : bandeaux pleins façon Classroom, avec formes simples */
+[data-theme="coloree"] .tile .tile-ico { background: var(--dot); color: #fff; }
+[data-theme="coloree"] .banner::after { content: ""; position: absolute; right: -24px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,.14); }
+[data-theme="coloree"] .banner::before { content: ""; position: absolute; right: 40px; bottom: -40px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,.10); }
+[data-theme="coloree"] .avatar { background: var(--dot); color: #fff; }
+[data-theme="coloree"] .page-head h1 { font-weight: 700; }
+
+/* Sobre : blanc, filets, couleur réduite à une pastille */
+[data-theme="sobre"] .side a { border-radius: 8px; margin: 0 0 0 12px; padding: 0 12px; height: 38px; font-size: 14px; }
+[data-theme="sobre"] .brand { padding-left: 24px; }
+[data-theme="sobre"] .tile .tile-ico { background: var(--surface); color: var(--ink); }
+[data-theme="sobre"] .tile .tile-ico { box-shadow: inset 0 0 0 1px var(--line); }
+[data-theme="sobre"] .class-card .banner { background: var(--card); color: var(--ink); min-height: 0; padding-bottom: 6px; border-bottom: 0; }
+[data-theme="sobre"] .class-card .banner .c-name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot); margin-right: 10px; vertical-align: middle; }
+[data-theme="sobre"] .banner .c-prof { color: var(--muted); padding-left: 18px; }
+[data-theme="sobre"] .c-name { font-size: 16px; font-weight: 600; }
+[data-theme="sobre"] .avatar { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+[data-theme="sobre"] .btn { border-radius: 8px; color: var(--ink); }
+[data-theme="sobre"] .page-head h1 { font-size: 24px; }
+[data-theme="sobre"] .block h2 { font-size: 15px; }
+
+/* Palette : aucune animation (ouverte des dizaines de fois par jour) */
+.palette-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,.4); display: none; align-items: flex-start; justify-content: center; padding-top: 14vh; z-index: 80; }
+.palette-backdrop.open { display: flex; }
+.palette { width: min(600px, calc(100vw - 32px)); background: var(--card); border-radius: 14px; box-shadow: 0 24px 60px rgba(17,24,39,.2); overflow: hidden; }
+.palette input { width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 18px 20px; font: 400 17px var(--font); outline: none; }
+.palette ul { list-style: none; margin: 0; padding: 8px; }
+.palette li { padding: 12px 14px; border-radius: 10px; cursor: pointer; }
+.palette li[aria-selected="true"] { background: var(--surface); font-weight: 600; }
+
+@media (hover: none) { .btn:hover, .search:hover, .icon-btn:hover, .side a:hover { background: inherit; } }
+@media (max-width: 1100px) { .two, .two.wide-left { grid-template-columns: 1fr; } .figs { grid-template-columns: 1fr 1fr; } .tiles { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .side.open { display: flex; position: fixed; inset: 54px auto 0 0; width: min(290px, 86vw); z-index: 70; box-shadow: 0 0 0 100vmax rgba(17,24,39,.4); }
+  .menu-btn { display: grid; }
+  .top { padding: 10px 16px; }
+  .search { min-width: 0; height: 44px; }
+  .search kbd { display: none; }
+  .icon-btn { margin-left: 0; }
+  .me { width: 34px; height: 34px; flex: none; }
+  main { padding: 24px 16px 56px; }
+  .page-head { margin-bottom: 20px; } .page-head h1 { font-size: 24px; }
+  .tiles, .tiles.compact { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { min-height: 64px; padding: 12px; gap: 10px; font-size: 14px; } .tile kbd { display: none; }
+  .watch-item { grid-template-columns: 40px minmax(0, 1fr); }
+  .watch-item .btn { grid-column: 2; justify-self: start; }
+  .block { padding: 18px; }
+  .preview-bar strong, .preview-bar .demo { display: none; }
+  .seg button { padding: 0 10px; font-size: 13px; }
+}
+
+  /* ── Couche craft commune (principes Emil Kowalski) ───────────────
+     Pas d'animation sur ce qui s'ouvre 100 fois par jour (palette, navigation
+     clavier, chargement du tableau de bord). Le mouvement ne sert qu'à
+     confirmer une action : pression, ligne traitée, toast, maintien. */
+  :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+  .press { transition: transform 160ms var(--ease-out); }
+  .press:active { transform: scale(0.97); }
+  .toaster { position: fixed; left: 50%; bottom: 24px; z-index: 70; display: grid; gap: 8px; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+  .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 14px; background: var(--toast-bg); color: var(--toast-ink); border: var(--toast-border, 0); border-radius: var(--toast-radius, 10px); box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 1; transform: translateY(0); transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out); }
+  @starting-style { .toast { opacity: 0; transform: translateY(100%); } }
+  .toast.leaving { opacity: 0; transform: translateY(8px); transition-duration: 160ms; }
+  .toast button { margin-left: auto; background: none; border: 0; color: var(--toast-action); font-weight: 600; font-size: 14px; font-family: inherit; cursor: pointer; padding: 6px 8px; border-radius: 6px; min-height: 36px; }
+  .toast button:focus-visible { outline: 2px solid var(--toast-action); }
+  /* Maintenir pour confirmer : lent quand on décide, rapide quand on relâche. */
+  .hold { position: relative; overflow: hidden; isolation: isolate; }
+  .hold .hold-fill { position: absolute; inset: 0; background: var(--hold-fill); clip-path: inset(0 100% 0 0); transition: clip-path 200ms var(--ease-out); z-index: -1; }
+  .hold.holding .hold-fill { clip-path: inset(0 0 0 0); transition: clip-path 1600ms linear; }
+  .resolved-label { display: inline-flex; align-items: center; gap: 6px; }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: opacity 160ms ease; transform: none !important; }
+    .hold.holding .hold-fill { transition: clip-path 1600ms linear; }
+  }
+
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<div class="preview-bar" role="region" aria-label="Sélecteur d'aperçu">
+  <strong>Aperçu · Claire, aérée, douce</strong>
+  <div class="seg" role="tablist" aria-label="Priorité de l'accueil"><button type="button" role="tab" aria-selected="true" data-target="actions">Actions rapides</button><button type="button" role="tab" aria-selected="false" data-target="journee">Ma journée</button><button type="button" role="tab" aria-selected="false" data-target="ensemble">Vue d'ensemble</button></div>
+  <span class="demo">Données d'illustration</span>
+</div>
+<div class="app">
+  <aside class="side" aria-label="Navigation principale">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">E</span>EduPilot</div>
+    <nav><ul><li><a href="#" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Accueil</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 9h16"/></svg><span>Classes</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-3-1.7-4.8-4-5.3"/></svg><span>Élèves</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg><span>Notes</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg><span>Présences</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><span>Finances</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Messages</span></a></li><li><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>Réglages</span></a></li></ul></nav>
+    <div class="school"><span class="school-dot" aria-hidden="true">CL</span><div><div class="s-name">CEG Les Cocotiers</div><div class="s-sub">Cotonou · 2025-2026</div></div></div>
+  </aside>
+  <div class="main-col">
+    <header class="top">
+      <button class="menu-btn" type="button" aria-label="Ouvrir le menu" aria-expanded="false" onclick="const o=document.querySelector('.side').classList.toggle('open');this.setAttribute('aria-expanded',o)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button class="search" type="button" data-open-palette aria-label="Rechercher ou lancer une action (Ctrl+K)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span class="ph">Rechercher un élève, une classe, une action</span><kbd>Ctrl K</kbd></button>
+      <button class="icon-btn" type="button" aria-label="Notifications : 3 nouvelles"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4zM10 21h4"/></svg><span class="badge" aria-hidden="true">3</span></button>
+      <span class="me" role="img" aria-label="Mme Houngbédji, directrice">AH</span>
+    </header>
+    <main id="contenu">
+      <div class="page-head"><h1>Bonjour, Mme Houngbédji</h1><p>Mardi 23 septembre · 2ᵉ trimestre</p></div>
+      <div class="view" data-view="actions"><section class="block" aria-labelledby="h-actions"><div class="block-head"><h2 id="h-actions">Actions rapides</h2></div><div class="tiles"><button class="tile m-blue" type="button" style="--dot:#2F6BDE"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><span class="tile-label">Faire l'appel</span><kbd>A</kbd></button><button class="tile m-green" type="button" style="--dot:#1E8E4A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg></span><span class="tile-label">Saisir des notes</span><kbd>N</kbd></button><button class="tile m-orange" type="button" style="--dot:#C4620A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="tile-label">Encaisser un paiement</span><kbd>P</kbd></button><button class="tile m-purple" type="button" style="--dot:#6D45D6"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4h3l7 5V5L6 10zM17 9a4 4 0 0 1 0 6"/></svg></span><span class="tile-label">Nouvelle annonce</span><kbd>M</kbd></button><button class="tile m-teal" type="button" style="--dot:#0E7C7B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5M19 8v6M16 11h6"/></svg></span><span class="tile-label">Inscrire un élève</span><kbd>I</kbd></button><button class="tile m-pink" type="button" style="--dot:#C2185B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg></span><span class="tile-label">Bulletins du trimestre</span><kbd>B</kbd></button></div></section><div class="two"><section class="block" aria-labelledby="h-watch"><div class="block-head"><h2 id="h-watch">À surveiller</h2><a class="link" href="#">Tout voir</a></div><ul class="watch"><li class="watch-item" data-item="Koffi Mensah"><span class="avatar m-pink" style="--dot:#C2185B" aria-hidden="true">KM</span><div class="w-text"><div class="w-name">Koffi Mensah</div><div class="w-sub">3ᵉ B · 9 absences en 3 semaines</div></div><button class="btn" type="button" data-resolve="Appel noté">Appeler le parent</button></li><li class="watch-item" data-item="Aïcha Sanni"><span class="avatar m-orange" style="--dot:#C4620A" aria-hidden="true">AS</span><div class="w-text"><div class="w-name">Aïcha Sanni</div><div class="w-sub">4ᵉ A · maths de 6,5 à 4,2</div></div><button class="btn" type="button" data-resolve="Message envoyé">Écrire au parent</button></li><li class="watch-item" data-item="12 paiements en retard"><span class="avatar m-blue" style="--dot:#2F6BDE" aria-hidden="true">F</span><div class="w-text"><div class="w-name">12 paiements en retard</div><div class="w-sub">4 050 000 FCFA en attente</div></div><button class="btn" type="button" data-resolve="Relances envoyées">Relancer</button></li></ul></section><section class="block" aria-labelledby="h-day"><div class="block-head"><h2 id="h-day">Ma journée</h2></div><ol class="day"><li class="day-row done"><time>07:45</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Appel du matin</div><div class="d-sub">92,4 % des élèves présents · 96 absents</div></div></li><li class="day-row now"><time>10:00</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Réunion des professeurs principaux <span class="now-tag">En cours</span></div><div class="d-sub">Salle des professeurs · 20 min</div></div></li><li class="day-row next"><time>12:30</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Cantine</div><div class="d-sub">812 repas cette semaine · riz au poisson</div></div></li><li class="day-row next"><time>16:00</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Conseil de classe 3ᵉ B</div><div class="d-sub">2 appréciations à compléter avant</div></div></li></ol></section></div><section class="block" aria-labelledby="h-classes"><div class="block-head"><h2 id="h-classes">Mes classes</h2><a class="link" href="#">Les 16 classes</a></div><div class="class-grid"><a class="class-card" href="#"><div class="banner m-blue" style="--dot:#2F6BDE"><span class="c-name">6ᵉ A</span><span class="c-prof">M. Dossou</span></div><div class="c-body"><span>78 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 96 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-orange" style="--dot:#C4620A"><span class="c-name">5ᵉ C</span><span class="c-prof">Mme Kpadé</span></div><div class="c-body"><span>72 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 88 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-purple" style="--dot:#6D45D6"><span class="c-name">3ᵉ B</span><span class="c-prof">M. Hounkpè</span></div><div class="c-body"><span>81 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 86 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-green" style="--dot:#1E8E4A"><span class="c-name">Tle D</span><span class="c-prof">Mme Ahouandjinou</span></div><div class="c-body"><span>104 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 90 % présents</span></div></a></div></section></div><div class="view" data-view="journee" hidden><div class="two wide-left"><section class="block" aria-labelledby="h-day"><div class="block-head"><h2 id="h-day">Ma journée</h2></div><ol class="day"><li class="day-row done"><time>07:45</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Appel du matin</div><div class="d-sub">92,4 % des élèves présents · 96 absents</div></div></li><li class="day-row now"><time>10:00</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Réunion des professeurs principaux <span class="now-tag">En cours</span></div><div class="d-sub">Salle des professeurs · 20 min</div></div></li><li class="day-row next"><time>12:30</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Cantine</div><div class="d-sub">812 repas cette semaine · riz au poisson</div></div></li><li class="day-row next"><time>16:00</time><span class="dot" aria-hidden="true"></span><div><div class="d-title">Conseil de classe 3ᵉ B</div><div class="d-sub">2 appréciations à compléter avant</div></div></li></ol></section><section class="block" aria-labelledby="h-watch"><div class="block-head"><h2 id="h-watch">À surveiller</h2><a class="link" href="#">Tout voir</a></div><ul class="watch"><li class="watch-item" data-item="Koffi Mensah"><span class="avatar m-pink" style="--dot:#C2185B" aria-hidden="true">KM</span><div class="w-text"><div class="w-name">Koffi Mensah</div><div class="w-sub">3ᵉ B · 9 absences en 3 semaines</div></div><button class="btn" type="button" data-resolve="Appel noté">Appeler le parent</button></li><li class="watch-item" data-item="Aïcha Sanni"><span class="avatar m-orange" style="--dot:#C4620A" aria-hidden="true">AS</span><div class="w-text"><div class="w-name">Aïcha Sanni</div><div class="w-sub">4ᵉ A · maths de 6,5 à 4,2</div></div><button class="btn" type="button" data-resolve="Message envoyé">Écrire au parent</button></li><li class="watch-item" data-item="12 paiements en retard"><span class="avatar m-blue" style="--dot:#2F6BDE" aria-hidden="true">F</span><div class="w-text"><div class="w-name">12 paiements en retard</div><div class="w-sub">4 050 000 FCFA en attente</div></div><button class="btn" type="button" data-resolve="Relances envoyées">Relancer</button></li></ul></section></div><section class="block" aria-labelledby="h-actions-c"><div class="block-head"><h2 id="h-actions-c">Actions rapides</h2></div><div class="tiles compact"><button class="tile m-blue" type="button" style="--dot:#2F6BDE"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><span class="tile-label">Faire l'appel</span><kbd>A</kbd></button><button class="tile m-green" type="button" style="--dot:#1E8E4A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg></span><span class="tile-label">Saisir des notes</span><kbd>N</kbd></button><button class="tile m-orange" type="button" style="--dot:#C4620A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="tile-label">Encaisser un paiement</span><kbd>P</kbd></button><button class="tile m-purple" type="button" style="--dot:#6D45D6"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4h3l7 5V5L6 10zM17 9a4 4 0 0 1 0 6"/></svg></span><span class="tile-label">Nouvelle annonce</span><kbd>M</kbd></button><button class="tile m-teal" type="button" style="--dot:#0E7C7B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5M19 8v6M16 11h6"/></svg></span><span class="tile-label">Inscrire un élève</span><kbd>I</kbd></button><button class="tile m-pink" type="button" style="--dot:#C2185B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg></span><span class="tile-label">Bulletins du trimestre</span><kbd>B</kbd></button></div></section><section class="block" aria-labelledby="h-classes"><div class="block-head"><h2 id="h-classes">Mes classes</h2><a class="link" href="#">Les 16 classes</a></div><div class="class-grid"><a class="class-card" href="#"><div class="banner m-blue" style="--dot:#2F6BDE"><span class="c-name">6ᵉ A</span><span class="c-prof">M. Dossou</span></div><div class="c-body"><span>78 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 96 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-orange" style="--dot:#C4620A"><span class="c-name">5ᵉ C</span><span class="c-prof">Mme Kpadé</span></div><div class="c-body"><span>72 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 88 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-purple" style="--dot:#6D45D6"><span class="c-name">3ᵉ B</span><span class="c-prof">M. Hounkpè</span></div><div class="c-body"><span>81 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 86 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-green" style="--dot:#1E8E4A"><span class="c-name">Tle D</span><span class="c-prof">Mme Ahouandjinou</span></div><div class="c-body"><span>104 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 90 % présents</span></div></a></div></section></div><div class="view" data-view="ensemble" hidden><section class="block" aria-labelledby="h-figs"><div class="block-head"><h2 id="h-figs">Vue d'ensemble</h2><a class="link" href="#">Analyses</a></div><dl class="figs"><div class="fig"><dt><span class="fig-dot" style="background:#2F6BDE" aria-hidden="true"></span>Élèves</dt><dd class="fig-v">1 248</dd><dd class="fig-n">+3,2 % ce mois</dd></div><div class="fig"><dt><span class="fig-dot" style="background:#1E8E4A" aria-hidden="true"></span>Présence aujourd'hui</dt><dd class="fig-v">92,4 %</dd><dd class="fig-n">+1,1 point</dd></div><div class="fig"><dt><span class="fig-dot" style="background:#C4620A" aria-hidden="true"></span>Frais réglés</dt><dd class="fig-v">82 %</dd><dd class="fig-n">18,45 M FCFA</dd></div><div class="fig"><dt><span class="fig-dot" style="background:#C2185B" aria-hidden="true"></span>Élèves à suivre</dt><dd class="fig-v">37</dd><dd class="fig-n">6,8 % en échec</dd></div></dl></section><div class="two"><section class="block" aria-labelledby="h-watch"><div class="block-head"><h2 id="h-watch">À surveiller</h2><a class="link" href="#">Tout voir</a></div><ul class="watch"><li class="watch-item" data-item="Koffi Mensah"><span class="avatar m-pink" style="--dot:#C2185B" aria-hidden="true">KM</span><div class="w-text"><div class="w-name">Koffi Mensah</div><div class="w-sub">3ᵉ B · 9 absences en 3 semaines</div></div><button class="btn" type="button" data-resolve="Appel noté">Appeler le parent</button></li><li class="watch-item" data-item="Aïcha Sanni"><span class="avatar m-orange" style="--dot:#C4620A" aria-hidden="true">AS</span><div class="w-text"><div class="w-name">Aïcha Sanni</div><div class="w-sub">4ᵉ A · maths de 6,5 à 4,2</div></div><button class="btn" type="button" data-resolve="Message envoyé">Écrire au parent</button></li><li class="watch-item" data-item="12 paiements en retard"><span class="avatar m-blue" style="--dot:#2F6BDE" aria-hidden="true">F</span><div class="w-text"><div class="w-name">12 paiements en retard</div><div class="w-sub">4 050 000 FCFA en attente</div></div><button class="btn" type="button" data-resolve="Relances envoyées">Relancer</button></li></ul></section><section class="block" aria-labelledby="h-actions-c"><div class="block-head"><h2 id="h-actions-c">Actions rapides</h2></div><div class="tiles compact"><button class="tile m-blue" type="button" style="--dot:#2F6BDE"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><span class="tile-label">Faire l'appel</span><kbd>A</kbd></button><button class="tile m-green" type="button" style="--dot:#1E8E4A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg></span><span class="tile-label">Saisir des notes</span><kbd>N</kbd></button><button class="tile m-orange" type="button" style="--dot:#C4620A"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="tile-label">Encaisser un paiement</span><kbd>P</kbd></button><button class="tile m-purple" type="button" style="--dot:#6D45D6"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4h3l7 5V5L6 10zM17 9a4 4 0 0 1 0 6"/></svg></span><span class="tile-label">Nouvelle annonce</span><kbd>M</kbd></button><button class="tile m-teal" type="button" style="--dot:#0E7C7B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5M19 8v6M16 11h6"/></svg></span><span class="tile-label">Inscrire un élève</span><kbd>I</kbd></button><button class="tile m-pink" type="button" style="--dot:#C2185B"><span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg></span><span class="tile-label">Bulletins du trimestre</span><kbd>B</kbd></button></div></section></div><section class="block" aria-labelledby="h-classes"><div class="block-head"><h2 id="h-classes">Mes classes</h2><a class="link" href="#">Les 16 classes</a></div><div class="class-grid"><a class="class-card" href="#"><div class="banner m-blue" style="--dot:#2F6BDE"><span class="c-name">6ᵉ A</span><span class="c-prof">M. Dossou</span></div><div class="c-body"><span>78 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 96 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-orange" style="--dot:#C4620A"><span class="c-name">5ᵉ C</span><span class="c-prof">Mme Kpadé</span></div><div class="c-body"><span>72 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 88 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-purple" style="--dot:#6D45D6"><span class="c-name">3ᵉ B</span><span class="c-prof">M. Hounkpè</span></div><div class="c-body"><span>81 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 86 % présents</span></div></a><a class="class-card" href="#"><div class="banner m-green" style="--dot:#1E8E4A"><span class="c-name">Tle D</span><span class="c-prof">Mme Ahouandjinou</span></div><div class="c-body"><span>104 élèves</span><span class="c-att"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg> 90 % présents</span></div></a></div></section></div>
+    </main>
+  </div>
+</div>
+<div class="palette-backdrop" id="palette" role="dialog" aria-modal="true" aria-label="Palette de commandes"><div class="palette"><input id="palette-input" type="text" placeholder="Que voulez-vous faire ?" aria-label="Rechercher une action" autocomplete="off"><ul id="palette-list" role="listbox"></ul></div></div>
+<script>
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+    document.querySelectorAll(".view").forEach((v) => (v.hidden = v.dataset.view !== b.dataset.target));
+  }));
+  if (location.hash) { const t = document.querySelector(`.seg [data-target="${location.hash.slice(1)}"]`); t && t.click(); }
+  const ACTIONS = ["Faire l'appel","Saisir des notes","Encaisser un paiement","Nouvelle annonce","Inscrire un élève","Bulletins du trimestre","Koffi Mensah — 3ᵉ B","Aïcha Sanni — 4ᵉ A","Classe 6ᵉ A"];
+  const bd = document.getElementById("palette"), inp = document.getElementById("palette-input"), list = document.getElementById("palette-list");
+  let act = 0, last = null;
+  const render = (q = "") => { const it = ACTIONS.filter((a) => a.toLowerCase().includes(q.toLowerCase())); act = Math.min(act, Math.max(it.length - 1, 0));
+    list.innerHTML = it.length ? it.map((a, i) => `<li role="option" aria-selected="${i === act}">${a}</li>`).join("") : '<li role="option" aria-disabled="true">Aucun résultat</li>'; };
+  const open = () => { last = document.activeElement; bd.classList.add("open"); inp.value = ""; act = 0; render(); inp.focus(); };
+  const close = () => { bd.classList.remove("open"); last && last.focus(); };
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); bd.classList.contains("open") ? close() : open(); return; }
+    if (bd.classList.contains("open")) { if (e.key === "Escape") close(); if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = list.querySelectorAll('[role=option]:not([aria-disabled])').length; act = (act + (e.key === "ArrowDown" ? 1 : -1) + n) % Math.max(n, 1); render(inp.value); } }
+  });
+  inp.addEventListener("input", () => { act = 0; render(inp.value); });
+  bd.addEventListener("click", (e) => { if (e.target === bd) close(); });
+  document.querySelectorAll("[data-open-palette]").forEach((b) => b.addEventListener("click", open));
+  // ── Couche craft commune ──────────────────────────────────────────
+  const toaster = Object.assign(document.createElement("div"), { className: "toaster" });
+  toaster.setAttribute("role", "status"); toaster.setAttribute("aria-live", "polite");
+  document.body.appendChild(toaster);
+  function toast(message, onUndo) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.innerHTML = `<span></span>${onUndo ? '<button type="button">Annuler</button>' : ""}`;
+    el.firstChild.textContent = message;
+    toaster.appendChild(el);
+    let left = 5000, started = Date.now(), timer;
+    const dismiss = () => { clearTimeout(timer); el.classList.add("leaving"); setTimeout(() => el.remove(), 170); };
+    const arm = () => { started = Date.now(); timer = setTimeout(dismiss, left); };
+    const pause = () => { clearTimeout(timer); left -= Date.now() - started; };
+    // Pause au survol et quand l'onglet est masqué : le message ne se perd pas.
+    el.addEventListener("pointerenter", pause); el.addEventListener("pointerleave", arm);
+    document.addEventListener("visibilitychange", () => (document.hidden ? pause() : arm()));
+    if (onUndo) el.querySelector("button").addEventListener("click", () => { onUndo(); dismiss(); });
+    arm();
+  }
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Traiter une ligne en un clic : le bouton confirme, la ligne se referme, Annuler la rend.
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-resolve]");
+    if (!btn) return;
+    const item = btn.closest("[data-item]");
+    const original = btn.innerHTML;
+    btn.innerHTML = `<span class="resolved-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>${btn.dataset.resolve}</span>`;
+    btn.disabled = true;
+    const h = item.offsetHeight;
+    setTimeout(() => {
+      const anim = item.animate(reduce ? [{ opacity: 1 }, { opacity: 0 }]
+        : [{ opacity: 1, height: h + "px" }, { opacity: 0, height: "0px", paddingTop: 0, paddingBottom: 0, marginTop: 0, borderWidth: 0 }],
+        { duration: 220, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" });
+      anim.onfinish = () => { item.hidden = true; anim.cancel(); };
+    }, 450);
+    toast(`${btn.dataset.resolve} · ${item.dataset.item}`, () => { item.hidden = false; btn.innerHTML = original; btn.disabled = false; btn.focus(); });
+  });
+  // Maintenir pour confirmer (souris, tactile, et clavier : Espace/Entrée maintenus).
+  document.querySelectorAll("[data-hold]").forEach((btn) => {
+    btn.classList.add("hold");
+    btn.insertAdjacentHTML("afterbegin", '<span class="hold-fill" aria-hidden="true"></span>');
+    btn.setAttribute("aria-description", "Maintenir pour confirmer");
+    let t;
+    const start = () => { btn.classList.add("holding"); t = setTimeout(done, 1600); };
+    const cancel = () => { clearTimeout(t); btn.classList.remove("holding"); };
+    const done = () => { btn.classList.remove("holding"); toast(btn.dataset.hold, () => toast("Envoi annulé")); };
+    btn.addEventListener("pointerdown", start);
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, cancel));
+    btn.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); start(); } });
+    btn.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") cancel(); });
+  });
+
+</script>
+</body>
+</html>

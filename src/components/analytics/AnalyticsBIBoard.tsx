@@ -230,8 +230,6 @@ function MetricCard({
                     style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
                     }}
@@ -306,7 +304,7 @@ function BillingBarChart({
                         </div>
                         <span
                             className="font-mono"
-                            style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                            style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                         >
                             {m.label}
                         </span>
@@ -384,7 +382,7 @@ function PaymentMixCard({
                         >
                             {fmt2(totalInMillions)}
                         </div>
-                        <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                             M FCFA
                         </div>
                     </div>
@@ -495,8 +493,6 @@ function InsightCard({
                     style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
                         opacity: 0.85,
                     }}
                 >
@@ -540,10 +536,8 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
             }}
         >

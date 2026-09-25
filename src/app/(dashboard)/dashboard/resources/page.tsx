@@ -72,7 +72,7 @@ export default function ResourcesPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}>
-            <PageShell className="max-w-6xl">
+            <PageShell>
                 <PageHeader
                     title="Ressources pédagogiques"
                     description="Banque de documents, vidéos et supports de cours"

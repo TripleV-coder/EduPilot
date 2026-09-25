@@ -141,7 +141,7 @@ export default function AccessControlPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="QR Badge & contrôle d'accès"
                     description={`${scanPoints.length} point${scanPoints.length > 1 ? "s" : ""} de scan · ${metrics?.todayTotal ?? 0} passages aujourd'hui`}
@@ -244,7 +244,7 @@ export default function AccessControlPage() {
                     className="qr-grid"
                 >
                     <Card padding={20}>
-                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
                             {preview
                                 ? `${preview.firstName} ${preview.lastName.toUpperCase()}`
@@ -289,10 +289,8 @@ export default function AccessControlPage() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 9,
+                                        fontSize: 11,
                                         fontWeight: 700,
-                                        letterSpacing: "0.14em",
-                                        textTransform: "uppercase",
                                         opacity: 0.85,
                                     }}
                                 >
@@ -311,10 +309,8 @@ export default function AccessControlPage() {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div
                                             style={{
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 opacity: 0.75,
-                                                textTransform: "uppercase",
-                                                letterSpacing: "0.06em",
                                             }}
                                         >
                                             Élève · {preview?.className ?? "3ᵉ A"}
@@ -392,7 +388,7 @@ export default function AccessControlPage() {
                                     )}
                                     <div
                                         style={{
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             color: "#0F172A",
                                             lineHeight: 1.4,
                                         }}
@@ -563,7 +559,7 @@ export default function AccessControlPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .qr-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

@@ -155,7 +155,7 @@ export default function ParentsPage() {
             permission={[Permission.USER_READ]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Parents"
                     description={`${totalParents} ${
@@ -628,8 +628,6 @@ function FieldSearch({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

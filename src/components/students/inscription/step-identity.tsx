@@ -17,7 +17,7 @@ export function StepIdentity({
         setForm((f) => ({ ...f, [key]: value }));
     return (
         <>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 6px" }}>
                 Identité de l'élève
             </h2>
             <p

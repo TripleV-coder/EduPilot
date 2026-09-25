@@ -65,7 +65,7 @@ export function AnalyticsContextBar() {
                         <Filter className="h-4 w-4" />
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Contexte analytique</p>
+                        <p className="text-xs font-semibold text-text-secondary">Contexte analytique</p>
                         <p className="text-[11px] text-text-tertiary">Filtres transversaux appliques a toutes les visualisations</p>
                     </div>
                 </div>
@@ -166,12 +166,12 @@ function MultiSelectPopover({ label, options, selected, onToggle }: { label: str
             <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-10 text-xs gap-2 min-w-[120px] justify-between border-dashed">
                     {label}
-                    {selected.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{selected.length}</Badge>}
+                    {selected.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[11px]">{selected.length}</Badge>}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[200px] p-2" align="start">
                 <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                    {options.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Aucune option</p>}
+                    {options.length === 0 && <p className="text-[11px] text-center text-muted-foreground py-2">Aucune option</p>}
                     {options.map(opt => (
                         // Un <label> relie la ligne à la case : un seul basculement par clic
                         // (le onClick de la ligne doublait celui de la case), et au clavier.

@@ -188,7 +188,7 @@ export default function MedicalRecordsPage() {
 
     return (
         <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Infirmerie & Dossiers Médicaux"
                     description="Gérez les fiches de santé, antécédents et urgences médicales des élèves."
@@ -220,9 +220,9 @@ export default function MedicalRecordsPage() {
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                             {loading ? (
-                                <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                                <div className="flex justify-center p-5"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                             ) : filteredStudents.length === 0 ? (
-                                <div className="text-center p-8 text-muted-foreground text-sm">Aucun élève trouvé.</div>
+                                <div className="text-center p-5 text-muted-foreground text-sm">Aucun élève trouvé.</div>
                             ) : (
                                 filteredStudents.map(student => (
                                     <button
@@ -240,7 +240,7 @@ export default function MedicalRecordsPage() {
                                             <div className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
                                                 <span>{student.enrollmentNumber}</span>
                                                 {student.class && (
-                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-[10px] uppercase font-bold">
+                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-[11px] font-bold">
                                                         {student.class.name}
                                                     </span>
                                                 )}
@@ -256,7 +256,7 @@ export default function MedicalRecordsPage() {
                     <Card className="md:col-span-2 h-[750px] shadow-sm flex flex-col bg-background relative overflow-hidden">
                         {selectedStudent ? (
                             loadingRecord ? (
-                                <div className="flex-1 flex flex-col items-center justify-center p-8">
+                                <div className="flex-1 flex flex-col items-center justify-center p-5">
                                     <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
                                     <p className="text-muted-foreground text-sm">Chargement du dossier médical...</p>
                                 </div>
@@ -294,7 +294,7 @@ export default function MedicalRecordsPage() {
                                                 </RoleActionGuard>
                                             </div>
                                         ) : (
-                                            <div className="space-y-8">
+                                            <div className="space-y-4">
                                                 {/* Edit Mode Form */}
                                                 {editMode ? (
                                                     <div className="space-y-6">
@@ -381,7 +381,7 @@ export default function MedicalRecordsPage() {
                                                     </div>
                                                 ) : (
                                                     /* View Mode */
-                                                    <div className="space-y-8 animate-in fade-in duration-300">
+                                                    <div className="space-y-4">
                                                         {medicalRecord?.conditions && medicalRecord.conditions.length > 0 && (
                                                             <div className="bg-warning/10 border border-warning/30 rounded-xl p-5">
                                                                 <h3 className="text-warning font-bold flex items-center gap-2 mb-3">
@@ -400,7 +400,7 @@ export default function MedicalRecordsPage() {
 
                                                         <div className="grid grid-cols-2 gap-6">
                                                             <div className="bg-muted/10 border rounded-lg p-4">
-                                                                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 flex items-center gap-2">
+                                                                <div className="text-xs text-muted-foreground font-bold mb-2 flex items-center gap-2">
                                                                     <Droplet className="w-4 h-4 text-primary" />
                                                                     Groupe Sanguin
                                                                 </div>
@@ -409,7 +409,7 @@ export default function MedicalRecordsPage() {
                                                                 </div>
                                                             </div>
                                                             <div className="bg-muted/10 border rounded-lg p-4">
-                                                                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 flex items-center gap-2">
+                                                                <div className="text-xs text-muted-foreground font-bold mb-2 flex items-center gap-2">
                                                                     <Pill className="w-4 h-4 text-primary" />
                                                                     Traitements
                                                                 </div>
@@ -426,7 +426,7 @@ export default function MedicalRecordsPage() {
                                                         </div>
 
                                                         <div>
-                                                            <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
+                                                            <div className="text-xs text-muted-foreground font-bold mb-2 border-b pb-2 flex items-center gap-2">
                                                                 <FileClock className="w-4 h-4 text-muted-foreground" />
                                                                 Antécédents Majeurs
                                                             </div>
@@ -436,7 +436,7 @@ export default function MedicalRecordsPage() {
                                                         </div>
 
                                                         <div>
-                                                            <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
+                                                            <div className="text-xs text-muted-foreground font-bold mb-2 border-b pb-2 flex items-center gap-2">
                                                                 <FileText className="w-4 h-4 text-muted-foreground" />
                                                                 Notes de l'Infirmerie
                                                             </div>
@@ -447,7 +447,7 @@ export default function MedicalRecordsPage() {
 
                                                         {/* Emergency Contacts */}
                                                         <div>
-                                                            <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
+                                                            <div className="text-xs text-muted-foreground font-bold mb-2 border-b pb-2 flex items-center gap-2">
                                                                 <Phone className="w-4 h-4 text-success" />
                                                                 Contacts d'Urgence
                                                             </div>
@@ -459,7 +459,7 @@ export default function MedicalRecordsPage() {
                                                                                 <p className="font-medium text-sm text-foreground">
                                                                                     {contact.name}
                                                                                     {contact.isPrimary && (
-                                                                                        <span className="ml-2 text-[10px] uppercase font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
+                                                                                        <span className="ml-2 text-[11px] font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
                                                                                     )}
                                                                                 </p>
                                                                                 <p className="text-xs text-muted-foreground">{contact.relationship}</p>
@@ -475,7 +475,7 @@ export default function MedicalRecordsPage() {
 
                                                         {/* Vaccinations */}
                                                         <div>
-                                                            <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
+                                                            <div className="text-xs text-muted-foreground font-bold mb-2 border-b pb-2 flex items-center gap-2">
                                                                 <Syringe className="w-4 h-4 text-primary" />
                                                                 Vaccinations
                                                             </div>
@@ -510,7 +510,7 @@ export default function MedicalRecordsPage() {
                                 </div>
                             )
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-muted/5 border-l">
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-5 bg-muted/5 border-l">
                                 <Activity className="w-16 h-16 text-muted-foreground/20 mb-4" />
                                 <h2 className="text-xl font-display font-semibold text-foreground/80">Infirmerie d'Établissement</h2>
                                 <p className="text-muted-foreground text-sm max-w-sm mt-2">Sélectionnez un élève dans le registre à gauche pour consulter ou mettre à jour son dossier médical.</p>

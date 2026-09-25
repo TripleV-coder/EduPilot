@@ -178,7 +178,7 @@ export default function InscriptionPage() {
             permission={Permission.STUDENT_CREATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/students">
                         <Button variant="secondary" size="sm">
@@ -355,7 +355,7 @@ export default function InscriptionPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >

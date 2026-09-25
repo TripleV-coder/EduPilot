@@ -201,7 +201,7 @@ export default function StudentsPage() {
                 "STUDENT",
             ]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Élèves"
                     description={`${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`}
@@ -244,7 +244,7 @@ export default function StudentsPage() {
                         className="grid items-end gap-3"
                         style={{
                             gridTemplateColumns:
-                                "minmax(220px, 1fr) minmax(160px, 200px) minmax(140px, 180px) auto",
+                                "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
                         }}
                     >
                         <FieldSearch
@@ -352,7 +352,7 @@ export default function StudentsPage() {
                                 header: "Matricule",
                                 cell: (student) => (
                                     <span
-                                        className="eduflow-mono text-[11px] uppercase"
+                                        className="eduflow-mono text-[11px]"
                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                     >
                                         {student.matricule || student.studentNumber || "—"}
@@ -590,9 +590,8 @@ function StudentCard({
                             <div
                                 className="eduflow-mono"
                                 style={{
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: "var(--eduflow-text-tertiary)",
-                                    textTransform: "uppercase",
                                     marginTop: 4,
                                 }}
                             >
@@ -730,8 +729,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -790,8 +787,6 @@ function FieldSearch({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

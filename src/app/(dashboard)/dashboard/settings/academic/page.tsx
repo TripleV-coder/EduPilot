@@ -20,6 +20,7 @@ import {
 import { useRBAC } from "@/lib/hooks/use-rbac";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type AcademicYear = {
     id: string;
@@ -210,7 +211,7 @@ export default function AcademicSettingsPage() {
                                 <div className="flex justify-end gap-3 pt-2">
                                     <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
                                     <Button type="submit" disabled={saving} className="gap-2">
-                                        {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : <Save className="h-4 w-4" />}
+                                        {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                         {t("common.create")}
                                     </Button>
                                 </div>
@@ -221,7 +222,7 @@ export default function AcademicSettingsPage() {
 
                 <div className="grid gap-4">
                     {loading ? (
-                        <div className="py-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+                        <div className="py-12 flex justify-center"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                     ) : years.length === 0 ? (
                         <div className="text-center py-16 border border-dashed rounded-xl bg-muted/30">
                             <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -304,7 +305,7 @@ export default function AcademicSettingsPage() {
                                 onClick={handleStatusChange}
                                 className="gap-2"
                             >
-                                {changingStatus && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />}
+                                {changingStatus && <Spinner size={16} />}
                                 {pendingAction?.action === "close"
                                     ? pendingAction.activeEnrollments !== undefined ? "Clôturer quand même" : "Clôturer"
                                     : "Rouvrir"}

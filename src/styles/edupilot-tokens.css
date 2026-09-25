@@ -99,8 +99,17 @@
   --eduflow-border-strong:  var(--eduflow-neutral-300);
 
   /* ── Type ─────────────────────────────────────────────── */
-  --eduflow-font-display: var(--font-eduflow-body, 'Inter'), system-ui, sans-serif;
-  --eduflow-font-body:    var(--font-eduflow-body, 'Inter'), system-ui, sans-serif;
+  --eduflow-font-display: var(--font-eduflow-body, 'Figtree'), system-ui, sans-serif;
+  --eduflow-font-body:    var(--font-eduflow-body, 'Figtree'), system-ui, sans-serif;
+  /* Couleurs de module (direction « colorée et vivante ») : une par domaine,
+     toujours avec texte blanc (≥ 4,5:1). Scolarité bleu, notes vert, finances
+     orange, communication violet, examens/bulletins rose, inscriptions sarcelle. */
+  --edu-module-blue:   #1A73E8;
+  --edu-module-green:  #188038;
+  --edu-module-orange: #B45309;
+  --edu-module-purple: #7E3BD6;
+  --edu-module-pink:   #C2185B;
+  --edu-module-teal:   #0E7490;
   --eduflow-font-mono:    var(--font-eduflow-mono, 'JetBrains Mono'), ui-monospace, monospace;
 
   --eduflow-text-xs:   11px;
@@ -148,7 +157,7 @@
   --eduflow-radius-chip:  8px;
   --eduflow-radius-input: 12px;
   --eduflow-radius-soft:  16px;
-  --eduflow-radius-card:  22px;
+  --eduflow-radius-card:  14px; /* style validé (docs/design/directions/direction-approved.md) */
   --eduflow-radius-pill:  9999px;
 
   /* ── Shadows ──────────────────────────────────────────── */
@@ -276,7 +285,7 @@
 
   --eduflow-text-primary:   #F1F5F9;
   --eduflow-text-secondary: #CBD5E1;
-  --eduflow-text-tertiary:  #64748B;
+  --eduflow-text-tertiary:  #8794AA; /* ≥4.5:1 sur toutes les surfaces sombres (était #64748B, 3.7:1) */
   --eduflow-text-on-brand:  var(--eduflow-neutral-0);
 
   --eduflow-border-subtle:  rgba(255, 255, 255, 0.06);

@@ -18,7 +18,7 @@ export function StepFamille({
         setForm((f) => ({ ...f, [key]: value }));
     return (
         <>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 6px" }}>
                 Famille / responsable légal
             </h2>
             <p
@@ -74,7 +74,7 @@ export function StepFamille({
                 padding={14}
                 style={{
                     background: "var(--brand-50)",
-                    borderLeft: "3px solid var(--brand-500)",
+                    border: "1px solid var(--eduflow-brand-200)",
                 }}
             >
                 <div className="flex items-start gap-3">

@@ -133,7 +133,7 @@ export default function RootUsersPage() {
                                                     <div>
                                                         <p className="font-medium text-foreground text-sm flex items-center gap-2">
                                                             {user.firstName} {user.lastName}
-                                                            {!user.isActive && <Badge variant="destructive" className="h-4 text-[9px] px-1">Suspendu</Badge>}
+                                                            {!user.isActive && <Badge variant="destructive" className="h-4 text-[11px] px-1">Suspendu</Badge>}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                                                             <Mail className="w-3 h-3" /> {user.email}
@@ -151,7 +151,7 @@ export default function RootUsersPage() {
                                                         ADMIN ÉTABLISSEMENT
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="secondary" className="font-normal text-[10px]">
+                                                    <Badge variant="secondary" className="font-normal text-[11px]">
                                                         {formatUserRoleLabel(user.role)}
                                                     </Badge>
                                                 )}
@@ -170,7 +170,7 @@ export default function RootUsersPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button aria-label={`Ouvrir les actions pour ${user.email}`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                <Button aria-label={`Ouvrir les actions pour ${user.email}`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11">
                                                     <MoreHorizontal className="w-4 h-4" />
                                                 </Button>
                                             </TableCell>

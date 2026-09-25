@@ -1,6 +1,6 @@
 export default function GradesLoading() {
     return (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-6 duration-200">
             {/* Header */}
             <div className="space-y-2">
                 <div className="h-7 w-44 bg-muted/40 skeleton-shimmer rounded-md" />

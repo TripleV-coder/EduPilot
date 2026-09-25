@@ -76,13 +76,13 @@ function SummaryCard({
     <Card className="border-border/60 bg-card shadow-sm">
       <CardContent className="flex items-start justify-between p-5">
         <div className="space-y-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-[11px] font-bold text-muted-foreground">
             {title}
           </p>
-          <p className="text-2xl font-black tracking-tight text-foreground">{value}</p>
+          <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="rounded-2xl border border-border/60 bg-muted/40 p-3 text-primary">
+        <div className="rounded-card border border-border/60 bg-muted/40 p-3 text-primary">
           <Icon className="h-5 w-5" />
         </div>
       </CardContent>
@@ -100,11 +100,11 @@ function PerformanceComparisonChart({ sites }: { sites: OrganizationSiteSummary[
   return (
     <Card className="border-border shadow-sm h-full">
       <CardHeader>
-        <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+        <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
             Moyennes par Établissement
         </CardTitle>
-        <CardDescription className="text-[10px]">Comparaison consolidée de la performance académique.</CardDescription>
+        <CardDescription className="text-[11px]">Comparaison consolidée de la performance académique.</CardDescription>
       </CardHeader>
       <CardContent className="h-[300px] pt-4">
         <ResponsiveContainer width="100%" height="100%">
@@ -165,7 +165,7 @@ function ComparisonTable({
   return (
     <Card className="border-border/60 bg-card shadow-sm">
       <CardHeader className="border-b border-border/60">
-        <CardTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
           <Icon className="h-4 w-4 text-primary" />
           {title}
         </CardTitle>
@@ -177,7 +177,7 @@ function ComparisonTable({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+              <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Référence</th>
                   <th className="px-4 py-3 text-center">Moyenne réseau</th>
@@ -195,7 +195,7 @@ function ComparisonTable({
                         <p className="text-xs text-muted-foreground">{row.sampleSize} échantillons consolidés</p>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-center font-black text-foreground">
+                    <td className="px-4 py-4 text-center font-bold text-foreground">
                       {formatAverage(row.organizationAverage)}
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -274,7 +274,7 @@ export default function OrganizationDashboardPage() {
           <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
             <ShieldAlert className="h-10 w-10 text-warning" />
             <div className="space-y-2">
-              <h1 className="text-xl font-black text-foreground">Accès organisation refusé</h1>
+              <h1 className="text-xl font-bold text-foreground">Accès organisation refusé</h1>
               <p className="text-sm text-muted-foreground">
                 Ce cockpit est réservé aux chefs d&apos;organisation et aux super administrateurs.
               </p>
@@ -321,7 +321,7 @@ export default function OrganizationDashboardPage() {
   };
 
   return (
-    <PageShell className="animate-in fade-in duration-700 pb-10">
+    <PageShell className="pb-10">
       <PageHeader
         title="Pilotage d’Organisation"
         description="Comparaison multisites stricte par réseau, avec périmètre harmonisé sur l’année académique de référence."
@@ -435,23 +435,23 @@ export default function OrganizationDashboardPage() {
             <div className="lg:col-span-1">
                 <Card className="border-border/60 bg-foreground text-background shadow-sm h-full">
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-black uppercase tracking-[0.16em] text-background/70">Périmètre de Comparaison</CardTitle>
+                        <CardTitle className="text-[11px] font-bold text-background/70">Périmètre de Comparaison</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
                         <div className="space-y-1">
-                            <p className="text-xs text-background/70 uppercase font-bold tracking-widest">Année</p>
-                            <p className="text-xl font-black">{overview.reference.academicYearName}</p>
-                            <p className="text-[10px] text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
+                            <p className="text-xs text-background/70 font-bold">Année</p>
+                            <p className="text-xl font-bold">{overview.reference.academicYearName}</p>
+                            <p className="text-[11px] text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs text-background/70 uppercase font-bold tracking-widest">Période</p>
-                            <p className="text-xl font-black">{overview.reference.periodName || "Dernier état annuel"}</p>
+                            <p className="text-xs text-background/70 font-bold">Période</p>
+                            <p className="text-xl font-bold">{overview.reference.periodName || "Dernier état annuel"}</p>
                         </div>
                         <div className="pt-4 border-t border-background/20">
                             <p className="text-xs text-background/70 mb-2">Exclusion automatique</p>
                             <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-lg font-black border-background/30 bg-background/5 text-background">{overview.reference.nonComparableSiteCount}</Badge>
-                                <span className="text-[10px] text-background/70 font-medium">Sites non comparables</span>
+                                <Badge variant="outline" className="text-lg font-bold border-background/30 bg-background/5 text-background">{overview.reference.nonComparableSiteCount}</Badge>
+                                <span className="text-[11px] text-background/70 font-medium">Sites non comparables</span>
                             </div>
                         </div>
                     </CardContent>
@@ -461,7 +461,7 @@ export default function OrganizationDashboardPage() {
 
           <Card className="border-border/60 bg-card shadow-sm">
             <CardHeader className="border-b border-border/60">
-              <CardTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
                 <Building2 className="h-4 w-4 text-primary" />
                 Performance par site
               </CardTitle>
@@ -472,7 +472,7 @@ export default function OrganizationDashboardPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                  <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 text-left">Site</th>
                       <th className="px-4 py-3 text-center">Statut</th>
@@ -504,7 +504,7 @@ export default function OrganizationDashboardPage() {
                         <td className="px-4 py-4 text-center font-bold text-foreground">
                           {site.studentCount.toLocaleString("fr-FR")}
                         </td>
-                        <td className="px-4 py-4 text-center font-black text-foreground">
+                        <td className="px-4 py-4 text-center font-bold text-foreground">
                           {formatAverage(site.averageGrade)}
                         </td>
                         <td className="px-4 py-4 text-center">{formatPercent(site.passRate)}</td>

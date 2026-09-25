@@ -30,6 +30,7 @@ import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
+import { toast } from "sonner";
 
  
 
@@ -57,6 +58,11 @@ type EvaluationTypePayload = {
 };
 
 const EMPTY_FORM: FormData = { name: "", code: "", weight: "1", maxCount: "" };
+
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+    const body = await res.json().catch(() => null);
+    return (body && typeof body.error === "string" && body.error) || fallback;
+}
 
 export default function EvaluationTypesPage() {
     const { data: types, isLoading, error, mutate } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
@@ -117,23 +123,30 @@ export default function EvaluationTypesPage() {
                 payload.maxCount = Number(form.maxCount);
             }
 
+            let res: Response;
             if (editingId) {
-                await fetch(`/api/evaluation-types/${editingId}`, {
+                res = await fetch(`/api/evaluation-types/${editingId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
                 });
             } else {
-                await fetch("/api/evaluation-types", {
+                res = await fetch("/api/evaluation-types", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
                 });
             }
+            // Un 400/409 (code déjà utilisé…) fermait le dialogue comme un succès.
+            if (!res.ok) {
+                toast.error(await errorMessage(res, "Le type d'évaluation n'a pas été enregistré."));
+                return;
+            }
             await mutate();
             setDialogOpen(false);
         } catch (err) {
             console.error("Failed to save evaluation type:", err);
+            toast.error("Erreur réseau : le type d'évaluation n'a pas été enregistré.");
         } finally {
             setSaving(false);
         }
@@ -148,10 +161,15 @@ export default function EvaluationTypesPage() {
         if (!deleteTargetId) return;
         setDeleting(deleteTargetId);
         try {
-            await fetch(`/api/evaluation-types/${deleteTargetId}`, { method: "DELETE" });
+            const res = await fetch(`/api/evaluation-types/${deleteTargetId}`, { method: "DELETE" });
+            if (!res.ok) {
+                toast.error(await errorMessage(res, "Le type d'évaluation n'a pas été supprimé."));
+                return;
+            }
             await mutate();
         } catch (err) {
             console.error("Failed to delete evaluation type:", err);
+            toast.error("Erreur réseau : le type d'évaluation n'a pas été supprimé.");
         } finally {
             setDeleting(null);
             setDeleteDialogOpen(false);
@@ -256,14 +274,14 @@ export default function EvaluationTypesPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button aria-label={`Modifier le type ${type.name}`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(type)}>
+                                                    <Button aria-label={`Modifier le type ${type.name}`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11" onClick={() => openEdit(type)}>
                                                         <Edit2 className="w-4 h-4" />
                                                     </Button>
                                                     <Button
                                                         aria-label={`Supprimer le type ${type.name}`}
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                        className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 max-md:h-11 max-md:w-11"
                                                         onClick={() => handleDelete(type.id)}
                                                         disabled={deleting === type.id}
                                                     >

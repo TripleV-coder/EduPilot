@@ -37,7 +37,7 @@ export const PageHeader = memo(function PageHeader({
                 {breadcrumbs && breadcrumbs.length > 0 ? (
                     <nav
                         aria-label="Fil d'Ariane"
-                        className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px]"
+                        className="mb-1 flex flex-wrap items-center gap-1.5 text-xs"
                         style={{ color: "var(--eduflow-text-tertiary)" }}
                     >
                         {breadcrumbs.map((crumb, index) => {
@@ -72,21 +72,22 @@ export const PageHeader = memo(function PageHeader({
                     </nav>
                 ) : null}
                 <h1
-                    className="eduflow-display m-0 text-[clamp(24px,3.6vw,32px)] tracking-[-0.025em]"
+                    className="m-0 text-[22px] font-bold leading-tight tracking-[-0.02em] md:text-2xl"
                     style={{ color: "var(--eduflow-text-primary)" }}
                 >
                     {title}
                 </h1>
                 {description ? (
                     <p
-                        className="mt-1.5 text-sm leading-relaxed"
+                        className="mt-0.5 text-sm leading-relaxed"
                         style={{ color: "var(--eduflow-text-secondary)" }}
                     >
                         {description}
                     </p>
                 ) : null}
             </div>
-            {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+            {/* Sur mobile, les actions passent sous le titre et vont à la ligne (plus de débordement). */}
+            {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{actions}</div> : null}
         </div>
     );
 });
@@ -100,7 +101,8 @@ export function PageShell({ children, className }: PageShellProps) {
     return (
         <div
             className={cn(
-                "mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6",
+                // La zone de contenu (<main>) porte déjà la marge : pas de seconde marge ici.
+                "mx-auto flex w-full flex-col gap-4",
                 className
             )}
         >

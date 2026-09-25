@@ -38,7 +38,7 @@ export function CookieBanner() {
             role="region"
             aria-labelledby="cookie-banner-title"
             aria-live="polite"
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200"
         >
             <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {/* Texte */}

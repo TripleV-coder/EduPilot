@@ -136,7 +136,7 @@ export default function LocaleSettingsPage() {
                     >
                         <Icon name="tag" size={18} color="var(--brand-700)" />
                         <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Langue de l&apos;interface
                             </h2>
                             <p
@@ -166,7 +166,7 @@ export default function LocaleSettingsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="clock" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Formats & fuseau horaire
                         </h2>
                     </div>
@@ -239,8 +239,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

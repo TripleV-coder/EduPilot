@@ -173,7 +173,7 @@ export function SuperAdminOnboarding({ user }: { user: string }) {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
                                                 }}

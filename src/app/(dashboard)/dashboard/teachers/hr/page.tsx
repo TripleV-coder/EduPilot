@@ -136,7 +136,7 @@ export default function TeachersHRPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/teachers" style={{ textDecoration: "none" }}>
                         <Button variant="secondary" size="sm">
@@ -178,7 +178,7 @@ export default function TeachersHRPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -322,12 +322,10 @@ export default function TeachersHRPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
-                                                        letterSpacing: "0.06em",
-                                                        textTransform: "uppercase",
                                                         whiteSpace: "nowrap",
                                                     }}
                                                 >
@@ -400,7 +398,7 @@ export default function TeachersHRPage() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 10,
+                                                                            fontSize: 11,
                                                                             color:
                                                                                 "var(--eduflow-text-tertiary)",
                                                                         }}
@@ -431,7 +429,7 @@ export default function TeachersHRPage() {
                                                             </div>
                                                             <div
                                                                 style={{
-                                                                    fontSize: 10,
+                                                                    fontSize: 11,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                     marginTop: 2,
@@ -607,7 +605,7 @@ export default function TeachersHRPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .hr-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

@@ -111,7 +111,7 @@ export default function DocumentGeneratorPage() {
                         {!isLoading && students.length > 0 ? (
                             <div className="space-y-5">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                    <label className="text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                         Type de document
                                     </label>
                                     <Select value={selectedDoc} onValueChange={setSelectedDoc}>
@@ -126,7 +126,7 @@ export default function DocumentGeneratorPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                    <label className="text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                         Élève
                                     </label>
                                     <Select value={selectedStudent} onValueChange={setSelectedStudent}>

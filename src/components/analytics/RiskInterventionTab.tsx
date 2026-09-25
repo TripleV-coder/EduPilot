@@ -124,7 +124,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                                     {item.student.user.lastName} {item.student.user.firstName}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <Badge variant="outline" className="text-[10px] py-0 h-4">
+                                                    <Badge variant="outline" className="text-[11px] py-0 h-4">
                                                         {item.student.class.name}
                                                     </Badge>
                                                     <span className="text-xs text-muted-foreground">
@@ -139,7 +139,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                     </button>
                                 ))
                             ) : (
-                                <div className="p-8 text-center text-muted-foreground italic text-sm">
+                                <div className="p-5 text-center text-muted-foreground italic text-sm">
                                     Aucun élève à risque identifié.
                                 </div>
                             )}
@@ -161,11 +161,11 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                         </CardDescription>
                     </Card>
                 ) : (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="space-y-6">
                         {/* Student Info Bar */}
                         <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg shadow-primary/20">
+                                <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-primary/20">
                                     {selectedStudent.student.user.firstName[0]}{selectedStudent.student.user.lastName[0]}
                                 </div>
                                 <div>
@@ -232,7 +232,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                         </div>
 
                                         <div className="space-y-2">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Facteurs Identifiés</p>
+                                            <p className="text-xs font-semibold text-muted-foreground">Facteurs Identifiés</p>
                                             <div className="space-y-1.5">
                                                 {interventionPlan.factors.map((factor, i) => (
                                                     <div key={i} className="flex items-center gap-2 text-sm">
@@ -258,7 +258,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                             {interventionPlan.recommendations.map((rec, i) => (
                                                 <div key={i} className="flex gap-3 text-sm p-3 rounded-lg bg-green-50/50 border border-green-100/50">
                                                     <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                                        <span className="text-[10px] font-bold text-green-700">{i+1}</span>
+                                                        <span className="text-[11px] font-bold text-green-700">{i+1}</span>
                                                     </div>
                                                     <p className="text-green-900/80 leading-snug">{rec}</p>
                                                 </div>
@@ -283,7 +283,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                                     <div className="absolute top-4 right-4 h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary opacity-50 group-hover:opacity-100 transition-opacity">
                                                         {action.type === 'Pédagogique' ? <BookOpen className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                                                     </div>
-                                                    <Badge variant="secondary" className="mb-2 text-[10px] uppercase font-bold tracking-tighter">
+                                                    <Badge variant="secondary" className="mb-2 text-[11px] font-bold tracking-tighter">
                                                         {action.type}
                                                     </Badge>
                                                     <h4 className="font-bold text-sm mb-1">{action.title}</h4>

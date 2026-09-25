@@ -13,6 +13,7 @@ import {
     type IconName,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { CalendarDays, UserRound } from "lucide-react";
 
 type ClubColor = "info" | "warning" | "success" | "brand" | "danger";
 
@@ -144,7 +145,7 @@ export default function ClubsPage() {
             permission={Permission.SCHOOL_READ}
             roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Clubs & activités"
                     description={`${CLUBS.length} clubs proposés · ${ready ? myClubs.length : 0} ${
@@ -252,7 +253,7 @@ export default function ClubsPage() {
                                 </div>
                                 <div
                                     className="eduflow-display"
-                                    style={{ fontSize: 18, fontWeight: 700 }}
+                                    style={{ fontSize: 16, fontWeight: 700 }}
                                 >
                                     {club.name}
                                 </div>
@@ -285,8 +286,12 @@ export default function ClubsPage() {
                                         flexWrap: "wrap",
                                     }}
                                 >
-                                    <span>🗓 {club.schedule}</span>
-                                    <span>👨‍🏫 {club.professor}</span>
+                                    <span className="inline-flex items-center gap-1">
+                                        <CalendarDays size={14} aria-hidden="true" /> {club.schedule}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1">
+                                        <UserRound size={14} aria-hidden="true" /> {club.professor}
+                                    </span>
                                 </div>
                                 {mine ? (
                                     <Button
@@ -321,7 +326,7 @@ export default function ClubsPage() {
                 }
                 @media (max-width: 600px) {
                     .clubs-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

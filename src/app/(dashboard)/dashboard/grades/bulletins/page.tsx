@@ -211,7 +211,7 @@ export default function BulletinsPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link href="/dashboard/grades">
                         <Button variant="secondary" size="sm">
@@ -242,7 +242,7 @@ export default function BulletinsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Configurer le bulletin
                         </h2>
                     </div>
@@ -300,7 +300,7 @@ export default function BulletinsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                         className="print:hidden"
@@ -325,7 +325,7 @@ export default function BulletinsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--brand-500)",
+                            border: "1px solid var(--eduflow-brand-200)",
                             background: "var(--brand-50)",
                         }}
                         className="print:hidden"
@@ -360,7 +360,7 @@ export default function BulletinsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Aucun bulletin généré
                             </h2>
                             <p
@@ -534,8 +534,6 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                         style={{
                             fontSize: 14,
                             fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
                         }}
                     >
                         {periodSubtitle}
@@ -546,7 +544,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div
                         className="eduflow-mono"
                         style={{
-                            fontSize: 9,
+                            fontSize: 11,
                             color: "var(--eduflow-text-tertiary)",
                             marginTop: 4,
                             fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
@@ -574,7 +572,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
                         {bulletin.student.lastName.toUpperCase()} {bulletin.student.firstName}
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
                         {bulletin.student.dateOfBirth
                             ? `née/né le ${FR_DATE_SHORT(bulletin.student.dateOfBirth)}`
                             : " "}
@@ -584,7 +582,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
                         {bulletin.class.name} · {bulletin.classSize} élèves
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
                         {bulletin.class.level}
                     </div>
                 </CardCell>
@@ -601,7 +599,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     >
                         {bulletin.student.matricule}
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
                         Année {bulletin.academicYear}
                     </div>
                 </CardCell>
@@ -632,10 +630,8 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 style={{
                                     padding: "8px 10px",
                                     textAlign: "left",
-                                    fontSize: 9,
+                                    fontSize: 11,
                                     fontWeight: 700,
-                                    letterSpacing: "0.06em",
-                                    textTransform: "uppercase",
                                 }}
                             >
                                 {h}
@@ -707,7 +703,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                     style={{
                                         padding: "9px 10px",
                                         color: "var(--eduflow-text-tertiary)",
-                                        fontSize: 10,
+                                        fontSize: 11,
                                     }}
                                     className="tabular"
                                 >
@@ -718,7 +714,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 <td
                                     style={{
                                         padding: "9px 10px",
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--eduflow-text-secondary)",
                                         fontStyle: "italic",
                                     }}
@@ -798,11 +794,9 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                 >
                     <div
                         style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 700,
                             color: "var(--eduflow-text-tertiary)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
                         }}
                     >
                         Vie scolaire
@@ -847,11 +841,9 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                 >
                     <div
                         style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 700,
                             color: "var(--eduflow-text-tertiary)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
                         }}
                     >
                         Appréciation du conseil de classe
@@ -892,7 +884,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                             borderTop: "1px solid var(--eduflow-border-strong, #CBD5E1)",
                         }}
                     >
-                        <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                             {s.l}
                         </div>
                         <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>
@@ -913,7 +905,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     borderTop: "1px solid var(--eduflow-border-subtle, #E2E8F0)",
                     display: "flex",
                     justifyContent: "space-between",
-                    fontSize: 9,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -940,11 +932,9 @@ function CardCell({ label, children }: { label: string; children: React.ReactNod
         <div>
             <div
                 style={{
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 700,
                     color: "var(--eduflow-text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                 }}
             >
                 {label}
@@ -998,8 +988,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

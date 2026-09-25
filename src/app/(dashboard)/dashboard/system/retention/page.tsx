@@ -128,7 +128,7 @@ export default function SystemRetentionPage() {
                                 </CardDescription>
                             </CardHeader>
 
-                            <CardContent className="pt-6 space-y-8">
+                            <CardContent className="pt-6 space-y-4">
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-foreground font-medium border-b border-border pb-2">
                                         <FileText className="w-4 h-4 text-muted-foreground" />

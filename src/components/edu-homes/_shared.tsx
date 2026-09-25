@@ -41,8 +41,6 @@ export function SubLabel({ children }: { children: React.ReactNode }) {
                 fontSize: 11,
                 fontWeight: 600,
                 color: "var(--eduflow-text-tertiary)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
                 marginBottom: 10,
             }}
         >

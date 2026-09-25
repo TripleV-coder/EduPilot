@@ -209,7 +209,7 @@ function PromotionEngineContent() {
   };
 
   return (
-    <div className="space-y-8 max-w-[1400px] mx-auto animate-in fade-in duration-500 pb-20">
+    <div className="space-y-4 pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader 
           title="Promotion & Fin d'Année" 
@@ -221,12 +221,12 @@ function PromotionEngineContent() {
             ) : null}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Sidebar selection */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="border-none shadow-none bg-muted/20">
             <CardHeader className="p-4 border-b border-border/50">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
                 <Users className="w-4 h-4 text-primary" />
                 Sélection de Classe
               </CardTitle>
@@ -242,13 +242,13 @@ function PromotionEngineContent() {
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left",
                     selectedClassId === c.id 
-                      ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]" 
+                      ? "bg-primary border-primary text-white shadow-primary/20 scale-[1.02]" 
                       : "bg-background border-border/50 hover:border-primary/30 text-foreground"
                   )}
                 >
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{c.name}</span>
-                    <span className={cn("text-[10px] font-medium uppercase opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
+                    <span className={cn("text-[11px] font-medium opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
                       {c.classLevel?.level ?? ""}
                     </span>
                   </div>
@@ -260,7 +260,7 @@ function PromotionEngineContent() {
 
           <Card className="border-none shadow-none bg-muted/20">
             <CardHeader className="p-4 border-b border-border/50">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
                 <CalendarRange className="w-4 h-4 text-primary" />
                 Année de destination
               </CardTitle>
@@ -303,26 +303,26 @@ function PromotionEngineContent() {
         <div className="lg:col-span-8 space-y-6">
           <Card className="border-none shadow-none bg-muted/20 overflow-hidden">
             <CardHeader className="p-4 border-b border-border/50 bg-background/40 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Décisions de Promotion</CardTitle>
+              <CardTitle className="text-xs font-bold text-muted-foreground">Décisions de Promotion</CardTitle>
               <div className="flex gap-4 items-center">
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-[hsl(var(--success))]" />
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Admis: {students.filter(s => s.status === "PROMOTE").length}</span>
+                    <span className="text-[11px] font-bold text-muted-foreground">Admis: {students.filter(s => s.status === "PROMOTE").length}</span>
                  </div>
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-warning" />
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Redouble: {students.filter(s => s.status === "REPEAT").length}</span>
+                    <span className="text-[11px] font-bold text-muted-foreground">Redouble: {students.filter(s => s.status === "REPEAT").length}</span>
                  </div>
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">À décider: {undecidedCount}</span>
+                    <span className="text-[11px] font-bold text-muted-foreground">À décider: {undecidedCount}</span>
                  </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                  <thead className="bg-muted/50 text-[11px] font-bold text-muted-foreground border-b border-border/50">
                     <tr>
                       <th className="px-6 py-4 text-left">Élève</th>
                       <th className="px-6 py-4 text-center">Moyenne Générale</th>
@@ -340,7 +340,7 @@ function PromotionEngineContent() {
                             <span className="text-sm font-bold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground">Aucune note</span>
                           ) : (
                             <span className={cn(
-                              "text-sm font-black px-2.5 py-1 rounded-lg",
+                              "text-sm font-bold px-2.5 py-1 rounded-lg",
                               s.average >= 10 ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
                             )}>{s.average.toFixed(2)} / 20</span>
                           )}
@@ -350,7 +350,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "PROMOTE")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
                                 s.status === "PROMOTE" ? "bg-[hsl(var(--success))] border-[hsl(var(--success))] text-white shadow-md shadow-[hsl(var(--success))]/20" : "bg-background border-border/50 text-muted-foreground hover:border-[hsl(var(--success))]/50"
                               )}
                             >
@@ -359,7 +359,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "REPEAT")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
                                 s.status === "REPEAT" ? "bg-warning border-warning text-white shadow-md shadow-warning/20" : "bg-background border-border/50 text-muted-foreground hover:border-warning/50"
                               )}
                             >
@@ -368,7 +368,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "LEAVE")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
                                 s.status === "LEAVE" ? "bg-destructive border-destructive text-white shadow-md shadow-destructive/20" : "bg-background border-border/50 text-muted-foreground hover:border-destructive/50"
                               )}
                             >
@@ -384,13 +384,13 @@ function PromotionEngineContent() {
             </CardContent>
           </Card>
 
-          <div className="p-6 rounded-2xl bg-muted/40 text-foreground flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="p-6 rounded-card bg-muted/40 text-foreground flex flex-col sm:flex-row items-center justify-between gap-6">
              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-card bg-white/10 flex items-center justify-center">
                    <Save className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                   <h2 className="text-lg font-black tracking-tight">Appliquer les promotions</h2>
+                   <h2 className="text-lg font-bold tracking-tight">Appliquer les promotions</h2>
                    <p className="text-xs text-muted-foreground">
                      {decidedStudents.length} décision(s) seront appliquées vers l&apos;année cible.
                      {undecidedCount > 0 && ` ${undecidedCount} élève(s) « à décider » resteront inchangés.`}
@@ -407,7 +407,7 @@ function PromotionEngineContent() {
              <Button
               disabled={isProcessing || !selectedClassId || rosterLoading || gradeStatsLoading || students.length === 0}
                onClick={handlePromotion}
-               className="h-12 px-10 rounded-xl font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-white"
+               className="h-12 px-10 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white"
              >
                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
                Enregistrer les Décisions

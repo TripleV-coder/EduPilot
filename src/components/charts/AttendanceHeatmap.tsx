@@ -52,7 +52,7 @@ export function AttendanceHeatmap({ data, year = new Date().getFullYear() }: Att
                     
                     return (
                         <div key={monthIdx} className="space-y-2">
-                            <h4 className="text-[10px] font-bold uppercase text-muted-foreground text-center">
+                            <h4 className="text-[11px] font-bold text-muted-foreground text-center">
                                 {monthName}
                             </h4>
                             <div className="grid grid-cols-7 gap-1">
@@ -68,7 +68,7 @@ export function AttendanceHeatmap({ data, year = new Date().getFullYear() }: Att
                                                 )} />
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p className="text-[10px] font-bold">{formatDisplayDate(day)}</p>
+                                                <p className="text-[11px] font-bold">{formatDisplayDate(day)}</p>
                                                 <p className="text-xs mt-1">Taux d&apos;absence : <span className="font-bold text-destructive">{rate}%</span></p>
                                             </TooltipContent>
                                         </Tooltip>

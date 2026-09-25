@@ -159,7 +159,7 @@ export default function LMSPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Devoirs & ressources"
                     description={`${homework.length} devoir${homework.length > 1 ? "s" : ""} publié${homework.length > 1 ? "s" : ""} ce trimestre`}
@@ -389,7 +389,7 @@ export default function LMSPage() {
                             }}
                         >
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Activité élèves · 7 jours</p>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Activité élèves · 7 jours</p>
                                 <div
                                     style={{
                                         display: "flex",
@@ -430,7 +430,7 @@ export default function LMSPage() {
                             </Card>
 
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Devoirs les plus rendus</p>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Devoirs les plus rendus</p>
                                 {topResources.length === 0 ? (
                                     <div
                                         style={{
@@ -522,7 +522,7 @@ export default function LMSPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .lms-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

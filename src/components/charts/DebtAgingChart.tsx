@@ -24,7 +24,7 @@ export function DebtAgingChart({ data }: DebtAgingChartProps) {
     ];
 
     if (!data || data.length === 0) {
-        return <div className="flex items-center justify-center h-[300px] text-muted-foreground text-xs uppercase font-bold italic">Aucune donnée disponible</div>;
+        return <div className="flex items-center justify-center h-[300px] text-muted-foreground text-xs font-bold italic">Aucune donnée disponible</div>;
     }
 
     return (

@@ -3,6 +3,7 @@
 import { useRBAC } from "@/lib/hooks/use-rbac";
 import { Permission } from "@/lib/rbac/permissions";
 import type { UserRole } from "@prisma/client";
+import { Spinner } from "@/components/edu";
 
 type PageGuardProps = {
     permission?: Permission | Permission[];
@@ -29,7 +30,7 @@ export function PageGuard({
         return (
             fallback ?? (
                 <div className="flex items-center justify-center py-24">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
                 </div>
             )
         );

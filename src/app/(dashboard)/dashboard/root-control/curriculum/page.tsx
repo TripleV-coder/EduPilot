@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Building2, BookOpen, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
@@ -24,6 +25,7 @@ type CurriculumResponse = {
 
 export default function RootCurriculumPage() {
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
+    const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
     const [selectedClassId, setSelectedClassId] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
 
@@ -105,7 +107,6 @@ export default function RootCurriculumPage() {
     };
 
     const handleRemoveSubject = async (classSubjectId: string) => {
-        if (!confirm("Supprimer cette matière de la classe ?")) return;
         try {
             const res = await fetch(`/api/admin/curriculum-config?classSubjectId=${classSubjectId}`, {
                 method: "DELETE",
@@ -124,6 +125,18 @@ export default function RootCurriculumPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
+            <ConfirmActionDialog
+                open={pendingRemoveId !== null}
+                onOpenChange={(open) => { if (!open) setPendingRemoveId(null); }}
+                title="Supprimer cette matière de la classe ?"
+                description="La matière ne sera plus proposée pour cette classe. Si des notes existent déjà, le retrait sera refusé."
+                confirmLabel="Retirer"
+                onConfirm={async () => {
+                    const id = pendingRemoveId;
+                    setPendingRemoveId(null);
+                    if (id) await handleRemoveSubject(id);
+                }}
+            />
             <div className="space-y-6 pb-24">
                 <PageHeader
                     title="Curriculum & Réformes"
@@ -138,7 +151,7 @@ export default function RootCurriculumPage() {
                     {/* Context Selection */}
                     <Card className="border-border bg-card">
                         <CardHeader>
-                            <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-primary" /> Sélection du Contexte
                             </CardTitle>
                         </CardHeader>
@@ -171,7 +184,7 @@ export default function RootCurriculumPage() {
                     {/* Quick Create Subject */}
                     <Card className="border-border bg-card">
                         <CardHeader>
-                            <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2">
                                 <Plus className="w-4 h-4 text-primary" /> Créer une Matière
                             </CardTitle>
                         </CardHeader>
@@ -200,14 +213,14 @@ export default function RootCurriculumPage() {
                     <Card className="border-border overflow-hidden">
                         <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-sm font-bold uppercase tracking-widest">Contenu du Programme</CardTitle>
-                                <CardDescription className="text-[10px]">Liste des matières et coefficients pour cette classe.</CardDescription>
+                                <CardTitle className="text-sm font-bold">Contenu du Programme</CardTitle>
+                                <CardDescription className="text-[11px]">Liste des matières et coefficients pour cette classe.</CardDescription>
                             </div>
-                            <Badge variant="secondary" className="font-black">Consolidé</Badge>
+                            <Badge variant="secondary" className="font-bold">Consolidé</Badge>
                         </CardHeader>
                         <CardContent className="p-0">
                             <table className="w-full text-sm">
-                                <thead className="bg-muted/10 text-muted-foreground uppercase font-bold text-[10px] border-b">
+                                <thead className="bg-muted/10 text-muted-foreground font-bold text-[11px] border-b">
                                     <tr>
                                         <th className="px-6 py-3 text-left">Matière</th>
                                         <th className="px-6 py-3 text-center">Code</th>
@@ -220,9 +233,9 @@ export default function RootCurriculumPage() {
                                         <tr key={cs.id} className="hover:bg-muted/5 group">
                                             <td className="px-6 py-4 font-bold">{cs.subject.name}</td>
                                             <td className="px-6 py-4 text-center font-mono text-xs">{cs.subject.code}</td>
-                                            <td className="px-6 py-4 text-center font-black">{Number(cs.coefficient)}</td>
+                                            <td className="px-6 py-4 text-center font-bold">{Number(cs.coefficient)}</td>
                                             <td className="px-6 py-4 text-right">
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveSubject(cs.id)} className="h-11 w-11 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Retirer ${cs.subject.name}`}>
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => setPendingRemoveId(cs.id)} className="h-11 w-11 text-destructive md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity" aria-label={`Retirer ${cs.subject.name}`}>
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </td>
@@ -266,9 +279,9 @@ export default function RootCurriculumPage() {
                                         </td>
                                     </tr>
                                 </tbody>
-                                <tfoot className="bg-muted/20 font-black">
+                                <tfoot className="bg-muted/20 font-bold">
                                     <tr>
-                                        <td colSpan={2} className="px-6 py-3 text-right text-[10px] uppercase">Somme des Coefficients</td>
+                                        <td colSpan={2} className="px-6 py-3 text-right text-[11px]">Somme des Coefficients</td>
                                         <td className="px-6 py-3 text-center">{curriculumData?.totalCoefficients || 0}</td>
                                         <td></td>
                                     </tr>

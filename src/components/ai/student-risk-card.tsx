@@ -169,8 +169,6 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
                     margin: "0 0 6px",
                     fontSize: 11,
                     fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                     color: "var(--eduflow-text-tertiary)",
                   }}
                 >
@@ -199,8 +197,6 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
                     margin: "0 0 6px",
                     fontSize: 11,
                     fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                     color: "var(--eduflow-text-tertiary)",
                   }}
                 >
@@ -333,8 +329,6 @@ export function StudentOrientationAction({ studentId }: { studentId: string }) {
                   margin: "0 0 4px",
                   fontSize: 11,
                   fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
                   color: "var(--brand-700)",
                 }}
               >

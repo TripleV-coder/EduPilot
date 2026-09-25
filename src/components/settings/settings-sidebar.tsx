@@ -68,10 +68,8 @@ export function SettingsSidebar() {
                 <div key={cat.label} className="mb-2.5 last:mb-0">
                     <div
                         style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
                             color: "var(--eduflow-text-tertiary)",
                             padding: "8px 8px 4px",
                         }}

@@ -59,7 +59,7 @@ export default function VerifyEmailPage() {
                 title="Lien envoyé"
                 subtitle="Vérifiez votre boîte de réception pour finaliser la confirmation."
             >
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+                <div className=""
                     style={{ display: "flex", flexDirection: "column", gap: 18 }}
                 >
                     <div
@@ -114,7 +114,7 @@ export default function VerifyEmailPage() {
             subtitle="Renvoyez un lien de confirmation à votre adresse pour activer votre compte."
         >
             {error ? (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300"
+                <div className=""
                     role="alert"
                     style={{
                         display: "flex",

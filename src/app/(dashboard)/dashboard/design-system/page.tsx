@@ -6,7 +6,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 export const metadata: Metadata = {
     title: "Design System v2 · 2026",
     description:
-        "EduPilot — système de design Sky → Indigo. Tokens, fondations, composants Edu.",
+        "EduPilot — système de design Sky et Indigo. Tokens, fondations, composants Edu.",
 };
 
 export default function DesignSystemPage() {
@@ -15,7 +15,7 @@ export default function DesignSystemPage() {
             <PageShell className="max-w-6xl">
                 <PageHeader
                     title="Design System v2 · 2026"
-                    description="EduPilot — système de design Sky → Indigo. Tokens, fondations, composants Edu."
+                    description="EduPilot — système de design Sky et Indigo. Tokens, fondations, composants Edu."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Design System" },

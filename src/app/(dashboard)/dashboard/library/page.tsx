@@ -176,7 +176,7 @@ export default function LibraryPage() {
             permission={Permission.REPORT_VIEW}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Bibliothèque & fonds"
                     description={`${books.length} ouvrages au catalogue · ${availableCount} disponibles à l'emprunt`}
@@ -347,7 +347,7 @@ export default function LibraryPage() {
                                                     <div
                                                         className="eduflow-mono"
                                                         style={{
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             color: "var(--eduflow-text-tertiary)",
                                                             marginTop: 4,
                                                         }}

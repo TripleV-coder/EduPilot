@@ -5,25 +5,25 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-input text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-[1px] active:translate-y-[0.5px] active:scale-[0.985] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/92 hover:shadow-[0_10px_22px_hsl(var(--primary)/0.28)]",
+          "bg-primary text-primary-foreground hover:bg-[var(--brand-700)]",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-input bg-background/92 shadow-sm hover:bg-muted hover:border-primary/30",
+          "border border-[var(--eduflow-border-default)] bg-card text-[var(--brand-600)] hover:bg-[var(--brand-50)] dark:text-[#93C5FD] dark:hover:bg-[rgba(59,130,246,0.12)]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/88",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+          "bg-[var(--brand-50)] text-[var(--brand-700)] hover:bg-[var(--brand-100)] dark:bg-[rgba(59,130,246,0.14)] dark:text-[#93C5FD]",
+        ghost: "text-foreground hover:bg-muted",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3 text-xs",
-        lg: "h-11 px-8",
+        default: "h-10 px-5 py-2",
+        sm: "h-9 px-4 text-[13px]",
+        lg: "h-11 px-6",
         icon: "h-10 w-10",
       },
     },

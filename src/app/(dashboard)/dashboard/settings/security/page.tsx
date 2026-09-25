@@ -171,7 +171,7 @@ export default function SecuritySettingsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            border: "1px solid var(--eduflow-success-200)",
                             background: "var(--eduflow-success-50)",
                         }}
                     >
@@ -195,7 +195,7 @@ export default function SecuritySettingsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -224,7 +224,7 @@ export default function SecuritySettingsPage() {
                         <div className="flex items-start gap-3">
                             <Icon name="settings" size={18} color="var(--brand-700)" />
                             <div>
-                                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                     Authentification à double facteur (2FA)
                                 </h2>
                                 <p
@@ -335,7 +335,7 @@ export default function SecuritySettingsPage() {
                                     padding={14}
                                     style={{
                                         background: "var(--eduflow-success-50)",
-                                        borderLeft: "3px solid var(--eduflow-success-500)",
+                                        border: "1px solid var(--eduflow-success-200)",
                                     }}
                                 >
                                     <div className="flex items-start gap-3">
@@ -444,7 +444,7 @@ export default function SecuritySettingsPage() {
                     >
                         <Icon name="settings" size={18} color="var(--brand-700)" />
                         <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Mot de passe
                             </h2>
                             <p
@@ -490,7 +490,7 @@ export default function SecuritySettingsPage() {
                             padding={12}
                             style={{
                                 background: "var(--eduflow-warning-50)",
-                                borderLeft: "3px solid var(--eduflow-warning-500)",
+                                border: "1px solid var(--eduflow-warning-200)",
                             }}
                         >
                             <div className="flex items-start gap-3">

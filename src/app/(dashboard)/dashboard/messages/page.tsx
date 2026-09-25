@@ -291,7 +291,7 @@ export default function MessagesPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Messagerie"
                     description={`Conversations internes · parents · enseignants · ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
@@ -423,7 +423,7 @@ export default function MessagesPage() {
                                                     </span>
                                                     <span
                                                         style={{
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                             whiteSpace: "nowrap",
@@ -456,7 +456,7 @@ export default function MessagesPage() {
                                                         borderRadius: 9,
                                                         background: "var(--brand-600)",
                                                         color: "#fff",
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         fontWeight: 700,
                                                         display: "grid",
                                                         placeItems: "center",
@@ -734,7 +734,7 @@ export default function MessagesPage() {
                 }
                 @media (max-width: 760px) {
                     .msg-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                     .msg-grid > div:first-child {
                         height: 280px;
@@ -772,7 +772,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                         padding: "4px 12px",
                         borderRadius: 12,
                         background: "var(--eduflow-surface-card)",
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--eduflow-text-tertiary)",
                         border: "1px solid var(--eduflow-border-subtle)",
                     }}
@@ -803,12 +803,10 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     {m.subject && !m.subject.startsWith("Re:") ? (
                         <div
                             style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 4,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
                                 textAlign: fromMe ? "right" : "left",
                             }}
                         >
@@ -836,7 +834,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     </div>
                     <div
                         style={{
-                            fontSize: 9,
+                            fontSize: 11,
                             color: "var(--eduflow-text-tertiary)",
                             marginTop: 4,
                             textAlign: fromMe ? "right" : "left",

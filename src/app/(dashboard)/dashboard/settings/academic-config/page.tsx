@@ -71,9 +71,9 @@ const FR_DATE_RANGE = (a: string, b: string): string => {
         const db = new Date(b);
         const fmt = (d: Date) =>
             d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-        return `${fmt(da)} → ${fmt(db)}`;
+        return `${fmt(da)} – ${fmt(db)}`;
     } catch {
-        return `${a} → ${b}`;
+        return `${a} – ${b}`;
     }
 };
 
@@ -152,7 +152,7 @@ export default function AcademicConfigPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/settings">
                         <Button variant="secondary" size="sm">
@@ -202,7 +202,7 @@ export default function AcademicConfigPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -226,7 +226,7 @@ export default function AcademicConfigPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            border: "1px solid var(--eduflow-success-200)",
                             background: "var(--eduflow-success-50)",
                         }}
                     >
@@ -256,7 +256,7 @@ export default function AcademicConfigPage() {
                         <Card padding={24}>
                             <h2
                                 className="eduflow-display"
-                                style={{ fontSize: 18, margin: "0 0 6px" }}
+                                style={{ fontSize: 16, margin: "0 0 6px" }}
                             >
                                 Système de découpage
                             </h2>
@@ -358,7 +358,7 @@ export default function AcademicConfigPage() {
                                                 fontWeight: 600,
                                             }}
                                         >
-                                            Paramètres → Périodes
+                                            Paramètres › Périodes
                                         </Link>{" "}
                                         après avoir choisi le système.
                                     </div>
@@ -526,7 +526,7 @@ export default function AcademicConfigPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -572,7 +572,7 @@ export default function AcademicConfigPage() {
                                     à semestre (ou inverse), EduPilot recalcule automatiquement les
                                     moyennes via la pondération des coefficients, met à jour les
                                     échéances de paiement et notifie les enseignants concernés. Tu
-                                    devras toutefois recréer les périodes (Paramètres → Périodes)
+                                    devras toutefois recréer les périodes (Paramètres › Périodes)
                                     pour que les bulletins suivants utilisent le nouveau découpage.
                                 </div>
                             </div>
@@ -585,7 +585,7 @@ export default function AcademicConfigPage() {
                 @media (max-width: 760px) {
                     .system-grid,
                     .periods-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -657,7 +657,7 @@ function SystemOption({
             <div
                 className="eduflow-display"
                 style={{
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: 700,
                     color: active
                         ? "var(--brand-900, var(--brand-800))"
@@ -694,11 +694,9 @@ function PeriodDetail({ label, value }: { label: string; value: string }) {
         <div>
             <div
                 style={{
-                    fontSize: 9,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
                     fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                 }}
             >
                 {label}

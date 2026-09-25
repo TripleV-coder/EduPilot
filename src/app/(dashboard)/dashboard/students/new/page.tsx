@@ -36,6 +36,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { PageError } from "@/components/layout/page-states";
+import { Spinner } from "@/components/edu";
 
 type StudentFormValues = z.infer<typeof studentCreateSchema>;
 
@@ -305,7 +306,7 @@ export default function NewStudentPage() {
                                 </Button>
                             </Link>
                             <Button type="submit" disabled={loading} className="gap-2">
-                                {loading && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />}
+                                {loading && <Spinner size={16} />}
                                 <Save className="h-4 w-4" />
                                 Enregistrer l'élève
                             </Button>

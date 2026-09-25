@@ -19,6 +19,7 @@ import {
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { listFrom } from "@/lib/api/list-payload";
+import { toast } from "sonner";
 
 type ClassSubjectRow = {
     id: string;
@@ -36,6 +37,11 @@ type TeacherRow = {
     id: string;
     user?: { firstName?: string; lastName?: string };
 };
+
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+    const body = await res.json().catch(() => null);
+    return (body && typeof body.error === "string" && body.error) || fallback;
+}
 
 export default function ClassSubjectsPage() {
     // N25 : la route renvoie { data, pagination }, pas un tableau (section vide, ni
@@ -99,16 +105,21 @@ export default function ClassSubjectsPage() {
                 weeklyHours: a.weeklyHours.trim() ? Number(a.weeklyHours) : undefined,
             }));
 
-            await fetch("/api/class-subjects/batch", {
+            const res = await fetch("/api/class-subjects/batch", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ assignments: payloadAssignments }),
             });
+            if (!res.ok) {
+                toast.error(await errorMessage(res, "Les affectations n'ont pas été enregistrées."));
+                return;
+            }
             mutateClassSubjects();
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
         } catch (error) {
             console.error("Failed to save assignments:", error);
+            toast.error("Erreur réseau : les affectations n'ont pas été enregistrées.");
         } finally {
             setSaving(false);
         }
@@ -269,7 +280,7 @@ export default function ClassSubjectsPage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                            className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 max-md:h-11 max-md:w-11"
                                                             onClick={() => setEditableAssignments((prev) => prev.filter((x) => x.id !== a.id))}
                                                             title="Retirer l&apos;affectation (suppression à la sauvegarde)"
                                                         >

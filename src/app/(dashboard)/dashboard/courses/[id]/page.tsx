@@ -108,7 +108,7 @@ export default function CourseDetailPage() {
                     ]}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Main Content: Syllabus */}
                     <div className="lg:col-span-2 space-y-6">
                         <Card className="border-border shadow-sm">
@@ -187,7 +187,7 @@ export default function CourseDetailPage() {
                                 </div>
 
                                 <Link href={`/dashboard/courses/${course.id}/lessons/${course.modules[0]?.lessons[0]?.id || ""}`}>
-                                    <Button className="w-full h-12 text-base font-bold shadow-lg" disabled={totalLessons === 0}>
+                                    <Button className="w-full h-12 text-base font-bold" disabled={totalLessons === 0}>
                                         {progress === 0 ? "Commencer le cours" : progress === 100 ? "Revoir le cours" : "Continuer l'apprentissage"}
                                     </Button>
                                 </Link>

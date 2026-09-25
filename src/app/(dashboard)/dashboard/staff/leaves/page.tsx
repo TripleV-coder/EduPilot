@@ -114,7 +114,7 @@ function LeavesContent() {
             <Card padding={0}>
                 <div className="flex items-center gap-2 border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
                     <Icon name="calendar" size={18} color="var(--brand-700)" />
-                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Demander un congé</h2>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>Demander un congé</h2>
                 </div>
                 <form onSubmit={submitRequest} className="grid gap-3 px-5 py-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                     <label className="flex flex-col gap-1">
@@ -147,7 +147,7 @@ function LeavesContent() {
             {canManage && pending.length > 0 ? (
                 <Card padding={0}>
                     <div className="border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             À valider ({pending.length})
                         </h2>
                     </div>
@@ -157,7 +157,7 @@ function LeavesContent() {
                                 <div className="min-w-0 flex-1">
                                     <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name} · <span style={{ color: "var(--eduflow-text-tertiary)", fontWeight: 400 }}>{formatUserRoleLabel(r.role)}</span></div>
                                     <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
-                                        {TYPE_LABEL[r.type]} · {r.startDate} → {r.endDate} ({r.days} j){r.reason ? ` · ${r.reason}` : ""}
+                                        {TYPE_LABEL[r.type]} · {r.startDate} – {r.endDate} ({r.days} j){r.reason ? ` · ${r.reason}` : ""}
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -173,7 +173,7 @@ function LeavesContent() {
             {/* Historique complet */}
             <Card padding={0}>
                 <div className="border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                    <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         {canManage ? "Toutes les demandes" : "Mes demandes"}
                     </h2>
                 </div>
@@ -191,7 +191,7 @@ function LeavesContent() {
                                         {canManage ? <span style={{ color: "var(--eduflow-text-tertiary)", fontWeight: 400 }}> · {TYPE_LABEL[r.type]}</span> : null}
                                     </div>
                                     <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
-                                        {r.startDate} → {r.endDate} ({r.days} j)
+                                        {r.startDate} – {r.endDate} ({r.days} j)
                                         {r.decidedBy ? ` · décidé par ${r.decidedBy}` : ""}
                                     </div>
                                 </div>
@@ -211,8 +211,6 @@ function LeavesContent() {
 const labelStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
     color: "var(--eduflow-text-tertiary)",
 };
 const selectStyle: React.CSSProperties = {

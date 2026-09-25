@@ -182,7 +182,7 @@ function AlertsRisksContent() {
         actions={
           <div className="flex items-center gap-2">
            <Select value={classId} onValueChange={setClassId}>
-            <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-[11px] font-bold uppercase">
+            <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-[11px] font-bold">
               <SelectValue placeholder="Toutes les classes" />
             </SelectTrigger>
             <SelectContent>
@@ -194,11 +194,11 @@ function AlertsRisksContent() {
               ))}
             </SelectContent>
            </Select>
-           <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold uppercase" onClick={() => setClassId("all")}>
+           <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold" onClick={() => setClassId("all")}>
              <Filter className="w-3.5 h-3.5 mr-2" />
              {t("common.reset")} filtres
            </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold uppercase">
+          <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold">
              <Download className="w-3.5 h-3.5 mr-2" />
              {t("common.export")}
            </Button>
@@ -212,40 +212,40 @@ function AlertsRisksContent() {
           <Card className="border-none shadow-none bg-muted/20">
             <CardHeader className="p-4 border-b border-border/50">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-destructive" />
                   Matrice des Risques (Décrochage vs Échec)
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-6">
-               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                  <div className="md:col-span-7">
                     <RiskMatrix students={matrixPoints} />
                  </div>
                  <div className="md:col-span-5 space-y-4">
                     <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                       <h3 className="text-xs font-bold uppercase tracking-tight mb-2">Légende Matrice</h3>
+                       <h3 className="text-xs font-bold tracking-tight mb-2">Légende Matrice</h3>
                        <div className="space-y-3">
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Risque Critique</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">Élèves en danger immédiat (décrochage + échec).</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Élèves en danger immédiat (décrochage + échec).</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-warning mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Vigilance Accrue</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">Alerte sur l'un des deux axes majeurs.</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Alerte sur l'un des deux axes majeurs.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-success mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Zone de Stabilité</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">Élèves sans risque majeur identifié.</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Élèves sans risque majeur identifié.</p>
                              </div>
                           </div>
                        </div>
@@ -262,7 +262,7 @@ function AlertsRisksContent() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted/50 text-muted-foreground uppercase font-bold text-[10px]">
+                  <thead className="bg-muted/50 text-muted-foreground font-bold text-[11px]">
                     <tr>
                       <th className="px-4 py-3 text-left">Élève</th>
                       <th className="px-4 py-3 text-left">Classe</th>
@@ -314,11 +314,11 @@ function AlertsRisksContent() {
                             "px-4 py-3 text-center font-mono",
                             row.trend === "up" ? "text-destructive" : row.trend === "down" ? "text-[hsl(var(--success))]" : "text-warning"
                           )}>
-                            {row.trend === "up" ? "↗ Hausse" : row.trend === "down" ? "↘ Baisse" : "→ Stable"}
+                            {row.trend === "up" ? "En hausse" : row.trend === "down" ? "En baisse" : "Stable"}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                              "px-2 py-0.5 rounded-full text-[11px] font-bold border",
                               row.status === "CRITICAL" ? "bg-destructive/10 text-destructive border-destructive/20" :
                               row.status === "HIGH" ? "bg-warning/10 text-warning border-warning/20" :
                               row.status === "MEDIUM" ? "bg-primary/10 text-primary border-primary/20" :
@@ -332,10 +332,10 @@ function AlertsRisksContent() {
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
                               <Link href={`/dashboard/students/${row.studentId}`} onClick={() => markStudentTransition(row.studentId)}>
-                                <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase">Profil</Button>
+                                <Button variant="outline" size="sm" className="h-7 text-[11px] font-bold">Profil</Button>
                               </Link>
                               <Link href={`/dashboard/messages?studentId=${row.studentId}`}>
-                                <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase">Parents</Button>
+                                <Button variant="outline" size="sm" className="h-7 text-[11px] font-bold">Parents</Button>
                               </Link>
                             </div>
                           </td>
@@ -353,8 +353,8 @@ function AlertsRisksContent() {
         <div className="lg:col-span-4 space-y-6">
            <Card className="border-none shadow-none bg-muted/20">
               <CardHeader className="p-4 border-b border-border/50 flex flex-row items-center justify-between">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Alertes Prioritaires</CardTitle>
-                <span className="h-5 px-1.5 rounded bg-destructive text-white text-[10px] font-bold flex items-center">{topAlerts.length}</span>
+                <CardTitle className="text-xs font-bold text-muted-foreground">Alertes Prioritaires</CardTitle>
+                <span className="h-5 px-1.5 rounded bg-destructive text-white text-[11px] font-bold flex items-center">{topAlerts.length}</span>
               </CardHeader>
               <CardContent className="p-0">
                  <div className="divide-y divide-border/50">
@@ -366,8 +366,8 @@ function AlertsRisksContent() {
                     topAlerts.map((alert) => (
                       <div key={alert.studentId} className="p-4 space-y-3 hover:bg-background/40 transition-colors">
                         <div className="flex justify-between items-start gap-2">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{alert.className}</span>
-                          <span className="text-[10px] font-bold text-destructive">Score {alert.riskScore}</span>
+                          <span className="text-[11px] font-bold text-muted-foreground">{alert.className}</span>
+                          <span className="text-[11px] font-bold text-destructive">Score {alert.riskScore}</span>
                         </div>
                         <div>
                           <p className="text-xs font-bold text-foreground leading-tight">{alert.name}</p>
@@ -376,7 +376,7 @@ function AlertsRisksContent() {
                           </p>
                         </div>
                         <Link href={`/dashboard/students/${alert.studentId}`} onClick={() => markStudentTransition(alert.studentId)}>
-                          <Button variant="outline" size="sm" className="w-full h-7 text-[10px] font-bold uppercase tracking-tight group">
+                          <Button variant="outline" size="sm" className="w-full h-7 text-[11px] font-bold tracking-tight group">
                             {t("appActions.viewRecord")}
                             <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
                           </Button>
@@ -389,11 +389,11 @@ function AlertsRisksContent() {
            </Card>
            
            <Card className="border-none shadow-none bg-success/10 border border-success/20 p-4 space-y-4">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-success">Action Rapide</h3>
+              <h3 className="text-[11px] font-bold text-success">Action Rapide</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Besoin d&apos;une synthèse pour un conseil de classe ? L&apos;assistant IA peut générer un rapport complet des élèves à risque.
               </p>
-              <Button asChild className="w-full h-8 text-[11px] font-bold uppercase bg-success hover:bg-success/90">
+              <Button asChild className="w-full h-8 text-[11px] font-bold bg-success hover:bg-success/90">
                 <Link href="/dashboard/ai">Générer Rapport IA</Link>
               </Button>
            </Card>

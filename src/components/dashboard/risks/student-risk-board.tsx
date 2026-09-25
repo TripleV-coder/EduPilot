@@ -242,7 +242,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                 cell: ({ row }) => (
                     <div className="flex items-center gap-2">
                         <span className="font-semibold">{row.original.score}</span>
-                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusTone(row.original.status)}`}>
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase ${statusTone(row.original.status)}`}>
                             {row.original.status}
                         </span>
                     </div>

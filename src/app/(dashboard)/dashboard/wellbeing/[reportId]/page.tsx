@@ -255,7 +255,7 @@ function WellbeingReportContent() {
                                         <div style={{ fontSize: 12, fontWeight: 600 }}>{a.kind}</div>
                                         <div
                                             style={{
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -322,7 +322,7 @@ function WellbeingReportContent() {
                                             borderRadius: "50%",
                                             display: "grid",
                                             placeItems: "center",
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             fontWeight: 700,
                                             background: isCurrent
                                                 ? "var(--brand-600)"
@@ -354,7 +354,7 @@ function WellbeingReportContent() {
                                         <span
                                             style={{
                                                 display: "block",
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}

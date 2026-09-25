@@ -23,12 +23,12 @@ export interface AuthTestimonial {
     eyebrow?: string;
 }
 
+// Promesse produit, pas un témoignage : l'ancien « +38 % de recouvrement »
+// attribué à « Mme Akpovi » n'avait aucune source.
 const DEFAULT_TESTIMONIAL: AuthTestimonial = {
-    eyebrow: "L'École, simplifiée",
-    quote:
-        "« Le recouvrement a bondi de 38% en un trimestre. EduPilot fait le travail à notre place. »",
-    author: "Mme Akpovi",
-    role: "Directrice · Cours Bénin Excellence",
+    quote: "Notes, présences, paiements et bulletins de votre établissement, au même endroit.",
+    author: "EduPilot",
+    role: "Gestion scolaire · Bénin",
 };
 
 /**
@@ -59,7 +59,7 @@ export function AuthShell({
             }}
         >
             <div
-                className="flex min-h-dvh flex-col justify-between gap-8"
+                className="flex min-h-dvh flex-col justify-between gap-4"
                 style={{
                     padding: "clamp(24px, 5vw, 48px) clamp(24px, 6vw, 64px)",
                     background: "var(--eduflow-surface-card)",
@@ -116,16 +116,9 @@ export function AuthShell({
                                 "radial-gradient(60% 50% at 80% 20%, rgba(255,255,255,0.18), transparent 60%)",
                         }}
                     />
-                    <div className="absolute right-10 top-10 hidden items-center gap-1.5 text-[11px] opacity-85 lg:flex">
-                        <span
-                            className="h-1.5 w-1.5 rounded-full bg-white"
-                            style={{ boxShadow: "0 0 8px rgba(255,255,255,0.6)" }}
-                        />
-                        Tous les systèmes opérationnels
-                    </div>
                     <div className="relative">
                         {testimonial.eyebrow ? (
-                            <div className="mb-[18px] text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
+                            <div className="mb-[18px] text-[11px] font-bold opacity-70">
                                 {testimonial.eyebrow}
                             </div>
                         ) : null}

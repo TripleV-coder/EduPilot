@@ -123,22 +123,22 @@ export default function TakeExamPage() {
     if (isFinished) {
         return (
             <div className="max-w-2xl mx-auto py-12 px-4">
-                <Card className="border-border shadow-xl overflow-hidden">
-                    <div className="bg-primary/10 p-8 text-center border-b border-primary/10">
+                <Card className="border-border overflow-hidden">
+                    <div className="bg-primary/10 p-5 text-center border-b border-primary/10">
                         <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Trophy className="w-10 h-10 text-primary" />
                         </div>
                         <h2 className="text-2xl font-display font-bold">Examen Terminé !</h2>
                         <p className="text-muted-foreground mt-1">{exam.title}</p>
                     </div>
-                    <CardContent className="p-8 space-y-6">
+                    <CardContent className="p-5 space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 rounded-xl bg-muted/50 text-center">
-                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Votre Score</p>
+                                <p className="text-xs font-bold text-muted-foreground">Votre Score</p>
                                 <p className="text-3xl font-bold mt-1 text-primary">{result?.score} / {exam.totalPoints}</p>
                             </div>
                             <div className="p-4 rounded-xl bg-muted/50 text-center">
-                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Résultat</p>
+                                <p className="text-xs font-bold text-muted-foreground">Résultat</p>
                                 <p className={`text-xl font-bold mt-2 ${result?.isPassed ? "text-success" : "text-destructive"}`}>
                                     {result?.isPassed ? "ADMIS" : "ÉCHEC"}
                                 </p>
@@ -176,7 +176,7 @@ export default function TakeExamPage() {
                         </Link>
                         <div>
                             <h1 className="text-lg font-bold truncate max-w-[200px] sm:max-w-md">{exam.title}</h1>
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
+                            <p className="text-[11px] text-muted-foreground font-bold tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
                         </div>
                     </div>
                     
@@ -192,7 +192,7 @@ export default function TakeExamPage() {
                 <Progress value={progress} className="h-2" />
 
                 {/* Question Card */}
-                <Card className="border-border shadow-lg">
+                <Card className="border-border">
                     <CardHeader>
                         <div className="flex justify-between items-start gap-4">
                             <CardTitle className="text-xl leading-snug">{currentQuestion.question}</CardTitle>

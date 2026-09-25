@@ -88,7 +88,7 @@ function fmtShortDate(d: Date): string {
 
 function fmtRangeLabel(monday: Date): string {
     const friday = addDays(monday, 4);
-    return `${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} → ${friday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
+    return `${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} – ${friday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
 }
 
 export default function ExamsPlanningPage() {
@@ -175,7 +175,7 @@ export default function ExamsPlanningPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/exams" style={{ textDecoration: "none" }}>
                         <Button variant="secondary" size="sm">
@@ -256,7 +256,7 @@ export default function ExamsPlanningPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -441,7 +441,7 @@ export default function ExamsPlanningPage() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 10,
+                                                                            fontSize: 11,
                                                                             color: `var(--eduflow-${color}-800)`,
                                                                             marginTop: 4,
                                                                         }}
@@ -451,7 +451,7 @@ export default function ExamsPlanningPage() {
                                                                     {e.title ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 10,
+                                                                                fontSize: 11,
                                                                                 color: `var(--eduflow-${color}-800)`,
                                                                                 opacity: 0.7,
                                                                             }}
@@ -462,7 +462,7 @@ export default function ExamsPlanningPage() {
                                                                     <div
                                                                         style={{
                                                                             marginTop: 6,
-                                                                            fontSize: 10,
+                                                                            fontSize: 11,
                                                                             color: `var(--eduflow-${color}-700)`,
                                                                             fontWeight: 600,
                                                                             fontVariantNumeric:

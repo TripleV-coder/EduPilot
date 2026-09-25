@@ -17,7 +17,7 @@ const NAV_LINKS = [
     { href: "#features", label: "Fonctionnalités" },
     { href: "#pricing", label: "Tarifs" },
     { href: "#faq", label: "FAQ" },
-    { href: "/explorer", label: "Explorer 3D" },
+    { href: "/explorer", label: "Explorer les écoles" },
 ] as const;
 
 function isInternalRoute(href: string) {

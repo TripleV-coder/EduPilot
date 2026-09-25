@@ -217,7 +217,7 @@ export default function CoursesPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -250,7 +250,7 @@ export default function CoursesPage() {
                             >
                                 <Icon name="book" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Aucun cours créé
                             </h2>
                             <p
@@ -367,7 +367,7 @@ export default function CoursesPage() {
                                                 <div
                                                     className="flex items-center justify-between"
                                                     style={{
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
                                                 >

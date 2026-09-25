@@ -136,7 +136,7 @@ export default function NotificationsCenterPage() {
                 selectedItem.priority === "P0"
                     ? "PRIORITÉ HAUTE"
                     : selectedItem.uiType === "success"
-                    ? "🎉 RÉUSSITE"
+                    ? "RÉUSSITE"
                     : selectedItem.uiType === "sms"
                     ? "MESSAGE"
                     : "INFO",
@@ -175,7 +175,7 @@ export default function NotificationsCenterPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Centre de notifications"
                     description={
@@ -282,7 +282,7 @@ export default function NotificationsCenterPage() {
                                             <span
                                                 className="tabular"
                                                 style={{
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     fontWeight: 700,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
@@ -333,13 +333,13 @@ export default function NotificationsCenterPage() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 10,
                                         lineHeight: 1.5,
                                     }}
                                 >
-                                    Tes préférences détaillées sont dans Paramètres → Notifications.
+                                    Tes préférences détaillées sont dans Paramètres › Notifications.
                                 </p>
                             </div>
                         </Card>
@@ -362,7 +362,7 @@ export default function NotificationsCenterPage() {
                                         </div>
                                         <h2
                                             className="eduflow-display"
-                                            style={{ fontSize: 18, margin: 0 }}
+                                            style={{ fontSize: 16, margin: 0 }}
                                         >
                                             Tout est calme
                                         </h2>
@@ -459,7 +459,7 @@ export default function NotificationsCenterPage() {
                 }
                 @media (max-width: 760px) {
                     .notif-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -590,7 +590,7 @@ function NotifRow({
                         </span>
                         <span
                             style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: "var(--eduflow-text-tertiary)",
                                 whiteSpace: "nowrap",
                                 fontVariantNumeric: "tabular-nums",

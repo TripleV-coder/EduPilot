@@ -72,7 +72,7 @@ export function ParentLinkCodeDialog({ studentId }: { studentId: string }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold gap-2">
                     <KeyRound className="h-3.5 w-3.5" />
                     Code parent
                 </Button>
@@ -89,7 +89,7 @@ export function ParentLinkCodeDialog({ studentId }: { studentId: string }) {
                 {generated ? (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
-                            <span className="font-mono text-2xl font-bold tracking-[0.3em] text-foreground">
+                            <span className="font-mono text-2xl font-bold text-foreground">
                                 {generated.code}
                             </span>
                             <Button variant="ghost" size="sm" onClick={copy} className="gap-1.5">

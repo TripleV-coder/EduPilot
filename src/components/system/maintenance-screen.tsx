@@ -7,7 +7,7 @@ import { Wrench } from "lucide-react";
 export function MaintenanceScreen({ message }: { message: string }) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
-            <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+            <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 text-center shadow-sm">
                 <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-warning/10">
                     <Wrench className="h-7 w-7 text-warning" aria-hidden="true" />
                 </div>

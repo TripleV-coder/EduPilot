@@ -106,7 +106,7 @@ export function ComposeDialog({
             onMouseDown={(e) => {
                 if (e.target === e.currentTarget && phase !== "sending") onClose();
             }}
-            className="animate-in fade-in"
+            className=""
             style={{
                 position: "fixed",
                 inset: 0,
@@ -119,7 +119,7 @@ export function ComposeDialog({
         >
             <Card
                 padding={0}
-                className="animate-in fade-in zoom-in-95 duration-200"
+                className="duration-200"
                 style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}
             >
                 <div
@@ -206,8 +206,6 @@ export function ComposeDialog({
                                         style={{
                                             fontSize: 11,
                                             fontWeight: 700,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.04em",
                                             color: "var(--eduflow-text-tertiary)",
                                         }}
                                     >
@@ -233,8 +231,6 @@ export function ComposeDialog({
                                     style={{
                                         fontSize: 11,
                                         fontWeight: 700,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.04em",
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >

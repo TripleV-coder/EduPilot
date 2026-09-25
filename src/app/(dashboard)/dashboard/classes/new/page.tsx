@@ -29,6 +29,7 @@ import { fetcher } from "@/lib/fetcher";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { useSchool } from "@/components/providers/school-provider";
 import { PageError } from "@/components/layout/page-states";
+import { Spinner } from "@/components/edu";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
@@ -283,7 +284,7 @@ export default function NewClassPage() {
                                         </Link>
                                         <Button type="submit" disabled={loading || !classLevels.length} className="gap-2">
                                             {loading ? (
-                                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
+                                                <Spinner size={16} />
                                             ) : (
                                                 <Save className="h-4 w-4" />
                                             )}

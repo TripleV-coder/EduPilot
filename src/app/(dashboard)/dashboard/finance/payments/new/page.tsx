@@ -13,6 +13,8 @@ import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { fetchStudentList } from "@/lib/api/student-list";
+import { toast } from "sonner";
+import { Spinner } from "@/components/edu";
 
 type StudentOption = {
     id: string;
@@ -184,7 +186,7 @@ export default function NewPaymentPage() {
             setSearchTerm("");
             setStudents([]);
 
-            window.scrollTo(0, 0);
+            document.getElementById("main-content")?.scrollTo({ top: 0 });
         } catch (err) {
             setError(getErrorMessage(err));
         } finally {
@@ -208,7 +210,7 @@ export default function NewPaymentPage() {
                 document.body.removeChild(link);
             }
         } catch {
-            alert("Impossible de télécharger le reçu.");
+            toast.error("Impossible de télécharger le reçu. Réessayez.");
         } finally {
             setDownloadingInvoice(false);
         }
@@ -316,7 +318,7 @@ export default function NewPaymentPage() {
                                         <div>
                                             <h4 className="font-bold text-sm">{selectedStudent?.user?.firstName} {selectedStudent?.user?.lastName}</h4>
                                             <p className="text-xs text-muted-foreground">Mat: {selectedStudent?.matricule}</p>
-                                            <span className="inline-block mt-1 text-[10px] bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
+                                            <span className="inline-block mt-1 text-[11px] bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
                                                 {selectedStudent?.class?.name || "Classe N/A"}
                                             </span>
                                         </div>
@@ -379,7 +381,7 @@ export default function NewPaymentPage() {
                                                 />
                                                 <DollarSign className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
+                                            <p className="text-[11px] text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
                                         </div>
 
                                         <div className="space-y-2">
@@ -411,7 +413,7 @@ export default function NewPaymentPage() {
                                                     onChange={e => setPayerPhone(e.target.value)}
                                                     placeholder="Ex: 22990000000"
                                                 />
-                                                <p className="text-[10px] text-muted-foreground">
+                                                <p className="text-[11px] text-muted-foreground">
                                                     Requis pour la demande de paiement push (MoMo direct). Une demande sera envoyée sur ce numéro.
                                                 </p>
                                             </div>
@@ -443,7 +445,7 @@ export default function NewPaymentPage() {
 
                                     <div className="pt-4 flex justify-end">
                                         <Button type="submit" disabled={saving || !selectedStudentId} className="w-full sm:w-auto min-w-[200px] gap-2">
-                                            {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2" /> : <Save className="h-4 w-4" />}
+                                            {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                             Valider l'Encaissement
                                         </Button>
                                     </div>

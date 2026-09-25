@@ -96,7 +96,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md bg-card overflow-y-auto custom-scrollbar">
         <SheetHeader className="mb-6">
-          <SheetTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Nouvelle Évaluation</SheetTitle>
+          <SheetTitle className="text-sm font-bold text-muted-foreground">Nouvelle Évaluation</SheetTitle>
           <SheetDescription className="text-xs">Configurez les paramètres du prochain devoir ou examen.</SheetDescription>
         </SheetHeader>
 
@@ -104,7 +104,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-4 border-b border-border/50 pb-6">
               <div className="space-y-2">
-                <Label className="text-[11px] font-bold uppercase text-muted-foreground">Étape 1 : Classe & Matière</Label>
+                <Label className="text-[11px] font-bold text-muted-foreground">Étape 1 : Classe & Matière</Label>
                 <div className="space-y-3">
                   {/* N26 : la classe est un état local, hors du formulaire — Label et
                       SelectTrigger simples : FormLabel/FormControl exigent un <FormField>
@@ -141,7 +141,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage className="text-[10px]" />
+                        <FormMessage className="text-[11px]" />
                       </FormItem>
                     )}
                   />
@@ -150,7 +150,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
             </div>
 
             <div className="space-y-4">
-              <Label className="text-[11px] font-bold uppercase text-muted-foreground">Étape 2 : Détails de l&apos;Évaluation</Label>
+              <Label className="text-[11px] font-bold text-muted-foreground">Étape 2 : Détails de l&apos;Évaluation</Label>
               
               <FormField
                 control={form.control}
@@ -170,7 +170,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage className="text-[10px]" />
+                    <FormMessage className="text-[11px]" />
                   </FormItem>
                 )}
               />
@@ -193,7 +193,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage className="text-[10px]" />
+                    <FormMessage className="text-[11px]" />
                   </FormItem>
                 )}
               />
@@ -207,7 +207,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                     <FormControl>
                       <Input className="h-9 text-xs" {...field} />
                     </FormControl>
-                    <FormMessage className="text-[10px]" />
+                    <FormMessage className="text-[11px]" />
                   </FormItem>
                 )}
               />
@@ -222,7 +222,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                       <FormControl>
                         <Input type="date" className="h-9 text-xs" {...field} />
                       </FormControl>
-                      <FormMessage className="text-[10px]" />
+                      <FormMessage className="text-[11px]" />
                     </FormItem>
                   )}
                 />
@@ -235,7 +235,7 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                       <FormControl>
                         <Input type="number" className="h-9 text-xs" {...field} />
                       </FormControl>
-                      <FormMessage className="text-[10px]" />
+                      <FormMessage className="text-[11px]" />
                     </FormItem>
                   )}
                 />
@@ -250,15 +250,15 @@ export function EvaluationSheet({ open, onOpenChange }: EvaluationSheetProps) {
                     <FormControl>
                       <Input type="number" step="0.1" className="h-9 text-xs" {...field} />
                     </FormControl>
-                    <FormMessage className="text-[10px]" />
+                    <FormMessage className="text-[11px]" />
                   </FormItem>
                 )}
               />
             </div>
 
             <div className="pt-4 flex gap-3">
-              <Button type="button" variant="outline" className="flex-1 h-9 text-[11px] font-bold uppercase" onClick={() => onOpenChange(false)}>Annuler</Button>
-              <Button type="submit" className="flex-1 h-9 text-[11px] font-bold uppercase" disabled={loading}>
+              <Button type="button" variant="outline" className="flex-1 h-9 text-[11px] font-bold" onClick={() => onOpenChange(false)}>Annuler</Button>
+              <Button type="submit" className="flex-1 h-9 text-[11px] font-bold" disabled={loading}>
                 {loading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
                 Créer l&apos;Évaluation
               </Button>

@@ -249,7 +249,7 @@ export default function AttendancePage() {
             permission={Permission.ATTENDANCE_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <PageShell className="max-w-[1200px] pb-32">
+            <PageShell className="pb-32">
                 {loadError ? (
                     <PageError message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
                 ) : null}
@@ -286,7 +286,7 @@ export default function AttendancePage() {
                             className="grid items-end gap-4"
                             style={{
                                 gridTemplateColumns:
-                                    "minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(280px, 1.4fr)",
+                                    "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
                             }}
                         >
                             <FieldSelect
@@ -465,9 +465,8 @@ export default function AttendancePage() {
                                                                 <div
                                                                     className="eduflow-mono"
                                                                     style={{
-                                                                        fontSize: 10,
+                                                                        fontSize: 11,
                                                                         color: "var(--eduflow-text-tertiary)",
-                                                                        textTransform: "uppercase",
                                                                     }}
                                                                 >
                                                                     {rec.matricule}
@@ -558,8 +557,6 @@ export default function AttendancePage() {
                                 fontFamily: "inherit",
                                 fontSize: 13,
                                 fontWeight: 700,
-                                letterSpacing: "0.06em",
-                                textTransform: "uppercase",
                                 cursor:
                                     saving || dirtyCount === 0 ? "not-allowed" : "pointer",
                                 opacity: saving ? 0.7 : 1,
@@ -626,7 +623,7 @@ function StatusButton({
                 boxShadow: active ? glow : "none",
                 transform: active ? "scale(1.06)" : "scale(1)",
                 transition:
-                    "transform var(--eduflow-motion-tap) var(--eduflow-ease-spring), background var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
+                    "transform var(--eduflow-motion-tap) var(--eduflow-ease-out), background var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
             }}
         >
             {letter}
@@ -664,10 +661,8 @@ function StatsStrip({
                     <div key={item.key} className="px-2 text-center">
                         <div
                             style={{
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: 700,
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
                                 color: `var(--eduflow-${item.tone}-700)`,
                             }}
                         >
@@ -686,7 +681,7 @@ function StatsStrip({
                         </div>
                         <div
                             style={{
-                                fontSize: 9,
+                                fontSize: 11,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -719,8 +714,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -774,8 +767,6 @@ function FieldDate({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -822,10 +813,8 @@ function Th({
         <th
             style={{
                 padding: "10px 20px",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",
                 width,

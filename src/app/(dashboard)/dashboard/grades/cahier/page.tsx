@@ -194,7 +194,7 @@ export default function CahierDeNotesPage() {
 
     if (loading) {
         return (
-            <PageShell className="max-w-[1400px] pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cahier de notes"
                     description="Chargement des données…"
@@ -214,7 +214,7 @@ export default function CahierDeNotesPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="max-w-[1400px] pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <PageHeader
                         title="Cahier de notes"
@@ -344,7 +344,7 @@ export default function CahierDeNotesPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -556,7 +556,7 @@ export default function CahierDeNotesPage() {
                                                                         </p>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 10,
+                                                                                fontSize: 11,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -578,7 +578,7 @@ export default function CahierDeNotesPage() {
                                                                         </span>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 10,
+                                                                                fontSize: 11,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -665,10 +665,9 @@ export default function CahierDeNotesPage() {
                                                         <div className="flex flex-col items-center gap-0.5">
                                                             <span
                                                                 style={{
-                                                                    fontSize: 10,
+                                                                    fontSize: 11,
                                                                     color: "var(--brand-700)",
                                                                     fontWeight: 700,
-                                                                    letterSpacing: "0.04em",
                                                                     maxWidth: "100%",
                                                                     overflow: "hidden",
                                                                     textOverflow: "ellipsis",
@@ -679,7 +678,7 @@ export default function CahierDeNotesPage() {
                                                             <span
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 9,
+                                                                    fontSize: 11,
                                                                     color: "var(--eduflow-text-secondary)",
                                                                     maxWidth: "100%",
                                                                 }}
@@ -689,7 +688,7 @@ export default function CahierDeNotesPage() {
                                                             <span
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 9,
+                                                                    fontSize: 11,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                 }}
                                                             >
@@ -732,7 +731,7 @@ export default function CahierDeNotesPage() {
                                                             <p
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 10,
+                                                                    fontSize: 11,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                     margin: 0,
                                                                 }}
@@ -794,7 +793,7 @@ export default function CahierDeNotesPage() {
                                                                         grade.isAbsent ? (
                                                                             <span
                                                                                 style={{
-                                                                                    fontSize: 10,
+                                                                                    fontSize: 11,
                                                                                     fontWeight: 700,
                                                                                     color:
                                                                                         "var(--eduflow-danger-700)",

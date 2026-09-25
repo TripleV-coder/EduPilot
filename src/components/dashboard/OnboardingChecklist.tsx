@@ -208,7 +208,7 @@ export function OnboardingChecklist() {
             className="edu-enter-up fixed bottom-6 right-6 z-50 w-[320px]"
             style={{ "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
         >
-                <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+                <div className="rounded-card border border-border bg-card overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20">
                         <div className="flex items-center gap-2">

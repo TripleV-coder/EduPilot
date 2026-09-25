@@ -143,7 +143,7 @@ export default function NewIncidentPage() {
                 <Card className="border-border shadow-sm">
                     <CardContent className="pt-6">
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                                 <div className="space-y-4">
                                     <h2 className="text-lg font-medium">Détails de l'élève</h2>
 

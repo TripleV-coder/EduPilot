@@ -30,11 +30,11 @@ export function RiskMatrix({ students }: RiskMatrixProps) {
         </div>
 
         {/* Labels Quadrants */}
-        <div className="absolute top-2 left-2 text-[10px] font-bold text-destructive uppercase tracking-tighter">Échec scolaire</div>
-        <div className="absolute bottom-2 right-2 text-[10px] font-bold text-destructive uppercase tracking-tighter">Décrochage</div>
+        <div className="absolute top-2 left-2 text-[11px] font-bold text-destructive tracking-tighter">Échec scolaire</div>
+        <div className="absolute bottom-2 right-2 text-[11px] font-bold text-destructive tracking-tighter">Décrochage</div>
         
-        <div className="absolute top-4 right-4 text-[9px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
-        <div className="absolute bottom-4 left-4 text-[9px] font-bold text-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
+        <div className="absolute top-4 right-4 text-[11px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
+        <div className="absolute bottom-4 left-4 text-[11px] font-bold text-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
 
         {/* Points */}
         {students.map((s) => (
@@ -55,10 +55,10 @@ export function RiskMatrix({ students }: RiskMatrixProps) {
             </TooltipTrigger>
             <TooltipContent className="p-2 space-y-1">
               <p className="text-xs font-bold">{s.name}</p>
-              <p className="text-[10px] text-muted-foreground">{s.className}</p>
+              <p className="text-[11px] text-muted-foreground">{s.className}</p>
               <div className="flex gap-2 mt-1">
-                <span className="text-[9px] font-medium px-1 bg-muted rounded">Décrochage: {s.dropoutScore}%</span>
-                <span className="text-[9px] font-medium px-1 bg-muted rounded">Échec: {s.failureScore}%</span>
+                <span className="text-[11px] font-medium px-1 bg-muted rounded">Décrochage: {s.dropoutScore}%</span>
+                <span className="text-[11px] font-medium px-1 bg-muted rounded">Échec: {s.failureScore}%</span>
               </div>
             </TooltipContent>
           </Tooltip>

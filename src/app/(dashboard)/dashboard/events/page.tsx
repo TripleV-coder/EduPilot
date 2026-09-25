@@ -168,7 +168,7 @@ export default function EventsPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Agenda & événements"
                     description={`${events.length} ${
@@ -193,7 +193,7 @@ export default function EventsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            border: "1px solid var(--eduflow-success-200)",
                             background: "var(--eduflow-success-50)",
                         }}
                     >
@@ -219,7 +219,7 @@ export default function EventsPage() {
                             style={{ borderColor: "var(--brand-100)" }}
                         >
                             <Icon name="calendar" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Nouvel événement
                             </h2>
                         </div>
@@ -239,8 +239,6 @@ export default function EventsPage() {
                                         display: "block",
                                         fontSize: 11,
                                         fontWeight: 600,
-                                        letterSpacing: "0.04em",
-                                        textTransform: "uppercase",
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
                                     }}
@@ -515,7 +513,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                     />
                     <span
                         style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             color: "var(--eduflow-text-tertiary)",
                         }}
                     >
@@ -588,8 +586,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

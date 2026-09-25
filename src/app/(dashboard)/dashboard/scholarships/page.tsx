@@ -196,7 +196,7 @@ export default function ScholarshipsPage() {
             permission={Permission.SCHOOL_UPDATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Bourses & aides scolaires"
                     description={
@@ -333,12 +333,10 @@ export default function ScholarshipsPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
-                                                        letterSpacing: "0.06em",
-                                                        textTransform: "uppercase",
                                                         whiteSpace: "nowrap",
                                                     }}
                                                 >
@@ -405,7 +403,7 @@ export default function ScholarshipsPage() {
                                                                     {klass ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 10,
+                                                                                fontSize: 11,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                             }}
@@ -444,7 +442,7 @@ export default function ScholarshipsPage() {
                                                             </span>{" "}
                                                             <span
                                                                 style={{
-                                                                    fontSize: 10,
+                                                                    fontSize: 11,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                 }}
@@ -454,7 +452,7 @@ export default function ScholarshipsPage() {
                                                             {s.percentage ? (
                                                                 <div
                                                                     style={{
-                                                                        fontSize: 10,
+                                                                        fontSize: 11,
                                                                         color:
                                                                             "var(--eduflow-text-tertiary)",
                                                                     }}
@@ -515,7 +513,7 @@ export default function ScholarshipsPage() {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                     Répartition par type · {compactAmount(totalBudget)} FCFA
                                 </p>
                                 {distribution.length === 0 ? (
@@ -618,7 +616,7 @@ export default function ScholarshipsPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .sch-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

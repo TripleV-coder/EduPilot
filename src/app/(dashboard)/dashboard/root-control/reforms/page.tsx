@@ -320,24 +320,24 @@ export default function ReformsPage() {
                                                 variant="ghost" 
                                                 size="icon" 
                                                 onClick={() => setMentions(prev => prev.filter((_, idx) => idx !== i))} 
-                                                className="absolute top-2 right-2 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="absolute top-2 right-2 text-destructive md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                             <div className="space-y-1">
-                                                <Label className="text-[10px] uppercase">Libellé</Label>
+                                                <Label className="text-[11px]">Libellé</Label>
                                                 <Input value={m.label} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, label: e.target.value } : item))} className="w-40" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[10px] uppercase">Seuil Min</Label>
+                                                <Label className="text-[11px]">Seuil Min</Label>
                                                 <Input type="number" step="0.5" value={m.minScore} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, minScore: parseFloat(e.target.value) } : item))} className="w-24" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[10px] uppercase">Seuil Max</Label>
+                                                <Label className="text-[11px]">Seuil Max</Label>
                                                 <Input type="number" step="0.5" value={m.maxScore} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, maxScore: parseFloat(e.target.value) } : item))} className="w-24" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[10px] uppercase">Couleur (Hex)</Label>
+                                                <Label className="text-[11px]">Couleur (Hex)</Label>
                                                 <div className="flex gap-2 items-center">
                                                     <div className="h-8 w-8 rounded-full border border-border shrink-0" style={{ backgroundColor: m.color }}></div>
                                                     <Input value={m.color} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, color: e.target.value } : item))} className="w-32" />

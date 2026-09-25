@@ -359,6 +359,8 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     text-rendering: optimizeLegibility;
+    /* Figtree (direction colorée) : léger resserrement aux petites tailles. */
+    letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -373,9 +375,6 @@
 
 /* ─── COMPOSANTS UTILITAIRES ─────────────────────────────────────── */
 @layer components {
-  .text-gradient-primary {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-secondary;
-  }
 
   .card-interactive {
     @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border border-border bg-card/70 backdrop-blur-sm;

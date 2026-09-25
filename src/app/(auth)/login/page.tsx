@@ -110,7 +110,7 @@ function LoginForm() {
       {successMessage && (
         <div
           role="alert"
-          className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))]"
+          className="flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--success-bg))] border border-[hsl(var(--success-border))] text-[hsl(var(--success))]"
         >
           <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm">{successMessage}</span>
@@ -122,7 +122,7 @@ function LoginForm() {
         <div
           role="alert"
           aria-live="assertive"
-          className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-[hsl(var(--error))]"
+          className="flex items-center gap-2 p-4 mb-6 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-[hsl(var(--error))]"
         >
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm">{error}</span>
@@ -235,7 +235,7 @@ function LoginForm() {
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
+            <div className="relative flex justify-center text-xs">
               <span className="bg-card px-2 text-muted-foreground">ou</span>
             </div>
           </div>
@@ -259,13 +259,13 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <AuthShell
-      title="Bon retour 👋"
+      title="Bon retour"
       subtitle="Connectez-vous pour accéder à votre espace EduPilot."
     >
       <Suspense
         fallback={
           <div
-            className="flex items-center justify-center p-8"
+            className="flex items-center justify-center p-5"
             aria-label="Chargement en cours"
           >
             <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />

@@ -271,7 +271,7 @@ function ImportWizardPage() {
         : "Importer des données · CSV";
 
     return (
-        <PageShell className="max-w-[1280px] pb-12">
+        <PageShell>
             <PageHeader
                 title={titleByType}
                 description={subtitle}
@@ -306,8 +306,7 @@ function ImportWizardPage() {
                             <span
                                 className="hidden sm:inline"
                                 style={{
-                                    fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
-                                    textTransform: "uppercase",
+                                    fontSize: 11, fontWeight: 700,                                   
                                     color: active ? "var(--eduflow-text-primary)" : "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -366,18 +365,17 @@ function ImportWizardPage() {
                             <table className="w-full border-collapse" style={{ fontSize: 12 }}>
                                 <thead>
                                     <tr style={{ background: "var(--eduflow-surface-sunken)" }}>
-                                        {["Colonne Excel", "→", "Champ EduPilot", "Aperçu (3 premières)", "Statut"].map((h) => (
+                                        {["Colonne Excel", "", "Champ EduPilot", "Aperçu (3 premières)", "Statut"].map((h) => (
                                             <th
                                                 key={h}
-                                                className="text-left font-bold uppercase"
+                                                className="text-left font-bold"
                                                 style={{
                                                     padding: "10px 14px",
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     color: "var(--eduflow-text-tertiary)",
-                                                    letterSpacing: "0.06em",
                                                 }}
                                             >
-                                                {h === "→" ? "" : h}
+                                                {h}
                                             </th>
                                         ))}
                                     </tr>
@@ -398,7 +396,7 @@ function ImportWizardPage() {
                                         return (
                                             <tr key={header} style={{ borderTop: "1px solid var(--eduflow-border-subtle)" }}>
                                                 <td className="font-mono" style={{ padding: "11px 14px" }}>{header}</td>
-                                                <td style={{ padding: "11px 14px", color: "var(--eduflow-text-tertiary)" }}>→</td>
+                                                <td style={{ padding: "11px 14px", color: "var(--eduflow-text-tertiary)" }}>devient</td>
                                                 <td style={{ padding: "11px 14px" }}>
                                                     <select
                                                         value={fieldKey ?? ""}
@@ -538,7 +536,7 @@ function ImportWizardPage() {
                             <Button
                                 onClick={startImport}
                                 disabled={isProcessing || ready === 0}
-                                className="w-full mt-3.5 h-12 gap-3 font-bold uppercase tracking-tighter shadow-md"
+                                className="w-full mt-3.5 h-12 gap-3 font-bold tracking-tighter shadow-md"
                                 style={{ background: "var(--gradient-cta)", color: "#fff", border: 0 }}
                             >
                                 {isProcessing
@@ -560,8 +558,6 @@ function ImportWizardPage() {
                             style={{
                                 fontSize: 11,
                                 fontWeight: 700,
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
                                 color: "var(--eduflow-text-tertiary)",
                                 background: "transparent",
                                 border: 0,
@@ -687,8 +683,6 @@ function SelectAndUpload({
                             style={{
                                 fontSize: 11,
                                 fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
                                 color: "var(--eduflow-text-secondary)",
                             }}
                         >
@@ -698,7 +692,7 @@ function SelectAndUpload({
                         </p>
                         <p
                             className="mt-1"
-                            style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                            style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                         >
                             .xlsx / .xls / .csv · max 10 Mo
                         </p>
@@ -733,14 +727,14 @@ function SuccessCard({
 }) {
     return (
         <div
-            className="rounded-xl p-8 text-center"
+            className="rounded-xl p-5 text-center"
             style={{
                 background: "var(--gradient-cta)",
                 color: "#fff",
             }}
         >
             <div
-                className="w-16 h-16 grid place-items-center mx-auto rounded-2xl"
+                className="w-16 h-16 grid place-items-center mx-auto rounded-card"
                 style={{ background: "rgba(255,255,255,0.18)" }}
             >
                 {rejected ? <AlertTriangle className="w-8 h-8" /> : <CheckCircle2 className="w-8 h-8" />}
@@ -836,10 +830,8 @@ function SubLabel({ children, style }: { children: React.ReactNode; style?: Reac
     return (
         <div
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
                 ...style,
             }}
@@ -862,7 +854,7 @@ function CountBadge({
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 padding: "3px 8px",
                 background: severity === "success" ? "var(--eduflow-success-50)" : "var(--eduflow-warning-50)",
                 color: severity === "success" ? "var(--eduflow-success-800)" : "var(--eduflow-warning-800)",
@@ -899,7 +891,7 @@ function StatusBadge({
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 padding: "3px 7px",
                 background: bg,
                 color: fg,

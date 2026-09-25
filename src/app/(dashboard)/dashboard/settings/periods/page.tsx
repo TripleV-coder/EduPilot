@@ -17,6 +17,7 @@ import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/formatters";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type Period = {
     id: string;
@@ -273,7 +274,7 @@ export default function AcademicPeriodsPage() {
                 {/* Loading */}
                 {(yearsLoading || periodsLoading) && (
                     <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
                     </div>
                 )}
 

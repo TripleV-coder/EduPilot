@@ -121,7 +121,7 @@ export default function OfflinePage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ}>
-            <PageShell className="pb-12">
+            <PageShell>
                 {!online ? (
                     <div
                         style={{
@@ -248,7 +248,7 @@ export default function OfflinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
                             <div
                                 style={{
                                     marginTop: 10,
@@ -415,8 +415,8 @@ export default function OfflinePage() {
                                             }}
                                         >
                                             Sur Chrome / Edge desktop, regarde la barre d'adresse.
-                                            Sur Android, ouvre le menu ⋮ → « Installer l'app ». Sur
-                                            iOS Safari, partage → « Sur l'écran d'accueil ».
+                                            Sur Android, ouvre le menu ⋮ puis « Installer l'app ». Sur
+                                            iOS Safari, Partager puis « Sur l'écran d'accueil ».
                                         </p>
                                     )}
                                 </div>
@@ -424,7 +424,7 @@ export default function OfflinePage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
                             <div
                                 style={{
                                     marginTop: 8,
@@ -467,7 +467,7 @@ export default function OfflinePage() {
                             </div>
                             <p
                                 style={{
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: "var(--eduflow-text-tertiary)",
                                     marginTop: 12,
                                     lineHeight: 1.5,
@@ -485,7 +485,7 @@ export default function OfflinePage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .offline-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

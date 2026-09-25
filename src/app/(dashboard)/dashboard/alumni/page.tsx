@@ -99,7 +99,7 @@ export default function AlumniPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Réseau Alumni"
                     description={
@@ -182,7 +182,7 @@ export default function AlumniPage() {
                                         </div>
                                         <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>{jobLine(a)}</div>
                                         {a.isMentor ? (
-                                            <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                                                 Mentor{a.mentorTopic ? ` · ${a.mentorTopic}` : ""}
                                             </div>
                                         ) : null}
@@ -198,7 +198,7 @@ export default function AlumniPage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Membres par promotion</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Membres par promotion</p>
                             <div style={{ marginTop: 8 }}>
                                 {!loading && (data?.promotions.length ?? 0) === 0 ? (
                                     <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", padding: "8px 0" }}>
@@ -229,7 +229,7 @@ export default function AlumniPage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Mentorat</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Mentorat</p>
                             <p style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", lineHeight: 1.55, margin: "6px 0 0" }}>
                                 Marque un ancien élève comme « mentor » lors de l'ajout pour le proposer aux élèves
                                 en orientation. Les mentors disponibles sont comptés ci-dessus.
@@ -242,7 +242,7 @@ export default function AlumniPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-                    .alumni-grid { grid-template-columns: 1fr !important; }
+                    .alumni-grid { grid-template-columns: minmax(0, 1fr) !important; }
                 }
             `}</style>
         </PageGuard>

@@ -144,7 +144,7 @@ export default function ProfileSettingsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -171,7 +171,7 @@ export default function ProfileSettingsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="users" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Photo de profil
                         </h2>
                     </div>
@@ -253,7 +253,7 @@ export default function ProfileSettingsPage() {
                     >
                         <Icon name="info" size={18} color="var(--brand-700)" />
                         <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Informations de base
                             </h2>
                             <p

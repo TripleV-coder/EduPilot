@@ -130,7 +130,7 @@ export default function CanteenPage() {
         <PageGuard
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Cantine & restauration"
                     description="Menus quotidiens, tickets repas, portefeuille élève"
@@ -322,10 +322,8 @@ export default function CanteenPage() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 9,
+                                                fontSize: 11,
                                                 fontWeight: 700,
-                                                letterSpacing: "0.08em",
-                                                textTransform: "uppercase",
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -347,10 +345,8 @@ export default function CanteenPage() {
                                         </span>
                                         <div
                                             style={{
-                                                fontSize: 9,
+                                                fontSize: 11,
                                                 fontWeight: 700,
-                                                letterSpacing: "0.08em",
-                                                textTransform: "uppercase",
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -388,10 +384,8 @@ export default function CanteenPage() {
                                             <div>
                                                 <div
                                                     style={{
-                                                        fontSize: 9,
+                                                        fontSize: 11,
                                                         fontWeight: 700,
-                                                        letterSpacing: "0.08em",
-                                                        textTransform: "uppercase",
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
                                                 >
@@ -439,10 +433,8 @@ export default function CanteenPage() {
                                     <div>
                                         <div
                                             style={{
-                                                fontSize: 9,
+                                                fontSize: 11,
                                                 fontWeight: 700,
-                                                letterSpacing: "0.08em",
-                                                textTransform: "uppercase",
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginBottom: 8,
                                             }}
@@ -561,10 +553,8 @@ function DishRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
                     }}

@@ -133,7 +133,7 @@ export default function AuditLogsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Journal d'audit"
                     description="Toutes les actions critiques · conforme MEMP · 90 jours en accès direct"
@@ -221,11 +221,10 @@ export default function AuditLogsPage() {
                                         {["Horodatage", "Acteur", "Action", "Ressource", "IP", "Détail"].map((h) => (
                                             <th
                                                 key={h}
-                                                className="px-4 py-2.5 text-left font-bold uppercase"
+                                                className="px-4 py-2.5 text-left font-bold"
                                                 style={{
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     color: "var(--eduflow-text-tertiary)",
-                                                    letterSpacing: "0.06em",
                                                 }}
                                             >
                                                 {h}
@@ -255,7 +254,7 @@ export default function AuditLogsPage() {
                                                             style={{
                                                                 background: "var(--eduflow-brand-100)",
                                                                 color: "var(--eduflow-brand-800)",
-                                                                fontSize: 10,
+                                                                fontSize: 11,
                                                             }}
                                                         >
                                                             {log.user ? initials(log.user.firstName, log.user.lastName) : "SY"}
@@ -330,7 +329,7 @@ function CategoryChip({
             <span
                 className="font-mono"
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: active ? "var(--eduflow-brand-700)" : "var(--eduflow-text-tertiary)",
                 }}
             >

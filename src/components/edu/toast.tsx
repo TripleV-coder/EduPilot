@@ -26,7 +26,7 @@ export function Toast({ variant = "info", title, body, action, onAction }: Toast
     const v = VARIANT_TOKENS[variant];
     return (
         <div
-            className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+            className=""
             style={{
                 display: "flex",
                 gap: 12,

@@ -154,7 +154,7 @@ function NewWellbeingReportContent() {
                                     </div>
                                     <div
                                         style={{
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 2,
                                         }}
@@ -243,7 +243,7 @@ function NewWellbeingReportContent() {
                                     </Badge>
                                     <div
                                         style={{
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 6,
                                         }}

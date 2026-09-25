@@ -15,7 +15,7 @@ type CardVariant = "default" | "glass" | "elevated";
 // Réconcilié sur le design system eduflow (edu/) : ombres eduflow douces,
 // rayon de carte 22px (rounded-card appliqué au rendu) — une seule langue visuelle.
 const variantStyles: Record<CardVariant, string> = {
-  default: "border bg-card text-card-foreground shadow-eduflow-sm",
+  default: "border border-[var(--eduflow-border-subtle)] bg-card text-card-foreground",
   glass: [
     "border border-border/30 dark:border-white/[0.08]",
     "bg-card/70 dark:bg-card/50",

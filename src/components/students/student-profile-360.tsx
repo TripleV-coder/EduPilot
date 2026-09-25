@@ -151,7 +151,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     key={i}
                                     className="inline-flex items-center gap-1 rounded-md font-bold"
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         padding: "3px 8px",
                                         background: `var(--eduflow-${b.variant}-50)`,
                                         color: `var(--eduflow-${b.variant}-800)`,
@@ -183,7 +183,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                     </div>
 
                     <div
-                        className="flex gap-8 pl-6"
+                        className="flex gap-4 pl-6"
                         style={{ borderLeft: "1px solid var(--eduflow-border-subtle)" }}
                     >
                         <StatChip
@@ -291,7 +291,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                                         <span
                                             className="font-mono"
-                                            style={{ fontSize: 10, fontWeight: 700, color: "var(--eduflow-brand-700)" }}
+                                            style={{ fontSize: 11, fontWeight: 700, color: "var(--eduflow-brand-700)" }}
                                         >
                                             {fmt1(b.average)}
                                         </span>
@@ -304,7 +304,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                                 minHeight: 12,
                                             }}
                                         />
-                                        <span style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                                             {b.label}
                                         </span>
                                     </div>
@@ -349,7 +349,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <div style={{ fontSize: 12, fontWeight: 600 }}>
                                         {p.firstName} {p.lastName}
                                     </div>
-                                    <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                                         {p.relationship}{p.phone ? ` · ${p.phone}` : ""}
                                     </div>
                                 </div>
@@ -357,7 +357,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <span
                                         className="rounded-md font-bold"
                                         style={{
-                                            fontSize: 9,
+                                            fontSize: 11,
                                             padding: "2px 6px",
                                             background: "var(--eduflow-success-50)",
                                             color: "var(--eduflow-success-800)",
@@ -481,10 +481,8 @@ function StatChip({
         <div>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                 }}
             >
                 {label}
@@ -511,7 +509,7 @@ function DeltaBadge({ delta }: { delta: number }) {
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 padding: "2px 7px",
                 background: positive ? "var(--eduflow-success-50)" : "var(--eduflow-warning-50)",
                 color: positive ? "var(--eduflow-success-800)" : "var(--eduflow-warning-800)",
@@ -547,10 +545,8 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
             }}
         >

@@ -35,7 +35,7 @@ export function StepPaiement({
     ];
     return (
         <>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 6px" }}>
                 Paiement initial
             </h2>
             <p
@@ -91,11 +91,9 @@ export function StepPaiement({
                     >
                         <div
                             style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: "var(--eduflow-text-tertiary)",
                                 fontWeight: 600,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
                             }}
                         >
                             {i.label}
@@ -113,7 +111,7 @@ export function StepPaiement({
                             {FR_AMOUNT(i.amount)}
                             <span
                                 style={{
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: "var(--eduflow-text-tertiary)",
                                     marginLeft: 4,
                                 }}

@@ -265,7 +265,7 @@ function PayrollContent() {
 function PeriodPicker({ period, setPeriod }: { period: string; setPeriod: (p: string) => void }) {
     return (
         <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: "var(--eduflow-text-tertiary)" }}>Période</span>
+            <span style={{ fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>Période</span>
             <input
                 type="month"
                 value={period}
@@ -302,7 +302,7 @@ function PayrollEditor({
     return (
         <Card padding={0}>
             <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
-                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>Fiche de paie — {editor.name}</h2>
+                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>Fiche de paie — {editor.name}</h2>
                 <button type="button" onClick={onClose} aria-label="Fermer"><Icon name="x" size={18} /></button>
             </div>
             <div className="space-y-4 px-5 py-5">
@@ -352,7 +352,7 @@ function LineEditor({
     );
 }
 
-const editorLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--eduflow-text-tertiary)" };
+const editorLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" };
 const editorInput: React.CSSProperties = {
     height: 40, padding: "0 12px", borderRadius: "var(--eduflow-radius-input)",
     border: "1px solid var(--eduflow-border-default)", background: "var(--eduflow-surface-card)",

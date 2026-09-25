@@ -1,19 +1,13 @@
 "use client";
 
-import {
-    Badge,
-    BarChart,
-    Button,
-    Card,
-    Icon,
-    MetricCard,
-    NotifItem,
-    Progress,
-    Sparkline,
-} from "@/components/edu";
-import { PageHeader, SubLabel, formatFcfa, formatNumber, frenchToday } from "./_shared";
+import Link from "next/link";
+import { Icon, type IconName } from "@/components/edu";
+import { formatFcfa, formatNumber, frenchToday } from "./_shared";
+import styles from "./home.module.css";
 
 export interface DirectorHomeProps {
+    /** « finance » : accueil de la comptabilité — actions et liens limités aux pages qui lui sont ouvertes. */
+    focus?: "school" | "finance";
     userName: string;
     schoolName: string | null;
     periodName: string | null;
@@ -27,11 +21,14 @@ export interface DirectorHomeProps {
         failureRate: number;
         paymentsReceived: number;
         pendingPayments: number;
+        /** Recouvrement de l'année sur l'attendu réel ; null si rien n'est facturé. */
+        feeRecoveryRate?: number | null;
+        feesCollected?: number | null;
         studentGrowth: number;
         attendanceGrowth: number;
         averageGrowth: number;
         activeAlerts: number;
-        classSummary: { name: string; average: number; studentCount: number }[];
+        classSummary: { id?: string; name: string; average: number; studentCount: number }[];
         atRiskStudents: {
             id: string;
             name: string;
@@ -43,407 +40,247 @@ export interface DirectorHomeProps {
     };
 }
 
-export function DirectorHome({ userName, schoolName, periodName, data }: DirectorHomeProps) {
-    const totalCollect = data.paymentsReceived + data.pendingPayments;
-    const collectionRate = totalCollect > 0 ? Math.round((data.paymentsReceived / totalCollect) * 100) : 0;
+/* Direction « colorée et vivante », priorité vue d'ensemble
+   (docs/design/directions/direction-approved.md). Une couleur par module. */
+const MODULE = {
+    blue: "var(--edu-module-blue)",
+    green: "var(--edu-module-green)",
+    orange: "var(--edu-module-orange)",
+    purple: "var(--edu-module-purple)",
+    pink: "var(--edu-module-pink)",
+    teal: "var(--edu-module-teal)",
+} as const;
+const CLASS_COLORS = [MODULE.blue, MODULE.orange, MODULE.purple, MODULE.green, MODULE.teal, MODULE.pink];
 
-    const sub = `${frenchToday()} · ${periodName ?? "Année en cours"}`;
-    const trendValues = data.monthlyTrend.map((m) => m.value);
-    const trendBars = data.monthlyTrend.map((m) => ({
-        label: m.name,
-        value: m.value,
-    }));
-    const cantineWeek = trendValues.slice(-6).length === 6
-        ? trendValues.slice(-6)
-        : [140, 165, 158, 172, 168, 44];
+const QUICK_ACTIONS: { href: string; label: string; icon: IconName; color: string }[] = [
+    { href: "/dashboard/attendance", label: "Faire l'appel", icon: "check", color: MODULE.blue },
+    { href: "/dashboard/grades/entry", label: "Saisir des notes", icon: "book", color: MODULE.green },
+    { href: "/dashboard/finance/payments/new", label: "Encaisser un paiement", icon: "money", color: MODULE.orange },
+    { href: "/dashboard/announcements", label: "Nouvelle annonce", icon: "sms", color: MODULE.purple },
+    { href: "/dashboard/students/inscription", label: "Inscrire un élève", icon: "plus", color: MODULE.teal },
+    { href: "/dashboard/grades/bulletins", label: "Bulletins", icon: "cards", color: MODULE.pink },
+];
+
+const FINANCE_ACTIONS: { href: string; label: string; icon: IconName; color: string }[] = [
+    { href: "/dashboard/finance/payments/new", label: "Encaisser un paiement", icon: "money", color: MODULE.orange },
+    { href: "/dashboard/finance/reconciliation", label: "Valider les paiements", icon: "check", color: MODULE.green },
+    { href: "/dashboard/finance/bulk-invoice", label: "Avis de paiement", icon: "cards", color: MODULE.blue },
+    { href: "/dashboard/finance", label: "Suivi des impayés", icon: "warning", color: MODULE.pink },
+    { href: "/dashboard/accounting", label: "Comptabilité", icon: "chart", color: MODULE.purple },
+    { href: "/dashboard/students", label: "Élèves", icon: "users", color: MODULE.teal },
+];
+
+const decimal = (value: number, digits = 1) => value.toFixed(digits).replace(".", ",");
+const signed = (value: number, unit: string) =>
+    `${value > 0 ? "+" : value < 0 ? "−" : ""}${decimal(Math.abs(value))}${unit}`;
+
+function initials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
+function riskLabel(level: string): string {
+    const l = level.toLowerCase();
+    if (l === "critical") return "risque critique";
+    if (l === "high") return "risque élevé";
+    if (l === "medium" || l === "moderate") return "risque modéré";
+    return "à suivre";
+}
+
+export function DirectorHome({ focus = "school", userName, schoolName, periodName, data }: DirectorHomeProps) {
+    const finance = focus === "finance";
+    const collectionRate = data.feeRecoveryRate == null ? null : Math.round(data.feeRecoveryRate);
+    const firstName = userName.trim().split(/\s+/)[0] || userName;
+
+    const figures = [
+        {
+            href: "/dashboard/students",
+            label: "Élèves",
+            value: formatNumber(data.totalStudents),
+            note: Number.isFinite(data.studentGrowth) ? `${signed(data.studentGrowth, " %")} ce mois` : "Effectif actif",
+            color: MODULE.blue,
+        },
+        {
+            href: finance ? undefined : "/dashboard/attendance",
+            label: "Présence",
+            value: `${decimal(data.attendanceRate)} %`,
+            note: Number.isFinite(data.attendanceGrowth) ? `${signed(data.attendanceGrowth, " pt")} ce mois` : "Taux de présence",
+            color: MODULE.green,
+        },
+        {
+            href: "/dashboard/finance",
+            label: "Frais réglés",
+            value: collectionRate === null ? "—" : `${collectionRate} %`,
+            note:
+                collectionRate === null
+                    ? "Aucun frais facturé cette année"
+                    : `${formatFcfa(data.feesCollected ?? 0)} FCFA encaissés`,
+            color: MODULE.orange,
+        },
+        {
+            href: finance ? undefined : "/dashboard/risks/failure",
+            // activeAlerts compte les alertes ouvertes, pas les élèves en échec :
+            // le libellé dit ce que le chiffre mesure.
+            label: "Alertes ouvertes",
+            value: formatNumber(data.activeAlerts),
+            note: `${decimal(data.failureRate)} % des élèves en échec`,
+            color: MODULE.pink,
+        },
+    ];
+
+    const watched = data.atRiskStudents.slice(0, 4);
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <PageHeader
-                greeting={`Bonjour ${shortName(userName)} 👋`}
-                sub={sub}
-                actions={
-                    <>
-                        <Button variant="secondary" icon="download">
-                            Exporter rapport
-                        </Button>
-                        <Button icon="plus">Nouvelle annonce</Button>
-                    </>
-                }
-            />
+        <div className={styles.page}>
+            <header className={styles.head}>
+                <div>
+                    <h1 className={styles.title}>Bonjour, {firstName}</h1>
+                    <p className={styles.sub}>
+                        {frenchToday()} · {periodName ?? "Année en cours"}
+                        {schoolName ? ` · ${schoolName}` : ""}
+                    </p>
+                </div>
+            </header>
 
-            {/* KPI strip */}
-            <div
-                className="edu-stagger"
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: 12,
-                }}
-            >
-                <MetricCard
-                    label="Élèves actifs"
-                    value={formatNumber(data.totalStudents)}
-                    trend={Number.isFinite(data.studentGrowth) ? data.studentGrowth : undefined}
-                    trendLabel="vs mois dern."
-                    icon="users"
-                    variant="brand"
-                />
-                <MetricCard
-                    label="Recouvrement"
-                    value={collectionRate}
-                    unit="%"
-                    trendLabel={`${formatFcfa(data.paymentsReceived)} FCFA encaissés`}
-                    icon="money"
-                    variant="success"
-                />
-                <MetricCard
-                    label="Présence"
-                    value={data.attendanceRate.toFixed(1).replace(".", ",")}
-                    unit="%"
-                    trend={Number.isFinite(data.attendanceGrowth) ? data.attendanceGrowth : undefined}
-                    trendLabel="vs mois dern."
-                    icon="check"
-                    variant="info"
-                />
-                <MetricCard
-                    label="À risque"
-                    value={formatNumber(data.activeAlerts)}
-                    trendLabel={`${data.failureRate.toFixed(1).replace(".", ",")}% en échec`}
-                    icon="warning"
-                    variant="warning"
-                />
-            </div>
-
-            {/* Recouvrement + alerts */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)",
-                    gap: 16,
-                }}
-                className="dashboard-grid-collapse"
-            >
-                <Card padding={20}>
-                    <div className="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Recouvrement scolarité
-                            </h2>
-                            <p
-                                style={{
-                                    fontSize: 12,
-                                    color: "var(--eduflow-text-tertiary)",
-                                    margin: "4px 0 0",
-                                }}
-                            >
-                                {periodName ?? "Période en cours"} · objectif 95%
-                                {" · "}
-                                Moyenne générale {data.averageGrade.toFixed(2).replace(".", ",")}/20
-                            </p>
-                        </div>
-                        <div style={{ display: "flex", gap: 6 }}>
-                            <Badge variant="brand">{periodName ?? "Période en cours"}</Badge>
-                            <Badge variant="neutral">Comparaison</Badge>
-                        </div>
-                    </div>
-                    {trendBars.length > 0 ? (
-                        <div style={{ marginBottom: 14 }}>
-                            <BarChart data={trendBars} height={140} max={Math.max(100, ...trendValues)} />
-                        </div>
-                    ) : (
-                        <EmptyTrend />
-                    )}
-                    <div
-                        className="grid gap-3 border-t pt-4"
-                        style={{
-                            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                            borderColor: "var(--eduflow-border-subtle)",
-                        }}
-                    >
-                        <Stat label="Encaissé" value={formatFcfa(data.paymentsReceived)} unit="FCFA" />
-                        <Stat
-                            label="En attente"
-                            value={formatFcfa(data.pendingPayments)}
-                            unit="FCFA"
-                            color="var(--eduflow-warning-700)"
-                        />
-                        <Stat
-                            label="Collecté"
-                            value={`${collectionRate}`}
-                            unit="%"
-                        />
-                    </div>
-                </Card>
-
-                <Card padding={0}>
-                    <div
-                        className="flex items-center justify-between border-b px-5 py-4"
-                        style={{ borderColor: "var(--eduflow-border-subtle)" }}
-                    >
-                        <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
-                                Élèves à risque
-                            </h2>
-                            <p
-                                style={{
-                                    fontSize: 11,
-                                    color: "var(--eduflow-text-tertiary)",
-                                    margin: "2px 0 0",
-                                }}
-                            >
-                                Détectés automatiquement par l&apos;IA
-                            </p>
-                        </div>
-                        {data.activeAlerts > 0 ? (
-                            <Badge variant="danger" size="sm">
-                                {data.activeAlerts} P0
-                            </Badge>
-                        ) : null}
-                    </div>
-                    <div style={{ padding: "8px" }}>
-                        {data.atRiskStudents.length === 0 ? (
-                            <NotifItem
-                                type="success"
-                                title="Aucun élève à risque cette semaine"
-                                body="Toutes les alertes ont été traitées."
-                                time="à jour"
-                            />
-                        ) : (
-                            data.atRiskStudents.slice(0, 4).map((s) => (
-                                <NotifItem
-                                    key={s.id}
-                                    type={s.riskLevel === "critical" ? "urgent" : "warning"}
-                                    priority={s.riskLevel === "critical" ? "P0" : "P1"}
-                                    title={`${s.name} · ${s.className}`}
-                                    body={`Moyenne ${s.average.toFixed(2).replace(".", ",")}/20 — risque ${s.riskLevel} · suivi recommandé`}
-                                    time="cette semaine"
-                                    actions={["Voir dossier"]}
-                                />
-                            ))
-                        )}
-                    </div>
-                </Card>
-            </div>
-
-            {/* 3 column lower */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: 16,
-                }}
-            >
-                <Card>
-                    <SubLabel>Top classes · {periodName ?? "période"}</SubLabel>
-                    {data.classSummary.length === 0 ? (
-                        <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
-                            Aucune donnée pour cette période.
+            {/* Rangée 1 : chiffres (2/3) + à surveiller (1/3), hauteurs comparables. */}
+            <div className={styles.top}>
+            <section className={styles.block} aria-labelledby="home-overview">
+                <div className={styles.blockHead}>
+                    <h2 id="home-overview" className={styles.blockTitle}>Vue d&apos;ensemble</h2>
+                    {finance ? null : <Link href="/dashboard/analytics" className={styles.link}>Analyses</Link>}
+                </div>
+                {data.totalStudents === 0 ? (
+                    // Aucun élève encore : pas de « 0,0 % » qui ressemblerait à une mesure.
+                    <div className={styles.onboard}>
+                        <p className={styles.empty}>
+                            Aucun élève inscrit pour l&apos;instant. Les chiffres apparaîtront dès les premières inscriptions.
                         </p>
-                    ) : (
-                        data.classSummary.slice(0, 4).map((c) => {
-                            const v = Math.min(20, Math.max(0, c.average));
-                            const ratio = (v / 20) * 100;
-                            const variant: "success" | "brand" | "warning" =
-                                v >= 14 ? "success" : v >= 10 ? "brand" : "warning";
-                            return (
-                                <div key={c.name} style={{ marginTop: 10 }}>
-                                    <Progress
-                                        label={`${c.name} · ${c.studentCount} élèves`}
-                                        sublabel={`${c.average.toFixed(1).replace(".", ",")}/20`}
-                                        value={ratio}
-                                        variant={variant}
-                                    />
-                                </div>
-                            );
-                        })
-                    )}
-                </Card>
-                <Card>
-                    <SubLabel>Équipe pédagogique</SubLabel>
-                    <div className="flex items-center justify-between">
-                        <div
-                            className="eduflow-display eduflow-tabular"
-                            style={{ fontSize: 28, fontWeight: 700, lineHeight: 1 }}
-                        >
-                            {formatNumber(data.totalTeachers)}
+                        <div className={styles.onboardActions}>
+                            <Link href="/dashboard/students/inscription" className={styles.primary}>Inscrire le premier élève</Link>
+                            <Link href="/dashboard/import" className={styles.pill}>Importer un fichier</Link>
                         </div>
-                        <Badge variant="success" size="sm">
-                            {formatNumber(data.totalClasses)} classes
-                        </Badge>
                     </div>
-                    <div className="mt-3 flex" aria-hidden>
-                        {/* Pastilles d'effectif (pas de noms inventés) — échelle sur le compte réel */}
-                        {Array.from({ length: Math.min(4, data.totalTeachers) }).map((_, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    marginLeft: i ? -8 : 0,
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: "50%",
-                                    background: "var(--brand-100)",
-                                    boxShadow: "0 0 0 2px var(--eduflow-surface-card)",
-                                    display: "grid",
-                                    placeItems: "center",
-                                }}
-                            >
-                                <Icon name="users" size={14} color="var(--brand-600)" />
-                            </div>
+                ) : (
+                <div className={styles.figs}>
+                    {figures.map((f) => {
+                        const inner = (
+                            <>
+                                <span className={styles.figLabel}>
+                                    <span className={styles.dot} style={{ background: f.color }} aria-hidden="true" />
+                                    {f.label}
+                                </span>
+                                <span className={styles.figValue} style={{ display: "block" }}>{f.value}</span>
+                                <span className={styles.figNote} style={{ display: "block" }}>{f.note}</span>
+                            </>
+                        );
+                        return f.href ? (
+                            <Link key={f.label} href={f.href} className={styles.fig}>{inner}</Link>
+                        ) : (
+                            <div key={f.label} className={styles.fig}>{inner}</div>
+                        );
+                    })}
+                </div>
+                )}
+            </section>
+
+            <section className={styles.block} aria-labelledby="home-watch">
+                <div className={styles.blockHead}>
+                    <h2 id="home-watch" className={styles.blockTitle}>À surveiller</h2>
+                    {finance ? null : <Link href="/dashboard/risks/failure" className={styles.link}>Tout voir</Link>}
+                </div>
+                {watched.length === 0 && data.pendingPayments <= 0 ? (
+                    <p className={styles.calm}>
+                        <Icon name="success" size={20} color={MODULE.green} />
+                        Rien à signaler : aucun élève à risque élevé ni paiement en attente.
+                    </p>
+                ) : (
+                    <ul className={styles.watch}>
+                        {watched.map((s) => (
+                            <li key={s.id} className={styles.watchItem}>
+                                <span
+                                    className={styles.avatar}
+                                    style={{ background: s.riskLevel.toLowerCase() === "critical" ? MODULE.pink : MODULE.orange }}
+                                    aria-hidden="true"
+                                >
+                                    {initials(s.name)}
+                                </span>
+                                <div>
+                                    <div className={styles.name}>{s.name}</div>
+                                    <div className={styles.detail}>
+                                        {s.className} · moyenne {decimal(s.average, 2)}/20 · {riskLabel(s.riskLevel)}
+                                    </div>
+                                </div>
+                                <Link href={`/dashboard/students/${s.id}`} className={styles.pill}>
+                                    Voir le dossier
+                                </Link>
+                            </li>
                         ))}
-                        {data.totalTeachers > 4 ? (
-                            <div
-                                style={{
-                                    marginLeft: -8,
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: "50%",
-                                    background: "var(--eduflow-surface-sunken)",
-                                    boxShadow: "0 0 0 2px var(--eduflow-surface-card)",
-                                    display: "grid",
-                                    placeItems: "center",
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    color: "var(--eduflow-text-secondary)",
-                                }}
-                            >
-                                +{data.totalTeachers - 4}
-                            </div>
+                        {data.pendingPayments > 0 ? (
+                            <li className={styles.watchItem}>
+                                <span className={styles.avatar} style={{ background: MODULE.orange }} aria-hidden="true">
+                                    <Icon name="money" size={18} color="#fff" />
+                                </span>
+                                <div>
+                                    <div className={styles.name}>Paiements à valider</div>
+                                    <div className={styles.detail}>{formatFcfa(data.pendingPayments)} FCFA déclarés, en attente de validation</div>
+                                </div>
+                                <Link href="/dashboard/finance/reconciliation" className={styles.pill}>Valider</Link>
+                            </li>
                         ) : null}
-                    </div>
-                    <div className="mt-3 -ml-2">
-                        <Button variant="ghost" size="sm" iconRight="arrowRight">
-                            Voir l&apos;équipe
-                        </Button>
-                    </div>
-                </Card>
-                <Card>
-                    <SubLabel>Cantine · semaine</SubLabel>
-                    <div className="flex items-end gap-3" style={{ marginTop: 8 }}>
-                        <span
-                            className="eduflow-display eduflow-tabular"
-                            style={{ fontSize: 28, fontWeight: 700, lineHeight: 1 }}
-                        >
-                            {formatNumber(
-                                cantineWeek.reduce((acc, v) => acc + Math.round(v), 0)
-                            )}
-                        </span>
-                        <span
-                            style={{
-                                fontSize: 11,
-                                color: "var(--eduflow-text-tertiary)",
-                                paddingBottom: 3,
-                            }}
-                        >
-                            repas servis
-                        </span>
-                    </div>
-                    <div style={{ marginTop: 14 }}>
-                        <Sparkline
-                            data={cantineWeek}
-                            color="var(--brand-600)"
-                            height={42}
-                            strokeWidth={2}
-                        />
-                    </div>
-                    <div
-                        className="mt-2 flex justify-between"
-                        style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
-                    >
-                        {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"].map((d) => (
-                            <span key={d}>{d}</span>
+                    </ul>
+                )}
+            </section>
+
+            </div>
+
+            <section className={styles.block} aria-labelledby="home-actions">
+                <div className={styles.blockHead}>
+                    <h2 id="home-actions" className={styles.blockTitle}>Actions rapides</h2>
+                </div>
+                <div className={styles.tiles}>
+                    {(finance ? FINANCE_ACTIONS : QUICK_ACTIONS).map((a) => (
+                        <Link key={a.href} href={a.href} className={styles.tile}>
+                            <span className={styles.tileIcon} style={{ background: a.color }} aria-hidden="true">
+                                <Icon name={a.icon} size={18} color="#fff" />
+                            </span>
+                            {a.label}
+                        </Link>
+                    ))}
+                </div>
+            </section>
+
+            {finance ? null : (
+            <section className={styles.block} aria-labelledby="home-classes">
+                <div className={styles.blockHead}>
+                    <h2 id="home-classes" className={styles.blockTitle}>Mes classes</h2>
+                    <Link href="/dashboard/classes" className={styles.link}>
+                        {data.totalClasses > 0 ? `Les ${formatNumber(data.totalClasses)} classes` : "Toutes les classes"}
+                    </Link>
+                </div>
+                {data.classSummary.length === 0 ? (
+                    <p className={styles.empty}>Aucune moyenne publiée pour {periodName ?? "cette période"} pour l&apos;instant.</p>
+                ) : (
+                    <div className={styles.classes}>
+                        {data.classSummary.slice(0, 10).map((c, i) => (
+                            <Link
+                                key={c.id ?? c.name}
+                                href={c.id ? `/dashboard/classes/${c.id}` : "/dashboard/classes"}
+                                className={styles.classCard}
+                            >
+                                <div className={styles.banner} style={{ background: CLASS_COLORS[i % CLASS_COLORS.length] }}>
+                                    <span className={styles.className}>{c.name}</span>
+                                    <span className={styles.classMeta}>{formatNumber(c.studentCount)} élèves</span>
+                                </div>
+                                <div className={styles.classBody}>
+                                    <span>Moyenne</span>
+                                    <span>{c.average > 0 ? `${decimal(c.average)}/20` : "—"}</span>
+                                </div>
+                            </Link>
                         ))}
                     </div>
-                    <div
-                        className="mt-3 flex items-center gap-2 pt-3"
-                        style={{
-                            borderTop: "1px solid var(--eduflow-border-subtle)",
-                            fontSize: 12,
-                            color: "var(--eduflow-text-secondary)",
-                        }}
-                    >
-                        <Icon name="info" size={14} color="var(--brand-700)" />
-                        <span>
-                            {schoolName ?? "Établissement"} · ratio{" "}
-                            {Math.round(
-                                data.totalStudents / Math.max(1, data.totalClasses)
-                            )}{" "}
-                            élèves/classe
-                        </span>
-                    </div>
-                </Card>
-            </div>
+                )}
+            </section>
+            )}
         </div>
     );
-}
-
-function Stat({
-    label,
-    value,
-    unit,
-    color,
-}: {
-    label: string;
-    value: string;
-    unit?: string;
-    color?: string;
-}) {
-    return (
-        <div>
-            <div
-                style={{
-                    fontSize: 11,
-                    color: "var(--eduflow-text-tertiary)",
-                }}
-            >
-                {label}
-            </div>
-            <div
-                className="eduflow-display eduflow-tabular"
-                style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    marginTop: 2,
-                    color: color ?? "var(--eduflow-text-primary)",
-                    lineHeight: 1.1,
-                }}
-            >
-                {value}
-                {unit ? (
-                    <span
-                        style={{
-                            fontSize: 11,
-                            color: "var(--eduflow-text-tertiary)",
-                            fontWeight: 600,
-                            marginLeft: 4,
-                        }}
-                    >
-                        {unit}
-                    </span>
-                ) : null}
-            </div>
-        </div>
-    );
-}
-
-function EmptyTrend() {
-    return (
-        <div
-            className="flex items-center gap-2 rounded-md p-3"
-            style={{
-                background: "var(--eduflow-surface-sunken)",
-                color: "var(--eduflow-text-secondary)",
-                fontSize: 12,
-            }}
-        >
-            <Icon name="info" size={14} color="var(--eduflow-text-tertiary)" />
-            Pas encore d&apos;historique périodique pour tracer la tendance.
-        </div>
-    );
-}
-
-function shortName(full: string): string {
-    const parts = full.trim().split(" ");
-    if (parts.length === 1) return parts[0];
-    return `${parts[0][0]}. ${parts[parts.length - 1]}`;
 }

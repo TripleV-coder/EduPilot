@@ -109,6 +109,7 @@ export default function ExplorerRoutePage() {
 
     return (
         <main
+            id="main-content"
             className="eduflow-scope min-h-screen"
             style={{
                 background:
@@ -188,7 +189,7 @@ export default function ExplorerRoutePage() {
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <Icon name="grid" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Établissements
                             </h2>
                             <Badge variant="neutral" size="sm">
@@ -477,8 +478,6 @@ function SchoolDetailPanel({
                         style={{
                             fontSize: 11,
                             fontWeight: 600,
-                            letterSpacing: "0.04em",
-                            textTransform: "uppercase",
                             color: "var(--eduflow-text-tertiary)",
                         }}
                     >
@@ -515,8 +514,6 @@ function SchoolDetailPanel({
                             style={{
                                 fontSize: 11,
                                 fontWeight: 600,
-                                letterSpacing: "0.04em",
-                                textTransform: "uppercase",
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 6,
                             }}
@@ -539,7 +536,7 @@ function SchoolDetailPanel({
                                 <div
                                     className="eduflow-mono"
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 2,
                                     }}
@@ -576,10 +573,8 @@ function Stat({
         <div>
             <div
                 style={{
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >

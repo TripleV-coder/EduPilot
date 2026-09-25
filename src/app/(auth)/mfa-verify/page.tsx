@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { OtpInput, OTP_LENGTH } from "@/components/auth/OtpInput";
 import { Button } from "@/components/edu";
+import { safeCallbackPath } from "@/lib/security/safe-redirect";
 
 const ERROR_ID = "mfa-verify-error";
 
@@ -29,7 +30,7 @@ function MfaVerifyForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    const callbackUrl = safeCallbackPath(searchParams.get("callbackUrl"));
 
     // Un utilisateur déjà validé (ou sans 2FA) n'a rien à faire ici.
     useEffect(() => {

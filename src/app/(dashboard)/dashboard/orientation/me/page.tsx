@@ -190,9 +190,9 @@ const CAREERS: Record<string, string[]> = {
 };
 
 const MENTIONS = [
-    { m: "Passable", r: "10,00 → 11,99", c: "neutral" as const },
-    { m: "Assez Bien", r: "12,00 → 13,99", c: "info" as const },
-    { m: "Bien", r: "14,00 → 15,99", c: "success" as const },
+    { m: "Passable", r: "10,00 – 11,99", c: "neutral" as const },
+    { m: "Assez Bien", r: "12,00 – 13,99", c: "info" as const },
+    { m: "Bien", r: "14,00 – 15,99", c: "success" as const },
     { m: "Très Bien", r: "≥ 16,00", c: "warning" as const },
 ];
 
@@ -259,7 +259,7 @@ export default function OrientationMePage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -293,7 +293,7 @@ export default function OrientationMePage() {
                             >
                                 <Icon name="sparkle" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 {data.indicative?.recommendations.length
                                     ? "Ton estimation personnelle, en attendant le conseil"
                                     : "Tes recommandations arrivent bientôt"}
@@ -410,8 +410,6 @@ export default function OrientationMePage() {
                                         gap: 8,
                                         fontSize: 11,
                                         fontWeight: 700,
-                                        letterSpacing: "0.12em",
-                                        textTransform: "uppercase",
                                         opacity: 0.85,
                                         marginBottom: 12,
                                     }}
@@ -762,7 +760,7 @@ export default function OrientationMePage() {
                                                     <span
                                                         style={{
                                                             marginLeft: "auto",
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-success-700)",
@@ -847,7 +845,7 @@ export default function OrientationMePage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .me-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -860,10 +858,8 @@ function HeroStat({ label, value }: { label: string; value: string }) {
         <div>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     opacity: 0.7,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                 }}
             >
                 {label}

@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Figtree, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// EduPilot Design System — Inter (display + body) et JetBrains Mono (tabular).
-// Inter n'est chargé qu'UNE seule fois sous --font-body ; les alias
+// EduPilot Design System — Figtree (display + body, direction « colorée et
+// vivante », cf. docs/design/directions/direction-approved.md) et JetBrains Mono.
+// Figtree n'est chargé qu'UNE seule fois sous --font-body ; les alias
 // --font-display / --font-eduflow-body / --font-ui sont dérivés en CSS
 // (cf. globals.css) pour éviter trois téléchargements de la même police.
-const inter = Inter({
+const figtree = Figtree({
     subsets: ["latin"],
     variable: "--font-body",
     weight: ["400", "500", "600", "700"],
@@ -83,13 +84,15 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="fr" className={`${inter.variable} ${eduflowMono.variable}`}>
+        <html lang="fr" className={`${figtree.variable} ${eduflowMono.variable}`}>
             <body className="font-body antialiased">
                 <SkipToContent />
                 <SessionProvider>
                     <SWRProvider>
                         <SchoolProvider>
-                            <div id="main-content">
+                            {/* Pas d'id « main-content » ici : il doublonnait celui de <main>
+                                (tableau de bord) et le lien d'évitement menait en haut de page. */}
+                            <div id="app-root">
                                 {children}
                             </div>
                             <WebVitalsReporter />

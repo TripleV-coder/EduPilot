@@ -104,7 +104,7 @@ function AttendanceContent() {
         <div className="space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="flex flex-col gap-1">
-                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: "var(--eduflow-text-tertiary)" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>
                         Date
                     </span>
                     <input

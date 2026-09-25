@@ -161,7 +161,7 @@ export default function LiaisonPage() {
             permission={Permission.SCHOOL_READ}
             roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title={
                         data
@@ -235,7 +235,7 @@ export default function LiaisonPage() {
                                 <div
                                     className="eduflow-display"
                                     style={{
-                                        fontSize: 18,
+                                        fontSize: 16,
                                         fontWeight: 700,
                                         color: "var(--eduflow-warning-900)",
                                     }}
@@ -265,7 +265,7 @@ export default function LiaisonPage() {
                     <div
                         style={{
                             display: "grid",
-                            gridTemplateColumns: "1.6fr 1fr",
+                            gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
                             gap: 14,
                         }}
                         className="liaison-grid"
@@ -338,7 +338,7 @@ export default function LiaisonPage() {
                                                     ? "var(--eduflow-warning-50)"
                                                     : "transparent",
                                                 display: "grid",
-                                                gridTemplateColumns: "40px 1fr auto",
+                                                gridTemplateColumns: "40px minmax(0, 1fr) auto",
                                                 gap: 14,
                                                 alignItems: "flex-start",
                                             }}
@@ -398,7 +398,7 @@ export default function LiaisonPage() {
                                                 </p>
                                                 <div
                                                     style={{
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 6,
@@ -550,7 +550,7 @@ export default function LiaisonPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .liaison-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -588,7 +588,7 @@ function RecapTile({
             </div>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: `var(--eduflow-${tone}-800)`,
                     fontWeight: 600,
                 }}

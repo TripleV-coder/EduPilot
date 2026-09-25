@@ -96,7 +96,7 @@ export function BasePieChart({
           })}
         </Pie>
         <Tooltip contentStyle={FR_TOOLTIP_STYLE.contentStyle} />
-        <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+        <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 500 }} />
       </PieChart>
     </ResponsiveContainer>
   );

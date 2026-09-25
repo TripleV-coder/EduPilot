@@ -162,7 +162,7 @@ export default function StudentDetailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-[11px] font-bold uppercase gap-2"
+                    className="h-8 text-[11px] font-bold gap-2"
                     onClick={() => window.open(`/dashboard/cards/print?studentId=${student.id}`, "_blank")}
                   >
                     <CreditCard className="h-3.5 w-3.5" />
@@ -171,12 +171,12 @@ export default function StudentDetailPage() {
                 ) : null}
               </RoleActionGuard>
               <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold uppercase gap-2">
+                <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold gap-2">
                   <Edit className="h-3.5 w-3.5" />
                   Modifier le profil
                 </Button>
               </RoleActionGuard>
-              <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold uppercase" onClick={() => router.back()}>
+              <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold" onClick={() => router.back()}>
                 <ArrowLeft className="h-3.5 w-3.5 mr-2" />
                 Retour
               </Button>
@@ -201,38 +201,38 @@ export default function StudentDetailPage() {
           <>
             <Tabs defaultValue="profil" className="w-full space-y-6">
               <TabsList className="bg-muted/30 p-1 gap-1 h-auto flex-wrap justify-start border border-border/50">
-                <TabsTrigger value="profil" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="profil" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <UserCircle className="h-3.5 w-3.5" />
                   Vue 360°
                 </TabsTrigger>
-                <TabsTrigger value="scolarite" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="scolarite" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <GraduationCap className="h-3.5 w-3.5" />
                   Scolarité
                 </TabsTrigger>
-                <TabsTrigger value="presences" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="presences" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <CalendarCheck className="h-3.5 w-3.5" />
                   Présences
                 </TabsTrigger>
-                <TabsTrigger value="discipline" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="discipline" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <ShieldAlert className="h-3.5 w-3.5" />
                   Discipline
                 </TabsTrigger>
-                <TabsTrigger value="sante" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="sante" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <HeartPulse className="h-3.5 w-3.5" />
                   Santé
                 </TabsTrigger>
-                <TabsTrigger value="finances" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="finances" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <DollarSign className="h-3.5 w-3.5" />
                   Finances
                 </TabsTrigger>
-                <TabsTrigger value="suivi" className="gap-2 text-[11px] font-bold uppercase tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="suivi" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <Activity className="h-3.5 w-3.5" />
                   Suivi & IA
                 </TabsTrigger>
               </TabsList>
 
               {/* Vue 360° tab */}
-              <TabsContent value="profil" className="mt-0 space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="profil" className="mt-0 space-y-4">
                 <StudentProfile360 studentId={id} />
 
                 <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
@@ -241,7 +241,7 @@ export default function StudentDetailPage() {
 
                 <Card className="border-none shadow-none bg-muted/20">
                   <CardHeader className="p-4 border-b border-border/50">
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
                       Documents et certificats
                     </CardTitle>
                   </CardHeader>
@@ -249,8 +249,8 @@ export default function StudentDetailPage() {
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                       Gérez les documents officiels et générez les certificats de scolarité pour cet élève.
                     </p>
-                    {certError && <p className="text-[10px] text-destructive font-bold">{certError}</p>}
-                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-tight" onClick={downloadCertificate} disabled={certLoading}>
+                    {certError && <p className="text-[11px] text-destructive font-bold">{certError}</p>}
+                    <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold tracking-tight" onClick={downloadCertificate} disabled={certLoading}>
                       {certLoading ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Download className="h-3 w-3 mr-2" />}
                       Certificat de scolarité
                     </Button>
@@ -259,7 +259,7 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Scolarité tab */}
-              <TabsContent value="scolarite" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="scolarite" className="mt-0">
                 <div className="space-y-6">
                   {currentEnrollment && (
                     <Card className="border-none shadow-none bg-primary/5 border border-primary/10">
@@ -269,11 +269,11 @@ export default function StudentDetailPage() {
                             <GraduationCap className="text-primary w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Inscription active</p>
+                            <p className="text-[11px] font-bold text-muted-foreground">Inscription active</p>
                             <p className="font-bold text-sm">{currentEnrollment.class?.name} &middot; {currentEnrollment.class?.classLevel?.level}</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="bg-background text-[10px] font-bold uppercase">
+                        <Badge variant="outline" className="bg-background text-[11px] font-bold">
                           Année {currentEnrollment.academicYear?.name}
                         </Badge>
                       </CardContent>
@@ -295,14 +295,14 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Présences tab */}
-              <TabsContent value="presences" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="presences" className="mt-0">
                 <StudentAttendanceTab studentId={id} />
               </TabsContent>
 
               {/* Discipline tab */}
-              <TabsContent value="discipline" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="discipline" className="mt-0">
                 <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-8">
+                   <div className="text-center p-5">
                       <ShieldAlert className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="text-sm font-bold text-muted-foreground">Aucun incident disciplinaire signalé.</p>
                       <p className="text-xs text-muted-foreground mt-1">L&apos;historique des sanctions et mérites apparaîtra ici.</p>
@@ -311,9 +311,9 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Santé tab */}
-              <TabsContent value="sante" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="sante" className="mt-0">
                 <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-8">
+                   <div className="text-center p-5">
                       <HeartPulse className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="text-sm font-bold text-muted-foreground">Dossier médical vide.</p>
                       <p className="text-xs text-muted-foreground mt-1">Les allergies, traitements et passages infirmerie seront listés ici.</p>
@@ -322,9 +322,9 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Finances tab */}
-              <TabsContent value="finances" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="finances" className="mt-0">
                 <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-8">
+                   <div className="text-center p-5">
                       <DollarSign className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="text-sm font-bold text-muted-foreground">État financier non disponible.</p>
                       <p className="text-xs text-muted-foreground mt-1">Consultez l&apos;historique des paiements et les bourses dans le module Finance.</p>
@@ -333,7 +333,7 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Suivi & IA tab */}
-              <TabsContent value="suivi" className="mt-0 animate-in fade-in slide-in-from-bottom-2 space-y-6">
+              <TabsContent value="suivi" className="mt-0 space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <StudentPerformanceDashboard studentId={id} />
                   <StudentAiPrediction studentId={id} />

@@ -43,7 +43,7 @@ export function PageCallout({
   };
 
   return (
-    <div className={cn("rounded-xl border border-dashed p-8 text-center", toneClasses[tone], className)}>
+    <div className={cn("rounded-xl border border-dashed p-5 text-center", toneClasses[tone], className)}>
       <Icon className={cn("mx-auto mb-4 h-10 w-10", iconClasses[tone])} aria-hidden="true" />
       <h2 className="text-base font-semibold text-foreground">{title}</h2>
       {description ? (

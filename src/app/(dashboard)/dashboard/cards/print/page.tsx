@@ -36,14 +36,17 @@ function PrintCardsInner() {
 
     if (!key) {
         return (
-            <PageEmpty
-                title="Aucune sélection"
-                description="Ajoute ?studentId=… ou ?classId=… à l'URL pour générer des cartes."
-            />
+            <>
+                <h1 className="sr-only">Impression des cartes scolaires</h1>
+                <PageEmpty
+                    title="Aucune sélection"
+                    description="Lancez l'impression depuis la fiche d'un élève ou d'une classe."
+                />
+            </>
         );
     }
     if (isLoading) return <PageLoading label="Génération des cartes…" />;
-    if (error) return <PageError message="Impossible de générer les cartes. Réessaie plus tard." />;
+    if (error) return <PageError message="Impossible de générer les cartes. Réessayez plus tard." />;
 
     const cards: StudentCardView[] = data
         ? "cards" in data

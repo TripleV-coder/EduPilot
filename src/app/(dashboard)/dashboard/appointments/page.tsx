@@ -109,7 +109,7 @@ export default function AppointmentsPage() {
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Agenda des rendez-vous"
                     description="Gérez les rencontres entre les parents et les enseignants."

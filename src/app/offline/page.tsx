@@ -12,9 +12,9 @@ export const dynamic = "force-static";
 
 export default function OfflinePage() {
   return (
-    <main className="min-h-dvh flex items-center justify-center bg-background p-6">
+    <main id="main-content" className="min-h-dvh flex items-center justify-center bg-background p-6">
       <div className="max-w-md w-full text-center">
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-6">
+        <div className="mx-auto w-16 h-16 rounded-card bg-muted flex items-center justify-center mb-6">
           <WifiOff className="h-8 w-8 text-muted-foreground" />
         </div>
         <h1 className="text-2xl font-bold mb-2">Vous êtes hors ligne</h1>

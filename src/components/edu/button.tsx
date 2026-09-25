@@ -8,9 +8,10 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "soft";
 type Size = "sm" | "md" | "lg";
 
 const SIZE_TOKENS: Record<Size, { h: number; px: number; fs: number; gap: number; rad: number }> = {
-    sm: { h: 30, px: 12, fs: 12, gap: 6, rad: 8 },
-    md: { h: 38, px: 16, fs: 13, gap: 8, rad: 10 },
-    lg: { h: 46, px: 20, fs: 15, gap: 10, rad: 12 },
+    // Pilules, comme les actions de l'accueil validé (docs/design/directions/direction-approved.md).
+    sm: { h: 32, px: 14, fs: 13, gap: 6, rad: 999 },
+    md: { h: 40, px: 18, fs: 14, gap: 8, rad: 999 },
+    lg: { h: 46, px: 22, fs: 15, gap: 10, rad: 999 },
 };
 
 const VARIANT_TOKENS: Record<
@@ -86,9 +87,7 @@ export function Button({
         ? "none"
         : pressed
           ? "scale(0.97)"
-          : hov
-            ? "translateY(-0.5px)"
-            : "none";
+          : "none";
 
     return (
         <button

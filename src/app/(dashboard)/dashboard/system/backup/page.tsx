@@ -17,6 +17,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimeShort } from "@/lib/utils/formatters";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type Backup = {
     filename: string;
@@ -100,7 +101,7 @@ export default function SystemBackupPage() {
 
                 {isLoading && (
                     <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
                     </div>
                 )}
 

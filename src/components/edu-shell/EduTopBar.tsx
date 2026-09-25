@@ -69,12 +69,12 @@ export function EduTopBar() {
             aria-label="Ouvrir la palette de commandes"
             className={cn(
                 "flex items-center gap-2.5 rounded-input border border-transparent bg-[var(--eduflow-surface-sunken)] px-3 transition-colors hover:border-[var(--eduflow-border-default)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50",
-                "h-10 flex-1 md:max-w-[380px]"
+                "h-10 min-w-0 flex-1 md:max-w-[380px]"
             )}
         >
             <Icon name="search" size={16} color="var(--eduflow-text-tertiary)" />
             <span
-                className="hidden flex-1 text-left text-[13px] text-[var(--eduflow-text-tertiary)] sm:inline"
+                className="hidden min-w-0 flex-1 truncate text-left text-[13px] text-[var(--eduflow-text-tertiary)] sm:block"
             >
                 Rechercher une page, un élève, une action…
             </span>
@@ -84,7 +84,7 @@ export function EduTopBar() {
             <kbd
                 aria-hidden
                 suppressHydrationWarning
-                className="hidden rounded-md border border-[var(--eduflow-border-subtle)] bg-[var(--eduflow-surface-card)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--eduflow-text-secondary)] md:inline"
+                className="hidden rounded-md border border-[var(--eduflow-border-subtle)] bg-[var(--eduflow-surface-card)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--eduflow-text-secondary)] md:inline"
                 style={{ fontFamily: "var(--eduflow-font-mono, monospace)" }}
             >
                 {isMac ? "⌘K" : "Ctrl+K"}
@@ -169,7 +169,7 @@ export function EduTopBar() {
                 />
                 <div className="hidden md:block">
                     <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>{userName}</div>
-                    <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                         {ROLE_LABELS[role] ?? role}
                     </div>
                 </div>

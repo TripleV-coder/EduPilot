@@ -20,11 +20,13 @@ const PREVIEW_TREND = [
     { label: "Term", compare: 80, value: 86 },
 ];
 
+// Faits vérifiables dans le produit, pas des résultats clients inventés
+// (« +38 % de recouvrement », « 6 h gagnées »… n'avaient aucune source).
 const PROOF = [
-    { value: "+ 38%", label: "de recouvrement à T+90j" },
-    { value: "6 h", label: "gagnées / sem. par enseignant" },
-    { value: "94%", label: "des parents lisent les SMS" },
-    { value: "< 200 ms", label: "temps de réponse moyen" },
+    { value: "CEP · BEPC · BAC", label: "examens nationaux et séries gérés par cycle" },
+    { value: "MoMo · FedaPay", label: "paiement mobile des frais de scolarité" },
+    { value: "Multi-établissement", label: "données cloisonnées entre écoles" },
+    { value: "5 profils", label: "direction, enseignants, personnel, parents, élèves" },
 ];
 
 /**
@@ -60,37 +62,25 @@ export function ProductScreenshotSection() {
                         background: "var(--eduflow-neutral-100)",
                         borderBottom: "1px solid var(--eduflow-border-subtle)",
                     }}
-                    aria-hidden
                 >
-                    {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
-                        <span
-                            key={c}
-                            style={{
-                                width: 12,
-                                height: 12,
-                                borderRadius: 6,
-                                background: c,
-                            }}
-                        />
-                    ))}
-                    <div
+                    <span
                         style={{
-                            flex: 1,
-                            textAlign: "center",
-                            fontSize: 11,
-                            color: "var(--eduflow-text-tertiary)",
-                            fontFamily: "var(--eduflow-font-mono)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--eduflow-text-secondary)",
                         }}
                     >
-                        app.edupilot.bj/dashboard
-                    </div>
+                        Aperçu illustratif · données fictives
+                    </span>
                 </div>
 
+                {/* Maquette non interactive : `inert` retire le bouton « Voir »
+                    du parcours clavier, il ne mène nulle part. */}
                 <div
+                    inert
+                    className="grid grid-cols-2 md:grid-cols-4"
                     style={{
                         padding: "clamp(16px, 3vw, 24px)",
-                        display: "grid",
-                        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                         gap: 12,
                         gridAutoRows: "min-content",
                     }}
@@ -125,11 +115,11 @@ export function ProductScreenshotSection() {
                         icon="warning"
                         variant="warning"
                     />
-                    <Card style={{ gridColumn: "span 3" }}>
+                    <Card className="col-span-2 md:col-span-3">
                         <SubLabel>Recouvrement T2 · objectif 95%</SubLabel>
                         <BarChart data={PREVIEW_TREND} height={120} max={100} />
                     </Card>
-                    <Card>
+                    <Card className="col-span-2 md:col-span-1">
                         <SubLabel>Insight IA</SubLabel>
                         <div
                             style={{

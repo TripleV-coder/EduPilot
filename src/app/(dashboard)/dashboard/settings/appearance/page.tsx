@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -101,21 +102,27 @@ export default function AppearanceSettingsPage() {
             currentPreferences.appearance && typeof currentPreferences.appearance === "object"
                 ? currentPreferences.appearance
                 : {};
-        const nextPreferences = {
-            ...currentPreferences,
-            appearance: {
-                ...currentAppearance,
-                ...partialAppearance,
-            },
-        };
+        const nextAppearance = { ...currentAppearance, ...partialAppearance };
 
-        await fetch("/api/user/profile", {
+        // Le serveur fusionne les clés de premier niveau : on n'envoie que
+        // la section « appearance », jamais une copie potentiellement périmée
+        // du reste (consentements, notifications…).
+        const res = await fetch("/api/user/profile", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ preferences: nextPreferences }),
-        });
+            body: JSON.stringify({ preferences: { appearance: nextAppearance } }),
+        }).catch(() => null);
 
-        await mutate({ ...(profileData || {}), preferences: nextPreferences }, false);
+        if (!res?.ok) {
+            setSaved(false);
+            toast.error("Préférence appliquée sur ce navigateur, mais non enregistrée sur ton profil. Réessaie.");
+            return;
+        }
+
+        await mutate(
+            { ...(profileData || {}), preferences: { ...currentPreferences, appearance: nextAppearance } },
+            false
+        );
         setSaved(true);
         window.setTimeout(() => setSaved(false), 2200);
     };
@@ -161,7 +168,7 @@ export default function AppearanceSettingsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            border: "1px solid var(--eduflow-success-200)",
                             background: "var(--eduflow-success-50)",
                         }}
                     >
@@ -189,7 +196,7 @@ export default function AppearanceSettingsPage() {
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
                         <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Modes d&apos;affichage
                             </h2>
                             <p
@@ -233,7 +240,7 @@ export default function AppearanceSettingsPage() {
                     >
                         <Icon name="settings" size={18} color="var(--brand-700)" />
                         <div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Thème
                             </h2>
                             <p

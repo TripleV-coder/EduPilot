@@ -1,0 +1,97 @@
+/* Kit des accueils (tous les rôles) — style validé « coloré et vivant », priorité vue
+   d'ensemble (docs/design/directions/direction-approved.md). Aucune animation au chargement : écrans
+   ouverts des dizaines de fois par jour. */
+
+.page { display: grid; gap: 16px; }
+
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 0; }
+.title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0; color: var(--eduflow-text-primary); }
+.sub { margin: 2px 0 0; color: var(--eduflow-text-secondary); font-size: 14px; }
+
+.block { background: var(--eduflow-surface-card); border: 1px solid var(--eduflow-border-subtle); border-radius: 14px; padding: 16px 20px; min-width: 0; }
+.blockHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.blockTitle { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; color: var(--eduflow-text-primary); }
+.link { color: var(--brand-600); font-size: 14px; font-weight: 500; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+/* Vue d'ensemble */
+.figs { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.fig { display: block; padding: 6px 10px; margin: -6px -10px; border-radius: 10px; text-decoration: none; color: inherit; transition: background 150ms ease; }
+@media (hover: hover) and (pointer: fine) { .fig:hover { background: var(--eduflow-surface-sunken); } }
+.figLabel { display: flex; align-items: center; gap: 8px; color: var(--eduflow-text-secondary); font-size: 14px; font-weight: 500; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.figValue { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 2px; color: var(--eduflow-text-primary); }
+.figNote { color: var(--eduflow-text-secondary); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* À surveiller */
+.watch { list-style: none; margin: 0; padding: 0; }
+.watchItem { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--eduflow-border-subtle); }
+.watchItem:first-child { border-top: 0; padding-top: 0; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 600; color: #fff; }
+.name { font-weight: 600; color: var(--eduflow-text-primary); }
+.detail { color: var(--eduflow-text-secondary); font-size: 14px; }
+.pill { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--eduflow-border-default); color: var(--brand-600); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 150ms ease; }
+.pill:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .pill:hover { background: var(--brand-50); } }
+.calm { display: flex; align-items: center; gap: 12px; color: var(--eduflow-text-secondary); font-size: 15px; }
+
+/* Actions rapides */
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tile { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--eduflow-border-subtle); background: var(--eduflow-surface-card); color: var(--eduflow-text-primary); font-size: 14px; font-weight: 600; text-decoration: none; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 150ms ease; }
+.tile:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .tile:hover { border-color: var(--eduflow-border-strong); } }
+.tileIcon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; color: #fff; }
+
+/* Mes classes — bandeaux pleins façon Google Classroom */
+.classes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.classCard { display: block; border: 1px solid var(--eduflow-border-subtle); border-radius: 12px; overflow: hidden; text-decoration: none; color: var(--eduflow-text-primary); background: var(--eduflow-surface-card); transition: box-shadow 150ms ease; }
+@media (hover: hover) and (pointer: fine) { .classCard:hover { box-shadow: 0 4px 14px rgba(16, 24, 40, 0.08); } }
+.banner { position: relative; overflow: hidden; min-height: 68px; padding: 12px 14px 10px; display: flex; flex-direction: column; justify-content: flex-end; color: #fff; }
+.banner::after { content: ""; position: absolute; right: -24px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255, 255, 255, 0.14); }
+.banner::before { content: ""; position: absolute; right: 40px; bottom: -40px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); }
+.className { position: relative; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.classMeta { position: relative; font-size: 14px; opacity: 0.95; }
+.classBody { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 14px; color: var(--eduflow-text-secondary); font-variant-numeric: tabular-nums; }
+.empty { color: var(--eduflow-text-secondary); font-size: 15px; margin: 0; }
+.onboard { display: grid; gap: 16px; }
+.onboardActions { display: flex; gap: 10px; flex-wrap: wrap; }
+.primary { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 999px; background: var(--edu-module-blue); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.primary:active { transform: scale(0.97); }
+
+@media (max-width: 1280px) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .classes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .top, .split { grid-template-columns: 1fr; }
+  .classes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .figs { grid-template-columns: 1fr 1fr; row-gap: 16px; }
+}
+@media (max-width: 640px) {
+  .block { padding: 14px 16px; }
+  .title { font-size: 22px; }
+  .watchItem { grid-template-columns: 40px minmax(0, 1fr); }
+  .watchItem .pill { grid-column: 2; justify-self: start; }
+  .tiles, .classes { grid-template-columns: 1fr 1fr; }
+}
+
+/* Ma journée (frise) */
+.day { list-style: none; margin: 0; padding: 0; }
+.dayRow { display: grid; grid-template-columns: 52px 16px minmax(0, 1fr); gap: 10px; padding: 8px 0; position: relative; }
+.dayRow:not(:last-child)::after { content: ""; position: absolute; left: 69px; top: 22px; bottom: -10px; width: 2px; background: var(--eduflow-border-subtle); }
+.dayTime { color: var(--eduflow-text-secondary); font-size: 14px; font-variant-numeric: tabular-nums; }
+.dayDot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--eduflow-border-default); background: var(--eduflow-surface-card); margin-top: 5px; position: relative; z-index: 1; }
+.dayRow[data-state="done"] .dayDot { background: var(--eduflow-text-tertiary); border-color: var(--eduflow-text-tertiary); }
+.dayRow[data-state="done"] .name { color: var(--eduflow-text-secondary); }
+.dayRow[data-state="now"] .dayDot { background: var(--edu-module-blue); border-color: var(--edu-module-blue); box-shadow: 0 0 0 4px var(--brand-50); }
+.nowTag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--brand-700); background: var(--brand-50); padding: 1px 8px; border-radius: 999px; }
+
+/* Barres (moyennes par matière, /20) */
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.barRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 14px; }
+.barTrack { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: var(--eduflow-surface-sunken); overflow: hidden; }
+.barFill { height: 100%; border-radius: 999px; }
+.barValue { font-variant-numeric: tabular-nums; color: var(--eduflow-text-secondary); }

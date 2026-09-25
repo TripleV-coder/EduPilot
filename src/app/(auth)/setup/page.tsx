@@ -103,9 +103,9 @@ export default function SetupPage() {
     return (
         <div className="min-h-screen bg-background flex py-12 px-4 sm:px-6 lg:px-8 justify-center">
             <div className="w-full max-w-3xl">
-                <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
+                <div className="bg-card border border-border rounded-card p-5">
                     <div className="text-center mb-10">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-card bg-gradient-to-tr from-primary/20 to-secondary/20 border border-primary/20 mb-5">
                             <GraduationCap className="w-8 h-8 text-primary" />
                         </div>
                         <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -119,7 +119,7 @@ export default function SetupPage() {
                     {error && (
                         <div
                             role="alert"
-                            className="animate-in fade-in slide-in-from-top-2 duration-300 flex items-start gap-2 p-4 mb-8 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
+                            className="flex items-start gap-2 p-4 mb-8 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]"
                         >
                             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                             <div className="text-sm font-medium">{error}</div>

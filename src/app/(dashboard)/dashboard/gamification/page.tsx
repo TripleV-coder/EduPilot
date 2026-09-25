@@ -167,7 +167,7 @@ export default function GamificationPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="max-w-7xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Gamification & récompenses"
                     description="Classement et badges débloqués par les élèves pour leur mérite scolaire."
@@ -259,7 +259,7 @@ export default function GamificationPage() {
                             style={{ borderColor: "var(--eduflow-border-subtle)" }}
                         >
                             <Icon name="trophy" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Classement des étoiles montantes
                             </h2>
                         </div>
@@ -289,11 +289,11 @@ export default function GamificationPage() {
                     <Card padding={20}>
                         <div className="flex items-center gap-2 mb-4">
                             <Icon name="sparkle" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Badges disponibles
                             </h2>
                         </div>
-                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
+                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
                         <div className="flex flex-col gap-3">
                             {SHOWCASE_ACHIEVEMENTS.map((a) => (
                                 <div
@@ -433,7 +433,7 @@ function LeaderboardRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
                     }}
@@ -465,8 +465,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

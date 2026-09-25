@@ -21,6 +21,7 @@ import {
     Cell
 } from "recharts";
 import type { AcademicYear } from "@/lib/types";
+import { toast } from "sonner";
 
 
 type PerformanceStats = {
@@ -54,7 +55,9 @@ export default function PerformancesPage() {
                     if (currentYear) setSelectedAcademicYearId(currentYear.id);
                 }
             })
-            .catch(() => { });
+            .catch(() => {
+                toast.error("Impossible de charger les années académiques : les filtres sont incomplets.");
+            });
     }, []);
 
     useEffect(() => {
@@ -128,7 +131,7 @@ export default function PerformancesPage() {
 
     return (
         <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Performances Pédagogiques"
                     description="Analyse des résultats scolaires, suivi des moyennes par classe, niveau et matière."

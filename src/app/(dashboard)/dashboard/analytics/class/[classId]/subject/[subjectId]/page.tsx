@@ -132,7 +132,7 @@ export default function SubjectAnalyticsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <Card className="dashboard-block kpi-card border-border bg-card">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                    <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Moyenne Matière</div>
+                                    <div className="text-[11px] font-bold text-muted-foreground">Moyenne Matière</div>
                                     <GraduationCap className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
@@ -141,7 +141,7 @@ export default function SubjectAnalyticsPage() {
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                    <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Plus haute / basse</div>
+                                    <div className="text-[11px] font-bold text-muted-foreground">Plus haute / basse</div>
                                     <TrendingUp className="w-3.5 h-3.5 text-success/50" />
                                 </CardHeader>
                                 <CardContent>
@@ -154,7 +154,7 @@ export default function SubjectAnalyticsPage() {
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                    <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Médiane</div>
+                                    <div className="text-[11px] font-bold text-muted-foreground">Médiane</div>
                                     <BarChart3 className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
@@ -163,7 +163,7 @@ export default function SubjectAnalyticsPage() {
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                    <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Taux de réussite</div>
+                                    <div className="text-[11px] font-bold text-muted-foreground">Taux de réussite</div>
                                     <Users className="w-3.5 h-3.5 text-warning/50" />
                                 </CardHeader>
                                 <CardContent>
@@ -180,8 +180,8 @@ export default function SubjectAnalyticsPage() {
                             {/* Grade Distribution */}
                             <Card className="lg:col-span-6 border-border">
                                 <CardHeader>
-                                    <CardTitle className="text-sm font-bold uppercase tracking-widest">Distribution des Notes</CardTitle>
-                                    <CardDescription className="text-[10px]">Répartition des élèves par tranche de performance.</CardDescription>
+                                    <CardTitle className="text-sm font-bold">Distribution des Notes</CardTitle>
+                                    <CardDescription className="text-[11px]">Répartition des élèves par tranche de performance.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
                                     <InteractivePerformanceBarChart data={subjectData ? (Array.isArray(subjectData.gradeDistribution) ? subjectData.gradeDistribution : []) : []} />
@@ -191,8 +191,8 @@ export default function SubjectAnalyticsPage() {
                             {/* Monthly Trend */}
                             <Card className="lg:col-span-4 border-border">
                                 <CardHeader>
-                                    <CardTitle className="text-sm font-bold uppercase tracking-widest">Évolution de la Moyenne</CardTitle>
-                                    <CardDescription className="text-[10px]">Tendance mensuelle sur l&apos;année en cours.</CardDescription>
+                                    <CardTitle className="text-sm font-bold">Évolution de la Moyenne</CardTitle>
+                                    <CardDescription className="text-[11px]">Tendance mensuelle sur l&apos;année en cours.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
                                     <TrendLineChart data={subjectData?.monthlyTrend || []} />
@@ -203,8 +203,8 @@ export default function SubjectAnalyticsPage() {
                         {/* Student Ranking Table */}
                         <Card className="border-border overflow-hidden">
                             <CardHeader className="bg-muted/30 border-b">
-                                <CardTitle className="text-sm font-bold uppercase tracking-widest">Classement Individuel</CardTitle>
-                                <CardDescription className="text-[10px]">Performance nominative des élèves dans cette matière.</CardDescription>
+                                <CardTitle className="text-sm font-bold">Classement Individuel</CardTitle>
+                                <CardDescription className="text-[11px]">Performance nominative des élèves dans cette matière.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <DataTable 

@@ -221,14 +221,14 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     if (status === "authenticated" && !isGlobalMode && !session?.user?.schoolId) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background p-6">
-                <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
+                <div className="max-w-md w-full text-center space-y-6 zoom-in">
                     <div className="w-20 h-20 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto">
                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     </div>
                     <div className="space-y-2">
-                        <h1 className="text-2xl font-black tracking-tight">Initialisation Requise</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Initialisation Requise</h1>
                         <p className="text-muted-foreground text-sm">
                             Votre compte n&apos;est actuellement lié à aucun établissement actif. Veuillez contacter votre administrateur.
                         </p>
@@ -247,7 +247,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     return (
         <SchoolContext.Provider value={value}>
             {isOffline && (
-                <div className="fixed top-0 left-0 right-0 z-[9999] bg-orange-500 text-white text-[10px] font-black uppercase py-1 text-center tracking-widest animate-in slide-in-from-top">
+                <div className="fixed top-0 left-0 right-0 z-[9999] bg-orange-500 text-white text-[11px] font-bold py-1 text-center">
                     Mode Hors-Ligne &middot; Affichage des données en cache
                 </div>
             )}

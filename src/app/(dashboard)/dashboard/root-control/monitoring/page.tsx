@@ -54,7 +54,7 @@ export default function RootMonitoringPage() {
                                     <h3 className="font-semibold text-lg">Système Principal</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Sessions actives: {data.system.activeSessions}</p>
                                     {data.system.maintenanceMode && (
-                                        <Badge variant="destructive" className="mt-2 text-[10px]">Maintenance Active</Badge>
+                                        <Badge variant="destructive" className="mt-2 text-[11px]">Maintenance Active</Badge>
                                     )}
                                 </CardContent>
                             </Card>

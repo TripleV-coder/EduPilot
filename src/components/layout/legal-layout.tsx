@@ -15,6 +15,7 @@ interface LegalLayoutProps {
 export function LegalLayout({ title, lastUpdated, children, otherLink }: LegalLayoutProps) {
     return (
         <main
+            id="main-content"
             className="eduflow-scope"
             style={{
                 minHeight: "100vh",

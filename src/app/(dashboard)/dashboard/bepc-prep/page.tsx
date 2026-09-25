@@ -189,7 +189,7 @@ export default function BepcPrepPage() {
             roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
         >
             <CycleGuard requires="SECONDARY_COLLEGE">
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Préparation BEPC"
                     description={`Plus que ${daysLeft} jours · annales · IA tutrice · planning de révision`}
@@ -227,8 +227,6 @@ export default function BepcPrepPage() {
                                 style={{
                                     fontSize: 11,
                                     fontWeight: 700,
-                                    letterSpacing: "0.14em",
-                                    textTransform: "uppercase",
                                     opacity: 0.85,
                                 }}
                             >
@@ -462,7 +460,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={20} color="var(--brand-600)" />
@@ -518,7 +516,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={18} color="var(--brand-600)" />
@@ -571,7 +569,7 @@ export default function BepcPrepPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             color: "var(--eduflow-text-tertiary)",
                                                         }}
                                                     >
@@ -602,7 +600,7 @@ export default function BepcPrepPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .bepc-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -660,10 +658,8 @@ function HeroStat({ label, value }: { label: string; value: string }) {
             </div>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     opacity: 0.75,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                 }}
             >
                 {label}
@@ -681,7 +677,7 @@ function ReadinessStat({ label, value }: { label: string; value: string }) {
             >
                 {value}
             </div>
-            <div style={{ fontSize: 10, opacity: 0.75, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+            <div style={{ fontSize: 11, opacity: 0.75,}}>
                 {label}
             </div>
         </div>

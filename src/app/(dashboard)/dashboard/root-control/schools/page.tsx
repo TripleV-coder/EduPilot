@@ -300,7 +300,7 @@ export default function RootSchoolsPage() {
                                 Déployer un Établissement
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[700px] overflow-hidden p-0 gap-0 border-0 shadow-2xl">
+                        <DialogContent className="sm:max-w-[700px] overflow-hidden p-0 gap-0 border-0">
                             <form onSubmit={handleCreateSchool} className="flex flex-col max-h-[90vh]">
                                 <DialogHeader className="p-6 bg-primary/5 border-b">
                                     <div className="flex items-center gap-3 mb-1">
@@ -480,7 +480,7 @@ export default function RootSchoolsPage() {
                                                         <Label htmlFor="create-phone" className="flex items-center gap-2">
                                                             <Phone className="w-3 h-3 text-muted-foreground" /> Téléphone
                                                         </Label>
-                                                        <Input id="create-phone" name="phone" className="h-11" />
+                                                        <Input id="create-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" className="h-11" />
                                                     </div>
                                                 </div>
 
@@ -536,7 +536,7 @@ export default function RootSchoolsPage() {
                                                         <Lock className="w-3 h-3 text-muted-foreground" /> Mot de passe temporaire
                                                     </Label>
                                                     <Input id="admin-password" name="adminPassword" type="password" autoComplete="new-password" className="h-11 focus-visible:ring-primary" />
-                                                    <p className="text-[10px] text-muted-foreground">Laisser vide pour générer un mot de passe provisoire unique. Changement obligatoire à la première connexion.</p>
+                                                    <p className="text-[11px] text-muted-foreground">Laisser vide pour générer un mot de passe provisoire unique. Changement obligatoire à la première connexion.</p>
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -624,17 +624,17 @@ export default function RootSchoolsPage() {
                                                     <div>
                                                         <p className="font-bold text-foreground text-sm">{school.name}</p>
                                                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                            <Badge variant="secondary" className="font-mono text-[10px] uppercase">{school.code}</Badge>
-                                                            <Badge variant="outline" className="text-[10px]">
+                                                            <Badge variant="secondary" className="font-mono text-[11px]">{school.code}</Badge>
+                                                            <Badge variant="outline" className="text-[11px]">
                                                                 {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}
                                                             </Badge>
                                                             {school.organization?.name ? (
-                                                                <Badge variant="outline" className="text-[10px]">
+                                                                <Badge variant="outline" className="text-[11px]">
                                                                     {school.organization.name}
                                                                 </Badge>
                                                             ) : null}
                                                             {school.parentSchool?.name ? (
-                                                                <span className="text-[10px] text-muted-foreground">
+                                                                <span className="text-[11px] text-muted-foreground">
                                                                     Rattaché à {school.parentSchool.name}
                                                                 </span>
                                                             ) : null}

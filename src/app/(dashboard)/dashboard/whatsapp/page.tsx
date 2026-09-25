@@ -122,7 +122,7 @@ export default function WhatsAppPage() {
             permission={Permission.SCHOOL_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="WhatsApp Business · canal #1 au Bénin"
                     description={
@@ -196,7 +196,7 @@ export default function WhatsAppPage() {
                                         <div
                                             className="eduflow-display"
                                             style={{
-                                                fontSize: 18,
+                                                fontSize: 16,
                                                 fontWeight: 700,
                                                 color: "var(--brand-900, var(--brand-800))",
                                             }}
@@ -473,13 +473,13 @@ export default function WhatsAppPage() {
                                             <br />
                                             <br />
                                             👉 Payez en 30 sec :<br />
-                                            <span style={{ color: "#007AFF" }}>
+                                            <span style={{ color: "#0062CC" }}>
                                                 edupilot.bj/p/A0142
                                             </span>
                                             <div
                                                 style={{
-                                                    fontSize: 10,
-                                                    color: "#888",
+                                                    fontSize: 11,
+                                                    color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 6,
                                                 }}
@@ -503,8 +503,8 @@ export default function WhatsAppPage() {
                                             Payé ! Merci 🙏
                                             <div
                                                 style={{
-                                                    fontSize: 10,
-                                                    color: "#888",
+                                                    fontSize: 11,
+                                                    color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
                                                 }}
@@ -538,8 +538,8 @@ export default function WhatsAppPage() {
                                             ✅ Paiement reçu — reçu Flutterwave #FLW-882104. Merci !
                                             <div
                                                 style={{
-                                                    fontSize: 10,
-                                                    color: "#888",
+                                                    fontSize: 11,
+                                                    color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
                                                 }}
@@ -551,7 +551,7 @@ export default function WhatsAppPage() {
                                 </Card>
 
                                 <Card>
-                                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
+                                    <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
                                     <div
                                         style={{
                                             display: "flex",
@@ -595,7 +595,7 @@ export default function WhatsAppPage() {
                                     </div>
                                     <p
                                         style={{
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 12,
                                             lineHeight: 1.5,
@@ -616,7 +616,7 @@ export default function WhatsAppPage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .wa-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

@@ -25,8 +25,8 @@ export function Chip({ children, active, count, icon, onClick, disabled }: ChipP
             disabled={disabled}
             aria-pressed={active}
             style={{
-                height: 30,
-                padding: "0 12px",
+                height: 32,
+                padding: "0 14px",
                 borderRadius: "var(--eduflow-radius-full)",
                 border: `1px solid ${
                     active ? "var(--brand-600)" : "var(--eduflow-border-default)"
@@ -35,7 +35,7 @@ export function Chip({ children, active, count, icon, onClick, disabled }: ChipP
                 color: active
                     ? "var(--brand-800, #1E40AF)"
                     : "var(--eduflow-text-secondary)",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: disabled ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
@@ -54,7 +54,7 @@ export function Chip({ children, active, count, icon, onClick, disabled }: ChipP
                 <span
                     className="eduflow-tabular"
                     style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         padding: "0 6px",
                         height: 16,
                         borderRadius: "var(--eduflow-radius-full)",
@@ -89,14 +89,12 @@ export function FilterBar({ children, hideIcon }: FilterBarProps) {
         <div
             style={{
                 display: "flex",
-                gap: 10,
+                gap: 8,
                 alignItems: "center",
-                padding: 12,
+                padding: "10px 16px",
                 background: "var(--eduflow-surface-card)",
                 borderRadius: "var(--eduflow-radius-card)",
                 border: "1px solid var(--eduflow-border-subtle)",
-                boxShadow: "var(--eduflow-shadow-sm)",
-                marginBottom: 14,
                 flexWrap: "wrap",
             }}
         >

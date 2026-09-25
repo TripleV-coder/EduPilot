@@ -314,7 +314,7 @@ export default function OrientationPostBepcPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="school" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Configurer le conseil d'orientation
                         </h2>
                     </div>
@@ -356,7 +356,7 @@ export default function OrientationPostBepcPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -399,7 +399,7 @@ export default function OrientationPostBepcPage() {
                             >
                                 <Icon name="school" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Conseil d'orientation à préparer
                             </h2>
                             <p
@@ -534,12 +534,10 @@ export default function OrientationPostBepcPage() {
                                                         style={{
                                                             padding: "10px 14px",
                                                             textAlign: "left",
-                                                            fontSize: 10,
+                                                            fontSize: 11,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
-                                                            letterSpacing: "0.06em",
-                                                            textTransform: "uppercase",
                                                             whiteSpace: "nowrap",
                                                         }}
                                                     >
@@ -807,10 +805,8 @@ export default function OrientationPostBepcPage() {
                                                 display: "flex",
                                                 alignItems: "center",
                                                 gap: 8,
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 fontWeight: 700,
-                                                letterSpacing: "0.12em",
-                                                textTransform: "uppercase",
                                                 opacity: 0.85,
                                                 marginBottom: 8,
                                             }}
@@ -821,7 +817,7 @@ export default function OrientationPostBepcPage() {
                                         <div
                                             className="eduflow-display"
                                             style={{
-                                                fontSize: 18,
+                                                fontSize: 16,
                                                 fontWeight: 700,
                                                 lineHeight: 1.3,
                                             }}
@@ -909,7 +905,7 @@ export default function OrientationPostBepcPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .orient-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                     .kpi-grid {
                         grid-template-columns: repeat(2, 1fr) !important;
@@ -934,10 +930,8 @@ function Kpi({
         <Card padding={14}>
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "var(--eduflow-text-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
                 }}
             >
                 {label}
@@ -975,7 +969,7 @@ function SeriesLegend() {
                     <h2
                         className="eduflow-display"
                         style={{
-                            fontSize: 18,
+                            fontSize: 16,
                             margin: 0,
                             letterSpacing: "-0.02em",
                         }}
@@ -1069,12 +1063,10 @@ function SeriesLegend() {
                         </div>
                         <div
                             style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginTop: 6,
                                 fontWeight: 600,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
                             }}
                         >
                             Bac {s.bac}
@@ -1091,7 +1083,7 @@ function SeriesLegend() {
                 }
                 @media (max-width: 520px) {
                     .series-legend-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -1119,8 +1111,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

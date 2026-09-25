@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateAccount } from "@/hooks/use-create-account";
+import { Spinner } from "@/components/edu";
 
 type TeacherFormValues = z.infer<typeof teacherCreateSchema>;
 
@@ -138,9 +139,9 @@ export default function NewTeacherPage() {
                             </div>
                         ) : (
                             <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                                     <div className="space-y-5">
-                                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">État Civil</h2>
+                                        <h2 className="text-sm font-semibold text-muted-foreground">État Civil</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}
@@ -198,7 +199,7 @@ export default function NewTeacherPage() {
                                     </div>
 
                                     <div className="space-y-5 pt-4 border-t border-border">
-                                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profil Professionnel</h2>
+                                        <h2 className="text-sm font-semibold text-muted-foreground">Profil Professionnel</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}
@@ -254,7 +255,7 @@ export default function NewTeacherPage() {
                                         </Link>
                                         <Button type="submit" disabled={loading} className="gap-2">
                                             {loading ? (
-                                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
+                                                <Spinner size={16} />
                                             ) : (
                                                 <Save className="h-4 w-4" />
                                             )}

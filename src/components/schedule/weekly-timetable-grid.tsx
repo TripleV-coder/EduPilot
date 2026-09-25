@@ -160,11 +160,11 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                                                         <span className="text-xs font-bold leading-tight truncate">
                                                             {info.subjectName}
                                                         </span>
-                                                        <span className="text-[10px] leading-tight truncate opacity-80">
+                                                        <span className="text-[11px] leading-tight truncate opacity-80">
                                                             {schedule.room ||
                                                                 "—"}
                                                         </span>
-                                                        <span className="text-[10px] leading-tight truncate opacity-70">
+                                                        <span className="text-[11px] leading-tight truncate opacity-70">
                                                             {info.teacherName}
                                                         </span>
                                                     </div>

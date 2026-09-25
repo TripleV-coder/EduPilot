@@ -62,9 +62,12 @@ export function EduSidebar() {
             />
 
             <aside
+                aria-label="Menu latéral"
                 className={cn(
                     "eduflow-scope fixed left-0 top-0 z-40 flex h-screen flex-col gap-1 border-r transition-[width,padding,transform] duration-300",
-                    isOpen ? "p-4" : "p-2",
+                    // Façon Google Classroom : liens collés au bord gauche,
+                    // élément actif en pastille arrondie à droite.
+                    isOpen ? "py-4 pl-0 pr-3" : "items-center px-0 py-3",
                     isMobileOpen ? "translate-x-0" : "-translate-x-[110%]",
                     "md:translate-x-0"
                 )}
@@ -80,7 +83,7 @@ export function EduSidebar() {
                     href="/dashboard"
                     className={cn(
                         "flex items-center pb-4 pt-1",
-                        isOpen ? "gap-2.5 px-2" : "justify-center px-0"
+                        isOpen ? "gap-2.5 px-5" : "justify-center px-0"
                     )}
                     onClick={() => setIsMobileOpen(false)}
                     title="EduPilot"
@@ -94,7 +97,7 @@ export function EduSidebar() {
                             >
                                 EduPilot
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)", marginTop: -1 }}>
+                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: -1 }}>
                                 {ROLE_LABELS[role] ?? role}
                             </div>
                         </div>
@@ -107,14 +110,15 @@ export function EduSidebar() {
                 >
                     {groups.map((group, gi) => (
                         <div key={group.title ?? `group-${gi}`} className="flex flex-col gap-0.5">
+                            {!isOpen && gi > 0 ? (
+                                <div aria-hidden="true" className="mx-auto my-2 h-px w-8 bg-[var(--eduflow-border-subtle)]" />
+                            ) : null}
                             {group.title && isOpen ? (
                                 <div
-                                    className="px-3 pb-1 pt-3"
+                                    className="px-5 pb-1 pt-4"
                                     style={{
-                                        fontSize: 10,
-                                        fontWeight: 700,
-                                        letterSpacing: "0.06em",
-                                        textTransform: "uppercase",
+                                        fontSize: 12,
+                                        fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -142,7 +146,7 @@ export function EduSidebar() {
                 <div
                     className={cn(
                         "mt-2 flex items-center border-t pt-3",
-                        isOpen ? "gap-2.5" : "justify-center"
+                        isOpen ? "gap-2.5 pl-5" : "justify-center"
                     )}
                     style={{ borderColor: "var(--eduflow-border-subtle)" }}
                 >
@@ -159,7 +163,7 @@ export function EduSidebar() {
                             >
                                 {schoolCtx?.schoolName ?? "Établissement"}
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                                 {schoolCtx?.currentPeriodName
                                     ? `${schoolCtx.currentPeriodName}`
                                     : "Année en cours"}
@@ -197,20 +201,21 @@ function SidebarLink({
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             title={collapsed ? label : undefined}
+            aria-label={collapsed ? (count ? `${label} (${count})` : label) : undefined}
             className={cn(
-                "sidebar-link flex h-9 items-center rounded-md text-left outline-none transition-colors",
-                collapsed ? "justify-center px-0" : "gap-2.5 px-3",
+                "sidebar-link flex items-center text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--brand-500)]",
+                collapsed ? "mx-auto h-12 w-12 justify-center rounded-full px-0" : "h-11 gap-3.5 rounded-r-full pl-5 pr-3",
                 active
-                    ? "bg-[var(--brand-700)] text-[var(--eduflow-neutral-0)]"
-                    : "text-[var(--eduflow-text-secondary)] hover:bg-[var(--eduflow-surface-sunken)] hover:text-[var(--eduflow-text-primary)]"
+                    ? "bg-[var(--brand-50)] text-[var(--brand-700)] dark:bg-[rgba(59,130,246,0.16)] dark:text-[#93C5FD]"
+                    : "text-[var(--eduflow-text-primary)] [@media(hover:hover)]:hover:bg-[var(--eduflow-surface-sunken)]"
             )}
             style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: active ? 600 : 500,
                 textDecoration: "none",
             }}
         >
-            <Icon name={icon} size={16} />
+            <Icon name={icon} size={20} color={active ? "var(--brand-700)" : "var(--eduflow-text-secondary)"} />
             {!collapsed ? <span className="flex-1 truncate">{label}</span> : null}
             {!collapsed && count != null && count > 0 ? (
                 <span
@@ -220,8 +225,8 @@ function SidebarLink({
                         fontWeight: 600,
                         padding: "1px 7px",
                         borderRadius: "var(--eduflow-radius-full)",
-                        background: active ? "rgba(255,255,255,0.18)" : "var(--eduflow-neutral-200)",
-                        color: active ? "var(--eduflow-neutral-0)" : "var(--eduflow-text-secondary)",
+                        background: active ? "var(--brand-100)" : "var(--eduflow-neutral-200)",
+                        color: active ? "var(--brand-700)" : "var(--eduflow-text-secondary)",
                     }}
                 >
                     {count > 999 ? `${Math.round(count / 100) / 10}k` : count}

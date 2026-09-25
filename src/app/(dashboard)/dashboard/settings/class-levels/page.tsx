@@ -11,6 +11,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2, Layers } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type ClassLevel = {
     id: string;
@@ -170,14 +171,14 @@ export default function ClassLevelsSettingsPage() {
                                     <div className="space-y-2">
                                         <Label htmlFor="sequence">Séquence (Ordre)</Label>
                                         <Input id="sequence" name="sequence" type="number" min="1" required />
-                                        <p className="text-[10px] text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
+                                        <p className="text-[11px] text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
                                     </div>
                                 </div>
 
                                 <div className="flex justify-end gap-3 pt-2">
                                     <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
                                     <Button type="submit" disabled={saving} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                                        {saving ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : <Save className="h-4 w-4" />}
+                                        {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                         {t("common.save")}
                                     </Button>
                                 </div>
@@ -189,7 +190,7 @@ export default function ClassLevelsSettingsPage() {
                 <div className="grid gap-3">
                 {loading ? (
                     <div className="py-12 flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
                     </div>
                 ) : levels.length === 0 ? (
                         <div className="text-center py-16 border border-dashed rounded-xl bg-muted/30">

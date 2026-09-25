@@ -289,8 +289,6 @@ export default function AiAssistantPage() {
                                         fontSize: 11,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.08em",
                                         marginBottom: 10,
                                     }}
                                 >
@@ -592,7 +590,7 @@ function MessageBubble({
                 </div>
                 <span
                     style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--eduflow-text-tertiary)",
                         padding: "0 6px",
                         fontWeight: 500,

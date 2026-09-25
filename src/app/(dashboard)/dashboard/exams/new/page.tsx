@@ -20,6 +20,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import type { ClassSubjectWithTeacher } from "@/lib/types";
+import { Spinner } from "@/components/edu";
 
 export default function NewExamPage() {
   const router = useRouter();
@@ -141,7 +142,7 @@ export default function NewExamPage() {
               <Button type="button" variant="outline" disabled={loading}>{t("common.cancel")}</Button>
             </Link>
             <Button type="submit" disabled={loading} className="gap-2">
-              {loading && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />}
+              {loading && <Spinner size={16} />}
               <Save className="h-4 w-4" />
               {t("appActions.createExam")}
             </Button>

@@ -323,7 +323,7 @@ export default function IncidentDetailsPage() {
                                                     {sanction.endDate && <p>Au: {new Date(sanction.endDate).toLocaleString()}</p>}
                                                 </div>
                                                 {sanction.description && <p className="mt-2 text-foreground/80">{sanction.description}</p>}
-                                                <p className="text-[10px] text-muted-foreground text-right pt-2 border-t border-border mt-2">
+                                                <p className="text-[11px] text-muted-foreground text-right pt-2 border-t border-border mt-2">
                                                     Par: {sanction.assignedBy?.firstName} {sanction.assignedBy?.lastName}
                                                 </p>
                                             </div>

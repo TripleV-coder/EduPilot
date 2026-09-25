@@ -117,7 +117,7 @@ function AccountingPageContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Comptabilité OHADA"
                     description="Chargement de l'exercice…"
@@ -134,7 +134,7 @@ function AccountingPageContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Comptabilité OHADA"
                     description="Impossible de charger l'exercice"
@@ -158,7 +158,7 @@ function AccountingPageContent() {
         resultN >= 0 ? "success" : "danger";
 
     return (
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title={`Comptabilité OHADA · exercice ${fiscalLabel}`}
                 description="Plan SYSCOHADA révisé · clôture mensuelle · export DGI"
@@ -267,7 +267,7 @@ function AccountingPageContent() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .acc-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -301,10 +301,8 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                     color: `var(--${tone}-700)`,
                 }}
             >
@@ -453,11 +451,9 @@ function JournalCard({
                                             padding: "10px 14px",
                                             textAlign:
                                                 h === "Débit" || h === "Crédit" ? "right" : "left",
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             fontWeight: 700,
                                             color: "var(--text-tertiary)",
-                                            letterSpacing: "0.06em",
-                                            textTransform: "uppercase",
                                         }}
                                     >
                                         {h}
@@ -588,8 +584,6 @@ function JournalCard({
                                         padding: "12px 14px",
                                         fontWeight: 700,
                                         fontSize: 11,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.08em",
                                         color: "var(--text-secondary)",
                                     }}
                                 >
@@ -809,7 +803,7 @@ function DeadlinesCard() {
                     </div>
                 ))}
             </div>
-            <p style={{ fontSize: 10.5, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 11.5, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
                 Échéances récurrentes standard — à confirmer auprès de la DGI et
                 de la CNSS selon votre régime.
             </p>

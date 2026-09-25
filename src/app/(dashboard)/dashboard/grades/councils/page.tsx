@@ -187,7 +187,7 @@ export default function CouncilsPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
         >
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/grades">
                         <Button variant="secondary" size="sm">
@@ -226,7 +226,7 @@ export default function CouncilsPage() {
                         style={{ borderColor: "var(--eduflow-border-subtle)" }}
                     >
                         <Icon name="cards" size={18} color="var(--brand-700)" />
-                        <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                        <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                             Configurer le conseil
                         </h2>
                     </div>
@@ -267,7 +267,7 @@ export default function CouncilsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-danger-500)",
+                            border: "1px solid var(--eduflow-danger-200)",
                             background: "var(--eduflow-danger-50)",
                         }}
                     >
@@ -301,7 +301,7 @@ export default function CouncilsPage() {
                             >
                                 <Icon name="cards" size={26} color="var(--brand-700)" />
                             </div>
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Aucun conseil préparé
                             </h2>
                             <p
@@ -436,10 +436,8 @@ export default function CouncilsPage() {
                                                             style={{
                                                                 padding: "8px 14px",
                                                                 textAlign: "left",
-                                                                fontSize: 10,
+                                                                fontSize: 11,
                                                                 fontWeight: 700,
-                                                                letterSpacing: "0.06em",
-                                                                textTransform: "uppercase",
                                                                 color:
                                                                     "var(--eduflow-text-tertiary)",
                                                             }}
@@ -747,7 +745,7 @@ export default function CouncilsPage() {
             <style jsx global>{`
                 @media (max-width: 960px) {
                     .council-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>
@@ -768,7 +766,7 @@ function StatTile({
     const fg = `var(--eduflow-${tone}-800)`;
     return (
         <div style={{ padding: 10, background: bg, borderRadius: 10 }}>
-            <div style={{ fontSize: 10, color: fg, fontWeight: 600 }}>{label}</div>
+            <div style={{ fontSize: 11, color: fg, fontWeight: 600 }}>{label}</div>
             <div
                 className="eduflow-display tabular"
                 style={{
@@ -807,8 +805,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

@@ -260,8 +260,6 @@ export function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -320,8 +318,6 @@ export function FieldSearch({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -379,7 +375,7 @@ export function EmptyHero({
                 >
                     <Icon name={icon} size={26} color="var(--brand-700)" />
                 </div>
-                <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                     {title}
                 </h2>
                 <p
@@ -417,10 +413,8 @@ export function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
                 width,
                 textAlign: center ? "center" : "left",

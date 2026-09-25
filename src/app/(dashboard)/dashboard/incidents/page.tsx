@@ -34,6 +34,7 @@ import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
 import { getIncidentSeverityClass } from "@/lib/ui/status-styles";
 import type { Period } from "@/lib/types";
+import { toast } from "sonner";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -120,7 +121,9 @@ export default function IncidentsPage() {
             .then(data => {
                 if (Array.isArray(data)) setPeriods(data);
             })
-            .catch(() => { });
+            .catch(() => {
+                toast.error("Impossible de charger les périodes : les filtres sont incomplets.");
+            });
     }, []);
 
     useEffect(() => {
@@ -234,7 +237,7 @@ export default function IncidentsPage() {
                 return (
                     <div className="flex flex-col gap-1.5">
                         <span className="font-medium text-foreground">{getTypeLabel(row.original.incidentType)}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border w-fit uppercase ${sev.color}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border w-fit uppercase ${sev.color}`}>
                             {sev.label}
                         </span>
                     </div>
@@ -340,7 +343,7 @@ export default function IncidentsPage() {
                             <CardContent className="pt-5 pb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Incidents</p>
+                                        <p className="text-xs font-medium text-muted-foreground">Total Incidents</p>
                                         <p className="text-2xl font-bold mt-1">{stats.totalIncidents}</p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -359,7 +362,7 @@ export default function IncidentsPage() {
                             <CardContent className="pt-5 pb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Résolus</p>
+                                        <p className="text-xs font-medium text-muted-foreground">Résolus</p>
                                         <p className="text-2xl font-bold mt-1 text-success">{stats.resolvedCount}</p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
@@ -375,7 +378,7 @@ export default function IncidentsPage() {
                             <CardContent className="pt-5 pb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">En attente</p>
+                                        <p className="text-xs font-medium text-muted-foreground">En attente</p>
                                         <p className="text-2xl font-bold mt-1 text-warning">{stats.unresolvedCount}</p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
@@ -391,7 +394,7 @@ export default function IncidentsPage() {
                             <CardContent className="pt-5 pb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Résolution moy.</p>
+                                        <p className="text-xs font-medium text-muted-foreground">Résolution moy.</p>
                                         <p className="text-2xl font-bold mt-1">{stats.averageResolutionTime > 0 ? `${Math.round(stats.averageResolutionTime)}h` : "—"}</p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

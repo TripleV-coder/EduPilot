@@ -75,7 +75,7 @@ export default function SchedulePage() {
             permission={Permission.SCHEDULE_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="max-w-[1400px] pb-12">
+            <PageShell>
                 <PageHeader
                     title="Emploi du temps"
                     description="Planifiez et visualisez l'occupation des salles et des enseignants."

@@ -8,7 +8,7 @@ import { Badge, Icon, type IconName } from "@/components/edu";
 export function StepDocuments() {
     return (
         <>
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: "0 0 6px" }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: "0 0 6px" }}>
                 Documents requis
             </h2>
             <p
@@ -94,7 +94,7 @@ export function StepDocuments() {
                     padding: 14,
                     background: "var(--brand-50)",
                     borderRadius: 12,
-                    borderLeft: "3px solid var(--brand-500)",
+                    border: "1px solid var(--eduflow-brand-200)",
                     display: "flex",
                     gap: 10,
                     alignItems: "flex-start",

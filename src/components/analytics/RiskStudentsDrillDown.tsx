@@ -53,7 +53,7 @@ export function RiskStudentsDrillDown({ riskLevel, academicYearId, periodId }: R
             <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                     Élèves à risque « {RISK_LABELS[riskLevel] ?? riskLevel} »
-                    <Badge variant={RISK_BADGE_VARIANTS[riskLevel] ?? "outline"} className="text-[10px]">
+                    <Badge variant={RISK_BADGE_VARIANTS[riskLevel] ?? "outline"} className="text-[11px]">
                         {students.length}
                     </Badge>
                 </CardTitle>

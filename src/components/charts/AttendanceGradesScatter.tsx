@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { fetcher } from "@/lib/fetcher";
+import { Spinner } from "@/components/edu";
 
 interface ScatterDataPoint {
   studentId: string;
@@ -66,7 +67,7 @@ export function AttendanceGradesScatter() {
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-80">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
           </div>
         </CardContent>
       </Card>
@@ -106,7 +107,7 @@ export function AttendanceGradesScatter() {
               if (active && payload?.[0]) {
                 const data = payload[0].payload as ScatterDataPoint;
                 return (
-                  <div className="bg-background border border-border rounded p-2 text-sm shadow-lg">
+                  <div className="bg-background border border-border rounded p-2 text-sm">
                     <p className="font-semibold">{data.studentName}</p>
                     <p className="text-muted-foreground">Assiduité : {data.attendance}%</p>
                     <p className="text-muted-foreground">Moyenne : {data.averageGrade}/20</p>

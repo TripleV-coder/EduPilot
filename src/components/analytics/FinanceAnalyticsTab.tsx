@@ -63,9 +63,9 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="dashboard-block border-border" data-reveal>
                     <CardHeader>
-                        <CardTitle className="text-sm font-bold uppercase tracking-tight flex items-center justify-between">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center justify-between">
                             Encaissements mensuels
-                            <Badge variant="outline" className="text-[9px]">Mensuel</Badge>
+                            <Badge variant="outline" className="text-[11px]">Mensuel</Badge>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[350px]">
@@ -85,9 +85,9 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
 
                 <Card className="dashboard-block border-border" data-reveal>
                     <CardHeader>
-                        <CardTitle className="text-sm font-bold uppercase tracking-tight flex items-center justify-between">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center justify-between">
                             Ancienneté des Créances
-                            <Badge variant={totalPending > 0 ? "destructive" : "outline"} className="text-[9px]">
+                            <Badge variant={totalPending > 0 ? "destructive" : "outline"} className="text-[11px]">
                                 {new Intl.NumberFormat("fr-FR").format(totalPending)} FCFA en retard
                             </Badge>
                         </CardTitle>
@@ -96,7 +96,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                         {agingData.length > 0 ? (
                             <DebtAgingChart data={agingData} />
                         ) : (
-                            <div className="h-[300px] flex items-center justify-center text-xs text-muted-foreground uppercase font-semibold tracking-wide">
+                            <div className="h-[300px] flex items-center justify-center text-xs text-muted-foreground font-semibold">
                                 Données d&apos;ancienneté non exposées par l&apos;API finance
                             </div>
                         )}
@@ -106,12 +106,12 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
 
             <Card className="dashboard-block border-border" data-reveal>
                 <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-tight">Recouvrement par Segment</CardTitle>
+                    <CardTitle className="text-sm font-bold tracking-tight">Recouvrement par Segment</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-muted/30 uppercase font-black text-[10px]">
+                            <TableRow className="bg-muted/30 font-bold text-[11px]">
                                 <TableHead className="px-6">Niveau / Cycle</TableHead>
                                 <TableHead className="text-right">Encaissé</TableHead>
                                 <TableHead className="text-right">Part du total</TableHead>
@@ -124,10 +124,10 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                                 return (
                                 <TableRow key={i} className="text-xs hover:bg-muted/10">
                                     <TableCell className="px-6 font-bold">{row.name}</TableCell>
-                                    <TableCell className="text-right font-black text-emerald-600">
+                                    <TableCell className="text-right font-bold text-emerald-600">
                                         {new Intl.NumberFormat("fr-FR").format(value)}
                                     </TableCell>
-                                    <TableCell className="text-right font-black">{share.toFixed(1)}%</TableCell>
+                                    <TableCell className="text-right font-bold">{share.toFixed(1)}%</TableCell>
                                 </TableRow>
                                 );
                             })}

@@ -223,7 +223,7 @@ export default function AnnouncementsPage() {
                     <Card
                         padding={14}
                         style={{
-                            borderLeft: "3px solid var(--eduflow-success-500)",
+                            border: "1px solid var(--eduflow-success-200)",
                             background: "var(--eduflow-success-50)",
                         }}
                     >
@@ -251,7 +251,7 @@ export default function AnnouncementsPage() {
                             style={{ borderColor: "var(--brand-100)" }}
                         >
                             <Icon name="bell" size={18} color="var(--brand-700)" />
-                            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+                            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                                 Rédiger une nouvelle annonce
                             </h2>
                         </div>
@@ -271,8 +271,6 @@ export default function AnnouncementsPage() {
                                         display: "block",
                                         fontSize: 11,
                                         fontWeight: 600,
-                                        letterSpacing: "0.04em",
-                                        textTransform: "uppercase",
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
                                     }}
@@ -336,8 +334,6 @@ export default function AnnouncementsPage() {
                                         display: "block",
                                         fontSize: 11,
                                         fontWeight: 600,
-                                        letterSpacing: "0.04em",
-                                        textTransform: "uppercase",
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
                                     }}
@@ -603,7 +599,7 @@ function AnnouncementCard({
                 {announcement.publishedAt ? (
                     <span
                         className="eduflow-mono"
-                        style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                        style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                     >
                         {new Date(announcement.publishedAt).toLocaleDateString("fr-FR", {
                             day: "numeric",
@@ -678,8 +674,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}

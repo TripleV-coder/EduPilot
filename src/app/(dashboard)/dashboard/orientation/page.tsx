@@ -244,7 +244,7 @@ export default function OrientationPage() {
                 if (baseRes.ok) {
                     const baseData = await baseRes.json();
                     // Add recommendation
-                    await fetch(`/api/orientation/${baseData.id}/recommendations`, {
+                    const recRes = await fetch(`/api/orientation/${baseData.id}/recommendations`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -254,10 +254,15 @@ export default function OrientationPage() {
                             justification: res.justification
                         })
                     });
-                    successCount++;
+                    // Dossier sans recommandation = échec, pas un succès.
+                    if (recRes.ok) successCount++;
                 }
             }
-            toast({ title: "Enregistrement terminé", description: `${successCount} dossiers créés avec succès.` });
+            const attempted = batchResults.filter(r => r.success).length;
+            const failed = attempted - successCount;
+            toast(failed > 0
+                ? { title: "Enregistrement partiel", description: `${successCount} dossier(s) créé(s), ${failed} en échec. Relancez l'enregistrement pour les élèves manquants.`, variant: "destructive" }
+                : { title: "Enregistrement terminé", description: `${successCount} dossiers créés avec succès.` });
             setIsBatchDialogOpen(false);
             fetchOrientations();
         } catch (error) {
@@ -546,7 +551,7 @@ export default function OrientationPage() {
                         </Card>
                         <Card className="shadow-sm border-border bg-muted/10">
                             <CardContent className="p-6 space-y-3">
-                                <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                <h2 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
                                     <BookOpen className="w-4 h-4" />
                                     Guide d'Orientation Post-BEPC
                                 </h2>
@@ -577,7 +582,7 @@ export default function OrientationPage() {
 
                         <div className="flex-1 overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-muted-foreground tracking-wide font-semibold border-b bg-muted/40">
+                                <thead className="text-xs text-muted-foreground font-semibold border-b bg-muted/40">
                                     <tr>
                                         <th className="px-6 py-4">Élève & Classe</th>
                                         <th className="px-6 py-4">Année Académique</th>
@@ -614,7 +619,7 @@ export default function OrientationPage() {
                                                         <div className="font-semibold text-foreground">
                                                             {item.student?.user?.firstName} {item.student?.user?.lastName}
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground font-medium mt-0.5 uppercase">
+                                                        <div className="text-xs text-muted-foreground font-medium mt-0.5">
                                                             Niveau: {item.classLevel?.name || "N/A"}
                                                         </div>
                                                     </td>
@@ -628,11 +633,11 @@ export default function OrientationPage() {
                                                                     Série suggérée: {seriesLabel}
                                                                 </span>
                                                                 {topRec.isValidated ? (
-                                                                    <span className="text-[10px] text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-[11px] text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <CheckCircle2 className="w-3 h-3" /> Validé
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-[11px] text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <AlertCircle className="w-3 h-3" /> Non-validé
                                                                     </span>
                                                                 )}

@@ -60,7 +60,7 @@ describe("MetricCard", () => {
 
   it("affiche la tendance en valeur absolue avec %", () => {
     render(<MetricCard label="Taux" value="92" trend={-5} trendLabel="vs N-1" />);
-    expect(screen.getByText("5%")).toBeInTheDocument();
+    expect(screen.getByText(/5\s%/)).toBeInTheDocument();
     expect(screen.getByText("vs N-1")).toBeInTheDocument();
   });
 

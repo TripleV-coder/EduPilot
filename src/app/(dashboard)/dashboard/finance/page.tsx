@@ -23,11 +23,10 @@ import {
     Card,
     FilterBar,
     Icon,
-    MetricCard,
-    NotifItem,
     Progress,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { Block, Empty, Figures, MODULE, Row, WatchList, decimal, initials } from "@/components/edu-homes/home-kit";
 import { PageError, PageLoading } from "@/components/layout/page-states";
 
 
@@ -98,6 +97,13 @@ type AcademicYear = { id: string; name: string; periods?: { id: string; name: st
 // FCFA manuel pour rester cohérent avec le reste de l'app.
 const FR_NUM = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 const formatCurrency = (amount: number): string => `${FR_NUM.format(amount)} FCFA`;
+
+const PAYMENT_STATUS: Record<string, { label: string; variant: "success" | "warning" | "neutral" }> = {
+    VERIFIED: { label: "Validé", variant: "success" },
+    RECONCILED: { label: "Rapproché", variant: "success" },
+    PENDING: { label: "À valider", variant: "warning" },
+    CANCELLED: { label: "Annulé", variant: "neutral" },
+};
 
 export default function FinanceDashboardPage() {
     const { data: session } = useSession();
@@ -172,26 +178,25 @@ export default function FinanceDashboardPage() {
         }
     };
 
+    // Encaissements validés réellement reçus, par jour sur une fenêtre courte,
+    // par mois au-delà. Aucune série « en attente » : l'API ne la date pas, et la
+    // répartir uniformément sur les mois inventait des montants.
     const barChartData = useMemo(() => {
-        if (!dashData?.paymentsTrend) return [];
-        const byMonth: Record<string, { received: number; pending: number }> = {};
-        for (const t of dashData.paymentsTrend) {
-            const month = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(
-                new Date(t.date)
-            );
-            if (!byMonth[month]) byMonth[month] = { received: 0, pending: 0 };
-            byMonth[month].received += t.amount;
+        const trend = dashData?.paymentsTrend ?? [];
+        if (trend.length === 0) return [];
+        const first = new Date(trend[0].date).getTime();
+        const last = new Date(trend[trend.length - 1].date).getTime();
+        const daily = last - first <= 45 * 24 * 60 * 60 * 1000;
+        const fmt = new Intl.DateTimeFormat(
+            "fr-FR",
+            daily ? { day: "numeric", month: "short" } : { month: "short", year: "2-digit" }
+        );
+        const buckets = new Map<string, number>();
+        for (const t of trend) {
+            const key = fmt.format(new Date(t.date));
+            buckets.set(key, (buckets.get(key) ?? 0) + t.amount);
         }
-        const months = Object.keys(byMonth);
-        if (months.length > 0 && dashData.summary.totalPending > 0) {
-            const pendingPerMonth = dashData.summary.totalPending / months.length;
-            for (const m of months) byMonth[m].pending = Math.round(pendingPerMonth);
-        }
-        return months.map((m) => ({
-            month: m,
-            received: byMonth[m].received,
-            pending: byMonth[m].pending,
-        }));
+        return [...buckets].map(([month, received]) => ({ month, received }));
     }, [dashData]);
 
     const collectionPieData = useMemo(() => {
@@ -213,7 +218,7 @@ export default function FinanceDashboardPage() {
             permission={[Permission.FINANCE_READ]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Finances"
                     description="Suivi des encaissements, impayés et santé financière de l'établissement."
@@ -274,244 +279,132 @@ export default function FinanceDashboardPage() {
 
                 {dashLoading ? <PageLoading label="Chargement des indicateurs financiers…" /> : null}
 
-                {/* KPI strip */}
+                {/* Vue d'ensemble — mêmes blocs que l'accueil direction */}
                 {!dashLoading && dashData ? (
                     <>
-                        <div
-                            className="edu-stagger"
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                                gap: 12,
-                            }}
-                        >
-                            <MetricCard
-                                label="Total attendu"
-                                value={formatCurrency(dashData.summary.totalFees)}
-                                icon="money"
-                                variant="neutral"
+                        <Block id="fin-overview" title="Vue d'ensemble">
+                            <Figures
+                                items={[
+                                    {
+                                        label: "Total attendu",
+                                        value: formatCurrency(dashData.summary.totalFees),
+                                        note: "Frais facturés et échéanciers",
+                                        color: MODULE.blue,
+                                    },
+                                    {
+                                        label: "Encaissé",
+                                        value: formatCurrency(dashData.summary.totalCollected),
+                                        note: "Paiements validés",
+                                        color: MODULE.green,
+                                    },
+                                    {
+                                        label: "Reste à recouvrer",
+                                        value: formatCurrency(dashData.summary.totalPending),
+                                        note: overdueNote(dashData.overdueStudents.length),
+                                        color: MODULE.orange,
+                                    },
+                                    {
+                                        label: "Recouvrement",
+                                        value: `${decimal(dashData.summary.collectionRate)} %`,
+                                        note: "Encaissé ÷ attendu",
+                                        color: MODULE.purple,
+                                    },
+                                ]}
                             />
-                            <MetricCard
-                                label="Total encaissé"
-                                value={formatCurrency(dashData.summary.totalCollected)}
-                                trend={dashData.summary.collectionRate}
-                                trendLabel="taux collecté"
-                                icon="check"
-                                variant="success"
-                            />
-                            <MetricCard
-                                label="Reste à recouvrer"
-                                value={formatCurrency(dashData.summary.totalPending)}
-                                icon="warning"
-                                variant="warning"
-                            />
-                            <MetricCard
-                                label="Recouvrement"
-                                value={`${dashData.summary.collectionRate.toFixed(1).replace(".", ",")}`}
-                                unit="%"
-                                icon="chart"
-                                variant="brand"
-                            />
-                        </div>
+                        </Block>
 
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
-                                gap: 16,
-                            }}
-                            className="dashboard-grid-collapse"
-                        >
-                            <Card padding={20}>
-                                <div className="mb-4 flex items-start justify-between">
-                                    <div>
-                                        <h2
-                                            className="eduflow-display"
-                                            style={{ fontSize: 18, margin: 0 }}
-                                        >
-                                            Évolution des encaissements
-                                        </h2>
-                                        <p
-                                            style={{
-                                                fontSize: 12,
-                                                color: "var(--eduflow-text-tertiary)",
-                                                margin: "4px 0 0",
-                                            }}
-                                        >
-                                            Reçu vs en attente · {periods.length || "période en cours"}
-                                        </p>
-                                    </div>
-                                    <Badge variant="brand" size="sm">
-                                        {dashData.summary.collectionRate.toFixed(0)}% collecté
-                                    </Badge>
-                                </div>
-                                <div style={{ height: 280 }}>
-                                    <PaymentBarChart data={barChartData} />
-                                </div>
-                            </Card>
-                            <Card padding={20}>
-                                <p
-                                    className="mb-3 text-xs font-semibold uppercase tracking-wide"
-                                    style={{ color: "var(--eduflow-text-tertiary)" }}
-                                >
-                                    Répartition
+                        <Row>
+                            <Block id="fin-trend" title="Évolution des encaissements">
+                                <p className="-mt-2 mb-3 text-[13px] text-muted-foreground">
+                                    Paiements validés ·{" "}
+                                    {selectedPeriodId !== "ALL"
+                                        ? periods.find((p) => p.id === selectedPeriodId)?.name ?? "période choisie"
+                                        : "30 derniers jours"}
                                 </p>
-                                <div style={{ height: 220 }}>
-                                    <BasePieChart
-                                        data={collectionPieData}
-                                        height="100%"
-                                        cx="50%"
-                                        cy="50%"
-                                        paddingAngle={5}
-                                    />
-                                </div>
-                                <Progress
-                                    value={dashData.summary.collectionRate}
-                                    label="Progression"
-                                    sublabel={`${dashData.summary.collectionRate.toFixed(1).replace(".", ",")}%`}
-                                    variant="success"
-                                />
-                            </Card>
-                        </div>
-
-                        {/* Recent + overdue */}
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
-                                gap: 16,
-                            }}
-                            className="dashboard-grid-collapse"
-                        >
-                            <Card padding={0}>
-                                <div
-                                    className="flex items-center justify-between border-b px-5 py-4"
-                                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
-                                >
-                                    <div>
-                                        <h2
-                                            className="eduflow-display"
-                                            style={{ fontSize: 18, margin: 0 }}
-                                        >
-                                            Derniers paiements
-                                        </h2>
-                                        <p
-                                            style={{
-                                                fontSize: 11,
-                                                color: "var(--eduflow-text-tertiary)",
-                                                margin: "2px 0 0",
-                                            }}
-                                        >
-                                            {dashData.recentPayments.length} encaissements récents
-                                        </p>
-                                    </div>
-                                </div>
-                                {dashData.recentPayments.length === 0 ? (
-                                    <EmptyRow
-                                        title="Aucun paiement récent"
-                                        body="Les nouveaux encaissements apparaîtront ici."
-                                    />
-                                ) : (
-                                    dashData.recentPayments.slice(0, 6).map((p, i) => (
-                                        <div
-                                            key={p.id}
-                                            className="grid items-center gap-3 px-5 py-3"
-                                            style={{
-                                                gridTemplateColumns: "minmax(0, 1fr) auto auto",
-                                                borderTop:
-                                                    i > 0
-                                                        ? "1px solid var(--eduflow-border-subtle)"
-                                                        : "none",
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <Avatar
-                                                    name={`${p.student.user.firstName} ${p.student.user.lastName}`}
-                                                    size="sm"
-                                                />
-                                                <div className="min-w-0">
-                                                    <div
-                                                        className="truncate"
-                                                        style={{ fontSize: 13, fontWeight: 600 }}
-                                                    >
-                                                        {p.student.user.firstName}{" "}
-                                                        {p.student.user.lastName}
-                                                    </div>
-                                                    <div
-                                                        className="truncate"
-                                                        style={{
-                                                            fontSize: 11,
-                                                            color: "var(--eduflow-text-tertiary)",
-                                                        }}
-                                                    >
-                                                        {p.fee.name}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <span
-                                                className="eduflow-display eduflow-tabular"
-                                                style={{
-                                                    fontSize: 16,
-                                                    fontWeight: 700,
-                                                    color: "var(--eduflow-success-700)",
-                                                }}
-                                            >
-                                                {formatCurrency(p.amount)}
-                                            </span>
-                                            <Badge variant="success" size="sm" icon="check">
-                                                Validé
-                                            </Badge>
-                                        </div>
-                                    ))
-                                )}
-                            </Card>
-
-                            <Card padding={0}>
-                                <div
-                                    className="flex items-center justify-between border-b px-5 py-4"
-                                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Icon
-                                            name="warning"
-                                            size={18}
-                                            color="var(--eduflow-danger-600)"
-                                        />
-                                        <h2
-                                            className="eduflow-display"
-                                            style={{ fontSize: 18, margin: 0 }}
-                                        >
-                                            Alertes impayés
-                                        </h2>
-                                    </div>
-                                    {dashData.overdueStudents.length > 0 ? (
-                                        <Badge variant="danger" size="sm">
-                                            {dashData.overdueStudents.length}
-                                        </Badge>
-                                    ) : null}
-                                </div>
-                                {dashData.overdueStudents.length === 0 ? (
-                                    <EmptyRow
-                                        title="Aucune alerte critique"
-                                        body="Tous les paiements sont à jour."
-                                    />
-                                ) : (
-                                    <div style={{ padding: "8px" }}>
-                                        {dashData.overdueStudents.slice(0, 6).map((s) => (
-                                            <NotifItem
-                                                key={s.studentId}
-                                                type="urgent"
-                                                priority={s.balance > 100000 ? "P0" : "P1"}
-                                                title={s.studentName}
-                                                body={`Solde dû : ${formatCurrency(s.balance)}`}
-                                                time="à relancer"
-                                                actions={["Contacter", "SMS"]}
+                                <PaymentBarChart data={barChartData} height={240} />
+                            </Block>
+                            <Block id="fin-split" title="Répartition">
+                                {dashData.summary.totalFees > 0 ? (
+                                    <>
+                                        <div style={{ height: 200 }}>
+                                            <BasePieChart
+                                                data={collectionPieData}
+                                                height="100%"
+                                                cx="50%"
+                                                cy="50%"
+                                                paddingAngle={5}
                                             />
-                                        ))}
-                                    </div>
+                                        </div>
+                                        <Progress
+                                            value={Math.min(100, dashData.summary.collectionRate)}
+                                            label="Recouvrement"
+                                            sublabel={`${decimal(dashData.summary.collectionRate)} %`}
+                                            variant="success"
+                                        />
+                                    </>
+                                ) : (
+                                    <Empty>Aucun frais facturé sur cette sélection.</Empty>
                                 )}
-                            </Card>
-                        </div>
+                            </Block>
+                        </Row>
+
+                        <Row>
+                            <Block id="fin-recent" title="Derniers paiements">
+                                {dashData.recentPayments.length === 0 ? (
+                                    <Empty>Aucun paiement récent. Les nouveaux encaissements apparaîtront ici.</Empty>
+                                ) : (
+                                    <ul className="m-0 list-none p-0">
+                                        {dashData.recentPayments.slice(0, 6).map((p, i) => {
+                                            const status = PAYMENT_STATUS[p.status] ?? PAYMENT_STATUS.PENDING;
+                                            return (
+                                                <li
+                                                    key={p.id}
+                                                    className="grid items-center gap-3 py-2.5"
+                                                    style={{
+                                                        gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                                                        borderTop: i > 0 ? "1px solid var(--eduflow-border-subtle)" : "none",
+                                                    }}
+                                                >
+                                                    <div className="flex min-w-0 items-center gap-2.5">
+                                                        <Avatar
+                                                            name={`${p.student.user.firstName} ${p.student.user.lastName}`}
+                                                            size="sm"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-sm font-semibold">
+                                                                {p.student.user.firstName} {p.student.user.lastName}
+                                                            </div>
+                                                            <div className="truncate text-[13px] text-muted-foreground">
+                                                                {p.fee.name}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="eduflow-tabular text-sm font-semibold">
+                                                        {formatCurrency(p.amount)}
+                                                    </span>
+                                                    <Badge variant={status.variant} size="sm">
+                                                        {status.label}
+                                                    </Badge>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </Block>
+                            <Block id="fin-overdue" title="Impayés à relancer">
+                                <WatchList
+                                    calm="Aucun impayé en retard : tous les paiements échus sont à jour."
+                                    items={dashData.overdueStudents.slice(0, 6).map((s) => ({
+                                        key: s.studentId,
+                                        avatar: initials(s.studentName),
+                                        color: s.balance > 100000 ? MODULE.pink : MODULE.orange,
+                                        name: s.studentName,
+                                        detail: `Solde dû : ${formatCurrency(s.balance)}`,
+                                        action: { href: `/dashboard/students/${s.studentId}`, label: "Voir le dossier" },
+                                    }))}
+                                />
+                            </Block>
+                        </Row>
 
                         {/* Payment plans */}
                         <Card padding={0}>
@@ -524,7 +417,7 @@ export default function FinanceDashboardPage() {
                                     <div>
                                         <h2
                                             className="eduflow-display"
-                                            style={{ fontSize: 18, margin: 0 }}
+                                            style={{ fontSize: 16, margin: 0 }}
                                         >
                                             Échéanciers actifs
                                         </h2>
@@ -571,10 +464,8 @@ export default function FinanceDashboardPage() {
                                                             key={h}
                                                             style={{
                                                                 padding: "10px 16px",
-                                                                fontSize: 10,
+                                                                fontSize: 11,
                                                                 fontWeight: 700,
-                                                                letterSpacing: "0.06em",
-                                                                textTransform: "uppercase",
                                                                 color: "var(--eduflow-text-tertiary)",
                                                             }}
                                                         >
@@ -751,7 +642,7 @@ function FilterPill({
 }) {
     return (
         <label
-            className="flex h-9 items-center gap-2 rounded-md px-3"
+            className="flex h-9 items-center gap-2 rounded-full px-4"
             style={{
                 background: "var(--eduflow-surface-card)",
                 border: "1px solid var(--eduflow-border-default)",
@@ -807,4 +698,11 @@ function EmptyRow({ title, body }: { title: string; body: string }) {
             </div>
         </div>
     );
+}
+
+/** L'API plafonne la liste des retards à 10 élèves : au-delà, on ne prétend pas au chiffre exact. */
+function overdueNote(count: number): string {
+    if (count === 0) return "Aucun frais échu impayé";
+    if (count >= 10) return "10 élèves ou plus en retard";
+    return `${count} élève${count > 1 ? "s" : ""} en retard`;
 }

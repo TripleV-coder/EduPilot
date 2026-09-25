@@ -129,7 +129,7 @@ export default function HomeworkPage() {
             permission={Permission.EVALUATION_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Devoirs"
                     description={`${homeworks.length} devoirs · ${upcoming} cette semaine · ${overdue} en retard`}

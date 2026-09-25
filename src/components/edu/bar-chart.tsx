@@ -124,7 +124,7 @@ export function BarChart({
                                             top: -16,
                                             left: "50%",
                                             transform: "translateX(-50%)",
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             fontWeight: 700,
                                             color: "var(--eduflow-info-800, var(--brand-800))",
                                             whiteSpace: "nowrap",
@@ -137,7 +137,7 @@ export function BarChart({
                         </div>
                         <span
                             style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: "var(--eduflow-text-tertiary)",
                                 fontWeight: 500,
                                 textAlign: "center",

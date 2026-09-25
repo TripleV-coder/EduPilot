@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Bell, CheckCircle, Mail, Save, Smartphone } from "lucide-react";
 
@@ -84,19 +85,24 @@ export default function NotificationsSettingsPage() {
       profileData?.preferences && typeof profileData.preferences === "object"
         ? profileData.preferences
         : {};
-    const nextPreferences = {
-      ...currentPreferences,
-      notifications: validatedPreferences,
-    };
 
     try {
-      await fetch("/api/user/profile", {
+      // Seule la section « notifications » est envoyée : le serveur fusionne.
+      const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences: nextPreferences }),
-      });
+        body: JSON.stringify({ preferences: { notifications: validatedPreferences } }),
+      }).catch(() => null);
 
-      await mutate({ ...(profileData || {}), preferences: nextPreferences }, false);
+      if (!res?.ok) {
+        toast.error("Vos préférences n'ont pas été enregistrées. Réessayez.");
+        return;
+      }
+
+      await mutate(
+        { ...(profileData || {}), preferences: { ...currentPreferences, notifications: validatedPreferences } },
+        false
+      );
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2200);
     } finally {
@@ -241,7 +247,7 @@ export default function NotificationsSettingsPage() {
         </Card>
 
         <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => void handleSave()} disabled={isSaving}>
+          <Button className="gap-2" onClick={() => void handleSave()} disabled={isSaving || !profileData}>
             <Save className="h-4 w-4" />
             {isSaving ? "Enregistrement..." : "Enregistrer les préférences"}
           </Button>

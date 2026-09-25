@@ -92,7 +92,7 @@ export function HowItWorksCard() {
 
             {open ? (
                 <div
-                    className="animate-in fade-in"
+                    className=""
                     style={{
                         marginTop: 14,
                         paddingTop: 14,

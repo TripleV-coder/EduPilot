@@ -143,7 +143,7 @@ export function TestimonialsSection() {
                                                 {school.name}
                                             </h3>
                                             <div
-                                                className="shrink-0 rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-widest"
+                                                className="shrink-0 rounded-lg px-3 py-1 text-[11px] font-bold uppercase tracking-widest"
                                                 style={{
                                                     background: "var(--brand-50)",
                                                     color: "var(--brand-700)",
@@ -156,7 +156,7 @@ export function TestimonialsSection() {
                                         <div className="mt-auto grid grid-cols-3 gap-4">
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[10px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Élèves
@@ -170,7 +170,7 @@ export function TestimonialsSection() {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[10px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Profs
@@ -184,7 +184,7 @@ export function TestimonialsSection() {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[10px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Classes

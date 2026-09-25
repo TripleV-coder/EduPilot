@@ -220,7 +220,7 @@ export default function DisciplinePage() {
             permission={Permission.INCIDENT_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
                 ) : null}
@@ -432,7 +432,7 @@ export default function DisciplinePage() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 3,
@@ -470,7 +470,7 @@ export default function DisciplinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
                             {weeklyTrend.length > 0 ? (
                                 <>
                                     <Sparkline
@@ -485,7 +485,7 @@ export default function DisciplinePage() {
                                             marginTop: 4,
                                         }}
                                     >
-                                        S{Math.max(1, 9 - weeklyTrend.length)} → S8 · rapports / semaine
+                                        S{Math.max(1, 9 - weeklyTrend.length)} à S8 · rapports / semaine
                                     </div>
                                 </>
                             ) : (
@@ -521,7 +521,7 @@ export default function DisciplinePage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
+                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
                             {statsLoading ? (
                                 <div
                                     style={{
@@ -615,7 +615,7 @@ export default function DisciplinePage() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .disc-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                     .disc-row {
                         grid-template-columns: 40px 1fr !important;

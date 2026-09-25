@@ -73,7 +73,7 @@ export function FeaturesSection() {
             <div className="container mx-auto px-4">
                 <div className="mb-20">
                     <p
-                        className="mb-4 text-[10px] font-black uppercase tracking-[0.3em]"
+                        className="mb-4 text-[11px] font-black uppercase tracking-[0.3em]"
                         style={{ color: "var(--brand-600)" }}
                     >
                         Fonctionnalités
@@ -139,7 +139,7 @@ export function FeaturesSection() {
                         {onboardingSteps.map((step) => (
                             <div key={step.id} className="group">
                                 <div
-                                    className="mb-6 text-[10px] font-black uppercase tracking-widest"
+                                    className="mb-6 text-[11px] font-black uppercase tracking-widest"
                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                 >
                                     Phase {step.id}
@@ -160,9 +160,9 @@ export function FeaturesSection() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-auto p-0 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-1"
+                                        className="h-auto p-0 text-[11px] font-black uppercase tracking-widest group-hover:translate-x-1"
                                     >
-                                        {step.cta} →
+                                        {step.cta}
                                     </Button>
                                 </Link>
                             </div>

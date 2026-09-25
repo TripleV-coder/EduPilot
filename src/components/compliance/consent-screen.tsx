@@ -62,7 +62,7 @@ export function ConsentScreen({ pending }: { pending: PendingConsent }) {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
-            <div className="w-full max-w-lg rounded-xl border border-border bg-card p-8 shadow-sm">
+            <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-sm">
                 <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
                     <ShieldCheck className="h-7 w-7 text-primary" aria-hidden="true" />
                 </div>

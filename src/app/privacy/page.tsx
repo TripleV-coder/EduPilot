@@ -160,7 +160,7 @@ export default function PrivacyPage() {
                     <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
                         {CONTACT_EMAIL}
                     </a>{" "}
-                    ou utilisez le menu <em>Paramètres → Confidentialité</em> de votre compte.
+                    ou utilisez le menu <em>Paramètres › Confidentialité</em> de votre compte.
                 </p>
             </section>
 

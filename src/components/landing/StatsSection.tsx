@@ -115,7 +115,7 @@ export function StatsSection() {
                                 )}
                             </div>
                             <p
-                                className="text-[10px] font-black uppercase tracking-[0.2em]"
+                                className="text-[11px] font-black uppercase tracking-[0.2em]"
                                 style={{ color: "var(--eduflow-text-tertiary)" }}
                             >
                                 {t(`landing.stats.${stat.key}`)}

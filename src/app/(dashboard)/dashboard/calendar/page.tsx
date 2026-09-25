@@ -234,7 +234,7 @@ export default function CalendarPage() {
                 "STAFF",
             ]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Calendrier"
                     description={`${eventCount} évènements · ${holidayCount} vacances scolaires · ${publicHolidayCount} jours fériés`}
@@ -497,10 +497,8 @@ function WeekdayHeader() {
                     key={d}
                     className="px-2 py-2 text-center"
                     style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: 700,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
                         color: i >= 5 ? "var(--brand-700)" : "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -588,7 +586,7 @@ function MonthGrid({
                                 <span
                                     className="eduflow-tabular"
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
@@ -616,7 +614,7 @@ function DayDot({ dot }: { dot: DotEntry }) {
             className="block truncate"
             title={dot.label}
             style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
                 padding: "2px 6px",
                 borderRadius: 6,
@@ -813,7 +811,7 @@ function ListView({
                 <Icon name={emptyIcon} size={18} color="var(--brand-700)" />
                 <h2
                     className="eduflow-display"
-                    style={{ fontSize: 20, margin: 0, letterSpacing: "-0.02em" }}
+                    style={{ fontSize: 16, margin: 0, letterSpacing: "-0.02em" }}
                 >
                     {title}
                 </h2>
@@ -862,7 +860,7 @@ function EventListCard({ event }: { event: CalendarEvent }) {
                         <span className="flex items-center gap-1.5">
                             <Icon name="calendar" size={12} />
                             {formatDateShort(event.startDate)}
-                            {event.endDate ? ` → ${formatDateShort(event.endDate)}` : ""}
+                            {event.endDate ? ` – ${formatDateShort(event.endDate)}` : ""}
                         </span>
                         {event.location ? (
                             <span className="flex items-center gap-1.5">
@@ -908,7 +906,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                     >
                         <span className="flex items-center gap-1.5">
                             <Icon name="calendar" size={12} />
-                            {formatDateShort(holiday.startDate)} →{" "}
+                            {formatDateShort(holiday.startDate)} –{" "}
                             {formatDateShort(holiday.endDate)}
                         </span>
                         {days ? (
@@ -938,7 +936,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                         {HOLIDAY_LABEL[holiday.type] ?? holiday.type}
                     </Badge>
                     {holiday.academicYear?.name ? (
-                        <span style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}>
+                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                             {holiday.academicYear.name}
                         </span>
                     ) : null}

@@ -56,7 +56,7 @@ export function DataTable<T>({
                                 <th
                                     key={column.id}
                                     scope={column.scope ?? "col"}
-                                    className="px-4 py-3 text-xs font-semibold uppercase tracking-wide"
+                                    className="px-4 py-3 text-xs font-semibold"
                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                 >
                                     {column.header}

@@ -76,40 +76,47 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Delete all existing slots, then recreate active ones
-            const existingIds = Array.from(slotIdMap.values());
-            for (const id of existingIds) {
-                await fetch(`/api/teachers/${params.teacherId}/availability?availabilityId=${id}`, {
+            // Diff plutôt que « tout supprimer puis tout recréer » : une
+            // erreur au milieu ne peut plus effacer les créneaux inchangés,
+            // et chaque réponse est vérifiée (avant : échecs silencieux).
+            const toDelete = [...slotIdMap.entries()].filter(([key]) => !activeSlots.has(key));
+            const toCreate = [...activeSlots].filter((key) => !slotIdMap.has(key));
+
+            for (const [, id] of toDelete) {
+                const res = await fetch(`/api/teachers/${params.teacherId}/availability?availabilityId=${id}`, {
                     method: "DELETE",
                     credentials: "include",
                 });
+                if (!res.ok) throw new Error("delete");
             }
 
-            // Create active slots
-            for (const key of activeSlots) {
+            for (const key of toCreate) {
                 const [dayStr, startTime] = key.split("-") as [string, string];
-                const dayOfWeek = parseInt(dayStr);
                 const period = PERIODS.find(p => p.start === startTime);
                 if (!period || period.isBreak) continue;
 
-                await fetch(`/api/teachers/${params.teacherId}/availability`, {
+                const res = await fetch(`/api/teachers/${params.teacherId}/availability`, {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        dayOfWeek,
+                        dayOfWeek: parseInt(dayStr),
                         startTime: period.start,
                         endTime: period.end,
                         isActive: true,
                     }),
                 });
+                if (!res.ok) throw new Error("create");
             }
 
             await mutate();
             toast.success("Disponibilités enregistrées avec succès");
             setDirty(false);
         } catch {
-            toast.error("Erreur lors de l'enregistrement");
+            // Recharger l'état réel du serveur : l'écran ne doit pas montrer
+            // des créneaux qui n'ont pas été enregistrés.
+            await mutate();
+            toast.error("Enregistrement incomplet : l'écran affiche maintenant les créneaux réellement enregistrés. Réessayez.");
         } finally {
             setSaving(false);
         }

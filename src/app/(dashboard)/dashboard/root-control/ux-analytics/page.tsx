@@ -30,7 +30,7 @@ export default function UxAnalyticsPage() {
 
     return (
         <PageGuard roles={["SUPER_ADMIN"]}>
-            <PageShell className="max-w-6xl pb-12">
+            <PageShell>
                 <PageHeader
                     title="Analytics produit"
                     description="Activation, rétention et usage réels, agrégés depuis la télémétrie UX."
@@ -145,8 +145,6 @@ export default function UxAnalyticsPage() {
                                             style={{
                                                 fontSize: 11,
                                                 color: "var(--eduflow-text-tertiary)",
-                                                textTransform: "uppercase",
-                                                letterSpacing: "0.04em",
                                                 fontWeight: 700,
                                             }}
                                         >
@@ -226,7 +224,7 @@ function SectionHeader({ icon, title }: { icon: "sparkle" | "info" | "cards"; ti
             style={{ borderColor: "var(--eduflow-border-subtle)" }}
         >
             <Icon name={icon} size={18} color="var(--brand-700)" />
-            <h2 className="eduflow-display" style={{ fontSize: 18, margin: 0 }}>
+            <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                 {title}
             </h2>
         </div>

@@ -65,7 +65,7 @@ export function HeroSection() {
                         className="text-5xl md:text-7xl font-display font-bold tracking-tight mb-6 leading-tight"
                     >
                         {t("landing.hero.title").split(" ").slice(0, -1).join(" ")} <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary">
+                        <span className="text-primary">
                             {t("landing.hero.title").split(" ").slice(-1)}
                         </span>
                     </motion.h1>
@@ -107,20 +107,10 @@ export function HeroSection() {
                         </Button>
                     </motion.div>
 
-                    {/* Trust Section */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 1, delay: 0.6 }}
-                        className="pt-10 border-t border-border/50"
-                    >
-                        <p className="text-sm font-medium text-muted-foreground mb-8">{t("landing.trust")}</p>
-                        <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-                            <div className="flex items-center gap-2 font-display font-bold text-xl"><Sparkles className="w-5 h-5 text-primary" /> CESM</div>
-                            <div className="flex items-center gap-2 font-display font-bold text-xl"><Sparkles className="w-5 h-5 text-primary" /> LNB</div>
-                            <div className="flex items-center gap-2 font-display font-bold text-xl"><Sparkles className="w-5 h-5 text-primary" /> EPEB</div>
-                        </div>
-                    </motion.div>
+                    {/* La rangée « Ils nous font confiance » affichait trois sigles
+                        inventés (CESM, LNB, EPEB) : fausse preuve sociale. Les
+                        écoles réelles sont présentées plus bas (TestimonialsSection,
+                        alimentée par /api/explorer/schools). */}
                 </div>
             </div>
         </section>

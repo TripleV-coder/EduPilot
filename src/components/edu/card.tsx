@@ -10,7 +10,8 @@ const VARIANT_TOKENS: Record<
 > = {
     default: {
         bg: "var(--eduflow-surface-card)",
-        shadow: "var(--eduflow-shadow-sm)",
+        // Style validé : filet fin, aucune ombre au repos.
+        shadow: "none",
         border: "1px solid var(--eduflow-border-subtle)",
     },
     elevated: {
@@ -46,7 +47,7 @@ export interface CardProps {
 
 export function Card({
     children,
-    padding = 20,
+    padding = "16px 20px",
     variant = "default",
     style,
     onClick,

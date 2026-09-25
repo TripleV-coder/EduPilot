@@ -107,10 +107,14 @@ export default function NewCoursePage() {
     });
 
     useEffect(() => {
+        // Sur une erreur, le corps { error } arrivait dans l'état et
+        // `mySubjects.map` faisait planter la page.
         fetch("/api/me/subjects")
-            .then(res => res.json())
-            .then(data => setMySubjects(data))
-            .catch(() => {});
+            .then(res => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+            .then(data => setMySubjects(Array.isArray(data) ? data : []))
+            .catch(() => {
+                toast({ title: "Matières indisponibles", description: "Impossible de charger vos matières. Rechargez la page.", variant: "destructive" });
+            });
     }, []);
 
     async function onSubmit(values: CourseFormValues) {
@@ -150,7 +154,7 @@ export default function NewCoursePage() {
                 />
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         {/* Course Basic Info */}
                         <Card className="border-border shadow-sm">
                             <CardHeader>
@@ -276,14 +280,14 @@ export default function NewCoursePage() {
                                             />
                                         </div>
                                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Supprimer le module" onClick={() => removeModule(moduleIndex)}>
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive max-md:h-11 max-md:w-11" aria-label="Supprimer le module" onClick={() => removeModule(moduleIndex)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8"
+                                                className="h-8 w-8 max-md:h-11 max-md:w-11"
                                                 aria-expanded={expandedModule === moduleIndex}
                                                 aria-label={expandedModule === moduleIndex ? "Replier le module" : "Déplier le module"}
                                                 onClick={() => setExpandedModule(expandedModule === moduleIndex ? null : moduleIndex)}
@@ -300,7 +304,7 @@ export default function NewCoursePage() {
                                                 name={`modules.${moduleIndex}.description`}
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground">Objectif du module</FormLabel>
+                                                        <FormLabel className="text-xs text-muted-foreground">Objectif du module</FormLabel>
                                                         <FormControl><Input {...field} /></FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -366,7 +370,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.type`}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-[10px] uppercase font-bold">
+                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-[11px] font-bold">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -377,7 +381,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                     </Select>
                                 )}
                             />
-                            <Button aria-label="Supprimer la leçon" type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(lessonIndex)}>
+                            <Button aria-label="Supprimer la leçon" type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive max-md:h-11 max-md:w-11" onClick={() => remove(lessonIndex)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                         </div>

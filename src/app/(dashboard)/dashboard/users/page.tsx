@@ -222,7 +222,7 @@ export default function UsersPage() {
             permission={Permission.USER_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Utilisateurs et comptes"
                     description={`${users.length} ${
@@ -257,7 +257,7 @@ export default function UsersPage() {
                     <div
                         className="grid items-end gap-3"
                         style={{
-                            gridTemplateColumns: "minmax(220px, 1fr) minmax(180px, 220px) auto",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
                         }}
                     >
                         <FieldSearch
@@ -663,8 +663,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -721,8 +719,6 @@ function FieldSearch({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -770,10 +766,8 @@ function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",
                 width,

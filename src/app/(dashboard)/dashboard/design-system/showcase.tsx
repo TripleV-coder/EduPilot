@@ -112,7 +112,7 @@ function ColorRamp({
                 </span>
                 <span
                     className="eduflow-mono"
-                    style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                 >
                     --{isBrandRamp ? "brand" : `eduflow-${varName}`}-*
                 </span>
@@ -136,7 +136,7 @@ function ColorRamp({
                             style={{
                                 marginTop: 3,
                                 textAlign: "center",
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: 600,
                                 color: "var(--eduflow-text-secondary)",
                                 fontVariantNumeric: "tabular-nums",
@@ -225,12 +225,12 @@ function SpaceTile({ value, name }: { value: number; name: string }) {
                     }}
                 />
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
             <div
                 className="eduflow-mono"
-                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
             >
                 {value}px
             </div>
@@ -249,12 +249,12 @@ function RadiusTile({ name, value }: { name: string; value: number }) {
                     borderRadius: value,
                 }}
             />
-            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
             <div
                 className="eduflow-mono"
-                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
             >
                 {value}px
             </div>
@@ -274,7 +274,7 @@ function ShadowTile({ name, value }: { name: string; value: string }) {
                     boxShadow: value,
                 }}
             />
-            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
         </div>
@@ -756,7 +756,7 @@ function CommandPalettePreview() {
                     <span
                         className="eduflow-mono"
                         style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             padding: "2px 6px",
                             borderRadius: 4,
                             background: "var(--eduflow-surface-sunken)",
@@ -789,7 +789,7 @@ function CommandPalettePreview() {
                         borderTop: "1px solid var(--eduflow-border-subtle)",
                         display: "flex",
                         gap: 14,
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -811,7 +811,7 @@ function PaletteGroup({ label, children }: { label: string; children: React.Reac
             <div
                 style={{
                     padding: "10px 18px 4px",
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
@@ -865,7 +865,7 @@ function PaletteRow({
             {kbd ? (
                 <span
                     className="eduflow-mono"
-                    style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                 >
                     {kbd}
                 </span>
@@ -1000,7 +1000,7 @@ function PhoneBottomNav({ items, label = "Navigation onglets mobile" }: { items:
                                         borderRadius: 8,
                                         background: "var(--eduflow-danger-500)",
                                         color: "#fff",
-                                        fontSize: 9,
+                                        fontSize: 11,
                                         fontWeight: 700,
                                         display: "grid",
                                         placeItems: "center",
@@ -1010,7 +1010,7 @@ function PhoneBottomNav({ items, label = "Navigation onglets mobile" }: { items:
                                 </span>
                             ) : null}
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: it.active ? 700 : 600 }}>
+                        <span style={{ fontSize: 11, fontWeight: it.active ? 700 : 600 }}>
                             {it.label}
                         </span>
                     </button>
@@ -1326,7 +1326,7 @@ function StudentMobilePreview() {
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>4 devoirs</div>
                             <div
-                                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 2 cette semaine
                             </div>
@@ -1352,7 +1352,7 @@ function StudentMobilePreview() {
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>Math 14h</div>
                             <div
-                                style={{ fontSize: 10, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 Salle 207
                             </div>
@@ -1382,7 +1382,7 @@ function StudentMobilePreview() {
                                 <div style={{ fontSize: 13, fontWeight: 600 }}>{g.sub}</div>
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -1515,7 +1515,7 @@ function TeacherMobilePreview() {
                             </div>
                             <div
                                 style={{
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: 600,
                                     color: `var(--eduflow-${s.c}-800)`,
                                 }}

@@ -54,7 +54,7 @@ function DirectoryInner() {
 
     return (
         // <main> (M8, a11y) : zone principale unique ; même mise en page que le div d'origine.
-        <main style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
+        <main id="main-content" style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 20px 60px" }}>
             <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 6px" }}>
                 Annuaire des établissements
             </h1>
@@ -119,6 +119,8 @@ function DirectoryInner() {
                                         <img
                                             src={s.coverImage}
                                             alt={`Bannière de l'établissement ${s.name}`}
+                                            loading="lazy"
+                                            decoding="async"
                                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                         />
                                     ) : null}
@@ -130,6 +132,8 @@ function DirectoryInner() {
                                             <img
                                                 src={s.logo}
                                                 alt={`Logo de ${s.name}`}
+                                            loading="lazy"
+                                            decoding="async"
                                                 style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }}
                                             />
                                         ) : null}

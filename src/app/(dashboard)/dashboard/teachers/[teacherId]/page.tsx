@@ -257,7 +257,7 @@ export default function TeacherDetailPage() {
 
   return (
     <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-      <PageShell className="max-w-6xl">
+      <PageShell>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/teachers">
             <Button variant="outline" size="icon" aria-label="Retour à la liste des enseignants">

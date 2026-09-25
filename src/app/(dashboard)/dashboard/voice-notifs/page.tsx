@@ -117,10 +117,8 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                     color: `var(--${tone}-700)`,
                 }}
             >
@@ -196,7 +194,7 @@ function VoiceNotifsContent() {
 
     if (isLoading) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Notifications vocales multilingues"
                     description="Chargement des campagnes…"
@@ -209,7 +207,7 @@ function VoiceNotifsContent() {
 
     if (error || !data) {
         return (
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Notifications vocales multilingues"
                     description="Impossible de charger les campagnes"
@@ -224,7 +222,7 @@ function VoiceNotifsContent() {
 
     return (
         <>
-        <PageShell className="pb-12">
+        <PageShell>
             <PageHeader
                 title="Notifications vocales multilingues"
                 description="Atteindre les parents qui ne lisent pas couramment le français · Fɔn · Yorùbá · Bariba · Dendi"
@@ -284,7 +282,7 @@ function VoiceNotifsContent() {
                 className="vn-grid"
             >
                 <Card padding={20}>
-                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Langues & modèle de message</p>
+                    <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Langues & modèle de message</p>
                     <div
                         style={{
                             marginTop: 4,
@@ -347,7 +345,7 @@ function VoiceNotifsContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: "var(--text-tertiary)",
                                             }}
                                         >
@@ -375,7 +373,7 @@ function VoiceNotifsContent() {
                             border: "1px solid var(--border-subtle)",
                         }}
                     >
-                        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu · {active.label}</p>
+                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu · {active.label}</p>
                         <p
                             style={{
                                 fontSize: 13,
@@ -568,7 +566,7 @@ function VoiceNotifsContent() {
                         grid-template-columns: repeat(2, 1fr) !important;
                     }
                     .vn-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
                 }
             `}</style>

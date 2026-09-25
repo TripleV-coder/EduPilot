@@ -20,6 +20,7 @@ import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { t } from "@/lib/i18n";
 import { formatDateTimeLong } from "@/lib/utils/formatters";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { Spinner } from "@/components/edu";
 
 type Submission = {
   id: string;
@@ -129,7 +130,7 @@ export default function HomeworkDetailPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span>
       </div>
     );
   }

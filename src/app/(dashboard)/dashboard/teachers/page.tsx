@@ -151,7 +151,7 @@ export default function TeachersPage() {
             permission={Permission.TEACHER_READ}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
         >
-            <PageShell className="pb-12">
+            <PageShell>
                 <PageHeader
                     title="Enseignants"
                     description={`${teachers.length} ${
@@ -190,7 +190,7 @@ export default function TeachersPage() {
                     <div
                         className="grid items-end gap-3"
                         style={{
-                            gridTemplateColumns: "minmax(220px, 1fr) minmax(160px, 200px) auto",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
                         }}
                     >
                         <FieldSearch
@@ -615,8 +615,6 @@ function FieldSelect({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
@@ -673,8 +671,6 @@ function FieldSearch({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
                 }}
