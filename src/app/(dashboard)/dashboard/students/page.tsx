@@ -26,6 +26,9 @@ import {
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CARD_COLORS, initials } from "@/components/edu-homes/home-kit";
+import homeStyles from "@/components/edu-homes/home.module.css";
 
 type Student = {
     id: string;
@@ -215,7 +218,7 @@ export default function StudentsPage() {
                                     value={viewMode}
                                     onChange={setViewMode}
                                     options={[
-                                        { value: "grid", label: "Grille", icon: "grid" },
+                                        { value: "grid", label: "Liste", icon: "users" },
                                         { value: "table", label: "Tableau", icon: "cards" },
                                     ]}
                                 />
@@ -315,17 +318,13 @@ export default function StudentsPage() {
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "grid" ? (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        {students.map((student) => (
-                            <StudentCard
+                    <section className={homeStyles.block} aria-label="Liste des élèves">
+                        <ul className={homeStyles.watch}>
+                        {students.map((student, index) => (
+                            <StudentRow
                                 key={student.id}
                                 student={student}
+                                index={index}
                                 onRequestDelete={(e) => {
                                     const name = student.user
                                         ? `${student.user.firstName} ${student.user.lastName}`
@@ -335,7 +334,8 @@ export default function StudentsPage() {
                                 onNavigate={() => markStudentTransition(student.id)}
                             />
                         ))}
-                    </div>
+                        </ul>
+                    </section>
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "table" ? (
@@ -523,12 +523,17 @@ export default function StudentsPage() {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function StudentCard({
+/* Ligne façon « Personnes » de Google Classroom, dans le langage des listes
+   de l'accueil validé (docs/design/directions/live) : avatar coloré, nom,
+   classe et matricule ; actions secondaires dans le menu « ⋮ ». */
+function StudentRow({
     student,
+    index,
     onRequestDelete,
     onNavigate,
 }: {
     student: Student;
+    index: number;
     onRequestDelete: (e: React.MouseEvent) => void;
     onNavigate: () => void;
 }) {
@@ -540,120 +545,57 @@ function StudentCard({
             ? student.enrollments[0].class?.name
             : null;
     const isActive = student.user?.isActive ?? false;
+    const matricule = student.matricule ?? student.studentNumber;
+    const href = `/dashboard/students/${student.id}`;
+    const detail = [className ?? "Non assigné", matricule, isActive ? null : "inactif"].filter(Boolean).join(" · ");
 
     return (
-        <Link
-            href={`/dashboard/students/${student.id}`}
-            onClick={onNavigate}
-            style={{ textDecoration: "none", color: "inherit" }}
-        >
-            <Card
-                padding={16}
-                style={{
-                    cursor: "pointer",
-                    transition:
-                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out), border-color var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                }}
-                className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
+        <li className={homeStyles.watchItem}>
+            <span
+                className={homeStyles.avatar}
+                style={{ background: CARD_COLORS[index % CARD_COLORS.length] }}
+                aria-hidden="true"
             >
-                <div className="flex items-start gap-3">
-                    <Avatar
-                        name={fullName}
-                        size="md"
-                        status={isActive ? "online" : undefined}
-                    />
-                    <div className="min-w-0 flex-1">
-                        <div
-                            className="truncate"
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                color: "var(--eduflow-text-primary)",
-                                lineHeight: 1.2,
-                            }}
-                        >
-                            {fullName}
-                        </div>
-                        {student.user?.email ? (
-                            <div
-                                className="truncate"
-                                style={{
-                                    fontSize: 11,
-                                    color: "var(--eduflow-text-tertiary)",
-                                    marginTop: 2,
-                                }}
-                            >
-                                {student.user.email}
-                            </div>
-                        ) : null}
-                        {student.matricule || student.studentNumber ? (
-                            <div
-                                className="eduflow-mono"
-                                style={{
-                                    fontSize: 11,
-                                    color: "var(--eduflow-text-tertiary)",
-                                    marginTop: 4,
-                                }}
-                            >
-                                {student.matricule ?? student.studentNumber}
-                            </div>
-                        ) : null}
-                    </div>
-                    <RoleActionGuard
-                        allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
+                {initials(fullName)}
+            </span>
+            <div className="min-w-0">
+                <Link href={href} onClick={onNavigate} className={`${homeStyles.name} block truncate no-underline hover:underline`}>
+                    {fullName}
+                </Link>
+                <div className={`${homeStyles.detail} truncate`}>{detail}</div>
+            </div>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={`Actions pour ${fullName}`}
+                        className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-[var(--eduflow-surface-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50"
                     >
+                        <Icon name="more" size={18} color="var(--eduflow-text-secondary)" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-1">
+                    <Link
+                        href={href}
+                        onClick={onNavigate}
+                        className="block rounded-md px-3 py-2 text-sm no-underline hover:bg-[var(--eduflow-surface-sunken)]"
+                        style={{ color: "var(--eduflow-text-primary)" }}
+                    >
+                        Voir le dossier
+                    </Link>
+                    <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
                         <button
                             type="button"
                             onClick={onRequestDelete}
-                            aria-label="Supprimer l'élève"
-                            className="grid place-items-center"
-                            style={{
-                                width: 30,
-                                height: 30,
-                                border: 0,
-                                background: "transparent",
-                                borderRadius: 8,
-                                color: "var(--eduflow-text-tertiary)",
-                                cursor: "pointer",
-                                transition:
-                                    "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background =
-                                    "var(--eduflow-danger-50)";
-                                e.currentTarget.style.color = "var(--eduflow-danger-700)";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = "transparent";
-                                e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
-                            }}
+                            className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
+                            style={{ color: "var(--eduflow-danger-700)" }}
                         >
-                            <Icon name="x" size={14} />
+                            Supprimer
                         </button>
                     </RoleActionGuard>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {className ? (
-                        <Badge variant="brand" size="sm">
-                            {className}
-                        </Badge>
-                    ) : (
-                        <Badge variant="neutral" size="sm">
-                            Non assigné
-                        </Badge>
-                    )}
-                    {isActive ? (
-                        <Badge variant="success" size="sm" dot>
-                            Actif
-                        </Badge>
-                    ) : (
-                        <Badge variant="neutral" size="sm">
-                            Inactif
-                        </Badge>
-                    )}
-                </div>
-            </Card>
-        </Link>
+                </PopoverContent>
+            </Popover>
+        </li>
     );
 }
 

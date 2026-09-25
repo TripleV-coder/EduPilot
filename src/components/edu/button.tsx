@@ -8,7 +8,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "soft";
 type Size = "sm" | "md" | "lg";
 
 const SIZE_TOKENS: Record<Size, { h: number; px: number; fs: number; gap: number; rad: number }> = {
-    // Pilules, comme les actions de l'accueil validé (docs/design/directions/direction-approved.md).
+    // Pilules, comme les actions de l'accueil validé (docs/design/directions/live).
     sm: { h: 32, px: 14, fs: 13, gap: 6, rad: 999 },
     md: { h: 40, px: 18, fs: 14, gap: 8, rad: 999 },
     lg: { h: 46, px: 22, fs: 15, gap: 10, rad: 999 },

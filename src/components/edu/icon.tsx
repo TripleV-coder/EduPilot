@@ -65,6 +65,13 @@ export const ICON_PATHS = {
             <path d="m6 6 12 12" />
         </>
     ),
+    more: (
+        <>
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="19" r="1" />
+        </>
+    ),
     plus: (
         <>
             <path d="M12 5v14" />

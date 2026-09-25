@@ -1,5 +1,5 @@
 /* Kit des accueils (tous les rôles) — style validé « coloré et vivant », priorité vue
-   d'ensemble (docs/design/directions/direction-approved.md). Aucune animation au chargement : écrans
+   d'ensemble (docs/design/directions/live). Aucune animation au chargement : écrans
    ouverts des dizaines de fois par jour. */
 
 .page { display: grid; gap: 16px; }

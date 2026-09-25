@@ -17,7 +17,7 @@ export interface StudentHomeProps {
     };
 }
 
-/* Accueil élève — même langage que l'accueil direction validé (docs/design/directions/direction-approved.md). */
+/* Accueil élève — même langage que l'accueil direction validé (docs/design/directions/live). */
 export function StudentHome({ userName, schoolName, periodName, data }: StudentHomeProps) {
     const firstName = userName.trim().split(/\s+/)[0] || userName;
     const graded = data.subjectPerformances.filter((s) => s.average > 0);

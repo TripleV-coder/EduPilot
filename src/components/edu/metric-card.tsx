@@ -6,7 +6,7 @@ import type { IconName } from "./icon";
 
 type Variant = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
 
-/* Style « vue d'ensemble » de l'accueil validé (docs/design/directions/direction-approved.md) :
+/* Style « vue d'ensemble » de l'accueil validé (docs/design/directions/live) :
    pastille de couleur de module + libellé, valeur, note. Pas de tuile d'icône. */
 const DOT: Record<Variant, string> = {
     neutral: "var(--eduflow-neutral-400)",

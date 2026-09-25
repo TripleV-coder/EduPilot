@@ -6,7 +6,7 @@ import { Icon, type IconName } from "@/components/edu";
 import styles from "./home.module.css";
 
 /* Kit des accueils — mêmes blocs que l'accueil direction validé
-   (docs/design/directions/direction-approved.md). Une couleur par module. */
+   (docs/design/directions/live). Une couleur par module. */
 export const MODULE = {
     blue: "var(--edu-module-blue)",
     green: "var(--edu-module-green)",

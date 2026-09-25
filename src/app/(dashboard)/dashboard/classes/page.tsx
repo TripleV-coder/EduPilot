@@ -22,6 +22,9 @@ import {
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CARD_COLORS } from "@/components/edu-homes/home-kit";
+import homeStyles from "@/components/edu-homes/home.module.css";
 
 type ClassItem = {
     id: string;
@@ -238,18 +241,12 @@ export default function ClassesPage() {
                 ) : null}
 
                 {!loading && !error && classes.length > 0 && viewMode === "grid" ? (
-                    <div
-                        className="edu-stagger"
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        {classes.map((cls) => (
+                    <div className={homeStyles.classes}>
+                        {classes.map((cls, i) => (
                             <ClassCard
                                 key={cls.id}
                                 cls={cls}
+                                index={i}
                                 onRequestDelete={(e) => requestDelete(e, cls.id, cls.name)}
                             />
                         ))}
@@ -383,132 +380,65 @@ export default function ClassesPage() {
     );
 }
 
+/* Carte façon Google Classroom, identique aux cartes « Mes classes » de
+   l'accueil validé (docs/design/directions/live) : bandeau plein coloré,
+   actions secondaires dans le menu « ⋮ » du bandeau. */
 function ClassCard({
     cls,
+    index,
     onRequestDelete,
 }: {
     cls: ClassItem;
+    index: number;
     onRequestDelete: (e: React.MouseEvent) => void;
 }) {
-    const cycleVariant = CYCLE_VARIANTS[cls.classLevel?.level || ""] || "neutral";
     const cycleLabel = cls.classLevel?.level
         ? CYCLE_LABELS[cls.classLevel.level] || cls.classLevel.level
         : null;
+    const enrolled = cls._count?.enrollments ?? 0;
     return (
-        <Link
-            href={`/dashboard/classes/${cls.id}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-        >
-            <Card
-                padding={16}
-                style={{
-                    cursor: "pointer",
-                    transition:
-                        "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                }}
-                className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
-            >
-                <div className="flex items-start gap-3">
-                    <div
-                        className="grid place-items-center"
-                        style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            background: `var(--eduflow-${cycleVariant === "brand" ? "info" : cycleVariant}-50)`,
-                            color: `var(--eduflow-${cycleVariant === "brand" ? "info" : cycleVariant}-700)`,
-                            flexShrink: 0,
-                        }}
+        <div className={homeStyles.classCard} style={{ position: "relative" }}>
+            <Link href={`/dashboard/classes/${cls.id}`} className="block no-underline" style={{ color: "inherit" }}>
+                <div className={homeStyles.banner} style={{ background: CARD_COLORS[index % CARD_COLORS.length] }}>
+                    <span className={homeStyles.className} style={{ paddingRight: 32 }}>{cls.name}</span>
+                    <span className={homeStyles.classMeta}>
+                        {[cls.classLevel?.name, cycleLabel].filter(Boolean).join(" · ") || "Niveau non défini"}
+                    </span>
+                </div>
+                <div className={homeStyles.classBody}>
+                    <span>Élèves</span>
+                    <span>{enrolled}</span>
+                </div>
+            </Link>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={`Actions pour la classe ${cls.name}`}
+                        className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-full text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                     >
-                        <Icon name="book" size={20} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <div
-                            className="eduflow-display truncate"
-                            style={{
-                                fontSize: 18,
-                                fontWeight: 700,
-                                color: "var(--eduflow-text-primary)",
-                                letterSpacing: "-0.02em",
-                                lineHeight: 1.15,
-                            }}
-                        >
-                            {cls.name}
-                        </div>
-                        <div
-                            className="truncate"
-                            style={{
-                                fontSize: 11,
-                                color: "var(--eduflow-text-tertiary)",
-                                marginTop: 2,
-                            }}
-                        >
-                            {cls.classLevel?.name || "Niveau non défini"}
-                        </div>
-                    </div>
+                        <Icon name="more" size={18} color="#fff" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-1">
+                    <Link
+                        href={`/dashboard/classes/${cls.id}`}
+                        className="block rounded-md px-3 py-2 text-sm no-underline hover:bg-[var(--eduflow-surface-sunken)]"
+                        style={{ color: "var(--eduflow-text-primary)" }}
+                    >
+                        Ouvrir la classe
+                    </Link>
                     <button
                         type="button"
                         onClick={onRequestDelete}
-                        aria-label="Supprimer la classe"
-                        className="grid place-items-center"
-                        style={{
-                            width: 30,
-                            height: 30,
-                            border: 0,
-                            background: "transparent",
-                            borderRadius: 8,
-                            color: "var(--eduflow-text-tertiary)",
-                            cursor: "pointer",
-                            transition:
-                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "var(--eduflow-danger-50)";
-                            e.currentTarget.style.color = "var(--eduflow-danger-700)";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
-                        }}
+                        className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
+                        style={{ color: "var(--eduflow-danger-700)" }}
                     >
-                        <Icon name="x" size={14} />
+                        Supprimer
                     </button>
-                </div>
-
-                <div
-                    className="mt-4 flex items-center justify-between border-t pt-3"
-                    style={{ borderColor: "var(--eduflow-border-subtle)" }}
-                >
-                    <div className="flex items-center gap-2">
-                        <Icon name="users" size={14} color="var(--eduflow-text-tertiary)" />
-                        <span
-                            className="eduflow-tabular"
-                            style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--eduflow-text-primary)",
-                            }}
-                        >
-                            {cls._count?.enrollments ?? 0}
-                            <span
-                                style={{
-                                    color: "var(--eduflow-text-tertiary)",
-                                    fontWeight: 500,
-                                    marginLeft: 4,
-                                }}
-                            >
-                                élève{(cls._count?.enrollments ?? 0) > 1 ? "s" : ""}
-                            </span>
-                        </span>
-                    </div>
-                    {cycleLabel ? (
-                        <Badge variant={cycleVariant} size="sm">
-                            {cycleLabel}
-                        </Badge>
-                    ) : null}
-                </div>
-            </Card>
-        </Link>
+                </PopoverContent>
+            </Popover>
+        </div>
     );
 }
 

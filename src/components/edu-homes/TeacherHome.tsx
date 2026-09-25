@@ -30,7 +30,7 @@ export interface TeacherHomeProps {
 }
 
 /* Accueil enseignant — même langage que l'accueil direction validé
-   (docs/design/directions/direction-approved.md) : vue d'ensemble, journée, actions, suivi. */
+   (docs/design/directions/live) : vue d'ensemble, journée, actions, suivi. */
 export function TeacherHome({ userName, schoolName, periodName, data }: TeacherHomeProps) {
     const firstName = userName.trim().split(/\s+/)[0] || userName;
     const today = data.todaySchedule ?? [];

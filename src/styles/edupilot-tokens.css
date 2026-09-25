@@ -157,7 +157,7 @@
   --eduflow-radius-chip:  8px;
   --eduflow-radius-input: 12px;
   --eduflow-radius-soft:  16px;
-  --eduflow-radius-card:  14px; /* style validé (docs/design/directions/direction-approved.md) */
+  --eduflow-radius-card:  14px; /* style validé (docs/design/directions/live) */
   --eduflow-radius-pill:  9999px;
 
   /* ── Shadows ──────────────────────────────────────────── */

@@ -35,7 +35,7 @@ export interface ParentHomeProps {
     };
 }
 
-/* Accueil parent — même langage que l'accueil direction validé (docs/design/directions/direction-approved.md).
+/* Accueil parent — même langage que l'accueil direction validé (docs/design/directions/live).
    Plus de notification figée « Réunion parents » : seules des données réelles. */
 export function ParentHome({ userName, schoolName, periodName, data }: ParentHomeProps) {
     const firstName = userName.trim().split(/\s+/)[0] || userName;

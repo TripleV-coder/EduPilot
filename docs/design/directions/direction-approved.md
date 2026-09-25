@@ -20,3 +20,9 @@
   À surveiller + Actions rapides, puis Mes classes.
 - Principes Emil Kowalski conservés : aucune animation au chargement ni sur la palette, pression
   `scale(0.97)`, survol réservé aux souris, actions en un clic avec « Annuler ».
+
+## Référence visuelle de l'implémentation
+`live/` contient les captures de l'accueil tel qu'implémenté et validé (accueil rempli, compact,
+mobile, barre latérale repliée et dépliée). **C'est la référence trait pour trait** : toute page doit
+parler ce langage — bandeaux de classe pleins façon Google Classroom, listes « Personnes » avec avatar
+coloré et menu « ⋮ », blocs « Vue d'ensemble » à pastilles.
