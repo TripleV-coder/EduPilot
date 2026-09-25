@@ -84,6 +84,10 @@ export default function StudentsPage() {
     // (parent et comptable voient la liste des élèves sans ce filtre).
     const { canAccess } = useRBAC();
     const canReadClasses = canAccess({ permission: Permission.CLASS_READ });
+    // Le parent arrive ici par « Mes enfants » (role-nav) : même libellé, pas
+    // de décompte « dans l'établissement ».
+    const isParentView = canAccess({ roles: ["PARENT"] }) && !canReadClasses;
+    const pageTitle = isParentView ? "Mes enfants" : "Élèves";
     const { data: classesData } = useSWR<ClassesResponse | ClassOption[]>(
         canReadClasses ? "/api/classes" : null,
         fetcher
@@ -206,11 +210,15 @@ export default function StudentsPage() {
         >
             <PageShell>
                 <PageHeader
-                    title="Élèves"
-                    description={`${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`}
+                    title={pageTitle}
+                    description={
+                        isParentView
+                            ? `${totalStudents} ${totalStudents > 1 ? "enfants rattachés" : "enfant rattaché"} à votre compte`
+                            : `${totalStudents} ${totalStudents > 1 ? "élèves enregistrés" : "élève enregistré"} dans l'établissement`
+                    }
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
-                        { label: "Élèves" },
+                        { label: pageTitle },
                     ]}
                     actions={
                             <>
