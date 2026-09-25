@@ -70,7 +70,23 @@ export const PATCH = createApiHandler(
         if (firstName !== undefined) updateData.firstName = firstName;
         if (lastName !== undefined) updateData.lastName = lastName;
         if (phone !== undefined) updateData.phone = phone;
-        if (preferences !== undefined) updateData.preferences = preferences as Prisma.InputJsonValue;
+        if (preferences !== undefined) {
+            // Fusion sur les clés de premier niveau : un écran qui n'envoie que
+            // sa section (onboarding, notifications…) n'efface plus les autres
+            // (consentements, thème, langue). Une clé à null est retirée.
+            const current = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { preferences: true },
+            });
+            const stored = current?.preferences;
+            const merged: Record<string, unknown> =
+                stored && typeof stored === "object" && !Array.isArray(stored) ? { ...stored } : {};
+            for (const [key, value] of Object.entries(preferences)) {
+                if (value === null) delete merged[key];
+                else merged[key] = value;
+            }
+            updateData.preferences = merged as Prisma.InputJsonValue;
+        }
         if (avatar !== undefined) updateData.avatar = avatar;
 
         const updatedUser = await prisma.user.update({

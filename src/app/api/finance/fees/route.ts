@@ -25,7 +25,7 @@ export const GET = createApiHandler(
                     : activeSchoolId;
 
             if (!targetSchoolId) {
-                return NextResponse.json({ error: "School ID required" }, { status: 400 });
+                return NextResponse.json({ error: "Identifiant d'établissement requis" }, { status: 400 });
             }
 
             const fees = await prisma.fee.findMany({
@@ -51,7 +51,7 @@ export const GET = createApiHandler(
                 endpoint: "/api/finance/fees",
                 method: "GET",
             });
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] }
@@ -76,7 +76,7 @@ export const POST = createApiHandler(
                     : activeSchoolId;
 
             if (!targetSchoolId) {
-                return NextResponse.json({ error: "User not associated with a school" }, { status: 400 });
+                return NextResponse.json({ error: "Utilisateur non rattaché à un établissement" }, { status: 400 });
             }
 
             const fee = await prisma.fee.create({
@@ -103,7 +103,7 @@ export const POST = createApiHandler(
                 method: "POST",
                 userId: session.user.id,
             });
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }

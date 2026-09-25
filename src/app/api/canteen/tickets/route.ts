@@ -12,7 +12,7 @@ export const GET = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
 const schoolId = getActiveSchoolId(session);
-        if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
+        if (!schoolId) return NextResponse.json({ error: "Établissement actif requis" }, { status: 400 });
 
         let userIds = [session.user.id];
 
@@ -58,7 +58,7 @@ const schoolId = getActiveSchoolId(session);
         return NextResponse.json(summary);
     
     } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 
 });
@@ -80,7 +80,7 @@ export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
         const schoolId = getActiveSchoolId(session);
-        if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
+        if (!schoolId) return NextResponse.json({ error: "Établissement actif requis" }, { status: 400 });
 
         const parsed = purchaseSchema.safeParse(await request.json());
         if (!parsed.success) {
@@ -109,6 +109,6 @@ export const POST = createApiHandler(async (request, context) => {
         return NextResponse.json(ticket);
     } catch (error) {
         logger.error("Canteen ticket purchase failed", error as Error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] });

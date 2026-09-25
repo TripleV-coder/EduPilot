@@ -56,7 +56,7 @@ describe("GET /api/system/automation", () => {
       headers: { Authorization: "Bearer wrong-token" },
     }));
     expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Unauthorized");
+    expect((await res.json()).error).toBe("Non authentifié");
     expect(acquireJobLease).not.toHaveBeenCalled();
   });
 

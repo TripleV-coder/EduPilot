@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+// npm_package_version est absent en production (node server.js) : lire package.json.
+import appPackage from "../../../../../../package.json";
 
 /**
  * GET /api/admin/system/info
@@ -38,7 +40,7 @@ export const GET = createApiHandler(
 
       return NextResponse.json({
         system: {
-          version: process.env.npm_package_version || "1.0.0",
+          version: appPackage.version,
           nodeVersion: process.version,
           environment: process.env.NODE_ENV || "development",
           uptime: process.uptime(),

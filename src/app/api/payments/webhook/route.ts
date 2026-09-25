@@ -62,12 +62,12 @@ export const POST = createApiHandler(async (req) => {
         } else {
             // Aucun header de signature — refus
             logger.warn("Webhook reçu sans header de signature", { module: "api/payments/webhook", provider });
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
         }
 
         if (!signatureValid) {
             logger.warn("Signature webhook invalide", { module: "api/payments/webhook", provider });
-            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+            return NextResponse.json({ error: "Signature invalide" }, { status: 401 });
         }
 
         let body: Record<string, unknown>;

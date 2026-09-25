@@ -69,7 +69,7 @@ describe("POST /api/import/classes", () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: { data: 42 } }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Invalid data format");
+    expect((await res.json()).error).toBe("Format de données invalide");
   });
 
   it("should return 400 when more than 500 rows", async () => {
@@ -83,7 +83,7 @@ describe("POST /api/import/classes", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await POST(makeRequest("http://localhost/api/import/classes", { method: "POST", body: makeBody([]) }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("School context required");
+    expect((await res.json()).error).toBe("Établissement actif requis");
   });
 
   it("should create classes on existing levels (by code or name)", async () => {

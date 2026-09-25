@@ -19,6 +19,10 @@ model SubscriptionPlan {
   priceMonthly Decimal  @db.Decimal(10, 2)
   priceYearly  Decimal  @db.Decimal(10, 2)
   isActive     Boolean  @default(true)
+  /// Mis en avant sur la page tarifs publique (badge « le plus choisi »).
+  isFeatured     Boolean @default(false)
+  /// Prix non affiché publiquement : la landing propose « Sur devis ».
+  priceOnRequest Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   schools      School[]

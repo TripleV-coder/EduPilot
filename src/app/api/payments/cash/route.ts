@@ -90,7 +90,7 @@ export const POST = createApiHandler(
       return NextResponse.json(payment);
     } catch (error) {
       logger.error("Cash payment failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/cash" });
-      return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
+      return NextResponse.json({ error: "Impossible d'enregistrer le paiement" }, { status: 500 });
     }
   },
   { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }

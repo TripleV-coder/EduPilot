@@ -28,7 +28,7 @@ export const GET = createApiHandler(async (request, context) => {
         return NextResponse.json(configs);
     
     } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 
 });
@@ -73,7 +73,7 @@ export const POST = createApiHandler(async (request, context) => {
     
     } catch (error) {
         if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues }, { status: 400 });
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });

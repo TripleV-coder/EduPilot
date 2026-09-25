@@ -6,7 +6,7 @@ import { t } from "@/lib/i18n";
  */
 export default function SwaggerUIPage() {
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white p-5">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-4">{t("apiDocs.title")}</h1>
         <p className="text-gray-600 mb-8">

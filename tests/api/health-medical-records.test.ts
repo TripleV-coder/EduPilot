@@ -183,3 +183,24 @@ describe("PUT /api/health/medical-records", () => {
     expect(prisma.medicalRecord.update).toHaveBeenCalledWith(expect.objectContaining({ data: { notes: "Suivi trimestriel" } }));
   });
 });
+describe("PUT /api/health/medical-records — champs non autorisés", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("ignore les écritures imbriquées vers l'élève et son compte", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("NURSE"));
+    vi.mocked(prisma.medicalRecord.findUnique).mockResolvedValue({ id: MR_ID, studentId: FIXTURES.studentA, student: STUDENT } as never);
+    vi.mocked(prisma.medicalRecord.update).mockResolvedValue(makeRecord());
+    const res = await PUT(makeRequest("http://localhost/api/health/medical-records", {
+      method: "PUT",
+      body: {
+        id: MR_ID,
+        bloodType: "B+",
+        student: { update: { user: { update: { role: "SUPER_ADMIN", password: "x" } } } },
+      },
+    }), { session: makeSession("NURSE") });
+    expect(res.status).toBe(200);
+    const data = vi.mocked(prisma.medicalRecord.update).mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).not.toHaveProperty("student");
+    expect(data.bloodType).toBe("B+");
+  });
+});

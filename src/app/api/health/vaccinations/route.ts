@@ -26,6 +26,17 @@ const vaccinationSchema = z.object({
   nextDueDate: z.string().optional(),
 });
 
+// Mise à jour : liste blanche explicite. Le corps brut ne doit jamais
+// atteindre `data` — une écriture imbriquée (medicalRecord → student → user)
+// permettait de modifier le rôle ou le mot de passe du compte élève.
+const vaccinationUpdateSchema = z.object({
+  vaccineName: z.string().min(1).optional(),
+  dateGiven: z.string().optional(),
+  administeredBy: z.string().nullable().optional(),
+  batchNumber: z.string().nullable().optional(),
+  nextDueDate: z.string().nullable().optional(),
+});
+
 type VaccinationStatsInput = {
   medicalRecordWhere: Prisma.MedicalRecordWhereInput;
   vaccinationWhere: Prisma.VaccinationWhereInput;
@@ -301,7 +312,8 @@ export const PUT = createApiHandler(
       if (roleError) return roleError;
 
       const body = await request.json();
-      const { id, medicalRecordId: _medicalRecordId, ...updateData } = body;
+      const { id, medicalRecordId: _medicalRecordId, ...rest } = body;
+      const updateData = vaccinationUpdateSchema.parse(rest);
 
       if (!id) {
         return NextResponse.json({ error: "ID requis" }, { status: 400 });

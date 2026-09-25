@@ -5,12 +5,13 @@ import { makeRequest, makeSession, cuid } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    subscriptionPlan: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    subscriptionPlan: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), delete: vi.fn() },
+    school: { count: vi.fn() },
   },
 }));
 
 import prisma from "@/lib/prisma";
-import { GET, POST, PATCH } from "@/app/api/root/plans/route";
+import { GET, POST, PATCH, DELETE } from "@/app/api/root/plans/route";
 
 const ROOT = makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" });
 
@@ -180,5 +181,53 @@ describe("PATCH /api/root/plans", () => {
     }));
 
     expect(res.status).toBe(500);
+  });
+});
+describe("Plans : configuration par le super-administrateur", () => {
+  it("refuse un prix invalide (400) au lieu d'une erreur base", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    const res = await POST(makeRequest("http://localhost:3000/api/root/plans", {
+      method: "POST",
+      body: { name: "Pro", code: "pro", priceMonthly: "abc" },
+    }));
+    expect(res.status).toBe(400);
+    expect(prisma.subscriptionPlan.create).not.toHaveBeenCalled();
+  });
+
+  it("ne garde qu'un seul plan mis en avant", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(prisma.subscriptionPlan.update).mockResolvedValue(planRecord({ isFeatured: true }));
+    await PATCH(makeRequest("http://localhost:3000/api/root/plans", {
+      method: "PATCH",
+      body: { id: cuid("plan1"), isFeatured: true, priceOnRequest: false },
+    }));
+    expect(prisma.subscriptionPlan.updateMany).toHaveBeenCalledWith({
+      where: { isFeatured: true, id: { not: cuid("plan1") } },
+      data: { isFeatured: false },
+    });
+    expect(vi.mocked(prisma.subscriptionPlan.update).mock.calls[0][0].data).toMatchObject({ isFeatured: true, priceOnRequest: false });
+  });
+
+  it("refuse de supprimer un plan encore souscrit (409)", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(prisma.school.count).mockResolvedValue(3);
+    const res = await DELETE(makeRequest(`http://localhost:3000/api/root/plans?id=${cuid("plan1")}`, { method: "DELETE" }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PLAN_IN_USE");
+    expect(prisma.subscriptionPlan.delete).not.toHaveBeenCalled();
+  });
+
+  it("supprime un plan sans école", async () => {
+    vi.mocked(auth).mockResolvedValue(ROOT);
+    vi.mocked(prisma.school.count).mockResolvedValue(0);
+    vi.mocked(prisma.subscriptionPlan.delete).mockResolvedValue(planRecord());
+    const res = await DELETE(makeRequest(`http://localhost:3000/api/root/plans?id=${cuid("plan1")}`, { method: "DELETE" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("refuse la suppression à un compte non-root", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    const res = await DELETE(makeRequest(`http://localhost:3000/api/root/plans?id=${cuid("plan1")}`, { method: "DELETE" }));
+    expect(res.status).toBe(403);
   });
 });

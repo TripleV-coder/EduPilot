@@ -8,6 +8,7 @@ import {
   isUnpaidInstallment,
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
+import { computePlanlessExpected } from "@/lib/finance/expected-fees";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
@@ -117,6 +118,7 @@ export const GET = createApiHandler(
         select: {
           id: true,
           studentId: true,
+          feeId: true,
           totalAmount: true,
           paidAmount: true,
           status: true,
@@ -224,6 +226,26 @@ export const GET = createApiHandler(
           balance,
         });
       }
+    }
+
+    // Frais facturés sans échéancier : sans eux, « Total attendu » restait à 0
+    // pour une école qui n'utilise pas d'échéanciers.
+    const planless = await computePlanlessExpected({
+      schoolId,
+      academicYearId,
+      periodRange,
+      plannedKeys: new Set(paymentPlans.map((plan) => `${plan.feeId}:${plan.studentId}`)),
+    });
+    totalFeesAmount += planless.expected;
+    totalPendingAmount += planless.pending;
+    for (const [studentId, late] of planless.overdue) {
+      const current = overdueBalances.get(studentId) ?? {
+        studentId,
+        studentName: late.studentName,
+        balance: 0,
+      };
+      current.balance += late.balance;
+      overdueBalances.set(studentId, current);
     }
 
     const overdueStudentsWithBalance = Array.from(overdueBalances.values())

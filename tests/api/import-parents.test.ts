@@ -68,7 +68,7 @@ describe("POST /api/import/parents", () => {
     vi.mocked(auth).mockResolvedValue(ADMIN);
     const res = await POST(makeRequest("http://localhost/api/import/parents", { method: "POST", body: { data: {} } }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Invalid data format");
+    expect((await res.json()).error).toBe("Format de données invalide");
   });
 
   it("should return 400 when more than 500 rows", async () => {
@@ -82,7 +82,7 @@ describe("POST /api/import/parents", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await POST(makeRequest("http://localhost/api/import/parents", { method: "POST", body: makeBody([]) }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("School context required");
+    expect((await res.json()).error).toBe("Établissement actif requis");
   });
 
   it("should return 400 when school does not exist", async () => {
@@ -90,7 +90,7 @@ describe("POST /api/import/parents", () => {
     vi.mocked(prisma.school.findUnique).mockResolvedValue(null);
     const res = await POST(makeRequest("http://localhost/api/import/parents?schoolId=bad", { method: "POST", body: makeBody([]) }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("School not found");
+    expect((await res.json()).error).toBe("Établissement introuvable");
   });
 
   it("should create parents and link children matricules", async () => {

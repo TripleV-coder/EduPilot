@@ -24,7 +24,7 @@ const url = new URL(request.url);
             module: "api/gamification/achievements",
             userId: session.user.id,
         });
-        return NextResponse.json({ error: "Failed to fetch achievements" }, { status: 500 });
+        return NextResponse.json({ error: "Impossible de charger les succès" }, { status: 500 });
     }
 
 });

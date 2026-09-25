@@ -252,7 +252,7 @@ describe("PUT /api/finance/payments/[id]", () => {
       params: Promise.resolve({ id: paymentId }),
     });
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("Payment not found");
+    expect((await res.json()).error).toBe("Paiement introuvable");
   });
 
   it("bloque la modification cross-tenant (403)", async () => {
@@ -264,7 +264,7 @@ describe("PUT /api/finance/payments/[id]", () => {
       params: Promise.resolve({ id: paymentId }),
     });
     expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Forbidden");
+    expect((await res.json()).error).toBe("Accès refusé");
     expect(prisma.payment.update).not.toHaveBeenCalled();
   });
 
@@ -306,7 +306,7 @@ describe("PUT /api/finance/payments/[id]", () => {
       params: Promise.resolve({ id: paymentId }),
     });
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });
 
@@ -379,6 +379,6 @@ describe("DELETE /api/finance/payments/[id]", () => {
       params: Promise.resolve({ id: paymentId }),
     });
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });

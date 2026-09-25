@@ -21,6 +21,7 @@ import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
 import { InvalidTwoFactorSignin, withSigninErrorMapping } from "./login-failure";
+import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
 
 /**
  * Extended user type for authentication.
@@ -486,16 +487,7 @@ export const authConfig: NextAuthConfig = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Si l'URL de redirection est relative, la construire avec baseUrl
-      if (url.startsWith("/")) {
-        return `${baseUrl}${url}`;
-      }
-      // Si l'URL est du même site, la retourner
-      if (url.startsWith(baseUrl)) {
-        return url;
-      }
-      // Par défaut, rediriger vers le dashboard
-      return `${baseUrl}/dashboard`;
+      return resolveAuthRedirect(url, baseUrl);
     },
   },
 };

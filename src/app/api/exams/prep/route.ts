@@ -22,7 +22,7 @@ export const GET = createApiHandler(async (req, context) => {
                     select: { schoolId: true },
                 });
                 if (!student) {
-                    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+                    return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
                 }
                 if (!canAccessSchool(session, student.schoolId)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -31,7 +31,7 @@ export const GET = createApiHandler(async (req, context) => {
             // Analyse individuelle
             const readiness = await examPrepService.analyzeStudentReadiness(studentId, examType);
             if (!readiness) {
-                return NextResponse.json({ error: "Student not found" }, { status: 404 });
+                return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
             }
             return NextResponse.json(readiness);
         }
@@ -43,7 +43,7 @@ export const GET = createApiHandler(async (req, context) => {
                     select: { schoolId: true },
                 });
                 if (!classRecord) {
-                    return NextResponse.json({ error: "Class not found" }, { status: 404 });
+                    return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
                 }
                 if (!canAccessSchool(session, classRecord.schoolId)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });

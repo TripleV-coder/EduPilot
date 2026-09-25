@@ -47,7 +47,7 @@
         },
         "cta": {
             "access": "Accéder à l'espace",
-            "explorer": "Découvrir l'Explorer 3D"
+            "explorer": "Explorer les écoles"
         },
         "trust": "Ils nous font confiance pour l'excellence académique",
         "stats": {
@@ -148,7 +148,7 @@
             "links": {
                 "features": "Fonctionnalités",
                 "pricing": "Tarifs",
-                "explorer": "Explorer 3D",
+                "explorer": "Explorer les écoles",
                 "about": "À propos",
                 "contact": "Contact",
                 "blog": "Blog",

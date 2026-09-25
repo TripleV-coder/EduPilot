@@ -132,4 +132,44 @@ describe("PATCH /api/user/profile", () => {
     const res = await patchRequest({ firstName: "Awa" });
     expect(res.status).toBe(500);
   });
+
+  // L'onboarding élève envoyait { objective } seul : le remplacement
+  // effaçait les consentements RGPD, le thème et la langue.
+  it("fusionne les préférences au lieu de les remplacer", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { id: USER_ID }));
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      user({ preferences: { theme: "dark", consents: { analytics: true } } }) as never
+    );
+    vi.mocked(prisma.user.update).mockResolvedValue(user() as never);
+
+    const res = await patchRequest({ preferences: { objective: "BEPC" } });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(prisma.user.update).mock.calls[0][0].data.preferences).toEqual({
+      theme: "dark",
+      consents: { analytics: true },
+      objective: "BEPC",
+    });
+  });
+
+  it("retire une préférence envoyée à null", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: USER_ID }));
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      user({ preferences: { theme: "dark", rooms: ["A1"] } }) as never
+    );
+    vi.mocked(prisma.user.update).mockResolvedValue(user() as never);
+
+    await patchRequest({ preferences: { rooms: null } });
+    expect(vi.mocked(prisma.user.update).mock.calls[0][0].data.preferences).toEqual({
+      theme: "dark",
+    });
+  });
+
+  it("ne lit pas les préférences quand elles ne sont pas modifiées", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: USER_ID }));
+    vi.mocked(prisma.user.update).mockResolvedValue(user() as never);
+
+    await patchRequest({ firstName: "Awa" });
+    expect(vi.mocked(prisma.user.findUnique)).not.toHaveBeenCalled();
+    expect(vi.mocked(prisma.user.update).mock.calls[0][0].data).not.toHaveProperty("preferences");
+  });
 });

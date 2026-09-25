@@ -27,6 +27,18 @@ const emergencyContactSchema = z.object({
   isPrimary: z.boolean().default(false),
 });
 
+// Mise à jour : liste blanche explicite. Le corps brut ne doit jamais
+// atteindre `data` — une écriture imbriquée (medicalRecord → student → user)
+// permettait de modifier le rôle ou le mot de passe du compte élève.
+const emergencyContactUpdateSchema = z.object({
+  name: z.string().min(1, "Le nom est requis").optional(),
+  relationship: z.string().min(1, "Le lien avec l'élève est requis").optional(),
+  phone: z.string().min(1, "Le téléphone est requis").optional(),
+  alternatePhone: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  isPrimary: z.boolean().optional(),
+});
+
 export const GET = createApiHandler(
   async (request, { session }) => {
     try {
@@ -214,7 +226,8 @@ export const PUT = createApiHandler(
       if (roleError) return roleError;
 
       const body = await request.json();
-      const { id, medicalRecordId: _medicalRecordId, ...updateData } = body;
+      const { id, medicalRecordId: _medicalRecordId, ...rest } = body;
+      const updateData = emergencyContactUpdateSchema.parse(rest);
 
       if (!id) {
         return NextResponse.json({ error: "ID requis" }, { status: 400 });

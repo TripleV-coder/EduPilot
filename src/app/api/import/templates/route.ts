@@ -24,7 +24,7 @@ export const GET = createApiHandler(
 
         const schoolId = getActiveSchoolId(session);
         if (!schoolId) {
-            return NextResponse.json({ error: "School ID required" }, { status: 400 });
+            return NextResponse.json({ error: "Identifiant d'établissement requis" }, { status: 400 });
         }
 
         const templates = await prisma.importTemplate.findMany({
@@ -50,7 +50,7 @@ export const POST = createApiHandler(
 
             const schoolId = getActiveSchoolId(session);
             if (!schoolId) {
-                return NextResponse.json({ error: "School ID required" }, { status: 400 });
+                return NextResponse.json({ error: "Identifiant d'établissement requis" }, { status: 400 });
             }
 
             const template = await prisma.importTemplate.create({
@@ -68,11 +68,11 @@ export const POST = createApiHandler(
             logger.error("Error creating template", error instanceof Error ? error : new Error(String(error)), { module: "api/import/templates" });
             if (isZodError(error)) {
                 return NextResponse.json(
-                    { error: "Validation failed", details: error.issues },
+                    { error: "Données invalides", details: error.issues },
                     { status: 400 }
                 );
             }
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ALLOWED_TEMPLATE_ROLES },

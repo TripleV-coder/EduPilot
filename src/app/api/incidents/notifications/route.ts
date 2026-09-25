@@ -35,7 +35,7 @@ export const GET = createApiHandler(
       });
     } catch (error) {
       logger.error("Error fetching incident notifications", error instanceof Error ? error : new Error(String(error)), { module: "api/incidents/notifications" });
-      return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
   },
 );
@@ -94,7 +94,7 @@ export const POST = createApiHandler(
       }, { status: 201 });
     } catch (error) {
       logger.error("Error creating incident notification", error instanceof Error ? error : new Error(String(error)), { module: "api/incidents/notifications" });
-      return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
   },
   { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },

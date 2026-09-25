@@ -45,7 +45,7 @@ export const PUT = createApiHandler(
             });
 
             if (!existingPayment) {
-                return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+                return NextResponse.json({ error: "Paiement introuvable" }, { status: 404 });
             }
 
             if (
@@ -55,7 +55,7 @@ export const PUT = createApiHandler(
                     !canAccessSchool(session, existingPayment.fee.schoolId)
                 )
             ) {
-                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
 
             if (["VERIFIED", "RECONCILED"].includes(existingPayment.status) && session.user.role !== "SUPER_ADMIN") {
@@ -101,7 +101,7 @@ export const PUT = createApiHandler(
             return NextResponse.json(payment);
         } catch (error) {
             logger.error("Error updating payment", error instanceof Error ? error : new Error(String(error)), { module: "api/finance/payments" });
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] }
@@ -134,7 +134,7 @@ export const DELETE = createApiHandler(
             });
 
             if (!payment) {
-                return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+                return NextResponse.json({ error: "Paiement introuvable" }, { status: 404 });
             }
 
             if (
@@ -144,7 +144,7 @@ export const DELETE = createApiHandler(
                     !canAccessSchool(session, payment.fee.schoolId)
                 )
             ) {
-                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
 
             if (["VERIFIED", "RECONCILED"].includes(payment.status) && session.user.role !== "SUPER_ADMIN") {
@@ -171,7 +171,7 @@ export const DELETE = createApiHandler(
             return NextResponse.json({ success: true });
         } catch (error) {
             logger.error("Error deleting payment", error instanceof Error ? error : new Error(String(error)), { module: "api/finance/payments" });
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"] }

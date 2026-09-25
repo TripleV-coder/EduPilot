@@ -21,7 +21,7 @@ export const POST = createApiHandler(
         const { data, schoolId: bodySchoolId } = body;
 
         if (!Array.isArray(data)) {
-            return NextResponse.json({ error: "Invalid data format" }, { status: 400 });
+            return NextResponse.json({ error: "Format de données invalide" }, { status: 400 });
         }
 
         if (data.length > 500) {
@@ -43,7 +43,7 @@ export const POST = createApiHandler(
         }
 
         if (!schoolId) {
-            return NextResponse.json({ error: "School context required" }, { status: 400 });
+            return NextResponse.json({ error: "Établissement actif requis" }, { status: 400 });
         }
 
         const schoolExists = await prisma.school.findUnique({
@@ -51,7 +51,7 @@ export const POST = createApiHandler(
             select: { id: true },
         });
         if (!schoolExists) {
-            return NextResponse.json({ error: "School not found" }, { status: 400 });
+            return NextResponse.json({ error: "Établissement introuvable" }, { status: 400 });
         }
 
         const quota = await checkTeacherQuota(schoolId);

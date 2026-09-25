@@ -64,7 +64,7 @@ try {
         });
         return NextResponse.json(achievements);
     } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch achievements" }, { status: 500 });
+        return NextResponse.json({ error: "Impossible de charger les succès" }, { status: 500 });
     }
 
 });

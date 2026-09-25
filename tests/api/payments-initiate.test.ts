@@ -139,7 +139,7 @@ describe("POST /api/payments/initiate", () => {
       body: validBody(),
     }));
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("Student not found");
+    expect((await res.json()).error).toBe("Élève introuvable");
   });
 
   it("retourne 404 si le frais n'existe pas", async () => {
@@ -156,7 +156,7 @@ describe("POST /api/payments/initiate", () => {
       body: validBody(),
     }));
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("Fee not found");
+    expect((await res.json()).error).toBe("Frais introuvables");
   });
 
   it("bloque une initiation cross-tenant (étudiant d'une autre école)", async () => {

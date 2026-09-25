@@ -208,7 +208,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
             factor: "escalade_comportementale",
             severity: severityFromScore(behaviorScore),
             contribution: Math.round(behaviorScore),
-            description: `Incidents en hausse : ${priorInc} → ${recentInc} sur 30 j.`,
+            description: `Incidents en hausse : de ${priorInc} à ${recentInc} sur 30 j.`,
         });
         recommendations.push("Entretien avec le conseiller d'éducation");
     }

@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
+import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { buildPerformanceDistribution, buildRiskDistribution } from "./builders";
 import { DASHBOARD_ANALYTICS_SELECT, loadAtRiskStudents, summarizeSubjects } from "./queries";
 
@@ -577,8 +578,9 @@ export async function getAdminDashboardData(
     }
   }
 
-  const classSummary = Object.values(classMap)
-    .map(c => ({
+  const classSummary = Object.entries(classMap)
+    .map(([id, c]) => ({
+      id,
       name: c.name,
       average: c.count > 0 ? roundTo(c.totals / c.count) : 0,
       studentCount: c.students.size,
@@ -595,9 +597,10 @@ export async function getAdminDashboardData(
   });
 
   // Vague 2 : les deux seules requêtes qui dépendent des analyses lues plus haut.
-  const [subjectSummary, atRiskStudents] = await Promise.all([
+  const [subjectSummary, atRiskStudents, feeRecovery] = await Promise.all([
     summarizeSubjects(currentAnalytics.map((item) => item.id), filterSubjectId),
     loadAtRiskStudents(currentAnalytics, yearId),
+    computeYearFeeRecovery(schoolId, yearId),
   ]);
 
   // Calculate realistic growths
@@ -633,6 +636,9 @@ export async function getAdminDashboardData(
     dropoutRate: roundTo(dropoutRate),
     pendingPayments: Number(pendingPayments._sum.amount || 0),
     paymentsReceived: Number(paymentsReceived._sum.amount || 0),
+    // Taux de recouvrement de l'année (attendu réel), null si rien n'est facturé.
+    feeRecoveryRate: feeRecovery ? roundTo(feeRecovery.rate) : null,
+    feesCollected: feeRecovery?.collected ?? null,
     studentGrowth, 
     attendanceGrowth,
     averageGrowth,

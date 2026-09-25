@@ -27,6 +27,11 @@ vi.mock("@/lib/services/analytics-dashboard", () => ({
   getAccountantDashboardData: vi.fn(),
   getStaffDashboardData: vi.fn(),
 }));
+// Recouvrement : testé à part (tests/lib/finance/expected-fees.test.ts).
+vi.mock("@/lib/finance/expected-fees", () => ({
+  computeYearFeeRecovery: vi.fn(async () => null),
+  computePlanlessExpected: vi.fn(async () => ({ expected: 0, pending: 0, overdue: new Map() })),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     academicYear: { findFirst: vi.fn() },

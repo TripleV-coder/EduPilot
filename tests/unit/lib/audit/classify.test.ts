@@ -71,8 +71,8 @@ describe("severityFor", () => {
 });
 
 describe("summarizeDetail", () => {
-    it("renders value→value diff when both present", () => {
-        expect(summarizeDetail({ value: 14.5 }, { value: 16.5 })).toBe("14.5 → 16.5");
+    it("renders the old and new value when both present", () => {
+        expect(summarizeDetail({ value: 14.5 }, { value: 16.5 })).toBe("de « 14.5 » à « 16.5 »");
     });
 
     it("renders amount + method for payments", () => {

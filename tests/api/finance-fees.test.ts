@@ -50,7 +50,7 @@ describe("GET /api/finance/fees", () => {
     vi.mocked(auth).mockResolvedValue(NO_SCHOOL_ROOT);
     const res = await GET(makeRequest("http://localhost/api/finance/fees"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("School ID required");
+    expect((await res.json()).error).toBe("Identifiant d'établissement requis");
   });
 
   it("liste les frais actifs de l'école", async () => {
@@ -74,7 +74,7 @@ describe("GET /api/finance/fees", () => {
     vi.mocked(prisma.fee.findMany).mockRejectedValue(new Error("db down"));
     const res = await GET(makeRequest("http://localhost/api/finance/fees"));
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });
 
@@ -122,7 +122,7 @@ describe("POST /api/finance/fees", () => {
       makeRequest("http://localhost/api/finance/fees", { method: "POST", body: { name: "Scolarité T1", amount: 100000 } })
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("User not associated with a school");
+    expect((await res.json()).error).toBe("Utilisateur non rattaché à un établissement");
   });
 
   it("crée le frais actif dans l'école cible (201)", async () => {
@@ -148,6 +148,6 @@ describe("POST /api/finance/fees", () => {
     vi.mocked(prisma.fee.create).mockRejectedValue(new Error("db down"));
     const res = await POST(makeRequest("http://localhost/api/finance/fees", { method: "POST", body: validBody }));
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });

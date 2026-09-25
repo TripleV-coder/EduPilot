@@ -17,7 +17,7 @@ export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
 const schoolId = getActiveSchoolId(session);
         if (!schoolId && session.user.role !== "SUPER_ADMIN") {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -39,7 +39,7 @@ export const POST = createApiHandler(async (request, context) => {
         const session = context.session;
 
         const schoolId = getActiveSchoolId(session);
-        if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 400 });
+        if (!schoolId) return NextResponse.json({ error: "Établissement actif requis" }, { status: 400 });
 
         const body = await request.json();
         const validated = bookSchema.parse(body);
@@ -56,7 +56,7 @@ export const POST = createApiHandler(async (request, context) => {
     
     } catch (error) {
         if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues }, { status: 400 });
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

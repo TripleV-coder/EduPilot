@@ -180,3 +180,24 @@ describe("DELETE /api/health/vaccinations", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "DELETE" }) }));
   });
 });
+describe("PUT /api/health/vaccinations — champs non autorisés", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("ignore les écritures imbriquées et les champs inconnus", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("NURSE"));
+    vi.mocked(prisma.vaccination.findUnique).mockResolvedValue(makeVaccination({ medicalRecord: { studentId: FIXTURES.studentA, student: STUDENT } }));
+    vi.mocked(prisma.vaccination.update).mockResolvedValue(makeVaccination({ vaccineName: "ROR" }));
+    const res = await PUT(makeRequest("http://localhost/api/health/vaccinations", {
+      method: "PUT",
+      body: {
+        id: cuid("vac1"),
+        vaccineName: "ROR",
+        medicalRecord: { update: { student: { update: { user: { update: { role: "SUPER_ADMIN" } } } } } },
+      },
+    }), { session: makeSession("NURSE") });
+    expect(res.status).toBe(200);
+    const data = vi.mocked(prisma.vaccination.update).mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).not.toHaveProperty("medicalRecord");
+    expect(data.vaccineName).toBe("ROR");
+  });
+});

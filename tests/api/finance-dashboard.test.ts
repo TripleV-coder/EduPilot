@@ -15,6 +15,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+// Frais sans échéancier : testé à part (tests/lib/finance-expected-fees.test.ts).
+vi.mock("@/lib/finance/expected-fees", () => ({
+  computePlanlessExpected: vi.fn(async () => ({ expected: 0, pending: 0, overdue: new Map() })),
+}));
 const ACCOUNTANT = makeSession("ACCOUNTANT");
 
 function planRecord(overrides: Record<string, unknown> = {}) {

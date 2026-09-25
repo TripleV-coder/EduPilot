@@ -5,10 +5,22 @@ import { analyzeStudentPerformance } from "@/lib/ai/n8n-client";
 import { studentAlias } from "@/lib/ai/pii";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
 
 export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
+
+        // Appel LLM facturé : même limite stricte que chatbot / v2 / predict-failure.
+        const identifier = `${session.user.id}:${getClientIdentifier(request)}`;
+        const rl = await checkRateLimit(strictLimiter, `ai:analyze:${identifier}`);
+        if (!rl.success) {
+            const retryAfter = Math.ceil((rl.reset.getTime() - Date.now()) / 1000);
+            return NextResponse.json(
+                { error: "Trop de requêtes", code: "RATE_LIMITED", retryAfter },
+                { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+            );
+        }
 
         const body = await request.json();
         const { studentId, periodId } = body;

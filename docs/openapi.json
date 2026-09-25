@@ -9526,6 +9526,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -9676,6 +9679,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -9791,6 +9797,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -13777,6 +13786,30 @@
         }
       }
     },
+    "/api/public/plans": {
+      "get": {
+        "summary": "GET /api/public/plans",
+        "description": "Accessible sans session.",
+        "tags": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/public/schools/{code}": {
       "get": {
         "summary": "GET /api/public/schools/{code}",
@@ -14695,6 +14728,35 @@
       },
       "patch": {
         "summary": "PATCH /api/root/plans",
+        "description": "Session requise.",
+        "tags": [
+          "root"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/root/plans",
         "description": "Session requise.",
         "tags": [
           "root"

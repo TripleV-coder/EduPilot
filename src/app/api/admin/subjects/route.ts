@@ -9,7 +9,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
     if (!session.user.schoolId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     const subjects = await prisma.subject.findMany({
@@ -25,12 +25,12 @@ export const GET = createApiHandler(async (request, context) => {
 export const POST = createApiHandler(async (request, context) => {
         const session = context.session;
     if (!session.user.schoolId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     // Check admin permission
     if (!roleSatisfies(session.user.role || "", ["SCHOOL_ADMIN", "SUPER_ADMIN"])) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -67,11 +67,11 @@ export const POST = createApiHandler(async (request, context) => {
 export const PUT = createApiHandler(async (request, context) => {
         const session = context.session;
     if (!session.user.schoolId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     if (!roleSatisfies(session.user.role || "", ["SCHOOL_ADMIN", "SUPER_ADMIN"])) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     const body = await request.json();

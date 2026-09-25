@@ -56,7 +56,7 @@ describe("GET /api/import/templates", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await GET(makeRequest("http://localhost/api/import/templates"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("School ID required");
+    expect((await res.json()).error).toBe("Identifiant d'établissement requis");
   });
 
   it("should list templates scoped to the school", async () => {
@@ -111,7 +111,7 @@ describe("POST /api/import/templates", () => {
     }));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe("Validation failed");
+    expect(body.error).toBe("Données invalides");
     expect(body.details).toBeDefined();
   });
 
@@ -132,7 +132,7 @@ describe("POST /api/import/templates", () => {
       body: { name: "Modèle", type: "STUDENTS", mappings: {} },
     }));
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });
 
@@ -142,7 +142,7 @@ describe("GET /api/import/templates/[id]", () => {
     vi.mocked(prisma.importTemplate.findUnique).mockResolvedValue(null);
     const res = await GET_ONE(makeRequest(`http://localhost/api/import/templates/${TEMPLATE_ID}`), { params: Promise.resolve({ id: TEMPLATE_ID }) });
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("Template not found");
+    expect((await res.json()).error).toBe("Modèle introuvable");
   });
 
   it("should forbid access from another school", async () => {
@@ -150,7 +150,7 @@ describe("GET /api/import/templates/[id]", () => {
     vi.mocked(prisma.importTemplate.findUnique).mockResolvedValue(makeTemplate() as never);
     const res = await GET_ONE(makeRequest(`http://localhost/api/import/templates/${TEMPLATE_ID}`), { params: Promise.resolve({ id: TEMPLATE_ID }) });
     expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Forbidden");
+    expect((await res.json()).error).toBe("Accès refusé");
   });
 
   it("should return the template for the same school", async () => {
@@ -199,7 +199,7 @@ describe("PUT /api/import/templates/[id]", () => {
     vi.mocked(prisma.importTemplate.findUnique).mockResolvedValue(makeTemplate() as never);
     const res = await PUT(makeRequest(`http://localhost/api/import/templates/${TEMPLATE_ID}`, { method: "PUT", body: { name: 123 } }), { params: Promise.resolve({ id: TEMPLATE_ID }) });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Validation failed");
+    expect((await res.json()).error).toBe("Données invalides");
   });
 
   it("should return 500 on unexpected database failure", async () => {

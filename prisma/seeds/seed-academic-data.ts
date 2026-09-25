@@ -111,6 +111,22 @@ export async function seedAcademicData(ctx: SeedContext): Promise<void> {
             });
             totalAttendance++;
         }
+
+        // L'appel enregistre aussi les présents (/api/attendance/bulk) : sans
+        // eux, le taux de présence du seed valait retards / absences (~18 %).
+        const absentSet = new Set(absenceDays.map((d) => d.getTime()));
+        const presentDays = schoolDays.filter((d) => !absentSet.has(d.getTime()));
+        const { count } = await prisma.attendance.createMany({
+            data: presentDays.map((day) => ({
+                studentId: student.profile.id,
+                classId: student.class.id,
+                date: day,
+                status: "PRESENT" as AttendanceStatus,
+                recordedById: ctx.teachers[0].user.id,
+            })),
+            skipDuplicates: true,
+        });
+        totalAttendance += count;
     }
     console.log(`   ✅ ${totalAttendance} enregistrements de présence créés\n`);
 

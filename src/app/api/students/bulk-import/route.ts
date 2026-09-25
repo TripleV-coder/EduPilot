@@ -40,7 +40,7 @@ export const POST = createApiHandler(
 
     if (!validation.success) {
       return NextResponse.json({
-        error: "Validation failed",
+        error: "Données invalides",
         details: validation.error.issues
       }, { status: 400 });
     }

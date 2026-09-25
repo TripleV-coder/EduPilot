@@ -29,7 +29,7 @@ export const GET = createApiHandler(async (request, context) => {
             module: "api/canteen/menu",
             schoolId: getActiveSchoolId(session),
         });
-        return NextResponse.json({ error: "Failed to fetch menu" }, { status: 500 });
+        return NextResponse.json({ error: "Impossible de charger le menu" }, { status: 500 });
     }
 
 });
@@ -58,7 +58,7 @@ export const POST = createApiHandler(async (request, context) => {
             module: "api/canteen/menu",
             schoolId: getActiveSchoolId(session),
         });
-        return NextResponse.json({ error: "Failed to update menu" }, { status: 500 });
+        return NextResponse.json({ error: "Impossible de mettre à jour le menu" }, { status: 500 });
     }
 
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

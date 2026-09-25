@@ -257,3 +257,27 @@ describe("PATCH /api/health/emergency-contacts", () => {
     expect(prisma.auditLog.create).toHaveBeenCalled();
   });
 });
+// Mass assignment : le corps brut partait dans `data`. Une écriture imbriquée
+// medicalRecord → student → user permettait à un PARENT de changer le rôle
+// ou le mot de passe du compte élève.
+describe("PUT /api/health/emergency-contacts — champs non autorisés", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("ignore les écritures imbriquées et les champs inconnus", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("NURSE"));
+    vi.mocked(prisma.emergencyContact.findUnique).mockResolvedValue(makeContact({ medicalRecord: { studentId: FIXTURES.studentA, student: STUDENT } }));
+    vi.mocked(prisma.emergencyContact.update).mockResolvedValue(makeContact({ name: "Papa" }));
+    const res = await PUT(makeRequest("http://localhost/api/health/emergency-contacts", {
+      method: "PUT",
+      body: {
+        id: cuid("ec1"),
+        name: "Papa",
+        medicalRecord: { update: { student: { update: { user: { update: { role: "SUPER_ADMIN" } } } } } },
+        createdAt: "2020-01-01",
+      },
+    }), { session: makeSession("NURSE") });
+    expect(res.status).toBe(200);
+    const data = vi.mocked(prisma.emergencyContact.update).mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ name: "Papa" });
+  });
+});

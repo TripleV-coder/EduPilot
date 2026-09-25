@@ -9,11 +9,11 @@ export const PUT = createApiHandler(async (request, context) => {
         const { id } = await context.params;
         const session = context.session;
     if (!session.user.schoolId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     if (!roleSatisfies(session.user.role || "", ["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"])) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Verify subject belongs to school
@@ -22,7 +22,7 @@ export const PUT = createApiHandler(async (request, context) => {
     });
 
     if (!subject) {
-        return NextResponse.json({ error: "Subject not found" }, { status: 404 });
+        return NextResponse.json({ error: "Matière introuvable" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -47,11 +47,11 @@ export const DELETE = createApiHandler(async (request, context) => {
         const { id } = await context.params;
         const session = context.session;
     if (!session.user.schoolId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     if (!roleSatisfies(session.user.role || "", ["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"])) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
     // Verify subject belongs to school
@@ -60,7 +60,7 @@ export const DELETE = createApiHandler(async (request, context) => {
     });
 
     if (!subject) {
-        return NextResponse.json({ error: "Subject not found" }, { status: 404 });
+        return NextResponse.json({ error: "Matière introuvable" }, { status: 404 });
     }
 
     // Check if subject is used in any class

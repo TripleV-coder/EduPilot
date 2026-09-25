@@ -166,7 +166,7 @@ export const GET = createApiHandler(
           userId: session.user.id,
         }
       );
-      return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
   },
   { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT", "DIRECTOR"] }

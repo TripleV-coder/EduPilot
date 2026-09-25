@@ -51,7 +51,7 @@ export const POST = createApiHandler(
 
             const parsed = initiateSchema.safeParse(body);
             if (!parsed.success) {
-                return NextResponse.json({ error: "Invalid request data", details: parsed.error.format() }, { status: 400 });
+                return NextResponse.json({ error: "Données de requête invalides", details: parsed.error.format() }, { status: 400 });
             }
 
             const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
@@ -69,11 +69,11 @@ export const POST = createApiHandler(
             ]);
 
             if (!studentProfile) {
-                return NextResponse.json({ error: "Student not found" }, { status: 404 });
+                return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
             }
 
             if (!fee) {
-                return NextResponse.json({ error: "Fee not found" }, { status: 404 });
+                return NextResponse.json({ error: "Frais introuvables" }, { status: 404 });
             }
 
             if (

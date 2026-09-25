@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
 
 // Chat schema
 const chatSchema = z.object({
@@ -97,6 +98,17 @@ export const POST = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
 
+        // Appel LLM facturé : même limite stricte que chatbot / v2 / predict-failure.
+        const identifier = `${session.user.id}:${getClientIdentifier(request)}`;
+        const rl = await checkRateLimit(strictLimiter, `ai:local:${identifier}`);
+        if (!rl.success) {
+            const retryAfter = Math.ceil((rl.reset.getTime() - Date.now()) / 1000);
+            return NextResponse.json(
+                { error: "Trop de requêtes", code: "RATE_LIMITED", retryAfter },
+                { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+            );
+        }
+
     const query = request.nextUrl.searchParams.get("endpoint");
     let body;
 
@@ -183,7 +195,7 @@ export const POST = createApiHandler(async (request, context) => {
 
     if (isZodError(error)) {
       return NextResponse.json(
-        { error: "Invalid request data", details: error.issues },
+        { error: "Données de requête invalides", details: error.issues },
         { status: 400 }
       );
     }

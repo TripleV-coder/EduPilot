@@ -27,6 +27,18 @@ const medicalRecordSchema = z.object({
   allergies: z.array(z.string()).optional(),
 });
 
+// Mise à jour : liste blanche explicite. Le corps brut ne doit jamais
+// atteindre `data` — une écriture imbriquée (medicalRecord → student → user)
+// permettait de modifier le rôle ou le mot de passe du compte élève.
+const medicalRecordUpdateSchema = z.object({
+  bloodType: z.string().nullable().optional(),
+  medicalHistory: z.string().nullable().optional(),
+  conditions: z.array(z.string()).optional(),
+  medications: z.array(z.string()).optional(),
+  notes: z.string().nullable().optional(),
+  allergies: z.array(z.string().min(1)).optional(),
+});
+
 export const GET = createApiHandler(
   async (request, { session }) => {
     try {
@@ -222,7 +234,8 @@ export const PUT = createApiHandler(
       if (roleError) return roleError;
 
       const body = await request.json();
-      const { id, allergies, studentId: _studentId, ...updateData } = body;
+      const { id, studentId: _studentId, ...rest } = body;
+      const { allergies, ...updateData } = medicalRecordUpdateSchema.parse(rest);
 
       if (!id) {
         return NextResponse.json({ error: "ID requis" }, { status: 400 });

@@ -144,6 +144,6 @@ describe("GET /api/finance/stats", () => {
     vi.mocked(prisma.classLevel.findMany).mockRejectedValue(new Error("db down"));
     const res = await GET(makeRequest("http://localhost/api/finance/stats"));
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Internal Server Error");
+    expect((await res.json()).error).toBe("Erreur interne du serveur");
   });
 });

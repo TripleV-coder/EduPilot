@@ -27,7 +27,7 @@ export const GET = createApiHandler(async (request, context) => {
             module: "api/gamification/leaderboard",
             schoolId: getActiveSchoolId(session),
         });
-        return NextResponse.json({ error: "Failed to fetch leaderboard" }, { status: 500 });
+        return NextResponse.json({ error: "Impossible de charger le classement" }, { status: 500 });
     }
 
 });

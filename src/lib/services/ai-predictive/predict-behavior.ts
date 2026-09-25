@@ -106,7 +106,7 @@ export async function predictBehaviorRisk(studentId: string): Promise<BehaviorRi
             factor: "tendance_hausse",
             weight: 0.2,
             contribution: trendPenalty,
-            description: `Fréquence en hausse : ${previousMonth} → ${lastMonth} incident(s)/mois`,
+            description: `Fréquence en hausse : de ${previousMonth} à ${lastMonth} incident(s) par mois`,
         });
         recommendations.push("Identifier les déclencheurs récents et impliquer les parents");
     }

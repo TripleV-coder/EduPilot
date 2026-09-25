@@ -83,7 +83,7 @@ export function summarizeDetail(
     if ("value" in oldObj && "value" in newObj && oldObj.value !== newObj.value) {
         const a = String(oldObj.value ?? "");
         const b = String(newObj.value ?? "");
-        return `${a} → ${b}`;
+        return `de « ${a} » à « ${b} »`;
     }
 
     if (typeof newObj.count === "number") {

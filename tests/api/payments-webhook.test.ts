@@ -52,7 +52,7 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
   it("refuse un webhook sans header de signature (401)", async () => {
     const res = await POST(rawRequest('{"id":"t1","status":"successful"}'));
     expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Unauthorized");
+    expect((await res.json()).error).toBe("Non authentifié");
     expect(prisma.payment.findFirst).not.toHaveBeenCalled();
   });
 

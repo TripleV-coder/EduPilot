@@ -23,12 +23,12 @@ export const GET = createApiHandler(
         });
 
         if (!template) {
-            return NextResponse.json({ error: "Template not found" }, { status: 404 });
+            return NextResponse.json({ error: "Modèle introuvable" }, { status: 404 });
         }
 
         // Verify access
         if (template.schoolId !== getActiveSchoolId(session)) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
         return NextResponse.json(template);
@@ -47,11 +47,11 @@ export const PUT = createApiHandler(
             });
 
             if (!template) {
-                return NextResponse.json({ error: "Template not found" }, { status: 404 });
+                return NextResponse.json({ error: "Modèle introuvable" }, { status: 404 });
             }
 
             if (template.schoolId !== getActiveSchoolId(session)) {
-                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
 
             const body = await request.json();
@@ -70,11 +70,11 @@ export const PUT = createApiHandler(
             logger.error("Error updating template", error instanceof Error ? error : new Error(String(error)), { module: "api/import/templates/[id]" });
             if (isZodError(error)) {
                 return NextResponse.json(
-                    { error: "Validation failed", details: error.issues },
+                    { error: "Données invalides", details: error.issues },
                     { status: 400 }
                 );
             }
-            return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+            return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }
     },
     { allowedRoles: ALLOWED_TEMPLATE_ROLES },
@@ -90,11 +90,11 @@ export const DELETE = createApiHandler(
         });
 
         if (!template) {
-            return NextResponse.json({ error: "Template not found" }, { status: 404 });
+            return NextResponse.json({ error: "Modèle introuvable" }, { status: 404 });
         }
 
         if (template.schoolId !== getActiveSchoolId(session)) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
         await prisma.importTemplate.delete({

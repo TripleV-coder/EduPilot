@@ -77,7 +77,7 @@ describe("POST /api/students/bulk-import", () => {
     const res = await POST(makeRequest(URL, { method: "POST", body: { students: [] } }));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe("Validation failed");
+    expect(body.error).toBe("Données invalides");
     expect(body.details).toBeDefined();
   });
 

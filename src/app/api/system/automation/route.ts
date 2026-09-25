@@ -39,7 +39,7 @@ async function handleMaintenance(req: NextRequest) {
     }
 
     if (cronAuth !== "ok") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
     // Secret vérifié : la maintenance porte sur tous les établissements,
