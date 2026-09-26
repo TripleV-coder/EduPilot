@@ -305,6 +305,20 @@ export const POST = createApiHandler(
         },
       });
 
+      // Responsable légal : enregistré avec l'élève (l'inscription le perdait).
+      if (validatedData.guardian) {
+        await tx.studentGuardian.create({
+          data: {
+            studentId: studentProfile.id,
+            firstName: sanitizePlainText(validatedData.guardian.firstName),
+            lastName: sanitizePlainText(validatedData.guardian.lastName),
+            relationship: sanitizePlainText(validatedData.guardian.relationship),
+            phone: validatedData.guardian.phone.replace(/\s/g, ""),
+            isPrimary: true,
+          },
+        });
+      }
+
       if (validatedData.classId && validatedData.academicYearId) {
         await tx.enrollment.create({
           data: {
@@ -312,6 +326,7 @@ export const POST = createApiHandler(
             classId: validatedData.classId,
             academicYearId: validatedData.academicYearId,
             status: "ACTIVE",
+            ...(validatedData.enrolledAt ? { enrolledAt: validatedData.enrolledAt } : {}),
           },
         });
       }

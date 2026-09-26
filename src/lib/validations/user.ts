@@ -52,6 +52,21 @@ export const studentCreateSchema = z.object({
   address: z.string().max(255).optional(),
   classId: z.string().cuid("ID de classe invalide"),
   academicYearId: z.string().cuid("ID d'année scolaire invalide"),
+  enrolledAt: z.coerce.date<string | Date>().optional(),
+  // Responsable légal saisi à l'inscription (sans compte parent).
+  guardian: z
+    .object({
+      firstName: z.string().trim().min(1, "Le prénom du responsable est obligatoire").max(100),
+      lastName: z.string().trim().min(1, "Le nom du responsable est obligatoire").max(100),
+      relationship: z.string().trim().min(1).max(50),
+      phone: z
+        .string()
+        .trim()
+        .refine((val) => /^(\+229)?[0-9]{8,10}$/.test(val.replace(/\s/g, "")), {
+          message: "Téléphone du responsable invalide",
+        }),
+    })
+    .optional(),
 });
 
 export const teacherCreateSchema = z.object({

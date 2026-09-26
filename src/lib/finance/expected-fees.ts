@@ -262,3 +262,90 @@ export async function computeStudentFeeDues(studentIds: string[]): Promise<Stude
   }
   return dues;
 }
+
+export type StudentFeeBalance = {
+  feeId: string;
+  feeName: string;
+  /** Montant facturé : total de l'échéancier s'il existe, sinon montant du frais. */
+  billed: number;
+  /** Paiements validés. */
+  paid: number;
+  /** Paiements déclarés, en attente de validation (Mobile Money, etc.). */
+  pending: number;
+  /** Reste dû après paiements validés. */
+  remaining: number;
+  /** Montant à proposer au guichet : reste dû moins ce qui est déjà en attente. */
+  suggested: number;
+  dueDate: Date | null;
+};
+
+/**
+ * Solde d'un élève frais par frais, pour son inscription de l'année courante —
+ * frais avec ou sans échéancier. Sert à préremplir l'encaissement : avant, le
+ * guichet proposait le montant total du frais, même déjà payé en partie.
+ */
+export async function computeStudentBalances(studentId: string): Promise<StudentFeeBalance[]> {
+  const enrollment = await prisma.enrollment.findFirst({
+    where: {
+      studentId,
+      status: "ACTIVE",
+      deletedAt: null,
+      academicYear: { isCurrent: true },
+      class: { deletedAt: null },
+    },
+    orderBy: { enrolledAt: "desc" },
+    select: {
+      academicYearId: true,
+      class: { select: { schoolId: true, classLevel: { select: { code: true } } } },
+    },
+  });
+  if (!enrollment) return [];
+
+  const fees = await prisma.fee.findMany({
+    where: {
+      schoolId: enrollment.class.schoolId,
+      isActive: true,
+      deletedAt: null,
+      OR: [{ academicYearId: enrollment.academicYearId }, { academicYearId: null }],
+      AND: [{ OR: [{ classLevelCode: null }, { classLevelCode: enrollment.class.classLevel.code }] }],
+    },
+    select: { id: true, name: true, amount: true, dueDate: true },
+    orderBy: [{ dueDate: "asc" }, { name: "asc" }],
+  });
+  if (fees.length === 0) return [];
+
+  const feeIds = fees.map((fee) => fee.id);
+  const [plans, payments] = await Promise.all([
+    prisma.paymentPlan.findMany({
+      where: { studentId, feeId: { in: feeIds }, status: { not: "CANCELLED" } },
+      select: { feeId: true, totalAmount: true },
+    }),
+    prisma.payment.groupBy({
+      by: ["feeId", "status"],
+      where: { studentId, feeId: { in: feeIds }, deletedAt: null, status: { in: [...SETTLED_STATUSES, "PENDING"] } },
+      _sum: { amount: true },
+    }),
+  ]);
+  const planTotal = new Map(plans.map((plan) => [plan.feeId, Number(plan.totalAmount)]));
+  const sumFor = (feeId: string, statuses: readonly string[]) =>
+    payments
+      .filter((row) => row.feeId === feeId && statuses.includes(row.status))
+      .reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
+
+  return fees.map((fee) => {
+    const billed = planTotal.get(fee.id) ?? Number(fee.amount);
+    const paid = sumFor(fee.id, SETTLED_STATUSES);
+    const pending = sumFor(fee.id, ["PENDING"]);
+    const remaining = Math.max(0, billed - paid);
+    return {
+      feeId: fee.id,
+      feeName: fee.name,
+      billed,
+      paid,
+      pending,
+      remaining,
+      suggested: Math.max(0, remaining - pending),
+      dueDate: fee.dueDate,
+    };
+  });
+}

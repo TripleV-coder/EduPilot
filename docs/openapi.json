@@ -1625,6 +1625,36 @@
             "type": "string",
             "format": "cuid",
             "pattern": "^[cC][0-9a-z]{6,}$"
+          },
+          "enrolledAt": {},
+          "guardian": {
+            "type": "object",
+            "properties": {
+              "firstName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "lastName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "relationship": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "phone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "firstName",
+              "lastName",
+              "relationship",
+              "phone"
+            ]
           }
         },
         "required": [
@@ -4535,6 +4565,9 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -7051,6 +7084,75 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/config/council-rules": {
+      "get": {
+        "summary": "GET /api/config/council-rules",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "tags": [
+          "config"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/config/council-rules",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "config"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16280,6 +16382,53 @@
           }
         }
       }
+    },
+    "/api/students/{id}/balances": {
+      "get": {
+        "summary": "GET /api/students/{id}/balances",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
+        "tags": [
+          "students"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/students/{id}/card": {
       "get": {

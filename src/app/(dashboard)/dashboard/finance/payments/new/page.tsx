@@ -26,11 +26,18 @@ type StudentOption = {
     class?: { name?: string } | null;
 };
 
-type FeeOption = {
-    id: string;
-    name: string;
-    amount: number;
+/** Solde de l'élève sur un frais (GET /api/students/[id]/balances). */
+type FeeBalance = {
+    feeId: string;
+    feeName: string;
+    billed: number;
+    paid: number;
+    pending: number;
+    remaining: number;
+    suggested: number;
 };
+
+const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
 type PaymentRecord = {
     id: string;
@@ -38,7 +45,8 @@ type PaymentRecord = {
 
 export default function NewPaymentPage() {
     const [students, setStudents] = useState<StudentOption[]>([]);
-    const [fees, setFees] = useState<FeeOption[]>([]);
+    const [fees, setFees] = useState<FeeBalance[]>([]);
+    const [pinnedStudent, setPinnedStudent] = useState<StudentOption | null>(null);
 
     const [selectedStudentId, setSelectedStudentId] = useState("");
     const [selectedFeeId, setSelectedFeeId] = useState("");
@@ -48,7 +56,7 @@ export default function NewPaymentPage() {
     const [payerPhone, setPayerPhone] = useState("");
     const [notes, setNotes] = useState("");
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -56,23 +64,54 @@ export default function NewPaymentPage() {
     const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
     const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
+    // Ouverture depuis une fiche élève ou la fin d'une inscription : ?studentId=…
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                // Fetch basic data (Fees usually)
-                const fRes = await fetch("/api/fees");
-                if (fRes.ok) {
-                    const data = await fRes.json();
-                    setFees(Array.isArray(data) ? data : data.data || []);
-                }
-            } catch {
-                setError("Erreur lors du chargement des frais.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchInitialData();
+        const studentId = new URLSearchParams(window.location.search).get("studentId");
+        if (!studentId) return;
+        fetch(`/api/students/${encodeURIComponent(studentId)}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (!data?.id) return;
+                const current = Array.isArray(data.enrollments)
+                    ? data.enrollments.find((e: { status?: string }) => e.status === "ACTIVE") ?? data.enrollments[0]
+                    : null;
+                setPinnedStudent({ id: data.id, matricule: data.matricule, user: data.user, class: current?.class ?? null });
+                setSelectedStudentId(data.id);
+            })
+            .catch(() => setError("Impossible de charger l'élève demandé."));
     }, []);
+
+    // Frais de l'élève sélectionné, avec son reste dû : le montant proposé est
+    // le reste dû (moins ce qui est déjà en attente), jamais le total du frais.
+    useEffect(() => {
+        setSelectedFeeId("");
+        setAmount("");
+        if (!selectedStudentId) {
+            setFees([]);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        fetch(`/api/students/${encodeURIComponent(selectedStudentId)}/balances`)
+            .then(async (res) => {
+                if (!res.ok) throw new Error("Erreur lors du chargement du solde de l'élève.");
+                const data = (await res.json()) as { balances?: FeeBalance[] };
+                if (cancelled) return;
+                const owed = (data.balances ?? []).filter((b) => b.remaining > 0);
+                setFees(owed);
+                // Un seul frais restant : présélectionné.
+                if (owed.length === 1) setSelectedFeeId(owed[0].feeId);
+            })
+            .catch((err) => {
+                if (!cancelled) setError(getErrorMessage(err));
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedStudentId]);
 
     // Search students on typing
     useEffect(() => {
@@ -96,9 +135,9 @@ export default function NewPaymentPage() {
     // When a fee is selected, auto-fill the amount
     useEffect(() => {
         if (selectedFeeId) {
-            const fee = fees.find(f => f.id === selectedFeeId);
+            const fee = fees.find(f => f.feeId === selectedFeeId);
             if (fee) {
-                setAmount(fee.amount.toString());
+                setAmount(fee.suggested > 0 ? fee.suggested.toString() : "");
             }
         } else {
             setAmount("");
@@ -185,6 +224,7 @@ export default function NewPaymentPage() {
             setNotes("");
             setSearchTerm("");
             setStudents([]);
+            setPinnedStudent(null);
 
             document.getElementById("main-content")?.scrollTo({ top: 0 });
         } catch (err) {
@@ -216,7 +256,8 @@ export default function NewPaymentPage() {
         }
     };
 
-    const selectedStudent = students.find(s => s.id === selectedStudentId);
+    const selectedStudent = students.find(s => s.id === selectedStudentId) ?? (pinnedStudent?.id === selectedStudentId ? pinnedStudent : undefined);
+    const selectedBalance = fees.find(f => f.feeId === selectedFeeId);
 
     return (
         <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
@@ -352,18 +393,28 @@ export default function NewPaymentPage() {
                                                 disabled={!selectedStudentId}
                                             >
                                                 <option value="">
-                                                    {loading
-                                                        ? "Chargement des frais…"
-                                                        : fees.length === 0
-                                                          ? "Aucun frais configuré"
-                                                          : "Sélectionner un frais..."}
+                                                    {!selectedStudentId
+                                                        ? "Choisissez d'abord un élève"
+                                                        : loading
+                                                          ? "Chargement du solde…"
+                                                          : fees.length === 0
+                                                            ? "Aucun reste dû pour cet élève"
+                                                            : "Sélectionner un frais..."}
                                                 </option>
                                                 {fees.map(f => (
-                                                    <option key={f.id} value={f.id}>
-                                                        {f.name} ({(f.amount).toLocaleString('fr-BJ')} FCFA)
+                                                    <option key={f.feeId} value={f.feeId}>
+                                                        {f.feeName} — reste dû {fcfa(f.remaining)}
                                                     </option>
                                                 ))}
                                             </select>
+                                            {selectedBalance ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Facturé {fcfa(selectedBalance.billed)} · payé {fcfa(selectedBalance.paid)}
+                                                    {selectedBalance.pending > 0
+                                                        ? ` · ${fcfa(selectedBalance.pending)} déjà déclarés, en attente de validation`
+                                                        : ""}
+                                                </p>
+                                            ) : null}
                                         </div>
 
                                         <div className="space-y-2 align-top">

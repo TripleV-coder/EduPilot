@@ -52,6 +52,13 @@ type StudentDetail = {
     academicYear?: { name: string };
     status: string;
   }>;
+  guardians?: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    relationship: string;
+    phone: string;
+  }>;
   parentStudents?: Array<{
     relationship?: string;
     parent?: {
@@ -234,6 +241,41 @@ export default function StudentDetailPage() {
               {/* Vue 360° tab */}
               <TabsContent value="profil" className="mt-0 space-y-4">
                 <StudentProfile360 studentId={id} />
+
+                <Card className="border-none shadow-none bg-muted/20">
+                  <CardHeader className="p-4 border-b border-border/50">
+                    <CardTitle className="text-xs font-bold text-muted-foreground">Famille</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {(student.guardians?.length ?? 0) === 0 && (student.parentStudents?.length ?? 0) === 0 ? (
+                      <p className="text-[12px] text-muted-foreground">
+                        Aucun responsable enregistré. Envoyez un code de liaison au parent depuis le menu de la fiche.
+                      </p>
+                    ) : null}
+                    {student.guardians?.map((g) => (
+                      <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                        <span>
+                          <span className="font-semibold">{g.firstName} {g.lastName}</span>
+                          <span className="text-muted-foreground"> · {g.relationship}</span>
+                        </span>
+                        <a href={`tel:${g.phone}`} className="font-semibold text-primary no-underline">{g.phone}</a>
+                      </div>
+                    ))}
+                    {student.parentStudents?.map((ps, i) =>
+                      ps.parent?.user ? (
+                        <div key={`account-${i}`} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                          <span>
+                            <span className="font-semibold">{ps.parent.user.firstName} {ps.parent.user.lastName}</span>
+                            <span className="text-muted-foreground"> · compte parent actif</span>
+                          </span>
+                          {ps.parent.user.phone ? (
+                            <a href={`tel:${ps.parent.user.phone}`} className="font-semibold text-primary no-underline">{ps.parent.user.phone}</a>
+                          ) : null}
+                        </div>
+                      ) : null,
+                    )}
+                  </CardContent>
+                </Card>
 
                 <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
                   <StudentRiskCard studentId={id} />

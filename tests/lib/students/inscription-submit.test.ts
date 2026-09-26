@@ -20,6 +20,11 @@ const FORM: InscriptionSubmitInput = {
   address: "",
   classId: "cclass000000000000000000001",
   academicYearId: "cyear0000000000000000000001",
+  admissionDate: "2026-09-15",
+  parentFirstName: " Mariam ",
+  parentLastName: "Diallo",
+  parentRelation: "Mère",
+  parentPhone: "+229 97 00 00 00",
 };
 
 function mockFetch(status: number, body: unknown) {
@@ -40,6 +45,9 @@ describe("submitInscription", () => {
     expect(url).toBe("/api/students");
     expect(body).not.toHaveProperty("password");
     expect(body).toMatchObject({ email: "awa@ecole.bj", firstName: "Awa", nationality: "Beninoise" });
+    // Le responsable saisi à l'étape Famille est bien envoyé (il était perdu).
+    expect(body.guardian).toEqual({ firstName: "Mariam", lastName: "Diallo", relationship: "Mère", phone: "+229 97 00 00 00" });
+    expect(body.enrolledAt).toBe("2026-09-15");
     expect(body.birthPlace).toBeUndefined();
   });
 

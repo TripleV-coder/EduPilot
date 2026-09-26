@@ -4,30 +4,13 @@ import prisma from "@/lib/prisma";
 import { calculateWeightedAverage, getRank } from "@/lib/utils/grades";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { getCouncilRules, pickDecision, type CouncilDecisionVariant } from "@/lib/academic/council-rules";
 
 const COUNCIL_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 
-type Decision =
-  | "Tableau d'honneur"
-  | "Encouragements"
-  | "Aucune"
-  | "Avertissement travail"
-  | "Avertissement conduite";
-type DecisionVariant = "success" | "info" | "neutral" | "warning" | "danger";
+type DecisionVariant = CouncilDecisionVariant;
 type Status = "Validé" | "En discussion" | "À saisir";
 type StatusVariant = "success" | "warning" | "neutral";
-
-function pickDecision(avg: number | null, incidents: number): {
-  decision: Decision;
-  variant: DecisionVariant;
-} {
-  if (incidents >= 3) return { decision: "Avertissement conduite", variant: "danger" };
-  if (avg === null) return { decision: "Aucune", variant: "neutral" };
-  if (avg >= 16) return { decision: "Tableau d'honneur", variant: "success" };
-  if (avg >= 14) return { decision: "Encouragements", variant: "info" };
-  if (avg < 10) return { decision: "Avertissement travail", variant: "warning" };
-  return { decision: "Aucune", variant: "neutral" };
-}
 
 function pickStatus(
   ratio: number,
@@ -81,7 +64,10 @@ const { searchParams } = new URL(request.url);
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    const period = await prisma.period.findUnique({ where: { id: periodId } });
+    const [period, councilRules] = await Promise.all([
+      prisma.period.findUnique({ where: { id: periodId } }),
+      getCouncilRules(klass.schoolId),
+    ]);
     if (!period) {
       return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
     }
@@ -148,7 +134,7 @@ const { searchParams } = new URL(request.url);
       const completionRatio = subjectsWithGrades / totalSubjects;
       const incidents = e.student.behaviorIncidents.length;
 
-      const decision = pickDecision(generalAverage, incidents);
+      const decision = pickDecision(generalAverage, incidents, councilRules);
       const status = pickStatus(completionRatio, decision.variant);
 
       return {

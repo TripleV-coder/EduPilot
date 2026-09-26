@@ -4,14 +4,14 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     fee: { findMany: vi.fn() },
     academicYear: { findFirst: vi.fn() },
-    enrollment: { findMany: vi.fn() },
+    enrollment: { findMany: vi.fn(), findFirst: vi.fn() },
     payment: { groupBy: vi.fn(), aggregate: vi.fn() },
     paymentPlan: { findMany: vi.fn() },
   },
 }));
 
 import prisma from "@/lib/prisma";
-import { computePlanlessExpected, computeStudentFeeDues, computeYearFeeRecovery } from "@/lib/finance/expected-fees";
+import { computePlanlessExpected, computeStudentBalances, computeStudentFeeDues, computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 
 const enrol = (studentId: string, code: string, academicYearId = "y1") => ({
   studentId,
@@ -175,5 +175,43 @@ describe("computeStudentFeeDues", () => {
     expect(await computeStudentFeeDues(["a"])).toEqual([
       { studentId: "a", feeId: "f1", feeName: "Inscription", remaining: 30000, dueDate: null },
     ]);
+  });
+});
+
+describe("computeStudentBalances — préremplissage du guichet", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({
+      academicYearId: "y1",
+      class: { schoolId: "sch1", classLevel: { code: "6EME" } },
+    } as never);
+    vi.mocked(prisma.fee.findMany).mockResolvedValue([
+      { id: "f1", name: "Scolarité", amount: 150000, dueDate: null },
+      { id: "f2", name: "Tenue", amount: 15000, dueDate: null },
+    ] as never);
+  });
+
+  it("propose le reste dû, pas le total, et déduit ce qui est en attente", async () => {
+    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.payment.groupBy).mockResolvedValue([
+      { feeId: "f1", status: "VERIFIED", _sum: { amount: 100000 } },
+      { feeId: "f1", status: "PENDING", _sum: { amount: 20000 } },
+    ] as never);
+
+    const [scolarite, tenue] = await computeStudentBalances("s1");
+    expect(scolarite).toMatchObject({ billed: 150000, paid: 100000, pending: 20000, remaining: 50000, suggested: 30000 });
+    expect(tenue).toMatchObject({ billed: 15000, paid: 0, remaining: 15000, suggested: 15000 });
+  });
+
+  it("un échéancier remplace le montant du frais (remise accordée)", async () => {
+    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([{ feeId: "f1", totalAmount: 120000 }] as never);
+    vi.mocked(prisma.payment.groupBy).mockResolvedValue([{ feeId: "f1", status: "RECONCILED", _sum: { amount: 120000 } }] as never);
+
+    const [scolarite] = await computeStudentBalances("s1");
+    expect(scolarite).toMatchObject({ billed: 120000, remaining: 0, suggested: 0 });
+  });
+
+  it("aucune inscription active : aucun solde", async () => {
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue(null);
+    expect(await computeStudentBalances("s1")).toEqual([]);
   });
 });

@@ -23,6 +23,8 @@ vi.mock("@/lib/prisma", () => ({
     period: { findUnique: vi.fn() },
     enrollment: { findMany: vi.fn() },
     schoolCalendarEvent: { findFirst: vi.fn() },
+    // Aucun réglage enregistré par défaut : seuils par défaut (16 / 14 / 10 / 3).
+    configOption: { findFirst: vi.fn().mockResolvedValue(null) },
   },
 }));
 
@@ -179,5 +181,28 @@ describe("GET /api/grades/councils", () => {
     expect(body.students[0].status).toBe("À saisir");
     expect(body.students[0].decision).toBe("Aucune");
     expect(body.metrics.bulletinsReady).toBe(0);
+  });
+
+  it("applique les seuils réglés par l'école au lieu des valeurs par défaut", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue(makeClass());
+    vi.mocked(prisma.period.findUnique).mockResolvedValue({
+      id: "p1", name: "Semestre 1", sequence: 1, academicYearId: "ay1",
+      startDate: new Date("2026-01-01"), endDate: new Date("2026-06-30"),
+    } as never);
+    vi.mocked(prisma.configOption.findFirst).mockResolvedValueOnce({
+      metadata: { honorMin: 17, encouragementMin: 14, workWarningBelow: 10, conductIncidents: 3 },
+    } as never);
+    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
+      makeEnrollment("stu1", "Awa Diallo", [
+        { id: "g1", value: 17, isAbsent: false, isExcused: false, evaluation: { periodId: "p1", coefficient: 2, classSubjectId: "cs1" } },
+        { id: "g2", value: 16, isAbsent: false, isExcused: false, evaluation: { periodId: "p1", coefficient: 1, classSubjectId: "cs2" } },
+      ]),
+    ] as never);
+    vi.mocked(prisma.schoolCalendarEvent.findFirst).mockResolvedValue(null);
+
+    const res = await GET(makeRequest("http://localhost/api/grades/councils?classId=cl1&periodId=p1"), { params: Promise.resolve({}) });
+    const body = await res.json();
+    expect(body.students.find((s: { name: string }) => s.name === "Awa Diallo").decision).toBe("Encouragements");
   });
 });

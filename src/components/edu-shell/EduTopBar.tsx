@@ -113,6 +113,9 @@ export function EduTopBar() {
 
             {searchButton}
 
+            {/* Pousse assistant, thème, notifications et profil contre le bord droit. */}
+            <span className="hidden flex-1 md:block" aria-hidden="true" />
+
             {canUseAiAssistant(session?.user?.role) ? (
                 <Link href={AI_ASSISTANT_NAV_LINK.href} className="hidden md:inline-flex">
                     <Button variant="ghost" size="sm" icon={AI_ASSISTANT_NAV_LINK.icon}>

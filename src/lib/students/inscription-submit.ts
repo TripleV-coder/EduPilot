@@ -18,6 +18,11 @@ export interface InscriptionSubmitInput {
     address: string;
     classId: string;
     academicYearId: string;
+    admissionDate: string;
+    parentFirstName: string;
+    parentLastName: string;
+    parentRelation: string;
+    parentPhone: string;
 }
 
 export type InscriptionSubmitResult =
@@ -42,6 +47,13 @@ export async function submitInscription(form: InscriptionSubmitInput): Promise<I
                 address: form.address.trim() || undefined,
                 classId: form.classId,
                 academicYearId: form.academicYearId,
+                enrolledAt: form.admissionDate || undefined,
+                guardian: {
+                    firstName: form.parentFirstName.trim(),
+                    lastName: form.parentLastName.trim(),
+                    relationship: form.parentRelation.trim() || "Responsable",
+                    phone: form.parentPhone.trim(),
+                },
             }),
         });
         const data = await res.json().catch(() => ({}));

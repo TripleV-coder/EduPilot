@@ -56,6 +56,7 @@ export const GET = createApiHandler(
           },
           orderBy: { academicYear: { startDate: "desc" } },
         },
+        guardians: { orderBy: { createdAt: "asc" } },
         parentStudents: {
           include: {
             parent: {

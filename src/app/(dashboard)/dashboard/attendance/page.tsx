@@ -24,7 +24,7 @@ type RawStudent = {
     user?: { firstName: string | null; lastName: string | null } | null;
 };
 
-type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
+type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EXCUSED";
 type AttendanceRecord = {
     studentId: string;
     studentName: string;
@@ -51,6 +51,13 @@ const STATUS_BUTTONS: {
         label: "Présent",
         bg: "var(--eduflow-success-600)",
         glow: "0 6px 16px rgba(5, 150, 105, 0.35)",
+    },
+    {
+        key: "LATE",
+        letter: "R",
+        label: "Retard",
+        bg: "var(--eduflow-info-600)",
+        glow: "0 6px 16px rgba(37, 99, 235, 0.35)",
     },
     {
         key: "EXCUSED",
@@ -227,7 +234,7 @@ export default function AttendancePage() {
     );
 
     const stats = useMemo(() => {
-        const counts = { PRESENT: 0, ABSENT: 0, EXCUSED: 0 };
+        const counts = { PRESENT: 0, LATE: 0, ABSENT: 0, EXCUSED: 0 };
         Object.values(attendanceData).forEach((curr) => {
             counts[curr.status as AttendanceStatus] = (counts[curr.status as AttendanceStatus] || 0) + 1;
         });
@@ -258,7 +265,7 @@ export default function AttendancePage() {
                     title="Feuille d'appel"
                     description={
                         isFocusMode
-                            ? "Mode focus — marquage rapide P / E / A."
+                            ? "Mode focus — marquage rapide P / R / E / A."
                             : "Saisissez les présences quotidiennes par classe et par date."
                     }
                     breadcrumbs={[
@@ -313,7 +320,7 @@ export default function AttendancePage() {
                     <PageEmpty
                         icon="check"
                         title="Sélectionnez une classe pour démarrer l'appel"
-                        description="Choisissez la classe et la date, puis marquez les présences avec les boutons P / E / A. Enregistrez l'appel via le bouton en bas de page."
+                        description="Choisissez la classe et la date, puis marquez les présences avec les boutons P / R / E / A (présent, retard, excusé, absent). Enregistrez l'appel via le bouton en bas de page."
                     />
                 ) : null}
 
@@ -635,11 +642,12 @@ function StatsStrip({
     stats,
     total,
 }: {
-    stats: { PRESENT: number; ABSENT: number; EXCUSED: number };
+    stats: { PRESENT: number; LATE: number; ABSENT: number; EXCUSED: number };
     total: number;
 }) {
-    const items: { key: AttendanceStatus; label: string; tone: "success" | "danger" | "warning" }[] = [
+    const items: { key: AttendanceStatus; label: string; tone: "success" | "info" | "danger" | "warning" }[] = [
         { key: "PRESENT", label: "Présents", tone: "success" },
+        { key: "LATE", label: "Retards", tone: "info" },
         { key: "EXCUSED", label: "Excusés", tone: "warning" },
         { key: "ABSENT", label: "Absents", tone: "danger" },
     ];
@@ -647,7 +655,7 @@ function StatsStrip({
         <div
             className="grid items-center gap-2"
             style={{
-                gridTemplateColumns: "repeat(3, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 background: "var(--eduflow-surface-sunken)",
                 border: "1px solid var(--eduflow-border-subtle)",
                 borderRadius: "var(--eduflow-radius-md)",

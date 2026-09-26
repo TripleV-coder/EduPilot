@@ -15,6 +15,7 @@ import {
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
+import { CouncilRulesCard } from "@/components/settings/council-rules-card";
 
 type PeriodType = "TRIMESTER" | "SEMESTER" | "HYBRID";
 
@@ -568,15 +569,15 @@ export default function AcademicConfigPage() {
                                         lineHeight: 1.6,
                                     }}
                                 >
-                                    <strong>Impact du changement :</strong> en passant de trimestre
-                                    à semestre (ou inverse), EduPilot recalcule automatiquement les
-                                    moyennes via la pondération des coefficients, met à jour les
-                                    échéances de paiement et notifie les enseignants concernés. Tu
-                                    devras toutefois recréer les périodes (Paramètres › Périodes)
-                                    pour que les bulletins suivants utilisent le nouveau découpage.
+                                    <strong>Impact du changement :</strong> le nouveau découpage
+                                    s&apos;applique aux périodes que vous créerez ensuite (Paramètres ›
+                                    Périodes). Les notes, périodes et bulletins déjà existants ne sont
+                                    pas modifiés.
                                 </div>
                             </div>
                         </Card>
+
+                        <CouncilRulesCard />
                     </>
                 ) : null}
             </PageShell>

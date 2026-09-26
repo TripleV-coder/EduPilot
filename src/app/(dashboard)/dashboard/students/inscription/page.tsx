@@ -19,14 +19,12 @@ import {
     type FormState,
     STEPS,
     INITIAL_FORM,
-    PEDA_OPTIONS,
 } from "@/components/students/inscription/types";
 import { loading_spinner_placeholder } from "@/components/students/inscription/fields";
 import { StepIdentity } from "@/components/students/inscription/step-identity";
 import { StepFamille } from "@/components/students/inscription/step-famille";
 import { StepCursus } from "@/components/students/inscription/step-cursus";
 import { StepDocuments } from "@/components/students/inscription/step-documents";
-import { StepPaiement } from "@/components/students/inscription/step-paiement";
 import { submitInscription } from "@/lib/students/inscription-submit";
 
 // Extrait de dashboard/students/inscription/page.tsx (1421 lignes) lors
@@ -103,19 +101,28 @@ export default function InscriptionPage() {
         return match ? Number(match.amount) : null;
     }, [fees, selectedLevel]);
 
-    const optionsTotal = useMemo(
-        () =>
-            PEDA_OPTIONS.reduce(
-                (sum, opt) => sum + (form.options[opt.id] ? opt.price : 0),
-                0
-            ),
-        [form.options]
-    );
 
-    const yearlyTotal = (tuitionFee ?? 0) + optionsTotal;
-
-    const goNext = () => setStep((s) => Math.min(4, s + 1) as StepIndex);
+    const goNext = () => {
+        // Le responsable est obligatoire (écran Famille) : on ne passe pas sans lui.
+        if (step === 1) {
+            const famille = validateFamille();
+            if (famille) {
+                setError(famille);
+                return;
+            }
+        }
+        setError(null);
+        setStep((s) => Math.min(STEPS.length - 1, s + 1) as StepIndex);
+    };
     const goPrev = () => setStep((s) => Math.max(0, s - 1) as StepIndex);
+
+    const validateFamille = (): string | null => {
+        if (!form.parentLastName.trim() || !form.parentFirstName.trim())
+            return "Nom et prénom du responsable obligatoires.";
+        if (!/^(\+229)?[0-9]{8,10}$/.test(form.parentPhone.replace(/\s/g, "")))
+            return "Téléphone du responsable invalide (8 à 10 chiffres, +229 facultatif).";
+        return null;
+    };
 
     const validateForSubmit = (): string | null => {
         if (!form.firstName.trim() || form.firstName.trim().length < 2)
@@ -127,7 +134,7 @@ export default function InscriptionPage() {
         if (!form.matricule.trim()) return "Le matricule est requis.";
         if (!form.classId) return "Sélectionne une classe d'affectation.";
         if (!form.academicYearId) return "Sélectionne une année académique.";
-        return null;
+        return validateFamille();
     };
 
     const handleFinalize = async () => {
@@ -199,7 +206,7 @@ export default function InscriptionPage() {
                     description={`Année ${
                         years.find((y) => y.id === form.academicYearId)?.name ||
                         "à venir"
-                    } · pré-inscription en ligne · vérification documents`}
+                    }`}
                     breadcrumbs={[
                         { label: "Élèves", href: "/dashboard/students" },
                         { label: "Inscriptions" },
@@ -238,12 +245,19 @@ export default function InscriptionPage() {
                         <code style={{ fontSize: 15, fontWeight: 700, userSelect: "all" }}>
                             {createdStudent.provisionalPassword}
                         </code>
-                        <div style={{ marginTop: 12 }}>
+                        <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
                             <Button
                                 icon="check"
                                 onClick={() => router.push(`/dashboard/students/${createdStudent.id}`)}
                             >
                                 Ouvrir la fiche de l&apos;élève
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                icon="money"
+                                onClick={() => router.push(`/dashboard/finance/payments/new?studentId=${createdStudent.id}`)}
+                            >
+                                Encaisser un paiement
                             </Button>
                         </div>
                     </Card>
@@ -393,20 +407,9 @@ export default function InscriptionPage() {
                             classes={classes}
                             years={years}
                             tuitionFee={tuitionFee}
-                            optionsTotal={optionsTotal}
-                            yearlyTotal={yearlyTotal}
                         />
                     ) : null}
                     {step === 3 ? <StepDocuments /> : null}
-                    {step === 4 ? (
-                        <StepPaiement
-                            form={form}
-                            setForm={setForm}
-                            tuitionFee={tuitionFee}
-                            optionsTotal={optionsTotal}
-                            yearlyTotal={yearlyTotal}
-                        />
-                    ) : null}
 
                     <div
                         style={{
@@ -442,7 +445,7 @@ export default function InscriptionPage() {
                         >
                             Étape {step + 1} / {STEPS.length}
                         </div>
-                        {step < 4 ? (
+                        {step < STEPS.length - 1 ? (
                             <Button onClick={goNext}>
                                 <span
                                     style={{

@@ -3,11 +3,15 @@ import { POST } from "@/app/api/attendance/bulk/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
+import { notifyParentsOfAbsences } from "@/lib/attendance/notify-parents";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/api/cache-helpers", () => ({ invalidateByPath: vi.fn() }));
 vi.mock("@/lib/services/analytics-sync", () => ({
   syncAnalyticsAfterStudentActivityChange: vi.fn(),
+}));
+vi.mock("@/lib/attendance/notify-parents", () => ({
+  notifyParentsOfAbsences: vi.fn().mockResolvedValue({ notified: 0, sms: 0 }),
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -145,5 +149,68 @@ describe("POST /api/attendance/bulk", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.count).toBe(1);
+  });
+  const mockClassAndEnrollment = (enrolled = 1) => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: "u1" }));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({
+      id: "cl1",
+      schoolId: FIXTURES.schoolA,
+      mainTeacher: { userId: "u1" },
+      classSubjects: [],
+    } as never);
+    vi.mocked(prisma.enrollment.count).mockResolvedValue(enrolled);
+  };
+
+  const mockTransaction = (existingByStudent: Record<string, { id: string; status: string } | null>) => {
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn: unknown) => {
+      const tx = {
+        attendance: {
+          findFirst: vi.fn(async ({ where }: { where: { studentId: string } }) => existingByStudent[where.studentId] ?? null),
+          update: vi.fn().mockResolvedValue({ id: "a1" }),
+          create: vi.fn().mockResolvedValue({ id: "a2" }),
+        },
+      };
+      return (fn as (t: typeof tx) => Promise<unknown>)(tx);
+    });
+  };
+
+  it("accepte le statut Retard", async () => {
+    mockClassAndEnrollment();
+    mockTransaction({});
+    const res = await POST(makeRequest("http://localhost/api/attendance/bulk", {
+      method: "POST",
+      body: { ...BASE_BODY, records: [{ studentId: "s1", status: "LATE" }] },
+    }));
+    expect(res.status).toBe(200);
+  });
+
+  it("refuse un statut inconnu au lieu de le transmettre à la base", async () => {
+    mockClassAndEnrollment();
+    const res = await POST(makeRequest("http://localhost/api/attendance/bulk", {
+      method: "POST",
+      body: { ...BASE_BODY, records: [{ studentId: "s1", status: "PARTI" }] },
+    }));
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("n'avertit les familles que pour les élèves qui deviennent absents ou en retard", async () => {
+    mockClassAndEnrollment(2);
+    // s1 était déjà absent (réenregistrement) ; s2 devient en retard.
+    mockTransaction({ s1: { id: "a1", status: "ABSENT" }, s2: { id: "a3", status: "PRESENT" } });
+    const res = await POST(makeRequest("http://localhost/api/attendance/bulk", {
+      method: "POST",
+      body: {
+        ...BASE_BODY,
+        records: [
+          { studentId: "s1", status: "ABSENT" },
+          { studentId: "s2", status: "LATE" },
+        ],
+      },
+    }));
+    expect(res.status).toBe(200);
+    expect(notifyParentsOfAbsences).toHaveBeenCalledWith(
+      expect.objectContaining({ changes: [{ studentId: "s2", status: "LATE" }] }),
+    );
   });
 });

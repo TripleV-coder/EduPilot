@@ -470,6 +470,7 @@ model StudentProfile {
   badge               Badge?
   scanLogs            ScanLog[]
   parentStudents      ParentStudent[]
+  guardians           StudentGuardian[]
   paymentPlans        PaymentPlan[]
   payments            Payment[]
   scholarships        Scholarship[]
@@ -3171,4 +3172,22 @@ model DocumentSignature {
 
   @@index([schoolId, docType, docId])
   @@map("document_signatures")
+}
+
+/// Responsable légal saisi à l'inscription, sans compte. Le compte parent se
+/// crée plus tard (code de liaison) ; ce contact reste la référence de l'école.
+model StudentGuardian {
+  id           String         @id @default(cuid())
+  studentId    String
+  firstName    String
+  lastName     String
+  relationship String
+  phone        String
+  isPrimary    Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("student_guardians")
 }

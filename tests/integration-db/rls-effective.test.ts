@@ -17,6 +17,7 @@ import { seedTenantGraph } from "./fixtures/tenant-graph";
 const TABLES = [
   "student_profiles", "grades", "payments", "attendances", "behavior_incidents", "sanctions",
   "medical_records", "allergies", "vaccinations", "emergency_contacts", "evaluations",
+  "student_guardians",
 ] as const;
 type Table = (typeof TABLES)[number];
 type TableIds = Record<Table, string>;
@@ -39,6 +40,9 @@ async function seedSchool(prefix: string) {
   const sanction = await ownerDb.sanction.create({
     data: { incidentId: ids.incident, type: "WARNING", startDate: new Date("2025-11-04T08:00:00.000Z") },
   });
+  const guardian = await ownerDb.studentGuardian.create({
+    data: { studentId: ids.student, firstName: "Awa", lastName: prefix, relationship: "Mère", phone: "+22990000000" },
+  });
   const tableIds: TableIds = {
     student_profiles: ids.student,
     grades: ids.grade,
@@ -51,6 +55,7 @@ async function seedSchool(prefix: string) {
     vaccinations: ids.vaccination,
     emergency_contacts: ids.emergencyContact,
     evaluations: grade.evaluationId,
+    student_guardians: guardian.id,
   };
   return { graph, tableIds };
 }
@@ -112,7 +117,7 @@ describe("M2 — rôle de connexion", () => {
 });
 
 describe("M2 — fermée par défaut (aucun contexte)", () => {
-  it("les onze tables sensibles apparaissent vides", async () => {
+  it("les tables sensibles apparaissent vides", async () => {
     expectEverywhere(await runWithDbContext(null, visibility), { a: false, b: false });
   });
 
@@ -132,7 +137,7 @@ describe("M2 — fermée par défaut (aucun contexte)", () => {
 });
 
 describe("M2 — contexte d'établissement", () => {
-  it("un établissement ne voit que ses lignes, sur les onze tables (requêtes brutes)", async () => {
+  it("un établissement ne voit que ses lignes, sur toutes les tables sensibles (requêtes brutes)", async () => {
     expectEverywhere(await runWithDbContext(tenantContext([schoolA]), visibility), { a: true, b: false });
     expectEverywhere(await runWithDbContext(tenantContext([schoolB]), visibility), { a: false, b: true });
   });

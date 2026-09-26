@@ -167,6 +167,50 @@ describe("POST /api/students", () => {
     const res = await POST(makeRequest("http://localhost/api/students", { method: "POST", body: { email: "bad" } }));
     expect(res.status).toBe(400);
   });
+
+  it("enregistre le responsable légal et la date d'admission avec l'élève", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { id: "u1" }));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ id: "cl1", schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    const guardianCreate = vi.fn();
+    const enrollmentCreate = vi.fn();
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn: unknown) => {
+      const tx = {
+        user: { create: vi.fn().mockResolvedValue({ id: "u1", email: "new.student@test.fr", firstName: "Jean", lastName: "Dupont" }) },
+        studentProfile: { create: vi.fn().mockResolvedValue({ id: "s1", matricule: "MAT-2026-001" }) },
+        studentGuardian: { create: guardianCreate },
+        enrollment: { create: enrollmentCreate },
+      };
+      return (fn as (t: typeof tx) => Promise<unknown>)(tx);
+    });
+
+    const res = await POST(
+      makeRequest("http://localhost/api/students", {
+        method: "POST",
+        body: {
+          ...CREATE_BODY,
+          enrolledAt: "2026-09-15",
+          guardian: { firstName: "Awa", lastName: "Kora", relationship: "Mère", phone: "+229 97 00 00 00" },
+        },
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(guardianCreate).toHaveBeenCalledWith({
+      data: { studentId: "s1", firstName: "Awa", lastName: "Kora", relationship: "Mère", phone: "+22997000000", isPrimary: true },
+    });
+    expect(enrollmentCreate.mock.calls[0][0].data.enrolledAt).toEqual(new Date("2026-09-15"));
+  });
+
+  it("refuse un téléphone de responsable invalide", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    const res = await POST(
+      makeRequest("http://localhost/api/students", {
+        method: "POST",
+        body: { ...CREATE_BODY, guardian: { firstName: "Awa", lastName: "Kora", relationship: "Mère", phone: "12" } },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /api/students/[id]", () => {
