@@ -131,7 +131,7 @@ export default function NewStudentPage() {
             permission={[Permission.STUDENT_CREATE]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}
             backHref="/dashboard/students"
-            title="Inscrire un(e) Élève"
+            title="Inscrire un élève"
             description="Veuillez remplir les informations pour créer le compte de l'élève."
             className="pb-10"
             breadcrumbs={[
@@ -214,7 +214,7 @@ export default function NewStudentPage() {
 
                         <Card className="border-border shadow-sm">
                             <CardHeader className="border-b bg-muted/10">
-                                <CardTitle className="text-lg">Scolarité Actuelle</CardTitle>
+                                <CardTitle className="text-lg">Scolarité actuelle</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="classId" render={({ field }) => (
@@ -264,7 +264,7 @@ export default function NewStudentPage() {
 
                         <Card className="border-border shadow-sm">
                             <CardHeader className="border-b bg-muted/10">
-                                <CardTitle className="text-lg">Compte & Contacts</CardTitle>
+                                <CardTitle className="text-lg">Compte & contacts</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <StudentContactFields showDescriptions={true} />

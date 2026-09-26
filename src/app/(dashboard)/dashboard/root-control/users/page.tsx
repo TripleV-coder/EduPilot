@@ -52,7 +52,7 @@ export default function RootUsersPage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell>
                 <PageHeader
-                    title="Annuaire Global"
+                    title="Annuaire global"
                     description="Console d'administration globale: Recherche et gestion de tous les utilisateurs inter-écoles."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

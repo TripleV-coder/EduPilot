@@ -692,7 +692,7 @@ export default function RoomsPage() {
                                 <div className="p-3 bg-background rounded-full mb-3 shadow-sm border border-border">
                                     <Plus className="w-6 h-6 text-muted-foreground" />
                                 </div>
-                                <h2 className="font-medium text-foreground">Nouvelle Salle</h2>
+                                <h2 className="font-medium text-foreground">Nouvelle salle</h2>
                                 <p className="text-sm text-muted-foreground mt-1 px-4">
                                     Créer un nouvel espace d&apos;apprentissage
                                 </p>

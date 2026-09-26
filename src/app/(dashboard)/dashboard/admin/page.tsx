@@ -106,7 +106,7 @@ function AdminContent() {
 
                     <Card className="border-border bg-card">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Sessions Actives</CardTitle>
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Sessions actives</CardTitle>
                             <Activity className="w-4 h-4 text-accent" />
                         </CardHeader>
                         <CardContent>

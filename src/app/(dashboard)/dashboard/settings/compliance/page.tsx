@@ -86,7 +86,7 @@ export default function ComplianceDashboardPage() {
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <PageShell>
                 <PageHeader
-                    title="RGPD & Conformité"
+                    title="RGPD & conformité"
                     description="Tableau de bord de suivi de la protection des données et politiques de confidentialité."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -114,7 +114,7 @@ export default function ComplianceDashboardPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <Card className="border-border bg-card md:col-span-1">
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Score de Conformité</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Score de conformité</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-end gap-3">
@@ -173,7 +173,7 @@ export default function ComplianceDashboardPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Card>
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Demandes Utilisateurs</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Demandes utilisateurs</CardTitle>
                                     <FileText className="w-4 h-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
@@ -183,7 +183,7 @@ export default function ComplianceDashboardPage() {
                             </Card>
                             <Card>
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Politiques Actives</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Politiques actives</CardTitle>
                                     <Shield className="w-4 h-4 text-[hsl(var(--success))]" />
                                 </CardHeader>
                                 <CardContent>
@@ -193,7 +193,7 @@ export default function ComplianceDashboardPage() {
                             </Card>
                             <Card>
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Utilisateurs Actifs</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Utilisateurs actifs</CardTitle>
                                     <Users className="w-4 h-4 text-secondary" />
                                 </CardHeader>
                                 <CardContent>
@@ -203,7 +203,7 @@ export default function ComplianceDashboardPage() {
                             </Card>
                             <Card>
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">Journal Audit</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Journal d'audit</CardTitle>
                                     <Database className="w-4 h-4 text-accent" />
                                 </CardHeader>
                                 <CardContent>
@@ -216,7 +216,7 @@ export default function ComplianceDashboardPage() {
                         {/* Recent Requests Data Table area */}
                         <Card className="border-border">
                             <CardHeader>
-                                <CardTitle className="text-lg">Demandes d'accès aux données (Récents)</CardTitle>
+                                <CardTitle className="text-lg">Demandes d'accès aux données (récentes)</CardTitle>
                                 <CardDescription>Historique des sollicitations des utilisateurs concernant leurs données personnelles.</CardDescription>
                             </CardHeader>
                             <CardContent>

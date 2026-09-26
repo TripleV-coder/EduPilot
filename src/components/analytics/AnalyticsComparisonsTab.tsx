@@ -39,7 +39,7 @@ export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: An
                         <Scale className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold tracking-tight">Comparaisons Analytiques</h2>
+                        <h2 className="text-sm font-bold tracking-tight">Comparaisons analytiques</h2>
                         <p className="text-[11px] text-muted-foreground font-medium">Comparez les performances entre classes ou entre périodes.</p>
                     </div>
                 </div>

@@ -228,7 +228,7 @@ export default function SubjectCategoriesSettingsPage() {
       <div className="flex h-full flex-col gap-6">
         <PageHeader
           title="Catégories de matières"
-          description="Expose l'API `/api/subject-categories` avec une UI d'administration complète."
+          description="Familles de matières (sciences, langues, arts…) pour classer les matières de l'établissement."
           breadcrumbs={[
             { label: "Tableau de bord", href: "/dashboard" },
             { label: "Paramètres", href: "/dashboard/settings" },
@@ -251,7 +251,7 @@ export default function SubjectCategoriesSettingsPage() {
                   Référentiel pédagogique
                 </CardTitle>
                 <CardDescription>
-                  Utilisez ces catégories pour normaliser les matières et supprimer les valeurs hardcodées.
+                  Créez les familles, puis rangez chaque matière dans la sienne.
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">

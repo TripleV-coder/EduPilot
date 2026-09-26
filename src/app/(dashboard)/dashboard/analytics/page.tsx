@@ -409,7 +409,7 @@ function AnalyticsContent() {
                         </Card>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <Card className="dashboard-block border-border bg-card">
-                                <CardHeader><CardTitle className="text-sm font-medium">Corrélation Assiduité / Performance</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-sm font-medium">Corrélation assiduité / performance</CardTitle></CardHeader>
                                 <CardContent><AttendanceGradesScatter /></CardContent>
                             </Card>
                             <Card className="dashboard-block border-border bg-card">

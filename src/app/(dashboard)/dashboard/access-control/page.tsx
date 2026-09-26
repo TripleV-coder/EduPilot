@@ -143,7 +143,7 @@ export default function AccessControlPage() {
         >
             <PageShell>
                 <PageHeader
-                    title="QR Badge & contrôle d'accès"
+                    title="QR badge & contrôle d'accès"
                     description={`${scanPoints.length} point${scanPoints.length > 1 ? "s" : ""} de scan · ${metrics?.todayTotal ?? 0} passages aujourd'hui`}
                     breadcrumbs={[
                         { label: "Vie scolaire" },

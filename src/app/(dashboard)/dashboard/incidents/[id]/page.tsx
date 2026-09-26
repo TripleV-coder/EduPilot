@@ -225,7 +225,7 @@ export default function IncidentDetailsPage() {
                         {!incident.isResolved && (
                             <Card className="border-primary/20 bg-primary/5 shadow-sm">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Actions Requises</CardTitle>
+                                    <CardTitle className="text-lg">Actions requises</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
@@ -261,7 +261,7 @@ export default function IncidentDetailsPage() {
                                         </DialogTrigger>
                                         <DialogContent>
                                             <DialogHeader>
-                                                <DialogTitle>Nouvelle Sanction Disciplinaire</DialogTitle>
+                                                <DialogTitle>Nouvelle sanction disciplinaire</DialogTitle>
                                                 <DialogDescription>Cette décision sera enregistrée dans le dossier permanent de l'élève.</DialogDescription>
                                             </DialogHeader>
                                             <div className="space-y-4 py-4">
@@ -306,7 +306,7 @@ export default function IncidentDetailsPage() {
 
                         <Card className="border-border shadow-sm">
                             <CardHeader>
-                                <CardTitle className="text-lg">Historique des Sanctions</CardTitle>
+                                <CardTitle className="text-lg">Historique des sanctions</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 {incident.sanctions?.length === 0 ? (

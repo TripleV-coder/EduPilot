@@ -507,8 +507,8 @@ export default function SecuritySettingsPage() {
                                         lineHeight: 1.5,
                                     }}
                                 >
-                                    Aucun changement direct en session n&apos;est exposé par le
-                                    backend. Cette page utilise le flux réel de réinitialisation.
+                                    Pour changer de mot de passe, EduPilot vous envoie un lien de
+                                    réinitialisation par e-mail.
                                 </p>
                             </div>
                         </Card>

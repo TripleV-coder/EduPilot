@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { DollarSign, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react";
+import { Banknote, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
@@ -129,7 +129,7 @@ export default function FeesManagementPage() {
                         <Button aria-label="Retour aux finances" variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
                     </Link>
                     <PageHeader
-                        title="Configuration des Frais"
+                        title="Configuration des frais"
                         description="Définissez les frais de scolarité, d'inscription et autres lignes tarifaires."
                     />
                 </div>
@@ -151,10 +151,10 @@ export default function FeesManagementPage() {
                 <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="p-3 rounded-xl bg-warning/10 text-warning">
-                            <DollarSign className="h-6 w-6" />
+                            <Banknote className="h-6 w-6" />
                         </div>
                         <div>
-                            <h2 className="font-semibold text-lg">Lignes Tarifaires</h2>
+                            <h2 className="font-semibold text-lg">Lignes tarifaires</h2>
                             <p className="text-sm text-muted-foreground">Gérez les montants par niveau d'étude ou généraux.</p>
                         </div>
                     </div>
@@ -229,8 +229,8 @@ export default function FeesManagementPage() {
                         <div className="col-span-full py-12 flex justify-center"><span role="status" aria-label="Chargement…" className="inline-flex text-primary"><Spinner size={28} /></span></div>
                     ) : fees.length === 0 ? (
                         <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
-                            <DollarSign className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                            <h3 className="text-lg font-medium">Aucun Frais Configuré</h3>
+                            <Banknote className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
+                            <h3 className="text-lg font-medium">Aucun frais configuré</h3>
                             <p className="text-sm text-muted-foreground mt-1">Créez votre grille tarifaire pour commencer à facturer.</p>
                         </div>
                     ) : (

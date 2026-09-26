@@ -88,7 +88,7 @@ export default function FinanceReconciliationPage() {
         <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
             <PageShell>
                 <PageHeader
-                    title="Réconciliation Bancaire"
+                    title="Réconciliation bancaire"
                     description="Associez les virements reçus aux factures des élèves"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

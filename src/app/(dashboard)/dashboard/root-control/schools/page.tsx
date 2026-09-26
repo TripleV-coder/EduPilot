@@ -270,7 +270,7 @@ export default function RootSchoolsPage() {
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="Établissements Clients (Tenants)"
+                        title="Établissements clients (tenants)"
                         description="Gestion centrale des souscriptions et déploiement de nouveaux établissements."
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
@@ -307,7 +307,7 @@ export default function RootSchoolsPage() {
                                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
                                             <Building2 className="w-5 h-5" />
                                         </div>
-                                        <DialogTitle className="text-xl font-bold text-foreground">Déploiement d'Établissement</DialogTitle>
+                                        <DialogTitle className="text-xl font-bold text-foreground">Déploiement d'établissement</DialogTitle>
                                     </div>
                                     <DialogDescription className="text-muted-foreground">
                                         Configurez le socle technique du nouvel établissement et son administrateur principal.

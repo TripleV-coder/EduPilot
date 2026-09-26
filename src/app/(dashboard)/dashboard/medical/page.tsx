@@ -190,7 +190,7 @@ export default function MedicalRecordsPage() {
         <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
             <PageShell>
                 <PageHeader
-                    title="Infirmerie & Dossiers Médicaux"
+                    title="Infirmerie & dossiers médicaux"
                     description="Gérez les fiches de santé, antécédents et urgences médicales des élèves."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -512,7 +512,7 @@ export default function MedicalRecordsPage() {
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-center p-5 bg-muted/5 border-l">
                                 <Activity className="w-16 h-16 text-muted-foreground/20 mb-4" />
-                                <h2 className="text-xl font-display font-semibold text-foreground/80">Infirmerie d'Établissement</h2>
+                                <h2 className="text-xl font-display font-semibold text-foreground/80">Infirmerie de l'établissement</h2>
                                 <p className="text-muted-foreground text-sm max-w-sm mt-2">Sélectionnez un élève dans le registre à gauche pour consulter ou mettre à jour son dossier médical.</p>
                             </div>
                         )}

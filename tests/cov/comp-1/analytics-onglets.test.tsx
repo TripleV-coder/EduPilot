@@ -298,7 +298,7 @@ describe("AcademicPerformancesTab", () => {
         asRole("DIRECTOR");
         const api = mockApi({});
         renderPage(<AcademicPerformancesTab classes={[]} academicYearId="y1" />);
-        expect(screen.getByText("Performances par Classe")).toBeInTheDocument();
+        expect(screen.getByText("Performances par classe")).toBeInTheDocument();
         expect(api.calls()).toHaveLength(0);
     });
 

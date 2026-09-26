@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import {
     Zap, Plus, Loader2, Users, HardDrive, GraduationCap,
-    Pencil, Trash2, DollarSign, ListChecks, Search, FilterX, Star, ExternalLink,
+    Pencil, Trash2, Banknote, ListChecks, Search, FilterX, Star, ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -385,11 +385,11 @@ export default function RootPlansPage() {
                             {!form.priceOnRequest ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="plan-monthly" className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" aria-hidden="true" /> Prix mensuel (FCFA)</Label>
+                                        <Label htmlFor="plan-monthly" className="flex items-center gap-1.5"><Banknote className="w-3 h-3" aria-hidden="true" /> Prix mensuel (FCFA)</Label>
                                         <Input id="plan-monthly" type="number" min={0} inputMode="numeric" value={form.priceMonthly} onChange={(e) => update("priceMonthly", e.target.value)} placeholder="0 = gratuit" required />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="plan-yearly" className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" aria-hidden="true" /> Prix annuel (FCFA)</Label>
+                                        <Label htmlFor="plan-yearly" className="flex items-center gap-1.5"><Banknote className="w-3 h-3" aria-hidden="true" /> Prix annuel (FCFA)</Label>
                                         <Input id="plan-yearly" type="number" min={0} inputMode="numeric" value={form.priceYearly} onChange={(e) => update("priceYearly", e.target.value)} placeholder={suggestedYearly ? `Suggéré : ${suggestedYearly.toLocaleString("fr-FR")}` : ""} />
                                         {suggestedYearly && !form.priceYearly ? (
                                             <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => update("priceYearly", String(suggestedYearly))}>

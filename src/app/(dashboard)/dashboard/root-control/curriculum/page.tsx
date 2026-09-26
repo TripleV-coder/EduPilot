@@ -139,7 +139,7 @@ export default function RootCurriculumPage() {
             />
             <div className="space-y-6 pb-24">
                 <PageHeader
-                    title="Curriculum & Réformes"
+                    title="Curriculum & réformes"
                     description="Console globale de gestion des matières et coefficients par établissement."
                     breadcrumbs={[
                         { label: "Console Racine", href: "/dashboard/root-control" },
@@ -213,7 +213,7 @@ export default function RootCurriculumPage() {
                     <Card className="border-border overflow-hidden">
                         <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-sm font-bold">Contenu du Programme</CardTitle>
+                                <CardTitle className="text-sm font-bold">Contenu du programme</CardTitle>
                                 <CardDescription className="text-[11px]">Liste des matières et coefficients pour cette classe.</CardDescription>
                             </div>
                             <Badge variant="secondary" className="font-bold">Consolidé</Badge>

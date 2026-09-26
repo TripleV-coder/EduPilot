@@ -104,7 +104,7 @@ export default function RootMaintenancePage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
-                    title="Mode Maintenance Globale"
+                    title="Mode maintenance globale"
                     description="Contrôlez l'accès au SaaS en cas de mise à jour majeure de la base de données ou de l'infrastructure."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

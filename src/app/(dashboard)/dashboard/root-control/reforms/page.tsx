@@ -161,7 +161,7 @@ export default function ReformsPage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell>
                 <PageHeader
-                    title="Gestion des Réformes Nationales"
+                    title="Gestion des réformes nationales"
                     description="Configurez les matières d'examen et les mentions de notes au niveau national."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -196,7 +196,7 @@ export default function ReformsPage() {
                         <Card className="border-border bg-card">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Matières & Coefficients CEP</CardTitle>
+                                    <CardTitle>Matières & coefficients CEP</CardTitle>
                                     <CardDescription>Définissez la pondération officielle pour le Certificat d'Études Primaires.</CardDescription>
                                 </div>
                                 <Button onClick={() => addSubject("CEP")} variant="outline" size="sm" className="gap-2">
@@ -232,7 +232,7 @@ export default function ReformsPage() {
                         <Card className="border-border bg-card">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Matières & Coefficients BEPC</CardTitle>
+                                    <CardTitle>Matières & coefficients BEPC</CardTitle>
                                     <CardDescription>Définissez la pondération officielle pour le Brevet d'Études du Premier Cycle.</CardDescription>
                                 </div>
                                 <Button onClick={() => addSubject("BEPC")} variant="outline" size="sm" className="gap-2">
@@ -268,7 +268,7 @@ export default function ReformsPage() {
                         <Card className="border-border bg-card">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Matières & Coefficients BAC</CardTitle>
+                                    <CardTitle>Matières & coefficients BAC</CardTitle>
                                     <CardDescription>Définissez la pondération officielle pour le Baccalauréat.</CardDescription>
                                 </div>
                                 <Button onClick={() => addSubject("BAC")} variant="outline" size="sm" className="gap-2">
@@ -304,7 +304,7 @@ export default function ReformsPage() {
                         <Card className="border-border bg-card">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Système de Mentions</CardTitle>
+                                    <CardTitle>Système de mentions</CardTitle>
                                     <CardDescription>Seuils de réussite et libellés pour les moyennes générales.</CardDescription>
                                 </div>
                                 <Button onClick={addMention} variant="outline" size="sm" className="gap-2">

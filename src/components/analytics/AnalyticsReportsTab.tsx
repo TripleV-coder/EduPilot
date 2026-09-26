@@ -156,7 +156,7 @@ export function AnalyticsReportsTab() {
                                 <Layout className="w-4 h-4" />
                             </div>
                             <div>
-                                <CardTitle className="text-sm font-bold tracking-tight">Configuration du Rapport</CardTitle>
+                                <CardTitle className="text-sm font-bold tracking-tight">Configuration du rapport</CardTitle>
                                 <CardDescription className="text-[11px]">Personnalisez le contenu et l&apos;ordre des sections.</CardDescription>
                             </div>
                         </div>

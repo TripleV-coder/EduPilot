@@ -63,7 +63,7 @@ export function AttendanceGradesScatter() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Corrélation Assiduité & Notes</CardTitle>
+          <CardTitle>Corrélation assiduité & notes</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-80">
@@ -78,7 +78,7 @@ export function AttendanceGradesScatter() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Corrélation Assiduité vs Notes</CardTitle>
+          <CardTitle>Corrélation assiduité vs notes</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-80 text-muted-foreground">
@@ -92,7 +92,7 @@ export function AttendanceGradesScatter() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Corrélation Assiduité vs Notes</CardTitle>
+        <CardTitle>Corrélation assiduité vs notes</CardTitle>
         <CardDescription>Cliquez sur un élève pour ouvrir sa fiche détaillée</CardDescription>
       </CardHeader>
       <CardContent>

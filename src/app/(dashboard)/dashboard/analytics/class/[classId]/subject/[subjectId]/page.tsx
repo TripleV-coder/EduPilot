@@ -180,7 +180,7 @@ export default function SubjectAnalyticsPage() {
                             {/* Grade Distribution */}
                             <Card className="lg:col-span-6 border-border">
                                 <CardHeader>
-                                    <CardTitle className="text-sm font-bold">Distribution des Notes</CardTitle>
+                                    <CardTitle className="text-sm font-bold">Distribution des notes</CardTitle>
                                     <CardDescription className="text-[11px]">Répartition des élèves par tranche de performance.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
@@ -191,7 +191,7 @@ export default function SubjectAnalyticsPage() {
                             {/* Monthly Trend */}
                             <Card className="lg:col-span-4 border-border">
                                 <CardHeader>
-                                    <CardTitle className="text-sm font-bold">Évolution de la Moyenne</CardTitle>
+                                    <CardTitle className="text-sm font-bold">Évolution de la moyenne</CardTitle>
                                     <CardDescription className="text-[11px]">Tendance mensuelle sur l&apos;année en cours.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="h-[350px]">
@@ -203,7 +203,7 @@ export default function SubjectAnalyticsPage() {
                         {/* Student Ranking Table */}
                         <Card className="border-border overflow-hidden">
                             <CardHeader className="bg-muted/30 border-b">
-                                <CardTitle className="text-sm font-bold">Classement Individuel</CardTitle>
+                                <CardTitle className="text-sm font-bold">Classement individuel</CardTitle>
                                 <CardDescription className="text-[11px]">Performance nominative des élèves dans cette matière.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-0">

@@ -140,12 +140,12 @@ export default function AcademicSettingsPage() {
         <PageGuard permission={Permission.SCHOOL_UPDATE}>
             <div className="space-y-6 max-w-5xl mx-auto pb-24">
                 <PageHeader
-                    title="Années Académiques"
+                    title="Années académiques"
                     description="Gérer le calendrier scolaire (années, trimestres, semestres)"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Paramètres", href: "/dashboard/settings" },
-                        { label: "Années Académiques" },
+                        { label: "Années académiques" },
                     ]}
                 />
 
@@ -169,7 +169,7 @@ export default function AcademicSettingsPage() {
                             <Calendar className="h-6 w-6" />
                         </div>
                         <div>
-                            <h2 className="font-semibold text-lg">Configuration du Calendrier</h2>
+                            <h2 className="font-semibold text-lg">Configuration du calendrier</h2>
                             <p className="text-sm text-muted-foreground">Création de la chronologie de votre établissement.</p>
                         </div>
                     </div>
@@ -184,7 +184,7 @@ export default function AcademicSettingsPage() {
                 {isAdding && (
                     <Card className="border-primary/20 bg-primary/5">
                         <CardHeader>
-                            <CardTitle className="text-lg">Ajouter une Année Scolaire</CardTitle>
+                            <CardTitle className="text-lg">Ajouter une année scolaire</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleCreateYear} className="space-y-5">

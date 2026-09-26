@@ -66,7 +66,7 @@ export default function RootLogsPage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell>
                 <PageHeader
-                    title="Journal d'Infrastructure"
+                    title="Journal d'infrastructure"
                     description="Historique complet des actions effectuées sur l'ensemble de la plateforme."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

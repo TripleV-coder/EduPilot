@@ -255,7 +255,7 @@ export default function ConfigOptionsSettingsPage() {
       <div className="flex h-full flex-col gap-6">
         <PageHeader
           title="Options de configuration"
-          description="Expose l'API `/api/config-options` pour gérer les référentiels simples par établissement."
+          description="Listes de choix propres à l'établissement (motifs, catégories, types), utilisées dans les formulaires."
           breadcrumbs={[
             { label: "Tableau de bord", href: "/dashboard" },
             { label: "Paramètres", href: "/dashboard/settings" },
@@ -278,7 +278,7 @@ export default function ConfigOptionsSettingsPage() {
                   Référentiels métiers
                 </CardTitle>
                 <CardDescription>
-                  Couvre les options simples encore absentes du frontend malgré des routes backend complètes.
+                  Ajoutez, renommez ou désactivez les choix proposés dans les formulaires de l&apos;établissement.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-3">

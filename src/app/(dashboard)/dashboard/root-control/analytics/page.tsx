@@ -78,7 +78,7 @@ export default function RootAnalyticsPage() {
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="Pilotage Analytique Root"
+                        title="Pilotage analytique root"
                         description="Vue globale (SaaS) des performances et de l'utilisation de la plateforme EduPilot"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },
@@ -189,7 +189,7 @@ export default function RootAnalyticsPage() {
 
                             <Card className="border-border shadow-sm min-h-[350px]">
                                 <CardHeader className="border-b border-border/50">
-                                    <CardTitle>Activité Utilisateurs</CardTitle>
+                                    <CardTitle>Activité utilisateurs</CardTitle>
                                     <CardDescription>Tendance des inscriptions par date.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-6">

@@ -155,7 +155,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                         <GraduationCap className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold tracking-tight">Performances par Classe</h2>
+                        <h2 className="text-sm font-bold tracking-tight">Performances par classe</h2>
                         <p className="text-[11px] text-muted-foreground font-medium">Analysez les résultats et la progression académique.</p>
                     </div>
                 </div>
@@ -174,7 +174,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                 <Card className="lg:col-span-6 dashboard-block border-border" data-reveal>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <div>
-                            <CardTitle className="text-sm font-bold tracking-tight">Radar des Matières</CardTitle>
+                            <CardTitle className="text-sm font-bold tracking-tight">Radar des matières</CardTitle>
                             <CardDescription className="text-[11px]">Profil de performance équilibré vs déséquilibré</CardDescription>
                         </div>
                         <BookOpen className="w-4 h-4 text-muted-foreground/50" />
@@ -190,7 +190,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
 
                 <Card className="lg:col-span-4 dashboard-block border-border" data-reveal>
                     <CardHeader>
-                        <CardTitle className="text-sm font-bold tracking-tight">Progression Individuelle</CardTitle>
+                        <CardTitle className="text-sm font-bold tracking-tight">Progression individuelle</CardTitle>
                         <CardDescription className="text-[11px]">Top 10 des élèves par moyenne générale</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -220,13 +220,13 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Évolution de la Moyenne</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Évolution de la moyenne</CardTitle></CardHeader>
                             <CardContent className="h-[220px]">
                                 <TrendLineChart data={subjectData?.monthlyTrend || []} />
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Distribution des Notes</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Distribution des notes</CardTitle></CardHeader>
                             <CardContent className="h-[220px]">
                                 <PerformanceBarChart
                                     data={
@@ -243,7 +243,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Classement vs Établissement</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Classement vs établissement</CardTitle></CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[220px] text-center">
                                 <div className="w-full h-full">
                                     <TrendLineChart data={classData?.monthlyTrend || []} />
@@ -251,7 +251,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Enseignant Référent</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Enseignant référent</CardTitle></CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[220px] text-center">
                                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 border-2 border-primary/20">
                                     <User className="w-8 h-8 text-primary/40" />
@@ -260,9 +260,6 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                                 <p className="text-[11px] text-muted-foreground mt-1">
                                     {classData?.subjectSummary?.find((s) => s.subjectId === selectedSubjectId)?.name || "Matière"}
                                 </p>
-                                <Badge variant="outline" className="mt-4 text-[11px] font-bold">
-                                    Données backend
-                                </Badge>
                             </CardContent>
                         </Card>
                     </div>

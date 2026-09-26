@@ -49,7 +49,7 @@ export default async function SystemInfoPage() {
     return (
         <PageShell>
             <PageHeader
-                title="Informations Système"
+                title="Informations système"
                 description="Versions et caractéristiques techniques de cette instance, lues à l'instant."
                 breadcrumbs={[
                     { label: "Tableau de bord", href: "/dashboard" },

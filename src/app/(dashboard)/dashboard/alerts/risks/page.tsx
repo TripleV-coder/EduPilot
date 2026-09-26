@@ -173,7 +173,7 @@ function AlertsRisksContent() {
   return (
     <PageShell className="animate-fade-in">
       <PageHeader
-        title="Module de Prévention"
+        title="Module de prévention"
         description="Anticipez le décrochage scolaire et les risques académiques par une analyse prédictive."
         breadcrumbs={[
           { label: "Tableau de bord", href: "/dashboard" },
@@ -225,7 +225,7 @@ function AlertsRisksContent() {
                  </div>
                  <div className="md:col-span-5 space-y-4">
                     <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                       <h3 className="text-xs font-bold tracking-tight mb-2">Légende Matrice</h3>
+                       <h3 className="text-xs font-bold tracking-tight mb-2">Légende matrice</h3>
                        <div className="space-y-3">
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse mt-0.5" />
@@ -353,7 +353,7 @@ function AlertsRisksContent() {
         <div className="lg:col-span-4 space-y-6">
            <Card className="border-none shadow-none bg-muted/20">
               <CardHeader className="p-4 border-b border-border/50 flex flex-row items-center justify-between">
-                <CardTitle className="text-xs font-bold text-muted-foreground">Alertes Prioritaires</CardTitle>
+                <CardTitle className="text-xs font-bold text-muted-foreground">Alertes prioritaires</CardTitle>
                 <span className="h-5 px-1.5 rounded bg-destructive text-white text-[11px] font-bold flex items-center">{topAlerts.length}</span>
               </CardHeader>
               <CardContent className="p-0">
@@ -389,7 +389,7 @@ function AlertsRisksContent() {
            </Card>
            
            <Card className="border-none shadow-none bg-success/10 border border-success/20 p-4 space-y-4">
-              <h3 className="text-[11px] font-bold text-success">Action Rapide</h3>
+              <h3 className="text-[11px] font-bold text-success">Action rapide</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Besoin d&apos;une synthèse pour un conseil de classe ? L&apos;assistant IA peut générer un rapport complet des élèves à risque.
               </p>

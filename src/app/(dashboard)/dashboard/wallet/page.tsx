@@ -260,13 +260,10 @@ function WalletPageContent() {
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <Icon name="sparkle" size={18} color="var(--brand-700)" style={{ flexShrink: 0 }} />
                         <p style={{ margin: 0, fontSize: 13, color: "var(--brand-800)", lineHeight: 1.5 }}>
-                            <strong>Mobile Money non configuré</strong> — Pour activer les décaissements et la
-                            réconciliation MoMo, définir{" "}
-                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_WEBHOOK_SECRET</code> et{" "}
-                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>MOMO_SUBSCRIPTION_KEY</code> dans
-                            les variables d&apos;environnement, puis enregistrer{" "}
-                            <code style={{ fontFamily: "monospace", fontSize: 12 }}>/api/payments/momo/webhook</code>{" "}
-                            sur le portail MTN MoMo Developer.
+                            <strong>Mobile Money non activé</strong> — Les décaissements et le rapprochement
+                            automatique Mobile Money seront disponibles dès que l&apos;équipe EduPilot aura activé
+                            la connexion MTN MoMo pour votre établissement. Contactez le support pour en faire la
+                            demande.
                         </p>
                     </div>
                 </Card>
@@ -504,7 +501,7 @@ function WalletHero({
                             title={
                                 momoConfigured
                                     ? "Créer un décaissement Mobile Money"
-                                    : "Nécessite MOMO_WEBHOOK_SECRET + MOMO_SUBSCRIPTION_KEY"
+                                    : "Mobile Money pas encore activé pour l'établissement"
                             }
                         >
                             Décaisser

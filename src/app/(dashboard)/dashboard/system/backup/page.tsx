@@ -70,7 +70,7 @@ export default function SystemBackupPage() {
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="Sauvegardes Système"
+                        title="Sauvegardes système"
                         description="Gestion des sauvegardes de la base de données et des fichiers"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },

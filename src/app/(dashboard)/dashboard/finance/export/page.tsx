@@ -46,7 +46,7 @@ export default function FinanceExportPage() {
         <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
             <PageShell>
                 <PageHeader
-                    title="Export Financier"
+                    title="Export financier"
                     description="Générez des extractions de données financières pour votre comptabilité"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

@@ -193,7 +193,7 @@ export default function NewUserPage() {
             permission={[Permission.USER_CREATE]}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
             backHref="/dashboard/users"
-            title="Nouvel Utilisateur"
+            title="Nouvel utilisateur"
             description="Créer un compte pour un membre du personnel"
             maxWidth="max-w-3xl"
             breadcrumbs={[

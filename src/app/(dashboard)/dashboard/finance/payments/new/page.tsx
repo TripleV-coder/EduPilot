@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { CreditCard, Save, AlertCircle, CheckCircle, ArrowLeft, Search, User, DollarSign, Download, Loader2 } from "lucide-react";
+import { CreditCard, Save, AlertCircle, CheckCircle, ArrowLeft, Search, User, Banknote, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils/error-message";
@@ -267,7 +267,7 @@ export default function NewPaymentPage() {
                         <Button aria-label="Retour aux finances" variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
                     </Link>
                     <PageHeader
-                        title="Nouvel Encaissement"
+                        title="Nouvel encaissement"
                         description="Terminal de saisie de paiement pour la scolarité et autres frais."
                     />
                 </div>
@@ -430,7 +430,7 @@ export default function NewPaymentPage() {
                                                     className="font-mono text-lg pl-8"
                                                     disabled={!selectedStudentId}
                                                 />
-                                                <DollarSign className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                                                <Banknote className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                                             </div>
                                             <p className="text-[11px] text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
                                         </div>

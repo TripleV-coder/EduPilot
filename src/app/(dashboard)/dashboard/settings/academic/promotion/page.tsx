@@ -214,7 +214,7 @@ function PromotionEngineContent() {
     <div className="space-y-4 pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader 
-          title="Promotion & Fin d'Année" 
+          title="Promotion & fin d'année" 
           description="Gérez le passage des élèves en classe supérieure pour l'année suivante."
         />
 
@@ -305,7 +305,7 @@ function PromotionEngineContent() {
         <div className="lg:col-span-8 space-y-6">
           <Card className="border-none shadow-none bg-muted/20 overflow-hidden">
             <CardHeader className="p-4 border-b border-border/50 bg-background/40 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-bold text-muted-foreground">Décisions de Promotion</CardTitle>
+              <CardTitle className="text-xs font-bold text-muted-foreground">Décisions de promotion</CardTitle>
               <div className="flex gap-4 items-center">
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-[hsl(var(--success))]" />

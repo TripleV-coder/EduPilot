@@ -126,7 +126,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <PageShell className="max-w-5xl">
                 <PageHeader
-                    title="Disponibilités Enseignant"
+                    title="Disponibilités de l'enseignant"
                     description="Cliquez sur les créneaux pour définir la disponibilité. Les changements sont enregistrés en cliquant sur Enregistrer."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

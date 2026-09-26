@@ -116,7 +116,7 @@ export default function MyDataSettingsPage() {
         <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
-                    title="Mes Données Personnelles"
+                    title="Mes données personnelles"
                     description="Contrôlez vos données personnelles conformément au Règlement Général sur la Protection des Données (RGPD)."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -152,7 +152,7 @@ export default function MyDataSettingsPage() {
                                 <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-muted/20">
                                 <FileText className="w-8 h-8 text-primary shrink-0" />
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-foreground">Archive Complète (JSON & PDF)</h3>
+                                    <h3 className="font-semibold text-foreground">Archive complète (JSON & PDF)</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Comprend votre profil, l'historique de présence, et les bulletins disponibles.</p>
                                 </div>
                                 <Button className="gap-2 shrink-0" onClick={handleExportData} disabled={exporting}>

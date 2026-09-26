@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
-import { DollarSign, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
+import { Banknote, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
@@ -91,7 +91,7 @@ export function ParentFinanceView() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Scolarité & Paiements"
+                title="Scolarité & paiements"
                 description="Suivez l'état des paiements pour vos enfants"
                 breadcrumbs={[
                     { label: "Tableau de bord", href: "/dashboard" },
@@ -103,7 +103,7 @@ export function ParentFinanceView() {
                 <Card className="border-border bg-card">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">Total à régler</CardTitle>
-                        <DollarSign className="w-4 h-4 text-destructive" />
+                        <Banknote className="w-4 h-4 text-destructive" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatCurrency(data?.totalPending || 0)}</div>

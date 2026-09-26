@@ -228,7 +228,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
                         </svg>
                     </div>
                     <div className="space-y-2">
-                        <h1 className="text-2xl font-bold tracking-tight">Initialisation Requise</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Initialisation requise</h1>
                         <p className="text-muted-foreground text-sm">
                             Votre compte n&apos;est actuellement lié à aucun établissement actif. Veuillez contacter votre administrateur.
                         </p>

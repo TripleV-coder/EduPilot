@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import useSWR from "swr";
-import { AlertTriangle, ArrowUpDown, DollarSign, FileWarning, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, Banknote, FileWarning, Wallet } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,12 +138,12 @@ export function DebtRiskBoard() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Dettes & Impayés"
+                title="Dettes & impayés"
                 description="Consolidez les plans de paiement en retard critique et priorisez les dossiers à traiter."
                 breadcrumbs={[
                     { label: "Tableau de bord", href: "/dashboard" },
                     { label: "Alertes & Risques" },
-                    { label: "Dettes & Impayés" },
+                    { label: "Dettes & impayés" },
                 ]}
             />
 
@@ -162,7 +162,7 @@ export function DebtRiskBoard() {
                         <CardDescription>Montant à recouvrer</CardDescription>
                         <CardTitle className="flex items-center justify-between text-2xl">
                             {formatCurrency(totalOutstanding)}
-                            <DollarSign className="h-5 w-5 text-[#2D6A4F]" />
+                            <Banknote className="h-5 w-5 text-[#2D6A4F]" />
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -190,7 +190,7 @@ export function DebtRiskBoard() {
                 <CardHeader>
                     <CardTitle>Dossiers de paiement à risque</CardTitle>
                     <CardDescription>
-                        Vue temps réel des plans `OVERDUE` issus du backend financier.
+                        Échéanciers dont au moins une échéance est dépassée.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

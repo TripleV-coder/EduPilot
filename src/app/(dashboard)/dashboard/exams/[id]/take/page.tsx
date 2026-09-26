@@ -128,7 +128,7 @@ export default function TakeExamPage() {
                         <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Trophy className="w-10 h-10 text-primary" />
                         </div>
-                        <h2 className="text-2xl font-display font-bold">Examen Terminé !</h2>
+                        <h2 className="text-2xl font-display font-bold">Examen terminé !</h2>
                         <p className="text-muted-foreground mt-1">{exam.title}</p>
                     </div>
                     <CardContent className="p-5 space-y-6">

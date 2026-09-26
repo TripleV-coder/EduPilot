@@ -151,7 +151,7 @@ export default function SubjectsSettingsPage() {
         <PageGuard permission={Permission.SUBJECT_CREATE}>
             <PageShell>
                 <PageHeader
-                    title="Matières & Évaluations"
+                    title="Matières & évaluations"
                     description="Gérer le catalogue des matières et les types d'évaluations (coefficients, catégories)."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -182,7 +182,7 @@ export default function SubjectsSettingsPage() {
                         </TabsTrigger>
                         <TabsTrigger value="evaluations" className="gap-2">
                             <FileText className="h-4 w-4" />
-                            Types d'Évaluation
+                            Types d'évaluation
                         </TabsTrigger>
                     </TabsList>
 
@@ -194,7 +194,7 @@ export default function SubjectsSettingsPage() {
                                     <BookOpen className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg">Matières Enseignées</h2>
+                                    <h2 className="font-semibold text-lg">Matières enseignées</h2>
                                     <p className="text-sm text-muted-foreground">Définissez les disciplines génériques de l'établissement.</p>
                                 </div>
                             </div>
@@ -216,7 +216,7 @@ export default function SubjectsSettingsPage() {
                         {isAddingSubject && (
                             <Card className="border-primary/20 bg-primary/5">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Ajouter une Matière Centrale</CardTitle>
+                                    <CardTitle className="text-lg">Ajouter une matière centrale</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <form onSubmit={handleCreateSubject} className="space-y-5">
@@ -267,7 +267,7 @@ export default function SubjectsSettingsPage() {
                             ) : subjects.length === 0 ? (
                                 <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
                                     <Bookmark className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                    <h3 className="text-lg font-medium">Aucune Matière</h3>
+                                    <h3 className="text-lg font-medium">Aucune matière</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Générez le catalogue pour pouvoir assigner des cours aux classes.</p>
                                 </div>
                             ) : (
@@ -309,7 +309,7 @@ export default function SubjectsSettingsPage() {
                                     <FileText className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg">Types d'Évaluation</h2>
+                                    <h2 className="font-semibold text-lg">Types d'évaluation</h2>
                                     <p className="text-sm text-muted-foreground">Définissez les devoirs de contrôle, compositions et leurs poids par défaut.</p>
                                 </div>
                             </div>
@@ -324,7 +324,7 @@ export default function SubjectsSettingsPage() {
                         {isAddingEvalType && (
                             <Card className="border-accent/20 bg-accent/5">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Créer un Type d'Évaluation</CardTitle>
+                                    <CardTitle className="text-lg">Créer un type d'évaluation</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <form onSubmit={handleCreateEvalType} className="space-y-5">
@@ -364,7 +364,7 @@ export default function SubjectsSettingsPage() {
                             ) : evalTypes.length === 0 ? (
                                 <div className="col-span-full text-center py-16 border border-dashed rounded-xl bg-muted/30">
                                     <FileText className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                    <h3 className="text-lg font-medium">Aucun Type d'Évaluation</h3>
+                                    <h3 className="text-lg font-medium">Aucun type d'évaluation</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Créez des types d'évaluation (Ex: Devoirs de synthèse).</p>
                                 </div>
                             ) : (

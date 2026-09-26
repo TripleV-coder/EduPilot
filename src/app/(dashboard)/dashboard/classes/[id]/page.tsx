@@ -294,7 +294,7 @@ export default function ClassDetailsPage() {
                         </TabsTrigger>
                         <TabsTrigger value="schedule" className="gap-2">
                             <Calendar className="h-4 w-4" />
-                            Emploi du Temps
+                            Emploi du temps
                         </TabsTrigger>
                         <TabsTrigger value="performance" className="gap-2">
                             <BarChart3 className="h-4 w-4" />
@@ -313,7 +313,7 @@ export default function ClassDetailsPage() {
                                     <BookOpen className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg">Répartition des Matières</h2>
+                                    <h2 className="font-semibold text-lg">Répartition des matières</h2>
                                     <p className="text-sm text-muted-foreground">Assignez les professeurs et les volumes horaires pour cette classe.</p>
                                 </div>
                             </div>
@@ -328,7 +328,7 @@ export default function ClassDetailsPage() {
                         {isAssigning && (
                             <Card className="border-primary/20 bg-primary/5 shadow-sm">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Nouvelle Assignation</CardTitle>
+                                    <CardTitle className="text-lg">Nouvelle assignation</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <form onSubmit={handleAssignSubject} className="space-y-5">
@@ -424,7 +424,7 @@ export default function ClassDetailsPage() {
                         <Card className="border-dashed border-2 shadow-none bg-muted/10">
                             <CardContent className="py-20 text-center">
                                 <Users className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Liste des Élèves</h3>
+                                <h3 className="text-lg font-medium">Liste des élèves</h3>
                                 <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
                                     Les élèves inscrits apparaîtront ici. Pour inscrire un élève, rendez-vous dans le module Inscriptions ou Importation.
                                 </p>
@@ -439,7 +439,7 @@ export default function ClassDetailsPage() {
 
                     <TabsContent value="schedule" className="space-y-6">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-semibold">Emploi du Temps</h2>
+                            <h2 className="text-lg font-semibold">Emploi du temps</h2>
                             <a href="/dashboard/import">
                                 <Button variant="outline" className="gap-2">
                                     <Upload className="h-4 w-4" />

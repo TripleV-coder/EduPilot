@@ -79,7 +79,7 @@ export default function NewExamPage() {
             </Button>
           </Link>
           <PageHeader
-            title="Nouvel Examen"
+            title="Nouvel examen"
             description="Créez un modèle d'examen"
             breadcrumbs={[
               { label: "Tableau de bord", href: "/dashboard" },

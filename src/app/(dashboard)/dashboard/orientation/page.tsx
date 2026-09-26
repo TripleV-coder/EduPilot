@@ -349,7 +349,7 @@ export default function OrientationPage() {
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
             <PageShell>
                 <PageHeader
-                    title="Orientation Scolaire & Universitaire"
+                    title="Orientation scolaire & universitaire"
                     description="Gérez les vœux d'orientation, visualisez les recommandations du conseil de classe et suivez les parcours des élèves."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },

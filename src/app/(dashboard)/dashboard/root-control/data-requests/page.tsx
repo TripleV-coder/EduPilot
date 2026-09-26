@@ -92,7 +92,7 @@ export default function RootDataRequestsPage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell>
                 <PageHeader
-                    title="Conformité RGPD / Demandes"
+                    title="Conformité RGPD / demandes"
                     description="Traitement centralisé des demandes d'exportation de données et de suppression de compte (Droit à l'oubli)."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -127,7 +127,7 @@ export default function RootDataRequestsPage() {
 
                 <Card className="border-border shadow-sm">
                     <CardHeader className="bg-muted/10 border-b border-border">
-                        <CardTitle>Registre des Demandes</CardTitle>
+                        <CardTitle>Registre des demandes</CardTitle>
                         <CardDescription>
                             Vous devez traiter ces demandes conformément au RGPD (Délai légal d'un mois).
                         </CardDescription>

@@ -106,7 +106,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
 
             <Card className="dashboard-block border-border" data-reveal>
                 <CardHeader>
-                    <CardTitle className="text-sm font-bold tracking-tight">Recouvrement par Segment</CardTitle>
+                    <CardTitle className="text-sm font-bold tracking-tight">Recouvrement par segment</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table>

@@ -46,7 +46,7 @@ export default function RootFinancePage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <div className="space-y-4">
                 <PageHeader
-                    title="Finances Plateforme"
+                    title="Finances plateforme"
                     description="Suivi du chiffre d'affaires récurrent et de la performance commerciale globale."
                 />
 

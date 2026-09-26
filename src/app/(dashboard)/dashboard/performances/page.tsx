@@ -133,7 +133,7 @@ export default function PerformancesPage() {
         <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
             <PageShell>
                 <PageHeader
-                    title="Performances Pédagogiques"
+                    title="Performances pédagogiques"
                     description="Analyse des résultats scolaires, suivi des moyennes par classe, niveau et matière."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -364,7 +364,7 @@ export default function PerformancesPage() {
                         {/* Performance By Level */}
                         <Card className="shadow-sm border-border">
                             <CardHeader>
-                                <CardTitle className="text-lg">Moyennes par Niveau d'Étude</CardTitle>
+                                <CardTitle className="text-lg">Moyennes par niveau d'étude</CardTitle>
                                 <CardDescription>Vue macroscopique des résultats de l'établissement</CardDescription>
                             </CardHeader>
                             <CardContent>

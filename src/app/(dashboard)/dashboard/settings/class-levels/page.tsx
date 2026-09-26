@@ -97,12 +97,12 @@ export default function ClassLevelsSettingsPage() {
         <PageGuard permission={Permission.SCHOOL_UPDATE}>
             <PageShell>
                 <PageHeader
-                    title="Niveaux d'Étude"
+                    title="Niveaux d'étude"
                     description="Gérer la hiérarchie des classes (Primaire, Collège, Lycée...)"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Paramètres", href: "/dashboard/settings" },
-                        { label: "Niveaux d'Étude" },
+                        { label: "Niveaux d'étude" },
                     ]}
                 />
 
@@ -126,7 +126,7 @@ export default function ClassLevelsSettingsPage() {
                             <Layers className="h-6 w-6" />
                         </div>
                         <div>
-                            <h2 className="font-semibold text-lg">Structure de l'Établissement</h2>
+                            <h2 className="font-semibold text-lg">Structure de l'établissement</h2>
                             <p className="text-sm text-muted-foreground">Création de la progression logique des classes.</p>
                         </div>
                     </div>
@@ -141,7 +141,7 @@ export default function ClassLevelsSettingsPage() {
                 {isAdding && (
                     <Card className="border-secondary/20 bg-secondary/5">
                         <CardHeader>
-                            <CardTitle className="text-lg">Ajouter un Niveau</CardTitle>
+                            <CardTitle className="text-lg">Ajouter un niveau</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleCreateLevel} className="space-y-5">
@@ -197,7 +197,7 @@ export default function ClassLevelsSettingsPage() {
                 ) : levels.length === 0 ? (
                         <div className="text-center py-16 border border-dashed rounded-xl bg-muted/30">
                             <Layers className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                            <h3 className="text-lg font-medium">Aucun Niveau Configurè</h3>
+                            <h3 className="text-lg font-medium">Aucun niveau configuré</h3>
                             <p className="text-sm text-muted-foreground mt-1">Cliquez sur Ajouter pour créer la structure de l'établissement.</p>
                         </div>
                     ) : (

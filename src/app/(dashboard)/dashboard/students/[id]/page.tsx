@@ -17,7 +17,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { 
   GraduationCap, ArrowLeft, Download, Loader2, 
   CalendarCheck, 
-  Edit, ShieldAlert, HeartPulse, DollarSign, Activity, 
+  Edit, ShieldAlert, HeartPulse, Banknote, Activity, 
   UserCircle, CreditCard
 } from "lucide-react";
 import { StudentGradesTab } from "@/components/students/student-grades-tab";
@@ -229,7 +229,7 @@ export default function StudentDetailPage() {
                   Santé
                 </TabsTrigger>
                 <TabsTrigger value="finances" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <DollarSign className="h-3.5 w-3.5" />
+                  <Banknote className="h-3.5 w-3.5" />
                   Finances
                 </TabsTrigger>
                 <TabsTrigger value="suivi" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -367,7 +367,7 @@ export default function StudentDetailPage() {
               <TabsContent value="finances" className="mt-0">
                 <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
                    <div className="text-center p-5">
-                      <DollarSign className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                      <Banknote className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="text-sm font-bold text-muted-foreground">État financier non disponible.</p>
                       <p className="text-xs text-muted-foreground mt-1">Consultez l&apos;historique des paiements et les bourses dans le module Finance.</p>
                    </div>

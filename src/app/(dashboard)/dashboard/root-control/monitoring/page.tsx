@@ -18,7 +18,7 @@ export default function RootMonitoringPage() {
         <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell>
                 <PageHeader
-                    title="Monitoring Root (Infrastructure)"
+                    title="Monitoring root (infrastructure)"
                     description="Surveillance globale des serveurs, bases de données et services de messagerie."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
@@ -51,7 +51,7 @@ export default function RootMonitoringPage() {
                                             En ligne
                                         </Badge>
                                     </div>
-                                    <h3 className="font-semibold text-lg">Système Principal</h3>
+                                    <h3 className="font-semibold text-lg">Système principal</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Sessions actives: {data.system.activeSessions}</p>
                                     {data.system.maintenanceMode && (
                                         <Badge variant="destructive" className="mt-2 text-[11px]">Maintenance Active</Badge>
@@ -73,7 +73,7 @@ export default function RootMonitoringPage() {
                                             <Badge variant="destructive">Critique</Badge>
                                         )}
                                     </div>
-                                    <h3 className="font-semibold text-lg">PostgreSQL Master</h3>
+                                    <h3 className="font-semibold text-lg">PostgreSQL master</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Latence lecture: {data.database.health.responseTime}ms</p>
                                 </CardContent>
                             </Card>
@@ -92,7 +92,7 @@ export default function RootMonitoringPage() {
                                             <Badge variant="destructive">Déconnecté</Badge>
                                         )}
                                     </div>
-                                    <h3 className="font-semibold text-lg">Redis Cache</h3>
+                                    <h3 className="font-semibold text-lg">Redis cache</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Hit rate: {data.cache.hitRate}%</p>
                                     {data.cache.memory && <p className="text-xs text-muted-foreground mt-0.5">Mem: {data.cache.memory}</p>}
                                 </CardContent>
@@ -110,7 +110,7 @@ export default function RootMonitoringPage() {
                                             <Badge variant="outline" className="text-muted-foreground">Normal</Badge>
                                         )}
                                     </div>
-                                    <h3 className="font-semibold text-lg">Logs & Erreurs</h3>
+                                    <h3 className="font-semibold text-lg">Logs & erreurs</h3>
                                     <p className="text-sm text-muted-foreground mt-1">{data.errors.last24h} erreurs / 24h</p>
                                 </CardContent>
                             </Card>
@@ -216,7 +216,7 @@ export default function RootMonitoringPage() {
 
                         {data.alerts && data.alerts.length > 0 && (
                             <div className="space-y-4 mt-6">
-                                <h3 className="font-semibold text-lg">Alertes Récentes</h3>
+                                <h3 className="font-semibold text-lg">Alertes récentes</h3>
                                 {data.alerts.map((alert, idx) => (
                                     <Card key={idx} className={`${alert.level === "critical" ? "border-destructive/30 bg-destructive/5" : alert.level === "warning" ? "border-warning/40 bg-warning/10" : "border-primary/30 bg-primary/5"} shadow-sm`}>
                                         <CardContent className="p-4 flex items-start gap-4">

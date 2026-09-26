@@ -323,7 +323,7 @@ export default function OrganizationDashboardPage() {
   return (
     <PageShell className="pb-10">
       <PageHeader
-        title="Pilotage d’Organisation"
+        title="Pilotage de l'organisation"
         description="Comparaison multisites stricte par réseau, avec périmètre harmonisé sur l’année académique de référence."
         breadcrumbs={[
           { label: "Tableau de bord", href: "/dashboard" },
@@ -435,7 +435,7 @@ export default function OrganizationDashboardPage() {
             <div className="lg:col-span-1">
                 <Card className="border-border/60 bg-foreground text-background shadow-sm h-full">
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-bold text-background/70">Périmètre de Comparaison</CardTitle>
+                        <CardTitle className="text-[11px] font-bold text-background/70">Périmètre de comparaison</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
                         <div className="space-y-1">

@@ -81,7 +81,7 @@ export default function NewTeacherPage() {
             permission={Permission.TEACHER_CREATE}
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
             backHref="/dashboard/teachers"
-            title="Ajouter un Enseignant"
+            title="Ajouter un enseignant"
             description="Enregistrer un nouveau membre du corps professoral"
             breadcrumbs={[
                 { label: "Tableau de bord", href: "/dashboard" },
@@ -141,7 +141,7 @@ export default function NewTeacherPage() {
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                                     <div className="space-y-5">
-                                        <h2 className="text-sm font-semibold text-muted-foreground">État Civil</h2>
+                                        <h2 className="text-sm font-semibold text-muted-foreground">État civil</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}
@@ -199,7 +199,7 @@ export default function NewTeacherPage() {
                                     </div>
 
                                     <div className="space-y-5 pt-4 border-t border-border">
-                                        <h2 className="text-sm font-semibold text-muted-foreground">Profil Professionnel</h2>
+                                        <h2 className="text-sm font-semibold text-muted-foreground">Profil professionnel</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <FormField
                                                 control={form.control}

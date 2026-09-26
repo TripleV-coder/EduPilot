@@ -181,7 +181,7 @@ export default function AcademicPeriodsPage() {
             <div className="space-y-6 max-w-4xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
-                        title="Séquences et Périodes"
+                        title="Séquences et périodes"
                         description="Découpez l'année scolaire en trimestres ou semestres"
                         breadcrumbs={[
                             { label: "Tableau de bord", href: "/dashboard" },

@@ -9,9 +9,9 @@ export default function FailureRiskPage() {
             <PageShell>
                 <StudentRiskBoard
                     mode="failure"
-                    title="Échec Scolaire"
+                    title="Échec scolaire"
                     description="Isolez les élèves dont la trajectoire académique se dégrade avant la fin de période."
-                    breadcrumbLabel="Échec Scolaire"
+                    breadcrumbLabel="Échec scolaire"
                 />
             </PageShell>
         </PageGuard>

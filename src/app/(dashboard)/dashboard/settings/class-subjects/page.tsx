@@ -136,7 +136,7 @@ export default function ClassSubjectsPage() {
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <PageShell>
                 <PageHeader
-                    title="Matières par Classe"
+                    title="Matières par classe"
                     description="Affectation des matières, coefficients et enseignants aux classes"
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
