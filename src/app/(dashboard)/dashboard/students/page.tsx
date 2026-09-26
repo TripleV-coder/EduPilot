@@ -26,9 +26,7 @@ import {
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CARD_COLORS, initials } from "@/components/edu-homes/home-kit";
-import homeStyles from "@/components/edu-homes/home.module.css";
+import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 
 type Student = {
     id: string;
@@ -156,9 +154,9 @@ export default function StudentsPage() {
         document.body.removeChild(link);
     };
 
-    const requestDelete = (e: React.MouseEvent, id: string, name: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const requestDelete = (e: React.MouseEvent | null, id: string, name: string) => {
+        e?.preventDefault();
+        e?.stopPropagation();
         setPendingDelete({ id, name });
         setDeleteDialogOpen(true);
     };
@@ -326,24 +324,39 @@ export default function StudentsPage() {
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "grid" ? (
-                    <section className={homeStyles.block} aria-label="Liste des élèves">
-                        <ul className={homeStyles.watch}>
-                        {students.map((student, index) => (
-                            <StudentRow
-                                key={student.id}
-                                student={student}
-                                index={index}
-                                onRequestDelete={(e) => {
-                                    const name = student.user
-                                        ? `${student.user.firstName} ${student.user.lastName}`
-                                        : student.studentNumber ?? student.matricule ?? "—";
-                                    requestDelete(e, student.id, name);
-                                }}
-                                onNavigate={() => markStudentTransition(student.id)}
-                            />
-                        ))}
-                        </ul>
-                    </section>
+                    <PersonList label="Liste des élèves">
+                        {students.map((student, index) => {
+                            const name = student.user
+                                ? `${student.user.firstName} ${student.user.lastName}`
+                                : student.studentNumber ?? student.matricule ?? "—";
+                            const className =
+                                Array.isArray(student.enrollments) && student.enrollments.length > 0
+                                    ? student.enrollments[0].class?.name
+                                    : null;
+                            const href = `/dashboard/students/${student.id}`;
+                            return (
+                                <PersonRow
+                                    key={student.id}
+                                    index={index}
+                                    name={name}
+                                    href={href}
+                                    onNavigate={() => markStudentTransition(student.id)}
+                                    detail={[
+                                        className ?? "Non assigné",
+                                        student.matricule ?? student.studentNumber,
+                                        student.user?.isActive === false ? "inactif" : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    actions={[
+                                        { label: "Voir le dossier", href },
+                                        { label: "Encaisser un paiement", href: `/dashboard/finance/payments/new?studentId=${student.id}`, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] },
+                                        { label: "Supprimer", danger: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"], onSelect: () => requestDelete(null, student.id, name) },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </PersonList>
                 ) : null}
 
                 {!loading && !error && students.length > 0 && viewMode === "table" ? (
@@ -530,82 +543,6 @@ export default function StudentsPage() {
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
-
-/* Ligne façon « Personnes » de Google Classroom, dans le langage des listes
-   de l'accueil validé (docs/design/directions/live) : avatar coloré, nom,
-   classe et matricule ; actions secondaires dans le menu « ⋮ ». */
-function StudentRow({
-    student,
-    index,
-    onRequestDelete,
-    onNavigate,
-}: {
-    student: Student;
-    index: number;
-    onRequestDelete: (e: React.MouseEvent) => void;
-    onNavigate: () => void;
-}) {
-    const fullName = student.user
-        ? `${student.user.firstName} ${student.user.lastName}`
-        : student.studentNumber ?? student.matricule ?? "—";
-    const className =
-        Array.isArray(student.enrollments) && student.enrollments.length > 0
-            ? student.enrollments[0].class?.name
-            : null;
-    const isActive = student.user?.isActive ?? false;
-    const matricule = student.matricule ?? student.studentNumber;
-    const href = `/dashboard/students/${student.id}`;
-    const detail = [className ?? "Non assigné", matricule, isActive ? null : "inactif"].filter(Boolean).join(" · ");
-
-    return (
-        <li className={homeStyles.watchItem}>
-            <span
-                className={homeStyles.avatar}
-                style={{ background: CARD_COLORS[index % CARD_COLORS.length] }}
-                aria-hidden="true"
-            >
-                {initials(fullName)}
-            </span>
-            <div className="min-w-0">
-                <Link href={href} onClick={onNavigate} className={`${homeStyles.name} block truncate no-underline hover:underline`}>
-                    {fullName}
-                </Link>
-                <div className={`${homeStyles.detail} truncate`}>{detail}</div>
-            </div>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={`Actions pour ${fullName}`}
-                        className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-[var(--eduflow-surface-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50"
-                    >
-                        <Icon name="more" size={18} color="var(--eduflow-text-secondary)" />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-48 p-1">
-                    <Link
-                        href={href}
-                        onClick={onNavigate}
-                        className="block rounded-md px-3 py-2 text-sm no-underline hover:bg-[var(--eduflow-surface-sunken)]"
-                        style={{ color: "var(--eduflow-text-primary)" }}
-                    >
-                        Voir le dossier
-                    </Link>
-                    <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
-                        <button
-                            type="button"
-                            onClick={onRequestDelete}
-                            className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
-                            style={{ color: "var(--eduflow-danger-700)" }}
-                        >
-                            Supprimer
-                        </button>
-                    </RoleActionGuard>
-                </PopoverContent>
-            </Popover>
-        </li>
-    );
-}
 
 function SegmentedToggle<T extends string>({
     value,

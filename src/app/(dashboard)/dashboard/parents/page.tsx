@@ -24,6 +24,7 @@ import {
 } from "@/components/edu";
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type ParentUser = {
@@ -72,13 +73,13 @@ export default function ParentsPage() {
     const totalPages = parentsPage.totalPages ?? 1;
 
     const requestDelete = (
-        e: React.MouseEvent,
+        e: React.MouseEvent | null,
         id: string,
         name: string,
         email: string
     ) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e?.preventDefault();
+        e?.stopPropagation();
         setDeleteTarget({ id, name, email });
         setDeleteDialogOpen(true);
     };
@@ -171,7 +172,7 @@ export default function ParentsPage() {
                                     value={viewMode}
                                     onChange={setViewMode}
                                     options={[
-                                        { value: "grid", label: "Grille", icon: "grid" },
+                                        { value: "grid", label: "Liste", icon: "users" },
                                         { value: "table", label: "Tableau", icon: "cards" },
                                     ]}
                                 />
@@ -255,29 +256,27 @@ export default function ParentsPage() {
                 ) : null}
 
                 {!loading && !error && parents.length > 0 && viewMode === "grid" ? (
-                    <div
-                        className="edu-stagger"
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        {parents.map((parent) => (
-                            <ParentCard
-                                key={parent.id}
-                                parent={parent}
-                                onRequestDelete={(e) => {
-                                    requestDelete(
-                                        e,
-                                        parent.id,
-                                        `${parent.firstName} ${parent.lastName}`,
-                                        parent.email
-                                    );
-                                }}
-                            />
-                        ))}
-                    </div>
+                    <PersonList label="Liste des parents">
+                        {parents.map((parent, index) => {
+                            const name = `${parent.firstName} ${parent.lastName}`;
+                            return (
+                                <PersonRow
+                                    key={parent.id}
+                                    index={index}
+                                    name={name}
+                                    detail={[parent.phone, parent.email, parent.isActive ? null : "inactif"].filter(Boolean).join(" · ")}
+                                    actions={[
+                                        {
+                                            label: "Supprimer",
+                                            danger: true,
+                                            allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"],
+                                            onSelect: () => requestDelete(null, parent.id, name, parent.email),
+                                        },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </PersonList>
                 ) : null}
 
                 {!loading && !error && parents.length > 0 && viewMode === "table" ? (
@@ -446,115 +445,6 @@ export default function ParentsPage() {
                 onConfirm={confirmDelete}
             />
         </PageGuard>
-    );
-}
-
-function ParentCard({
-    parent,
-    onRequestDelete,
-}: {
-    parent: ParentUser;
-    onRequestDelete: (e: React.MouseEvent) => void;
-}) {
-    const fullName = `${parent.firstName} ${parent.lastName}`;
-    return (
-        <Card
-            padding={16}
-            style={{
-                cursor: "default",
-                transition:
-                    "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-            }}
-            className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
-        >
-            <div className="flex items-start gap-3">
-                <Avatar
-                    name={fullName}
-                    size="md"
-                    status={parent.isActive ? "online" : undefined}
-                />
-                <div className="min-w-0 flex-1">
-                    <div
-                        className="truncate"
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "var(--eduflow-text-primary)",
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        {fullName}
-                    </div>
-                    <div
-                        className="truncate"
-                        style={{
-                            fontSize: 11,
-                            color: "var(--eduflow-text-tertiary)",
-                            marginTop: 2,
-                        }}
-                    >
-                        {parent.email}
-                    </div>
-                    {parent.phone ? (
-                        <div
-                            className="eduflow-mono"
-                            style={{
-                                fontSize: 11,
-                                color: "var(--eduflow-text-secondary)",
-                                marginTop: 4,
-                            }}
-                        >
-                            {parent.phone}
-                        </div>
-                    ) : null}
-                </div>
-                <RoleActionGuard
-                    allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-                >
-                    <button
-                        type="button"
-                        onClick={onRequestDelete}
-                        aria-label="Supprimer le parent"
-                        className="grid place-items-center"
-                        style={{
-                            width: 30,
-                            height: 30,
-                            border: 0,
-                            background: "transparent",
-                            borderRadius: 8,
-                            color: "var(--eduflow-text-tertiary)",
-                            cursor: "pointer",
-                            transition:
-                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "var(--eduflow-danger-50)";
-                            e.currentTarget.style.color = "var(--eduflow-danger-700)";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
-                        }}
-                    >
-                        <Icon name="x" size={14} />
-                    </button>
-                </RoleActionGuard>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-                {parent.isActive ? (
-                    <Badge variant="success" size="sm" dot>
-                        Actif
-                    </Badge>
-                ) : (
-                    <Badge variant="neutral" size="sm">
-                        Inactif
-                    </Badge>
-                )}
-                <Badge variant="neutral" size="sm" icon="calendar">
-                    {format(new Date(parent.createdAt), "dd MMM yyyy", { locale: fr })}
-                </Badge>
-            </div>
-        </Card>
     );
 }
 

@@ -25,6 +25,7 @@ import {
     type IconName,
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type User = {
@@ -131,13 +132,13 @@ export default function UsersPage() {
     };
 
     const requestDelete = (
-        e: React.MouseEvent,
+        e: React.MouseEvent | null,
         id: string,
         name: string,
         email: string
     ) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e?.preventDefault();
+        e?.stopPropagation();
         setPendingDelete({ id, name, email });
         setDeleteDialogOpen(true);
     };
@@ -238,7 +239,7 @@ export default function UsersPage() {
                                     value={viewMode}
                                     onChange={setViewMode}
                                     options={[
-                                        { value: "grid", label: "Grille", icon: "grid" },
+                                        { value: "grid", label: "Liste", icon: "users" },
                                         { value: "table", label: "Tableau", icon: "cards" },
                                     ]}
                                 />
@@ -309,29 +310,33 @@ export default function UsersPage() {
                 ) : null}
 
                 {!loading && !error && users.length > 0 && viewMode === "grid" ? (
-                    <div
-                        className="edu-stagger"
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        {users.map((user) => (
-                            <UserCard
-                                key={user.id}
-                                user={user}
-                                onRequestDelete={(e) => {
-                                    requestDelete(
-                                        e,
-                                        user.id,
-                                        `${user.firstName} ${user.lastName}`,
-                                        user.email
-                                    );
-                                }}
-                            />
-                        ))}
-                    </div>
+                    <PersonList label="Liste des comptes">
+                        {users.map((user, index) => {
+                            const name = `${user.firstName} ${user.lastName}`;
+                            return (
+                                <PersonRow
+                                    key={user.id}
+                                    index={index}
+                                    name={name}
+                                    detail={[
+                                        roleLabels[user.role] || formatUserRoleLabel(user.role),
+                                        user.email,
+                                        user.school?.name,
+                                        user.isActive ? null : "inactif",
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    actions={[
+                                        {
+                                            label: "Supprimer le compte",
+                                            danger: true,
+                                            onSelect: () => requestDelete(null, user.id, name, user.email),
+                                        },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </PersonList>
                 ) : null}
 
                 {!loading && !error && users.length > 0 && viewMode === "table" ? (
@@ -484,110 +489,6 @@ export default function UsersPage() {
                 onConfirm={confirmDelete}
             />
         </PageGuard>
-    );
-}
-
-function UserCard({
-    user,
-    onRequestDelete,
-}: {
-    user: User;
-    onRequestDelete: (e: React.MouseEvent) => void;
-}) {
-    const fullName = `${user.firstName} ${user.lastName}`;
-    const roleLabel = roleLabels[user.role] || formatUserRoleLabel(user.role);
-    const roleVariant = ROLE_VARIANTS[user.role] || "neutral";
-    return (
-        <Card
-            padding={16}
-            style={{
-                cursor: "default",
-                transition:
-                    "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-            }}
-            className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
-        >
-            <div className="flex items-start gap-3">
-                <Avatar
-                    name={fullName}
-                    size="md"
-                    status={user.isActive ? "online" : undefined}
-                />
-                <div className="min-w-0 flex-1">
-                    <div
-                        className="truncate"
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "var(--eduflow-text-primary)",
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        {fullName}
-                    </div>
-                    <div
-                        className="truncate"
-                        style={{
-                            fontSize: 11,
-                            color: "var(--eduflow-text-tertiary)",
-                            marginTop: 2,
-                        }}
-                    >
-                        {user.email}
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    onClick={onRequestDelete}
-                    aria-label="Supprimer le compte"
-                    className="grid place-items-center"
-                    style={{
-                        width: 30,
-                        height: 30,
-                        border: 0,
-                        background: "transparent",
-                        borderRadius: 8,
-                        color: "var(--eduflow-text-tertiary)",
-                        cursor: "pointer",
-                        transition:
-                            "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--eduflow-danger-50)";
-                        e.currentTarget.style.color = "var(--eduflow-danger-700)";
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
-                    }}
-                >
-                    <Icon name="x" size={14} />
-                </button>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant={roleVariant} size="sm">
-                    {roleLabel}
-                </Badge>
-                {user.school?.name ? (
-                    <Badge variant="neutral" size="sm" icon="school">
-                        {user.school.name}
-                    </Badge>
-                ) : (
-                    <Badge variant="neutral" size="sm">
-                        Global
-                    </Badge>
-                )}
-                {user.isActive ? (
-                    <Badge variant="success" size="sm" dot>
-                        Actif
-                    </Badge>
-                ) : (
-                    <Badge variant="neutral" size="sm">
-                        Inactif
-                    </Badge>
-                )}
-            </div>
-        </Card>
     );
 }
 

@@ -23,6 +23,7 @@ import {
 } from "@/components/edu";
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
 type Teacher = {
@@ -116,9 +117,9 @@ export default function TeachersPage() {
         document.body.removeChild(link);
     };
 
-    const requestDelete = (e: React.MouseEvent, id: string, name: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const requestDelete = (e: React.MouseEvent | null, id: string, name: string) => {
+        e?.preventDefault();
+        e?.stopPropagation();
         setPendingDelete({ id, name });
         setDeleteDialogOpen(true);
     };
@@ -167,7 +168,7 @@ export default function TeachersPage() {
                                     value={viewMode}
                                     onChange={setViewMode}
                                     options={[
-                                        { value: "grid", label: "Grille", icon: "grid" },
+                                        { value: "grid", label: "Liste", icon: "users" },
                                         { value: "table", label: "Tableau", icon: "cards" },
                                     ]}
                                 />
@@ -246,27 +247,35 @@ export default function TeachersPage() {
                 ) : null}
 
                 {!loading && !error && teachers.length > 0 && viewMode === "grid" ? (
-                    <div
-                        className="edu-stagger"
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        {teachers.map((teacher) => (
-                            <TeacherCard
-                                key={teacher.id}
-                                teacher={teacher}
-                                onRequestDelete={(e) => {
-                                    const name = teacher.user
-                                        ? `${teacher.user.firstName} ${teacher.user.lastName}`
-                                        : "—";
-                                    requestDelete(e, teacher.id, name);
-                                }}
-                            />
-                        ))}
-                    </div>
+                    <PersonList label="Liste des enseignants">
+                        {teachers.map((teacher, index) => {
+                            const name = teacher.user ? `${teacher.user.firstName} ${teacher.user.lastName}` : "—";
+                            const subjects = Array.from(
+                                new Set(teacher.classSubjects?.map((cs) => cs.subject?.name).filter(Boolean) ?? []),
+                            );
+                            return (
+                                <PersonRow
+                                    key={teacher.id}
+                                    index={index}
+                                    name={name}
+                                    href={`/dashboard/teachers/${teacher.id}`}
+                                    detail={[subjects.join(", ") || "Aucune affectation", teacher.user?.email, teacher.user?.isActive === false ? "inactif" : null]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    actions={[
+                                        { label: "Voir la fiche", href: `/dashboard/teachers/${teacher.id}` },
+                                        { label: "Disponibilités", href: `/dashboard/teachers/${teacher.id}/availability` },
+                                        {
+                                            label: "Supprimer",
+                                            danger: true,
+                                            allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"],
+                                            onSelect: () => requestDelete(null, teacher.id, name),
+                                        },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </PersonList>
                 ) : null}
 
                 {!loading && !error && teachers.length > 0 && viewMode === "table" ? (
@@ -408,138 +417,6 @@ export default function TeachersPage() {
                 onConfirm={confirmDelete}
             />
         </PageGuard>
-    );
-}
-
-function TeacherCard({
-    teacher,
-    onRequestDelete,
-}: {
-    teacher: Teacher;
-    onRequestDelete: (e: React.MouseEvent) => void;
-}) {
-    const fullName = teacher.user
-        ? `${teacher.user.firstName} ${teacher.user.lastName}`
-        : "—";
-    const isActive = teacher.user?.isActive ?? false;
-    const subjects = Array.from(
-        new Set(
-            teacher.classSubjects?.map((cs) => cs.subject?.name).filter(Boolean) ?? []
-        )
-    );
-
-    return (
-        <Card
-            padding={16}
-            style={{
-                cursor: "default",
-                transition:
-                    "transform var(--eduflow-motion-fast) var(--eduflow-ease-out), box-shadow var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-            }}
-            className="hover:-translate-y-0.5 hover:shadow-eduflow-card-brand"
-        >
-            <div className="flex items-start gap-3">
-                <Avatar
-                    name={fullName}
-                    size="md"
-                    status={isActive ? "online" : undefined}
-                />
-                <div className="min-w-0 flex-1">
-                    <div
-                        className="truncate"
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "var(--eduflow-text-primary)",
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        {fullName}
-                    </div>
-                    {teacher.user?.email ? (
-                        <div
-                            className="truncate"
-                            style={{
-                                fontSize: 11,
-                                color: "var(--eduflow-text-tertiary)",
-                                marginTop: 2,
-                            }}
-                        >
-                            {teacher.user.email}
-                        </div>
-                    ) : null}
-                    {teacher.specialization ? (
-                        <div
-                            style={{
-                                fontSize: 11,
-                                color: "var(--eduflow-text-secondary)",
-                                marginTop: 4,
-                                fontStyle: "italic",
-                            }}
-                        >
-                            {teacher.specialization}
-                        </div>
-                    ) : null}
-                </div>
-                <RoleActionGuard
-                    allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-                >
-                    <button
-                        type="button"
-                        onClick={onRequestDelete}
-                        aria-label="Supprimer l'enseignant"
-                        className="grid place-items-center"
-                        style={{
-                            width: 30,
-                            height: 30,
-                            border: 0,
-                            background: "transparent",
-                            borderRadius: 8,
-                            color: "var(--eduflow-text-tertiary)",
-                            cursor: "pointer",
-                            transition:
-                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "var(--eduflow-danger-50)";
-                            e.currentTarget.style.color = "var(--eduflow-danger-700)";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--eduflow-text-tertiary)";
-                        }}
-                    >
-                        <Icon name="x" size={14} />
-                    </button>
-                </RoleActionGuard>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-                {subjects.slice(0, 3).map((s) => (
-                    <Badge key={s} variant="brand" size="sm" icon="book">
-                        {s}
-                    </Badge>
-                ))}
-                {subjects.length > 3 ? (
-                    <Badge variant="neutral" size="sm">
-                        +{subjects.length - 3}
-                    </Badge>
-                ) : null}
-                {subjects.length === 0 ? (
-                    <Badge variant="neutral" size="sm">
-                        Aucune affectation
-                    </Badge>
-                ) : null}
-                {isActive ? (
-                    <Badge variant="success" size="sm" dot>
-                        Actif
-                    </Badge>
-                ) : (
-                    <Badge variant="neutral" size="sm">
-                        Inactif
-                    </Badge>
-                )}
-            </div>
-        </Card>
     );
 }
 
