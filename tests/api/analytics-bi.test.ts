@@ -3,17 +3,20 @@ import { GET } from "@/app/api/analytics/bi/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
+import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { count: vi.fn() },
-    fee: { findMany: vi.fn() },
+    academicYear: { findFirst: vi.fn() },
     payment: { groupBy: vi.fn() },
     attendance: { groupBy: vi.fn() },
   },
 }));
+// Recouvrement sur l'attendu réel : prouvé par tests/lib/finance/expected-fees.test.ts.
+vi.mock("@/lib/finance/expected-fees", () => ({ computeYearFeeRecovery: vi.fn() }));
 // Agrégats SQL (série mensuelle, derniers instantanés) : prouvés contre un vrai
 // PostgreSQL par tests/integration-db/analytics-bi.test.ts.
 vi.mock("@/lib/services/analytics/bi-aggregates", () => ({
@@ -31,7 +34,8 @@ function currentMonthKey(): string {
 
 function mockEmptyData() {
   vi.mocked(prisma.studentProfile.count).mockResolvedValue(0);
-  vi.mocked(prisma.fee.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "cay-current" } as never);
+  vi.mocked(computeYearFeeRecovery).mockResolvedValue(null);
   vi.mocked(prisma.payment.groupBy).mockResolvedValue([] as never);
   vi.mocked(prisma.attendance.groupBy).mockResolvedValue([] as never);
   vi.mocked(collectedByLocalMonth).mockResolvedValue([]);
@@ -70,9 +74,9 @@ describe("GET /api/analytics/bi", () => {
   it("should compute the full BI payload", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.studentProfile.count).mockResolvedValue(120);
-    vi.mocked(prisma.fee.findMany).mockResolvedValue([
-      { amount: 100000, createdAt: new Date() },
-    ] as never);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "cay-current" } as never);
+    // Attendu réel = 100 000 FCFA (frais × élèves concernés), 40 000 encaissés.
+    vi.mocked(computeYearFeeRecovery).mockResolvedValue({ expected: 100000, collected: 40000, rate: 40 });
     vi.mocked(prisma.payment.groupBy).mockResolvedValue([
       { method: "CASH", _sum: { amount: 40000 } },
     ] as never);
@@ -91,6 +95,7 @@ describe("GET /api/analytics/bi", () => {
 
     expect(body.kpis.studentCount).toBe(120);
     expect(body.kpis.collectionRate).toBe(40);
+    expect(computeYearFeeRecovery).toHaveBeenCalledWith(SCHOOL, "cay-current");
     expect(body.kpis.attendanceRate).toBe(83.3);
     expect(body.kpis.passRate).toBe(50);
     expect(body.totalCollected).toBe(40000);
@@ -98,7 +103,7 @@ describe("GET /api/analytics/bi", () => {
     expect(body.paymentMix).toEqual([{ method: "CASH", amount: 40000, share: 100 }]);
 
     expect(body.monthly).toHaveLength(12);
-    expect(body.monthly.some((m: { billed: number }) => m.billed > 0)).toBe(true);
+    expect(body.monthly.every((m: object) => !("billed" in m))).toBe(true);
     expect(body.monthly.some((m: { collected: number }) => m.collected > 0)).toBe(true);
 
     expect(body.topSubjects).toEqual([{ subject: "Maths", average: 12 }]);
@@ -113,9 +118,7 @@ describe("GET /api/analytics/bi", () => {
     const ay = "cay1ay1ay1ay1ay1ay1ay1a";
     const res = await GET(makeRequest(`http://localhost/api/analytics/bi?academicYearId=${ay}`), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
-    expect(prisma.fee.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ academicYearId: ay }) })
-    );
+    expect(computeYearFeeRecovery).toHaveBeenCalledWith(expect.any(String), ay);
     expect(latestSnapshotStats).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }));
     expect(collectedByLocalMonth).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }), expect.any(Date));
   });
@@ -141,6 +144,6 @@ describe("GET /api/analytics/bi", () => {
     expect(body.kpis.passRate).toBe(0);
     expect(body.paymentMix).toEqual([]);
     expect(body.topSubjects).toEqual([]);
-    expect(body.monthly.every((m: { billed: number; collected: number }) => m.billed === 0 && m.collected === 0)).toBe(true);
+    expect(body.monthly.every((m: { collected: number }) => m.collected === 0)).toBe(true);
   });
 });

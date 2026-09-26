@@ -34,9 +34,9 @@ export default function AcademicLevelsPage() {
     }
 
     const groupLabels: Record<string, { label: string; icon: typeof Layers; color: string }> = {
-        PRIMARY: { label: "Cycle Primaire", icon: Network, color: "text-secondary" },
-        COLLEGE: { label: "Cycle Collège", icon: Layers, color: "text-primary" },
-        LYCEE: { label: "Cycle Lycée", icon: Boxes, color: "text-warning" },
+        PRIMARY: { label: "Primaire", icon: Network, color: "text-secondary" },
+        SECONDARY_COLLEGE: { label: "Collège (premier cycle)", icon: Layers, color: "text-primary" },
+        SECONDARY_LYCEE: { label: "Lycée (second cycle)", icon: Boxes, color: "text-warning" },
         AUTRE: { label: "Autres", icon: Layers, color: "text-muted-foreground" },
     };
 
@@ -44,12 +44,12 @@ export default function AcademicLevelsPage() {
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
             <PageShell>
                 <PageHeader
-                    title="Cycles, Niveaux & Séries"
+                    title="Cycles, niveaux et séries"
                     description="Structurez l'arborescence académique de votre établissement, essentielle pour le module 'Classes'."
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Paramètres", href: "/dashboard/settings" },
-                        { label: "Structure Académique" },
+                        { label: "Structure académique" },
                     ]}
                 />
 

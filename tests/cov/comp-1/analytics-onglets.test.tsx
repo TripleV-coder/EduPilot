@@ -70,8 +70,8 @@ describe("AnalyticsBIBoard", () => {
         kpis: { studentCount: 1250, collectionRate: 82.46, attendanceRate: 93.1, passRate: 71 },
         totalCollected: 12_500_000,
         monthly: [
-            { label: "Sep", billed: 1000, collected: 800 },
-            { label: "Oct", billed: 0, collected: 0 },
+            { label: "Sep", collected: 800 },
+            { label: "Oct", collected: 0 },
         ],
         paymentMix: [
             { method: "MOBILE_MONEY", amount: 800, share: 60 },
@@ -99,7 +99,7 @@ describe("AnalyticsBIBoard", () => {
         expect(screen.getByText("CRYPTO")).toBeInTheDocument(); // méthode inconnue : code brut
         expect(screen.getByText("60,0%")).toBeInTheDocument();
         expect(screen.getByText("13,3")).toBeInTheDocument();
-        expect(screen.getByTitle(/Facturé · 1\s?000 FCFA/)).toBeInTheDocument();
+        expect(screen.queryByTitle(/Facturé/)).not.toBeInTheDocument();
         expect(screen.getByText("Recouvrement en hausse")).toBeInTheDocument();
         expect(screen.getByText("Relancer les impayés de 6e")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "Voir l'analyse complète" }));

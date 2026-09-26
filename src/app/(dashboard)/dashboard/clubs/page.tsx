@@ -1,335 +1,314 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { toast } from "sonner";
 
+import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
-
-import {
-    Badge,
-    Button,
-    Card,
-    Icon,
-    type IconName,
-} from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { CalendarDays, UserRound } from "lucide-react";
+import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
+import { Button, Icon, Input } from "@/components/edu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { CARD_COLORS } from "@/components/edu-homes/home-kit";
+import homeStyles from "@/components/edu-homes/home.module.css";
 
-type ClubColor = "info" | "warning" | "success" | "brand" | "danger";
-
-type ClubSeed = {
+type Club = {
     id: string;
     name: string;
     category: string;
-    members: number;
-    professor: string;
-    schedule: string;
-    color: ClubColor;
-    icon: IconName;
-    description: string;
+    description: string | null;
+    schedule: string | null;
+    capacity: number | null;
+    supervisor: { id: string; name: string } | null;
+    memberCount: number;
+    joined: boolean;
 };
 
-const CLUBS: ClubSeed[] = [
-    {
-        id: "robotics",
-        name: "Robotique",
-        category: "Sciences",
-        members: 24,
-        professor: "M. Sossou",
-        schedule: "Mer 14h-16h",
-        color: "info",
-        icon: "sparkle",
-        description:
-            "Construction, programmation, compétition régionale. Niveau débutant à confirmé.",
-    },
-    {
-        id: "theatre",
-        name: "Théâtre",
-        category: "Arts",
-        members: 32,
-        professor: "Mme Bossou",
-        schedule: "Sam 9h-12h",
-        color: "warning",
-        icon: "users",
-        description:
-            "Pièce annuelle pour la fête de fin d'année. Toutes les classes mélangées.",
-    },
-    {
-        id: "football",
-        name: "Football",
-        category: "Sport",
-        members: 56,
-        professor: "M. Coffi",
-        schedule: "Mer 16h-18h",
-        color: "success",
-        icon: "flame",
-        description:
-            "Équipe école · championnat inter-établissements. Filles & garçons.",
-    },
-    {
-        id: "chess",
-        name: "Échecs",
-        category: "Stratégie",
-        members: 18,
-        professor: "M. Adjavon",
-        schedule: "Ven 16h-17h",
-        color: "brand",
-        icon: "trophy",
-        description: "Tournois mensuels · classement ELO interne. Tous niveaux.",
-    },
-    {
-        id: "chorus",
-        name: "Chorale",
-        category: "Arts",
-        members: 28,
-        professor: "Mme Akin",
-        schedule: "Jeu 16h-17h30",
-        color: "warning",
-        icon: "sms",
-        description:
-            "Cérémonies officielles, concerts. Répertoire local et international.",
-    },
-    {
-        id: "newspaper",
-        name: "Journal scolaire",
-        category: "Médias",
-        members: 14,
-        professor: "Mme Bio",
-        schedule: "Mar 16h-17h",
-        color: "info",
-        icon: "pencil",
-        description: "Mensuel · interviews, reportages, photos.",
-    },
-];
+type ClubsResponse = { canManage: boolean; clubs: Club[] };
+type Teacher = { id: string; user?: { firstName?: string; lastName?: string } };
 
-const STORAGE_KEY = "edupilot.clubs.subscribed";
+type Draft = {
+    id?: string;
+    name: string;
+    category: string;
+    description: string;
+    schedule: string;
+    supervisorId: string;
+    capacity: string;
+};
 
+const EMPTY_DRAFT: Draft = { name: "", category: "", description: "", schedule: "", supervisorId: "", capacity: "" };
+
+async function send(url: string, method: string, body?: unknown) {
+    const res = await fetch(url, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Action impossible.");
+    return data;
+}
+
+/* Clubs de l'établissement, en cartes à bandeau façon Google Classroom
+   (docs/design/directions/live). Données réelles : /api/clubs. */
 export default function ClubsPage() {
-    const [subscribed, setSubscribed] = useState<string[]>([]);
-    const [ready, setReady] = useState(false);
+    const { data, error, isLoading, mutate } = useSWR<ClubsResponse>("/api/clubs", fetcher);
+    const canManage = data?.canManage ?? false;
+    const { data: teachersData } = useSWR<unknown>(canManage ? "/api/teachers?limit=100" : null, fetcher);
+    const teachers: Teacher[] = Array.isArray(teachersData)
+        ? (teachersData as Teacher[])
+        : ((teachersData as { data?: Teacher[] } | undefined)?.data ?? []);
 
-    useEffect(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) setSubscribed(JSON.parse(raw));
-        } catch {
-            /* ignore */
-        }
-        setReady(true);
-    }, []);
+    const [draft, setDraft] = useState<Draft | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [busyId, setBusyId] = useState<string | null>(null);
+    const [archiveTarget, setArchiveTarget] = useState<Club | null>(null);
 
-    const persist = (next: string[]) => {
-        setSubscribed(next);
+    const clubs = data?.clubs ?? [];
+    const joinedCount = clubs.filter((c) => c.joined).length;
+
+    const saveDraft = async () => {
+        if (!draft) return;
+        setSaving(true);
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        } catch {
-            /* ignore */
+            const body = {
+                name: draft.name,
+                category: draft.category,
+                description: draft.description || null,
+                schedule: draft.schedule || null,
+                supervisorId: draft.supervisorId || null,
+                capacity: draft.capacity ? Number(draft.capacity) : null,
+            };
+            await send(draft.id ? `/api/clubs/${draft.id}` : "/api/clubs", draft.id ? "PATCH" : "POST", body);
+            toast.success(draft.id ? "Club modifié." : "Club créé.");
+            setDraft(null);
+            await mutate();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Action impossible.");
+        } finally {
+            setSaving(false);
         }
     };
 
-    const toggle = (id: string) => {
-        persist(
-            subscribed.includes(id)
-                ? subscribed.filter((x) => x !== id)
-                : [...subscribed, id]
-        );
+    const toggleMembership = async (club: Club) => {
+        setBusyId(club.id);
+        try {
+            await send(`/api/clubs/${club.id}/members`, club.joined ? "DELETE" : "POST");
+            toast.success(club.joined ? `Vous avez quitté ${club.name}.` : `Vous avez rejoint ${club.name}.`);
+            await mutate();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Action impossible.");
+        } finally {
+            setBusyId(null);
+        }
     };
 
-    const myClubs = useMemo(
-        () => CLUBS.filter((c) => subscribed.includes(c.id)),
-        [subscribed]
-    );
+    const archive = async () => {
+        if (!archiveTarget) return;
+        try {
+            await send(`/api/clubs/${archiveTarget.id}`, "DELETE");
+            toast.success("Club archivé.");
+            setArchiveTarget(null);
+            await mutate();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Action impossible.");
+        }
+    };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
-        >
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "STAFF"]}>
             <PageShell>
                 <PageHeader
-                    title="Clubs & activités"
-                    description={`${CLUBS.length} clubs proposés · ${ready ? myClubs.length : 0} ${
-                        ready && myClubs.length > 1 ? "auxquels vous êtes inscrit" : "auquel vous êtes inscrit"
-                    }`}
-                    breadcrumbs={[
-                        { label: "Vie scolaire" },
-                        { label: "Clubs & activités" },
-                    ]}
+                    title="Clubs et activités"
+                    description={
+                        isLoading
+                            ? "Chargement…"
+                            : `${clubs.length} club${clubs.length > 1 ? "s" : ""}${
+                                  canManage ? "" : ` · ${joinedCount} rejoint${joinedCount > 1 ? "s" : ""}`
+                              }`
+                    }
+                    breadcrumbs={[{ label: "Vie scolaire" }, { label: "Clubs et activités" }]}
                     actions={
-                        ready ? (
-                            <Badge
-                                variant={myClubs.length > 0 ? "success" : "neutral"}
-                                icon={myClubs.length > 0 ? "check" : undefined}
-                            >
-                                {myClubs.length > 0
-                                    ? `Tu es dans ${myClubs.length} club${myClubs.length > 1 ? "s" : ""}`
-                                    : "Aucune inscription"}
-                            </Badge>
+                        canManage ? (
+                            <Button icon="plus" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
+                                Nouveau club
+                            </Button>
                         ) : null
                     }
                 />
 
-                <Card
-                    padding={14}
-                    style={{
-                        background: "var(--brand-50)",
-                        border: "1px solid var(--brand-200)",
-                    }}
-                >
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <Icon
-                            name="info"
-                            size={16}
-                            color="var(--brand-700)"
-                            style={{ marginTop: 2 }}
-                        />
-                        <div
-                            style={{
-                                fontSize: 12,
-                                color: "var(--brand-800)",
-                                lineHeight: 1.55,
-                            }}
-                        >
-                            Catalogue de démonstration · {CLUBS.length} clubs typiques. Les
-                            inscriptions sont mémorisées localement sur ton navigateur en attendant
-                            le modèle <code>Club</code> + <code>ClubMembership</code> côté Prisma.
-                        </div>
-                    </div>
-                </Card>
+                {isLoading ? <PageLoading label="Chargement des clubs…" /> : null}
+                {error ? <PageError message="Impossible de charger les clubs." onRetry={() => void mutate()} /> : null}
+                {!isLoading && !error && clubs.length === 0 ? (
+                    <PageEmpty
+                        icon="trophy"
+                        title="Aucun club pour l'instant"
+                        description={
+                            canManage
+                                ? "Créez le premier club : robotique, théâtre, football, chorale…"
+                                : "L'établissement n'a pas encore ouvert de club."
+                        }
+                    />
+                ) : null}
 
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: 14,
-                    }}
-                    className="clubs-grid"
-                >
-                    {CLUBS.map((club) => {
-                        const mine = subscribed.includes(club.id);
-                        return (
-                            <Card
-                                key={club.id}
-                                padding={20}
-                                style={{
-                                    border: mine
-                                        ? "2px solid var(--eduflow-success-600)"
-                                        : "1px solid var(--eduflow-border-default)",
-                                    background: mine
-                                        ? "var(--eduflow-success-50)"
-                                        : "var(--eduflow-surface-card)",
-                                    position: "relative",
-                                }}
-                            >
-                                {mine ? (
-                                    <div
-                                        style={{
-                                            position: "absolute",
-                                            top: 12,
-                                            right: 12,
-                                        }}
-                                    >
-                                        <Badge variant="success" size="sm" icon="check">
-                                            Inscrit
-                                        </Badge>
+                {clubs.length > 0 ? (
+                    <div className={homeStyles.classes}>
+                        {clubs.map((club, index) => {
+                            const full = club.capacity !== null && club.memberCount >= club.capacity && !club.joined;
+                            return (
+                                <div key={club.id} className={homeStyles.classCard} style={{ position: "relative" }}>
+                                    <div className={homeStyles.banner} style={{ background: CARD_COLORS[index % CARD_COLORS.length] }}>
+                                        <span className={homeStyles.className} style={{ paddingRight: 32 }}>{club.name}</span>
+                                        <span className={homeStyles.classMeta}>
+                                            {[club.category, club.schedule].filter(Boolean).join(" · ")}
+                                        </span>
                                     </div>
-                                ) : null}
-                                <div
-                                    style={{
-                                        width: 48,
-                                        height: 48,
-                                        borderRadius: 14,
-                                        background: `var(--eduflow-${club.color}-100, var(--brand-100))`,
-                                        display: "grid",
-                                        placeItems: "center",
-                                        marginBottom: 14,
-                                    }}
-                                >
-                                    <Icon
-                                        name={club.icon}
-                                        size={22}
-                                        color={`var(--eduflow-${club.color}-700)`}
-                                    />
+                                    <div style={{ padding: "10px 14px 0", fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                        {club.description ? <p style={{ margin: "0 0 6px" }}>{club.description}</p> : null}
+                                        <p style={{ margin: 0 }}>
+                                            {club.supervisor ? `Responsable : ${club.supervisor.name}` : "Responsable à désigner"}
+                                        </p>
+                                    </div>
+                                    <div className={homeStyles.classBody} style={{ alignItems: "center" }}>
+                                        <span>
+                                            {club.memberCount}
+                                            {club.capacity ? ` / ${club.capacity}` : ""} membre{club.memberCount > 1 ? "s" : ""}
+                                        </span>
+                                        {!canManage ? (
+                                            <Button
+                                                size="sm"
+                                                variant={club.joined ? "secondary" : "primary"}
+                                                loading={busyId === club.id}
+                                                disabled={full || busyId === club.id}
+                                                onClick={() => toggleMembership(club)}
+                                            >
+                                                {club.joined ? "Quitter" : full ? "Complet" : "Rejoindre"}
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                    {canManage ? (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Actions pour le club ${club.name}`}
+                                                    className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-full text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                                >
+                                                    <Icon name="more" size={18} color="#fff" />
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent align="end" className="w-48 p-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setDraft({
+                                                            id: club.id,
+                                                            name: club.name,
+                                                            category: club.category,
+                                                            description: club.description ?? "",
+                                                            schedule: club.schedule ?? "",
+                                                            supervisorId: club.supervisor?.id ?? "",
+                                                            capacity: club.capacity ? String(club.capacity) : "",
+                                                        })
+                                                    }
+                                                    className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-surface-sunken)]"
+                                                >
+                                                    Modifier
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setArchiveTarget(club)}
+                                                    className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
+                                                    style={{ color: "var(--eduflow-danger-700)" }}
+                                                >
+                                                    Archiver
+                                                </button>
+                                            </PopoverContent>
+                                        </Popover>
+                                    ) : null}
                                 </div>
-                                <div
-                                    className="eduflow-display"
-                                    style={{ fontSize: 16, fontWeight: 700 }}
-                                >
-                                    {club.name}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        color: "var(--eduflow-text-tertiary)",
-                                        marginBottom: 10,
-                                    }}
-                                >
-                                    {club.category} · {club.members} membres
-                                </div>
-                                <p
-                                    style={{
-                                        fontSize: 12,
-                                        color: "var(--eduflow-text-secondary)",
-                                        lineHeight: 1.55,
-                                        margin: "0 0 12px",
-                                    }}
-                                >
-                                    {club.description}
-                                </p>
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        gap: 10,
-                                        marginBottom: 12,
-                                        fontSize: 11,
-                                        color: "var(--eduflow-text-tertiary)",
-                                        flexWrap: "wrap",
-                                    }}
-                                >
-                                    <span className="inline-flex items-center gap-1">
-                                        <CalendarDays size={14} aria-hidden="true" /> {club.schedule}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1">
-                                        <UserRound size={14} aria-hidden="true" /> {club.professor}
-                                    </span>
-                                </div>
-                                {mine ? (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        style={{ width: "100%" }}
-                                        onClick={() => toggle(club.id)}
-                                    >
-                                        Se désinscrire
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        icon="plus"
-                                        style={{ width: "100%" }}
-                                        onClick={() => toggle(club.id)}
-                                    >
-                                        Rejoindre
-                                    </Button>
-                                )}
-                            </Card>
-                        );
-                    })}
-                </div>
-            </PageShell>
+                            );
+                        })}
+                    </div>
+                ) : null}
 
-            <style jsx global>{`
-                @media (max-width: 960px) {
-                    .clubs-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                    }
-                }
-                @media (max-width: 600px) {
-                    .clubs-grid {
-                        grid-template-columns: minmax(0, 1fr) !important;
-                    }
-                }
-            `}</style>
+                <Dialog open={draft !== null} onOpenChange={(open) => (!open ? setDraft(null) : undefined)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{draft?.id ? "Modifier le club" : "Nouveau club"}</DialogTitle>
+                        </DialogHeader>
+                        {draft ? (
+                            <div className="grid gap-4">
+                                <Input label="Nom" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+                                <Input
+                                    label="Catégorie"
+                                    placeholder="Sciences, arts, sport…"
+                                    value={draft.category}
+                                    onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                                    required
+                                />
+                                <Input
+                                    label="Horaire"
+                                    placeholder="Mercredi 15 h – 17 h"
+                                    value={draft.schedule}
+                                    onChange={(e) => setDraft({ ...draft, schedule: e.target.value })}
+                                />
+                                <Input
+                                    label="Places (facultatif)"
+                                    type="number"
+                                    min={1}
+                                    value={draft.capacity}
+                                    onChange={(e) => setDraft({ ...draft, capacity: e.target.value })}
+                                />
+                                <label className="grid gap-1.5 text-[13px] font-semibold">
+                                    Responsable
+                                    <select
+                                        value={draft.supervisorId}
+                                        onChange={(e) => setDraft({ ...draft, supervisorId: e.target.value })}
+                                        className="h-10 rounded-input border px-3 text-sm font-normal"
+                                        style={{ borderColor: "var(--eduflow-border-default)", background: "var(--eduflow-surface-card)" }}
+                                    >
+                                        <option value="">À désigner</option>
+                                        {teachers.map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                                {`${t.user?.firstName ?? ""} ${t.user?.lastName ?? ""}`.trim() || "Enseignant"}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <Input
+                                    label="Description (facultatif)"
+                                    value={draft.description}
+                                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                                />
+                            </div>
+                        ) : null}
+                        <DialogFooter>
+                            <Button variant="secondary" onClick={() => setDraft(null)}>
+                                Annuler
+                            </Button>
+                            <Button icon="check" loading={saving} disabled={saving} onClick={saveDraft}>
+                                Enregistrer
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <ConfirmActionDialog
+                    open={archiveTarget !== null}
+                    onOpenChange={(open) => (!open ? setArchiveTarget(null) : undefined)}
+                    title={archiveTarget ? `Archiver le club ${archiveTarget.name} ?` : "Archiver ce club ?"}
+                    description="Le club disparaît de la liste ; l'historique des membres est conservé."
+                    confirmLabel="Archiver"
+                    cancelLabel="Annuler"
+                    variant="destructive"
+                    onConfirm={archive}
+                />
+            </PageShell>
         </PageGuard>
     );
 }

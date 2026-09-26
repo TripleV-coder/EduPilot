@@ -56,16 +56,18 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     const body = res.body as {
       kpis: Record<string, number>;
       totalCollected: number;
-      monthly: Array<{ label: string; billed: number; collected: number }>;
+      monthly: Array<{ label: string; collected: number }>;
       paymentMix: unknown;
       topSubjects: unknown;
       insight: unknown;
     };
 
     // 6 élèves actifs dans l'école (l'annexe est exclue)
-    // 55 000 encaissés / 150 000 facturés ; présences : 2 PRESENT + 1 LATE sur 4
+    // Recouvrement sur l'attendu RÉEL : 2 frais sans année (100 000 + 50 000) dus par
+    // chacun des 6 élèves inscrits = 900 000 ; 55 000 encaissés → 6,1 % (avant : 55 000
+    // divisés par la somme des tarifs unitaires, 36,7 %). Présences : 2 PRESENT + 1 LATE sur 4
     // Réussite : s1 16, s2 14, s5 12 ≥ 10 ; s3 8, s4 5, s6 (null) < 10 → 3/6
-    expect(body.kpis).toEqual({ studentCount: 6, collectionRate: 36.7, attendanceRate: 75, passRate: 50 });
+    expect(body.kpis).toEqual({ studentCount: 6, collectionRate: 6.1, attendanceRate: 75, passRate: 50 });
     expect(body.totalCollected).toBe(55000);
     expect(body.paymentMix).toEqual([
       { method: "CASH", amount: 40000, share: 72.7 },
@@ -76,10 +78,9 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     expect(body.monthly).toHaveLength(12);
     const expectedMonthly = Array.from({ length: 12 }, (_, i) => {
       const d = monthsAgo(11 - i);
-      return { label: d.toLocaleDateString("fr-FR", { month: "short" }), billed: 0, collected: 0 };
+      return { label: d.toLocaleDateString("fr-FR", { month: "short" }), collected: 0 };
     });
-    expectedMonthly[11] = { ...expectedMonthly[11], billed: 100000, collected: 40000 };
-    expectedMonthly[9] = { ...expectedMonthly[9], billed: 50000 };
+    expectedMonthly[11] = { ...expectedMonthly[11], collected: 40000 };
     expectedMonthly[8] = { ...expectedMonthly[8], collected: 10000 };
     expect(body.monthly).toEqual(expectedMonthly);
 
@@ -97,9 +98,10 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     expect(res.status).toBe(200);
     const body = res.body as { kpis: Record<string, number>; totalCollected: number; paymentMix: unknown; topSubjects: unknown };
 
-    // Aucun frais rattaché à l'année : rien de facturé ni d'encaissé
+    // Aucun frais rattaché à l'année : rien d'encaissé sur des frais de l'année ;
+    // les frais sans année restent dus cette année (même 6,1 % que sans filtre).
     expect(body.totalCollected).toBe(0);
-    expect(body.kpis.collectionRate).toBe(0);
+    expect(body.kpis.collectionRate).toBe(6.1);
     expect(body.paymentMix).toEqual([]);
     // Les analyses sont toutes de cette année : mêmes valeurs
     expect(body.kpis.passRate).toBe(50);
@@ -114,12 +116,12 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     actAs(sessionFor("SCHOOL_ADMIN", empty.id));
     const res = await callRoute(GET, { path: "/api/analytics/bi" });
     expect(res.status).toBe(200);
-    const body = res.body as { kpis: Record<string, number>; totalCollected: number; monthly: Array<{ billed: number; collected: number }>; paymentMix: unknown; topSubjects: unknown };
+    const body = res.body as { kpis: Record<string, number>; totalCollected: number; monthly: Array<{ collected: number }>; paymentMix: unknown; topSubjects: unknown };
     expect(body.kpis).toEqual({ studentCount: 0, collectionRate: 0, attendanceRate: 0, passRate: 0 });
     expect(body.totalCollected).toBe(0);
     expect(body.paymentMix).toEqual([]);
     expect(body.topSubjects).toEqual([]);
-    expect(body.monthly.every((m) => m.billed === 0 && m.collected === 0)).toBe(true);
+    expect(body.monthly.every((m) => m.collected === 0)).toBe(true);
   });
 });
 

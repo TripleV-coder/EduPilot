@@ -17,20 +17,12 @@ type RiskMode = "dropout" | "failure";
 type AnalyticsStudent = {
     studentId: string;
     studentName: string;
+    classId: string | null;
+    className: string | null;
     averageGrade: number | null;
     attendanceRate: number | null;
     absenceCount: number;
     riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
-};
-
-type StudentDirectoryItem = {
-    id: string;
-    enrollments?: Array<{
-        class?: {
-            id: string;
-            name: string;
-        } | null;
-    }>;
 };
 
 type BehaviorIncidentItem = {
@@ -117,11 +109,6 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
         fetcher,
         { revalidateOnFocus: false, dedupingInterval: 30000 }
     );
-    const { data: studentsPayload, isLoading: studentsLoading } = useSWR<unknown>(
-        "/api/students?limit=200",
-        fetcher,
-        { revalidateOnFocus: false, dedupingInterval: 30000 }
-    );
     const { data: incidentsPayload, isLoading: incidentsLoading } = useSWR<{ incidents?: BehaviorIncidentItem[] }>(
         "/api/incidents?limit=200",
         fetcher,
@@ -129,7 +116,6 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
     );
 
     const analytics = Array.isArray(analyticsPayload) ? analyticsPayload : [];
-    const students = extractCollection<StudentDirectoryItem>(studentsPayload, ["students", "data"]);
     const incidents = extractCollection<BehaviorIncidentItem>(incidentsPayload, ["data", "incidents"]);
 
     const allRows = useMemo<RiskRow[]>(() => {
@@ -138,16 +124,12 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
             return accumulator;
         }, {});
 
-        const studentsById = new Map<string, StudentDirectoryItem>(
-            students.map((student) => [student.id, student])
-        );
-
         return analytics
             .map((entry) => {
-                const studentDirectory = studentsById.get(entry.studentId);
-                const firstEnrollment = studentDirectory?.enrollments?.[0];
-                const classId = firstEnrollment?.class?.id ?? "UNASSIGNED";
-                const className = firstEnrollment?.class?.name ?? "Non assignée";
+                // Classe fournie par l'API des analyses : avant, elle venait d'une liste
+                // d'élèves plafonnée à 100, et la plupart apparaissaient « Non assignée ».
+                const classId = entry.classId ?? "UNASSIGNED";
+                const className = entry.className ?? "Non assignée";
                 const incidentsCount = incidentsByStudent[entry.studentId] || 0;
                 const score = computeRiskScore(mode, entry, incidentsCount);
 
@@ -165,7 +147,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                 };
             })
             .sort((left, right) => right.score - left.score);
-    }, [analytics, incidents, mode, students]);
+    }, [analytics, incidents, mode]);
 
     const rows = useMemo(
         () => allRows.filter((row) => classFilter === "ALL" || row.classId === classFilter),
@@ -188,9 +170,11 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
 
     const highRiskCount = rows.filter((row) => row.score >= 60).length;
     const criticalCount = rows.filter((row) => row.score >= 80).length;
-    const averageAttendance = rows.length > 0
-        ? Math.round(rows.reduce((sum, row) => sum + (row.attendanceRate ?? 0), 0) / rows.length)
-        : 0;
+    // Seuls les élèves dont l'assiduité est mesurée comptent (null n'est pas 0 %).
+    const measuredAttendance = rows.filter((row) => row.attendanceRate !== null);
+    const averageAttendance = measuredAttendance.length > 0
+        ? Math.round(measuredAttendance.reduce((sum, row) => sum + (row.attendanceRate ?? 0), 0) / measuredAttendance.length)
+        : null;
     const averageGrade = rows.length > 0
         ? Number((rows.reduce((sum, row) => sum + (row.averageGrade ?? 0), 0) / rows.length).toFixed(1))
         : 0;
@@ -261,9 +245,9 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
         []
     );
 
-    const loading = analyticsLoading || studentsLoading || incidentsLoading;
+    const loading = analyticsLoading || incidentsLoading;
     const leadingMetric = mode === "dropout"
-        ? { title: "Assiduité moyenne", value: `${averageAttendance}%`, icon: UserX }
+        ? { title: "Assiduité moyenne", value: averageAttendance === null ? "—" : `${averageAttendance} %`, icon: UserX }
         : { title: "Moyenne moyenne", value: `${averageGrade}/20`, icon: BookX };
 
     return (

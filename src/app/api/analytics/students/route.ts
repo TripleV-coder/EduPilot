@@ -38,7 +38,7 @@ const ANALYTICS_LIST_SELECT = {
       user: { select: { firstName: true, lastName: true } },
       enrollments: {
         where: { status: "ACTIVE" as const, deletedAt: null },
-        select: { class: { select: { name: true } } },
+        select: { class: { select: { id: true, name: true } } },
         take: 1,
       },
     },
@@ -196,16 +196,20 @@ export const GET = createApiHandler(async (request, context) => {
       new Set(limitedAnalytics.map((item) => item.studentId))
     );
 
-    // Calibrate date window for attendance based on period/year
-    const dateFilter: Prisma.DateTimeFilter = {
-      gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // Default 90 days
-    };
-
-    if (academicYearId || periodId) {
-      // In a real scenario, we would fetch the exact period dates. 
-      // For robustness in this audit, we adjust to a broader window if academic year is specified
-      if (academicYearId) delete dateFilter.gte; // Scan whole year if specified
-    }
+    // Assiduité sur l'année scolaire (demandée, sinon en cours) : avant, une fenêtre
+    // fixe de 90 jours laissait l'assiduité vide dès que l'appel datait de plus loin.
+    const yearSchoolId = getActiveSchoolId(session);
+    const year = academicYearId
+      ? await prisma.academicYear.findUnique({ where: { id: academicYearId }, select: { startDate: true, endDate: true } })
+      : yearSchoolId
+        ? await prisma.academicYear.findFirst({
+            where: { schoolId: yearSchoolId, isCurrent: true },
+            select: { startDate: true, endDate: true },
+          })
+        : null;
+    const dateFilter: Prisma.DateTimeFilter = year
+      ? { gte: year.startDate, lte: year.endDate }
+      : { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) };
 
     const absences = relevantStudentIds.length
       ? await prisma.attendance.groupBy({
@@ -266,6 +270,7 @@ export const GET = createApiHandler(async (request, context) => {
         generalAverage: average,
         periodName: period?.name ?? null,
         studentName: `${student.user.firstName} ${student.user.lastName}`,
+        classId: student.enrollments?.[0]?.class?.id ?? null,
         className: student.enrollments?.[0]?.class?.name ?? null,
         averageGrade: average,
         absenceCount: absenceMap.get(item.studentId) ?? 0,

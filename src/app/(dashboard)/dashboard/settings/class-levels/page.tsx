@@ -1,4 +1,6 @@
 "use client";
+import { cycleLabel } from "@/lib/benin/levels";
+import type { SchoolLevel } from "@prisma/client";
 
 import { useState, useEffect } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -212,7 +214,7 @@ export default function ClassLevelsSettingsPage() {
                                                 <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{level.code}</span>
                                             </h3>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                Cycle : {level.level === 'PRIMARY' ? 'Primaire' : level.level === 'MIDDLE' ? 'Collège' : level.level === 'HIGH' ? 'Lycée' : level.level}
+                                                Cycle : {cycleLabel(level.level as SchoolLevel)}
                                                 &nbsp;&bull;&nbsp; {level._count?.classes || 0} classes
                                             </p>
                                         </div>

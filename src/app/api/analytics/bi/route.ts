@@ -5,6 +5,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roundTo } from "@/lib/analytics/helpers";
+import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
 
 function monthKey(date: Date): string {
@@ -15,7 +16,7 @@ function monthKey(date: Date): string {
  * GET /api/analytics/bi
  * One-shot aggregator for the "Analytics BI" board:
  *  - 4 KPI tiles (students, collection rate, attendance, success)
- *  - 12-month billed-vs-collected series
+ *  - 12-month collected series (encaissements validés)
  *  - Payment-method breakdown (pie)
  *  - Top 5 subjects by average grade
  *  - Last AI insight if available (otherwise null)
@@ -42,17 +43,11 @@ export const GET = createApiHandler(
         };
         const scope = { schoolId, academicYearId };
 
-        const [studentCount, fees, collectedByMethod, collectedByMonth, attendanceAgg, snapshots] = await Promise.all([
+        const [studentCount, collectedByMethod, collectedByMonth, attendanceAgg, snapshots] = await Promise.all([
             prisma.studentProfile.count({
                 where: {
                     user: { schoolId, isActive: true },
                 },
-            }),
-            // Définitions de frais (par niveau et par nature) : quelques dizaines par
-            // établissement, bornées par nature — pas de ligne par élève.
-            prisma.fee.findMany({
-                where: feeWhere,
-                select: { amount: true, createdAt: true },
             }),
             prisma.payment.groupBy({
                 by: ["method"],
@@ -74,9 +69,15 @@ export const GET = createApiHandler(
         ]);
 
         // ── Finance totals + payment method breakdown ──────
-        const totalFees = fees.reduce((sum, f) => sum + Number(f.amount), 0);
         const totalCollected = collectedByMethod.reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
-        const collectionRate = totalFees > 0 ? (totalCollected / totalFees) * 100 : 0;
+        // Taux de recouvrement = encaissé / attendu RÉEL (frais × élèves concernés,
+        // ou échéanciers). Avant : encaissé / somme des tarifs unitaires → 78 046 %.
+        const recoveryYearId =
+            academicYearId ??
+            (await prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } }))?.id ??
+            null;
+        const recovery = recoveryYearId ? await computeYearFeeRecovery(schoolId, recoveryYearId) : null;
+        const collectionRate = recovery?.rate ?? 0;
 
         const paymentMix = collectedByMethod
             .map((row) => {
@@ -89,30 +90,23 @@ export const GET = createApiHandler(
             })
             .sort((a, b) => b.amount - a.amount);
 
-        // ── 12-month billed-vs-collected ───────────────────
-        const months: Array<{ key: string; label: string; billed: number; collected: number }> = [];
+        // ── 12-month collected ─────────────────────────────
+        const months: Array<{ key: string; label: string; collected: number }> = [];
         for (let i = 0; i < 12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
             months.push({
                 key: monthKey(d),
                 label: d.toLocaleDateString("fr-FR", { month: "short" }),
-                billed: 0,
                 collected: 0,
             });
         }
         const monthIndex = new Map(months.map((m, i) => [m.key, i]));
-        for (const f of fees) {
-            if (f.createdAt < twelveMonthsAgo) continue;
-            const idx = monthIndex.get(monthKey(f.createdAt));
-            if (idx !== undefined) months[idx].billed += Number(f.amount);
-        }
         for (const row of collectedByMonth) {
             const idx = monthIndex.get(row.month);
             if (idx !== undefined) months[idx].collected += row.amount;
         }
         const monthly = months.map((m) => ({
             label: m.label,
-            billed: roundTo(m.billed, 0),
             collected: roundTo(m.collected, 0),
         }));
 

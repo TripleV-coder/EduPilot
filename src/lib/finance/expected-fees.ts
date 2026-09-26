@@ -40,7 +40,8 @@ export async function computePlanlessExpected(params: {
       schoolId,
       isActive: true,
       deletedAt: null,
-      ...(academicYearId ? { academicYearId } : {}),
+      // Un frais sans année s'applique à chaque année : il compte pour l'année demandée.
+      ...(academicYearId ? { OR: [{ academicYearId }, { academicYearId: null }] } : {}),
       // Sur une période, un frais compte s'il y arrive à échéance (même règle
       // que les échéanciers sans versement dans la période).
       ...(periodRange
@@ -53,7 +54,7 @@ export async function computePlanlessExpected(params: {
 
   // Un frais sans année s'applique à l'année courante de l'établissement.
   let currentYearId: string | null = null;
-  if (fees.some((f) => !f.academicYearId)) {
+  if (!academicYearId && fees.some((f) => !f.academicYearId)) {
     const current = await prisma.academicYear.findFirst({
       where: { schoolId, isCurrent: true },
       select: { id: true },
@@ -62,7 +63,9 @@ export async function computePlanlessExpected(params: {
   }
 
   const yearIds = [
-    ...new Set(fees.map((f) => f.academicYearId ?? currentYearId).filter((id): id is string => Boolean(id))),
+    ...new Set(
+      fees.map((f) => f.academicYearId ?? academicYearId ?? currentYearId).filter((id): id is string => Boolean(id)),
+    ),
   ];
   if (yearIds.length === 0) return EMPTY();
 
@@ -101,7 +104,7 @@ export async function computePlanlessExpected(params: {
   let pending = 0;
   const overdue: PlanlessExpected["overdue"] = new Map();
   for (const fee of fees) {
-    const yearId = fee.academicYearId ?? currentYearId;
+    const yearId = fee.academicYearId ?? academicYearId ?? currentYearId;
     if (!yearId) continue;
     const due = Number(fee.amount);
     const isPastDue = fee.dueDate !== null && fee.dueDate <= now;
@@ -141,7 +144,9 @@ export async function computeYearFeeRecovery(
   schoolId: string,
   academicYearId: string,
 ): Promise<{ expected: number; collected: number; rate: number } | null> {
-  const feeScope = { schoolId, academicYearId };
+  // Frais de l'année + frais sans année (valables chaque année). Limite connue :
+  // les paiements d'un frais sans année sont tous comptés, sans filtre de date.
+  const feeScope = { schoolId, OR: [{ academicYearId }, { academicYearId: null }] };
   const [plans, collected] = await Promise.all([
     prisma.paymentPlan.findMany({
       where: { fee: feeScope, status: { not: "CANCELLED" } },

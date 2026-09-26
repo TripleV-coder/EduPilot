@@ -233,7 +233,7 @@ export const MODULES: ReadonlyArray<ModuleDefinition> = [
         label: "Événements et clubs",
         description: "Sorties, fêtes, clubs et inscriptions des élèves.",
         defaultEnabled: false,
-        apiPrefixes: ["events"],
+        apiPrefixes: ["events", "clubs"],
         pagePrefixes: ["events", "clubs"],
     },
     {

@@ -15,7 +15,13 @@ vi.mock("@/lib/prisma", () => ({
     classLevel: { findMany: vi.fn() },
     fee: { findMany: vi.fn() },
     payment: { groupBy: vi.fn(), aggregate: vi.fn() },
+    paymentPlan: { findMany: vi.fn().mockResolvedValue([]) },
   },
+}));
+// Attendu des frais sans échéancier : prouvé par tests/lib/finance/expected-fees.test.ts
+// (aucun ici : le taux reste celui des échéanciers).
+vi.mock("@/lib/finance/expected-fees", () => ({
+  computePlanlessExpected: vi.fn().mockResolvedValue({ expected: 0, pending: 0, overdue: new Map() }),
 }));
 // Agrégats SQL (mois, plans de paiement) : prouvés contre un vrai PostgreSQL
 // par tests/integration-db/finance-stats.test.ts.

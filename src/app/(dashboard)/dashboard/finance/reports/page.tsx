@@ -38,6 +38,9 @@ type FinanceStats = {
     pendingGrowth: number;
 };
 
+/** Pourcentage au format français : 78,1 %. */
+const pct = (value: number) => `${value.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+
 export default function FinanceReportsPage() {
     const [period, setPeriod] = useState("academic");
     const [stats, setStats] = useState<FinanceStats | null>(null);
@@ -150,7 +153,7 @@ export default function FinanceReportsPage() {
                                     {stats.revenueGrowth != null && (
                                         <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
                                             <span className={`font-medium ${stats.revenueGrowth >= 0 ? "text-success" : "text-destructive"}`}>
-                                                {stats.revenueGrowth >= 0 ? "+" : ""}{stats.revenueGrowth.toFixed(1)}%
+                                                {stats.revenueGrowth >= 0 ? "+" : ""}{pct(stats.revenueGrowth)}
                                             </span> par rapport à la période précédente
                                         </p>
                                     )}
@@ -170,7 +173,7 @@ export default function FinanceReportsPage() {
                                     </div>
                                     {stats.pendingGrowth != null && (
                                         <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
-                                            <span className="text-destructive font-medium">{stats.pendingGrowth.toFixed(1)}%</span> de retard par rapport aux prévisions
+                                            <span className={`font-medium ${stats.pendingGrowth > 0 ? "text-destructive" : "text-success"}`}>{stats.pendingGrowth >= 0 ? "+" : ""}{pct(stats.pendingGrowth)}</span> par rapport à la période précédente
                                         </p>
                                     )}
                                 </CardContent>
@@ -181,7 +184,7 @@ export default function FinanceReportsPage() {
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-2">
                                             <p className="text-sm font-medium text-muted-foreground">Taux de recouvrement</p>
-                                            <p className="text-2xl font-bold text-foreground">{stats.collectionRate.toFixed(1)}%</p>
+                                            <p className="text-2xl font-bold text-foreground">{pct(stats.collectionRate)}</p>
                                         </div>
                                         <div className="p-2 bg-primary/10 text-primary rounded-lg">
                                             <BarChart3 className="w-5 h-5" />

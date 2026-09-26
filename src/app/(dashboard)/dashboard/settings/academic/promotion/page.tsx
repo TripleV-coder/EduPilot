@@ -1,4 +1,6 @@
 "use client";
+import { cycleLabel } from "@/lib/benin/levels";
+import type { SchoolLevel } from "@prisma/client";
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-shell";
@@ -249,7 +251,7 @@ function PromotionEngineContent() {
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{c.name}</span>
                     <span className={cn("text-[11px] font-medium opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
-                      {c.classLevel?.level ?? ""}
+                      {c.classLevel?.level ? cycleLabel(c.classLevel.level as SchoolLevel) : ""}
                     </span>
                   </div>
                   <ChevronRight className="w-4 h-4 opacity-50" />

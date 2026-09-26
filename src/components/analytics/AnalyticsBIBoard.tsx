@@ -14,7 +14,7 @@ interface BIResponse {
         passRate: number;
     };
     totalCollected: number;
-    monthly: Array<{ label: string; billed: number; collected: number }>;
+    monthly: Array<{ label: string; collected: number }>;
     paymentMix: Array<{ method: string; amount: number; share: number }>;
     topSubjects: Array<{ subject: string; average: number }>;
     insight: { headline: string; recommendation: string; createdAt: string } | null;
@@ -245,11 +245,11 @@ function BillingBarChart({
     monthly,
     style,
 }: {
-    monthly: Array<{ label: string; billed: number; collected: number }>;
+    monthly: Array<{ label: string; collected: number }>;
     style?: React.CSSProperties;
 }) {
     const max = useMemo(
-        () => Math.max(1, ...monthly.flatMap((m) => [m.billed, m.collected])),
+        () => Math.max(1, ...monthly.map((m) => m.collected)),
         [monthly],
     );
 
@@ -264,16 +264,12 @@ function BillingBarChart({
         >
             <div className="flex items-end justify-between mb-3.5">
                 <h2 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>
-                    Encaissements vs facturation · 12 mois
+                    Encaissements · 12 mois
                 </h2>
                 <div className="flex gap-3.5" style={{ fontSize: 11 }}>
                     <span className="inline-flex items-center gap-1.5">
                         <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--eduflow-brand-700)" }} />
                         Encaissé
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                        <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--eduflow-brand-300)" }} />
-                        Facturé
                     </span>
                 </div>
             </div>
@@ -283,17 +279,7 @@ function BillingBarChart({
                         <div className="relative w-full flex items-end justify-center gap-1 flex-1">
                             <span
                                 style={{
-                                    width: "40%",
-                                    height: `${(m.billed / max) * 100}%`,
-                                    background: "var(--eduflow-brand-300)",
-                                    borderRadius: "3px 3px 0 0",
-                                    minHeight: 2,
-                                }}
-                                title={`Facturé · ${fmtFCFA(m.billed)} FCFA`}
-                            />
-                            <span
-                                style={{
-                                    width: "40%",
+                                    width: "60%",
                                     height: `${(m.collected / max) * 100}%`,
                                     background: "var(--eduflow-brand-700)",
                                     borderRadius: "3px 3px 0 0",

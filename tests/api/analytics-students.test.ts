@@ -17,6 +17,8 @@ vi.mock("@/lib/prisma", () => ({
     enrollment: { findMany: vi.fn() },
     studentAnalytics: { findMany: vi.fn() },
     attendance: { groupBy: vi.fn() },
+    // Fenêtre d'assiduité = année scolaire en cours (aucune par défaut : repli 90 jours).
+    academicYear: { findFirst: vi.fn().mockResolvedValue(null), findUnique: vi.fn().mockResolvedValue(null) },
   },
 }));
 

@@ -155,6 +155,7 @@ model School {
   payrollEntries         PayrollEntry[]
   documentSignatures     DocumentSignature[]
 
+  clubs                  Club[]
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
   @@index([email]) // P4: Index for email lookups (not unique — multi-site orgs may share email)
@@ -410,6 +411,7 @@ model TeacherProfile {
   school            School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  supervisedClubs     Club[]
   @@unique([schoolId, matricule])
   @@index([schoolId])
   @@index([deletedAt])
@@ -481,6 +483,7 @@ model StudentProfile {
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transports          StudentTransport[]
 
+  clubMemberships     ClubMembership[]
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
   @@index([matricule])
@@ -3190,4 +3193,39 @@ model StudentGuardian {
 
   @@index([studentId])
   @@map("student_guardians")
+}
+
+/// Club ou activité parascolaire d'un établissement (module « Événements et clubs »).
+model Club {
+  id           String           @id @default(cuid())
+  schoolId     String
+  name         String
+  category     String
+  description  String?
+  schedule     String?
+  supervisorId String?
+  capacity     Int?
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  school       School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  supervisor   TeacherProfile?  @relation(fields: [supervisorId], references: [id], onDelete: SetNull)
+  memberships  ClubMembership[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive])
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id        String         @id @default(cuid())
+  clubId    String
+  studentId String
+  joinedAt  DateTime       @default(now())
+  club      Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, studentId])
+  @@index([studentId])
+  @@map("club_memberships")
 }

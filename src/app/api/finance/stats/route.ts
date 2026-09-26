@@ -14,6 +14,7 @@ import {
   resolvePreviousFinanceDateRange,
 } from "@/lib/finance/helpers";
 import { collectedByUtcMonth, summarizePaymentPlansInRange } from "@/lib/finance/stats-aggregates";
+import { computePlanlessExpected } from "@/lib/finance/expected-fees";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
@@ -90,6 +91,24 @@ export const GET = createApiHandler(
           summarizePaymentPlansInRange(schoolId, previousRange),
         ]);
 
+      // Frais facturés sans échéancier : comme le tableau de bord finance, ils font
+      // partie de l'attendu (sinon « 0 % » de recouvrement avec 137 M encaissés).
+      const plannedKeys = new Set(
+        (
+          await prisma.paymentPlan.findMany({
+            where: { fee: { schoolId }, status: { not: "CANCELLED" } },
+            select: { feeId: true, studentId: true },
+          })
+        ).map((plan) => `${plan.feeId}:${plan.studentId}`),
+      );
+      const [currentPlanless, previousPlanless] = await Promise.all([
+        computePlanlessExpected({ schoolId, periodRange: currentRange, plannedKeys }),
+        computePlanlessExpected({ schoolId, periodRange: previousRange, plannedKeys }),
+      ]);
+      const currentExpected = currentPlanSummary.totalExpected + currentPlanless.expected;
+      const currentPending = currentPlanSummary.totalPending + currentPlanless.pending;
+      const previousPending = previousPlanSummary.totalPending + previousPlanless.pending;
+
       const totalRevenue = currentByFee.reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
       const previousRevenue = Number(previousCollected._sum.amount ?? 0);
 
@@ -112,14 +131,11 @@ export const GET = createApiHandler(
         );
       }
 
-      const collectionRate =
-        currentPlanSummary.totalExpected > 0
-          ? (totalRevenue / currentPlanSummary.totalExpected) * 100
-          : 0;
+      const collectionRate = currentExpected > 0 ? Math.min(100, (totalRevenue / currentExpected) * 100) : 0;
 
       return NextResponse.json({
         totalRevenue: roundTo(totalRevenue),
-        totalPending: roundTo(currentPlanSummary.totalPending),
+        totalPending: roundTo(currentPending),
         collectionRate: roundTo(collectionRate),
         revenueByMonth: revenueByMonth
           .map(({ month, amount }) => ({
@@ -135,10 +151,7 @@ export const GET = createApiHandler(
           .sort((left, right) => right.value - left.value),
         revenueGrowth: roundTo(calculateGrowth(totalRevenue, previousRevenue)),
         pendingGrowth: roundTo(
-          calculateGrowth(
-            currentPlanSummary.totalPending,
-            previousPlanSummary.totalPending
-          )
+          calculateGrowth(currentPending, previousPending)
         ),
       });
     };
