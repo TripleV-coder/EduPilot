@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     grade: { findMany: vi.fn(), groupBy: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
+    studentProfile: { findUnique: vi.fn() },
   },
 }));
 
@@ -141,5 +142,39 @@ describe("GET /api/grades", () => {
     expect(response.status).toBe(200);
     const where = vi.mocked(prisma.grade.findMany).mock.calls[0][0]?.where;
     expect(where?.studentId).toEqual({ in: [FIXTURES.studentA, FIXTURES.studentB] });
+  });
+
+  it("un STUDENT ne peut pas lire les notes d'un camarade (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: FIXTURES.studentA } as never);
+
+    const response = await GET(
+      makeRequest(`http://localhost:3000/api/grades?studentId=${FIXTURES.studentB}`)
+    );
+    expect(response.status).toBe(403);
+    expect(prisma.grade.findMany).not.toHaveBeenCalled();
+  });
+
+  it("un STUDENT filtré par classe ne voit que ses propres notes", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: FIXTURES.studentA } as never);
+    vi.mocked(prisma.grade.findMany).mockResolvedValue([] as unknown as Grade[]);
+
+    const response = await GET(makeRequest(`http://localhost:3000/api/grades?classId=${classId}`));
+
+    expect(response.status).toBe(200);
+    const where = vi.mocked(prisma.grade.findMany).mock.calls[0][0]?.where;
+    expect(where?.studentId).toEqual({ in: [FIXTURES.studentA] });
+  });
+
+  it("un STUDENT sans paramètre reçoit ses notes (pas de 400)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: FIXTURES.studentA } as never);
+    vi.mocked(prisma.grade.findMany).mockResolvedValue([gradeListRow(14)] as unknown as Grade[]);
+
+    const response = await GET(makeRequest("http://localhost:3000/api/grades"));
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0].value).toBe(14);
   });
 });

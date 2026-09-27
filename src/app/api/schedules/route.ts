@@ -6,6 +6,7 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { assertModelAccess, requireSchoolContext } from "@/lib/security/tenant";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { getOwnStudentIds } from "@/lib/auth/family-scope";
 
 /**
  * GET /api/schedules
@@ -59,6 +60,21 @@ export const GET = createApiHandler(
 
     if (session.user.role !== "SUPER_ADMIN") {
       where.class = { schoolId: scopedSchoolId || undefined };
+    }
+
+    // Chacun son emploi du temps : l'élève et le parent, celui des classes où
+    // l'enfant est inscrit ; l'enseignant, ses propres cours. Sans ce filtre,
+    // tous recevaient la grille de tout l'établissement.
+    const ownStudentIds = await getOwnStudentIds(session.user.role, session.user.id);
+    if (ownStudentIds) {
+      const enrollments = await prisma.enrollment.findMany({
+        where: { studentId: { in: ownStudentIds }, status: "ACTIVE", deletedAt: null },
+        select: { classId: true },
+      });
+      const ownClassIds = enrollments.map((e) => e.classId);
+      where.classId = classId ? (ownClassIds.includes(classId) ? classId : { in: [] }) : { in: ownClassIds };
+    } else if (session.user.role === "TEACHER" && !teacherId) {
+      where.classSubject = { teacher: { userId: session.user.id } };
     }
 
     // C3 : chaque créneau embarquait TOUTES les matières de sa classe avec

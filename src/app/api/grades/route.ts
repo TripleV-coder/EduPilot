@@ -5,6 +5,7 @@ import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
+import { getOwnStudentIds } from "@/lib/auth/family-scope";
 
 /**
  * GET /api/grades
@@ -21,7 +22,8 @@ export const GET = createApiHandler(async (request, { session }) => {
         const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") ?? "200")));
         const activeSchoolId = getActiveSchoolId(session);
 
-        if (!studentId && !classId) {
+        const isFamily = session.user.role === "PARENT" || session.user.role === "STUDENT";
+        if (!studentId && !classId && !isFamily) {
             return NextResponse.json({ error: "studentId ou classId requis" }, { status: 400 });
         }
 
@@ -57,27 +59,15 @@ export const GET = createApiHandler(async (request, { session }) => {
             };
         }
 
-        // For parents, restrict to their children only
-        if (session.user.role === "PARENT") {
-            const parentProfile = await prisma.parentProfile.findUnique({
-                where: { userId: session.user.id },
-                select: {
-                    parentStudents: {
-                        select: { studentId: true },
-                    },
-                },
-            });
-
-            const childIds = parentProfile?.parentStudents.map((s: { studentId: string }) => s.studentId) || [];
-
-            if (studentId) {
-                if (!childIds.includes(studentId)) {
-                    return NextResponse.json({ error: "Accès refusé: Cet élève n'est pas lié à votre compte" }, { status: 403 });
-                }
-            } else {
-                // Force filter to all children if no specific studentId provided
-                where.studentId = { in: childIds };
+        // Famille (parent, élève) : uniquement ses propres notes ou celles de ses enfants.
+        // Sans ce verrou, un élève pouvait lire les notes d'un camarade (studentId)
+        // ou de toute sa classe (classId).
+        const ownIds = await getOwnStudentIds(session.user.role, session.user.id);
+        if (ownIds) {
+            if (studentId && !ownIds.includes(studentId)) {
+                return NextResponse.json({ error: "Accès refusé : cet élève n'est pas lié à votre compte" }, { status: 403 });
             }
+            where.studentId = studentId ?? { in: ownIds };
         }
 
         const grades = await prisma.grade.findMany({

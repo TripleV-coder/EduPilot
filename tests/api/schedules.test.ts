@@ -15,6 +15,8 @@ vi.mock("@/lib/prisma", () => ({
     classSubject: { findMany: vi.fn(), findUnique: vi.fn() },
     class: { findUnique: vi.fn() },
     schedule: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
+    studentProfile: { findUnique: vi.fn() },
+    enrollment: { findMany: vi.fn() },
   },
 }));
 
@@ -56,6 +58,25 @@ describe("GET /api/schedules", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveLength(1);
+  });
+
+  it("limite l'élève aux classes où il est inscrit", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: "s1" } as never);
+    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([{ classId: cuid("class1") }] as never);
+    vi.mocked(prisma.schedule.findMany).mockResolvedValue([makeSchedule()]);
+    const res = await GET(makeRequest("http://localhost/api/schedules"));
+    expect(res.status).toBe(200);
+    const where = vi.mocked(prisma.schedule.findMany).mock.calls[0][0]?.where;
+    expect(where?.classId).toEqual({ in: [cuid("class1")] });
+  });
+
+  it("limite l'enseignant à ses propres cours", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: "u-teacher" }));
+    vi.mocked(prisma.schedule.findMany).mockResolvedValue([]);
+    await GET(makeRequest("http://localhost/api/schedules"));
+    const where = vi.mocked(prisma.schedule.findMany).mock.calls[0][0]?.where;
+    expect(where?.classSubject).toEqual({ teacher: { userId: "u-teacher" } });
   });
 
   it("should return 404 when the teacher does not exist", async () => {
