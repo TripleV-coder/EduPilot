@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,7 +130,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                                         {item.student.class.name}
                                                     </Badge>
                                                     <span className="text-xs text-muted-foreground">
-                                                        Moy: {item.generalAverage.toFixed(2)}/20
+                                                        Moy: {formatDecimal(item.generalAverage, 2)}/20
                                                     </span>
                                                 </div>
                                             </div>
@@ -174,7 +176,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                     </h2>
                                     <p className="text-sm text-muted-foreground flex items-center gap-2">
                                         <User className="h-3 w-3" />
-                                        {selectedStudent.student.class.name} | Moyenne: {selectedStudent.generalAverage.toFixed(2)}
+                                        {selectedStudent.student.class.name} | Moyenne: {formatDecimal(selectedStudent.generalAverage, 2)}
                                     </p>
                                 </div>
                             </div>

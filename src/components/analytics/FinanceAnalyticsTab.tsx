@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -127,7 +129,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                                     <TableCell className="text-right font-bold text-emerald-600">
                                         {new Intl.NumberFormat("fr-FR").format(value)}
                                     </TableCell>
-                                    <TableCell className="text-right font-bold">{share.toFixed(1)}%</TableCell>
+                                    <TableCell className="text-right font-bold">{formatDecimal(share, 1)}%</TableCell>
                                 </TableRow>
                                 );
                             })}

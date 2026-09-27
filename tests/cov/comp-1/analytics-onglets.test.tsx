@@ -143,8 +143,8 @@ describe("FinanceAnalyticsTab", () => {
         );
         expect(screen.getByText(/50\s?000 FCFA en retard/)).toBeInTheDocument();
         expect(screen.getByText("Collège")).toBeInTheDocument();
-        expect(screen.getByText("75.0%")).toBeInTheDocument();
-        expect(screen.getByText("0.0%")).toBeInTheDocument();
+        expect(screen.getByText("75,0%")).toBeInTheDocument();
+        expect(screen.getByText("0,0%")).toBeInTheDocument();
         // Graphique chargé à la demande (next/dynamic)
         await waitFor(() => expect(screen.queryAllByText("0-30 j").length).toBeGreaterThan(0));
     });
@@ -192,7 +192,7 @@ describe("RiskInterventionTab", () => {
     it("lance l'analyse IA d'un élève et affiche le plan d'intervention", async () => {
         const api = mockApi({ "POST /api/ai/analyze-risk": { success: true, data: PLAN("CRITICAL") } });
         render(<RiskInterventionTab atRiskStudents={STUDENTS} academicYearId="y1" />);
-        expect(screen.getByText("Moy: 7.46/20")).toBeInTheDocument();
+        expect(screen.getByText("Moy: 7,46/20")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: /Hounsou Aïcha/ }));
         expect(await screen.findByText("73%")).toBeInTheDocument();
         expect(api.calls("POST /api/ai/analyze-risk")[0].body).toEqual({ studentId: "s1", academicYearId: "y1" });

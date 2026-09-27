@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -84,7 +86,7 @@ export default function SubjectAnalyticsPage() {
             header: "Moyenne",
             cell: ({ row }) => (
                 <span className={`font-black ${Number(row.original.average) >= 10 ? 'text-primary' : 'text-destructive'}`}>
-                    {Number(row.original.average).toFixed(2)}/20
+                    {formatDecimal(Number(row.original.average), 2)}/20
                 </span>
             )
         },
@@ -136,7 +138,7 @@ export default function SubjectAnalyticsPage() {
                                     <GraduationCap className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl metric-serif text-primary">{subjectData?.average?.toFixed(2)}/20</div>
+                                    <div className="text-3xl metric-serif text-primary">{formatDecimal(subjectData?.average, 2)}/20</div>
                                 </CardContent>
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">
@@ -146,9 +148,9 @@ export default function SubjectAnalyticsPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-2xl metric-serif text-success">{subjectData?.highest?.toFixed(1)}</span>
+                                        <span className="text-2xl metric-serif text-success">{formatDecimal(subjectData?.highest, 1)}</span>
                                         <span className="text-muted-foreground text-xs">/</span>
-                                        <span className="text-2xl metric-serif text-destructive">{subjectData?.lowest?.toFixed(1)}</span>
+                                        <span className="text-2xl metric-serif text-destructive">{formatDecimal(subjectData?.lowest, 1)}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -158,7 +160,7 @@ export default function SubjectAnalyticsPage() {
                                     <BarChart3 className="w-3.5 h-3.5 text-primary/50" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl metric-serif">{subjectData?.median?.toFixed(2)}</div>
+                                    <div className="text-3xl metric-serif">{formatDecimal(subjectData?.median, 2)}</div>
                                 </CardContent>
                             </Card>
                             <Card className="dashboard-block kpi-card border-border bg-card">

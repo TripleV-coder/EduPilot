@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 
@@ -541,7 +543,7 @@ function SchoolDetailPanel({
                                         marginTop: 2,
                                     }}
                                 >
-                                    {school.lat.toFixed(4)}°, {school.lng.toFixed(4)}°
+                                    {formatDecimal(school.lat, 4)}°, {formatDecimal(school.lng, 4)}°
                                 </div>
                             </div>
                         </div>

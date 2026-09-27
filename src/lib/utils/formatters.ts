@@ -74,3 +74,12 @@ export function formatFileSize(bytes: number | null | undefined): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
+
+/**
+ * Nombre décimal à la française (16,27 — virgule, espace des milliers) ;
+ * « — » si la valeur manque. Remplace `toFixed`, qui affiche un point.
+ */
+export function formatDecimal(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+  return Number(value).toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}

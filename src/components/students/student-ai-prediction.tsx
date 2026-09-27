@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,9 +98,9 @@ export function StudentAiPrediction({ studentId }: { studentId: string }) {
           <div className="rounded-lg bg-muted/50 border border-border p-4">
             <p className="text-sm font-medium mb-1">Note prédite — prochaine période</p>
             <p className="text-2xl font-bold">
-              {nextPeriodGrade.predicted.toFixed(1)}/20
+              {formatDecimal(nextPeriodGrade.predicted, 1)}/20
               <span className="text-sm font-normal text-muted-foreground ml-2">
-                (fourchette {nextPeriodGrade.range.min.toFixed(1)}–{nextPeriodGrade.range.max.toFixed(1)})
+                (fourchette {formatDecimal(nextPeriodGrade.range.min, 1)}–{formatDecimal(nextPeriodGrade.range.max, 1)})
               </span>
             </p>
           </div>

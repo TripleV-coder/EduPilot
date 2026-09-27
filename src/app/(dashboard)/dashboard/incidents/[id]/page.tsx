@@ -1,4 +1,6 @@
 "use client";
+import { incidentSeverityLabel, incidentTypeLabel } from "@/lib/labels/incidents";
+import { formatUserRoleLabel } from "@/lib/utils/role-label";
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -188,7 +190,7 @@ export default function IncidentDetailsPage() {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Date & Heure</span>
-                                        <p className="font-medium">{new Date(incident.date).toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}</p>
+                                        <p className="font-medium">{new Date(incident.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Lieu</span>
@@ -196,11 +198,11 @@ export default function IncidentDetailsPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Type & Gravité</span>
-                                        <p className="font-medium">{incident.incidentType} / {incident.severity}</p>
+                                        <p className="font-medium">{incidentTypeLabel(incident.incidentType)} · {incidentSeverityLabel(incident.severity)}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground flex items-center gap-1"><User className="w-3.5 h-3.5" /> Signalé par</span>
-                                        <p className="font-medium">{incident.reportedBy?.firstName} {incident.reportedBy?.lastName} ({incident.reportedBy?.role})</p>
+                                        <p className="font-medium">{incident.reportedBy?.firstName} {incident.reportedBy?.lastName} {incident.reportedBy?.role ? `· ${formatUserRoleLabel(incident.reportedBy.role)}` : ""}</p>
                                     </div>
                                 </div>
 
@@ -319,8 +321,8 @@ export default function IncidentDetailsPage() {
                                                     <span>{SANCTION_TYPES.find(t => t.value === sanction.type)?.label || sanction.type}</span>
                                                 </div>
                                                 <div className="text-muted-foreground text-xs space-y-1">
-                                                    <p>Du: {new Date(sanction.startDate).toLocaleString()}</p>
-                                                    {sanction.endDate && <p>Au: {new Date(sanction.endDate).toLocaleString()}</p>}
+                                                    <p>Du {new Date(sanction.startDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p>
+                                                    {sanction.endDate && <p>Au {new Date(sanction.endDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p>}
                                                 </div>
                                                 {sanction.description && <p className="mt-2 text-foreground/80">{sanction.description}</p>}
                                                 <p className="text-[11px] text-muted-foreground text-right pt-2 border-t border-border mt-2">

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -527,7 +529,7 @@ export default function ClassDetailsPage() {
                                                             <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
                                                                 <td className="py-2 px-3 font-medium">{s.rank || i + 1}</td>
                                                                 <td className="py-2 px-3">{s.name}</td>
-                                                                <td className="py-2 px-3 text-right font-semibold">{Number(s.average).toFixed(1)}/20</td>
+                                                                <td className="py-2 px-3 text-right font-semibold">{formatDecimal(Number(s.average), 1)}/20</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -567,13 +569,13 @@ export default function ClassDetailsPage() {
                             <>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Moyenne</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold">{Number(subjectStats.average).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold">{formatDecimal(Number(subjectStats.average), 1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Plus haute</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold text-success">{Number(subjectStats.highest).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold text-success">{formatDecimal(Number(subjectStats.highest), 1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Plus basse</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold text-destructive">{Number(subjectStats.lowest).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold text-destructive">{formatDecimal(Number(subjectStats.lowest), 1)}/20</div></CardContent></Card>
                                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Médiane</CardTitle></CardHeader>
-                                        <CardContent><div className="text-2xl font-bold">{Number(subjectStats.median).toFixed(1)}/20</div></CardContent></Card>
+                                        <CardContent><div className="text-2xl font-bold">{formatDecimal(Number(subjectStats.median), 1)}/20</div></CardContent></Card>
                                 </div>
                                 {subjectStats.gradeDistribution && (
                                     <Card><CardHeader><CardTitle>Distribution des notes</CardTitle></CardHeader>
@@ -590,7 +592,7 @@ export default function ClassDetailsPage() {
                                                             <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
                                                                 <td className="py-2 px-3 font-medium">{s.rank || i + 1}</td>
                                                                 <td className="py-2 px-3">{s.studentName ?? s.name ?? "—"}</td>
-                                                                <td className="py-2 px-3 text-right font-semibold">{Number(s.average).toFixed(1)}/20</td>
+                                                                <td className="py-2 px-3 text-right font-semibold">{formatDecimal(Number(s.average), 1)}/20</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>

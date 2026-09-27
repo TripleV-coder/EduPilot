@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDecimal } from "@/lib/utils/formatters";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -515,7 +517,7 @@ export default function DisciplinePage() {
                                     }}
                                 >
                                     {weeklyChange < 0 ? "↓" : "↑"}{" "}
-                                    {Math.abs(weeklyChange).toFixed(0)}% vs semaine dernière
+                                    {formatDecimal(Math.abs(weeklyChange), 0)}% vs semaine dernière
                                 </div>
                             ) : null}
                         </Card>

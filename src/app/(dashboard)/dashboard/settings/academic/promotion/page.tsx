@@ -1,4 +1,6 @@
 "use client";
+
+import { formatDecimal } from "@/lib/utils/formatters";
 import { cycleLabel } from "@/lib/benin/levels";
 import type { SchoolLevel } from "@prisma/client";
 
@@ -344,7 +346,7 @@ function PromotionEngineContent() {
                             <span className={cn(
                               "text-sm font-bold px-2.5 py-1 rounded-lg",
                               s.average >= 10 ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
-                            )}>{s.average.toFixed(2)} / 20</span>
+                            )}>{formatDecimal(s.average, 2)} / 20</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
