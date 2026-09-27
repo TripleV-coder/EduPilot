@@ -15,6 +15,7 @@ import { EvaluationList, type EvaluationListItem } from "@/components/evaluation
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { exportEvaluationsCsv } from "@/lib/evaluations/evaluations-csv";
 import { EvaluationSheet } from "@/components/evaluations/EvaluationSheet";
+import { FamilyGrades } from "@/components/grades/family-grades";
 
 
 import { Badge, Button, Card, Chip, FilterBar, Icon, MetricCard } from "@/components/edu";
@@ -58,9 +59,18 @@ const EVALUATIONS_PAGE_SIZE = 20;
 export default function GradesPage() {
     return (
         <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
-            <GradesContent />
+            <GradesByRole />
         </PageGuard>
     );
+}
+
+/* L'élève et le parent voient leurs propres notes ; le personnel, les évaluations. */
+function GradesByRole() {
+    const { data: session, status } = useSession();
+    const role = session?.user?.role;
+    if (status === "loading") return <PageLoading label="Chargement…" />;
+    if (role === "STUDENT" || role === "PARENT") return <FamilyGrades role={role} />;
+    return <GradesContent />;
 }
 
 function GradesContent() {

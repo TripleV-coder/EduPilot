@@ -1,11 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/layout/page-header";
-import { Banknote, CreditCard, Clock, CheckCircle, Printer } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { Button } from "@/components/ui/button";
+import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { PageError, PageLoading } from "@/components/layout/page-states";
+import { Block, CARD_COLORS, Empty, Figures, MODULE, initials } from "@/components/edu-homes/home-kit";
+import homeStyles from "@/components/edu-homes/home.module.css";
 
 interface ParentPayment {
     id: string;
@@ -23,7 +23,7 @@ interface ParentFinanceData {
 }
 
 export function ParentFinanceView() {
-    const { data, error, isLoading } = useSWR<ParentFinanceData>("/api/finance/my-payments", fetcher);
+    const { data, error, isLoading, mutate } = useSWR<ParentFinanceData>("/api/finance/my-payments", fetcher);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("fr-BJ", {
@@ -85,91 +85,77 @@ export function ParentFinanceView() {
         doc.save(`Recu_${payment.id.substring(0, 8)}.pdf`);
     };
 
-    if (error) return <div className="p-4 text-destructive">Erreur de chargement des données financières</div>;
-    if (isLoading) return <div className="p-5 text-center">Chargement...</div>;
+    if (error) return <PageError message="Impossible de charger vos paiements." onRetry={() => void mutate()} />;
+    if (isLoading) return <PageLoading label="Chargement des paiements…" />;
+
+    const payments = data?.payments ?? [];
+    const due = data?.nextDueDate ? new Date(data.nextDueDate) : null;
+    const overdue = due !== null && due.getTime() < Date.now() && (data?.totalPending ?? 0) > 0;
+    const dueLabel = due ? due.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
 
     return (
-        <div className="space-y-6">
+        <PageShell>
             <PageHeader
-                title="Scolarité & paiements"
-                description="Suivez l'état des paiements pour vos enfants"
+                title="Scolarité et paiements"
+                description="Ce qui reste à régler pour vos enfants et les paiements déjà validés."
                 breadcrumbs={[
                     { label: "Tableau de bord", href: "/dashboard" },
-                    { label: "Mes Paiements" },
+                    { label: "Scolarité et paiements" },
                 ]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="border-border bg-card">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Total à régler</CardTitle>
-                        <Banknote className="w-4 h-4 text-destructive" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(data?.totalPending || 0)}</div>
-                    </CardContent>
-                </Card>
-                <Card className="border-border bg-card">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Déjà réglé</CardTitle>
-                        <CheckCircle className="w-4 h-4 text-secondary" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(data?.totalPaid || 0)}</div>
-                    </CardContent>
-                </Card>
-                <Card className="border-border bg-card">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Prochaine échéance</CardTitle>
-                        <Clock className="w-4 h-4 text-primary" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{data?.nextDueDate ? new Date(data.nextDueDate).toLocaleDateString() : "Aucune"}</div>
-                    </CardContent>
-                </Card>
-            </div>
+            <Block id="parent-finance-overview" title="Vue d'ensemble">
+                <Figures
+                    items={[
+                        {
+                            label: "Reste à régler",
+                            value: formatCurrency(data?.totalPending || 0),
+                            note: (data?.totalPending ?? 0) > 0 ? "frais de scolarité en attente" : "tout est réglé",
+                            color: (data?.totalPending ?? 0) > 0 ? MODULE.orange : MODULE.green,
+                        },
+                        {
+                            label: "Déjà réglé",
+                            value: formatCurrency(data?.totalPaid || 0),
+                            note: `${payments.length} paiement${payments.length > 1 ? "s" : ""} validé${payments.length > 1 ? "s" : ""}`,
+                            color: MODULE.green,
+                        },
+                        {
+                            label: overdue ? "En retard depuis" : "Prochaine échéance",
+                            value: dueLabel ?? "Aucune",
+                            note: overdue ? "à régler auprès de l'économat" : due ? "date limite de paiement" : "aucune échéance prévue",
+                            color: overdue ? MODULE.pink : MODULE.blue,
+                        },
+                    ]}
+                />
+            </Block>
 
-            <Card className="border-border bg-card">
-                <CardHeader>
-                    <CardTitle>Historique des paiements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {data?.payments?.length === 0 ? (
-                            <p className="text-center py-8 text-muted-foreground">Aucun paiement enregistré.</p>
-                        ) : (
-                            data?.payments?.map((payment) => (
-                                <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-full bg-secondary/10">
-                                            <CreditCard className="w-4 h-4 text-secondary" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">{payment.feeName}</p>
-                                            <p className="text-xs text-muted-foreground">{new Date(payment.date).toLocaleDateString()} &middot; {payment.method}</p>
-                                        </div>
+            <Block id="parent-finance-history" title="Historique des paiements">
+                {payments.length === 0 ? (
+                    <Empty>Aucun paiement enregistré.</Empty>
+                ) : (
+                    <ul className={homeStyles.watch}>
+                        {payments.map((payment, i) => (
+                            <li key={payment.id} className={homeStyles.watchItem}>
+                                <span className={homeStyles.avatar} style={{ background: CARD_COLORS[i % CARD_COLORS.length] }} aria-hidden="true">
+                                    {initials(payment.feeName)}
+                                </span>
+                                <div className="min-w-0">
+                                    <div className={homeStyles.name}>
+                                        {payment.feeName} · {formatCurrency(payment.amount)}
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <p className="font-bold text-sm">{formatCurrency(payment.amount)}</p>
-                                            <p className="text-[11px] text-secondary font-medium">Validé</p>
-                                        </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-8 w-8 text-muted-foreground hover:text-primary max-md:h-11 max-md:w-11"
-                                            onClick={() => generateReceipt(payment)}
-                                            title="Imprimer le reçu"
-                                        >
-                                            <Printer className="h-4 w-4" />
-                                        </Button>
+                                    <div className={homeStyles.detail}>
+                                        {new Date(payment.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} ·{" "}
+                                        {payment.method}
                                     </div>
                                 </div>
-                            ))
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                                <button type="button" className={homeStyles.pill} onClick={() => void generateReceipt(payment)}>
+                                    Reçu
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </Block>
+        </PageShell>
     );
 }

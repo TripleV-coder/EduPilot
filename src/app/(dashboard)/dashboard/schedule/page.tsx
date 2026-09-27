@@ -34,7 +34,10 @@ export default function SchedulePage() {
     useSchool();
     const [viewType, setViewType] = useState<"weekly" | "daily">("weekly");
     const [filterType, setFilterType] = useState<"class" | "teacher">("class");
-    const [selectedId, setSelectedId] = useState<string>("ALL");
+    // null = choix par défaut : la seule classe visible, ou la première s'il y en a
+    // plusieurs (toutes les classes superposées dans une case sont illisibles).
+    const [pickedId, setPickedId] = useState<string | null>(null);
+    const setSelectedId = setPickedId;
 
     const {
         data: schedules,
@@ -63,6 +66,10 @@ export default function SchedulePage() {
         };
     }, [schedules]);
 
+    const selectedId = pickedId ?? (filterType === "class" && classes.length > 1 ? classes[0].id : "ALL");
+    // Vue « Jour » : aujourd'hui, ou lundi le dimanche.
+    const today = new Date().getDay() || 1;
+
     const filteredSchedules = useMemo(() => {
         if (!schedules) return [];
         if (selectedId === "ALL") return schedules;
@@ -78,7 +85,11 @@ export default function SchedulePage() {
             <PageShell>
                 <PageHeader
                     title="Emploi du temps"
-                    description="Planifiez et visualisez l'occupation des salles et des enseignants."
+                    description={
+                        canCreate
+                            ? "Planifiez et visualisez l'occupation des salles et des enseignants."
+                            : "Les cours de la semaine, heure par heure."
+                    }
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Emploi du temps" },
@@ -172,6 +183,8 @@ export default function SchedulePage() {
                 ) : (
                     <Card padding={0} style={{ overflow: "hidden" }}>
                         <WeeklyTimetableGrid
+                            days={viewType === "daily" ? [today] : undefined}
+                            showClass={selectedId === "ALL" && classes.length > 1}
                             schedules={
                                 filteredSchedules as unknown as React.ComponentProps<
                                     typeof WeeklyTimetableGrid

@@ -1,16 +1,11 @@
 "use client";
 
-type Subject = { id: string; name: string; code: string };
+type Subject = { id: string; name: string };
 type UserProfile = { firstName: string; lastName: string };
-type Teacher = { id: string; user: UserProfile };
-type ClassSubject = { id: string; subject: Subject; teacher: Teacher };
-type ClassLevel = { id: string; name: string };
-type SchoolClass = {
-    id: string;
-    name: string;
-    classLevel: ClassLevel;
-    classSubjects: ClassSubject[];
-};
+type Teacher = { id: string; user?: UserProfile | null };
+// Forme renvoyée par GET /api/schedules : la matière et l'enseignant du créneau.
+type ClassSubject = { id: string; subject?: Subject | null; teacher?: Teacher | null };
+type SchoolClass = { id: string; name: string };
 
 type Schedule = {
     id: string;
@@ -21,10 +16,15 @@ type Schedule = {
     classId: string;
     classSubjectId: string;
     class: SchoolClass;
+    classSubject?: ClassSubject | null;
 };
 
 interface WeeklyTimetableGridProps {
     schedules: Schedule[];
+    /** Jours affichés (1 = lundi). Tous par défaut ; un seul pour la vue « Jour ». */
+    days?: number[];
+    /** Affiche la classe sur chaque créneau (plusieurs classes à l'écran). */
+    showClass?: boolean;
 }
 
 const DAYS = [
@@ -66,22 +66,22 @@ function getColorForSubject(subjectName: string): string {
 }
 
 const getSubjectInfo = (schedule: Schedule) => {
-    const cs = schedule.class?.classSubjects?.find(
-        (c) => c.id === schedule.classSubjectId
-    );
-    if (!cs)
-        return { subjectName: "Matière inconnue", teacherName: "Non assigné" };
+    const user = schedule.classSubject?.teacher?.user;
     return {
-        subjectName: cs.subject.name,
-        teacherName: `${cs.teacher.user.lastName} ${cs.teacher.user.firstName}`,
+        subjectName: schedule.classSubject?.subject?.name ?? "Matière non renseignée",
+        teacherName: user ? `${user.firstName} ${user.lastName}` : "Enseignant à désigner",
     };
 };
+
+/** Au-delà, la case affiche « +N » : plus lisible qu'un empilement illisible. */
+const MAX_PER_CELL = 2;
 
 function parseHour(time: string): number {
     return parseInt(time.split(":")[0], 10);
 }
 
-export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
+export function WeeklyTimetableGrid({ schedules, days, showClass = false }: WeeklyTimetableGridProps) {
+    const visibleDays = days ? DAYS.filter((d) => days.includes(d.value)) : DAYS;
     // Build a lookup: key = "day-hour" => schedule(s)
     const cellMap = new Map<string, Schedule[]>();
     schedules.forEach((s) => {
@@ -100,9 +100,9 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
         // Zone défilante horizontale : atteignable au clavier pour faire défiler la semaine.
         <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Grille hebdomadaire de l'emploi du temps">
             <div
-                className="grid min-w-[800px]"
+                className={visibleDays.length > 1 ? "grid min-w-[800px]" : "grid"}
                 style={{
-                    gridTemplateColumns: "80px repeat(6, 1fr)",
+                    gridTemplateColumns: `80px repeat(${visibleDays.length}, 1fr)`,
                     gridTemplateRows: `48px repeat(${HOURS.length}, 72px)`,
                 }}
             >
@@ -110,7 +110,7 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                 <div className="bg-muted/50 border-b border-r border-border" />
 
                 {/* Day headers */}
-                {DAYS.map((day) => (
+                {visibleDays.map((day) => (
                     <div
                         key={day.value}
                         className="flex items-center justify-center bg-muted/50 border-b border-r border-border text-sm font-semibold text-foreground last:border-r-0"
@@ -131,7 +131,7 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                         </div>
 
                         {/* Day cells for this hour */}
-                        {DAYS.map((day) => {
+                        {visibleDays.map((day) => {
                             const key = `${day.value}-${hour}`;
                             const entries = cellMap.get(key) || [];
 
@@ -144,7 +144,7 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                                         <div className="h-full w-full" />
                                     ) : (
                                         <div className="flex flex-col gap-0.5 h-full">
-                                            {entries.map((schedule) => {
+                                            {entries.slice(0, entries.length > MAX_PER_CELL ? MAX_PER_CELL - 1 : MAX_PER_CELL).map((schedule) => {
                                                 const info =
                                                     getSubjectInfo(schedule);
                                                 const colorClass =
@@ -161,8 +161,9 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                                                             {info.subjectName}
                                                         </span>
                                                         <span className="text-[11px] leading-tight truncate opacity-80">
-                                                            {schedule.room ||
-                                                                "—"}
+                                                            {[showClass ? schedule.class?.name : null, schedule.room || null]
+                                                                .filter(Boolean)
+                                                                .join(" · ") || "—"}
                                                         </span>
                                                         <span className="text-[11px] leading-tight truncate opacity-70">
                                                             {info.teacherName}
@@ -170,6 +171,11 @@ export function WeeklyTimetableGrid({ schedules }: WeeklyTimetableGridProps) {
                                                     </div>
                                                 );
                                             })}
+                                            {entries.length > MAX_PER_CELL ? (
+                                                <span className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                                                    +{entries.length - (MAX_PER_CELL - 1)} autres cours
+                                                </span>
+                                            ) : null}
                                         </div>
                                     )}
                                 </div>

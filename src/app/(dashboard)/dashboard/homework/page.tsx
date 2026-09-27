@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
+import { useSession } from "next-auth/react";
 
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,9 @@ export default function HomeworkPage() {
         mutate: mutateHomework,
     } = useSWR<HomeworkResponse | HomeworkItem[]>("/api/homework?limit=100", fetcher);
     const { mutate } = useSWRConfig();
+    const { data: session } = useSession();
+    // Élève et parent consultent : ni création, ni brouillons, ni suppression.
+    const canManage = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session?.user?.role ?? "");
     const { toast } = useToast();
 
     const allHomeworks: HomeworkItem[] = Array.isArray(response)
@@ -138,14 +142,11 @@ export default function HomeworkPage() {
                         { label: "Devoirs" },
                     ]}
                     actions={
-                        <>
-                            <Button variant="ghost" icon="download">
-                                {t("common.export")}
-                            </Button>
+                        canManage ? (
                             <Link href="/dashboard/homework/new">
                                 <Button icon="plus">Nouveau devoir</Button>
                             </Link>
-                        </>
+                        ) : null
                     }
                 />
 
@@ -177,6 +178,7 @@ export default function HomeworkPage() {
                                 }}
                             />
                         </label>
+                        {canManage ? (
                         <SegmentedToggle
                             value={selectedStatus}
                             onChange={setSelectedStatus}
@@ -186,6 +188,7 @@ export default function HomeworkPage() {
                                 { value: "DRAFT", label: "Brouillons" },
                             ]}
                         />
+                        ) : null}
                         {activeFiltersCount > 0 ? (
                             <Button variant="ghost" size="sm" icon="x" onClick={resetFilters}>
                                 Réinitialiser
@@ -209,12 +212,16 @@ export default function HomeworkPage() {
                         description={
                             activeFiltersCount > 0
                                 ? "Aucun devoir ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres."
-                                : "Créez le premier devoir pour démarrer le suivi des soumissions."
+                                : canManage
+                                  ? "Créez le premier devoir pour démarrer le suivi des soumissions."
+                                  : "Aucun devoir donné pour l'instant."
                         }
                         actions={
                             activeFiltersCount > 0
                                 ? [{ label: "Réinitialiser les filtres", onClick: resetFilters }]
-                                : [{ label: "Nouveau devoir", href: "/dashboard/homework/new" }]
+                                : canManage
+                                  ? [{ label: "Nouveau devoir", href: "/dashboard/homework/new" }]
+                                  : []
                         }
                     />
                 ) : null}
@@ -322,13 +329,15 @@ export default function HomeworkPage() {
                                             <Button aria-label={`Voir le devoir ${hw.title}`} variant="ghost" size="sm" icon="search">
                                             </Button>
                                         </Link>
-                                        <Button aria-label={`Supprimer le devoir ${hw.title}`}
-                                            variant="ghost"
-                                            size="sm"
-                                            icon="x"
-                                            onClick={() => handleDelete(hw.id, hw.title)}
-                                        >
-                                        </Button>
+                                        {canManage ? (
+                                            <Button aria-label={`Supprimer le devoir ${hw.title}`}
+                                                variant="ghost"
+                                                size="sm"
+                                                icon="x"
+                                                onClick={() => handleDelete(hw.id, hw.title)}
+                                            >
+                                            </Button>
+                                        ) : null}
                                     </div>
                                 ),
                             },

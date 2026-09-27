@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -87,12 +88,20 @@ export default function LiaisonPage() {
     const [composeBody, setComposeBody] = useState("");
     const [composeSending, setComposeSending] = useState(false);
     const [composeStatus, setComposeStatus] = useState<string | null>(null);
+    const { data: session, status: sessionStatus } = useSession();
+    const role = session?.user?.role;
 
     useEffect(() => {
+        if (sessionStatus === "loading") return;
         const load = async () => {
             try {
                 // L'élève peut être désigné par l'URL (?studentId=), comme l'API le permet.
                 const studentId = new URLSearchParams(window.location.search).get("studentId");
+                // Le personnel doit désigner un élève : inutile d'interroger l'API sans lui.
+                if (!studentId && role !== "STUDENT" && role !== "PARENT") {
+                    setNeedsStudent(true);
+                    return;
+                }
                 const res = await fetch(studentId ? `/api/liaison?studentId=${encodeURIComponent(studentId)}` : "/api/liaison");
                 const body = await res.json();
                 if (res.status === 400 && !studentId) {
@@ -109,7 +118,7 @@ export default function LiaisonPage() {
             }
         };
         load();
-    }, []);
+    }, [sessionStatus, role]);
 
     const filtered = useMemo(() => {
         if (!data) return [];

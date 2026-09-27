@@ -13,6 +13,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import useSWR, { useSWRConfig } from "swr";
+import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimeShort } from "@/lib/utils/formatters";
@@ -42,7 +43,10 @@ export default function SystemBackupPage() {
     const { mutate } = useSWRConfig();
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const { data, error, isLoading, mutate: reloadBackups } = useSWR<BackupData>("/api/system/backup", fetcher);
+    const { data: session } = useSession();
+    // Réservé au super-admin : pas d'appel (403) pour les autres rôles, que la garde refuse.
+    const canView = session?.user?.role === "SUPER_ADMIN";
+    const { data, error, isLoading, mutate: reloadBackups } = useSWR<BackupData>(canView ? "/api/system/backup" : null, fetcher);
     const backups = data?.backups || [];
 
     const handleBackup = async () => {

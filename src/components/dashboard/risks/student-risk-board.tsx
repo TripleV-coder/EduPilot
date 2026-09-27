@@ -96,7 +96,7 @@ function computeRiskScore(mode: RiskMode, analytics: AnalyticsStudent, incidents
 
 function statusTone(status: RiskRow["status"]): string {
     if (status === "CRITICAL") return "bg-[#C0392B]/10 text-[#C0392B] border-[#C0392B]/20";
-    if (status === "HIGH") return "bg-[#D4830F]/10 text-[#D4830F] border-[#D4830F]/20";
+    if (status === "HIGH") return "bg-[var(--eduflow-warning-50)] text-[var(--eduflow-warning-700)] border-[var(--eduflow-warning-500)]";
     if (status === "MEDIUM") return "bg-[#2E6DA4]/10 text-[#2E6DA4] border-[#2E6DA4]/20";
     return "bg-[#2D6A4F]/10 text-[#2D6A4F] border-[#2D6A4F]/20";
 }
