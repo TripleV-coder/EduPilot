@@ -7,6 +7,8 @@ import {
 
 export interface TeacherTodaySlot {
     id: string;
+    classId?: string | null;
+    classSubjectId?: string | null;
     time: string;
     className: string;
     subjectName: string;
@@ -66,6 +68,16 @@ export function TeacherHome({ userName, schoolName, periodName, data }: TeacherH
                                 title: `${s.subjectName} · ${s.className}`,
                                 sub: [end ? `jusqu'à ${end}` : null, roomLabel(s.room)].filter(Boolean).join(" · "),
                                 state: s.state,
+                                // Le cours en cours ou à venir s'ouvre en un geste sur la bonne classe.
+                                actions:
+                                    s.state !== "done" && s.classId
+                                        ? [
+                                              { href: `/dashboard/attendance?classId=${s.classId}`, label: "Appel" },
+                                              ...(s.classSubjectId
+                                                  ? [{ href: `/dashboard/grades/entry?classId=${s.classId}&classSubjectId=${s.classSubjectId}`, label: "Notes" }]
+                                                  : []),
+                                          ]
+                                        : undefined,
                             };
                         })}
                     />

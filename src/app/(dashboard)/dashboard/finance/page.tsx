@@ -400,7 +400,8 @@ export default function FinanceDashboardPage() {
                                         color: s.balance > 100000 ? MODULE.pink : MODULE.orange,
                                         name: s.studentName,
                                         detail: `Solde dû : ${formatCurrency(s.balance)}`,
-                                        action: { href: `/dashboard/students/${s.studentId}`, label: "Voir le dossier" },
+                                        // Relance au guichet : l'encaissement s'ouvre sur l'élève, reste dû prérempli.
+                                        action: { href: `/dashboard/finance/payments/new?studentId=${s.studentId}`, label: "Encaisser" },
                                     }))}
                                 />
                             </Block>

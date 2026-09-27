@@ -429,7 +429,7 @@ export default function ClassDetailsPage() {
                                     Les élèves inscrits apparaîtront ici. Pour inscrire un élève, rendez-vous dans le module Inscriptions ou Importation.
                                 </p>
                                 <div className="mt-6 flex justify-center gap-4">
-                                    <Link href="/dashboard/students/new">
+                                    <Link href="/dashboard/students/inscription">
                                         <Button variant="outline">Inscrire un élève</Button>
                                     </Link>
                                 </div>

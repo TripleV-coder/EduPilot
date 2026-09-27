@@ -177,6 +177,19 @@ export default function StudentDetailPage() {
                   </Button>
                 ) : null}
               </RoleActionGuard>
+              <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+                {student?.id ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[11px] font-bold gap-2"
+                    onClick={() => router.push(`/dashboard/finance/payments/new?studentId=${student.id}`)}
+                  >
+                    <Banknote className="h-3.5 w-3.5" />
+                    Encaisser
+                  </Button>
+                ) : null}
+              </RoleActionGuard>
               <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
                 <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="h-8 text-[11px] font-bold gap-2">
                   <Edit className="h-3.5 w-3.5" />

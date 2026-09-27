@@ -96,6 +96,8 @@ export function NoteCell({
                 onFocus={onFocus}
                 onBlur={onBlur}
                 onChange={(e) => onChange(e.target.value)}
+                onKeyDown={moveBetweenGrades}
+                data-grade-input=""
                 placeholder="—"
                 aria-label="Note"
                 className="eduflow-tabular"
@@ -363,4 +365,20 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
             </div>
         </div>
     );
+}
+
+/**
+ * Saisie au clavier : Entrée ou ↓ passe à l'élève suivant, ↑ au précédent
+ * (les cases désactivées — absent, dispensé — sont sautées).
+ */
+function moveBetweenGrades(event: React.KeyboardEvent<HTMLInputElement>) {
+    const step = event.key === "Enter" || event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[data-grade-input]:not(:disabled)"));
+    const next = inputs[inputs.indexOf(event.currentTarget) + step];
+    if (next) {
+        next.focus();
+        next.select();
+    }
 }

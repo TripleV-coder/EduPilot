@@ -88,6 +88,8 @@ const FR_DATE_LONG = (iso: string) => {
     }
 };
 
+const ALL_STUDENTS = "ALL";
+
 export default function BulletinsPage() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
@@ -98,9 +100,11 @@ export default function BulletinsPage() {
     const [selectedStudent, setSelectedStudent] = useState("");
 
     const [bulletin, setBulletin] = useState<BulletinData | null>(null);
+    // « Toute la classe » : un bulletin par élève, imprimés en un seul document.
+    const [classBulletins, setClassBulletins] = useState<BulletinData[]>([]);
+    const [classMissing, setClassMissing] = useState<string[]>([]);
+    const classPrintRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(false);
-    const [pdfLoading, setPdfLoading] = useState(false);
-    const [pdfMessage, setPdfMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const printRef = useRef<HTMLDivElement>(null);
@@ -152,8 +156,14 @@ export default function BulletinsPage() {
         if (!selectedStudent || !selectedPeriod) return;
         setLoading(true);
         setError(null);
-        setPdfMessage(null);
         setBulletin(null);
+        setClassBulletins([]);
+        setClassMissing([]);
+        if (selectedStudent === ALL_STUDENTS) {
+            await generateClass();
+            setLoading(false);
+            return;
+        }
         try {
             const res = await fetch(
                 `/api/bulletins?studentId=${selectedStudent}&periodId=${selectedPeriod}`
@@ -176,34 +186,34 @@ export default function BulletinsPage() {
             : "Bulletin",
     });
 
-    const handleDownloadPdf = async () => {
-        if (!selectedStudent || !selectedPeriod) return;
-        setPdfLoading(true);
-        setPdfMessage(null);
-        setError(null);
-        try {
-            const res = await fetch("/api/grades/report-cards", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    studentId: selectedStudent,
-                    periodId: selectedPeriod,
-                    format: "pdf",
+    const handlePrintClass = useReactToPrint({
+        contentRef: classPrintRef,
+        documentTitle: `Bulletins_${classes.find((c) => c.id === selectedClass)?.name ?? "classe"}_${
+            periods.find((p) => p.id === selectedPeriod)?.name ?? ""
+        }`,
+    });
+
+    const generateClass = async () => {
+        const ready: BulletinData[] = [];
+        const missing: string[] = [];
+        // Par paquets de 4 : une classe de 60 élèves ne sature pas le serveur.
+        for (let i = 0; i < students.length; i += 4) {
+            const chunk = students.slice(i, i + 4);
+            const results = await Promise.all(
+                chunk.map(async (s) => {
+                    const res = await fetch(`/api/bulletins?studentId=${s.id}&periodId=${selectedPeriod}`);
+                    return res.ok ? ((await res.json()) as BulletinData) : null;
                 }),
+            );
+            results.forEach((data, index) => {
+                const s = chunk[index];
+                if (data) ready.push(data);
+                else missing.push(s.user ? `${s.user.firstName} ${s.user.lastName}` : s.id);
             });
-            const data = await res.json();
-            if (!res.ok)
-                throw new Error(data.error || "Erreur lors de la génération du PDF");
-            if (data.downloadUrl) {
-                window.open(data.downloadUrl, "_blank");
-            } else {
-                setPdfMessage("Le PDF a été généré avec succès.");
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
-        } finally {
-            setPdfLoading(false);
         }
+        setClassBulletins(ready);
+        setClassMissing(missing);
+        if (ready.length === 0) setError("Aucun bulletin n'a pu être préparé pour cette classe et cette période.");
     };
 
     return (
@@ -270,12 +280,17 @@ export default function BulletinsPage() {
                                         ? "Choisir un élève…"
                                         : "Choisir une classe d'abord"
                                 }
-                                options={students.map((s) => ({
-                                    value: s.id,
-                                    label: s.user
-                                        ? `${s.user.firstName} ${s.user.lastName}`
-                                        : s.id,
-                                }))}
+                                options={[
+                                    ...(students.length > 1
+                                        ? [{ value: ALL_STUDENTS, label: `Toute la classe (${students.length} élèves)` }]
+                                        : []),
+                                    ...students.map((s) => ({
+                                        value: s.id,
+                                        label: s.user
+                                            ? `${s.user.firstName} ${s.user.lastName}`
+                                            : s.id,
+                                    })),
+                                ]}
                             />
                             <FieldSelect
                                 label="Période"
@@ -316,31 +331,6 @@ export default function BulletinsPage() {
                                 }}
                             >
                                 {error}
-                            </p>
-                        </div>
-                    </Card>
-                ) : null}
-
-                {pdfMessage ? (
-                    <Card
-                        padding={14}
-                        style={{
-                            border: "1px solid var(--eduflow-brand-200)",
-                            background: "var(--brand-50)",
-                        }}
-                        className="print:hidden"
-                    >
-                        <div className="flex items-center gap-3">
-                            <Icon name="success" size={18} color="var(--brand-700)" />
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: 13,
-                                    color: "var(--brand-800)",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                {pdfMessage}
                             </p>
                         </div>
                     </Card>
@@ -424,18 +414,10 @@ export default function BulletinsPage() {
                                 <div className="flex gap-2">
                                     <Button
                                         variant="secondary"
-                                        icon="cards"
+                                        icon="download"
                                         onClick={handlePrint}
                                     >
-                                        Imprimer
-                                    </Button>
-                                    <Button
-                                        variant="secondary"
-                                        icon={pdfLoading ? undefined : "download"}
-                                        loading={pdfLoading}
-                                        onClick={handleDownloadPdf}
-                                    >
-                                        Télécharger PDF
+                                        Imprimer ou enregistrer en PDF
                                     </Button>
                                 </div>
                             </div>
@@ -463,8 +445,56 @@ export default function BulletinsPage() {
                     </div>
                 ) : null}
 
+                {classBulletins.length > 0 ? (
+                    <div className="space-y-4">
+                        <Card padding={16} className="print:hidden">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div style={{ fontSize: 15, fontWeight: 700 }}>
+                                        {classBulletins.length} bulletin{classBulletins.length > 1 ? "s" : ""} prêt
+                                        {classBulletins.length > 1 ? "s" : ""}
+                                    </div>
+                                    {classMissing.length > 0 ? (
+                                        <div style={{ fontSize: 13, color: "var(--eduflow-warning-700)" }}>
+                                            Sans bulletin ({classMissing.length}) : {classMissing.join(", ")}
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <Button icon="download" onClick={handlePrintClass}>
+                                    Imprimer la classe ou enregistrer en PDF
+                                </Button>
+                            </div>
+                        </Card>
+                        <div className="w-full overflow-x-auto">
+                            <div ref={classPrintRef}>
+                                {classBulletins.map((b) => (
+                                    <div
+                                        key={b.student.id}
+                                        className="bulletin-a4 bulletin-page mx-auto"
+                                        style={{
+                                            width: 794,
+                                            minHeight: 1123,
+                                            padding: 48,
+                                            marginBottom: 24,
+                                            background: "#fff",
+                                            color: "#0F172A",
+                                            fontFamily: "Inter, system-ui, sans-serif",
+                                            position: "relative",
+                                            boxShadow: "var(--shadow-lg)",
+                                        }}
+                                    >
+                                        <BulletinDocument bulletin={b} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+
                 {loading ? (
-                    <PageLoading label="Génération du bulletin…" />
+                    <PageLoading
+                        label={selectedStudent === ALL_STUDENTS ? "Préparation des bulletins de la classe…" : "Génération du bulletin…"}
+                    />
                 ) : null}
             </PageShell>
 
@@ -473,6 +503,9 @@ export default function BulletinsPage() {
                     .bulletin-a4 {
                         box-shadow: none !important;
                         margin: 0 !important;
+                    }
+                    .bulletin-page {
+                        break-after: page;
                     }
                 }
             `}</style>

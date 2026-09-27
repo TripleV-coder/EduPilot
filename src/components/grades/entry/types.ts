@@ -8,6 +8,8 @@ export interface ClassOption {
 export interface PeriodOption {
     id: string;
     name: string;
+    startDate?: string;
+    endDate?: string;
 }
 export interface EvalTypeOption {
     id: string;

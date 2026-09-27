@@ -105,6 +105,15 @@ export default function AttendancePage() {
             );
     }, [classesData]);
 
+    // Ouverture en un geste : ?classId= (depuis « Ma journée »), ou la seule classe
+    // de l'enseignant (maître du primaire) — sans passer par la liste.
+    useEffect(() => {
+        if (selectedClassId || classes.length === 0) return;
+        const requested = new URLSearchParams(window.location.search).get("classId");
+        if (requested && classes.some((c) => c.id === requested)) setSelectedClassId(requested);
+        else if (classes.length === 1) setSelectedClassId(classes[0].id);
+    }, [classes, selectedClassId]);
+
     useEffect(() => {
         if (!selectedClassId || !selectedDate) return;
 

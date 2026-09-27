@@ -232,7 +232,7 @@ describe("POST /api/grades/report-cards", () => {
     expect(response.status).toBe(403);
   });
 
-  it("génère le bulletin PDF : succès + downloadUrl + traçabilité", async () => {
+  it("génère le bulletin : succès + traçabilité, sans lien de téléchargement mort", async () => {
     const periodId = cuid("periodepost");
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     setupNominalStudent(periodId);
@@ -247,7 +247,8 @@ describe("POST /api/grades/report-cards", () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.downloadUrl).toContain(`studentId=${FIXTURES.studentA}`);
+    // L'ancienne route /api/grades/report-cards/download n'a jamais existé.
+    expect(body.downloadUrl).toBeUndefined();
     expect(body.data.generatedBy).toBeDefined();
     expect(body.data.overallAverage20).toBe(11.2);
   });

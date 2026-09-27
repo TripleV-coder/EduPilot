@@ -222,6 +222,8 @@ export interface DayItem {
     title: string;
     sub: string;
     state: "done" | "now" | "next";
+    /** Raccourcis du créneau (ex. Appel, Notes), ouverts directement sur la classe. */
+    actions?: { href: string; label: string }[];
 }
 
 /** Frise du jour, bornée à `limit` créneaux à partir du cours en cours ou à venir. */
@@ -255,6 +257,15 @@ export function DayTimeline({
                                 {d.state === "now" ? <span className={styles.nowTag}>En cours</span> : null}
                             </div>
                             <div className={styles.detail}>{d.sub}</div>
+                            {d.actions?.length ? (
+                                <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                                    {d.actions.map((a) => (
+                                        <Link key={a.href} href={a.href} className={styles.pill} style={{ height: 32, padding: "0 12px", fontSize: 13 }}>
+                                            {a.label}
+                                        </Link>
+                                    ))}
+                                </div>
+                            ) : null}
                         </div>
                     </li>
                 ))}

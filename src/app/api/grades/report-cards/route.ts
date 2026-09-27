@@ -440,7 +440,6 @@ const body = await request.json();
       success: true,
       message: "Bulletin généré avec succès",
       data: pdfData,
-      downloadUrl: `/api/grades/report-cards/download?studentId=${studentId}&periodId=${periodId}`,
     });
   } catch (error) {
     logger.error("Error generating PDF report card", error as Error);

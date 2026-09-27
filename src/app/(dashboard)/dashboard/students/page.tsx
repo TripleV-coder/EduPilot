@@ -239,7 +239,7 @@ export default function StudentsPage() {
                                             {t("common.import")}
                                         </Button>
                                     </Link>
-                                    <Link href="/dashboard/students/new">
+                                    <Link href="/dashboard/students/inscription">
                                         <Button icon="plus">Inscrire un élève</Button>
                                     </Link>
                                 </RoleActionGuard>
@@ -317,7 +317,7 @@ export default function StudentsPage() {
                                 ? [{ label: "Réinitialiser les filtres", onClick: resetFilters }]
                                 : [
                                       { label: "Importer", href: "/dashboard/import" },
-                                      { label: "Inscrire un élève", href: "/dashboard/students/new" },
+                                      { label: "Inscrire un élève", href: "/dashboard/students/inscription" },
                                   ]
                         }
                     />

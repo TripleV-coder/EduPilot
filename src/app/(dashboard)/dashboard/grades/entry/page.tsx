@@ -58,6 +58,13 @@ interface GradeDraft {
 }
 
 const DRAFT_PREFIX = "edupilot.grade-draft";
+/** Dernier type d'évaluation utilisé sur cet appareil (proposé par défaut). */
+const LAST_TYPE_KEY = "edupilot.grade-entry.last-type";
+
+function readUrlParam(name: string): string | null {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get(name);
+}
 
 export default function GradesEntryPage() {
     const { isFocusMode } = useSidebar();
@@ -110,11 +117,27 @@ export default function GradesEntryPage() {
                 }
                 if (perRes.ok) {
                     const d = await perRes.json();
-                    setPeriods(Array.isArray(d) ? d : d.data || []);
+                    const list: PeriodOption[] = Array.isArray(d) ? d : d.data || [];
+                    setPeriods(list);
+                    // Période en cours d'après la date du jour : rien à choisir d'habitude.
+                    const now = Date.now();
+                    const current = list.find(
+                        (p) => p.startDate && p.endDate && new Date(p.startDate).getTime() <= now && now <= new Date(p.endDate).getTime(),
+                    );
+                    if (current) setPeriodId((prev) => prev || current.id);
                 }
                 if (typRes.ok) {
                     const d = await typRes.json();
-                    setEvalTypes(Array.isArray(d) ? d : d.data || []);
+                    const list: EvalTypeOption[] = Array.isArray(d) ? d : d.data || [];
+                    setEvalTypes(list);
+                    let remembered: string | null = null;
+                    try {
+                        remembered = localStorage.getItem(LAST_TYPE_KEY);
+                    } catch {
+                        /* stockage indisponible : pas de préférence */
+                    }
+                    const preferred = list.find((t) => t.id === remembered) ?? (list.length === 1 ? list[0] : undefined);
+                    if (preferred) setTypeId((prev) => prev || preferred.id);
                 }
             } catch {
                 setError("Erreur de chargement des paramètres de base");
@@ -124,6 +147,22 @@ export default function GradesEntryPage() {
         };
         fetchInitial();
     }, []);
+
+    // Ouverture en un geste depuis « Ma journée » (?classId=&classSubjectId=), ou
+    // la seule classe / la seule matière de l'enseignant.
+    useEffect(() => {
+        if (selectedClass || classes.length === 0) return;
+        const requested = readUrlParam("classId");
+        if (requested && classes.some((c) => c.id === requested)) setSelectedClass(requested);
+        else if (classes.length === 1) setSelectedClass(classes[0].id);
+    }, [classes, selectedClass]);
+
+    useEffect(() => {
+        if (selectedSubject || classSubjects.length === 0) return;
+        const requested = readUrlParam("classSubjectId");
+        if (requested && classSubjects.some((cs) => cs.id === requested)) setSelectedSubject(requested);
+        else if (classSubjects.length === 1) setSelectedSubject(classSubjects[0].id);
+    }, [classSubjects, selectedSubject]);
 
     useEffect(() => {
         if (!selectedClass) {
@@ -283,6 +322,11 @@ export default function GradesEntryPage() {
             }
             if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
             setSuccess(true);
+            try {
+                localStorage.setItem(LAST_TYPE_KEY, typeId);
+            } catch {
+                /* stockage indisponible */
+            }
             document.getElementById("main-content")?.scrollTo({ top: 0 });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");

@@ -102,7 +102,7 @@ export default function DocumentGeneratorPage() {
                                 title="Aucun élève disponible"
                                 description="Inscrivez ou importez des élèves avant de générer un document officiel."
                                 actions={[
-                                    { label: "Inscrire un élève", href: "/dashboard/students/new" },
+                                    { label: "Inscrire un élève", href: "/dashboard/students/inscription" },
                                     { label: t("common.import"), href: "/dashboard/import" },
                                 ]}
                             />

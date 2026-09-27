@@ -52,6 +52,8 @@ export async function getTeacherDashboardData(userId: string, _schoolId: string,
     else if (currentMinutes >= start && currentMinutes < end) state = "now";
     return {
       id: slot.id,
+      classId: slot.classId,
+      classSubjectId: slot.classSubjectId,
       time: `${slot.startTime} — ${slot.endTime}`,
       className: slot.class.name,
       subjectName: slot.classSubject?.subject.name ?? "Cours",
