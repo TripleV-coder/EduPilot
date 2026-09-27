@@ -68,36 +68,34 @@ export default function SystemBackupPage() {
     return (
         <PageGuard permission={[Permission.SYSTEM_BACKUP_CREATE, Permission.SYSTEM_BACKUP_VIEW]} roles={["SUPER_ADMIN"]}>
             <PageShell>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <PageHeader
-                        title="Sauvegardes système"
-                        description="Gestion des sauvegardes de la base de données et des fichiers"
-                        breadcrumbs={[
-                            { label: "Tableau de bord", href: "/dashboard" },
-                            { label: "Système" },
-                            { label: "Sauvegardes" },
-                        ]}
-                    />
-
-            {/* Sans ce cas, une panne affichait « aucune sauvegarde » —
-                exactement ce qu'on ne veut pas croire à tort. */}
-            {error ? (
-                <PageError
-                    message="Impossible de charger la liste des sauvegardes."
-                    onRetry={() => void reloadBackups()}
-                />
-            ) : null}
-                    <div className="flex gap-3 shrink-0">
+                <PageHeader
+                    title="Sauvegardes système"
+                    description="Gestion des sauvegardes de la base de données et des fichiers"
+                    breadcrumbs={[
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Système" },
+                        { label: "Sauvegardes" },
+                    ]}
+                    actions={
                         <Button className="gap-2 shadow-sm" onClick={handleBackup} disabled={isGenerating}>
                             {isGenerating ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <DatabaseBackup className="w-4 h-4" />
                             )}
-                            {isGenerating ? "Création..." : "Nouvelle sauvegarde"}
+                            {isGenerating ? "Création…" : "Nouvelle sauvegarde"}
                         </Button>
-                    </div>
-                </div>
+                    }
+                />
+
+                {/* Sans ce cas, une panne affichait « aucune sauvegarde » —
+                    exactement ce qu'on ne veut pas croire à tort. */}
+                {error ? (
+                    <PageError
+                        message="Impossible de charger la liste des sauvegardes."
+                        onRetry={() => void reloadBackups()}
+                    />
+                ) : null}
 
                 {isLoading && (
                     <div className="flex justify-center py-12">

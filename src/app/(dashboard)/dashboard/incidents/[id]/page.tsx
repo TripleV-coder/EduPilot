@@ -257,7 +257,7 @@ export default function IncidentDetailsPage() {
 
                                     <Dialog open={sanctionDialogOpen} onOpenChange={setSanctionDialogOpen}>
                                         <DialogTrigger asChild>
-                                            <Button variant="outline" className="w-full touch-target"><Plus className="w-4 h-4 mr-2" /> Assigner une Sanction</Button>
+                                            <Button variant="outline" className="w-full touch-target"><Plus className="w-4 h-4 mr-2" /> Assigner une sanction</Button>
                                         </DialogTrigger>
                                         <DialogContent>
                                             <DialogHeader>

@@ -297,7 +297,7 @@ export default function RootSchoolsPage() {
                         <DialogTrigger asChild>
                             <Button className="gap-2 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground border-0 transition-all active:scale-95">
                                 <Plus className="w-4 h-4" />
-                                Déployer un Établissement
+                                Déployer un établissement
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[700px] overflow-hidden p-0 gap-0 border-0">
@@ -587,10 +587,10 @@ export default function RootSchoolsPage() {
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                    <TableHead className="font-semibold text-muted-foreground">Nom & Code</TableHead>
+                                    <TableHead className="font-semibold text-muted-foreground">Nom et code</TableHead>
                                     <TableHead className="font-semibold text-muted-foreground">Localisation</TableHead>
                                     <TableHead className="font-semibold text-muted-foreground">Utilisateurs</TableHead>
-                                    <TableHead className="font-semibold text-muted-foreground">Statut Compte</TableHead>
+                                    <TableHead className="font-semibold text-muted-foreground">Statut du compte</TableHead>
                                     <TableHead className="text-right font-semibold text-muted-foreground">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -669,7 +669,7 @@ export default function RootSchoolsPage() {
                                                         setIsQuotaDialogOpen(true);
                                                     }}
                                                 >
-                                                    <Settings className="w-4 h-4" /> Ajuster Quotas
+                                                    <Settings className="w-4 h-4" /> Ajuster les quotas
                                                 </Button>
                                             </TableCell>
                                         </TableRow>

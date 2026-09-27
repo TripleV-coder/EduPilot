@@ -371,7 +371,7 @@ export default function OrientationPage() {
                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button className="gap-2 h-11 shadow-md">
-                                        <Plus className="w-4 h-4" /> Nouvel Avis d'Orientation
+                                        <Plus className="w-4 h-4" /> Nouvel avis d'orientation
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent>

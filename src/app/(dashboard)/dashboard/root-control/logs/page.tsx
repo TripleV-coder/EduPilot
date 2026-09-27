@@ -87,7 +87,7 @@ export default function RootLogsPage() {
                         />
                     </div>
                     <Button variant="outline" className="gap-2">
-                        <Filter className="w-4 h-4" /> Filtres Avancés
+                        <Filter className="w-4 h-4" /> Filtres avancés
                     </Button>
                 </div>
 

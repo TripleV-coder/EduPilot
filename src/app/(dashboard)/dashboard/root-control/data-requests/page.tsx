@@ -142,7 +142,7 @@ export default function RootDataRequestsPage() {
                             <TableHeader className="bg-muted/30">
                                 <TableRow>
                                     <TableHead>Utilisateur</TableHead>
-                                    <TableHead>Type de Requête</TableHead>
+                                    <TableHead>Type de requête</TableHead>
                                     <TableHead>Reçue le</TableHead>
                                     <TableHead>Statut</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>

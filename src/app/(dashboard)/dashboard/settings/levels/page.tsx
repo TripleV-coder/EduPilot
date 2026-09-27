@@ -82,7 +82,7 @@ export default function AcademicLevelsPage() {
 
                             <Button className="w-full gap-2" variant="outline">
                                 <Plus className="w-4 h-4" />
-                                Ajouter un Cycle
+                                Ajouter un cycle
                             </Button>
                         </div>
 

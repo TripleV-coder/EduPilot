@@ -308,7 +308,7 @@ export default function ReformsPage() {
                                     <CardDescription>Seuils de réussite et libellés pour les moyennes générales.</CardDescription>
                                 </div>
                                 <Button onClick={addMention} variant="outline" size="sm" className="gap-2">
-                                    <Plus className="h-4 w-4" /> Ajouter une Mention
+                                    <Plus className="h-4 w-4" /> Ajouter une mention
                                 </Button>
                             </CardHeader>
                             <CardContent className="space-y-4">

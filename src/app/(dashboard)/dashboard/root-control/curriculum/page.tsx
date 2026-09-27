@@ -152,7 +152,7 @@ export default function RootCurriculumPage() {
                     <Card className="border-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-primary" /> Sélection du Contexte
+                                <Building2 className="w-4 h-4 text-primary" /> Sélection du contexte
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -185,7 +185,7 @@ export default function RootCurriculumPage() {
                     <Card className="border-border bg-card">
                         <CardHeader>
                             <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                <Plus className="w-4 h-4 text-primary" /> Créer une Matière
+                                <Plus className="w-4 h-4 text-primary" /> Créer une matière
                             </CardTitle>
                         </CardHeader>
                         <CardContent>

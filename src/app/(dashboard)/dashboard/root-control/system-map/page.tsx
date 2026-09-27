@@ -164,7 +164,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Liens Org</p>
+                <p className="text-[11px] font-bold text-muted-foreground">Liens d'organisation</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.organizationLinks ?? 0}</p>
               </div>
               <Link2 className="h-5 w-5 text-success" />

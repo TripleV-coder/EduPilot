@@ -3,17 +3,8 @@
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
-import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, School, Activity, AlertCircle, Database } from "lucide-react";
-
-type SystemStats = {
-    userCount: number;
-    schoolCount: number;
-    activeUsers: number;
-    auditLogCount: number;
-};
+import { PageLoading, PageError } from "@/components/layout/page-states";
+import { Block, Figures, MODULE, WatchList } from "@/components/edu-homes/home-kit";
 
 type PendingAction = {
     id: string;
@@ -22,8 +13,27 @@ type PendingAction = {
     count: number;
     priority: "high" | "medium" | "low";
     url: string;
-    icon: string;
-    status?: string;
+};
+
+type SystemInfo = {
+    system?: { version?: string; nodeVersion?: string; environment?: string; uptime?: number };
+    database?: {
+        provider?: string;
+        status?: string;
+        users?: number;
+        schools?: number;
+        students?: number;
+        teachers?: number;
+        grades?: number;
+    };
+    activity?: { logs24h?: number };
+};
+
+const fmt = (n: number | undefined) => (typeof n === "number" ? n.toLocaleString("fr-FR") : "—");
+const PRIORITY_COLOR: Record<PendingAction["priority"], string> = {
+    high: MODULE.pink,
+    medium: MODULE.orange,
+    low: MODULE.blue,
 };
 
 export default function AdminPage() {
@@ -37,147 +47,96 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-    const [stats, setStats] = useState<SystemStats | null>(null);
-    const [pendingActions, setPendingActions] = useState<PendingAction[] | null>(null);
-    const [systemInfo, setSystemInfo] = useState<Record<string, unknown> | null>(null);
+    const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
+    const [info, setInfo] = useState<SystemInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         Promise.all([
-            fetch("/api/system/activity", { credentials: "include" }).then((r) => {
-                if (!r.ok) throw new Error("Erreur de chargement des statistiques système");
-                return r.json();
+            fetch("/api/admin/system/info", { credentials: "include" }).then((r) => {
+                if (!r.ok) throw new Error("Impossible de charger les informations système.");
+                return r.json() as Promise<SystemInfo>;
             }),
-            fetch("/api/admin/pending-actions", { credentials: "include" }).then((r) => r.ok ? r.json() : null).catch(() => null),
-            fetch("/api/admin/system/info", { credentials: "include" }).then((r) => r.ok ? r.json() : null).catch(() => null),
+            fetch("/api/admin/pending-actions", { credentials: "include" })
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null),
         ])
-            .then(([statsData, actionsData, infoData]) => {
-                if (!cancelled) {
-                    setStats(statsData);
-                    setPendingActions(Array.isArray(actionsData) ? actionsData : actionsData?.actions ?? null);
-                    setSystemInfo(infoData);
-                }
+            .then(([infoData, actionsData]) => {
+                if (cancelled) return;
+                setInfo(infoData);
+                const list: PendingAction[] = Array.isArray(actionsData) ? actionsData : actionsData?.actions ?? [];
+                setPendingActions(list.filter((a) => a.count > 0));
             })
-            .catch((e) => { if (!cancelled) setError(e.message); })
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
+            .catch((e: Error) => {
+                if (!cancelled) setError(e.message);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, []);
+
+    const db = info?.database;
+    const uptimeHours = info?.system?.uptime ? Math.floor(info.system.uptime / 3600) : null;
 
     return (
         <PageShell>
             <PageHeader
                 title="Administration"
-                description="Panel d'administration système"
-                breadcrumbs={[
-                    { label: "Tableau de bord", href: "/dashboard" },
-                    { label: "Administration" },
-                ]}
+                description="État de la plateforme et actions à traiter"
+                breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Administration" }]}
             />
 
-            {loading ? <PageLoading label="Chargement des statistiques système…" /> : null}
-
+            {loading ? <PageLoading label="Chargement de l'administration…" /> : null}
             {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
 
-            {!loading && !error && stats ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Card className="border-border bg-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Utilisateurs</CardTitle>
-                            <Users className="w-4 h-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.userCount ?? "—"}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Comptes enregistrés</p>
-                        </CardContent>
-                    </Card>
+            {!loading && !error && info ? (
+                <div className="space-y-4">
+                    <Block id="admin-overview" title="Vue d'ensemble">
+                        <Figures
+                            items={[
+                                { label: "Comptes", value: fmt(db?.users), note: "utilisateurs enregistrés", color: MODULE.blue, href: "/dashboard/root-control/users" },
+                                { label: "Établissements", value: fmt(db?.schools), note: `${fmt(db?.students)} élèves`, color: MODULE.green, href: "/dashboard/root-control/schools" },
+                                { label: "Enseignants", value: fmt(db?.teachers), note: `${fmt(db?.grades)} notes saisies`, color: MODULE.orange },
+                                { label: "Journal", value: fmt(info.activity?.logs24h), note: "actions sur 24 h", color: MODULE.purple, href: "/dashboard/root-control/logs" },
+                            ]}
+                        />
+                    </Block>
 
-                    <Card className="border-border bg-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Établissements</CardTitle>
-                            <School className="w-4 h-4 text-secondary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.schoolCount ?? "—"}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Écoles actives</p>
-                        </CardContent>
-                    </Card>
+                    <Block id="admin-pending" title="À traiter">
+                        <WatchList
+                            calm="Rien à traiter pour l'instant."
+                            items={pendingActions.map((a) => ({
+                                key: a.id,
+                                avatar: String(a.count),
+                                color: PRIORITY_COLOR[a.priority] ?? MODULE.blue,
+                                name: a.description,
+                                detail: `${a.count} élément${a.count > 1 ? "s" : ""} en attente`,
+                                action: { href: a.url, label: "Ouvrir" },
+                            }))}
+                        />
+                    </Block>
 
-                    <Card className="border-border bg-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Sessions actives</CardTitle>
-                            <Activity className="w-4 h-4 text-accent" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.activeUsers ?? "—"}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Utilisateurs connectés</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border bg-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Logs d&apos;Audit</CardTitle>
-                            <Database className="w-4 h-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.auditLogCount ?? "—"}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Événements enregistrés</p>
-                        </CardContent>
-                    </Card>
+                    <Block id="admin-system" title="Informations système">
+                        <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+                            {[
+                                ["Version", info.system?.version ?? "—"],
+                                ["Environnement", info.system?.environment === "production" ? "Production" : info.system?.environment ?? "—"],
+                                ["Base de données", `${db?.provider ?? "—"} · ${db?.status === "connected" ? "connectée" : db?.status ?? "—"}`],
+                                ["En service depuis", uptimeHours === null ? "—" : `${uptimeHours} h`],
+                            ].map(([label, value]) => (
+                                <div key={label}>
+                                    <dt style={{ color: "var(--eduflow-text-secondary)" }}>{label}</dt>
+                                    <dd style={{ margin: "2px 0 0", fontWeight: 600 }}>{value}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </Block>
                 </div>
-            ) : null}
-
-            {/* Pending Actions */}
-            {pendingActions && pendingActions.length > 0 && (
-                <Card className="border-border bg-card">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-warning" />
-                            Actions en attente ({pendingActions.length})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            {pendingActions.map((action, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                                    <span className="text-sm">{action.description || action.type}</span>
-                                    <Badge variant="outline">{action.status || "En attente"}</Badge>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* System Info */}
-            {systemInfo && (
-                <Card className="border-border bg-card">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Database className="w-4 h-4 text-primary" />
-                            Informations Système
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            {Object.entries(systemInfo).map(([key, value]) => (
-                                <div key={key} className="space-y-1">
-                                    <span className="text-muted-foreground">{key}</span>
-                                    <div className="font-medium">{typeof value === "object" ? JSON.stringify(value) : String(value)}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {!loading && !error && !stats ? (
-                <PageEmpty
-                    icon="settings"
-                    title="Données système indisponibles"
-                    description="Vérifiez la connexion au serveur."
-                />
             ) : null}
         </PageShell>
     );

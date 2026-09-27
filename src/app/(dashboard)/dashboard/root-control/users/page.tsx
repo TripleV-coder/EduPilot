@@ -57,7 +57,7 @@ export default function RootUsersPage() {
                     breadcrumbs={[
                         { label: "Tableau de bord", href: "/dashboard" },
                         { label: "Pilotage root", href: "/dashboard/root-control" },
-                        { label: "Utilisateurs Globaux" },
+                        { label: "Utilisateurs globaux" },
                     ]}
                 />
 
@@ -114,9 +114,9 @@ export default function RootUsersPage() {
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
                                     <TableHead className="w-[250px] font-semibold text-muted-foreground">Utilisateur</TableHead>
-                                    <TableHead className="font-semibold text-muted-foreground">Rôle D'accès</TableHead>
+                                    <TableHead className="font-semibold text-muted-foreground">Rôle d'accès</TableHead>
                                     <TableHead className="font-semibold text-muted-foreground">Établissement</TableHead>
-                                    <TableHead className="font-semibold text-muted-foreground">Dernière Activité</TableHead>
+                                    <TableHead className="font-semibold text-muted-foreground">Dernière activité</TableHead>
                                     <TableHead className="font-semibold text-muted-foreground text-right">Contrôle</TableHead>
                                 </TableRow>
                             </TableHeader>

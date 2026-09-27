@@ -80,7 +80,7 @@ export const GET = createApiHandler(
         description: "Écoles en attente d'approbation",
         count: pendingSchools,
         priority: "high" as const,
-        url: "/admin/schools?status=pending",
+        url: "/dashboard/root-control/schools",
         icon: "building",
       },
       {
@@ -89,7 +89,7 @@ export const GET = createApiHandler(
         description: "Utilisateurs en attente de vérification",
         count: pendingUsers,
         priority: "medium" as const,
-        url: "/admin/users?status=pending",
+        url: "/dashboard/root-control/users",
         icon: "user-check",
       },
       {
@@ -98,7 +98,7 @@ export const GET = createApiHandler(
         description: "Demandes RGPD à traiter",
         count: pendingDataRequests,
         priority: "high" as const,
-        url: "/admin/compliance/data-requests",
+        url: "/dashboard/root-control/data-requests",
         icon: "file-text",
       },
       {
@@ -107,7 +107,7 @@ export const GET = createApiHandler(
         description: "Incidents à résoudre",
         count: pendingIncidents,
         priority: "high" as const,
-        url: "/admin/incidents?status=pending",
+        url: "/dashboard/incidents",
         icon: "alert-circle",
       },
       {
@@ -116,7 +116,7 @@ export const GET = createApiHandler(
         description: "Paiements à vérifier",
         count: pendingPayments,
         priority: "medium" as const,
-        url: "/admin/payments?status=pending",
+        url: "/dashboard/finance/reconciliation",
         icon: "credit-card",
       },
       {
@@ -125,7 +125,7 @@ export const GET = createApiHandler(
         description: "Rapports de conformité à examiner",
         count: pendingComplianceReports,
         priority: "low" as const,
-        url: "/admin/compliance/reports",
+        url: "/dashboard/compliance",
         icon: "shield",
       },
     ];

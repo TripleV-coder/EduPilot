@@ -119,7 +119,7 @@ export default function RootAnalyticsPage() {
                                 <CardContent className="pt-6">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium text-muted-foreground">Établissements Actifs</p>
+                                            <p className="text-sm font-medium text-muted-foreground">Établissements actifs</p>
                                             <p className="text-3xl font-bold text-foreground">{data.summary.schools}</p>
                                         </div>
                                         <div className="p-3 bg-primary/10 text-primary rounded-xl">
@@ -133,7 +133,7 @@ export default function RootAnalyticsPage() {
                                 <CardContent className="pt-6">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium text-muted-foreground">Utilisateurs Globaux</p>
+                                            <p className="text-sm font-medium text-muted-foreground">Utilisateurs globaux</p>
                                             <p className="text-3xl font-bold text-foreground">{data.summary.users}</p>
                                         </div>
                                         <div className="p-3 bg-primary/10 text-primary rounded-xl">
@@ -147,7 +147,7 @@ export default function RootAnalyticsPage() {
                                 <CardContent className="pt-6">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium text-muted-foreground">Revenus Période</p>
+                                            <p className="text-sm font-medium text-muted-foreground">Revenus de la période</p>
                                             <p className="text-3xl font-bold text-foreground">{formatCurrency(data.summary.revenue)}</p>
                                         </div>
                                         <div className="p-3 bg-success/10 text-success rounded-xl">
@@ -161,7 +161,7 @@ export default function RootAnalyticsPage() {
                                 <CardContent className="pt-6">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium text-muted-foreground">Événements Audit Période</p>
+                                            <p className="text-sm font-medium text-muted-foreground">Événements d'audit de la période</p>
                                             <p className="text-3xl font-bold text-foreground">{data.summary.activity}</p>
                                         </div>
                                         <div className="p-3 bg-warning/10 text-warning rounded-xl">
