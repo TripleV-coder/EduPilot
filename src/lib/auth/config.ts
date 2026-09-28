@@ -20,7 +20,8 @@ import {
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
-import { InvalidTwoFactorSignin, withSigninErrorMapping } from "./login-failure";
+import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
+import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
 
 /**
@@ -72,6 +73,7 @@ interface CachedUserStatus {
   roleChangedAt: Date | null;
   role: UserRole;
   isActive: boolean;
+  school: { isActive: boolean } | null;
   fetchedAt: number;
 }
 const userStatusCache = new Map<string, CachedUserStatus>();
@@ -84,7 +86,13 @@ async function getCachedUserStatus(userId: string): Promise<CachedUserStatus | n
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { passwordChangedAt: true, roleChangedAt: true, role: true, isActive: true },
+    select: {
+      passwordChangedAt: true,
+      roleChangedAt: true,
+      role: true,
+      isActive: true,
+      school: { select: { isActive: true } },
+    },
   });
 
   if (!user) return null;
@@ -158,6 +166,7 @@ export const authConfig: NextAuthConfig = {
             twoFactorBackupCodes: true,
             mustChangePassword: true,
             avatar: true,
+            school: { select: { isActive: true } },
           },
         });
 
@@ -203,6 +212,12 @@ export const authConfig: NextAuthConfig = {
           });
 
           return null;
+        }
+
+        // Établissement suspendu par la plateforme : vérifié seulement après un mot de
+        // passe correct, pour ne rien révéler de l'établissement à un inconnu.
+        if (isBlockedBySchoolSuspension(user)) {
+          throw new SchoolSuspendedSignin();
         }
 
         // 2FA Verification
@@ -430,7 +445,7 @@ export const authConfig: NextAuthConfig = {
 
         if (userStatus) {
           // Invalider si compte désactivé
-          if (!userStatus.isActive) {
+          if (!userStatus.isActive || isBlockedBySchoolSuspension(userStatus)) {
             token.invalidated = true;
             return token;
           }

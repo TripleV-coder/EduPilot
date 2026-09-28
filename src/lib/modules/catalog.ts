@@ -320,6 +320,17 @@ export function moduleForPagePath(pathname: string): ModuleDefinition | null {
 }
 
 /**
+ * Un lien vers une page d'un module éteint ne doit être proposé nulle part
+ * (menu, barre mobile, actions rapides, palette). Liste vide = modules encore
+ * inconnus (session en cours de chargement) : on ne masque rien.
+ */
+export function isPageAllowedByModules(href: string, enabledModules: readonly string[] | null | undefined): boolean {
+    if (!enabledModules || enabledModules.length === 0) return true;
+    const required = moduleForPagePath(href.split("?")[0]);
+    return !required || enabledModules.includes(required.id);
+}
+
+/**
  * Normalise une liste enregistrée : identifiants inconnus écartés, modules
  * requis toujours présents, ordre du catalogue.
  */

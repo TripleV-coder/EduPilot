@@ -9,6 +9,7 @@ import {
     getParentDashboardData,
 } from "@/lib/services/analytics-dashboard";
 import prisma from "@/lib/prisma";
+import { normalizeEnabledModules } from "@/lib/modules/catalog";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
@@ -74,7 +75,7 @@ async function renderDashboard(session: Session) {
     const [school, period] = await Promise.all([
         prisma.school.findUnique({
             where: { id: schoolId },
-            select: { name: true },
+            select: { name: true, enabledModules: true },
         }),
         prisma.period
             .findFirst({
@@ -96,6 +97,7 @@ async function renderDashboard(session: Session) {
             ),
     ]);
     const schoolName = school?.name ?? null;
+    const enabledModules = normalizeEnabledModules(school?.enabledModules);
     const periodName = period?.name ?? null;
 
     let payload:
@@ -164,6 +166,7 @@ async function renderDashboard(session: Session) {
                     <DirectorHome
                         {...homeProps}
                         focus={role === "ACCOUNTANT" ? "finance" : "school"}
+                        enabledModules={enabledModules}
                         data={payload.data}
                     />
                 </PageShell>

@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Icon, type IconName } from "@/components/edu";
 import { navForRole, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 import { useSchool } from "@/components/providers/school-provider";
-import { moduleForPagePath } from "@/lib/modules/catalog";
+import { isPageAllowedByModules } from "@/lib/modules/catalog";
 
 type Action = {
     id: string;
@@ -94,9 +94,7 @@ const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | und
  * Liste de modules vide = encore inconnue : on ne masque rien.
  */
 function allowedByModules(action: Action, enabledModules: string[]): boolean {
-    if (enabledModules.length === 0 || !action.href) return true;
-    const required = moduleForPagePath(action.href);
-    return !required || enabledModules.includes(required.id);
+    return !action.href || isPageAllowedByModules(action.href, enabledModules);
 }
 
 function buildActions(

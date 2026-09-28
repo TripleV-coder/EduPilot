@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
+import { useSchool } from "@/components/providers/school-provider";
+import { isPageAllowedByModules } from "@/lib/modules/catalog";
 import { AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 
 type MobileNavItem = {
@@ -79,11 +81,16 @@ export function EduMobileNav() {
     const pathname = usePathname();
     const { data: session } = useSession();
     const { setIsMobileOpen } = useSidebar();
+    const { enabledModules } = useSchool();
 
     const role = session?.user?.role ?? null;
 
     const items: MobileNavItem[] = React.useMemo(() => {
-        const base = mobileItemsForRole(role).filter((item) => item.key !== "ai" || canUseAiAssistant(role));
+        const base = mobileItemsForRole(role).filter(
+            (item) =>
+                (item.key !== "ai" || canUseAiAssistant(role)) &&
+                (!item.href || isPageAllowedByModules(item.href, enabledModules)),
+        );
         return [
             ...base,
             {
@@ -93,7 +100,7 @@ export function EduMobileNav() {
                 onClick: () => setIsMobileOpen(true),
             },
         ];
-    }, [role, setIsMobileOpen]);
+    }, [role, enabledModules, setIsMobileOpen]);
 
     if (!session?.user) return null;
 

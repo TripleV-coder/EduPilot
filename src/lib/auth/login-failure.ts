@@ -18,6 +18,7 @@
  */
 import { CredentialsSignin } from "@auth/core/errors";
 import { logger } from "@/lib/utils/logger";
+import { SCHOOL_SUSPENDED_CODE } from "./school-suspension";
 
 export const SERVICE_UNAVAILABLE_CODE = "service_unavailable";
 
@@ -27,6 +28,11 @@ export class ServiceUnavailableSignin extends CredentialsSignin {
 
 export class InvalidTwoFactorSignin extends CredentialsSignin {
     code = "invalid_2fa";
+}
+
+/** Établissement suspendu par la plateforme (voir ./school-suspension). */
+export class SchoolSuspendedSignin extends CredentialsSignin {
+    code = SCHOOL_SUSPENDED_CODE;
 }
 
 /** Erreurs Prisma qui signalent une base indisponible, pas une donnée refusée. */

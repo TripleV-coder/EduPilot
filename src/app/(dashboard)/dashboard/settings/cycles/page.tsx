@@ -69,6 +69,9 @@ function SchoolCyclesContent() {
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) {
+                // Refus : les cartes reviennent à la configuration réellement enregistrée
+                // (sinon « Non offert » s'affichait pour un cycle toujours offert).
+                if (data) setSelected(new Set(data.offeredLevels));
                 throw new Error(
                     body.code === "CYCLE_HAS_CLASSES"
                         ? "Impossible de retirer un cycle qui contient encore des classes. Archivez d'abord ses niveaux."

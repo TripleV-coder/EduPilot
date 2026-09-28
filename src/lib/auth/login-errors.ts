@@ -11,6 +11,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   service_unavailable:
     "Service momentanément indisponible. Vos identifiants ne sont pas en cause : réessayez dans quelques instants.",
   invalid_2fa: "Code de vérification incorrect.",
+  school_suspended:
+    "L'accès de votre établissement est suspendu. Contactez sa direction ou le support EduPilot.",
 };
 
 export function getLoginErrorMessage(error: string, code?: string | null): string {

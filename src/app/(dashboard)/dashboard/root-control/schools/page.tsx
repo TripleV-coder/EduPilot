@@ -109,7 +109,10 @@ export default function RootSchoolsPage() {
     const [createParentSchoolId, setCreateParentSchoolId] = useState("none");
     const [organizationMode, setOrganizationMode] = useState<"NONE" | "CREATE" | "EXISTING">("NONE");
     const [createOrganizationId, setCreateOrganizationId] = useState("none");
-    const [assignAdminAsOrganizationManager, setAssignAdminAsOrganizationManager] = useState(true);
+    // null = choix par défaut : chef d'organisation seulement pour la direction qui
+    // crée l'organisation, jamais implicitement pour une annexe ou un site rattaché
+    // (recette 2026-09-28 : la direction d'une annexe lisait les élèves du site principal).
+    const [assignAdminOverride, setAssignAdminOverride] = useState<boolean | null>(null);
     const [selectedPlanId, setSelectedPlanId] = useState("none");
     const [selectedActiveState, setSelectedActiveState] = useState("true");
     // N31 : identifiants de l'administrateur créé, affichés une seule fois.
@@ -140,6 +143,8 @@ export default function RootSchoolsPage() {
     );
     const organizationOptions = (organizationsData?.data || []).filter((organization) => organization.isActive);
     const selectedParentSchool = parentSchoolOptions.find((school) => school.id === createParentSchoolId) || null;
+    const assignAdminAsOrganizationManager =
+        assignAdminOverride ?? (organizationMode === "CREATE" && !selectedParentSchool?.organization);
 
     useEffect(() => {
         if (!selectedSchool) return;
@@ -210,7 +215,7 @@ export default function RootSchoolsPage() {
             setCreateParentSchoolId("none");
             setOrganizationMode("NONE");
             setCreateOrganizationId("none");
-            setAssignAdminAsOrganizationManager(true);
+            setAssignAdminOverride(null);
             setActiveTab("school");
             setIsCreateDialogOpen(false);
             mutate();
@@ -290,7 +295,7 @@ export default function RootSchoolsPage() {
                                 setCreateParentSchoolId("none");
                                 setOrganizationMode("NONE");
                                 setCreateOrganizationId("none");
-                                setAssignAdminAsOrganizationManager(true);
+                                setAssignAdminOverride(null);
                             }
                         }}
                     >
@@ -456,7 +461,7 @@ export default function RootSchoolsPage() {
                                                         <Checkbox
                                                             id="assign-org-admin"
                                                             checked={assignAdminAsOrganizationManager}
-                                                            onCheckedChange={(checked) => setAssignAdminAsOrganizationManager(checked === true)}
+                                                            onCheckedChange={(checked) => setAssignAdminOverride(checked === true)}
                                                         />
                                                         <div className="space-y-1">
                                                             <Label htmlFor="assign-org-admin" className="text-sm font-medium">

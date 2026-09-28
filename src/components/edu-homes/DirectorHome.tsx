@@ -4,10 +4,13 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/edu";
 import { formatFcfa, formatNumber, frenchToday } from "./_shared";
 import styles from "./home.module.css";
+import { isPageAllowedByModules } from "@/lib/modules/catalog";
 
 export interface DirectorHomeProps {
     /** « finance » : accueil de la comptabilité — actions et liens limités aux pages qui lui sont ouvertes. */
     focus?: "school" | "finance";
+    /** Modules actifs de l'établissement : une action vers un module éteint n'est pas proposée. */
+    enabledModules?: readonly string[];
     userName: string;
     schoolName: string | null;
     periodName: string | null;
@@ -87,7 +90,7 @@ function riskLabel(level: string): string {
     return "à suivre";
 }
 
-export function DirectorHome({ focus = "school", userName, schoolName, periodName, data }: DirectorHomeProps) {
+export function DirectorHome({ focus = "school", enabledModules, userName, schoolName, periodName, data }: DirectorHomeProps) {
     const finance = focus === "finance";
     const collectionRate = data.feeRecoveryRate == null ? null : Math.round(data.feeRecoveryRate);
     const firstName = userName.trim().split(/\s+/)[0] || userName;
@@ -238,7 +241,7 @@ export function DirectorHome({ focus = "school", userName, schoolName, periodNam
                     <h2 id="home-actions" className={styles.blockTitle}>Actions rapides</h2>
                 </div>
                 <div className={styles.tiles}>
-                    {(finance ? FINANCE_ACTIONS : QUICK_ACTIONS).map((a) => (
+                    {(finance ? FINANCE_ACTIONS : QUICK_ACTIONS).filter((a) => isPageAllowedByModules(a.href, enabledModules)).map((a) => (
                         <Link key={a.href} href={a.href} className={styles.tile}>
                             <span className={styles.tileIcon} style={{ background: a.color }} aria-hidden="true">
                                 <Icon name={a.icon} size={18} color="#fff" />
