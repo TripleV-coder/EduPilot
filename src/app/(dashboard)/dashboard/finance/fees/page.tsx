@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { Banknote, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react";
+import { Banknote, Plus, Save, AlertCircle, CheckCircle, ArrowLeft, Trash2, Pencil } from "lucide-react";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
@@ -40,6 +41,42 @@ export default function FeesManagementPage() {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState(false);
+    // Frais en cours de modification (le formulaire d'ajout sert aussi à l'édition).
+    const [editingFee, setEditingFee] = useState<Fee | null>(null);
+    const [feeToDelete, setFeeToDelete] = useState<Fee | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    const openCreate = () => {
+        setEditingFee(null);
+        setIsAdding(true);
+    };
+    const openEdit = (fee: Fee) => {
+        setEditingFee(fee);
+        setIsAdding(true);
+        document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    const closeForm = () => {
+        setIsAdding(false);
+        setEditingFee(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!feeToDelete) return;
+        setDeleting(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/fees/${feeToDelete.id}`, { method: "DELETE" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Suppression impossible");
+            showSuccess(`« ${feeToDelete.name} » retiré de la grille`);
+            fetchData();
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setDeleting(false);
+            setFeeToDelete(null);
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -100,19 +137,19 @@ export default function FeesManagementPage() {
         };
 
         try {
-            const res = await fetch("/api/fees", {
-                method: "POST",
+            const res = await fetch(editingFee ? `/api/fees/${editingFee.id}` : "/api/fees", {
+                method: editingFee ? "PATCH" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Erreur lors de la création");
+                const data = await res.json().catch(() => ({}));
+                throw new Error(typeof data.error === "string" ? data.error : "Erreur lors de l'enregistrement");
             }
 
-            showSuccess("Frais configuré avec succès");
-            setIsAdding(false);
+            showSuccess(editingFee ? "Frais modifié" : "Frais configuré avec succès");
+            closeForm();
             fetchData();
         } catch (err) {
             setError(getErrorMessage(err));
@@ -159,7 +196,7 @@ export default function FeesManagementPage() {
                         </div>
                     </div>
                     {!isAdding && (
-                        <Button onClick={() => setIsAdding(true)} className="gap-2">
+                        <Button onClick={openCreate} className="gap-2">
                             <Plus className="h-4 w-4" />
                             {t("common.new")} Frais
                         </Button>
@@ -169,51 +206,52 @@ export default function FeesManagementPage() {
                 {isAdding && (
                     <Card className="border-primary/20 bg-primary/5">
                         <CardHeader>
-                            <CardTitle className="text-lg">Ajouter une ligne de frais</CardTitle>
+                            <CardTitle className="text-lg">{editingFee ? `Modifier « ${editingFee.name} »` : "Ajouter une ligne de frais"}</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleCreateFee} className="space-y-5">
+                            {/* key : les valeurs par défaut suivent le frais édité */}
+                            <form key={editingFee?.id ?? "new"} onSubmit={handleCreateFee} className="space-y-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div className="space-y-2 lg:col-span-2">
                                         <Label htmlFor="name">Intitulé détaillé <span className="text-destructive">*</span></Label>
-                                        <Input id="name" name="name" aria-label="Intitulé du frais" placeholder="Ex: Frais de scolarité trimestre 1" required />
+                                        <Input id="name" name="name" aria-label="Intitulé du frais" placeholder="Ex: Frais de scolarité trimestre 1" defaultValue={editingFee?.name} required />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="amount">Montant (FCFA) <span className="text-destructive">*</span></Label>
-                                        <Input id="amount" name="amount" aria-label="Montant du frais" placeholder="Ex: 25000" type="number" min="0" required />
+                                        <Input id="amount" name="amount" aria-label="Montant du frais" placeholder="Ex: 25000" type="number" min="0" defaultValue={editingFee ? Number(editingFee.amount) : undefined} required />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="academicYearId">Année Académique</Label>
-                                        <select id="academicYearId" name="academicYearId" aria-label="Année académique" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                        <select id="academicYearId" name="academicYearId" aria-label="Année académique" defaultValue={editingFee?.academicYearId ?? ""} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                             <option value="">(Toutes les années)</option>
                                             {academicYears.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="classLevelCode">Niveau d'Étude Cible</Label>
-                                        <select id="classLevelCode" name="classLevelCode" aria-label="Niveau d'étude cible" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                        <select id="classLevelCode" name="classLevelCode" aria-label="Niveau d'étude cible" defaultValue={editingFee?.classLevelCode ?? ""} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                             <option value="">(Général / Tous les niveaux)</option>
                                             {classLevels.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="dueDate">Date d'échéance exigée (Pénalités)</Label>
-                                        <Input id="dueDate" name="dueDate" type="date" />
+                                        <Input id="dueDate" name="dueDate" type="date" defaultValue={editingFee?.dueDate ? editingFee.dueDate.slice(0, 10) : undefined} />
                                     </div>
                                     <div className="space-y-2 lg:col-span-3">
                                         <Label htmlFor="description">Notes internes (Optionnel)</Label>
-                                        <Input id="description" name="description" aria-label="Notes internes" placeholder="Commentaires internes sur ce frais" />
+                                        <Input id="description" name="description" aria-label="Notes internes" placeholder="Commentaires internes sur ce frais" defaultValue={editingFee?.description ?? undefined} />
                                     </div>
                                     <div className="space-y-2 flex items-center justify-between p-3 rounded-lg border bg-background/50 lg:col-span-3">
                                         <div className="space-y-0.5">
                                             <Label className="text-base font-medium">Ce frais est-il obligatoire pour tout étudiant ?</Label>
                                             <p className="text-xs text-muted-foreground">Si oui, le système facturera automatiquement lors de l'inscription.</p>
                                         </div>
-                                        <Switch aria-label="Frais obligatoire pour tous les élèves" name="isRequired" defaultChecked />
+                                        <Switch aria-label="Frais obligatoire pour tous les élèves" name="isRequired" defaultChecked={editingFee ? editingFee.isRequired : true} />
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
-                                    <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
+                                    <Button type="button" variant="outline" onClick={closeForm}>{t("common.cancel")}</Button>
                                     <Button type="submit" disabled={saving} className="gap-2">
                                         {saving ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                                         {t("common.save")}
@@ -265,9 +303,14 @@ export default function FeesManagementPage() {
                                                 <span className="text-[11px] text-muted-foreground block mb-0.5">Montant unitaire</span>
                                                 <span className="font-bold text-xl text-primary">{formatCurrency(fee.amount)}</span>
                                             </div>
-                                            <Button aria-label="Supprimer le frais" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity max-md:h-11 max-md:w-11">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex gap-1">
+                                                <Button aria-label={`Modifier le frais ${fee.name}`} variant="ghost" size="icon" onClick={() => openEdit(fee)} className="h-8 w-8 text-muted-foreground hover:text-primary max-md:h-11 max-md:w-11">
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button aria-label={`Supprimer le frais ${fee.name}`} variant="ghost" size="icon" onClick={() => setFeeToDelete(fee)} className="h-8 w-8 text-muted-foreground hover:text-destructive max-md:h-11 max-md:w-11">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -275,6 +318,17 @@ export default function FeesManagementPage() {
                         ))
                     )}
                 </div>
+                <ConfirmActionDialog
+                    open={feeToDelete !== null}
+                    onOpenChange={(open) => !open && setFeeToDelete(null)}
+                    title="Retirer ce frais de la grille ?"
+                    description={feeToDelete ? `« ${feeToDelete.name} » ne sera plus proposé. Impossible s'il a déjà été encaissé.` : ""}
+                    confirmLabel="Retirer"
+                    cancelLabel={t("common.cancel")}
+                    variant="destructive"
+                    isConfirmLoading={deleting}
+                    onConfirm={confirmDelete}
+                />
             </PageShell>
         </PageGuard>
     );

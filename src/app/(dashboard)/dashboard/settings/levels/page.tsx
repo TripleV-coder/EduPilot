@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Layers, Network, Boxes, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
- 
 
 type ClassLevel = {
     id: string;
@@ -21,7 +25,44 @@ type ClassLevel = {
 };
 
 export default function AcademicLevelsPage() {
-    const { data, isLoading, error } = useSWR<ClassLevel[]>("/api/class-levels", fetcher);
+    const { data, isLoading, error, mutate } = useSWR<ClassLevel[]>("/api/class-levels", fetcher);
+    const { toast } = useToast();
+    // Cycle dans lequel on ajoute un niveau (null = fenêtre fermée).
+    const [addingTo, setAddingTo] = useState<string | null>(null);
+    const [form, setForm] = useState({ name: "", code: "", sequence: "1" });
+    const [saving, setSaving] = useState(false);
+
+    const openAddLevel = (group: string, groupLevels: ClassLevel[]) => {
+        const nextSequence = groupLevels.reduce((max, l) => Math.max(max, l.sequence), 0) + 1;
+        setForm({ name: "", code: "", sequence: String(nextSequence) });
+        setAddingTo(group);
+    };
+
+    const saveLevel = async () => {
+        if (!addingTo) return;
+        setSaving(true);
+        try {
+            const res = await fetch("/api/class-levels", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: form.name.trim(),
+                    code: form.code.trim().toUpperCase(),
+                    level: addingTo,
+                    sequence: Number(form.sequence),
+                }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Le niveau n'a pas été créé.");
+            toast({ title: "Niveau ajouté", description: `${form.name.trim()} est disponible pour créer des classes.` });
+            setAddingTo(null);
+            await mutate();
+        } catch (err) {
+            toast({ title: "Niveau refusé", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const levels = data || [];
 
@@ -80,9 +121,12 @@ export default function AcademicLevelsPage() {
                                 </CardContent>
                             </Card>
 
-                            <Button className="w-full gap-2" variant="outline">
-                                <Plus className="w-4 h-4" />
-                                Ajouter un cycle
+                            {/* Les cycles offerts (Primaire, Collège, Lycée) se choisissent sur leur page dédiée. */}
+                            <Button asChild className="w-full gap-2" variant="outline">
+                                <Link href="/dashboard/settings/cycles">
+                                    <Plus className="w-4 h-4" />
+                                    Ajouter un cycle
+                                </Link>
                             </Button>
                         </div>
 
@@ -125,7 +169,13 @@ export default function AcademicLevelsPage() {
                                                     </div>
                                                 ))}
                                                 <div className="p-4 hover:bg-muted/10 flex justify-between items-center bg-muted/5">
-                                                    <Button variant="ghost" size="sm" className="h-8 w-full justify-start text-primary hover:text-primary hover:bg-primary/10 gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-full justify-start text-primary hover:text-primary hover:bg-primary/10 gap-2"
+                                                        onClick={() => openAddLevel(group, groupLevels)}
+                                                        disabled={group === "AUTRE"}
+                                                    >
                                                         <Plus className="w-4 h-4" />
                                                         Ajouter un niveau
                                                     </Button>
@@ -138,6 +188,37 @@ export default function AcademicLevelsPage() {
                         </div>
                     </div>
                 )}
+                <Dialog open={addingTo !== null} onOpenChange={(open) => !open && setAddingTo(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                Nouveau niveau · {addingTo ? (groupLabels[addingTo] ?? groupLabels.AUTRE).label : ""}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="level-name">Nom du niveau</Label>
+                                <Input id="level-name" placeholder="Ex : Seconde" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="level-code">Code</Label>
+                                    <Input id="level-code" placeholder="Ex : 2NDE" maxLength={10} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="level-sequence">Ordre dans le cycle</Label>
+                                    <Input id="level-sequence" type="number" min={1} value={form.sequence} onChange={(e) => setForm({ ...form, sequence: e.target.value })} />
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setAddingTo(null)}>Annuler</Button>
+                            <Button onClick={() => void saveLevel()} disabled={saving || form.name.trim().length < 2 || !form.code.trim()}>
+                                Créer le niveau
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </PageShell>
         </PageGuard>
     );

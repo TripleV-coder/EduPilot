@@ -347,8 +347,10 @@ export default function ConfigOptionsSettingsPage() {
               </SheetHeader>
 
               <Form {...form}>
-                <form className="flex h-full flex-col" onSubmit={form.handleSubmit((values) => void submitOption(values))}>
-                  <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                {/* Le formulaire prend l'espace restant sous l'en-tête (pas 100 %) : seuls
+                    les champs défilent et le pied (Annuler / Créer) reste visible, même à 720 px. */}
+                <form className="flex min-h-0 flex-1 flex-col" onSubmit={form.handleSubmit((values) => void submitOption(values))}>
+                  <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                     <FormField
                       control={form.control}
                       name="label"

@@ -102,17 +102,35 @@ export default function InscriptionPage() {
     }, [fees, selectedLevel]);
 
 
+    /** Contrôle de l'étape affichée : on ne passe pas à la suivante avec des champs obligatoires vides. */
+    const validateStep = (index: number): string | null => {
+        if (index === 0) return validateIdentite();
+        if (index === 1) return validateFamille();
+        return null;
+    };
+
     const goNext = () => {
-        // Le responsable est obligatoire (écran Famille) : on ne passe pas sans lui.
-        if (step === 1) {
-            const famille = validateFamille();
-            if (famille) {
-                setError(famille);
+        const invalid = validateStep(step);
+        if (invalid) {
+            setError(invalid);
+            return;
+        }
+        setError(null);
+        setStep((s) => Math.min(STEPS.length - 1, s + 1) as StepIndex);
+    };
+
+    /** Onglets d'étape : retour libre, avance seulement si les étapes franchies sont complètes. */
+    const goToStep = (target: number) => {
+        for (let i = step; i < target; i++) {
+            const invalid = validateStep(i);
+            if (invalid) {
+                setStep(i as StepIndex);
+                setError(invalid);
                 return;
             }
         }
         setError(null);
-        setStep((s) => Math.min(STEPS.length - 1, s + 1) as StepIndex);
+        setStep(target as StepIndex);
     };
     const goPrev = () => setStep((s) => Math.max(0, s - 1) as StepIndex);
 
@@ -124,14 +142,20 @@ export default function InscriptionPage() {
         return null;
     };
 
-    const validateForSubmit = (): string | null => {
-        if (!form.firstName.trim() || form.firstName.trim().length < 2)
-            return "Le prénom doit contenir au moins 2 caractères.";
+    const validateIdentite = (): string | null => {
         if (!form.lastName.trim() || form.lastName.trim().length < 2)
             return "Le nom doit contenir au moins 2 caractères.";
-        if (!form.email.trim()) return "L'email est requis.";
-        if (!form.phone.trim()) return "Le téléphone est requis.";
+        if (!form.firstName.trim() || form.firstName.trim().length < 2)
+            return "Le prénom doit contenir au moins 2 caractères.";
         if (!form.matricule.trim()) return "Le matricule est requis.";
+        if (!form.phone.trim()) return "Le téléphone est requis.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return "Une adresse e-mail valide est requise.";
+        return null;
+    };
+
+    const validateForSubmit = (): string | null => {
+        const identite = validateIdentite();
+        if (identite) return identite;
         if (!form.classId) return "Sélectionne une classe d'affectation.";
         if (!form.academicYearId) return "Sélectionne une année académique.";
         return validateFamille();
@@ -305,7 +329,7 @@ export default function InscriptionPage() {
                                 >
                                     <button
                                         type="button"
-                                        onClick={() => setStep(i as StepIndex)}
+                                        onClick={() => goToStep(i)}
                                         style={{
                                             display: "flex",
                                             alignItems: "center",

@@ -302,8 +302,8 @@ export default function SubjectCategoriesSettingsPage() {
               </SheetHeader>
 
               <Form {...form}>
-                <form className="flex h-full flex-col" onSubmit={form.handleSubmit((values) => void submitCategory(values))}>
-                  <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                <form className="flex min-h-0 flex-1 flex-col" onSubmit={form.handleSubmit((values) => void submitCategory(values))}>
+                  <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                     <FormField
                       control={form.control}
                       name="name"

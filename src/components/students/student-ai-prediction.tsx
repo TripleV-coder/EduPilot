@@ -4,14 +4,17 @@ import { formatDecimal } from "@/lib/utils/formatters";
 
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { useModuleEnabled } from "@/components/providers/school-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, BrainCircuit, Sparkles, AlertTriangle, TrendingUp } from "lucide-react";
 import type { StudentPredictionResponse } from "@/lib/services/ai-predictive";
 
 export function StudentAiPrediction({ studentId }: { studentId: string }) {
+  // Module « Assistant IA » éteint : aucun appel (l'API répondrait 403).
+  const aiEnabled = useModuleEnabled("ai");
   const { data: response, error, isLoading } = useSWR<StudentPredictionResponse>(
-    `/api/ai/predictions/student?studentId=${studentId}`,
+    aiEnabled ? `/api/ai/predictions/student?studentId=${studentId}` : null,
     fetcher,
     {
       shouldRetryOnError: false,
@@ -20,6 +23,20 @@ export function StudentAiPrediction({ studentId }: { studentId: string }) {
   );
 
   const data = response?.data;
+
+  if (!aiEnabled) {
+    return (
+      <Card className="border-border bg-card">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <BrainCircuit className="h-10 w-10 text-muted-foreground mb-3" />
+          <p className="font-medium mb-1">Module « Assistant IA » non activé</p>
+          <p className="text-muted-foreground text-sm text-center max-w-md">
+            La direction peut l&apos;activer dans Paramètres › Modules.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (

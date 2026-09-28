@@ -272,6 +272,19 @@ export const POST = createApiHandler(
       }
     }
 
+    // Matricule unique dans l'établissement parmi les élèves non supprimés
+    // (l'index n'est pas unique pour libérer le matricule d'un élève supprimé).
+    const matriculeTaken = await prisma.studentProfile.findFirst({
+      where: { schoolId: targetSchoolId, matricule: validatedData.matricule, deletedAt: null },
+      select: { id: true },
+    });
+    if (matriculeTaken) {
+      return NextResponse.json(
+        { error: `Le matricule ${validatedData.matricule} est déjà attribué à un élève de l'établissement.`, code: "MATRICULE_TAKEN" },
+        { status: 409 }
+      );
+    }
+
     // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par
     // l'auteur, un mot de passe provisoire unique est généré et renvoyé une fois.
     const provisional = validatedData.password ? null : await issueProvisionalPassword();

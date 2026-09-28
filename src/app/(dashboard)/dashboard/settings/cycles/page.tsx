@@ -106,7 +106,14 @@ function SchoolCyclesContent() {
             ) : error ? (
                 <PageError message="Impossible de charger la configuration. Réessayez." onRetry={() => void mutate()} />
             ) : data ? (
-                <>
+                <form
+                    aria-label="Cycles offerts par l'établissement"
+                    style={{ display: "grid", gap: 16 }}
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        void save();
+                    }}
+                >
                     <div className="edu-stagger" style={{ display: "grid", gap: 12 }}>
                         {data.cycles.map((c) => {
                             const on = current.has(c.level);
@@ -162,11 +169,11 @@ function SchoolCyclesContent() {
 
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
                         <SubLabel>{current.size}/3 cycle(s)</SubLabel>
-                        <Button icon="check" onClick={save} loading={saving} disabled={!dirty || current.size === 0}>
+                        <Button type="submit" icon="check" loading={saving} disabled={!dirty || current.size === 0}>
                             Enregistrer
                         </Button>
                     </div>
-                </>
+                </form>
             ) : null}
         </PageShell>
     );

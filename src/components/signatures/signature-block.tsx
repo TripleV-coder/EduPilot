@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
+import { useModuleEnabled } from "@/components/providers/school-provider";
 import { Button, Card, Icon } from "@/components/edu";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { SignaturePad, type SignatureValue } from "./signature-pad";
@@ -32,7 +33,13 @@ export interface SignatureBlockProps {
  * Bloc de signature d'un document : liste les signataires et, si autorisé,
  * permet d'apposer une signature (tracé ou saisie).
  */
-export function SignatureBlock({ docType, docId, payload, canSign = false, title = "Signatures" }: SignatureBlockProps) {
+export function SignatureBlock(props: SignatureBlockProps) {
+    // Module « Signature électronique » éteint : pas de bloc (l'API répondrait 403).
+    if (!useModuleEnabled("signature")) return null;
+    return <SignatureBlockContent {...props} />;
+}
+
+function SignatureBlockContent({ docType, docId, payload, canSign = false, title = "Signatures" }: SignatureBlockProps) {
     const key = `/api/signatures?docType=${docType}&docId=${encodeURIComponent(docId)}`;
     const { data, mutate } = useSWR<{ signatures: SignatureRow[] }>(key, fetcher);
     const [value, setValue] = useState<SignatureValue | null>(null);

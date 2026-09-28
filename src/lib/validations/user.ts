@@ -15,7 +15,7 @@ export const userSchema = z.object({
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim(),
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim(),
   phone: phoneSchema,
-  role: z.enum(["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT", "ACCOUNTANT"]),
+  role: z.enum(["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT", "ACCOUNTANT", "STAFF"]),
   schoolId: z.string().cuid().optional().nullable(),
   password: strongPasswordSchema,
 });

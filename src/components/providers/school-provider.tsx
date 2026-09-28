@@ -81,8 +81,13 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
 
     // L'école active fait partie de la clé : après un changement d'école, le
     // contexte (nom, modules, années) est rechargé au lieu de rester en cache.
+    // Session confinée (mot de passe provisoire à changer, 2FA en attente) : le
+    // proxy refuse toute API métier (403) — inutile de demander le contexte.
+    const sessionConfined =
+        session?.user?.mustChangePassword === true ||
+        (session?.user?.isTwoFactorEnabled === true && session.user.isTwoFactorAuthenticated !== true);
     const { data: schoolContextData, error: contextError } = useSWR<SchoolContextData>(
-        session?.user ? `/api/schools/context?schoolId=${session.user.schoolId ?? ""}` : null,
+        session?.user && !sessionConfined ? `/api/schools/context?schoolId=${session.user.schoolId ?? ""}` : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -254,6 +259,18 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
             {children}
         </SchoolContext.Provider>
     );
+}
+
+/**
+ * Module actif dans l'établissement courant ? Vrai tant que la liste est
+ * inconnue (chargement) ou hors fournisseur : on ne masque rien par défaut.
+ * Sert à ne pas afficher — ni interroger — un bloc d'un module éteint (l'API
+ * répondrait 403).
+ */
+export function useModuleEnabled(moduleId: string): boolean {
+    const context = useContext(SchoolContext);
+    const modules = context?.enabledModules ?? [];
+    return modules.length === 0 || modules.includes(moduleId);
 }
 
 export function useSchool() {

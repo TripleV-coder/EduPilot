@@ -40,6 +40,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = "default", ...props }, ref) => (
     <div
       ref={ref}
+      data-slot="card"
       className={cn("rounded-card", variantStyles[variant], className)}
       {...props}
     />

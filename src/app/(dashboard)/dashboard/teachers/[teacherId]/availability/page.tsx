@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Clock, Save, CalendarCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
@@ -33,9 +34,12 @@ const PERIODS = [
 
 type SlotKey = `${number}-${string}`;
 
-export default function TeacherAvailabilityPage({ params }: { params: { teacherId: string } }) {
+export default function TeacherAvailabilityPage() {
+    // Next 16 : `params` est une Promise pour une page ; un composant client lit
+    // le segment via useParams (la lecture synchrone donnait `undefined`).
+    const { teacherId } = useParams<{ teacherId: string }>();
     const { data, isLoading, mutate } = useSWR<{ availabilities: Availability[] }>(
-        `/api/teachers/${params.teacherId}/availability`,
+        `/api/teachers/${teacherId}/availability`,
         fetcher,
         { revalidateOnFocus: false }
     );
@@ -83,7 +87,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
             const toCreate = [...activeSlots].filter((key) => !slotIdMap.has(key));
 
             for (const [, id] of toDelete) {
-                const res = await fetch(`/api/teachers/${params.teacherId}/availability?availabilityId=${id}`, {
+                const res = await fetch(`/api/teachers/${teacherId}/availability?availabilityId=${id}`, {
                     method: "DELETE",
                     credentials: "include",
                 });
@@ -95,7 +99,7 @@ export default function TeacherAvailabilityPage({ params }: { params: { teacherI
                 const period = PERIODS.find(p => p.start === startTime);
                 if (!period || period.isBreak) continue;
 
-                const res = await fetch(`/api/teachers/${params.teacherId}/availability`, {
+                const res = await fetch(`/api/teachers/${teacherId}/availability`, {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },

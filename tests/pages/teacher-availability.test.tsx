@@ -8,7 +8,7 @@ vi.mock("@/components/providers/school-provider", async () => (await import("./h
 const toastError = vi.fn();
 vi.mock("sonner", () => ({ toast: { error: (...a: unknown[]) => toastError(...a), success: vi.fn() } }));
 
-import { asRole, mockApi, renderPage, resetHarness, apiError } from "./harness";
+import { asRole, mockApi, renderPage, resetHarness, apiError, navigation } from "./harness";
 import TeacherAvailabilityPage from "@/app/(dashboard)/dashboard/teachers/[teacherId]/availability/page";
 
 const BASE = "/api/teachers/t1/availability";
@@ -36,7 +36,9 @@ describe("Page Disponibilités enseignant", () => {
   it("n'envoie que la différence : les créneaux inchangés ne sont jamais supprimés", async () => {
     asRole("SCHOOL_ADMIN");
     const api = mockApi({ [`GET ${BASE}`]: SLOTS, [`DELETE ${BASE}`]: { ok: true }, [`POST ${BASE}`]: { id: "a3" } });
-    renderPage(<TeacherAvailabilityPage params={{ teacherId: "t1" }} />);
+    // Segment lu par useParams (Next 16) — la prop `params` synchrone donnait undefined en production.
+    navigation.params = { teacherId: "t1" };
+    renderPage(<TeacherAvailabilityPage />);
     await editGrid();
 
     await waitFor(() => expect(api.calls(`POST ${BASE}`)).toHaveLength(1));
@@ -50,7 +52,9 @@ describe("Page Disponibilités enseignant", () => {
   it("signale un enregistrement incomplet et recharge l'état réel du serveur", async () => {
     asRole("SCHOOL_ADMIN");
     const api = mockApi({ [`GET ${BASE}`]: SLOTS, [`DELETE ${BASE}`]: { ok: true }, [`POST ${BASE}`]: apiError(500) });
-    renderPage(<TeacherAvailabilityPage params={{ teacherId: "t1" }} />);
+    // Segment lu par useParams (Next 16) — la prop `params` synchrone donnait undefined en production.
+    navigation.params = { teacherId: "t1" };
+    renderPage(<TeacherAvailabilityPage />);
     await editGrid();
 
     await waitFor(() => expect(toastError).toHaveBeenCalled());

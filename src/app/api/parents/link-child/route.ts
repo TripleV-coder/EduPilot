@@ -31,8 +31,11 @@ export const POST = createApiHandler(async (request, context) => {
             );
         }
 
+        // Le matricule n'est unique qu'au sein d'un établissement : la recherche
+        // se fait dans l'établissement actif du parent (et jamais sur un élève supprimé).
+        const activeSchoolId = getActiveSchoolId(session);
         const student = await prisma.studentProfile.findFirst({
-            where: { matricule: data.matricule },
+            where: { matricule: data.matricule, deletedAt: null, ...(activeSchoolId && { schoolId: activeSchoolId }) },
             include: {
                 user: { select: { firstName: true, lastName: true } },
                 enrollments: {
@@ -45,14 +48,13 @@ export const POST = createApiHandler(async (request, context) => {
         if (!student) {
             return NextResponse.json(
                 {
-                    error: "Aucun élève trouvé avec ce matricule — vérifie l'orthographe ou contacte l'école",
+                    error: "Aucun élève de votre établissement ne porte ce matricule. Vérifiez-le ; si votre enfant est inscrit dans un autre établissement, adressez-vous à celui-ci.",
                 },
                 { status: 404 }
             );
         }
 
         // Tenant isolation
-        const activeSchoolId = getActiveSchoolId(session);
         if (activeSchoolId && student.schoolId !== activeSchoolId) {
             return NextResponse.json(
                 { error: "Élève hors de ton établissement actif" },

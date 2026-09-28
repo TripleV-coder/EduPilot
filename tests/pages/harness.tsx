@@ -73,6 +73,8 @@ export const school = {
 
 export const schoolMock = {
     useSchool: () => school,
+    useModuleEnabled: (moduleId: string) =>
+        (school.enabledModules?.length ?? 0) === 0 || (school.enabledModules ?? []).includes(moduleId),
     SchoolProvider: ({ children }: { children: React.ReactNode }) => children,
 };
 

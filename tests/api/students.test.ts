@@ -19,7 +19,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     academicYear: { findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
-    studentProfile: { findMany: vi.fn(), count: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    studentProfile: { findMany: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     class: { findUnique: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
     enrollment: { findFirst: vi.fn(), update: vi.fn() },
@@ -103,6 +103,7 @@ describe("POST /api/students", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(checkStudentQuota).mockResolvedValue({ allowed: true, limit: 1000 });
+    vi.mocked(prisma.studentProfile.findFirst).mockResolvedValue(null);
   });
 
   it("should return 403 when the school is missing", async () => {
@@ -140,6 +141,20 @@ describe("POST /api/students", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1" } as never);
     const res = await POST(makeRequest("http://localhost/api/students", { method: "POST", body: CREATE_BODY }));
     expect(res.status).toBe(400);
+  });
+
+  it("refuse un matricule déjà attribué dans l'établissement (recette : doublon accepté)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ id: "cl1", schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.studentProfile.findFirst).mockResolvedValue({ id: "s-existant" } as never);
+    const res = await POST(makeRequest("http://localhost/api/students", { method: "POST", body: CREATE_BODY }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/matricule/i);
+    expect(vi.mocked(prisma.studentProfile.findFirst).mock.calls[0][0]).toMatchObject({
+      where: { schoolId: FIXTURES.schoolA, deletedAt: null },
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("should create the student, profile and enrollment", async () => {

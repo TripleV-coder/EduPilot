@@ -36,7 +36,7 @@ const formSchema = z.object({
     lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").trim(),
     email: z.string().email("Email invalide").toLowerCase().trim(),
     phone: z.string().optional(),
-    role: z.enum(["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "TEACHER", "STUDENT", "PARENT"]),
+    role: z.enum(["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "STAFF", "TEACHER", "STUDENT", "PARENT"]),
     schoolId: z.string().optional(),
     schoolName: z.string().optional(),
     schoolAddress: z.string().optional(),
@@ -331,6 +331,7 @@ export default function NewUserPage() {
                                                             )}
                                                             <SelectItem value="DIRECTOR">Directeur</SelectItem>
                                                             <SelectItem value="ACCOUNTANT">Comptable</SelectItem>
+                                                            <SelectItem value="STAFF">Personnel administratif (secrétariat, vie scolaire)</SelectItem>
                                                             <SelectItem value="TEACHER">Enseignant</SelectItem>
                                                             <SelectItem value="PARENT">Parent</SelectItem>
                                                         </SelectContent>

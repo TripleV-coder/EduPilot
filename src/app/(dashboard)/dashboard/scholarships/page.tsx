@@ -19,6 +19,8 @@ import {
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
+import { NewScholarshipDialog } from "@/components/scholarships/new-scholarship-dialog";
+import { exportToCSV } from "@/lib/utils/export";
 
 type ScholarshipType =
     | "MERIT"
@@ -117,6 +119,8 @@ export default function ScholarshipsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<Filter>("all");
+    const [creating, setCreating] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         const load = async () => {
@@ -138,7 +142,27 @@ export default function ScholarshipsPage() {
             }
         };
         load();
-    }, []);
+    }, [reloadKey]);
+
+    /** Rapport des bourses pour la déclaration au ministère (MEMP), en CSV. */
+    const exportMempReport = () => {
+        exportToCSV({
+            title: "Rapport_MEMP_bourses",
+            headers: ["Matricule", "Élève", "Classe", "Bourse", "Type", "Montant (FCFA)", "Pourcentage", "Début", "Fin", "Statut"],
+            rows: scholarships.map((s) => [
+                s.student?.matricule ?? "",
+                s.student?.user ? `${s.student.user.lastName} ${s.student.user.firstName}` : "",
+                s.student?.enrollments?.[0]?.class?.name ?? "",
+                s.name,
+                TYPE_LABEL[s.type] ?? s.type,
+                Number(s.amount) || 0,
+                s.percentage != null ? `${s.percentage} %` : "",
+                new Date(s.startDate).toLocaleDateString("fr-FR"),
+                s.endDate ? new Date(s.endDate).toLocaleDateString("fr-FR") : "",
+                s.isActive ? "Active" : "En attente",
+            ]),
+        });
+    };
 
     const activeScholarships = useMemo(
         () => scholarships.filter((s) => s.isActive),
@@ -210,10 +234,10 @@ export default function ScholarshipsPage() {
                     ]}
                     actions={
                         <>
-                            <Button variant="secondary" icon="download">
+                            <Button variant="secondary" icon="download" onClick={exportMempReport} disabled={scholarships.length === 0}>
                                 Rapport MEMP
                             </Button>
-                            <Button icon="plus">Nouvelle bourse</Button>
+                            <Button icon="plus" onClick={() => setCreating(true)}>Nouvelle bourse</Button>
                         </>
                     }
                 />
@@ -608,6 +632,11 @@ export default function ScholarshipsPage() {
                         </div>
                     </div>
                 ) : null}
+                <NewScholarshipDialog
+                    open={creating}
+                    onOpenChange={setCreating}
+                    onCreated={() => setReloadKey((k) => k + 1)}
+                />
             </PageShell>
 
             <style jsx global>{`
