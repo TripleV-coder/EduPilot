@@ -10,8 +10,8 @@ export const SCHOOL_SUSPENDED_CODE = "school_suspended";
 
 export function isBlockedBySchoolSuspension(user: {
     role: string;
-    school: { isActive: boolean } | null;
+    school?: { isActive: boolean } | null;
 }): boolean {
     if (user.role === "SUPER_ADMIN") return false;
-    return user.school !== null && user.school.isActive === false;
+    return user.school?.isActive === false;
 }

@@ -7,9 +7,8 @@ const otp = vi.hoisted(() => ({
   verify: vi.fn(),
 }));
 vi.mock("otplib", () => ({
-  TOTP: vi.fn(function () {
-    return otp;
-  }),
+  generateSecret: otp.generateSecret,
+  verify: otp.verify,
 }));
 vi.mock("@/lib/utils/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
@@ -56,20 +55,20 @@ describe("generateQRCode", () => {
 
 describe("verifyToken", () => {
   it("déchiffre un secret stocké chiffré avant la vérification", async () => {
-    otp.verify.mockReturnValueOnce(true);
+    otp.verify.mockResolvedValueOnce({ valid: true });
     const stored = encryptSecret("SECRETCLAIR");
     expect(await verifyToken("123456", stored)).toBe(true);
     expect(verifyArgs()[0]).toMatchObject({ token: "123456", secret: "SECRETCLAIR" });
   });
 
   it("utilise tel quel un secret hérité stocké en clair", async () => {
-    otp.verify.mockReturnValueOnce(false);
+    otp.verify.mockResolvedValueOnce({ valid: false });
     expect(await verifyToken("654321", "LEGACYSECRET")).toBe(false);
     expect(verifyArgs()[0]).toMatchObject({ secret: "LEGACYSECRET" });
   });
 
   it("retombe sur la valeur stockée si le déchiffrement échoue (clé changée)", async () => {
-    otp.verify.mockReturnValueOnce(false);
+    otp.verify.mockResolvedValueOnce({ valid: false });
     const stored = encryptSecret("X");
     const [iv, tag, ct] = stored.split(":");
     const corrupted = `${iv}:${tag.replace(/^./, tag[0] === "0" ? "1" : "0")}:${ct}`;

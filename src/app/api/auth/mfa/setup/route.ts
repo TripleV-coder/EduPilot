@@ -55,7 +55,7 @@ export const POST = createApiHandler(
             const { token, secret } = validated.data;
             if (!secret) return NextResponse.json({ success: false, message: "Secret manquant" }, { status: 400 });
 
-            const isValid = verifyToken(token, secret);
+            const isValid = await verifyToken(token, secret);
             if (!isValid) {
                 return NextResponse.json({ success: false, message: "Code incorrect" }, { status: 400 });
             }

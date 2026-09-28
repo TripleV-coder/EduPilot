@@ -1,25 +1,22 @@
-import { TOTP, type TOTPOptions } from 'otplib';
+import { generateSecret as generateTotpSecret, verify as verifyTotp } from 'otplib';
 import QRCode from 'qrcode';
 import { randomInt } from 'crypto';
 import { logger } from '@/lib/utils/logger';
 export { encryptSecret, decryptSecret, isEncrypted } from './crypto';
 
-interface TotpAuthenticator {
-    generateSecret(): string;
-    verify(options: { token: string; secret: string }): boolean;
-}
-
-// Configure authenticator
-const authenticator = new TOTP({
-    step: 30,
-    window: 1
-} as unknown as TOTPOptions) as unknown as TotpAuthenticator;
+/**
+ * API fonctionnelle d'otplib 13 (greffons crypto Noble et Base32 Scure par défaut).
+ * La classe `TOTP` construite sans greffon levait CryptoPluginMissingError :
+ * la 2FA ne pouvait pas être activée (recette 2026-09-28). Période 30 s,
+ * tolérance d'une période de part et d'autre (dérive d'horloge du téléphone).
+ */
+const TOTP_PERIOD_SECONDS = 30;
 
 /**
  * Generate a new TOTP secret
  */
 export function generateSecret(email: string) {
-    const secret = authenticator.generateSecret();
+    const secret = generateTotpSecret();
     const service = 'EduPilot';
     const otpauth = `otpauth://totp/${encodeURIComponent(service)}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent(service)}&algorithm=SHA1&digits=6&period=30`;
     return { secret, otpauth };
@@ -42,7 +39,10 @@ export async function verifyToken(token: string, storedSecret: string): Promise<
         const secret = isEncrypted(storedSecret)
             ? (decryptSecret(storedSecret) ?? storedSecret)
             : storedSecret;
-        return await authenticator.verify({ token, secret });
+        // `verify` renvoie un objet { valid } : le traiter comme un booléen
+        // accepterait n'importe quel code (un objet est toujours « vrai »).
+        const result = await verifyTotp({ token, secret, period: TOTP_PERIOD_SECONDS, epochTolerance: TOTP_PERIOD_SECONDS });
+        return result.valid === true;
     } catch (err) {
         logger.error('Token verification error', err instanceof Error ? err : new Error(String(err)), { module: 'auth/two-factor' });
         return false;

@@ -111,10 +111,9 @@ describe("POST /api/auth/mfa/setup", () => {
 
   it("retourne 400 si le code TOTP est incorrect", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: USER_ID }));
-    // NOTE : la route lit `const isValid = verifyToken(...)` sans await ;
-    // verifyToken prod est async (Promise toujours truthy) → branche morte en
-    // prod. On mocke un retour synchrone false pour couvrir le code écrit.
-    vi.mocked(verifyToken).mockReturnValue(false as never);
+    // verifyToken est asynchrone : sans await, la Promise (toujours « vraie »)
+    // faisait accepter n'importe quel code (recette 2026-09-28).
+    vi.mocked(verifyToken).mockResolvedValue(false);
 
     const res = await mfaRequest("enable", { token: "123456", secret: SECRET });
     expect(res.status).toBe(400);

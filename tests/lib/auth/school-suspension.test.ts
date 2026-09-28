@@ -22,6 +22,7 @@ describe("isBlockedBySchoolSuspension", () => {
 
     it("ne bloque pas un compte sans établissement", () => {
         expect(isBlockedBySchoolSuspension({ role: "NETWORK_ADMIN", school: null })).toBe(false);
+        expect(isBlockedBySchoolSuspension({ role: "TEACHER" })).toBe(false);
     });
 });
 
