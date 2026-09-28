@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
 import { Permission } from "@/lib/rbac/permissions";
 import { ArrowLeft, Save, ClipboardList } from "lucide-react";
@@ -29,9 +28,7 @@ export default function NewExamPage() {
 
   const [title, setTitle] = useState("");
   const [classSubjectId, setClassSubjectId] = useState("");
-  const [totalPoints, setTotalPoints] = useState(20);
   const [duration, setDuration] = useState(60);
-  const [isPublished, setIsPublished] = useState(false);
 
   const { data: classSubjects, error: loadError, mutate: reloadPage } = useSWR<ClassSubjectWithTeacher[]>("/api/class-subjects", fetcher);
   const subjects = Array.isArray(classSubjects) ? classSubjects : [];
@@ -48,7 +45,7 @@ export default function NewExamPage() {
       const res = await fetch("/api/exams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, classSubjectId, totalPoints, duration, isPublished }),
+        body: JSON.stringify({ title, classSubjectId, duration }),
       });
 
       if (!res.ok) {
@@ -56,8 +53,9 @@ export default function NewExamPage() {
         throw new Error(data.error || "Erreur lors de la création");
       }
 
-      toast({ title: "Succès", description: "L'examen a été créé." });
-      router.push("/dashboard/exams");
+      const created: { id: string } = await res.json();
+      toast({ title: "Examen créé", description: "Ajoutez maintenant ses questions." });
+      router.push(`/dashboard/exams/${created.id}`);
     } catch (err) {
       toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     } finally {
@@ -119,21 +117,15 @@ export default function NewExamPage() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="exam-points-total">Points total</Label>
-                  <Input id="exam-points-total" type="number" min={1} value={totalPoints} onChange={(e) => setTotalPoints(Number(e.target.value))} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="exam-duree-minutes">Durée (minutes)</Label>
-                  <Input id="exam-duree-minutes" type="number" min={1} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
-                </div>
+              <div className="space-y-2 md:max-w-xs">
+                <Label htmlFor="exam-duree-minutes">Durée (minutes)</Label>
+                <Input id="exam-duree-minutes" type="number" min={1} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
               </div>
 
-              <div className="flex items-center gap-3">
-                <Switch aria-label="Publier maintenant" checked={isPublished} onCheckedChange={setIsPublished} />
-                <Label>{t("common.publishNow")}</Label>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                L&apos;examen est créé en brouillon. Vous ajouterez ensuite ses questions (le total des points en découle),
+                puis vous le publierez pour la classe.
+              </p>
             </CardContent>
           </Card>
 

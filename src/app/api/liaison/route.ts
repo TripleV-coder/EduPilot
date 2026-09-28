@@ -315,10 +315,12 @@ export const GET = createApiHandler(async (request, { session }) => {
             new Map(
                 recipients
                     .filter((cs) => cs.teacher)
+                    // Identifiant du compte (User) : c'est ce qu'attend la messagerie
+                            // (POST /api/messages · recipientId), pas celui du profil enseignant.
                     .map((cs) => [
-                        cs.teacher!.id,
+                        cs.teacher!.userId,
                         {
-                            id: cs.teacher!.id,
+                            id: cs.teacher!.userId,
                             label: `M./Mme ${cs.teacher!.user.firstName} ${cs.teacher!.user.lastName} (${cs.subject.name})`,
                         },
                     ])

@@ -49,19 +49,20 @@ type MedicalRecordForm = Omit<Partial<MedicalRecord>, "medications" | "condition
     conditions?: string[] | string;
 };
 
+/** Forme renvoyée par GET /api/students (champ `matricule`, classe via l'inscription). */
 type Student = {
     id: string;
-    enrollmentNumber: string;
+    matricule: string | null;
     user: {
         id: string;
         firstName: string;
         lastName: string;
         email: string;
     };
-    class: {
-        name: string;
-    } | null;
+    enrollments?: { class: { name: string } | null }[];
 };
+
+const className = (student: Student) => student.enrollments?.[0]?.class?.name ?? null;
 
 export default function MedicalRecordsPage() {
     const [students, setStudents] = useState<Student[]>([]);
@@ -180,10 +181,9 @@ export default function MedicalRecordsPage() {
         }
     };
 
+    const needle = search.trim().toLowerCase();
     const filteredStudents = students.filter(s =>
-        s.user.firstName.toLowerCase().includes(search.toLowerCase()) ||
-        s.user.lastName.toLowerCase().includes(search.toLowerCase()) ||
-        s.enrollmentNumber.toLowerCase().includes(search.toLowerCase())
+        [s.user.firstName, s.user.lastName, s.matricule].some((value) => (value ?? "").toLowerCase().includes(needle))
     );
 
     return (
@@ -238,10 +238,10 @@ export default function MedicalRecordsPage() {
                                         <div className="min-w-0">
                                             <div className="truncate">{student.user.firstName} {student.user.lastName}</div>
                                             <div className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
-                                                <span>{student.enrollmentNumber}</span>
-                                                {student.class && (
+                                                <span>{student.matricule ?? "—"}</span>
+                                                {className(student) && (
                                                     <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-[11px] font-bold">
-                                                        {student.class.name}
+                                                        {className(student)}
                                                     </span>
                                                 )}
                                             </div>
@@ -271,7 +271,7 @@ export default function MedicalRecordsPage() {
                                             <p className="text-muted-foreground mt-1 text-sm">
                                                 Élève : <span className="font-semibold text-foreground">{selectedStudent.user.firstName} {selectedStudent.user.lastName}</span>
                                                 <span className="mx-2">•</span>
-                                                Matricule : {selectedStudent.enrollmentNumber}
+                                                Matricule : {selectedStudent.matricule ?? "—"}
                                             </p>
                                         </div>
                                         <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>

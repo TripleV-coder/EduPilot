@@ -375,7 +375,27 @@ describe("POST /api/payments/cash", () => {
     } as unknown as Fee);
   }
 
-  it("rejette un mode de paiement non manuel (MOBILE_MONEY_MTN)", async () => {
+  it("enregistre au guichet un transfert Mobile Money déjà reçu, avec sa référence", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockStudentAndFee();
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.payment.create).mockResolvedValue(paymentRecord({ amount: 10000 }) as unknown as Payment);
+
+    const response = await POST_CASH(
+      makeRequest("http://localhost:3000/api/payments/cash", {
+        method: "POST",
+        body: { ...validBody, method: "MOBILE_MONEY_MTN", reference: "MP260928.1432.A12345" },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(vi.mocked(prisma.payment.create).mock.calls[0][0].data).toMatchObject({
+      method: "MOBILE_MONEY_MTN",
+      reference: "MP260928.1432.A12345",
+      status: "VERIFIED",
+    });
+  });
+
+  it("rejette un Mobile Money sans référence de transaction (rien ne prouve le transfert)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
 
     const response = await POST_CASH(

@@ -105,6 +105,21 @@ describe("POST /api/payments/initiate", () => {
     expect(res.status).toBe(401);
   });
 
+  it("sans passerelle Mobile Money configurée : 503 explicite, aucun paiement créé (recette : 500)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(isMomoConfigured).mockReturnValue(false);
+    vi.mocked(isFedaPayConfigured).mockReturnValue(false);
+    mockTenant();
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody(),
+    }));
+    const body = await res.json();
+    expect(res.status).toBe(503);
+    expect(body.code).toBe("PAYMENT_GATEWAY_NOT_CONFIGURED");
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it("refuse un rôle non autorisé (TEACHER)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {

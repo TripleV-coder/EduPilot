@@ -169,8 +169,8 @@ describe("GET /api/liaison", () => {
       makeAppointment({ id: "apt2", status: "CONFIRMED", type: "VIDEO_CALL", location: "Salle 2", scheduledAt: daysAgo(6) }),
     ]);
     vi.mocked(prisma.classSubject.findMany).mockResolvedValue([
-      { id: "cs1", teacher: { id: "t1", user: { firstName: "Paul", lastName: "Biya" } }, subject: { name: "Maths" } },
-      { id: "cs2", teacher: { id: "t1", user: { firstName: "Paul", lastName: "Biya" } }, subject: { name: "Français" } },
+      { id: "cs1", teacher: { id: "t1", userId: "u-t1", user: { firstName: "Paul", lastName: "Biya" } }, subject: { name: "Maths" } },
+      { id: "cs2", teacher: { id: "t1", userId: "u-t1", user: { firstName: "Paul", lastName: "Biya" } }, subject: { name: "Français" } },
       { id: "cs3", teacher: null, subject: { name: "EPS" } },
     ] as never);
 
@@ -226,8 +226,9 @@ describe("GET /api/liaison", () => {
 
     expect(body.toSignCount).toBe(3);
     expect(body.recap).toEqual({ felicitations: 2, vigilances: 2, documents: 1, sanctions: 1 });
+    // Identifiant du compte de l'enseignant : c'est ce qu'attend POST /api/messages.
     expect(body.recipients).toEqual([
-      { id: "t1", label: "M./Mme Paul Biya (Français)" },
+      { id: "u-t1", label: "M./Mme Paul Biya (Français)" },
     ]);
   });
 

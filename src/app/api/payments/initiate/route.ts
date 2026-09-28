@@ -37,6 +37,13 @@ function resolveProvider(requested: string): SupportedProvider {
     return r as SupportedProvider;
 }
 
+/** Rails en ligne dont les identifiants serveur sont requis pour initier un paiement. */
+function isRailConfigured(provider: SupportedProvider): boolean {
+    if (provider === "MOMO") return isMomoConfigured();
+    if (provider === "FEDAPAY") return isFedaPayConfigured();
+    return true;
+}
+
 export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;
@@ -56,6 +63,17 @@ export const POST = createApiHandler(
 
             const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
             const resolvedProvider = resolveProvider(provider);
+            if (!isRailConfigured(resolvedProvider)) {
+                // Avant toute écriture : pas de paiement « en attente » orphelin.
+                return NextResponse.json(
+                    {
+                        error:
+                            "Le paiement Mobile Money en ligne n'est pas configuré. Pour un transfert déjà reçu, enregistrez-le avec sa référence de transaction.",
+                        code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+                    },
+                    { status: 503 }
+                );
+            }
 
             const [studentProfile, fee] = await Promise.all([
                 prisma.studentProfile.findUnique({

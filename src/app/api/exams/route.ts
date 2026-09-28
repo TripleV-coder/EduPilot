@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { examBareme } from "@/lib/exams/questions";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,7 @@ export const dynamic = "force-dynamic";
 const createExamSchema = z.object({
     title: z.string().min(1, "Le titre est requis").max(200),
     classSubjectId: z.string().cuid("classSubjectId invalide"),
-    totalPoints: z.number().int().min(1).default(20),
     duration: z.number().int().min(1).default(60),
-    isPublished: z.boolean().default(false),
 });
 
 export const GET = createApiHandler(async (request, context) => {
@@ -110,9 +109,12 @@ export const POST = createApiHandler(
             data: {
                 title: validatedData.title,
                 classSubjectId: validatedData.classSubjectId,
-                totalPoints: validatedData.totalPoints,
+                // Barème tiré des questions (examBareme), nul tant qu'il n'y en a pas.
+                ...examBareme([]),
                 duration: validatedData.duration,
-                isPublished: validatedData.isPublished,
+                // Toujours en brouillon : un examen naît sans question et ne se
+                // publie qu'une fois garni (PATCH /api/exams/[id]).
+                isPublished: false,
                 createdById: session.user.id,
             },
             include: {

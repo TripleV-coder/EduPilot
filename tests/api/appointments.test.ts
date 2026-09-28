@@ -62,6 +62,24 @@ describe("GET /api/appointments", () => {
     expect(call.where.scheduledAt).toBeDefined();
   });
 
+  it("filtre les rendez-vous annulés (statut CANCELED)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.appointment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.appointment.count).mockResolvedValue(0);
+
+    const res = await GET(makeRequest("http://localhost/api/appointments?status=CANCELED"));
+    expect(res.status).toBe(200);
+    const call = vi.mocked(prisma.appointment.findMany).mock.calls[0][0] as { where: { status: string } };
+    expect(call.where.status).toBe("CANCELED");
+  });
+
+  it("refuse un statut inconnu en 400 au lieu d'une erreur serveur (recette : CANCELLED → 500)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    const res = await GET(makeRequest("http://localhost/api/appointments?status=CANCELLED"));
+    expect(res.status).toBe(400);
+    expect(prisma.appointment.findMany).not.toHaveBeenCalled();
+  });
+
   it("should enforce multi-tenant isolation for admins", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.appointment.findMany).mockResolvedValue([]);

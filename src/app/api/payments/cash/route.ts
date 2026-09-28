@@ -9,6 +9,12 @@ import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 
 const MANUAL_PAYMENT_METHODS = ["CASH", "CHECK", "BANK_TRANSFER", "OTHER"] as const;
+/**
+ * Transfert Mobile Money déjà reçu sur le numéro de l'établissement : il
+ * s'enregistre au guichet comme un encaissement manuel, à condition de porter
+ * la référence de la transaction (preuve et rapprochement).
+ */
+const RECEIVED_MOBILE_MONEY_METHODS = ["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"] as const;
 
 export const POST = createApiHandler(
   async (request, context) => {
@@ -18,7 +24,14 @@ export const POST = createApiHandler(
       const body = await request.json();
       const validatedData = paymentSchema.parse(body);
 
-      if (!(MANUAL_PAYMENT_METHODS as readonly string[]).includes(validatedData.method)) {
+      const isReceivedMobileMoney = (RECEIVED_MOBILE_MONEY_METHODS as readonly string[]).includes(validatedData.method);
+      if (isReceivedMobileMoney && !validatedData.reference?.trim()) {
+        return NextResponse.json(
+          { error: "Indiquez la référence de la transaction Mobile Money reçue." },
+          { status: 400 }
+        );
+      }
+      if (!isReceivedMobileMoney && !(MANUAL_PAYMENT_METHODS as readonly string[]).includes(validatedData.method)) {
         return NextResponse.json({ error: "Mode de paiement manuel invalide" }, { status: 400 });
       }
 

@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { canEditExam } from "@/lib/exams/questions";
+import { z } from "zod";
 
 /**
  * GET /api/exams/[id]
@@ -19,7 +21,7 @@ export const GET = createApiHandler(async (request, context) => {
     const exam = await prisma.examTemplate.findUnique({
       where: { id },
       include: {
-        _count: { select: { questions: true } },
+        _count: { select: { questions: true, examSessions: { where: { submittedAt: { not: null } } } } },
         classSubject: {
           include: {
             subject: { select: { name: true } },
@@ -41,6 +43,8 @@ export const GET = createApiHandler(async (request, context) => {
             question: true,
             points: true,
             order: true,
+            options: true,
+            correctAnswer: true,
           },
         },
       },
@@ -48,6 +52,14 @@ export const GET = createApiHandler(async (request, context) => {
 
     if (!exam) {
       return NextResponse.json({ error: "Examen non trouvé" }, { status: 404 });
+    }
+
+    // Élève et famille : les choix d'un QCM, jamais la bonne réponse.
+    if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
+      return NextResponse.json({
+        ...exam,
+        questions: exam.questions.map(({ correctAnswer: _hidden, ...question }) => question),
+      });
     }
 
     return NextResponse.json(exam);
@@ -59,6 +71,48 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 });
+
+const publishSchema = z.object({ isPublished: z.boolean() });
+
+/**
+ * PATCH /api/exams/[id] — publie ou dépublie l'examen.
+ * Un examen sans question ne peut pas être publié (l'élève tombait sur un écran vide).
+ */
+export const PATCH = createApiHandler(
+  async (request, context) => {
+    const { id } = await context.params;
+    const session = context.session;
+    const guard = await assertModelAccess(session, "examTemplate", id, "Examen non trouvé");
+    if (guard) return guard;
+
+    const parsed = publishSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: "Indiquez isPublished (vrai ou faux)" }, { status: 400 });
+
+    const exam = await prisma.examTemplate.findUnique({
+      where: { id },
+      select: {
+        createdById: true,
+        classSubject: { select: { teacher: { select: { userId: true } } } },
+        _count: { select: { questions: true } },
+      },
+    });
+    if (!exam) return NextResponse.json({ error: "Examen non trouvé" }, { status: 404 });
+    if (!canEditExam(session.user, exam)) {
+      return NextResponse.json({ error: "Seuls l'auteur, l'enseignant de la matière et la direction modifient cet examen" }, { status: 403 });
+    }
+    if (parsed.data.isPublished && exam._count.questions === 0) {
+      return NextResponse.json({ error: "Ajoutez au moins une question avant de publier l'examen" }, { status: 409 });
+    }
+
+    const updated = await prisma.examTemplate.update({
+      where: { id },
+      data: { isPublished: parsed.data.isPublished },
+      select: { id: true, isPublished: true },
+    });
+    return NextResponse.json(updated);
+  },
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+);
 
 /**
  * DELETE /api/exams/[id]

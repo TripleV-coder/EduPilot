@@ -166,7 +166,9 @@ export default function NewPaymentPage() {
 
         try {
             // Route to the appropriate API based on payment method
-            const isMobileMoney = method === "MOBILE_MONEY_MTN" || method === "MOBILE_MONEY_MOOV";
+            // Mobile Money avec référence = transfert déjà reçu, encaissé comme un
+            // paiement manuel ; sans référence = demande de paiement sur le téléphone.
+            const isMobileMoney = (method === "MOBILE_MONEY_MTN" || method === "MOBILE_MONEY_MOOV") && !reference.trim();
 
             let payment: PaymentRecord;
 
@@ -465,7 +467,8 @@ export default function NewPaymentPage() {
                                                     placeholder="Ex: 22990000000"
                                                 />
                                                 <p className="text-[11px] text-muted-foreground">
-                                                    Requis pour la demande de paiement push (MoMo direct). Une demande sera envoyée sur ce numéro.
+                                                    Transfert déjà reçu : saisissez sa référence ci-dessous, il sera encaissé directement.
+                                                    Sinon, une demande de paiement est envoyée sur ce numéro.
                                                 </p>
                                             </div>
                                         )}

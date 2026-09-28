@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
     Clock, 
     AlertCircle, 
@@ -29,8 +30,8 @@ type Question = {
     id: string;
     question: string;
     points: number;
-    type: "MCQ" | "TRUE_FALSE" | "SHORT_ANSWER";
-    options: string[];
+    type: string;
+    options?: string[];
 };
 
 type ExamData = {
@@ -158,7 +159,20 @@ export default function TakeExamPage() {
         );
     }
 
+    // Examen sans question (publié avant la garde de publication) : rien à passer.
+    if (exam.questions.length === 0) {
+        return (
+            <div className="text-center py-24 space-y-4">
+                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="text-xl font-bold">Cet examen ne contient encore aucune question</h3>
+                <p className="text-muted-foreground">Votre enseignant doit d&apos;abord le compléter.</p>
+                <Link href="/dashboard/exams"><Button variant="outline">Retour aux examens</Button></Link>
+            </div>
+        );
+    }
+
     const currentQuestion = exam.questions[currentQuestionIndex];
+    const choices = currentQuestion.options ?? [];
     const progress = ((currentQuestionIndex + 1) / exam.questions.length) * 100;
 
     return (
@@ -200,12 +214,21 @@ export default function TakeExamPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        {currentQuestion.type === "SHORT_ANSWER" ? (
+                            <Textarea
+                                aria-label="Votre réponse"
+                                rows={4}
+                                placeholder="Votre réponse…"
+                                value={answers[currentQuestion.id] || ""}
+                                onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
+                            />
+                        ) : (
                         <RadioGroup 
                             value={answers[currentQuestion.id] || ""} 
                             onValueChange={(val) => setAnswers({...answers, [currentQuestion.id]: val})}
                             className="space-y-3"
                         >
-                            {currentQuestion.options.map((option, idx) => (
+                            {choices.map((option, idx) => (
                                 <div key={idx} className={cn(
                                     "flex items-center space-x-3 space-y-0 p-4 rounded-xl border transition-all cursor-pointer hover:bg-muted/50",
                                     answers[currentQuestion.id] === option ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"
@@ -215,6 +238,7 @@ export default function TakeExamPage() {
                                 </div>
                             ))}
                         </RadioGroup>
+                        )}
                     </CardContent>
                     <CardFooter className="flex justify-between border-t border-border bg-muted/10 p-6">
                         <Button 

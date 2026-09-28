@@ -9,6 +9,9 @@ import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 
+/** Valeurs de l'énumération Prisma : un filtre inconnu est refusé (400), pas envoyé à la base (500). */
+const APPOINTMENT_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED", "CANCELED", "NO_SHOW"] as const satisfies readonly AppointmentStatus[];
+
 const createAppointmentSchema = z.object({
   teacherId: z.string().cuid(),
   parentId: z.string().cuid(),
@@ -86,7 +89,12 @@ export const GET = createApiHandler(
       // Admins can see all (filtered by school above)
 
       // Additional filters
-      if (status) where.status = status as AppointmentStatus;
+      if (status) {
+        if (!(APPOINTMENT_STATUSES as readonly string[]).includes(status)) {
+          return NextResponse.json({ error: "Statut de rendez-vous inconnu" }, { status: 400 });
+        }
+        where.status = status as AppointmentStatus;
+      }
       if (teacherId && userRole !== "TEACHER") where.teacherId = teacherId;
       if (parentId && userRole !== "PARENT") where.parentId = parentId;
       if (studentId && userRole !== "STUDENT") where.studentId = studentId;

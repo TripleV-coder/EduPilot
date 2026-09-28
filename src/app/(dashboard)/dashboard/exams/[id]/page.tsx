@@ -21,6 +21,7 @@ import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { useSession } from "next-auth/react";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
+import { ExamQuestionsEditor, type EditableQuestion } from "@/components/exams/exam-questions-editor";
 
 type ExamDetail = {
   id: string;
@@ -28,13 +29,13 @@ type ExamDetail = {
   totalPoints: number;
   duration: number;
   isPublished: boolean;
-  _count?: { questions: number };
+  _count?: { questions: number; examSessions?: number };
   classSubject?: {
     subject?: { name: string };
     class?: { name: string };
     teacher?: { user: { firstName: string; lastName: string } };
   };
-  questions?: { id: string; question: string; points: number; type: string; order: number }[];
+  questions?: EditableQuestion[];
 };
 
 export default function ExamDetailPage() {
@@ -209,25 +210,14 @@ export default function ExamDetailPage() {
           </Card>
         )}
 
-        {exam.questions && exam.questions.length > 0 && (
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle>Questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {exam.questions.map((q, i) => (
-                  <div key={q.id} className="flex items-start gap-3 p-3 border border-border rounded-lg">
-                    <span className="text-sm font-bold text-muted-foreground shrink-0">Q{i + 1}.</span>
-                    <div className="flex-1">
-                      <p className="text-sm">{q.question}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{q.points} pts — {q.type}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {session?.user?.role && ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(session.user.role) && (
+          <ExamQuestionsEditor
+            examId={exam.id}
+            isPublished={exam.isPublished}
+            questions={exam.questions ?? []}
+            locked={(exam._count?.examSessions ?? 0) > 0}
+            onChanged={() => reloadPage()}
+          />
         )}
       </PageShell>
     </PageGuard>

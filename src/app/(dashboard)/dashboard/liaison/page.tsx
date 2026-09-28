@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -86,6 +86,7 @@ export default function LiaisonPage() {
     const [filter, setFilter] = useState<Filter>("all");
     const [composeTo, setComposeTo] = useState("");
     const [composeBody, setComposeBody] = useState("");
+    const composeRef = useRef<HTMLTextAreaElement>(null);
     const [composeSending, setComposeSending] = useState(false);
     const [composeStatus, setComposeStatus] = useState<string | null>(null);
     const { data: session, status: sessionStatus } = useSession();
@@ -144,7 +145,7 @@ export default function LiaisonPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    recipientUserId: composeTo,
+                    recipientId: composeTo,
                     content: composeBody,
                     subject: data
                         ? `Cahier de liaison · ${data.student.firstName} ${data.student.lastName}`
@@ -152,7 +153,7 @@ export default function LiaisonPage() {
                 }),
             });
             if (res.ok) {
-                setComposeStatus("Mot envoyé · signé numériquement.");
+                setComposeStatus("Mot envoyé au professeur. Sa réponse arrivera dans votre messagerie.");
                 setComposeBody("");
             } else {
                 const body = await res.json().catch(() => ({}));
@@ -198,7 +199,15 @@ export default function LiaisonPage() {
                     }
                     actions={
                         data ? (
-                            <Button icon="pencil">Mot au professeur</Button>
+                            <Button
+                                icon="pencil"
+                                onClick={() => {
+                                    composeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    composeRef.current?.focus({ preventScroll: true });
+                                }}
+                            >
+                                Mot au professeur
+                            </Button>
                         ) : null
                     }
                 />
@@ -510,6 +519,8 @@ export default function LiaisonPage() {
                                         )}
                                     </select>
                                     <textarea
+                                        ref={composeRef}
+                                        aria-label="Mot au professeur"
                                         placeholder="Écrire un mot…"
                                         rows={4}
                                         value={composeBody}

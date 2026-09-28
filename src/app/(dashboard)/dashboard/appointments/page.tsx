@@ -35,7 +35,7 @@ const getStatusLabel = (status: string) => {
             return "Confirmé";
         case "PENDING":
             return "En attente";
-        case "CANCELLED":
+        case "CANCELED":
             return "Annulé";
         case "COMPLETED":
             return "Terminé";
@@ -133,7 +133,7 @@ export default function AppointmentsPage() {
                         }}
                     >
                         <div className="flex flex-wrap gap-2">
-                            {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((status) => (
+                            {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELED"].map((status) => (
                                 <Button
                                     key={status}
                                     type="button"
@@ -254,7 +254,7 @@ export default function AppointmentsPage() {
                                                         ? "success"
                                                         : appointment.status === "PENDING"
                                                             ? "warning"
-                                                            : appointment.status === "CANCELLED"
+                                                            : appointment.status === "CANCELED"
                                                                 ? "danger"
                                                                 : "neutral"
                                                 }
@@ -280,7 +280,7 @@ export default function AppointmentsPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="danger"
-                                                        onClick={() => void handleStatusUpdate(appointment.id, "CANCELLED")}
+                                                        onClick={() => void handleStatusUpdate(appointment.id, "CANCELED")}
                                                     >
                                                         Refuser
                                                     </Button>
