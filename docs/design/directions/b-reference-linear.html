@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EduPilot · Direction B — Boîte de triage</title>
+<!--
+  Huashu · logique 2 (référence réelle : Linear — principes, pas identité).
+  Forme ← contenu : l'appel du matin. Une liste que la direction parcourt ligne par
+  ligne (J/K), chaque ligne portant son action ; le détail s'ouvre à côté, sans
+  changer de page. Surfaces en paliers, filets 1 px, un seul accent (bleu EduPilot).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --canvas: #0B0D12;
+    --s1: #11141B;
+    --s2: #161A23;
+    --s3: #1C212C;
+    --line: #262C38;
+    --line-strong: #353C4A;
+    --ink: #EEF1F6;        /* 16.9:1 sur canvas */
+    --muted: #B3BCCB;      /* 10.1:1 sur s1 */
+    --subtle: #929BAC;     /* 6.4:1 sur s1 */
+    --accent: #2563EB;     /* fond de bouton, texte blanc 5.2:1 */
+    --accent-text: #7FA6FF;/* 7.3:1 sur s1 */
+    --red: #FF8A8A;        /* 7.9:1 sur s1 */
+    --amber: #F2C572;      /* 11.4:1 sur s1 */
+    --green: #6FD69A;      /* 10.2:1 sur s1 */
+    --font: "Inter", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --ease: cubic-bezier(.16, 1, .3, 1);
+    --toast-bg: #1C212C; --toast-ink: #EEF1F6; --toast-action: #7FA6FF; --toast-border: 1px solid #353C4A; --hold-fill: #1D4ED8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; overflow-x: clip; }
+  body { font-family: var(--font); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--canvas); -webkit-font-smoothing: antialiased; }
+  .num { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 6px; }
+  .skip { position: absolute; left: 12px; top: -60px; background: var(--accent); color: #fff; padding: 10px 14px; border-radius: 8px; z-index: 50; }
+  .skip:focus { top: 12px; }
+  .demo-flag { position: fixed; right: 16px; bottom: 16px; z-index: 40; background: var(--s3); border: 1px solid var(--line-strong); color: var(--muted); font-size: 12px; padding: 6px 10px; border-radius: 8px; }
+
+  .app { display: grid; grid-template-columns: 232px minmax(0, 1fr) 380px; min-height: 100dvh; }
+
+  /* ── Barre latérale ── */
+  .side { background: var(--canvas); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100dvh; }
+  .ws { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; font-weight: 600; }
+  .ws-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .ws small { display: block; font-weight: 400; color: var(--subtle); font-size: 12px; }
+  .cmd { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--subtle); font: 500 14px var(--font); cursor: pointer; }
+  .cmd:hover { border-color: var(--line-strong); color: var(--muted); }
+  kbd { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--s3); border: 1px solid var(--line-strong); border-radius: 5px; padding: 0 5px; }
+  .cmd kbd { margin-left: auto; }
+  nav h2 { font-size: 12px; font-weight: 500; color: var(--subtle); margin: 0 0 4px 10px; }
+  nav ul { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 1px; }
+  nav a { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 7px; color: var(--muted); text-decoration: none; font-weight: 500; }
+  nav a:hover { background: var(--s2); color: var(--ink); }
+  nav a[aria-current="page"] { background: var(--s3); color: var(--ink); }
+  nav a .count { margin-left: auto; font-size: 12px; color: var(--subtle); }
+  nav svg { width: 16px; height: 16px; flex: none; }
+
+  /* ── Colonne centrale ── */
+  .center { min-width: 0; border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  .head { padding: 22px 28px 16px; border-bottom: 1px solid var(--line); }
+  .head-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .sub { color: var(--subtle); margin-top: 2px; }
+  .btn { height: 36px; transition: transform 160ms var(--ease-out), background 150ms ease, border-color 150ms ease; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--s2); color: var(--ink); font: 500 14px var(--font); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  @media (hover: hover) and (pointer: fine) { .btn:hover { background: var(--s3); } }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (hover: hover) and (pointer: fine) { .btn.primary:hover { background: #1D4ED8; } }
+  .btn kbd { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); color: #E6ECFF; }
+
+  .pulse { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+  .pulse div { padding: 16px 28px; border-right: 1px solid var(--line); }
+  .pulse div:last-child { border-right: 0; }
+  .pulse dt { color: var(--subtle); font-size: 12px; font-weight: 500; }
+  .pulse dd { margin: 4px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .pulse .trend { font-size: 12px; color: var(--subtle); font-weight: 500; margin-left: 6px; }
+  .pulse .warn { color: var(--subtle); }
+  .pulse dd.alert { color: var(--red); }
+
+  .tabs { display: flex; gap: 4px; padding: 10px 20px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab { height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid transparent; background: none; color: var(--muted); font: 500 14px var(--font); cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { background: var(--s2); border-color: var(--line-strong); color: var(--ink); }
+  .tab span { color: var(--subtle); margin-left: 6px; }
+
+  .inbox { list-style: none; margin: 0; padding: 6px 12px 32px; }
+  .inbox li { display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 8px; cursor: pointer; position: relative; transition: background 120ms var(--ease); }
+  .inbox li:hover { background: var(--s1); }
+  .inbox li[aria-selected="true"] { background: var(--s2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .prio { width: 16px; display: flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .prio i { width: 4px; background: var(--line-strong); border-radius: 1px; }
+  .prio i:nth-child(1) { height: 5px; } .prio i:nth-child(2) { height: 9px; } .prio i:nth-child(3) { height: 14px; }
+  .prio.high i { background: var(--red); } .prio.mid i:nth-child(-n+2) { background: var(--amber); } .prio.low i:nth-child(1) { background: var(--muted); }
+  .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--s3); color: var(--muted); border: 1px solid var(--line-strong); }
+  .title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta { color: var(--subtle); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap; }
+  .pill.red { color: var(--red); border-color: rgba(255,138,138,.35); }
+  .pill.amber { color: var(--amber); border-color: rgba(242,197,114,.35); }
+  .pill.blue { color: var(--accent-text); border-color: rgba(127,166,255,.35); }
+  .quick { display: none; gap: 6px; }
+  .inbox li[aria-selected="true"] .quick, .inbox li:focus-within .quick { display: flex; }
+  @media (hover: hover) and (pointer: fine) { .inbox li:hover .quick { display: flex; } .inbox li:hover .pill { display: none; } }
+  .inbox li[aria-selected="true"] .pill, .inbox li:focus-within .pill { display: none; }
+  .qbtn { height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--s3); color: var(--ink); font: 500 13px var(--font); cursor: pointer; }
+  @media (hover: hover) and (pointer: fine) { .qbtn:hover { border-color: var(--accent-text); } }
+  .qbtn { transition: transform 160ms var(--ease-out); } .qbtn:active { transform: scale(0.97); } .qbtn:disabled { opacity: .8; }
+
+  /* ── Panneau détail ── */
+  .detail { background: var(--s1); padding: 22px 22px 32px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
+  .detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .detail .av { width: 44px; height: 44px; font-size: 14px; }
+  .detail h2 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+  .detail .sub { font-size: 13px; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 14px 0; }
+  .facts div { background: var(--s2); padding: 12px; }
+  .facts dt { color: var(--subtle); font-size: 12px; }
+  .facts dd { margin: 2px 0 0; font-weight: 600; }
+  .spark { width: 100%; height: 64px; margin: 4px 0 14px; }
+  .spark path { fill: none; stroke: var(--red); stroke-width: 2; stroke-linecap: round; }
+  .spark .base { stroke: var(--line-strong); stroke-dasharray: 3 4; animation: none; stroke-dashoffset: 0; }
+  .detail h3 { font-size: 13px; color: var(--subtle); font-weight: 500; margin: 18px 0 8px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .steps li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--s2); }
+  .steps input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+  .detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .detail-actions .btn { justify-content: center; height: 40px; }
+
+  /* ── Palette ── */
+  .palette-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; padding-top: 14vh; z-index: 60; }
+  .palette-backdrop.open { display: flex; }
+  .palette { width: min(620px, calc(100vw - 32px)); background: var(--s2); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,.55); overflow: hidden; }
+  .palette input { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); padding: 16px 18px; font: 500 16px var(--font); outline: none; }
+  .palette ul { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow: auto; }
+  .palette li { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 8px; color: var(--muted); cursor: pointer; }
+  .palette li[aria-selected="true"] { background: var(--s3); color: var(--ink); }
+  .palette li small { margin-left: auto; color: var(--subtle); }
+
+  .mobile-bar { display: none; }
+  .menu-btn { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--s2); color: var(--ink); cursor: pointer; }
+  /* ── Couche craft commune (principes Emil Kowalski) ───────────────
+     Pas d'animation sur ce qui s'ouvre 100 fois par jour (palette, navigation
+     clavier, chargement du tableau de bord). Le mouvement ne sert qu'à
+     confirmer une action : pression, ligne traitée, toast, maintien. */
+  :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+  .press { transition: transform 160ms var(--ease-out); }
+  .press:active { transform: scale(0.97); }
+  .toaster { position: fixed; left: 50%; bottom: 24px; z-index: 70; display: grid; gap: 8px; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+  .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 14px; background: var(--toast-bg); color: var(--toast-ink); border: var(--toast-border, 0); border-radius: var(--toast-radius, 10px); box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 1; transform: translateY(0); transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out); }
+  @starting-style { .toast { opacity: 0; transform: translateY(100%); } }
+  .toast.leaving { opacity: 0; transform: translateY(8px); transition-duration: 160ms; }
+  .toast button { margin-left: auto; background: none; border: 0; color: var(--toast-action); font-weight: 600; font-size: 14px; font-family: inherit; cursor: pointer; padding: 6px 8px; border-radius: 6px; min-height: 36px; }
+  .toast button:focus-visible { outline: 2px solid var(--toast-action); }
+  /* Maintenir pour confirmer : lent quand on décide, rapide quand on relâche. */
+  .hold { position: relative; overflow: hidden; isolation: isolate; }
+  .hold .hold-fill { position: absolute; inset: 0; background: var(--hold-fill); clip-path: inset(0 100% 0 0); transition: clip-path 200ms var(--ease-out); z-index: -1; }
+  .hold.holding .hold-fill { clip-path: inset(0 0 0 0); transition: clip-path 1600ms linear; }
+  .resolved-label { display: inline-flex; align-items: center; gap: 6px; }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: opacity 160ms ease; transform: none !important; }
+    .hold.holding .hold-fill { transition: clip-path 1600ms linear; }
+  }
+  @media (max-width: 1280px) { .app { grid-template-columns: 220px minmax(0, 1fr); } .detail { display: none; } }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .side { display: none; }
+    .mobile-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--canvas); z-index: 5; }
+    .mobile-bar .cmd { flex: 1; height: 44px; }
+    .head { padding: 18px 16px 14px; }
+    .pulse { grid-template-columns: 1fr 1fr; }
+    .pulse div { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .inbox { padding: 6px 4px 32px; }
+    .inbox li { grid-template-columns: 18px 30px minmax(0, 1fr); min-height: 60px; }
+    .inbox li .pill, .inbox li .quick { grid-column: 3; justify-self: start; }
+    .side.open { display: flex; position: fixed; inset: 0; z-index: 30; height: 100dvh; width: min(300px, 85vw); box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); }
+    .menu-btn { display: inline-flex; }
+    .qbtn { height: 40px; }
+    .head .btn { height: 44px; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#triage">Aller à la liste de triage</a>
+<div class="demo-flag" role="note">Données d'illustration</div>
+
+<div class="app">
+  <aside class="side" aria-label="Navigation principale">
+    <div class="ws"><span class="ws-mark" aria-hidden="true">EP</span><div>CEG Les Cocotiers<small>Cotonou · 2025-2026</small></div></div>
+    <button class="cmd" type="button" data-open-palette aria-label="Rechercher ou lancer une action (Ctrl+K)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Rechercher<kbd>Ctrl K</kbd>
+    </button>
+    <nav aria-label="Rubriques">
+      <h2>Pilotage</h2>
+      <ul>
+        <li><a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 13h5l2 3h2l2-3h5M4 13l2-8h12l2 8v6H4z"/></svg>À traiter<span class="count num">7</span></a></li>
+        <li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7"/></svg>Analyses</a></li>
+      </ul>
+      <h2>Scolarité</h2>
+      <ul>
+        <li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/></svg>Élèves<span class="count num">1 248</span></a></li>
+        <li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg>Notes & bulletins</a></li>
+        <li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3 8-8"/></svg>Présences</a></li>
+      </ul>
+      <h2>Finances</h2>
+      <ul><li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2"/></svg>Paiements</a></li></ul>
+      <h2>Communication</h2>
+      <ul><li><a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages<span class="count num">5</span></a></li></ul>
+    </nav>
+  </aside>
+
+  <main class="center" id="triage">
+    <div class="mobile-bar">
+      <button class="menu-btn" type="button" aria-label="Ouvrir le menu" aria-expanded="false" onclick="const o=document.querySelector('.side').classList.toggle('open');this.setAttribute('aria-expanded',o)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button class="cmd" type="button" data-open-palette aria-label="Rechercher ou lancer une action">Rechercher…</button>
+    </div>
+    <header class="head">
+      <div class="head-row">
+        <div>
+          <h1>À traiter aujourd'hui</h1>
+          <div class="sub">7 points ouverts · <kbd>J</kbd>/<kbd>K</kbd> pour parcourir, <kbd>E</kbd> pour traiter</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn hide-sm" type="button">Exporter le rapport</button>
+          <button class="btn primary" type="button">Nouvelle annonce <kbd class="hide-sm">N</kbd></button>
+        </div>
+      </div>
+    </header>
+
+    <dl class="pulse" aria-label="Indicateurs clés">
+      <div><dt>Élèves actifs</dt><dd class="num">1 248<span class="trend">+3,2 %</span></dd></div>
+      <div><dt>Recouvrement</dt><dd class="num">82 %<span class="trend" style="color:var(--subtle)">18,45 M FCFA</span></dd></div>
+      <div><dt>Présence</dt><dd class="num">92,4 %<span class="trend">+1,1 pt</span></dd></div>
+      <div><dt>À risque</dt><dd class="num alert">37<span class="trend warn">6,8 % en échec</span></dd></div>
+    </dl>
+
+    <div class="tabs" role="tablist" aria-label="Filtrer la liste">
+      <button class="tab" role="tab" aria-selected="true">Tout<span class="num">7</span></button>
+      <button class="tab" role="tab" aria-selected="false">Élèves<span class="num">4</span></button>
+      <button class="tab" role="tab" aria-selected="false">Paiements<span class="num">1</span></button>
+      <button class="tab" role="tab" aria-selected="false">Équipe<span class="num">2</span></button>
+    </div>
+
+    <ul class="inbox" role="listbox" aria-label="À traiter — J/K pour parcourir, E pour traiter la ligne" tabindex="0" id="inbox">
+      <li role="option" aria-selected="true" data-i="0" data-item="Koffi Mensah"><span class="prio high" aria-label="Priorité haute"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">KM</span><div style="min-width:0"><div class="title">Koffi Mensah — 9 absences en 3 semaines</div><div class="meta">3ᵉ B · risque de décrochage élevé</div></div><span class="pill red">Élevé</span><span class="quick"><button class="qbtn" type="button" data-resolve="Appel noté">Appeler</button><button class="qbtn" type="button">Plan</button></span></li>
+      <li role="option" aria-selected="false" data-i="1" data-item="Aïcha Sanni"><span class="prio high" aria-label="Priorité haute"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">AS</span><div style="min-width:0"><div class="title">Aïcha Sanni — maths de 6,5 à 4,2</div><div class="meta">4ᵉ A · risque d'échec élevé</div></div><span class="pill red">Élevé</span><span class="quick"><button class="qbtn" type="button" data-resolve="Message envoyé">Écrire</button><button class="qbtn" type="button">Plan</button></span></li>
+      <li role="option" aria-selected="false" data-i="2" data-item="Relances MoMo"><span class="prio mid" aria-label="Priorité moyenne"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">₣</span><div style="min-width:0"><div class="title">12 relances MoMo prêtes à l'envoi</div><div class="meta">4 050 000 FCFA en attente · échéance dépassée</div></div><span class="pill blue">Finances</span><span class="quick"><button class="qbtn" type="button" data-hold="12 relances MoMo envoyées">Maintenir : envoyer</button><button class="qbtn" type="button">Voir</button></span></li>
+      <li role="option" aria-selected="false" data-i="3" data-item="Rodrigue Agossou"><span class="prio mid" aria-label="Priorité moyenne"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">RA</span><div style="min-width:0"><div class="title">Rodrigue Agossou — retard de paiement et notes en baisse</div><div class="meta">Tle D · modéré</div></div><span class="pill amber">Modéré</span><span class="quick"><button class="qbtn" type="button" data-resolve="Relance envoyée">Relancer</button><button class="qbtn" type="button">Plan</button></span></li>
+      <li role="option" aria-selected="false" data-i="4" data-item="Mariam Bio Tchané"><span class="prio mid" aria-label="Priorité moyenne"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">MB</span><div style="min-width:0"><div class="title">Mariam Bio Tchané — 4 retards cette semaine</div><div class="meta">5ᵉ C · modéré</div></div><span class="pill amber">Modéré</span><span class="quick"><button class="qbtn" type="button" data-resolve="Message envoyé">Écrire</button><button class="qbtn" type="button">Plan</button></span></li>
+      <li role="option" aria-selected="false" data-i="5" data-item="Conseil 3ᵉ B"><span class="prio low" aria-label="Priorité basse"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">3B</span><div style="min-width:0"><div class="title">Conseil de classe 3ᵉ B à 16 h</div><div class="meta">Bulletins prêts · 2 appréciations manquantes</div></div><span class="pill">Aujourd'hui</span><span class="quick"><button class="qbtn" type="button" data-resolve="Conseil préparé">Préparer</button></span></li>
+      <li role="option" aria-selected="false" data-i="6" data-item="Remplacements"><span class="prio low" aria-label="Priorité basse"><i></i><i></i><i></i></span><span class="av" aria-hidden="true">EQ</span><div style="min-width:0"><div class="title">3 enseignants absents · 61 / 64 présents</div><div class="meta">Remplacements à confirmer</div></div><span class="pill">Équipe</span><span class="quick"><button class="qbtn" type="button" data-resolve="Remplacements confirmés">Confirmer</button></span></li>
+    </ul>
+  </main>
+
+  <aside class="detail" aria-label="Détail de l'élément sélectionné" aria-live="polite">
+    <div id="detail">
+      <div class="detail-head">
+        <span class="av" aria-hidden="true">KM</span>
+        <div><h2>Koffi Mensah</h2><div class="sub">3ᵉ B · 14 ans · parent : M. Mensah</div></div>
+      </div>
+      <span class="pill red">Risque de décrochage élevé</span>
+      <dl class="facts">
+        <div><dt>Absences (3 sem.)</dt><dd class="num">9</dd></div>
+        <div><dt>Moyenne T2</dt><dd class="num">8,1 / 20</dd></div>
+        <div><dt>Frais</dt><dd>À jour</dd></div>
+        <div><dt>Dernier contact</dt><dd>Aucun</dd></div>
+      </dl>
+      <h3>Présence sur 6 semaines</h3>
+      <svg class="spark" viewBox="0 0 320 64" role="img" aria-label="Présence en baisse : de 96 % à 55 % en six semaines">
+        <path class="base" d="M0 14 H320"/>
+        <path d="M0 10 L64 12 L128 16 L192 28 L256 44 L320 52"/>
+      </svg>
+      <h3>Plan d'intervention suggéré</h3>
+      <ol class="steps">
+        <li><input type="checkbox" id="s1" checked><label for="s1">Appeler le parent aujourd'hui</label></li>
+        <li><input type="checkbox" id="s2"><label for="s2">Entretien avec le professeur principal</label></li>
+        <li><input type="checkbox" id="s3"><label for="s3">Suivi de présence quotidien pendant 2 semaines</label></li>
+      </ol>
+      <div class="detail-actions">
+        <button class="btn primary" type="button">Appeler le parent</button>
+        <button class="btn" type="button">Ouvrir le dossier</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="palette-backdrop" id="palette" role="dialog" aria-modal="true" aria-label="Palette de commandes">
+  <div class="palette">
+    <input id="palette-input" type="text" placeholder="Action, élève, classe…" aria-label="Rechercher une action" aria-controls="palette-list" autocomplete="off">
+    <ul id="palette-list" role="listbox"></ul>
+  </div>
+</div>
+
+<script>
+  // Liste de triage : J/K ou flèches, sélection = panneau détail à jour.
+  const inbox = document.getElementById("inbox");
+  const rows = [...inbox.querySelectorAll("li")];
+  let sel = 0;
+  const DETAILS = [
+    { av: "KM", name: "Koffi Mensah", sub: "3ᵉ B · 14 ans · parent : M. Mensah", pill: ["red", "Risque de décrochage élevé"], facts: [["Absences (3 sem.)", "9"], ["Moyenne T2", "8,1 / 20"], ["Frais", "À jour"], ["Dernier contact", "Aucun"]], chart: ["Présence sur 6 semaines", "M0 10 L64 12 L128 16 L192 28 L256 44 L320 52", "Présence en baisse : de 96 % à 55 % en six semaines"], steps: ["Appeler le parent aujourd'hui", "Entretien avec le professeur principal", "Suivi de présence quotidien pendant 2 semaines"], cta: "Appeler le parent" },
+    { av: "AS", name: "Aïcha Sanni", sub: "4ᵉ A · 13 ans · parent : Mme Sanni", pill: ["red", "Risque d'échec élevé"], facts: [["Maths", "6,5 → 4,2"], ["Moyenne T2", "9,4 / 20"], ["Absences", "1"], ["Dernier contact", "12 sept."]], chart: ["Notes de maths sur 6 évaluations", "M0 22 L64 26 L128 24 L192 34 L256 42 L320 48", "Notes de maths en baisse : de 6,5 à 4,2"], steps: ["Écrire au parent", "Proposer le tutorat du mercredi", "Point avec l'enseignant de maths"], cta: "Écrire au parent" },
+    { av: "₣", name: "12 relances MoMo", sub: "Échéance du 15 septembre dépassée", pill: ["blue", "Finances"], facts: [["Montant en attente", "4 050 000 FCFA"], ["Familles", "12"], ["Déjà relancées", "0"], ["Canal", "SMS + MoMo"]], chart: ["Encaissements du trimestre", "M0 52 L64 44 L128 34 L192 26 L256 20 L320 14", "Encaissements en hausse régulière, 82 % du prévu"], steps: ["Vérifier la liste des 12 familles", "Envoyer le lien de paiement MoMo", "Relancer par téléphone à J+7"], cta: "Voir les 12 familles" },
+    { av: "RA", name: "Rodrigue Agossou", sub: "Tle D · 18 ans · parent : M. Agossou", pill: ["amber", "Modéré"], facts: [["Solde dû", "85 000 FCFA"], ["Moyenne T2", "10,2 / 20"], ["Tendance", "En baisse"], ["Dernier contact", "Aucun"]], chart: ["Moyenne générale sur 6 semaines", "M0 18 L64 20 L128 22 L192 26 L256 30 L320 32", "Moyenne légèrement en baisse"], steps: ["Relancer le paiement", "Entretien d'orientation BAC"], cta: "Relancer le parent" },
+    { av: "MB", name: "Mariam Bio Tchané", sub: "5ᵉ C · 12 ans · parent : Mme Bio Tchané", pill: ["amber", "Modéré"], facts: [["Retards (semaine)", "4"], ["Moyenne T2", "12,6 / 20"], ["Absences", "0"], ["Dernier contact", "Aucun"]], chart: ["Retards sur 6 semaines", "M0 50 L64 50 L128 46 L192 48 L256 40 L320 22", "Retards en hausse cette semaine"], steps: ["Écrire au parent", "Vérifier le trajet (transport scolaire)"], cta: "Écrire au parent" },
+    { av: "3B", name: "Conseil de classe 3ᵉ B", sub: "Aujourd'hui à 16 h · salle des professeurs", pill: ["", "Aujourd'hui"], facts: [["Bulletins prêts", "38 / 40"], ["Appréciations", "2 manquantes"], ["Élèves à risque", "6"], ["Participants", "9"]], chart: ["Moyenne de la classe", "M0 30 L64 28 L128 30 L192 32 L256 31 L320 33", "Moyenne de classe stable autour de 11"], steps: ["Relancer les 2 appréciations manquantes", "Imprimer la synthèse"], cta: "Préparer le conseil" },
+    { av: "EQ", name: "Remplacements du jour", sub: "3 enseignants absents · 61 / 64 présents", pill: ["", "Équipe"], facts: [["Cours concernés", "7"], ["Remplaçants proposés", "3"], ["Classes sans solution", "0"], ["Signalé à", "7 h 40"]], chart: ["Présence de l'équipe", "M0 12 L64 12 L128 14 L192 12 L256 16 L320 18", "Présence de l'équipe stable"], steps: ["Confirmer les 3 remplaçants", "Prévenir les classes concernées"], cta: "Confirmer" },
+  ];
+  function renderDetail(d) {
+    document.getElementById("detail").innerHTML = `
+      <div class="detail-head"><span class="av" aria-hidden="true">${d.av}</span><div><h2>${d.name}</h2><div class="sub">${d.sub}</div></div></div>
+      <span class="pill ${d.pill[0]}">${d.pill[1]}</span>
+      <dl class="facts">${d.facts.map(([k, v]) => `<div><dt>${k}</dt><dd class="num">${v}</dd></div>`).join("")}</dl>
+      <h3>${d.chart[0]}</h3>
+      <svg class="spark" viewBox="0 0 320 64" role="img" aria-label="${d.chart[2]}"><path class="base" d="M0 32 H320"/><path d="${d.chart[1]}"/></svg>
+      <h3>Prochaines étapes</h3>
+      <ol class="steps">${d.steps.map((t, k) => `<li><input type="checkbox" id="st${k}"><label for="st${k}">${t}</label></li>`).join("")}</ol>
+      <div class="detail-actions"><button class="btn primary press" type="button">${d.cta}</button><button class="btn press" type="button">Ouvrir le dossier</button></div>`;
+  }
+  // Navigation clavier : mise à jour instantanée, jamais animée (répétée des dizaines de fois).
+  function select(i) {
+    const visible = rows.filter((r) => !r.hidden);
+    if (!visible.length) return;
+    sel = (i + visible.length) % visible.length;
+    rows.forEach((r) => r.setAttribute("aria-selected", "false"));
+    const row = visible[sel];
+    row.setAttribute("aria-selected", "true");
+    row.scrollIntoView({ block: "nearest" });
+    renderDetail(DETAILS[Number(row.dataset.i)]);
+  }
+  rows.forEach((r) => r.addEventListener("click", () => select(rows.filter((x) => !x.hidden).indexOf(r))));
+  inbox.addEventListener("keydown", (e) => {
+    if (["ArrowDown", "j"].includes(e.key)) { e.preventDefault(); select(sel + 1); }
+    if (["ArrowUp", "k"].includes(e.key)) { e.preventDefault(); select(sel - 1); }
+    if (e.key === "e") { const b = rows.filter((x) => !x.hidden)[sel]?.querySelector("[data-resolve]"); if (b) { b.click(); setTimeout(() => select(sel), 700); } }
+  });
+
+  const ACTIONS = [
+    ["Faire l'appel", "Présences"], ["Saisir des notes", "Notes"], ["Nouvelle annonce", "N"],
+    ["Envoyer les 12 relances MoMo", "Finances"], ["Exporter le rapport du trimestre", "Pilotage"],
+    ["Koffi Mensah — 3ᵉ B", "Élève"], ["Aïcha Sanni — 4ᵉ A", "Élève"], ["Générer les bulletins T2", "Notes"],
+    ["Inscrire un élève", "Scolarité"], ["Menu de la cantine", "Vie scolaire"],
+  ];
+  const backdrop = document.getElementById("palette");
+  const input = document.getElementById("palette-input");
+  const list = document.getElementById("palette-list");
+  let active = 0, lastFocus = null;
+  function render(q = "") {
+    const items = ACTIONS.filter(([t]) => t.toLowerCase().includes(q.toLowerCase()));
+    active = Math.min(active, Math.max(items.length - 1, 0));
+    list.innerHTML = items.length ? items.map(([t, s], i) => `<li role="option" id="opt-${i}" aria-selected="${i === active}">${t}<small>${s}</small></li>`).join("") : `<li role="option" aria-disabled="true">Aucun résultat</li>`;
+    input.setAttribute("aria-activedescendant", items.length ? `opt-${active}` : "");
+  }
+  function open() { lastFocus = document.activeElement; backdrop.classList.add("open"); input.value = ""; active = 0; render(); input.focus(); }
+  function close() { backdrop.classList.remove("open"); lastFocus && lastFocus.focus(); }
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); backdrop.classList.contains("open") ? close() : open(); }
+    if (!backdrop.classList.contains("open")) return;
+    if (e.key === "Escape") close();
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = list.querySelectorAll("[role=option]:not([aria-disabled])").length; active = (active + (e.key === "ArrowDown" ? 1 : -1) + n) % Math.max(n, 1); render(input.value); }
+  });
+  input.addEventListener("input", () => { active = 0; render(input.value); });
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  document.querySelectorAll("[data-open-palette]").forEach((b) => b.addEventListener("click", open));
+  // ── Couche craft commune ──────────────────────────────────────────
+  const toaster = Object.assign(document.createElement("div"), { className: "toaster" });
+  toaster.setAttribute("role", "status"); toaster.setAttribute("aria-live", "polite");
+  document.body.appendChild(toaster);
+  function toast(message, onUndo) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.innerHTML = `<span></span>${onUndo ? '<button type="button">Annuler</button>' : ""}`;
+    el.firstChild.textContent = message;
+    toaster.appendChild(el);
+    let left = 5000, started = Date.now(), timer;
+    const dismiss = () => { clearTimeout(timer); el.classList.add("leaving"); setTimeout(() => el.remove(), 170); };
+    const arm = () => { started = Date.now(); timer = setTimeout(dismiss, left); };
+    const pause = () => { clearTimeout(timer); left -= Date.now() - started; };
+    // Pause au survol et quand l'onglet est masqué : le message ne se perd pas.
+    el.addEventListener("pointerenter", pause); el.addEventListener("pointerleave", arm);
+    document.addEventListener("visibilitychange", () => (document.hidden ? pause() : arm()));
+    if (onUndo) el.querySelector("button").addEventListener("click", () => { onUndo(); dismiss(); });
+    arm();
+  }
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Traiter une ligne en un clic : le bouton confirme, la ligne se referme, Annuler la rend.
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-resolve]");
+    if (!btn) return;
+    const item = btn.closest("[data-item]");
+    const original = btn.innerHTML;
+    btn.innerHTML = `<span class="resolved-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>${btn.dataset.resolve}</span>`;
+    btn.disabled = true;
+    const h = item.offsetHeight;
+    setTimeout(() => {
+      const anim = item.animate(reduce ? [{ opacity: 1 }, { opacity: 0 }]
+        : [{ opacity: 1, height: h + "px" }, { opacity: 0, height: "0px", paddingTop: 0, paddingBottom: 0, marginTop: 0, borderWidth: 0 }],
+        { duration: 220, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" });
+      anim.onfinish = () => { item.hidden = true; anim.cancel(); };
+    }, 450);
+    toast(`${btn.dataset.resolve} · ${item.dataset.item}`, () => { item.hidden = false; btn.innerHTML = original; btn.disabled = false; btn.focus(); });
+  });
+  // Maintenir pour confirmer (souris, tactile, et clavier : Espace/Entrée maintenus).
+  document.querySelectorAll("[data-hold]").forEach((btn) => {
+    btn.classList.add("hold");
+    btn.insertAdjacentHTML("afterbegin", '<span class="hold-fill" aria-hidden="true"></span>');
+    btn.setAttribute("aria-description", "Maintenir pour confirmer");
+    let t;
+    const start = () => { btn.classList.add("holding"); t = setTimeout(done, 1600); };
+    const cancel = () => { clearTimeout(t); btn.classList.remove("holding"); };
+    const done = () => { btn.classList.remove("holding"); toast(btn.dataset.hold, () => toast("Envoi annulé")); };
+    btn.addEventListener("pointerdown", start);
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, cancel));
+    btn.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); start(); } });
+    btn.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") cancel(); });
+  });
+  renderDetail(DETAILS[0]);
+</script>
+</body>
+</html>
