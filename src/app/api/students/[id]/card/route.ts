@@ -27,7 +27,7 @@ export const GET = createApiHandler(
                     where: { status: "ACTIVE", deletedAt: null },
                     include: {
                         class: { select: { name: true } },
-                        academicYear: { select: { name: true } },
+                        academicYear: { select: { name: true, endDate: true } },
                     },
                     orderBy: { academicYear: { startDate: "desc" } },
                     take: 1,
@@ -53,6 +53,7 @@ export const GET = createApiHandler(
             },
             className: enrollment?.class.name ?? null,
             academicYearLabel: enrollment?.academicYear.name ?? null,
+            academicYearEnd: enrollment?.academicYear.endDate ?? null,
             school: student.school,
             badge: student.badge,
         });

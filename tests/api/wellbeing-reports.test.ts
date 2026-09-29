@@ -90,6 +90,28 @@ describe("POST /api/wellbeing/reports", () => {
     );
   });
 
+  it("un enseignant dépose un signalement « Enseignant » et ne reçoit qu'un accusé de réception", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA, id: "u-prof" }));
+    const res = await POST(makeRequest(url, { method: "POST", body: report({ tag: "ENSEIGNANT" }) }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: "r1", status: "OPEN" });
+  });
+
+  it("un élève ne peut pas se faire passer pour un enseignant (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { schoolId: FIXTURES.schoolA }));
+    const res = await POST(makeRequest(url, { method: "POST", body: report({ tag: "ENSEIGNANT" }) }));
+    expect(res.status).toBe(403);
+    expect(prisma.wellbeingReport.create).not.toHaveBeenCalled();
+  });
+
+  it("dépôt anonyme d'un élève : aucune trace de l'auteur, pas même dans le journal", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { schoolId: FIXTURES.schoolA, id: "u-eleve" }));
+    const res = await POST(makeRequest(url, { method: "POST", body: report({ tag: "ANONYME" }) }));
+    expect(res.status).toBe(201);
+    expect(vi.mocked(prisma.wellbeingReport.create).mock.calls[0][0].data.reporterUserId).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
   it("rejette un extrait trop court (400)", async () => {
     expect((await POST(makeRequest(url, { method: "POST", body: report({ excerpt: "court" }) }))).status).toBe(400);
   });

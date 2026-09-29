@@ -8,24 +8,24 @@ datasource db {
 }
 
 model SubscriptionPlan {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  code         String   @unique
-  description  String?
-  maxStudents  Int      @default(100)
-  maxTeachers  Int      @default(10)
-  maxStorageGB Int      @default(5)
-  features     String[] @default([])
-  priceMonthly Decimal  @db.Decimal(10, 2)
-  priceYearly  Decimal  @db.Decimal(10, 2)
-  isActive     Boolean  @default(true)
+  id             String   @id @default(cuid())
+  name           String   @unique
+  code           String   @unique
+  description    String?
+  maxStudents    Int      @default(100)
+  maxTeachers    Int      @default(10)
+  maxStorageGB   Int      @default(5)
+  features       String[] @default([])
+  priceMonthly   Decimal  @db.Decimal(10, 2)
+  priceYearly    Decimal  @db.Decimal(10, 2)
+  isActive       Boolean  @default(true)
   /// Mis en avant sur la page tarifs publique (badge « le plus choisi »).
-  isFeatured     Boolean @default(false)
+  isFeatured     Boolean  @default(false)
   /// Prix non affiché publiquement : la landing propose « Sur devis ».
-  priceOnRequest Boolean @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  schools      School[]
+  priceOnRequest Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  schools        School[]
 
   @@map("subscription_plans")
 }
@@ -155,7 +155,8 @@ model School {
   payrollEntries         PayrollEntry[]
   documentSignatures     DocumentSignature[]
 
-  clubs                  Club[]
+  clubs Club[]
+
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
   @@index([email]) // P4: Index for email lookups (not unique — multi-site orgs may share email)
@@ -221,81 +222,82 @@ model Period {
 }
 
 model User {
-  id                        String                      @id @default(cuid())
-  email                     String                      @unique
-  emailVerified             DateTime?
-  password                  String
-  firstName                 String
-  lastName                  String
-  phone                     String?
-  avatar                    String?
-  role                      UserRole
-  roles                     UserRole[] // Hybrid roles support
-  isActive                  Boolean                     @default(true)
-  schoolId                  String?
-  failedLoginAttempts       Int                         @default(0)
-  lockedUntil               DateTime?
-  passwordChangedAt         DateTime?
-  mustChangePassword        Boolean                     @default(false)
-  roleChangedAt             DateTime?
-  isTwoFactorEnabled        Boolean                     @default(false)
-  twoFactorSecret           String?
-  twoFactorBackupCodes      String[]                    @default([])
-  preferences               Json?                       @default("{}")
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  accounts                  Account[]
-  announcementsAuthored     Announcement[]
-  appointmentsCreated       Appointment[]               @relation("AppointmentCreator")
-  attendancesRecorded       Attendance[]                @relation("RecordedBy")
-  auditLogs                 AuditLog[]
-  behaviorIncidentsReported BehaviorIncident[]
-  certificatesIssued        Certificate[]
-  communicationLogs         CommunicationLog[]
-  communicationPreference   CommunicationPreference?
-  coursesCreated            Course[]
-  dataAccessProcessed       DataAccessRequest[]         @relation("Processor")
-  dataAccessRequests        DataAccessRequest[]         @relation("Requester")
-  dataConsents              DataConsent[]
-  examTemplatesCreated      ExamTemplate[]
-  firstLoginTokens          FirstLoginToken[]
-  homeworksGraded           HomeworkSubmission[]        @relation("GradedBy")
-  homeworksCreated          Homework[]
-  importTemplatesCreated    ImportTemplate[]
-  leaderboard               Leaderboard[]
-  mealTickets               MealTicket[]
-  messagesReceived          Message[]                   @relation("Recipient")
-  messagesSent              Message[]                   @relation("Sender")
-  notifications             Notification[]
-  orientationRecsValidated  OrientationRecommendation[]
-  parentProfile             ParentProfile?
-  paymentsReceived          Payment[]                   @relation("PaymentReceivedBy")
-  paymentsReconciled        Payment[]                   @relation("PaymentReconciledBy")
-  resourcesUploaded         Resource[]
-  sanctionsAssigned         Sanction[]
-  schoolEventsCreated       SchoolEvent[]
-  sessions                  Session[]
-  studentProfile            StudentProfile?
-  teacherProfile            TeacherProfile?
-  teacherSchoolAssignments  TeacherSchoolAssignment[]
-  userAchievements          UserAchievement[]
-  organizationMemberships   OrganizationMembership[]
-  cagnottesHosted           Cagnotte[]                  @relation("CagnotteHost")
-  cagnotteContributions     CagnotteContribution[]      @relation("CagnotteContributions")
-  cagnotteJournalActions    CagnotteJournalEntry[]      @relation("CagnotteJournalActor")
-  wellbeingReportsFiled     WellbeingReport[]           @relation("WellbeingReporter")
-  wellbeingReportsAbout     WellbeingReport[]           @relation("WellbeingReportedAbout")
-  psyAppointmentsAsPsy      PsyAppointment[]            @relation("PsyAppointmentPsy")
-  psyAppointmentsAsStudent  PsyAppointment[]            @relation("PsyAppointmentStudent")
-  voiceCampaignsAuthored    VoiceCampaign[]             @relation("VoiceCampaignAuthor")
-  staffAttendances          StaffAttendance[]           @relation("StaffAttendanceUser")
-  staffAttendancesRecorded  StaffAttendance[]           @relation("StaffAttendanceRecorder")
-  leaveRequests             LeaveRequest[]              @relation("LeaveRequestUser")
-  leaveDecisions            LeaveRequest[]              @relation("LeaveRequestDecider")
-  payrollEntries            PayrollEntry[]              @relation("PayrollUser")
-  payrollEntriesCreated     PayrollEntry[]              @relation("PayrollCreator")
-  documentSignatures        DocumentSignature[]         @relation("DocumentSigner")
-  school                    School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id                                String                      @id @default(cuid())
+  email                             String                      @unique
+  emailVerified                     DateTime?
+  password                          String
+  firstName                         String
+  lastName                          String
+  phone                             String?
+  avatar                            String?
+  role                              UserRole
+  roles                             UserRole[] // Hybrid roles support
+  isActive                          Boolean                     @default(true)
+  schoolId                          String?
+  failedLoginAttempts               Int                         @default(0)
+  lockedUntil                       DateTime?
+  passwordChangedAt                 DateTime?
+  mustChangePassword                Boolean                     @default(false)
+  roleChangedAt                     DateTime?
+  isTwoFactorEnabled                Boolean                     @default(false)
+  twoFactorSecret                   String?
+  twoFactorBackupCodes              String[]                    @default([])
+  preferences                       Json?                       @default("{}")
+  createdAt                         DateTime                    @default(now())
+  updatedAt                         DateTime                    @updatedAt
+  accounts                          Account[]
+  announcementsAuthored             Announcement[]
+  appointmentsCreated               Appointment[]               @relation("AppointmentCreator")
+  attendancesRecorded               Attendance[]                @relation("RecordedBy")
+  attendanceJustificationsSubmitted Attendance[]                @relation("AttendanceJustificationSubmitter")
+  auditLogs                         AuditLog[]
+  behaviorIncidentsReported         BehaviorIncident[]
+  certificatesIssued                Certificate[]
+  communicationLogs                 CommunicationLog[]
+  communicationPreference           CommunicationPreference?
+  coursesCreated                    Course[]
+  dataAccessProcessed               DataAccessRequest[]         @relation("Processor")
+  dataAccessRequests                DataAccessRequest[]         @relation("Requester")
+  dataConsents                      DataConsent[]
+  examTemplatesCreated              ExamTemplate[]
+  firstLoginTokens                  FirstLoginToken[]
+  homeworksGraded                   HomeworkSubmission[]        @relation("GradedBy")
+  homeworksCreated                  Homework[]
+  importTemplatesCreated            ImportTemplate[]
+  leaderboard                       Leaderboard[]
+  mealTickets                       MealTicket[]
+  messagesReceived                  Message[]                   @relation("Recipient")
+  messagesSent                      Message[]                   @relation("Sender")
+  notifications                     Notification[]
+  orientationRecsValidated          OrientationRecommendation[]
+  parentProfile                     ParentProfile?
+  paymentsReceived                  Payment[]                   @relation("PaymentReceivedBy")
+  paymentsReconciled                Payment[]                   @relation("PaymentReconciledBy")
+  resourcesUploaded                 Resource[]
+  sanctionsAssigned                 Sanction[]
+  schoolEventsCreated               SchoolEvent[]
+  sessions                          Session[]
+  studentProfile                    StudentProfile?
+  teacherProfile                    TeacherProfile?
+  teacherSchoolAssignments          TeacherSchoolAssignment[]
+  userAchievements                  UserAchievement[]
+  organizationMemberships           OrganizationMembership[]
+  cagnottesHosted                   Cagnotte[]                  @relation("CagnotteHost")
+  cagnotteContributions             CagnotteContribution[]      @relation("CagnotteContributions")
+  cagnotteJournalActions            CagnotteJournalEntry[]      @relation("CagnotteJournalActor")
+  wellbeingReportsFiled             WellbeingReport[]           @relation("WellbeingReporter")
+  wellbeingReportsAbout             WellbeingReport[]           @relation("WellbeingReportedAbout")
+  psyAppointmentsAsPsy              PsyAppointment[]            @relation("PsyAppointmentPsy")
+  psyAppointmentsAsStudent          PsyAppointment[]            @relation("PsyAppointmentStudent")
+  voiceCampaignsAuthored            VoiceCampaign[]             @relation("VoiceCampaignAuthor")
+  staffAttendances                  StaffAttendance[]           @relation("StaffAttendanceUser")
+  staffAttendancesRecorded          StaffAttendance[]           @relation("StaffAttendanceRecorder")
+  leaveRequests                     LeaveRequest[]              @relation("LeaveRequestUser")
+  leaveDecisions                    LeaveRequest[]              @relation("LeaveRequestDecider")
+  payrollEntries                    PayrollEntry[]              @relation("PayrollUser")
+  payrollEntriesCreated             PayrollEntry[]              @relation("PayrollCreator")
+  documentSignatures                DocumentSignature[]         @relation("DocumentSigner")
+  school                            School?                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([firstName])
   @@index([lastName])
@@ -411,7 +413,8 @@ model TeacherProfile {
   school            School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  supervisedClubs     Club[]
+  supervisedClubs Club[]
+
   @@unique([schoolId, matricule])
   @@index([schoolId])
   @@index([deletedAt])
@@ -483,7 +486,8 @@ model StudentProfile {
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transports          StudentTransport[]
 
-  clubMemberships     ClubMembership[]
+  clubMemberships ClubMembership[]
+
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
   @@index([schoolId])
   @@index([matricule])
@@ -540,17 +544,17 @@ model ScanPoint {
 /// Journal d'un passage de badge à un point de scan. `result` = OK | REFUSED
 /// (matricule inconnu, badge révoqué…). `studentId` nul si non résolu.
 model ScanLog {
-  id          String     @id @default(cuid())
+  id          String          @id @default(cuid())
   schoolId    String
   scanPointId String?
   studentId   String?
   matricule   String?
-  action      String     @default("ENTRY")
-  result      String     @default("OK")
+  action      String          @default("ENTRY")
+  result      String          @default("OK")
   reason      String?
-  createdAt   DateTime   @default(now())
-  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  scanPoint   ScanPoint?     @relation(fields: [scanPointId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  school      School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanPoint   ScanPoint?      @relation(fields: [scanPointId], references: [id], onDelete: SetNull)
   student     StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, createdAt])
@@ -579,7 +583,7 @@ model Badge {
 /// Ancien élève (réseau alumni) rattaché à une école. Sert l'annuaire, le
 /// mentorat et les statistiques par promotion.
 model Alumni {
-  id             String   @id @default(cuid())
+  id             String          @id @default(cuid())
   schoolId       String
   // Lien optionnel vers le dossier élève d'origine : renseigné quand l'alumni
   // est créé par le moteur de promotion (diplôme). Permet de réconcilier
@@ -590,15 +594,15 @@ model Alumni {
   lastName       String
   graduationYear Int
   series         String?
-  field          String   @default("Autre")
+  field          String          @default("Autre")
   currentRole    String?
   company        String?
   email          String?
   phone          String?
-  isMentor       Boolean  @default(false)
+  isMentor       Boolean         @default(false)
   mentorTopic    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student        StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
@@ -892,20 +896,20 @@ model PaymentPlan {
 }
 
 model InstallmentPayment {
-  id            String            @id @default(cuid())
-  paymentPlanId String
-  amount        Decimal           @db.Decimal(10, 2)
-  dueDate       DateTime
-  paidAt        DateTime?
-  status        InstallmentStatus @default(PENDING)
+  id                String            @id @default(cuid())
+  paymentPlanId     String
+  amount            Decimal           @db.Decimal(10, 2)
+  dueDate           DateTime
+  paidAt            DateTime?
+  status            InstallmentStatus @default(PENDING)
   // Rappels d'échéance : dernière étape de relance notifiée aux parents
   // (UPCOMING / DUE / OVERDUE / CRITICAL) pour éviter les notifications en double
   // lors des passages quotidiens de l'automatisation.
   lastReminderStage String?
   lastReminderAt    DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  paymentPlan   PaymentPlan       @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  paymentPlan       PaymentPlan       @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
 
   @@index([paymentPlanId])
   @@index([dueDate])
@@ -933,20 +937,25 @@ model Scholarship {
 }
 
 model Attendance {
-  id                    String           @id @default(cuid())
-  studentId             String
-  classId               String
-  date                  DateTime
-  timeSlot              String? // P14: Optional slot (e.g. "MORNING", "AFTERNOON") for half-day tracking
-  status                AttendanceStatus
-  reason                String?
-  justificationDocument String?
-  recordedById          String?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  class                 Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
-  recordedBy            User?            @relation("RecordedBy", fields: [recordedById], references: [id])
-  student               StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id                         String           @id @default(cuid())
+  studentId                  String
+  classId                    String
+  date                       DateTime
+  timeSlot                   String? // P14: Optional slot (e.g. "MORNING", "AFTERNOON") for half-day tracking
+  status                     AttendanceStatus
+  reason                     String?
+  justificationDocument      String?
+  /// Justificatif envoyé par la famille, en attente de validation par l'établissement
+  /// (le statut reste ABSENT/LATE jusqu'à validation → EXCUSED).
+  justificationSubmittedAt   DateTime?
+  justificationSubmittedById String?
+  recordedById               String?
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  class                      Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  recordedBy                 User?            @relation("RecordedBy", fields: [recordedById], references: [id])
+  justificationSubmittedBy   User?            @relation("AttendanceJustificationSubmitter", fields: [justificationSubmittedById], references: [id], onDelete: SetNull)
+  student                    StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, classId, date, timeSlot]) // P14: Updated unique to include timeSlot
   @@index([studentId, date])
@@ -1190,22 +1199,22 @@ model TeacherAvailability {
 }
 
 model DataConsent {
-  id          String    @id @default(cuid())
-  userId      String
-  consentType String
+  id            String    @id @default(cuid())
+  userId        String
+  consentType   String
   /// Personne concernée par le consentement : l'auteur lui-même, ou l'enfant
   /// pour lequel un parent répond (Lot 6). Jamais nul : l'unicité en dépend.
-  subjectUserId String  @default("")
+  subjectUserId String    @default("")
   /// Version du document acceptée (conditions, politique de confidentialité).
-  version     String?
-  isGranted   Boolean   @default(false)
-  grantedAt   DateTime?
-  revokedAt   DateTime?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version       String?
+  isGranted     Boolean   @default(false)
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, consentType, subjectUserId])
   @@index([userId])

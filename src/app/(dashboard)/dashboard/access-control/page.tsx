@@ -21,12 +21,14 @@ import {
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 
 type PreviewStudent = {
+    id: string;
     firstName: string;
     lastName: string;
     matricule: string;
     className: string;
     schoolName: string;
-    validUntil: string;
+    /** Fin de validité lisible (badge, sinon fin de l'année scolaire) ; null si inconnue. */
+    validUntil: string | null;
 } | null;
 
 type ScanLogEntry = {
@@ -40,54 +42,41 @@ type ScanLogEntry = {
     refused?: boolean;
 };
 
-const FALLBACK_MATRICULE = "BJ-2026-A0142";
-
 export default function AccessControlPage() {
     const [loading, setLoading] = useState(true);
     const [preview, setPreview] = useState<PreviewStudent>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        // Try to fetch one real student to power the badge preview. Falls back
-        // to a generic placeholder when the call fails or returns nothing.
+        // Aperçu : la vraie carte du premier élève (badge, classe, validité, QR
+        // signé par l'API). Aucun élève inscrit : aucun badge d'exemple inventé.
         const load = async () => {
-            let matricule = FALLBACK_MATRICULE;
             try {
                 const res = await fetch("/api/students?limit=1");
-                if (res.ok) {
-                    const d = await res.json();
-                    const list = Array.isArray(d) ? d : d.data || d.students || [];
-                    const s = list[0];
-                    if (s?.user) {
-                        matricule = s.matricule ?? FALLBACK_MATRICULE;
-                        setPreview({
-                            firstName: s.user.firstName,
-                            lastName: s.user.lastName,
-                            matricule,
-                            className:
-                                s.enrollments?.[0]?.class?.name ?? "Classe à confirmer",
-                            schoolName: s.user.school?.name ?? "EduPilot School",
-                            validUntil: "30 juin 2026",
-                        });
-                    }
-                }
+                if (!res.ok) return;
+                const d = await res.json();
+                const list = Array.isArray(d) ? d : d.data || d.students || [];
+                const student = list[0];
+                if (!student?.id) return;
+                const cardRes = await fetch(`/api/students/${student.id}/card`);
+                if (!cardRes.ok) return;
+                const { card } = await cardRes.json();
+                setPreview({
+                    id: student.id,
+                    firstName: student.user?.firstName ?? card.fullName,
+                    lastName: student.user?.lastName ?? "",
+                    matricule: card.matricule,
+                    className: card.className,
+                    schoolName: card.school?.name ?? "",
+                    validUntil: card.validUntil
+                        ? new Date(card.validUntil).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+                        : null,
+                });
+                setQrDataUrl(card.qrDataUrl ?? null);
             } catch {
-                /* ignore */
+                /* l'aperçu reste vide ; le reste de la page fonctionne */
             } finally {
                 setLoading(false);
-            }
-
-            // Génère un vrai QR scannable encodant le matricule du badge.
-            try {
-                const QRCode = (await import("qrcode")).default;
-                const url = await QRCode.toDataURL(`EDUPILOT:STUDENT:${matricule}`, {
-                    margin: 0,
-                    width: 128,
-                    errorCorrectionLevel: "M",
-                });
-                setQrDataUrl(url);
-            } catch {
-                /* le badge reste lisible sans QR si la génération échoue */
             }
         };
         load();
@@ -246,9 +235,7 @@ export default function AccessControlPage() {
                     <Card padding={20}>
                         <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
-                            {preview
-                                ? `${preview.firstName} ${preview.lastName.toUpperCase()}`
-                                : "exemple"}
+                            {preview ? `${preview.firstName} ${preview.lastName.toUpperCase()}` : "aucun élève"}
                         </p>
                         {loading ? (
                             <div
@@ -260,6 +247,10 @@ export default function AccessControlPage() {
                             >
                                 <Spinner size={20} color="var(--brand-600)" />
                             </div>
+                        ) : !preview ? (
+                            <p style={{ marginTop: 14, fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Aucun élève inscrit : l&apos;aperçu du badge apparaîtra avec la première inscription.
+                            </p>
                         ) : (
                             <div
                                 style={{
@@ -295,7 +286,7 @@ export default function AccessControlPage() {
                                     }}
                                 >
                                     <Logo size={18} />
-                                    {preview?.schoolName ?? "EduPilot School"}
+                                    {preview.schoolName}
                                 </div>
                                 <div style={{ display: "flex", gap: 14, marginTop: 14 }}>
                                     <Avatar
@@ -313,7 +304,7 @@ export default function AccessControlPage() {
                                                 opacity: 0.75,
                                             }}
                                         >
-                                            Élève · {preview?.className ?? "3ᵉ A"}
+                                            Élève · {preview.className}
                                         </div>
                                         <div
                                             className="eduflow-display"
@@ -349,7 +340,7 @@ export default function AccessControlPage() {
                                                 fontVariantNumeric: "tabular-nums",
                                             }}
                                         >
-                                            {preview?.matricule ?? "BJ-2026-A0142"}
+                                            {preview.matricule}
                                         </div>
                                     </div>
                                 </div>
@@ -369,7 +360,7 @@ export default function AccessControlPage() {
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                             src={qrDataUrl}
-                                            alt={`QR badge ${preview?.matricule ?? FALLBACK_MATRICULE}`}
+                                            alt={`QR badge ${preview.matricule}`}
                                             width={64}
                                             height={64}
                                             style={{ width: 64, height: 64, borderRadius: 6, flexShrink: 0 }}
@@ -405,30 +396,23 @@ export default function AccessControlPage() {
                                                     "var(--font-mono, ui-monospace, monospace)",
                                             }}
                                         >
-                                            Valide jusqu'au {preview?.validUntil ?? "30 juin 2026"}
+                                            {preview.validUntil ? `Valide jusqu'au ${preview.validUntil}` : "Validité non définie"}
                                         </span>
                                     </div>
                                 </div>
                             </div>
                         )}
                         <div style={{ marginTop: 14, display: "flex", gap: 6 }}>
+                            {/* Carte imprimable recto/verso de l'élève présenté. */}
                             <Button
                                 variant="secondary"
                                 size="sm"
                                 icon="download"
-                                disabled
+                                disabled={!preview}
+                                onClick={() => preview && window.open(`/dashboard/cards/print?studentId=${preview.id}`, "_blank")}
                                 style={{ flex: 1 }}
                             >
                                 Imprimer
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                icon="cards"
-                                disabled
-                                style={{ flex: 1 }}
-                            >
-                                Format mobile
                             </Button>
                         </div>
                     </Card>

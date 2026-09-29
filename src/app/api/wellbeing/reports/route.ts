@@ -4,7 +4,9 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { ANONYMOUS_SUBMISSION_HEADER, createApiHandler } from "@/lib/api/api-helpers";
+import { allowedWellbeingTags, WELLBEING_DESK_ROLES } from "@/lib/wellbeing/report-tags";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
 
@@ -82,8 +84,12 @@ const createReportSchema = z.object({
 });
 
 /**
- * POST /api/wellbeing/reports — ouvrir un dossier de signalement (P2.5).
- * Réservé à la cellule d'écoute (admins/direction, mêmes rôles que l'overview).
+ * POST /api/wellbeing/reports — déposer un signalement (P2.5).
+ * La cellule d'écoute (direction) lit et traite les dossiers ; élèves,
+ * parents et personnel peuvent en déposer (avant : seule la direction pouvait
+ * saisir, la cellule ne recevait donc rien directement). Chaque rôle n'a que
+ * les étiquettes qui le concernent ; un dépôt anonyme ne garde aucun lien
+ * avec son auteur.
  */
 export const POST = createApiHandler(
     async (request, { session }) => {
@@ -100,6 +106,11 @@ export const POST = createApiHandler(
 
             const body = await request.json();
             const data = createReportSchema.parse(body);
+
+            if (!allowedWellbeingTags(session.user.role).includes(data.tag)) {
+                return NextResponse.json({ error: "Type de signalement non autorisé pour votre profil." }, { status: 403 });
+            }
+            const isDesk = roleSatisfies(session.user.role, [...WELLBEING_DESK_ROLES]);
 
             if (data.tag === "ANONYME" && data.reportedUserId) {
                 return NextResponse.json(
@@ -134,18 +145,26 @@ export const POST = createApiHandler(
                 },
             });
 
-            await prisma.auditLog.create({
-                data: {
-                    userId: session.user.id,
-                    action: "CREATE_WELLBEING_REPORT",
-                    entity: "WellbeingReport",
-                    entityId: report.id,
-                    // La purge de conservation s'appuie sur l'école du journal.
-                    schoolId,
-                },
-            });
+            // Dépôt anonyme par un élève, un parent ou un membre du personnel :
+            // pas de ligne d'audit (userId obligatoire), sinon la direction — qui
+            // lit le journal — retrouverait l'auteur.
+            if (isDesk || data.tag !== "ANONYME") {
+                await prisma.auditLog.create({
+                    data: {
+                        userId: session.user.id,
+                        action: "CREATE_WELLBEING_REPORT",
+                        entity: "WellbeingReport",
+                        entityId: report.id,
+                        // La purge de conservation s'appuie sur l'école du journal.
+                        schoolId,
+                    },
+                });
+            }
 
-            return NextResponse.json(report, { status: 201 });
+            // Hors cellule : accusé de réception seulement (le dossier ne lui est pas lisible).
+            const response = NextResponse.json(isDesk ? report : { id: report.id, status: report.status }, { status: 201 });
+            if (!isDesk && data.tag === "ANONYME") response.headers.set(ANONYMOUS_SUBMISSION_HEADER, "1");
+            return response;
         } catch (error) {
             if (isZodError(error)) {
                 return NextResponse.json(
@@ -157,5 +176,5 @@ export const POST = createApiHandler(
             return NextResponse.json({ error: "Erreur lors de la création du dossier" }, { status: 500 });
         }
     },
-    { allowedRoles: [...ALLOWED_ROLES] },
+    { allowedRoles: [...ALLOWED_ROLES, "TEACHER", "STAFF", "PARENT", "STUDENT"] },
 );

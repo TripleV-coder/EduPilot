@@ -3,7 +3,7 @@
  *
  * Avant : l'appel ne prévenait personne (la fonction SMS d'absence existait
  * mais n'était jamais appelée). Règles :
- * - parent avec un compte → notification dans l'application (gratuite) ;
+ * - parent avec un compte → notification dans l'application et courriel ;
  * - responsable sans compte → SMS, seulement si un fournisseur est configuré ;
  * - seulement quand l'élève DEVIENT absent ou en retard (pas à chaque
  *   réenregistrement du même appel) — l'appelant fournit ces changements ;
@@ -12,7 +12,11 @@
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/services/notification.service";
 import { sendAttendanceSMS } from "@/lib/notifications/sms-service";
+import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/utils/logger";
+
+const escapeHtml = (value: string) =>
+    value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
 export type AbsenceChange = { studentId: string; status: "ABSENT" | "LATE" };
 
@@ -34,7 +38,9 @@ export async function notifyParentsOfAbsences(input: {
         select: {
             id: true,
             user: { select: { firstName: true, lastName: true } },
-            parentStudents: { select: { parent: { select: { user: { select: { id: true, phone: true } } } } } },
+            parentStudents: {
+                select: { parent: { select: { user: { select: { id: true, phone: true, email: true, firstName: true } } } } },
+            },
             guardians: { select: { phone: true } },
         },
     });
@@ -62,6 +68,16 @@ export async function notifyParentsOfAbsences(input: {
                 notified++;
             } catch (error) {
                 logger.error("[appel] notification parent impossible", error as Error);
+            }
+            // Courriel : le parent n'ouvre pas forcément l'application le jour même.
+            if (parent.email) {
+                const title = status === "ABSENT" ? "Absence" : "Retard";
+                await sendEmail({
+                    to: parent.email,
+                    subject: `${title} de ${name} le ${day}`,
+                    html: `<p>Bonjour ${escapeHtml(parent.firstName ?? "")},</p><p>${escapeHtml(name)} a été marqué(e) ${STATUS_LABEL[status]} le ${day} lors de l'appel.</p><p>Vous pouvez justifier cette ${status === "ABSENT" ? "absence" : "arrivée tardive"} depuis votre espace EduPilot, rubrique Assiduité.</p>`,
+                    text: `${name} a été marqué(e) ${STATUS_LABEL[status]} le ${day}. Justification possible depuis votre espace EduPilot (Assiduité).`,
+                }).catch((error) => logger.error("[appel] courriel parent impossible", error as Error));
             }
         }
 

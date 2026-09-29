@@ -131,6 +131,21 @@ describe("badges/regenerate", () => {
         expect(vi.mocked(prisma.$transaction).mock.calls[0][0] as unknown[]).toHaveLength(2);
     });
 
+    it("sans date fournie, le badge expire à la fin de l'année scolaire (recette : valable jusqu'en 2026)", async () => {
+        const fin = new Date("2027-06-30T00:00:00.000Z");
+        vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: SCHOOL } as never);
+        vi.mocked(prisma.enrollment.findMany).mockResolvedValue([{ studentId: "s1", academicYear: { endDate: fin } }] as never);
+        vi.mocked(prisma.badge.upsert).mockResolvedValue({} as never);
+        vi.mocked(prisma.$transaction).mockResolvedValue([{}] as never);
+
+        await regenerate(makeRequest("http://localhost/api/access-control/badges/regenerate", {
+            method: "POST", body: { classId: cuid("classa") },
+        }));
+        const upsert = vi.mocked(prisma.badge.upsert).mock.calls[0][0] as { create: { validUntil: Date }; update: { validUntil: Date } };
+        expect(upsert.create.validUntil).toEqual(fin);
+        expect(upsert.update.validUntil).toEqual(fin);
+    });
+
     it("404 pour une classe d'une autre école", async () => {
         vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolB } as never);
         const res = await regenerate(makeRequest("http://localhost/api/access-control/badges/regenerate", {

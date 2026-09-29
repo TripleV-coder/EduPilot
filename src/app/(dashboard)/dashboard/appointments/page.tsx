@@ -12,6 +12,7 @@ import { Badge, Button, Card, Input } from "@/components/edu";
 import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 import { useDebounce } from "@/hooks/use-debounce";
+import { RequestAppointmentDialog } from "@/components/appointments/request-appointment-dialog";
 
 type Appointment = {
     id: string;
@@ -106,6 +107,7 @@ export default function AppointmentsPage() {
     };
 
     const canModerate = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(role);
+    const [requesting, setRequesting] = useState(false);
 
     return (
         <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
@@ -118,11 +120,22 @@ export default function AppointmentsPage() {
                         { label: "Rendez-vous" },
                     ]}
                     actions={
-                        <Button variant="secondary" size="sm" icon="download" onClick={exportCSV}>
-                            Exporter CSV
-                        </Button>
+                        <div className="flex gap-2">
+                            {role === "PARENT" ? (
+                                <Button size="sm" icon="plus" onClick={() => setRequesting(true)}>
+                                    Demander un rendez-vous
+                                </Button>
+                            ) : null}
+                            <Button variant="secondary" size="sm" icon="download" onClick={exportCSV}>
+                                Exporter CSV
+                            </Button>
+                        </div>
                     }
                 />
+
+                {role === "PARENT" ? (
+                    <RequestAppointmentDialog open={requesting} onOpenChange={setRequesting} onCreated={() => mutate()} />
+                ) : null}
 
                 <Card padding={0}>
                     <div

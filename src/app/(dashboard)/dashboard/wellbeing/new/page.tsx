@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
 
 import { Badge, Button, Card, Input } from "@/components/edu";
 import { SubLabel } from "@/components/edu-homes/_shared";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { allowedWellbeingTags, WELLBEING_DESK_ROLES } from "@/lib/wellbeing/report-tags";
 
 const TAGS = [
     { value: "NOMINATIF", label: "Nominatif", hint: "Identité du déclarant visible par la cellule" },
@@ -35,10 +36,8 @@ const SEVERITIES = [
 
 export default function NewWellbeingReportPage() {
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        // Élèves, parents et personnel déposent ; la direction (cellule) lit les dossiers.
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "PARENT", "STUDENT"]}>
             <NewWellbeingReportContent />
         </PageGuard>
     );
@@ -46,7 +45,13 @@ export default function NewWellbeingReportPage() {
 
 function NewWellbeingReportContent() {
     const router = useRouter();
-    const [tag, setTag] = React.useState<string>("NOMINATIF");
+    const { data: session } = useSession();
+    const role = session?.user?.role ?? "";
+    const isDesk = (WELLBEING_DESK_ROLES as readonly string[]).includes(role);
+    const tags = TAGS.filter((t) => allowedWellbeingTags(role).includes(t.value));
+    const [chosenTag, setTag] = React.useState<string | null>(null);
+    const tag = chosenTag && tags.some((t) => t.value === chosenTag) ? chosenTag : (tags[0]?.value ?? "ANONYME");
+    const [sent, setSent] = React.useState(false);
     const [category, setCategory] = React.useState<string>(CATEGORIES[0]);
     const [severity, setSeverity] = React.useState<string>("P1");
     const [excerpt, setExcerpt] = React.useState("");
@@ -76,7 +81,9 @@ function NewWellbeingReportContent() {
                 setError(json.error ?? "Erreur lors de la création du dossier.");
                 return;
             }
-            router.push(`/dashboard/wellbeing/${json.id}`);
+            // Hors cellule d'écoute, le dossier n'est pas lisible : simple accusé de réception.
+            if (isDesk) router.push(`/dashboard/wellbeing/${json.id}`);
+            else setSent(true);
         } catch {
             setError("Erreur réseau. Réessayez.");
         } finally {
@@ -96,7 +103,7 @@ function NewWellbeingReportContent() {
         <PageShell className="max-w-3xl pb-12">
             <PageHeader
                 title="Nouveau dossier · cellule d'écoute"
-                description="Chiffré bout-en-bout · accès restreint au psychologue et à la direction."
+                description="Les dossiers ne sont lus que par la cellule d'écoute (direction). Un signalement anonyme ne garde aucun lien avec votre compte."
                 breadcrumbs={[
                     { label: "Vie scolaire" },
                     { label: "Bien-être", href: "/dashboard/wellbeing" },
@@ -104,6 +111,23 @@ function NewWellbeingReportContent() {
                 ]}
             />
 
+            {sent ? (
+                <Card padding={24}>
+                    <div role="status" style={{ display: "grid", gap: 12 }}>
+                        <strong>Signalement transmis à la cellule d&apos;écoute.</strong>
+                        <span style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                            {tag === "ANONYME"
+                                ? "Il est anonyme : personne ne peut remonter jusqu'à vous."
+                                : "La cellule d'écoute peut revenir vers vous si besoin."}
+                        </span>
+                        <div>
+                            <Button type="button" variant="secondary" onClick={() => router.push("/dashboard")}>
+                                Retour à l&apos;accueil
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+            ) : (
             <form onSubmit={handleSubmit}>
                 <Card padding={24}>
                     <SubLabel>Type de signalement</SubLabel>
@@ -118,7 +142,7 @@ function NewWellbeingReportContent() {
                             marginBottom: 20,
                         }}
                     >
-                        {TAGS.map((t) => {
+                        {tags.map((t) => {
                             const active = tag === t.value;
                             return (
                                 <button
@@ -292,16 +316,17 @@ function NewWellbeingReportContent() {
                         <Button
                             type="button"
                             variant="secondary"
-                            onClick={() => router.push("/dashboard/wellbeing")}
+                            onClick={() => router.push(isDesk ? "/dashboard/wellbeing" : "/dashboard")}
                         >
                             Annuler
                         </Button>
                         <Button type="submit" icon="plus" loading={submitting}>
-                            Ouvrir le dossier
+                            {isDesk ? "Ouvrir le dossier" : "Envoyer le signalement"}
                         </Button>
                     </div>
                 </Card>
             </form>
+            )}
         </PageShell>
     );
 }

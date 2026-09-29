@@ -17,6 +17,8 @@ import { t } from "@/lib/i18n";
 import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
+import { FamilyAttendance } from "@/components/attendance/family-attendance";
+import { PendingJustifications } from "@/components/attendance/pending-justifications";
 
 type RawStudent = {
     id: string;
@@ -75,9 +77,27 @@ const STATUS_BUTTONS: {
     },
 ];
 
+/* Famille : absences de ses enfants et justificatifs ; personnel : feuille d'appel. */
 export default function AttendancePage() {
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "PARENT", "STUDENT"]}>
+            <AttendanceByRole />
+        </PageGuard>
+    );
+}
+
+function AttendanceByRole() {
+    const { data: session, status } = useSession();
+    const role = session?.user?.role;
+    if (status === "loading") return <PageLoading label="Chargement…" />;
+    if (role === "PARENT" || role === "STUDENT") return <FamilyAttendance role={role} />;
+    return <RollCallPage />;
+}
+
+function RollCallPage() {
     const router = useRouter();
-    useSession();
+    const { data: session } = useSession();
+    const canReviewJustifications = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF", "TEACHER"].includes(session?.user?.role ?? "");
     const { isFocusMode } = useSidebar();
 
     const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -152,6 +172,7 @@ export default function AttendancePage() {
 
                 setAttendanceData(newAttrMap);
                 setInitialAttendanceData(newAttrMap);
+                setCallRecorded(existingRecords.length > 0);
                 setOrderedStudentIds(orderedIds);
             } catch {
                 toast({
@@ -194,6 +215,7 @@ export default function AttendancePage() {
 
             if (!res.ok) throw new Error("Erreur de sauvegarde");
             setInitialAttendanceData(attendanceData);
+            setCallRecorded(true);
             toast({
                 title: t("attendance.toasts.savedTitle"),
                 description: t("attendance.toasts.savedDescription"),
@@ -217,6 +239,10 @@ export default function AttendancePage() {
         }
     };
 
+    // Appel du jour pas encore enregistré : « tous présents » (état par défaut)
+    // doit pouvoir être enregistré tel quel, sans modification préalable.
+    const [callRecorded, setCallRecorded] = useState(false);
+
     const dirtyCount = useMemo(() => {
         return orderedStudentIds.reduce((acc, id) => {
             const current = attendanceData[id];
@@ -231,6 +257,8 @@ export default function AttendancePage() {
             return acc;
         }, 0);
     }, [attendanceData, initialAttendanceData, orderedStudentIds]);
+
+    const canSave = dirtyCount > 0 || !callRecorded;
 
     const filteredIds = useMemo(
         () =>
@@ -294,6 +322,8 @@ export default function AttendancePage() {
                         ) : undefined
                     }
                 />
+
+                {canReviewJustifications && !isFocusMode ? <PendingJustifications /> : null}
 
                 {/* Config card */}
                 <Card padding={0}>
@@ -558,7 +588,7 @@ export default function AttendancePage() {
                         <button
                             type="button"
                             onClick={handleSave}
-                            disabled={saving || dirtyCount === 0}
+                            disabled={saving || !canSave}
                             className="touch-target flex w-full items-center justify-center gap-2"
                             style={{
                                 height: 52,
@@ -566,7 +596,7 @@ export default function AttendancePage() {
                                 border: 0,
                                 borderRadius: "var(--eduflow-radius-pill)",
                                 background:
-                                    dirtyCount === 0
+                                    !canSave
                                         ? "var(--eduflow-neutral-300)"
                                         : "var(--brand-700)",
                                 color: "var(--eduflow-text-on-brand)",
@@ -574,10 +604,10 @@ export default function AttendancePage() {
                                 fontSize: 13,
                                 fontWeight: 700,
                                 cursor:
-                                    saving || dirtyCount === 0 ? "not-allowed" : "pointer",
+                                    saving || !canSave ? "not-allowed" : "pointer",
                                 opacity: saving ? 0.7 : 1,
                                 boxShadow:
-                                    dirtyCount > 0
+                                    canSave
                                         ? "var(--eduflow-shadow-cta)"
                                         : "var(--eduflow-shadow-sm)",
                                 transition:
@@ -591,7 +621,9 @@ export default function AttendancePage() {
                             )}
                             {dirtyCount > 0
                                 ? t("common.saveWithCount", { count: dirtyCount })
-                                : t("common.noChanges")}
+                                : !callRecorded
+                                  ? t("attendance.saveCall")
+                                  : t("common.noChanges")}
                         </button>
                     </div>
                 ) : null}

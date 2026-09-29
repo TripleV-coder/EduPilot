@@ -45,6 +45,8 @@ export interface StudentCardInput {
     };
     className: string | null;
     academicYearLabel: string | null;
+    /** Fin de l'année scolaire de l'inscription : validité par défaut de la carte. */
+    academicYearEnd?: Date | null;
     school: {
         name: string;
         logo: string | null;
@@ -60,6 +62,8 @@ export interface StudentCardData {
     photoUrl: string | null;
     className: string;
     academicYearLabel: string;
+    /** Date de fin de validité (badge, sinon fin de l'année scolaire), ISO ; null si inconnue. */
+    validUntil: string | null;
     dateOfBirth: string | null;
     school: {
         name: string;
@@ -71,13 +75,15 @@ export interface StudentCardData {
 
 /** Assemble le DTO d'une carte scolaire à partir des entités de la base. */
 export function buildStudentCardData(input: StudentCardInput): StudentCardData {
-    const { student, className, academicYearLabel, school, badge, now = new Date() } = input;
+    const { student, className, academicYearLabel, academicYearEnd, school, badge, now = new Date() } = input;
+    const validUntil = badge?.validUntil ?? academicYearEnd ?? null;
     return {
         fullName: `${student.firstName} ${student.lastName}`.trim(),
         matricule: student.matricule,
         photoUrl: student.photoUrl,
         className: className?.trim() || "—",
         academicYearLabel: academicYearLabel?.trim() || "—",
+        validUntil: validUntil ? validUntil.toISOString() : null,
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString() : null,
         school: {
             name: school.name,

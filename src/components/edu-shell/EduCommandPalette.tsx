@@ -26,6 +26,7 @@ function roleQuickActions(role: string | undefined | null): Action[] {
             return [
                 { id: "qa-attendance", label: "Faire l'appel", hint: "Présences du jour", icon: "check", href: "/dashboard/attendance", category: "Action", keywords: "appel présence" },
                 { id: "qa-grades", label: "Saisir des notes", hint: "Saisie rapide", icon: "pencil", href: "/dashboard/grades/entry", category: "Action", keywords: "notes saisie" },
+                { id: "qa-wellbeing", label: "Signaler à la cellule d'écoute", hint: "Harcèlement, mal-être… anonymat possible", icon: "info", href: "/dashboard/wellbeing/new", category: "Action", keywords: "cellule écoute signalement harcèlement anonyme" },
             ];
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
@@ -36,6 +37,12 @@ function roleQuickActions(role: string | undefined | null): Action[] {
         case "PARENT":
             return [
                 { id: "qa-pay", label: "Payer les frais", hint: "Espace finance", icon: "money", href: "/dashboard/finance", category: "Action", keywords: "paiement frais" },
+                { id: "qa-justify", label: "Justifier une absence", hint: "Assiduité de mes enfants", icon: "check", href: "/dashboard/attendance", category: "Action", keywords: "absence justifier retard" },
+                { id: "qa-wellbeing", label: "Signaler à la cellule d'écoute", hint: "Harcèlement, mal-être… anonymat possible", icon: "info", href: "/dashboard/wellbeing/new", category: "Action", keywords: "cellule écoute signalement harcèlement anonyme" },
+            ];
+        case "STUDENT":
+            return [
+                { id: "qa-wellbeing", label: "Signaler à la cellule d'écoute", hint: "Harcèlement, mal-être… anonymat possible", icon: "info", href: "/dashboard/wellbeing/new", category: "Action", keywords: "cellule écoute signalement harcèlement anonyme" },
             ];
         case "ACCOUNTANT":
             return [

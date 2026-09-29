@@ -35,16 +35,19 @@ export const POST = createApiHandler(
 
         const enrollments = await prisma.enrollment.findMany({
             where: { classId, status: "ACTIVE", student: { deletedAt: null } },
-            select: { studentId: true },
+            select: { studentId: true, academicYear: { select: { endDate: true } } },
         });
         const studentIds = [...new Set(enrollments.map((e) => e.studentId))];
+        // Sans date explicite, le badge expire à la fin de l'année scolaire de la
+        // classe (avant : aucune expiration, un badge restait valable indéfiniment).
+        const expiry = validUntil ?? enrollments[0]?.academicYear?.endDate ?? null;
 
         await prisma.$transaction(
             studentIds.map((studentId) =>
                 prisma.badge.upsert({
                     where: { studentId },
-                    update: { code: makeBadgeCode(), validUntil: validUntil ?? null, revokedAt: null, schoolId },
-                    create: { schoolId, studentId, code: makeBadgeCode(), validUntil: validUntil ?? null },
+                    update: { code: makeBadgeCode(), validUntil: expiry, revokedAt: null, schoolId },
+                    create: { schoolId, studentId, code: makeBadgeCode(), validUntil: expiry },
                 })
             )
         );

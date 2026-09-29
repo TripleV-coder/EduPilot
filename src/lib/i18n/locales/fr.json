@@ -242,6 +242,7 @@
         }
     },
     "attendance": {
+        "saveCall": "Enregistrer l'appel",
         "toasts": {
             "savedTitle": "Appel enregistré",
             "savedDescription": "Les présences ont été sauvegardées avec succès.",

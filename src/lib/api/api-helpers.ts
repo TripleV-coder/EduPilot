@@ -245,6 +245,12 @@ async function recordSensitiveAccess(
     });
 }
 
+/**
+ * En-tête interne posé par une route sur la réponse d'un dépôt anonyme : la
+ * trace automatique des données sensibles ne doit pas y attacher l'auteur.
+ */
+export const ANONYMOUS_SUBMISSION_HEADER = "x-edupilot-anonymous-submission";
+
 /** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
 export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
@@ -468,7 +474,12 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             // central, aucune route ne peut l'oublier. Les consultations sont
             // dédupliquées sur 5 min : sans cela la revalidation automatique
             // des écrans rendrait le journal illisible.
-            if (session?.user && response.status < 400) {
+            // Seule exception : un dépôt anonyme (cellule d'écoute) — le tracer
+            // avec son auteur annulerait l'anonymat promis. La route le signale
+            // par un en-tête interne, retiré avant de répondre.
+            const anonymousSubmission = response.headers.get(ANONYMOUS_SUBMISSION_HEADER) === "1";
+            response.headers.delete(ANONYMOUS_SUBMISSION_HEADER);
+            if (session?.user && response.status < 400 && !anonymousSubmission) {
                 await recordSensitiveAccess(request, session, response.status);
             }
 
