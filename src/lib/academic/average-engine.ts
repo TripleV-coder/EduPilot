@@ -424,7 +424,10 @@ export function computeStudentAverages(
     const byClassSubject = new Map<string, AverageGrade[]>();
     const resolved = new Set<string>();
     for (const grade of grades) {
-        if (beforeEnrollment(grade.date, options.enrolledAt)) continue;
+        // Avant l'arrivée de l'élève, seule une note réellement saisie compte
+        // (notes de l'ancienne classe rattachées, élèves importés en cours
+        // d'année) : une absence ou une case vide de cette époque ne vaut pas 0.
+        if (beforeEnrollment(grade.date, options.enrolledAt) && gradeStatus(grade) !== "GRADED") continue;
         if (!countsInAverage(grade.type)) continue;
         if (grade.evaluationId && isResolved(grade)) resolved.add(grade.evaluationId);
         const list = byClassSubject.get(grade.classSubjectId) ?? [];

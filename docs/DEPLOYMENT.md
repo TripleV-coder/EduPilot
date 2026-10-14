@@ -124,8 +124,8 @@ docker-compose up -d --build
 ### 1. Installation Node.js et PM2
 
 ```bash
-# Installer Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Installer Node.js 24.x (LTS, même version que l'image Docker et la CI)
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Installer PM2 globalement

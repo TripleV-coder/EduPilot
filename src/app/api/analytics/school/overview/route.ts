@@ -18,11 +18,12 @@ import {
 
 function emptySchoolOverview(yearId: string | null) {
   return {
-    summary: {
+    // Même forme que la vue normale (`overview`), à zéro
+    overview: {
       totalStudents: 0,
       activeStudents: 0,
-      averageGeneral: 0,
-      passRate: 0,
+      averageGrade: "0.00",
+      totalAnalytics: 0,
       failureRate: 0,
       dropoutRiskCount: 0,
       atRiskCount: 0,
@@ -33,14 +34,16 @@ function emptySchoolOverview(yearId: string | null) {
     atRiskStudents: [],
     subjectSummary: [],
     attendanceDistribution: {},
-    periodComparison: [],
+    periodComparison: null,
     academicYearId: yearId,
     periods: [],
   };
 }
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
+  // Un élève sans moyenne (pas encore évalué) est écarté, jamais compté 0
   const scoredAnalytics = analytics
+    .filter((item) => item.generalAverage !== null && item.generalAverage !== undefined)
     .map((item) => Number(item.generalAverage))
     .filter((value) => Number.isFinite(value));
 
@@ -215,14 +218,18 @@ const schoolOverview = memoizeAsync(
         const currentAvg = averageGeneral(currentPeriodAnalytics);
         // Index par élève (au lieu d'un find par élève : O(n²) sur une école entière).
         const previousByStudent = new Map<string, number[]>();
+        // Progression mesurée seulement entre deux moyennes réelles : un élève
+        // sans moyenne sur l'une des périodes n'a ni progressé ni reculé.
         for (const previous of previousAnalytics) {
+          if (previous.generalAverage === null) continue;
           const averages = previousByStudent.get(previous.studentId) ?? [];
-          averages.push(Number(previous.generalAverage || 0));
+          averages.push(Number(previous.generalAverage));
           previousByStudent.set(previous.studentId, averages);
         }
         const countAgainstPrevious = (predicate: (current: number, previous: number) => boolean) =>
           currentPeriodAnalytics.filter((a) =>
-            (previousByStudent.get(a.studentId) ?? []).some((previous) => predicate(Number(a.generalAverage || 0), previous))
+            a.generalAverage !== null &&
+            (previousByStudent.get(a.studentId) ?? []).some((previous) => predicate(Number(a.generalAverage), previous))
           ).length;
 
         periodComparison = {

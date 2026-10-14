@@ -82,7 +82,8 @@ beforeAll(async () => {
   for (const key of ["s1", "s2", "s3"] as const) {
     const u = await user("STUDENT", key);
     const profile = await prisma.studentProfile.create({ data: { userId: u.id, matricule: uniqueCode(key), schoolId } });
-    await prisma.enrollment.create({ data: { studentId: profile.id, classId, academicYearId: year.id } });
+    // Inscrits dès la rentrée : les évaluations ci-dessous sont postérieures
+    await prisma.enrollment.create({ data: { studentId: profile.id, classId, academicYearId: year.id, enrolledAt: new Date("2025-09-01") } });
     students[key] = { profileId: profile.id, userId: u.id };
   }
   const parentUser = await user("PARENT", "parent");
@@ -151,12 +152,17 @@ describe("C3 — statistiques agrégées en base", () => {
     actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
     const { body } = await stats(`type=class&classId=${classId}&periodId=${p2}&studentId=${students.s3.profileId}`);
 
+    // Même calcul que le bulletin (moteur officiel, matières non évaluées « NC » exclues) :
+    //   s1 : Maths (18 + 16) ÷ 2 = 17, Français 12 → (17 + 12) ÷ 2 = 14,5
+    //   s2 : Maths (14 + 0) ÷ 2 = 7 (absence non justifiée = 0), Français NC → 7
+    //   s3 : Maths (4 + 10) ÷ 2 = 7, Français NC (dispense) → 7, ex aequo 2e
     expect(body.ranking?.totalStudents).toBe(3);
-    expect(body.ranking?.rank).toBe(3);
+    expect(body.ranking?.rank).toBe(2);
+    const [tieA, tieB] = [students.s2.profileId, students.s3.profileId].sort((a, b) => a.localeCompare(b));
     expect(body.ranking?.students?.map((s) => [s.studentId, s.average, s.gradeCount])).toEqual([
-      [students.s1.profileId, 15.33, 3],
-      [students.s2.profileId, 14, 1],
-      [students.s3.profileId, 7, 2],
+      [students.s1.profileId, 14.5, 3],
+      [tieA, 7, 3],
+      [tieB, 7, 3],
     ]);
     expect(body.ranking?.topStudent?.studentName).toBe("s1 Test");
   });

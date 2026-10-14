@@ -14,6 +14,7 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  */
 let schoolId: string;
 let adminId: string;
+let teacherUserId: string;
 let yearId: string;
 let periodId: string;
 let classSubjectId: string;
@@ -44,7 +45,14 @@ beforeAll(async () => {
   levelId = (await prisma.classLevel.create({ data: { schoolId, name: "6ème", code: levelCode, level: "SECONDARY_COLLEGE", sequence: 1 } })).id;
   classId = (await prisma.class.create({ data: { schoolId, classLevelId: levelId, name: "6e A" } })).id;
   const subjectId = (await prisma.subject.create({ data: { schoolId, name: "Maths", code: uniqueCode("M") } })).id;
-  classSubjectId = (await prisma.classSubject.create({ data: { classId, subjectId } })).id;
+  // Seul l'enseignant de la matière saisit les notes et crée les évaluations
+  teacherUserId = (
+    await prisma.user.create({
+      data: { email: `${uniqueCode("prof")}@integration.test`, password: "x", firstName: "Prof", lastName: "Test", role: "TEACHER", schoolId },
+    })
+  ).id;
+  const teacherId = (await prisma.teacherProfile.create({ data: { userId: teacherUserId, schoolId } })).id;
+  classSubjectId = (await prisma.classSubject.create({ data: { classId, subjectId, teacherId } })).id;
   typeId = (await prisma.evaluationType.create({ data: { schoolId, name: "Devoir", code: uniqueCode("DV") } })).id;
   evaluationId = (
     await prisma.evaluation.create({ data: { classSubjectId, periodId, typeId, date: new Date("2026-10-01") } })
@@ -75,10 +83,11 @@ beforeAll(async () => {
 });
 
 const gradeBody = () => ({ evaluationId, grades: [{ studentId: students[0], value: 14 }] });
+const asTeacher = () => actAs(sessionFor("TEACHER", schoolId, teacherUserId));
 
 describe("TD-018 — clôture d'année", () => {
   it("avant clôture, les notes s'écrivent", async () => {
-    actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
+    asTeacher();
     const res = await callRoute(POST_GRADES, { method: "POST", path: "/api/grades/batch", body: gradeBody() });
     expect(res.status).toBe(201);
   });
@@ -101,7 +110,7 @@ describe("TD-018 — clôture d'année", () => {
   });
 
   it("une année clôturée refuse notes, présences et évaluations (409)", async () => {
-    actAs(sessionFor("SCHOOL_ADMIN", schoolId, adminId));
+    asTeacher();
 
     const grades = await callRoute(POST_GRADES, { method: "POST", path: "/api/grades/batch", body: gradeBody() });
     expect(grades.status).toBe(409);
@@ -133,6 +142,7 @@ describe("TD-018 — clôture d'année", () => {
     const reopened = await callRoute(PATCH_STATUS, { method: "PATCH", path, params: { id: yearId }, body: { action: "reopen" } });
     expect(reopened.status).toBe(200);
 
+    asTeacher();
     const grades = await callRoute(POST_GRADES, { method: "POST", path: "/api/grades/batch", body: gradeBody() });
     expect(grades.status).toBe(201);
   });

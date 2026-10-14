@@ -84,7 +84,9 @@ describe("GET /api/analytics/school/overview", () => {
     const res = await GET(makeRequest("http://localhost/api/analytics/school/overview"), { session: makeSession("SUPER_ADMIN", { schoolId: null }) });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.summary.totalStudents).toBe(0);
+    // Même forme que la vue normale, à zéro (le tableau de bord lit `overview`)
+    expect(body.overview).toMatchObject({ totalStudents: 0, averageGrade: "0.00", failureRate: 0 });
+    expect(body.periodComparison).toBeNull();
   });
 
   it("aucune année académique : vue d'ensemble vide (200), pas d'erreur", async () => {
@@ -93,7 +95,9 @@ describe("GET /api/analytics/school/overview", () => {
     const res = await GET(makeRequest("http://localhost/api/analytics/school/overview"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.summary.totalStudents).toBe(0);
+    // Même forme que la vue normale, à zéro (le tableau de bord lit `overview`)
+    expect(body.overview).toMatchObject({ totalStudents: 0, averageGrade: "0.00", failureRate: 0 });
+    expect(body.periodComparison).toBeNull();
   });
 
   it("should compute the full overview", async () => {

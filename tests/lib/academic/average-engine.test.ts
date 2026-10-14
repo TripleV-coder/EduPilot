@@ -189,6 +189,19 @@ describe("moyenne générale, annuelle, rang", () => {
     expect(show(resolved.subjects.get("m") ?? null)).toBe(12);
   });
 
+  it("élève arrivé en cours de période : une note saisie avant l'inscription compte, une absence non", () => {
+    const at = (evaluationId: string, date: string, value: number | null, isAbsent = false) => ({
+      evaluationId, classSubjectId: "m", date: new Date(date), value, isAbsent, isExcused: false, maxGrade: 20, type: { code: "DS" },
+    });
+    const enrolledAt = new Date("2026-01-20");
+    // Note de l'ancienne classe (rattachée) ou saisie avant l'import : 8 compte
+    const imported = computeStudentAverages([at("e1", "2026-01-10", 8), at("e2", "2026-02-01", 14)], subjects, [], { enrolledAt });
+    expect(show(imported.subjects.get("m") ?? null)).toBe(11);
+    // Absence cochée pour une évaluation antérieure à son arrivée : ne vaut pas 0
+    const absent = computeStudentAverages([at("e1", "2026-01-10", null, true), at("e2", "2026-02-01", 14)], subjects, [], { enrolledAt });
+    expect(show(absent.subjects.get("m") ?? null)).toBe(14);
+  });
+
   it("statut d'une note", () => {
     expect(gradeStatus({ value: 12, isAbsent: false, isExcused: false })).toBe("GRADED");
     expect(gradeStatus({ value: null, isAbsent: true, isExcused: false })).toBe("ABSENT_UNJUSTIFIED");

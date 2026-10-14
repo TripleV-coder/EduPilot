@@ -9,8 +9,8 @@ import { seedAnalyticsSchool, type AnalyticsSchoolFixture } from "./fixtures/ana
  * les analyses de l'année avec élève, inscriptions et performances par matière).
  * Consommateur : dashboard/analytics/page.tsx. La réponse doit rester identique.
  *
- * Particularité conservée : `averageGeneral` compte une moyenne nulle comme 0
- * (Number(null) === 0), et le taux d'échec aussi (s6, T2 sans moyenne).
+ * Un élève sans moyenne (s6 en T2, pas encore évalué) est écarté de la
+ * moyenne, du taux d'échec et de la progression : il n'est jamais compté 0.
  */
 let fx: AnalyticsSchoolFixture;
 
@@ -32,9 +32,9 @@ describe("C3 — vue d'ensemble analytique de l'établissement (caractérisation
       overview: {
         totalStudents: 6,
         activeStudents: 6,
-        averageGrade: "9.17",
+        averageGrade: "11.00", // (16 + 14 + 8 + 5 + 12) ÷ 5
         totalAnalytics: 6,
-        failureRate: 50,
+        failureRate: 40, // s3, s4 sur 5
         dropoutRiskCount: 1,
         atRiskCount: 1,
       },
@@ -79,15 +79,15 @@ describe("C3 — vue d'ensemble analytique de l'établissement (caractérisation
     const body = res.body as Body;
 
     expect(res.status).toBe(200);
-    expect(body.overview).toMatchObject({ averageGrade: "9.17", totalAnalytics: 6, failureRate: 50 });
+    expect(body.overview).toMatchObject({ averageGrade: "11.00", totalAnalytics: 6, failureRate: 40 });
     const comparison = body.periodComparison!;
     expect(comparison.previousPeriod).toBe("T1");
     expect(comparison.previousAverage).toBeCloseTo(10.5, 10);
-    expect(comparison.currentAverage).toBeCloseTo(55 / 6, 10);
-    expect(comparison.improvement).toBeCloseTo(55 / 6 - 10.5, 10);
-    // s1, s2, s5 progressent ; s4 et s6 (moyenne nulle comptée 0) reculent ; s3 stable
+    expect(comparison.currentAverage).toBeCloseTo(11, 10);
+    expect(comparison.improvement).toBeCloseTo(0.5, 10);
+    // s1, s2, s5 progressent ; s4 recule ; s3 stable ; s6 (pas de moyenne en T2) écarté
     expect(comparison.studentsImproved).toBe(3);
-    expect(comparison.studentsDeclined).toBe(2);
+    expect(comparison.studentsDeclined).toBe(1);
   });
 
   it("première période : pas de période précédente", async () => {

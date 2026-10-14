@@ -68,7 +68,7 @@ En contribuant à EduPilot, vous acceptez de respecter notre code de conduite :
 
 ### Prérequis
 
-- Node.js 20.x
+- Node.js 24.x (voir `.nvmrc`)
 - PostgreSQL 15+
 - Git
 - Un éditeur de code (VS Code recommandé)

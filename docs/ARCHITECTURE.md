@@ -19,7 +19,7 @@ EduPilot est une application SaaS (Software as a Service) de gestion scolaire co
 - **PWA**: Serwist (service worker)
 
 ### Backend
-- **Runtime**: Node.js 20 LTS
+- **Runtime**: Node.js 24 LTS
 - **Framework**: Next.js API Routes + Server Actions
 - **Authentification**: NextAuth.js v5
 - **ORM**: Prisma 6.19

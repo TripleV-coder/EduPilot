@@ -66,8 +66,9 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     // Recouvrement sur l'attendu RÉEL : 2 frais sans année (100 000 + 50 000) dus par
     // chacun des 6 élèves inscrits = 900 000 ; 55 000 encaissés → 6,1 % (avant : 55 000
     // divisés par la somme des tarifs unitaires, 36,7 %). Présences : 2 PRESENT + 1 LATE sur 4
-    // Réussite : s1 16, s2 14, s5 12 ≥ 10 ; s3 8, s4 5, s6 (null) < 10 → 3/6
-    expect(body.kpis).toEqual({ studentCount: 6, collectionRate: 6.1, attendanceRate: 75, passRate: 50 });
+    // Réussite : s1 16, s2 14, s5 12 ≥ 10 ; s3 8, s4 5 < 10 ; s6 sans moyenne
+    // (pas encore évalué) écarté, jamais compté 0 → 3/5
+    expect(body.kpis).toEqual({ studentCount: 6, collectionRate: 6.1, attendanceRate: 75, passRate: 60 });
     expect(body.totalCollected).toBe(55000);
     expect(body.paymentMix).toEqual([
       { method: "CASH", amount: 40000, share: 72.7 },
@@ -104,7 +105,7 @@ describe("GET /api/analytics/bi — caractérisation", () => {
     expect(body.kpis.collectionRate).toBe(6.1);
     expect(body.paymentMix).toEqual([]);
     // Les analyses sont toutes de cette année : mêmes valeurs
-    expect(body.kpis.passRate).toBe(50);
+    expect(body.kpis.passRate).toBe(60);
     expect(body.topSubjects).toEqual([
       { subject: "Français", average: 13 },
       { subject: "Mathématiques", average: 10.4 },

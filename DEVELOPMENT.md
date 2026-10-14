@@ -3,7 +3,7 @@
 ## 🚀 Démarrage Rapide
 
 ### Prérequis
-- Node.js 20+ (idéalement 22+)
+- Node.js 22+ (idéalement 24 LTS, version de la production)
 - PostgreSQL 15+
 - Yarn (pas npm)
 
