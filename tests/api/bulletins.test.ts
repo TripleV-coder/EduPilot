@@ -3,10 +3,55 @@ import { GET } from "@/app/api/bulletins/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
+import { computeClassAnnual, computeClassPeriod } from "@/lib/academic/class-averages";
+import { OFFICIAL_RULES, Rational, type CalculationOptions } from "@/lib/academic/average-engine";
+
+/** Résultat de classe pour une période : élève A (Maths) et un camarade (10). */
+function classPeriodResult(rules: CalculationOptions = OFFICIAL_RULES, mathsA = "15") {
+  const student = (id: string, maths: string, general: number, rank: number) => ({
+    studentId: id,
+    enrolledAt: null,
+    averages: {
+      subjects: new Map([["cs1", Rational.from(maths)], ["cs2", null]]),
+      interrogations: new Map([["cs1", null], ["cs2", null]]),
+      general: Rational.from(maths),
+      missing: [],
+      complete: true,
+    },
+    general,
+    rank,
+  });
+  return {
+    students: new Map([
+      [FIXTURES.studentA, student(FIXTURES.studentA, mathsA, 15, 1)],
+      ["other", student("other", "10", 10, 2)],
+    ]),
+    classSize: 2,
+    rankedCount: 2,
+    classGeneralAverage: 12.5,
+    subjectStats: new Map([["cs1", { average: 12.5, min: 10, max: 15 }]]),
+    coefficients: new Map([["cs1", 3], ["cs2", 2]]),
+    rules,
+    councilValidated: false,
+  };
+}
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Calcul de la classe : prouvé contre l'oracle exact (tests/precision) ;
+// ici, la route seule (mise en forme, droits, NC, arrondi de l'école)
+vi.mock("@/lib/academic/class-averages", () => ({
+  computeClassPeriod: vi.fn(),
+  computeClassAnnual: vi.fn(),
+  computePromotionRanks: vi.fn(),
+}));
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/academic/grading-settings")>();
+  return { ...actual, getGradingSettings: vi.fn().mockResolvedValue(actual.DEFAULT_GRADING_SETTINGS) };
+});
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Calculs adaptés pour un élève : aucun par défaut
+    studentFormula: { findMany: vi.fn().mockResolvedValue([]) },
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     parentStudent: { findUnique: vi.fn() },
@@ -58,7 +103,7 @@ function makeStudent(overrides: Record<string, unknown> = {}) {
                   maxGrade: 20,
                   coefficient: 2,
                   type: { name: "Devoir" },
-                  grades: [{ value: 15, isAbsent: false, isExcused: false }],
+                  grades: [{ value: 15, isAbsent: false, isExcused: false, comment: "Très bon travail, rigoureux" }],
                 },
               ],
             },
@@ -151,32 +196,10 @@ describe("GET /api/bulletins", () => {
       mempCode: "MEMP-1",
       code: "A-01",
     } as never);
-    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
-      {
-        student: {
-          grades: [
-            {
-              value: 15,
-              isAbsent: false,
-              isExcused: false,
-              evaluation: { periodId: PERIOD.id, coefficient: 2, classSubjectId: "cs1" },
-            },
-          ],
-        },
-      },
-      {
-        student: {
-          grades: [
-            {
-              value: 10,
-              isAbsent: false,
-              isExcused: false,
-              evaluation: { periodId: PERIOD.id, coefficient: 2, classSubjectId: "cs1" },
-            },
-          ],
-        },
-      },
-    ] as never);
+    // Période en cours, puis période précédente (aucune note : pas de moyenne)
+    vi.mocked(computeClassPeriod)
+      .mockResolvedValueOnce(classPeriodResult() as never)
+      .mockResolvedValueOnce({ ...classPeriodResult(), students: new Map() } as never);
     vi.mocked(prisma.grade.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.attendance.count)
       .mockResolvedValueOnce(2)
@@ -198,6 +221,7 @@ describe("GET /api/bulletins", () => {
     expect(maths.average).toBe(15);
     expect(maths.evaluationsCount).toBe(1);
     expect(maths.grades[0].value).toBe(15);
+    expect(maths.appreciation).toContain("rigoureux");
 
     expect(body.generalAverage).toBe(15);
     expect(body.previousGeneralAverage).toBeNull();
@@ -240,7 +264,13 @@ describe("GET /api/bulletins", () => {
     }));
     vi.mocked(prisma.period.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.school.findUnique).mockResolvedValue(null);
-    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([] as never);
+    vi.mocked(computeClassPeriod).mockResolvedValue({
+      ...classPeriodResult(),
+      students: new Map(),
+      classSize: 0,
+      classGeneralAverage: null,
+    } as never);
+    vi.mocked(computeClassAnnual).mockResolvedValue({ students: new Map(), classSize: 0, periods: [] } as never);
     vi.mocked(prisma.grade.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.attendance.count).mockResolvedValue(0);
     vi.mocked(prisma.behaviorIncident.count).mockResolvedValue(0);
@@ -255,5 +285,27 @@ describe("GET /api/bulletins", () => {
     expect(body.school).toBeNull();
     expect(body.referenceNumber).toContain("BJ-2025-00123");
     expect(body.vieScolaire.absences).toBe(0);
+  });
+
+  it("arrondit les moyennes de matière selon la règle de l'école (troncature)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue(makeStudent());
+    vi.mocked(prisma.period.findUnique).mockResolvedValue(PERIOD as never);
+    vi.mocked(prisma.period.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.school.findUnique).mockResolvedValue(null);
+    vi.mocked(computeClassPeriod).mockResolvedValue(
+      classPeriodResult({ ...OFFICIAL_RULES, rounding: "TRUNCATE" }, "12.349") as never
+    );
+    vi.mocked(computeClassAnnual).mockResolvedValue({ students: new Map(), classSize: 2, periods: [] } as never);
+    vi.mocked(prisma.attendance.count).mockResolvedValue(0);
+    vi.mocked(prisma.behaviorIncident.count).mockResolvedValue(0);
+
+    const res = await GET(
+      makeRequest(`http://localhost/api/bulletins?studentId=${FIXTURES.studentA}&periodId=${PERIOD.id}`),
+      { session: makeSession("DIRECTOR") }
+    );
+    const body = await res.json();
+    const maths = body.subjects.find((x: { subjectName: string }) => x.subjectName === "Maths");
+    expect(maths.average).toBe(12.34);
   });
 });

@@ -7,6 +7,7 @@ import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
+import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 
 const bodySchema = z.object({ paymentId: z.string().cuid() });
 
@@ -133,6 +134,7 @@ export const POST = createApiHandler(async (request, context) => {
 
         return NextResponse.json({ url: checkout.url, reference });
     } catch (error) {
+        if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
         logger.error("FedaPay initiate error", error as Error, {
             module: "api/payments/fedapay/initiate",
         });

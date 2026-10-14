@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { edgeAuth as auth } from "@/lib/auth/edge";
-import { checkRateLimit, authLimiter, apiLimiter, strictLimiter } from "@/lib/rate-limit";
+import { checkRateLimit, authLimiter, strictLimiter } from "@/lib/rate-limit";
+import { rateLimitSettings } from "@/lib/resilience/config";
+import { retryAfterSeconds } from "@/lib/resilience/errors";
+import { recordApiRequest, recordRejection } from "@/lib/resilience/metrics";
+import { consumeTokens, perMinute } from "@/lib/resilience/token-bucket";
 import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
 import { getClientIp } from "@/lib/security/client-ip";
 
@@ -159,6 +164,8 @@ const AUTH_RATE_LIMIT_PREFIXES = [
  */
 const PUBLIC_API_ROUTES = new Set([
   "/api/health",
+  // Prometheus n'a pas de session : la route exige METRICS_TOKEN elle-même.
+  "/api/metrics",
   "/api/system/automation",
   "/api/system/retention",
 ]);
@@ -181,40 +188,66 @@ function apiPassthrough(request: NextRequest, remaining?: number): NextResponse 
   return res;
 }
 
+/** 429 avec le délai exact avant que le quota laisse repasser une requête. */
+function tooManyRequests(retryAfterMs: number): NextResponse {
+  return NextResponse.json(
+    { error: "Trop de requêtes. Veuillez patienter quelques secondes.", code: "RATE_LIMITED" },
+    {
+      status: 429,
+      headers: { "Retry-After": retryAfterSeconds(retryAfterMs), "X-RateLimit-Remaining": "0" },
+    },
+  );
+}
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
   const isGuestOnly = GUEST_ONLY_ROUTES.has(pathname);
   const isApi = pathname.startsWith("/api/");
   let apiRateLimitRemaining: number | undefined;
+  let apiSession: Session | null | undefined;
 
   if (isApi) {
+    recordApiRequest();
     const ip = getClientIp(request.headers);
-    let limiter = apiLimiter;
+    if (!isPublic) apiSession = await auth();
+    const userId = apiSession?.user?.id;
 
-    if (AUTH_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))) {
-      limiter = authLimiter;
-    } else if (STRICT_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))) {
-      limiter = strictLimiter;
+    // 1) Débit général, seaux à jetons partagés par Redis. Compte connecté :
+    //    son propre seau (RATE_LIMIT_USER_PER_MIN) seulement — une IP
+    //    d'établissement ou le NAT d'un opérateur mobile porte des centaines de
+    //    personnes, qu'un seau par IP refuserait ensemble (analyse de capacité
+    //    2026-10-01). Appel anonyme : seau par IP (RATE_LIMIT_IP_PER_MIN).
+    const { userPerMinute, ipPerMinute } = rateLimitSettings();
+    const buckets = userId ? [perMinute(`tb:user:${userId}`, userPerMinute)] : [perMinute(`tb:ip:${ip}`, ipPerMinute)];
+    const flow = await consumeTokens(buckets);
+    if (!flow.allowed) {
+      recordRejection(userId ? "rate_limit_user" : "rate_limit_ip");
+      return tooManyRequests(flow.retryAfterMs);
     }
+    apiRateLimitRemaining = flow.remaining;
 
-    const { success, remaining } = await checkRateLimit(limiter, ip);
-    apiRateLimitRemaining = remaining;
-    if (!success) {
-      return NextResponse.json(
-        { error: "Trop de requêtes. Veuillez patienter." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": "60",
-            "X-RateLimit-Remaining": "0",
-          },
-        }
-      );
+    // 2) Familles sensibles, en plus : connexion et mot de passe oublié
+    //    (5 / 15 min) ; ÉCRITURES sur paiements, notes, comptes (20 / min).
+    //    Les lectures de ces familles n'ont que le seau général : un enseignant
+    //    qui passe d'une classe à l'autre recevait des 429.
+    const isWrite = request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS";
+    const familyLimiter = AUTH_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))
+      ? authLimiter
+      : isWrite && STRICT_RATE_LIMIT_PREFIXES.some((p) => pathname.startsWith(p))
+        ? strictLimiter
+        : null;
+    if (familyLimiter) {
+      const { success, remaining, reset } = await checkRateLimit(familyLimiter, userId ? `user:${userId}` : ip);
+      if (!success) {
+        recordRejection(userId ? "rate_limit_user" : "rate_limit_ip");
+        return tooManyRequests(reset.getTime() - Date.now());
+      }
+      apiRateLimitRemaining = Math.min(apiRateLimitRemaining, remaining);
     }
 
     if (isPublic) {
-      return apiPassthrough(request, remaining);
+      return apiPassthrough(request, apiRateLimitRemaining);
     }
   }
 
@@ -234,7 +267,7 @@ export default async function proxy(request: NextRequest) {
     return pageResponse(request);
   }
 
-  const session = await auth();
+  const session = apiSession !== undefined ? apiSession : await auth();
 
   if (!session?.user) {
     if (pathname.startsWith("/api/")) {
@@ -310,7 +343,9 @@ export default async function proxy(request: NextRequest) {
           { status: 503, headers: { "Retry-After": "120" } }
         );
       }
-      return NextResponse.redirect(new URL("/maintenance", request.url));
+      if (pathname !== "/maintenance") {
+        return NextResponse.redirect(new URL("/maintenance", request.url));
+      }
     }
   }
 

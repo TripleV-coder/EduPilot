@@ -5,7 +5,7 @@
  * pour rattacher l'élève à son compte. Le code est stocké haché (bcrypt) et ne
  * transite en clair qu'une seule fois (au moment de l'émission).
  */
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 
 /** Alphabet sans caractères ambigus (0/O, 1/I/L) pour la dictée orale. */
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -38,6 +38,7 @@ export function verifyLinkCode(code: string, hash: string): Promise<boolean> {
     return bcrypt.compare(normalizeLinkCode(code), hash);
 }
 
-export function linkCodeExpiry(now: number = Date.now()): Date {
-    return new Date(now + LINK_CODE_TTL_MS);
+/** Échéance d'un code ; `days` = validité réglée par l'école (14 jours par défaut). */
+export function linkCodeExpiry(now: number = Date.now(), days?: number): Date {
+    return new Date(now + (days !== undefined ? days * 24 * 60 * 60 * 1000 : LINK_CODE_TTL_MS));
 }

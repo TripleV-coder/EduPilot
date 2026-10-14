@@ -2,6 +2,7 @@
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 
 interface HeatmapData {
     classes: { id: string, name: string }[];
@@ -14,13 +15,15 @@ interface PerformanceHeatmapProps {
 }
 
 export function PerformanceHeatmap({ data }: PerformanceHeatmapProps) {
+    const thresholds = useSchoolThresholds();
+    // Couleurs aux niveaux de l'école ; en dessous du seuil « faible », deux teintes (moitié du seuil)
     const getColorClass = (value: number) => {
-        if (value >= 16) return "bg-green-600 text-white";
-        if (value >= 14) return "bg-green-500 text-white";
-        if (value >= 12) return "bg-green-400 text-white";
-        if (value >= 10) return "bg-yellow-400 text-black";
-        if (value >= 8) return "bg-orange-500 text-white";
-        if (value >= 5) return "bg-red-500 text-white";
+        if (value >= thresholds.performance.excellentFrom) return "bg-green-600 text-white";
+        if (value >= thresholds.performance.veryGoodFrom) return "bg-green-500 text-white";
+        if (value >= thresholds.performance.goodFrom) return "bg-green-400 text-white";
+        if (value >= thresholds.passingGrade) return "bg-yellow-400 text-black";
+        if (value >= thresholds.performance.weakBelow) return "bg-orange-500 text-white";
+        if (value >= thresholds.performance.weakBelow / 2) return "bg-red-500 text-white";
         return "bg-red-700 text-white";
     };
 

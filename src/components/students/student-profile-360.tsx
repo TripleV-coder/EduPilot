@@ -1,5 +1,7 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import { attendanceBand, type SchoolThresholds } from "@/lib/schools/school-thresholds";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Loader2, Sparkles, Award, Flame, Check, TrendingUp, TrendingDown } from "lucide-react";
@@ -27,7 +29,7 @@ interface Profile360Response {
     subjects: Array<{
         subjectId: string;
         name: string;
-        coefficient: number;
+        coefficient: number | null;
         average: number | null;
         min: number | null;
         max: number | null;
@@ -75,15 +77,16 @@ function initials(first: string, last: string): string {
     return `${first[0] ?? "?"}${last[0] ?? "?"}`.toUpperCase();
 }
 
-function subjectColor(average: number | null): "success" | "warning" | "danger" | "brand" {
+function subjectColor(average: number | null, t: SchoolThresholds): "success" | "warning" | "danger" | "brand" {
     if (average === null) return "brand";
-    if (average >= 14) return "success";
-    if (average < 10) return "danger";
-    if (average < 12) return "warning";
+    if (average >= t.performance.veryGoodFrom) return "success";
+    if (average < t.passingGrade) return "danger";
+    if (average < t.performance.goodFrom) return "warning";
     return "brand";
 }
 
 export function StudentProfile360({ studentId }: { studentId: string }) {
+    const thresholds = useSchoolThresholds();
     const { data, error, isLoading } = useSWR<Profile360Response>(
         `/api/students/${studentId}/profile-360`,
         fetcher,
@@ -189,7 +192,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                         <StatChip
                             label={`Moyenne ${stats.currentPeriod ?? ""}`.trim()}
                             value={stats.averageGrade !== null ? fmt1(stats.averageGrade) : "—"}
-                            tone={subjectColor(stats.averageGrade)}
+                            tone={subjectColor(stats.averageGrade, thresholds)}
                         />
                         <StatChip
                             label="Rang"
@@ -199,7 +202,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                         <StatChip
                             label="Présence"
                             value={stats.attendanceRate !== null ? `${fmt1(stats.attendanceRate)}%` : "—"}
-                            tone={(stats.attendanceRate ?? 0) >= 90 ? "success" : (stats.attendanceRate ?? 0) >= 75 ? "warning" : "danger"}
+                            tone={{ ok: "success", warning: "warning", critical: "danger", none: "brand" }[attendanceBand(stats.attendanceRate, thresholds) ?? "none"] as "success" | "warning" | "danger" | "brand"}
                         />
                         <StatChip
                             label="Paiement"
@@ -232,7 +235,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                 Pas encore de moyennes calculées pour la période en cours.
                             </p>
                         ) : subjects.map((m, i) => {
-                            const tone = subjectColor(m.average);
+                            const tone = subjectColor(m.average, thresholds);
                             return (
                                 <div
                                     key={m.subjectId}
@@ -245,7 +248,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                 >
                                     <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</span>
                                     <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
-                                        coef. {m.coefficient}
+                                        {m.coefficient !== null ? `coef. ${m.coefficient}` : "coef. —"}
                                     </span>
                                     <div
                                         className="rounded-full overflow-hidden"
@@ -420,7 +423,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     Recommandation IA
                                 </div>
                                 <p style={{ fontSize: 12, color: "var(--eduflow-brand-800)", margin: 0, lineHeight: 1.5 }}>
-                                    {aiRecommendation(student.firstName, subjects)}
+                                    {aiRecommendation(student.firstName, subjects, thresholds)}
                                 </p>
                                 <Button
                                     variant="secondary"
@@ -521,12 +524,12 @@ function DeltaBadge({ delta }: { delta: number }) {
     );
 }
 
-function aiRecommendation(firstName: string, subjects: Profile360Response["subjects"]): string {
+function aiRecommendation(firstName: string, subjects: Profile360Response["subjects"], t: SchoolThresholds): string {
     const strengths = subjects
-        .filter((s) => s.average !== null && (s.average ?? 0) >= 14)
+        .filter((s) => s.average !== null && s.average >= t.performance.veryGoodFrom)
         .map((s) => s.name.toLowerCase());
     const weaknesses = subjects
-        .filter((s) => s.average !== null && (s.average ?? 0) < 10)
+        .filter((s) => s.average !== null && s.average < t.passingGrade)
         .map((s) => s.name.toLowerCase());
 
     if (strengths.length === 0 && weaknesses.length === 0) {

@@ -96,6 +96,7 @@ describe("POST /api/orientation/batch-analyze", () => {
       studentId: "stu1",
       studentName: "Awa Diallo",
       series: "SERIE_C",
+      score: null,
       justification: "Profil scientifique solide",
       alternatives: ["SERIE_D"],
       confidence: 0.75,
@@ -172,8 +173,9 @@ describe("POST /api/orientation/generate-ai", () => {
     const body = await res.json();
     expect(body.studentId).toBe(FIXTURES.studentA);
     expect(body.recommendations).toHaveLength(3);
-    expect(body.recommendations[0]).toEqual({ series: "SERIE_C", justification: "Profil scientifique solide", score: 75 });
-    expect(body.recommendations[1]).toEqual({ series: "SERIE_D", score: 65, justification: "Alternative suggérée par l'IA" });
+    // Score = adéquation réelle de la série (absente ici : le résultat simulé n'en porte pas)
+    expect(body.recommendations[0]).toEqual({ series: "SERIE_C", justification: "Profil scientifique solide", score: null });
+    expect(body.recommendations[1]).toEqual({ series: "SERIE_D", score: null, justification: "Alternative suggérée par l'IA" });
     expect(body.engine).toBe("template");
     expect(aiService.executeGovernance).toHaveBeenCalledWith(
       expect.objectContaining({ action: "recommend-orientation", studentId: FIXTURES.studentA, data: { academicYearId: "ay1" } })

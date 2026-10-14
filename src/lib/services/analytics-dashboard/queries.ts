@@ -96,10 +96,10 @@ export async function summarizeSubjects(analyticsIds: string[], filterSubjectId?
 }
 
 /**
- * Résumé par matière avec taux de réussite (moyenne ≥ 10) et effectif noté,
- * pour la vue d'ensemble de l'établissement.
+ * Résumé par matière avec taux de réussite (moyenne ≥ seuil de passage de
+ * l'école, 10 par défaut) et effectif noté, pour la vue d'ensemble.
  */
-export async function summarizeSubjectsWithPassRate(analyticsIds: string[]) {
+export async function summarizeSubjectsWithPassRate(analyticsIds: string[], passingGrade = 10) {
     if (analyticsIds.length === 0) return [];
 
     const [rows, passes] = await Promise.all([
@@ -111,7 +111,7 @@ export async function summarizeSubjectsWithPassRate(analyticsIds: string[]) {
         }),
         prisma.subjectPerformance.groupBy({
             by: ["subjectId"],
-            where: { analyticsId: { in: analyticsIds }, average: { gte: 10 } },
+            where: { analyticsId: { in: analyticsIds }, average: { gte: passingGrade } },
             _count: { _all: true },
         }),
     ]);

@@ -6,13 +6,22 @@
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 
+/** Jour calendaire UTC, pour qu'un « 2026-09-28 » reste le 28 quel que soit le fuseau. */
+function utcCalendarDay(input: Date | string): Date {
+    if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input)) {
+        const [year, month, day] = input.slice(0, 10).split("-").map(Number);
+        return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
+    }
+    const date = input instanceof Date ? input : new Date(input);
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 export class CanteenService {
     /**
      * Récupère le menu du jour pour une école donnée.
      */
     async getMenu(schoolId: string, date: Date = new Date()) {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
+        const startOfDay = utcCalendarDay(date);
 
         const menu = await prisma.canteenMenu.findUnique({
             where: {
@@ -51,8 +60,7 @@ export class CanteenService {
      * Crée ou met à jour un menu pour un jour donné.
      */
     async upsertMenu(schoolId: string, date: Date, data: { starter?: string; mainCourse?: string; dessert?: string }) {
-        const normalizedDate = new Date(date);
-        normalizedDate.setHours(0, 0, 0, 0);
+        const normalizedDate = utcCalendarDay(date);
 
         return prisma.canteenMenu.upsert({
             where: {

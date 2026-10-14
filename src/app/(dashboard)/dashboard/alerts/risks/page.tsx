@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import { assessRisk } from "@/lib/schools/school-parameters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { t } from "@/lib/i18n";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
@@ -27,7 +29,8 @@ type AnalyticsStudent = {
   className?: string | null;
   averageGrade: number | null;
   attendanceRate: number | null;
-  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+  riskLevel: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+  riskFactors?: string[];
   student?: {
     enrollments?: Array<{
       class?: {
@@ -47,41 +50,15 @@ type RiskRow = {
   name: string;
   className: string;
   riskScore: number;
-  trend: "up" | "stable" | "down";
+  factors: string[];
   status: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   attendanceRate: number | null;
   averageGrade: number | null;
   incidentsCount: number;
 };
 
-function scoreToStatus(score: number): RiskRow["status"] {
-  if (score >= 80) return "CRITICAL";
-  if (score >= 60) return "HIGH";
-  if (score >= 35) return "MEDIUM";
-  return "LOW";
-}
-
-function computeRiskScore(input: {
-  averageGrade: number | null;
-  attendanceRate: number | null;
-  incidentsCount: number;
-  riskLevelHint: AnalyticsStudent["riskLevel"];
-}) {
-  const avg = input.averageGrade ?? 20;
-  const attendance = input.attendanceRate ?? 100;
-  const incidents = input.incidentsCount;
-
-  let score = 0;
-  score += (20 - avg) * 3;
-  score += (100 - attendance) * 0.8;
-  score += Math.min(30, Math.sqrt(incidents) * 10);
-
-  if (input.riskLevelHint === "CRITICAL") score = Math.max(score, 85);
-  if (input.riskLevelHint === "HIGH") score = Math.max(score, 70);
-  if (input.riskLevelHint === "MEDIUM") score = Math.max(score, 45);
-
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
+const STATUS_LABEL: Record<RiskRow["status"], string> = { CRITICAL: "Critique", HIGH: "Élevé", MEDIUM: "Modéré", LOW: "Faible" };
+const SEVERITY: Record<RiskRow["status"], number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
 
 export default function AlertsRisksPage() {
   return (
@@ -92,6 +69,7 @@ export default function AlertsRisksPage() {
 }
 
 function AlertsRisksContent() {
+  const thresholds = useSchoolThresholds();
   const [classId, setClassId] = useState<string>("all");
 
   const markStudentTransition = (studentId: string) => {
@@ -130,32 +108,31 @@ function AlertsRisksContent() {
     return analytics
       .map((row) => {
         const incidentCount = incidentsByStudent[row.studentId] || 0;
-        const score = computeRiskScore({
-          averageGrade: row.averageGrade,
-          attendanceRate: row.attendanceRate,
-          incidentsCount: incidentCount,
-          riskLevelHint: row.riskLevel,
-        });
+        // Calcul officiel unique (mêmes points et seuils que les analyses enregistrées) ;
+        // le niveau enregistré fait foi quand il existe.
+        const official = assessRisk(row.averageGrade, row.attendanceRate, incidentCount, thresholds.followUp, thresholds.passingGrade);
+        const level = row.riskLevel ?? official.level;
+        const status: RiskRow["status"] = level === "NONE" ? "LOW" : level;
+        const factors = row.riskFactors && row.riskFactors.length > 0 ? row.riskFactors : official.factors;
 
         const className = row.className || row.student?.enrollments?.[0]?.class?.name || "Non assignée";
-        const trend: RiskRow["trend"] = score >= 70 ? "up" : score <= 30 ? "down" : "stable";
 
         return {
           studentId: row.studentId,
           name: row.studentName,
           className,
-          riskScore: score,
-          trend,
-          status: scoreToStatus(score),
+          riskScore: official.score,
+          factors,
+          status,
           attendanceRate: row.attendanceRate,
           averageGrade: row.averageGrade,
           incidentsCount: incidentCount,
         };
       })
-      .sort((a, b) => b.riskScore - a.riskScore);
-  }, [analyticsData, incidentsData]);
+      .sort((a, b) => SEVERITY[b.status] - SEVERITY[a.status] || b.riskScore - a.riskScore);
+  }, [analyticsData, incidentsData, thresholds]);
 
-  const topAlerts = riskRows.filter((r) => r.riskScore >= 60).slice(0, 5);
+  const topAlerts = riskRows.filter((r) => r.status === "HIGH" || r.status === "CRITICAL").slice(0, 5);
   const isLoading = analyticsLoading || incidentsLoading;
   const matrixPoints = useMemo<RiskMatrixPoint[]>(
     () =>
@@ -163,9 +140,8 @@ function AlertsRisksContent() {
         id: row.studentId,
         name: row.name,
         className: row.className,
-        dropoutScore: row.riskScore,
-        failureScore:
-          row.averageGrade == null ? row.riskScore : Math.max(0, Math.min(100, Math.round((20 - row.averageGrade) * 5))),
+        absenceRate: row.attendanceRate == null ? null : 100 - row.attendanceRate,
+        average: row.averageGrade,
       })),
     [riskRows]
   );
@@ -221,7 +197,11 @@ function AlertsRisksContent() {
             <CardContent className="p-6">
                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                  <div className="md:col-span-7">
-                    <RiskMatrix students={matrixPoints} />
+                    <RiskMatrix
+                      students={matrixPoints}
+                      absenceAlert={100 - thresholds.followUp.attendanceWarning}
+                      passingGrade={thresholds.passingGrade}
+                    />
                  </div>
                  <div className="md:col-span-5 space-y-4">
                     <div className="p-4 rounded-xl bg-background/50 border border-border/50">
@@ -231,14 +211,14 @@ function AlertsRisksContent() {
                              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Risque Critique</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">Élèves en danger immédiat (décrochage + échec).</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Absences au-delà du seuil d&apos;alerte et moyenne sous le seuil de passage.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-warning mt-0.5" />
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold leading-none">Vigilance Accrue</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">Alerte sur l'un des deux axes majeurs.</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Un seul des deux seuils est franchi.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
@@ -251,7 +231,7 @@ function AlertsRisksContent() {
                        </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground italic leading-relaxed">
-                      * Les points sont interactifs. Cliquez pour voir le profil détaillé et engager une intervention.
+                      * Survolez un point pour voir l&apos;élève, ses absences et sa moyenne. Les élèves sans moyenne ou sans appel ne sont pas placés.
                     </p>
                  </div>
                </div>
@@ -266,8 +246,8 @@ function AlertsRisksContent() {
                     <tr>
                       <th className="px-4 py-3 text-left">Élève</th>
                       <th className="px-4 py-3 text-left">Classe</th>
-                      <th className="px-4 py-3 text-center">Évolution</th>
-                      <th className="px-4 py-3 text-center">Score</th>
+                      <th className="px-4 py-3 text-left">Facteurs</th>
+                      <th className="px-4 py-3 text-center">Niveau (points)</th>
                       <th className="px-4 py-3 text-center">Présence</th>
                       <th className="px-4 py-3 text-center">Moyenne</th>
                       <th className="px-4 py-3 text-right">Actions</th>
@@ -310,11 +290,8 @@ function AlertsRisksContent() {
                         <tr key={row.studentId} className="hover:bg-background/50 transition-colors">
                           <td className="px-4 py-3 font-bold">{row.name}</td>
                           <td className="px-4 py-3">{row.className}</td>
-                          <td className={cn(
-                            "px-4 py-3 text-center font-mono",
-                            row.trend === "up" ? "text-destructive" : row.trend === "down" ? "text-[hsl(var(--success))]" : "text-warning"
-                          )}>
-                            {row.trend === "up" ? "En hausse" : row.trend === "down" ? "En baisse" : "Stable"}
+                          <td className="px-4 py-3 text-[11px] text-muted-foreground">
+                            {row.factors.length > 0 ? row.factors.slice(0, 2).join(" · ") : "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={cn(
@@ -324,7 +301,7 @@ function AlertsRisksContent() {
                               row.status === "MEDIUM" ? "bg-primary/10 text-primary border-primary/20" :
                               "bg-success/10 text-success border-success/30"
                             )}>
-                              {row.riskScore}
+                              {STATUS_LABEL[row.status]} ({row.riskScore})
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">{row.attendanceRate != null ? `${row.attendanceRate.toFixed(1)}%` : "-"}</td>
@@ -367,7 +344,7 @@ function AlertsRisksContent() {
                       <div key={alert.studentId} className="p-4 space-y-3 hover:bg-background/40 transition-colors">
                         <div className="flex justify-between items-start gap-2">
                           <span className="text-[11px] font-bold text-muted-foreground">{alert.className}</span>
-                          <span className="text-[11px] font-bold text-destructive">Score {alert.riskScore}</span>
+                          <span className="text-[11px] font-bold text-destructive">{STATUS_LABEL[alert.status]} · {alert.riskScore} pts</span>
                         </div>
                         <div>
                           <p className="text-xs font-bold text-foreground leading-tight">{alert.name}</p>

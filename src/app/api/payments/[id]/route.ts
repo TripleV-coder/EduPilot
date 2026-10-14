@@ -3,13 +3,14 @@ import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
 const paymentUpdateSchema = z.object({
-  amount: z.coerce.number().positive().optional(),
+  amount: fcfaAmountSchema.optional(),
   method: z.enum(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER", "CHECK", "OTHER"]).optional(),
   reference: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),

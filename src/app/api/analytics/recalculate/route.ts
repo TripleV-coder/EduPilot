@@ -1,81 +1,57 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { RiskLevel } from "@prisma/client";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Calcul asynchrone des scores de risque (Nightly Job logic)
+ * Recalcul des analyses (moyennes, niveaux de performance, niveaux de risque)
+ * de tous les élèves d'un établissement, pour l'année en cours.
+ *
+ * Avant : un second modèle de risque, rudimentaire, écrasait le niveau de
+ * risque calculé par le modèle officiel ; il comptait une moyenne absente comme
+ * 0 (élève non évalué → « risque élevé ») et acceptait l'identifiant de
+ * n'importe quel établissement. Désormais : le calcul officiel (paramètres de
+ * l'école, aucune valeur absente comptée 0), limité à son propre établissement.
  */
 export const POST = createApiHandler(
   async (request, context) => {
     const session = context.session;
 
-    const { schoolId } = await request.json();
-    const targetSchoolId = schoolId || getActiveSchoolId(session);
+    const body = (await request.json().catch(() => ({}))) as { schoolId?: unknown };
+    const requested = typeof body.schoolId === "string" ? body.schoolId : null;
+    const targetSchoolId = requested || getActiveSchoolId(session);
 
     if (!targetSchoolId) {
       return NextResponse.json({ error: "schoolId requis" }, { status: 400 });
     }
+    if (!canAccessSchool(session, targetSchoolId)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
 
     try {
-      // 1. Récupérer tous les élèves actifs de l'établissement
-      const students = await prisma.studentProfile.findMany({
-        where: { schoolId: targetSchoolId, deletedAt: null },
-        include: {
-          enrollments: { where: { status: "ACTIVE" } },
-          studentAnalytics: { orderBy: { createdAt: "desc" }, take: 1 },
-        },
+      const year = await prisma.academicYear.findFirst({
+        where: { schoolId: targetSchoolId, isCurrent: true },
+        select: { id: true },
       });
-
-      const results = [];
-
-      for (const student of students) {
-        // LOGIQUE DU MOTEUR DE RISQUE
-        // - Moyenne basse (< 10) -> +40 points
-        // - Chute de moyenne (> 2 points) -> +30 points
-        // - Absences répétées (> 10% du temps) -> +30 points
-
-        const lastAnalytics = student.studentAnalytics[0];
-        const currentAvg = Number(lastAnalytics?.generalAverage || 0);
-
-        let riskScore = 0;
-        if (currentAvg < 10) riskScore += 40;
-        if (currentAvg < 8) riskScore += 20;
-
-        // Calcul déterministe (sans aléatoire) basé sur signaux académiques
-        if ((student.enrollments?.length || 0) === 0) riskScore += 10;
-        const finalScore = Math.min(100, Math.max(0, Math.round(riskScore)));
-
-        let riskLevel = "LOW";
-        if (finalScore >= 80) riskLevel = "CRITICAL";
-        else if (finalScore >= 60) riskLevel = "HIGH";
-        else if (finalScore >= 40) riskLevel = "MEDIUM";
-
-        // Mise à jour de la table StudentAnalytics (Table tampon pour la performance)
-        await prisma.studentAnalytics.updateMany({
-          where: { studentId: student.id, academicYearId: student.enrollments[0]?.academicYearId },
-          data: {
-            riskLevel: riskLevel as RiskLevel,
-            updatedAt: new Date(),
-          },
-        });
-
-        results.push({ id: student.id, score: finalScore, level: riskLevel });
+      if (!year) {
+        return NextResponse.json({ error: "Aucune année scolaire en cours" }, { status: 400 });
       }
 
-      logger.info(`Analytics recalculated for school ${targetSchoolId}: ${results.length} students processed.`);
+      const result = await syncAllStudentsForSchool(targetSchoolId, year.id);
+      logger.info(`Analytics recalculated for school ${targetSchoolId}: ${result.processed} students processed.`);
 
       return NextResponse.json({
         success: true,
-        processed: results.length,
+        processed: result.processed,
+        errors: result.errors,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("Error in nightly analytics recalculate job", error as Error);
+      logger.error("Error in analytics recalculate job", error as Error);
       return NextResponse.json({ error: "Erreur lors du calcul" }, { status: 500 });
     }
   },

@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { addMonthsClamped, roundFcfa, splitInstallments } from "@/lib/finance/money";
 
 const createPaymentPlanSchema = z.object({
   studentId: z.string().cuid(),
@@ -190,31 +191,30 @@ export const POST = createApiHandler(
       if (totalAmount.lessThan(0)) {
         totalAmount = new Decimal(0);
       }
+      // FCFA : pas de centimes. Total arrondi au franc, échéances entières dont la
+      // somme retombe EXACTEMENT sur le total (avant : 3 × 33 333,33 = 99 999,99 et
+      // le plan restait « actif » pour 0,01 FCFA).
+      const total = roundFcfa(totalAmount.toNumber());
+      const installmentAmounts = splitInstallments(total, validatedData.installments);
 
-      // Calculate installment amount
-      const installmentAmount = totalAmount.div(validatedData.installments);
-
-      // Generate installment dates (monthly)
+      // Échéances mensuelles, bornées à la fin du mois (31/01 → 28/02, pas 03/03)
       const startDate = new Date(validatedData.startDate);
-      const installmentDates = [];
-      for (let i = 0; i < validatedData.installments; i++) {
-        const dueDate = new Date(startDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
-        installmentDates.push(dueDate);
-      }
+      const installmentDates = Array.from({ length: validatedData.installments }, (_, i) =>
+        addMonthsClamped(startDate, i)
+      );
 
       // Create payment plan with installments
       const paymentPlan = await prisma.paymentPlan.create({
         data: {
           studentId: validatedData.studentId,
           feeId: validatedData.feeId,
-          totalAmount: totalAmount.toNumber(),
+          totalAmount: total,
           installments: validatedData.installments,
           paidAmount: 0,
           status: "ACTIVE",
           installmentPayments: {
-            create: installmentDates.map(dueDate => ({
-              amount: installmentAmount.toNumber(),
+            create: installmentDates.map((dueDate, i) => ({
+              amount: installmentAmounts[i],
               dueDate,
               status: "PENDING",
             })),

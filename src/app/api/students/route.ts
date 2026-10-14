@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { studentCreateSchema } from "@/lib/validations/user";
@@ -15,6 +15,7 @@ import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 /** GET /api/students — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 /** Plafond de sécurité d'un effectif de classe (?classId=) : aucune classe réelle ne l'atteint. */
@@ -31,7 +32,8 @@ export const GET = createApiHandler(
     // N19 : l'effectif d'une classe est borné par nature et ne doit jamais être
     // tronqué (appel, saisie de notes, bulletins, promotion) : plafond de sécurité
     // CLASS_ROSTER_MAX avec ?classId=, 100 pour les listes de l'établissement.
-    const listLimits = { defaultLimit: 20, maxLimit: classId ? CLASS_ROSTER_MAX : 100 };
+    const rosterScope = Boolean(classId) || session.user.role === "TEACHER";
+    const listLimits = { defaultLimit: 20, maxLimit: rosterScope ? CLASS_ROSTER_MAX : 100 };
     // Lot 3 : curseur (keyset), total sur la première page seulement.
     // L'ancien mode ?page= a été retiré au Lot 8.
     const cursorPage = getCursorParams(searchParams, listLimits);
@@ -100,6 +102,21 @@ export const GET = createApiHandler(
         some: {
           ...(classId && { classId }),
           ...(academicYearId && { academicYearId }),
+          status: "ACTIVE",
+        },
+      };
+    }
+
+    if (session.user.role === "TEACHER") {
+      const classIds = await taughtClassIds(session.user.id);
+      if (classIds.length === 0 || (classId && !classIds.includes(classId))) {
+        return emptyList();
+      }
+      const enrollmentSome = (where.enrollments as Prisma.EnrollmentListRelationFilter | undefined)?.some ?? {};
+      where.enrollments = {
+        some: {
+          ...enrollmentSome,
+          classId: classId ?? { in: classIds },
           status: "ACTIVE",
         },
       };

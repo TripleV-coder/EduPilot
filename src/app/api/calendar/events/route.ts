@@ -43,17 +43,39 @@ export const GET = createApiHandler(
       ];
     }
 
-    const events = await prisma.schoolCalendarEvent.findMany({
-      where,
-      include: {
-        academicYear: {
-          select: { name: true },
+    const [events, schoolEvents] = await Promise.all([
+      prisma.schoolCalendarEvent.findMany({
+        where,
+        include: {
+          academicYear: {
+            select: { name: true },
+          },
         },
-      },
-      orderBy: { startDate: "asc" },
-    });
+        orderBy: { startDate: "asc" },
+      }),
+      prisma.schoolEvent.findMany({
+        where: {
+          schoolId,
+          ...(roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"])
+            ? {}
+            : { isPublished: true }),
+        },
+        orderBy: { startDate: "asc" },
+        take: 200,
+      }),
+    ]);
 
-    return NextResponse.json(events);
+    const fromSchoolLife = schoolEvents.map((event) => ({
+      id: event.id,
+      title: event.title,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      type: event.type,
+      location: event.location,
+      isPublic: event.isPublished,
+    }));
+
+    return NextResponse.json([...events, ...fromSchoolLife]);
   },
   {
     requireAuth: true,

@@ -63,6 +63,10 @@ export default function AlumniPage() {
         setError(null);
         try {
             const res = await fetch("/api/alumni", { credentials: "include", cache: "no-store" });
+            if (res.status === 403) {
+                setData({ alumni: [], promotions: [], mentorCount: 0, total: 0 });
+                return;
+            }
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body.error || "Impossible de charger l'annuaire");

@@ -176,6 +176,20 @@ describe("computeStudentFeeDues", () => {
       { studentId: "a", feeId: "f1", feeName: "Inscription", remaining: 30000, dueDate: null },
     ]);
   });
+
+  it("ignore un frais facultatif sans échéancier (non souscrit)", async () => {
+    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([enrolled("a", "6E")] as never);
+    vi.mocked(prisma.fee.findMany).mockResolvedValue([
+      { id: "f1", name: "Scolarité", amount: 150000, classLevelCode: null, schoolId: "s1", academicYearId: "y1", dueDate: null, isRequired: true },
+      { id: "f2", name: "Cantine", amount: 20000, classLevelCode: null, schoolId: "s1", academicYearId: "y1", dueDate: null, isRequired: false },
+    ] as never);
+    vi.mocked(prisma.paymentPlan.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.payment.groupBy).mockResolvedValue([] as never);
+
+    expect(await computeStudentFeeDues(["a"])).toEqual([
+      { studentId: "a", feeId: "f1", feeName: "Scolarité", remaining: 150000, dueDate: null },
+    ]);
+  });
 });
 
 describe("computeStudentBalances — préremplissage du guichet", () => {

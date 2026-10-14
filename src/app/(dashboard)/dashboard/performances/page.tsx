@@ -1,5 +1,6 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { useEffect, useState } from "react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -36,6 +37,7 @@ type PerformanceStats = {
 };
 
 export default function PerformancesPage() {
+    const thresholds = useSchoolThresholds();
     const [stats, setStats] = useState<PerformanceStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -123,9 +125,9 @@ export default function PerformancesPage() {
     };
 
     const getColorForAverage = (avg: number) => {
-        if (avg >= 14) return "hsl(var(--success))";
-        if (avg >= 10) return "hsl(var(--primary))";
-        if (avg >= 8) return "hsl(var(--warning))";
+        if (avg >= thresholds.performance.veryGoodFrom) return "hsl(var(--success))";
+        if (avg >= thresholds.passingGrade) return "hsl(var(--primary))";
+        if (avg >= thresholds.performance.weakBelow) return "hsl(var(--warning))";
         return "hsl(var(--destructive))";
     };
 

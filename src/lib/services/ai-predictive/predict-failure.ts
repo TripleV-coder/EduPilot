@@ -4,7 +4,9 @@
  */
 
 import prisma from "@/lib/prisma";
-import { CONFIG, type CausalFactor } from "./types";
+import { type CausalFactor } from "./types";
+import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
+import { passingGradeForStudent } from "@/lib/academic/grading-settings";
 import { linearRegression } from "./algorithms/regression";
 
 /**
@@ -18,11 +20,26 @@ export async function predictFailureRisk(studentId: string): Promise<{
     recommendations: string[];
     causalFactors: CausalFactor[];
 }> {
+    // Paramètres de l'école : fenêtres d'observation, seuils, poids, niveaux
+    const params = await getSchoolParametersForStudent(studentId);
+    const passingGrade = await passingGradeForStudent(studentId);
+    const A = params.analysis;
+    const F = params.followUp;
+    const W = {
+        academicPerformance: A.failureWeightResults / 100,
+        attendance: A.failureWeightAttendance / 100,
+        behavior: A.failureWeightBehavior / 100,
+        homework: A.failureWeightHomework / 100,
+        weakSubjects: A.failureWeightWeakSubjects / 100,
+    };
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
     // Récupérer les données historiques
     const [studentAnalytics, attendances, incidents, homeworks] = await Promise.all([
-        // Analytics des 3 dernières périodes
+        // Analytics des 3 dernières périodes AYANT une moyenne : une période pas
+        // encore évaluée n'est pas une moyenne de 0 (sinon « moyenne critique » à tort)
         prisma.studentAnalytics.findMany({
-            where: { studentId },
+            where: { studentId, generalAverage: { not: null } },
             orderBy: { createdAt: "desc" },
             take: 3,
             include: {
@@ -38,7 +55,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
             where: {
                 studentId,
                 date: {
-                    gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+                    gte: daysAgo(A.attendanceWindowDays),
                 },
             },
         }),
@@ -48,7 +65,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
             where: {
                 studentId,
                 date: {
-                    gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000),
+                    gte: daysAgo(A.behaviorWindowDays),
                 },
             },
         }),
@@ -58,7 +75,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
             where: {
                 studentId,
                 createdAt: {
-                    gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+                    gte: daysAgo(A.attendanceWindowDays),
                 },
             },
             include: { homework: true },
@@ -78,7 +95,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
 
     // 1. Analyse de la tendance des notes (AMÉLIORÉ avec causalité)
     if (studentAnalytics.length >= 2) {
-        const grades = studentAnalytics.map(sa => Number(sa.generalAverage || 0));
+        const grades = studentAnalytics.map(sa => Number(sa.generalAverage));
         const latestAvg = grades[0];
 
         // Régression sur l'ordre chronologique (du plus ancien au plus récent) :
@@ -89,32 +106,32 @@ export async function predictFailureRisk(studentId: string): Promise<{
         const trend = trendModel.slope;
 
         // Score académique basé sur niveau absolu et tendance
-        if (latestAvg < 8) {
+        if (latestAvg < F.averageCritical) {
             academicScore = 100;
             factors.push(`Moyenne critique: ${latestAvg.toFixed(2)}/20`);
             recommendations.push("Mise en place urgente d'un soutien scolaire renforcé");
             causalFactors.push({
                 factor: "moyenne_critique",
-                weight: CONFIG.RISK_WEIGHTS.academicPerformance,
+                weight: W.academicPerformance,
                 contribution: 100,
-                description: "La moyenne est en dessous du seuil critique de 8/20",
+                description: `La moyenne est en dessous du seuil critique de ${F.averageCritical}/20`,
             });
-        } else if (latestAvg < 10) {
+        } else if (latestAvg < passingGrade) {
             academicScore = 70;
             factors.push(`Moyenne insuffisante: ${latestAvg.toFixed(2)}/20`);
             recommendations.push("Soutien scolaire recommandé");
             causalFactors.push({
                 factor: "moyenne_insuffisante",
-                weight: CONFIG.RISK_WEIGHTS.academicPerformance,
+                weight: W.academicPerformance,
                 contribution: 70,
-                description: "La moyenne est en dessous de 10/20",
+                description: `La moyenne est en dessous du seuil de réussite (${passingGrade}/20)`,
             });
-        } else if (latestAvg < 12) {
+        } else if (latestAvg < params.performance.goodFrom) {
             academicScore = 30;
         }
 
         // Analyse de la tendance
-        if (trend < -1) {
+        if (trend < -A.trendDropPoints) {
             const trendPenalty = Math.min(30, Math.abs(trend) * 15);
             academicScore = Math.min(100, academicScore + trendPenalty);
             factors.push(`Tendance à la baisse: ${trend.toFixed(2)} points/période`);
@@ -127,9 +144,9 @@ export async function predictFailureRisk(studentId: string): Promise<{
             });
         }
     } else if (studentAnalytics.length === 1) {
-        const latestAvg = Number(studentAnalytics[0].generalAverage || 10);
-        if (latestAvg < 10) {
-            academicScore = (10 - latestAvg) * 10; // 0-100 scale
+        const latestAvg = Number(studentAnalytics[0].generalAverage);
+        if (latestAvg < passingGrade) {
+            academicScore = Math.min(100, ((passingGrade - latestAvg) / Math.max(passingGrade, 1)) * 100); // 0-100
             factors.push(`Données limitées - Moyenne actuelle: ${latestAvg.toFixed(2)}/20`);
         }
     }
@@ -145,24 +162,24 @@ export async function predictFailureRisk(studentId: string): Promise<{
         attendanceScore = Math.max(0, (100 - attendanceRate) * 1.2);
         attendanceScore = Math.min(100, attendanceScore);
 
-        if (attendanceRate < 70) {
+        if (attendanceRate < F.attendanceCritical) {
             attendanceScore = 100;
             factors.push(`Assiduité critique: ${attendanceRate.toFixed(0)}%`);
             recommendations.push("Convocation urgente des parents pour absentéisme");
             causalFactors.push({
                 factor: "assiduite_critique",
-                weight: CONFIG.RISK_WEIGHTS.attendance,
+                weight: W.attendance,
                 contribution: 100,
-                description: `Taux de présence de ${attendanceRate.toFixed(0)}% (seuil critique: 70%)`,
+                description: `Taux de présence de ${attendanceRate.toFixed(0)}% (seuil critique: ${F.attendanceCritical}%)`,
             });
-        } else if (attendanceRate < 85) {
+        } else if (attendanceRate < F.attendanceWarning) {
             factors.push(`Assiduité faible: ${attendanceRate.toFixed(0)}%`);
             recommendations.push("Rencontre avec les parents pour améliorer l'assiduité");
             causalFactors.push({
                 factor: "assiduite_faible",
-                weight: CONFIG.RISK_WEIGHTS.attendance,
+                weight: W.attendance,
                 contribution: attendanceScore,
-                description: `Taux de présence de ${attendanceRate.toFixed(0)}% (recommandé: >85%)`,
+                description: `Taux de présence de ${attendanceRate.toFixed(0)}% (recommandé: >${F.attendanceWarning}%)`,
             });
         }
     }
@@ -185,7 +202,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
         recommendations.push("Suivi comportemental immédiat avec le conseiller d'éducation");
         causalFactors.push({
             factor: "incidents_critiques",
-            weight: CONFIG.RISK_WEIGHTS.behavior,
+            weight: W.behavior,
             contribution: criticalIncidents * 40,
             description: `${criticalIncidents} incident(s) de gravité critique enregistré(s)`,
         });
@@ -194,7 +211,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
         recommendations.push("Mise en place d'un contrat comportemental");
         causalFactors.push({
             factor: "incidents_graves",
-            weight: CONFIG.RISK_WEIGHTS.behavior,
+            weight: W.behavior,
             contribution: highIncidents * 20,
             description: `${highIncidents} incidents de gravité haute`,
         });
@@ -207,7 +224,7 @@ export async function predictFailureRisk(studentId: string): Promise<{
     const totalHomeworks = await prisma.homework.count({
         where: {
             dueDate: {
-                gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+                gte: daysAgo(A.homeworkWindowDays),
                 lte: new Date(),
             },
             isPublished: true,
@@ -228,24 +245,24 @@ export async function predictFailureRisk(studentId: string): Promise<{
         const submissionRate = (homeworks.length / totalHomeworks) * 100;
         homeworkScore = Math.max(0, (100 - submissionRate));
 
-        if (submissionRate < 50) {
+        if (submissionRate < A.homeworkCriticalBelow) {
             homeworkScore = 100;
             factors.push(`Très peu de devoirs rendus: ${submissionRate.toFixed(0)}%`);
             recommendations.push("Renforcer le suivi des devoirs à la maison");
             causalFactors.push({
                 factor: "devoirs_non_rendus",
-                weight: CONFIG.RISK_WEIGHTS.homework,
+                weight: W.homework,
                 contribution: 100,
-                description: `Seulement ${submissionRate.toFixed(0)}% des devoirs rendus (seuil: 50%)`,
+                description: `Seulement ${submissionRate.toFixed(0)}% des devoirs rendus (seuil: ${A.homeworkCriticalBelow}%)`,
             });
-        } else if (submissionRate < 70) {
+        } else if (submissionRate < A.homeworkWarningBelow) {
             factors.push(`Devoirs souvent non rendus: ${submissionRate.toFixed(0)}%`);
             recommendations.push("Encourager à rendre tous les devoirs");
             causalFactors.push({
                 factor: "devoirs_irreguliers",
-                weight: CONFIG.RISK_WEIGHTS.homework,
+                weight: W.homework,
                 contribution: homeworkScore,
-                description: `${submissionRate.toFixed(0)}% des devoirs rendus (recommandé: >70%)`,
+                description: `${submissionRate.toFixed(0)}% des devoirs rendus (recommandé: >${A.homeworkWarningBelow}%)`,
             });
         }
     }
@@ -258,14 +275,14 @@ export async function predictFailureRisk(studentId: string): Promise<{
 
         weakSubjectsScore = Math.min(100, weakSubjects.length * 20);
 
-        if (weakSubjects.length >= 3) {
+        if (weakSubjects.length >= A.weakSubjectsAlert) {
             factors.push(`${weakSubjects.length} matières en difficulté`);
             recommendations.push(
                 `Soutien ciblé en: ${weakSubjects.map((s) => s.subject.name).join(", ")}`
             );
             causalFactors.push({
                 factor: "matieres_faibles",
-                weight: CONFIG.RISK_WEIGHTS.weakSubjects,
+                weight: W.weakSubjects,
                 contribution: weakSubjectsScore,
                 description: `${weakSubjects.length} matières identifiées comme points faibles`,
             });
@@ -276,19 +293,19 @@ export async function predictFailureRisk(studentId: string): Promise<{
 
     // CALCUL FINAL - Probabilité pondérée avec causalité explicite
     const probability = Math.min(100, Math.round(
-        academicScore * CONFIG.RISK_WEIGHTS.academicPerformance * 100 +
-        attendanceScore * CONFIG.RISK_WEIGHTS.attendance * 100 +
-        behaviorScore * CONFIG.RISK_WEIGHTS.behavior * 100 +
-        homeworkScore * CONFIG.RISK_WEIGHTS.homework * 100 +
-        weakSubjectsScore * CONFIG.RISK_WEIGHTS.weakSubjects * 100
+        academicScore * W.academicPerformance * 100 +
+        attendanceScore * W.attendance * 100 +
+        behaviorScore * W.behavior * 100 +
+        homeworkScore * W.homework * 100 +
+        weakSubjectsScore * W.weakSubjects * 100
     ) / 100);
 
     // Déterminer le niveau de risque avec seuils calibrés
     let level: "TRÈS FAIBLE" | "FAIBLE" | "MODÉRÉ" | "ÉLEVÉ" | "TRÈS ÉLEVÉ";
-    if (probability >= 75) level = "TRÈS ÉLEVÉ";
-    else if (probability >= 55) level = "ÉLEVÉ";
-    else if (probability >= 35) level = "MODÉRÉ";
-    else if (probability >= 15) level = "FAIBLE";
+    if (probability >= A.levelVeryHigh) level = "TRÈS ÉLEVÉ";
+    else if (probability >= A.levelHigh) level = "ÉLEVÉ";
+    else if (probability >= A.levelModerate) level = "MODÉRÉ";
+    else if (probability >= A.levelLow) level = "FAIBLE";
     else level = "TRÈS FAIBLE";
 
     // Ajouter des recommandations générales si aucune spécifique

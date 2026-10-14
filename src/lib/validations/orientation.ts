@@ -38,6 +38,8 @@ export const recommendationSchema = z.object({
     "MMV",
     "TOUR",
     "HR",
+    "EA",
+    "MIA",
     "FORMATION_PRO",
     "APPRENTISSAGE",
   ]),

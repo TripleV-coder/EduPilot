@@ -12,6 +12,7 @@ const evaluationTypeUpdateSchema = z.object({
   weight: z.coerce.number().min(0).max(10).optional(),
   maxCount: z.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional(),
+  category: z.enum(["INTERROGATION", "DEVOIR", "COMPOSITION", "COMPETENCE"]).optional(),
 });
 
 export const GET = createApiHandler(async (request, context) => {
@@ -81,9 +82,52 @@ export const PATCH = createApiHandler(
     const body = await request.json();
     const validatedData = evaluationTypeUpdateSchema.parse(body);
 
-    const updatedType = await prisma.evaluationType.update({
-      where: { id },
-      data: validatedData,
+    // Le rôle du type dans la moyenne (et son code, qui sert à le reconnaître)
+    // ne change plus une fois utilisé dans une période dont le conseil est
+    // validé : les moyennes figées du bulletin ne doivent jamais bouger
+    const roleChanges =
+      (validatedData.category !== undefined && validatedData.category !== existingType.category) ||
+      (validatedData.code !== undefined && validatedData.code !== existingType.code);
+    if (roleChanges) {
+      const frozenUse = await prisma.evaluation.findFirst({
+        where: {
+          typeId: id,
+          // Prudent : toute période ayant au moins un conseil validé
+          period: { councils: { some: {} } },
+        },
+        select: { id: true },
+      });
+      if (frozenUse) {
+        return NextResponse.json(
+          {
+            error:
+              "Ce type a déjà servi dans une période dont le conseil de classe est validé : son rôle dans la moyenne ne peut plus changer. Créez un nouveau type pour la suite.",
+            code: "EVALUATION_TYPE_FROZEN",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    const updatedType = await prisma.$transaction(async (tx) => {
+      const updated = await tx.evaluationType.update({
+        where: { id },
+        data: validatedData,
+      });
+      if (roleChanges) {
+        await tx.auditLog.create({
+          data: {
+            userId: session.user.id,
+            schoolId: existingType.schoolId,
+            action: "EVALUATION_TYPE_RULE_CHANGED",
+            entity: "EvaluationType",
+            entityId: id,
+            oldValues: { code: existingType.code, category: existingType.category },
+            newValues: { code: updated.code, category: updated.category },
+          },
+        });
+      }
+      return updated;
     });
 
     return NextResponse.json(updatedType);

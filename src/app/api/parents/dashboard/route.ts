@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { computeAnnualAverages, toDisplay } from "@/lib/academic/average-engine";
+import { getGradingSettings } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
 /**
  * GET /api/parents/dashboard
@@ -50,7 +53,11 @@ export const GET = createApiHandler(
       const [allGrades, allAttendances, allHomeworkSubmissions, allIncidents] = await Promise.all([
         prisma.grade.findMany({
           where: { studentId: { in: studentIds }, deletedAt: null, createdAt: { gte: thirtyDaysAgo } },
-          include: { evaluation: { include: { classSubject: { include: { subject: true } } } } },
+          include: {
+            evaluation: {
+              include: { classSubject: { include: { subject: true } }, type: { select: { code: true, name: true, category: true } } },
+            },
+          },
         }),
         prisma.attendance.findMany({
           where: { studentId: { in: studentIds }, date: { gte: thirtyDaysAgo } },
@@ -81,17 +88,39 @@ export const GET = createApiHandler(
           const enrollment = student.enrollments[0];
 
           const grades = gradesByStudent.get(student.id) ?? [];
-          const gradesWithValues = grades.filter((g) => g.value !== null);
-          const average =
-            gradesWithValues.length > 0
-              ? gradesWithValues.reduce((sum, g) => sum + Number(g.value), 0) / gradesWithValues.length
-              : null;
+          // Règles de calcul de l'école de l'enfant
+          const childRules = await getGradingSettings(student.schoolId);
+          // Seuils d'alerte réglés par l'école (paramètres « Suivi des élèves »)
+          const childFollowUp = (await getSchoolParameters(student.schoolId)).followUp;
+          // Moyenne des 30 derniers jours : moteur unique (formule officielle, notes
+          // ramenées sur 20, coefficients de matière) — avant : moyenne brute des valeurs.
+          const recent = computeAnnualAverages(
+            grades.map((g) => ({
+              evaluationId: g.evaluationId,
+              classSubjectId: g.evaluation.classSubjectId,
+              periodId: g.evaluation.periodId,
+              value: g.value,
+              isAbsent: g.isAbsent,
+              isExcused: g.isExcused,
+              maxGrade: g.evaluation.maxGrade,
+              type: g.evaluation.type,
+            })),
+            Array.from(
+              new Map(grades.map((g) => [g.evaluation.classSubjectId, g.evaluation.classSubject.coefficient])),
+              ([id, coefficient]) => ({ id, coefficient })
+            ),
+            Array.from(new Set(grades.map((g) => g.evaluation.periodId)), (id) => ({ id })),
+            [],
+            { rules: childRules.calculation }
+          );
+          const average = toDisplay(recent.general ?? recent.provisional, childRules.calculation.rounding);
 
           const attendances = attendancesByStudent.get(student.id) ?? [];
+          // Sans appel enregistré : taux inconnu (avant : affiché 100 %)
           const attendanceRate =
             attendances.length > 0
               ? (attendances.filter((a) => a.status === "PRESENT" || a.status === "LATE").length / attendances.length) * 100
-              : 100;
+              : null;
 
           const homeworkSubmissions = submissionsByStudent.get(student.id) ?? [];
           const gradedHomework = homeworkSubmissions.filter((h) => h.grade !== null);
@@ -147,18 +176,18 @@ export const GET = createApiHandler(
                 : null,
             },
             academics: {
-              averageGrade: average ? Math.round(average * 100) / 100 : null,
-              recentGradesCount: gradesWithValues.length,
+              averageGrade: average,
+              recentGradesCount: grades.filter((g) => g.value !== null).length,
               homeworkAverage: homeworkAverage ? Math.round(homeworkAverage * 100) / 100 : null,
               homeworkSubmitted: gradedHomework.length,
               homeworkTotal: homeworkSubmissions.length,
             },
             attendance: {
-              rate: Math.round(attendanceRate * 100) / 100,
+              rate: attendanceRate === null ? null : Math.round(attendanceRate * 100) / 100,
               present: attendances.filter((a) => a.status === "PRESENT").length,
               absent: attendances.filter((a) => a.status === "ABSENT").length,
               late: attendances.filter((a) => a.status === "LATE").length,
-              isAtRisk: attendanceRate < 85,
+              isAtRisk: attendanceRate !== null && attendanceRate < childFollowUp.attendanceWarning,
             },
             behavior: {
               incidentsCount: incidents.length,
@@ -170,7 +199,7 @@ export const GET = createApiHandler(
               homeworkDue: missingHomework.length,
             },
             alerts: [
-              ...(attendanceRate < 85
+              ...(attendanceRate !== null && attendanceRate < childFollowUp.attendanceWarning
                 ? [
                     {
                       level: "warning",
@@ -178,7 +207,7 @@ export const GET = createApiHandler(
                     },
                   ]
                 : []),
-              ...(incidents.length > 3
+              ...(incidents.length >= childFollowUp.incidentsWarning
                 ? [
                     {
                       level: "warning",

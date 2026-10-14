@@ -12,6 +12,10 @@
  */
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
+import { competitionRank } from "@/lib/academic/average-engine";
+import { computeClassAnnual, computeClassPeriod } from "@/lib/academic/class-averages";
 
 export interface GradeStatsScope {
     schoolId?: string | null;
@@ -43,6 +47,10 @@ export interface RankedStudent {
     studentName: string;
     average: number;
     gradeCount: number;
+    /** Rang olympique (ex aequo = même rang). */
+    rank?: number;
+    /** false : moyenne provisoire (année en cours, période manquante ou note à justifier). */
+    complete?: boolean;
 }
 
 const FROM = Prisma.sql`
@@ -60,6 +68,8 @@ function whereClause(scope: GradeStatsScope): Prisma.Sql {
         Prisma.sql`g."isAbsent" = false`,
         Prisma.sql`g."isExcused" = false`,
         Prisma.sql`e."maxGrade" > 0`,
+        // Les évaluations de compétence ne sont pas des notes de moyenne
+        Prisma.sql`NOT EXISTS (SELECT 1 FROM "evaluation_types" et WHERE et."id" = e."typeId" AND (et."category" = 'COMPETENCE' OR lower(et."code") = 'competence'))`,
     ];
     if (scope.schoolId) conditions.push(Prisma.sql`c."schoolId" = ${scope.schoolId}`);
     if (scope.classId) conditions.push(Prisma.sql`cs."classId" = ${scope.classId}`);
@@ -108,7 +118,24 @@ function buckets(rows: AggregateRow[], key: "subject" | "type"): Record<string, 
  * chacune toutes les notes du périmètre (578 → 271 ms sur la base de l'audit,
  * 129 575 notes ; EXPLAIN : parcours déjà indexés, coût = l'agrégation).
  */
-export async function aggregateGradeStatistics(scope: GradeStatsScope): Promise<GradeAggregate> {
+export interface GradeBands {
+    /** Seuil de passage de l'école (10 par défaut). */
+    passingGrade: number;
+    /** « Excellent » à partir de (16 par défaut). */
+    excellentFrom: number;
+    /** « Très bien » à partir de (14 par défaut). */
+    veryGoodFrom: number;
+}
+export const DEFAULT_GRADE_BANDS: GradeBands = { passingGrade: 10, excellentFrom: 16, veryGoodFrom: 14 };
+
+/** Bandes de l'école : seuil de passage (règles) + niveaux (paramètres « Niveaux de performance »). */
+export async function gradeBandsForSchool(schoolId: string): Promise<GradeBands> {
+    const [passingGrade, params] = await Promise.all([getPassingGrade(schoolId), getSchoolParameters(schoolId)]);
+    return { passingGrade, excellentFrom: params.performance.excellentFrom, veryGoodFrom: params.performance.veryGoodFrom };
+}
+
+export async function aggregateGradeStatistics(scope: GradeStatsScope, bands: GradeBands = DEFAULT_GRADE_BANDS): Promise<GradeAggregate> {
+    const { passingGrade, excellentFrom, veryGoodFrom } = bands;
     const rows = await prisma.$queryRaw<AggregateRow[]>`
         WITH n AS (
             SELECT ${NORMALIZED} AS "v", s."name" AS "subject", t."name" AS "type"
@@ -125,11 +152,11 @@ export async function aggregateGradeStatistics(scope: GradeStatsScope): Promise<
             AVG("v")::float8 AS "average",
             MAX("v")::float8 AS "highest",
             MIN("v")::float8 AS "lowest",
-            COUNT(*) FILTER (WHERE "v" >= 10)::int AS "passed",
-            COUNT(*) FILTER (WHERE "v" >= 16)::int AS "excellent",
-            COUNT(*) FILTER (WHERE "v" >= 14 AND "v" < 16)::int AS "good",
-            COUNT(*) FILTER (WHERE "v" >= 10 AND "v" < 14)::int AS "fair",
-            COUNT(*) FILTER (WHERE "v" < 10)::int AS "poor"
+            COUNT(*) FILTER (WHERE "v" >= ${passingGrade})::int AS "passed",
+            COUNT(*) FILTER (WHERE "v" >= ${excellentFrom})::int AS "excellent",
+            COUNT(*) FILTER (WHERE "v" >= ${veryGoodFrom} AND "v" < ${excellentFrom})::int AS "good",
+            COUNT(*) FILTER (WHERE "v" >= ${passingGrade} AND "v" < ${veryGoodFrom})::int AS "fair",
+            COUNT(*) FILTER (WHERE "v" < ${passingGrade})::int AS "poor"
         FROM n
         GROUP BY GROUPING SETS ((), ("subject"), ("type"))`;
 
@@ -159,23 +186,92 @@ export async function averageGrade(scope: GradeStatsScope): Promise<number | nul
     return rows[0]?.average ?? null;
 }
 
-/** Classement des élèves du périmètre, meilleure moyenne d'abord. */
+/**
+ * Classement d'une classe : même calcul que le bulletin (règles de l'école,
+ * coefficients et règles gelés par le conseil, notes manquantes, élèves
+ * inscrits actifs). Sur une période : moyenne de la période ; sans période :
+ * moyenne annuelle de l'année en cours (provisoire tant qu'une période manque).
+ */
 export async function rankStudents(scope: GradeStatsScope): Promise<RankedStudent[]> {
-    const rows = await prisma.$queryRaw<
-        Array<{ studentId: string; firstName: string; lastName: string; average: number; gradeCount: number }>
-    >`
-        SELECT g."studentId" AS "studentId", u."firstName" AS "firstName", u."lastName" AS "lastName",
-               AVG(${NORMALIZED})::float8 AS "average", COUNT(*)::int AS "gradeCount"
-        ${FROM}
-        JOIN "student_profiles" sp ON sp."id" = g."studentId"
-        JOIN "users" u ON u."id" = sp."userId"
-        ${whereClause(scope)}
-        GROUP BY g."studentId", u."firstName", u."lastName"
-        ORDER BY "average" DESC, g."studentId"`;
-    return rows.map((row) => ({
-        studentId: row.studentId,
-        studentName: `${row.firstName} ${row.lastName}`,
-        average: row.average,
-        gradeCount: row.gradeCount,
-    }));
+    if (!scope.classId) return [];
+    const klass = await prisma.class.findFirst({
+        where: { id: scope.classId, ...(scope.schoolId ? { schoolId: scope.schoolId } : {}) },
+        select: {
+            schoolId: true,
+            classSubjects: {
+                where: scope.subjectId ? { subjectId: scope.subjectId } : {},
+                select: { id: true, subjectId: true, coefficient: true },
+            },
+        },
+    });
+    if (!klass || klass.classSubjects.length === 0) return [];
+
+    const period = scope.periodId
+        ? await prisma.period.findUnique({ where: { id: scope.periodId }, select: { id: true, academicYearId: true } })
+        : null;
+    if (scope.periodId && !period) return [];
+    const academicYearId =
+        period?.academicYearId ??
+        (await prisma.academicYear.findFirst({ where: { schoolId: klass.schoolId, isCurrent: true }, select: { id: true } }))?.id;
+    if (!academicYearId) return [];
+
+    let rows: Array<{ studentId: string; average: number | null; complete: boolean }>;
+    if (period) {
+        const result = await computeClassPeriod({
+            classId: scope.classId,
+            periodId: period.id,
+            academicYearId,
+            classSubjects: klass.classSubjects,
+        });
+        rows = Array.from(result.students.values()).map((st) => ({
+            studentId: st.studentId,
+            average: st.general,
+            complete: st.averages.complete,
+        }));
+    } else {
+        const result = await computeClassAnnual({ classId: scope.classId, academicYearId, classSubjects: klass.classSubjects });
+        rows = Array.from(result.students.values()).map((st) => ({
+            studentId: st.studentId,
+            average: st.general ?? st.provisional,
+            complete: st.annual.complete,
+        }));
+    }
+    const ranked = rows.filter(
+        (r): r is { studentId: string; average: number; complete: boolean } =>
+            r.average !== null && (!scope.studentIds || scope.studentIds.includes(r.studentId)),
+    );
+    if (ranked.length === 0) return [];
+
+    const ids = ranked.map((r) => r.studentId);
+    const [profiles, counts] = await Promise.all([
+        prisma.studentProfile.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, user: { select: { firstName: true, lastName: true } } },
+        }),
+        prisma.grade.groupBy({
+            by: ["studentId"],
+            where: {
+                studentId: { in: ids },
+                deletedAt: null,
+                evaluation: {
+                    classSubjectId: { in: klass.classSubjects.map((cs) => cs.id) },
+                    ...(period ? { periodId: period.id } : { period: { academicYearId } }),
+                },
+            },
+            _count: { _all: true },
+        }),
+    ]);
+    const names = new Map(profiles.map((p) => [p.id, `${p.user.firstName} ${p.user.lastName}`]));
+    const countById = new Map(counts.map((c) => [c.studentId, c._count._all]));
+    const all = ranked.map((r) => r.average);
+    return ranked
+        .map((r) => ({
+            studentId: r.studentId,
+            studentName: names.get(r.studentId) ?? r.studentId,
+            average: r.average,
+            gradeCount: countById.get(r.studentId) ?? 0,
+            rank: competitionRank(r.average, all) ?? undefined,
+            complete: r.complete,
+        }))
+        .sort((a, b) => b.average - a.average || a.studentId.localeCompare(b.studentId));
 }

@@ -9,10 +9,12 @@ import { getOwnStudentIds } from "@/lib/auth/family-scope";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
 import {
   aggregateGradeStatistics,
+  gradeBandsForSchool,
   averageGrade,
   rankStudents,
   type GradeBucket,
   type GradeStatsScope,
+  type RankedStudent,
 } from "@/lib/services/grade-statistics";
 
 /** Rôles qui voient le classement nominatif de n'importe quelle classe de leur établissement. */
@@ -106,7 +108,9 @@ export const GET = createApiHandler(
 
     // `await` indispensable : sans lui, un rejet échapperait au try/catch de la route.
     return await withCache(async () => {
-    const stats = await aggregateGradeStatistics(scope);
+    // Bandes réglées par l'école (seuil de passage, « Excellent », « Très bien »)
+    const bands = activeSchoolId ? await gradeBandsForSchool(activeSchoolId) : undefined;
+    const stats = await aggregateGradeStatistics(scope, bands);
 
     let trend: "up" | "down" | "stable" | null = null;
     if (periodId && stats.totalGrades > 0) {
@@ -153,14 +157,14 @@ export const GET = createApiHandler(
       ranking = canSeeNames
         ? {
             totalStudents: ranked.length,
-            rank: rankIndex >= 0 ? rankIndex + 1 : null,
+            rank: rankIndex >= 0 ? ranked[rankIndex].rank ?? rankIndex + 1 : null,
             topStudent: ranked[0] ?? null,
             bottomStudent: ranked[ranked.length - 1] ?? null,
             students: ranked,
           }
         : {
             totalStudents: ranked.length,
-            rank: rankIndex >= 0 ? rankIndex + 1 : null,
+            rank: rankIndex >= 0 ? ranked[rankIndex].rank ?? rankIndex + 1 : null,
             topStudent: null,
             bottomStudent: null,
           };
@@ -194,6 +198,6 @@ export const GET = createApiHandler(
   }
 );
 
-function roundRanked(student: { studentId: string; studentName: string; average: number; gradeCount: number }) {
+function roundRanked(student: RankedStudent) {
   return { ...student, average: roundTo(student.average) };
 }

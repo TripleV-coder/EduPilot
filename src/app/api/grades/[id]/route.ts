@@ -8,11 +8,18 @@ import { Permission } from "@/lib/rbac/permissions";
 import { syncAnalyticsAfterGradeChange } from "@/lib/services/analytics-sync";
 import { guardPeriodWritable } from "@/lib/academic/year-lock";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { assertNotCouncilLocked, assertSubjectTeacher, checkGradeValues, logGradeChanges } from "@/lib/academic/grade-write-guard";
+import { getGradingSettings } from "@/lib/academic/grading-settings";
+import { gradeValueSchema } from "@/lib/validations/evaluation";
 
 const gradeUpdateSchema = z.object({
-  value: z.coerce.number().min(0).max(100).optional().nullable(),
+  value: gradeValueSchema.optional().nullable(),
   isAbsent: z.boolean().optional(),
   isExcused: z.boolean().optional(),
+  excuseReason: z.string().max(300).optional().nullable(),
+  /** « Ne pas compter cette note » pour cet élève (décision de l'enseignant, motif obligatoire). */
+  excluded: z.boolean().optional(),
+  excludedReason: z.string().max(300).optional().nullable(),
   comment: z.string().optional().nullable(),
 });
 
@@ -69,7 +76,7 @@ export const PATCH = createApiHandler(
       include: {
         evaluation: {
           include: {
-            classSubject: true,
+            classSubject: { include: { teacher: { select: { userId: true } }, class: { select: { schoolId: true } } } },
           },
         },
       },
@@ -82,35 +89,63 @@ export const PATCH = createApiHandler(
     const yearLock = await guardPeriodWritable(existingGrade.evaluation.periodId);
     if (yearLock) return yearLock;
 
-    // Teachers can only update grades for their own class subjects
-    if (session.user.role === "TEACHER") {
-      const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (existingGrade.evaluation.classSubject.teacherId !== teacherProfile?.id) {
-        return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
-      }
-    }
+    // Seul l'enseignant de la matière modifie ses notes ; période figée après conseil
+    const notTeacher = assertSubjectTeacher(session, existingGrade.evaluation.classSubject);
+    if (notTeacher) return notTeacher;
+    const councilLock = await assertNotCouncilLocked(
+      existingGrade.evaluation.classSubject.classId,
+      existingGrade.evaluation.periodId
+    );
+    if (councilLock) return councilLock;
 
     const body = await request.json();
     const validatedData = gradeUpdateSchema.parse(body);
+    // État final de la note, contrôlé selon les règles de l'école (barème, pas, motif)
+    const recomposed = !validatedData.isAbsent && validatedData.value !== null && validatedData.value !== undefined;
+    const isAbsent = recomposed ? false : validatedData.isAbsent ?? existingGrade.isAbsent;
+    const isExcused = recomposed ? validatedData.isExcused ?? false : validatedData.isExcused ?? existingGrade.isExcused;
+    const excuseReason = isExcused ? (validatedData.excuseReason ?? existingGrade.excuseReason)?.trim() || null : null;
+    const schoolRules = await getGradingSettings(existingGrade.evaluation.classSubject.class.schoolId);
+    const invalidValues = checkGradeValues(
+      [{ value: validatedData.value, isAbsent, isExcused, excuseReason }],
+      Number(existingGrade.evaluation.maxGrade),
+      schoolRules
+    );
+    if (invalidValues) return invalidValues;
 
-    if (
-      validatedData.value !== null &&
-      validatedData.value !== undefined &&
-      validatedData.value > Number(existingGrade.evaluation.maxGrade)
-    ) {
-      return NextResponse.json(
-        {
-          error: `La note ne peut pas dépasser ${Number(existingGrade.evaluation.maxGrade)}`,
-        },
-        { status: 400 }
-      );
+    // Note non comptée pour cet élève : motif obligatoire, si l'école le permet
+    let excludedReason: string | null = existingGrade.excludedReason ?? null;
+    if (validatedData.excluded !== undefined) {
+      if (validatedData.excluded) {
+        if (!schoolRules.studentAdjustments) {
+          return NextResponse.json(
+            { error: "L'établissement ne permet pas d'adapter le calcul pour un élève.", code: "STUDENT_ADJUSTMENTS_DISABLED" },
+            { status: 403 }
+          );
+        }
+        excludedReason = (validatedData.excludedReason ?? "").trim() || null;
+        if (!excludedReason) {
+          return NextResponse.json(
+            { error: "Indiquez pourquoi cette note ne compte pas pour l'élève.", code: "EXCLUSION_REASON_REQUIRED" },
+            { status: 400 }
+          );
+        }
+      } else {
+        excludedReason = null;
+      }
     }
 
     const updatedGrade = await prisma.grade.update({
       where: { id },
-      data: validatedData,
+      // Absence : jamais de valeur. Recomposition : la note saisie retire l'absence.
+      data: {
+        ...(validatedData.comment !== undefined ? { comment: validatedData.comment } : {}),
+        ...(isAbsent ? { value: null } : validatedData.value !== undefined ? { value: validatedData.value } : {}),
+        isAbsent,
+        isExcused,
+        excuseReason,
+        excludedReason,
+      },
       include: {
         evaluation: true,
         student: {
@@ -123,6 +158,12 @@ export const PATCH = createApiHandler(
       },
     });
 
+    await logGradeChanges({
+      userId: session.user.id,
+      schoolId: existingGrade.evaluation.classSubject.class.schoolId,
+      evaluationId: existingGrade.evaluationId,
+      changes: [{ studentId: existingGrade.studentId, gradeId: id, before: existingGrade, after: updatedGrade }],
+    });
     await syncAnalyticsAfterGradeChange(existingGrade.evaluationId, [
       existingGrade.studentId,
     ]);
@@ -152,7 +193,7 @@ export const DELETE = createApiHandler(
       include: {
         evaluation: {
           include: {
-            classSubject: true,
+            classSubject: { include: { teacher: { select: { userId: true } }, class: { select: { schoolId: true } } } },
           },
         },
       },
@@ -165,20 +206,26 @@ export const DELETE = createApiHandler(
     const yearLock = await guardPeriodWritable(existingGrade.evaluation.periodId);
     if (yearLock) return yearLock;
 
-    // Teachers can only delete grades for their own class subjects
-    if (session.user.role === "TEACHER") {
-      const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (existingGrade.evaluation.classSubject.teacherId !== teacherProfile?.id) {
-        return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
-      }
-    }
+    // Seul l'enseignant de la matière supprime ses notes ; période figée après conseil
+    const notTeacher = assertSubjectTeacher(session, existingGrade.evaluation.classSubject);
+    if (notTeacher) return notTeacher;
+    const councilLock = await assertNotCouncilLocked(
+      existingGrade.evaluation.classSubject.classId,
+      existingGrade.evaluation.periodId
+    );
+    if (councilLock) return councilLock;
 
     // Soft-delete: set deletedAt instead of permanently removing the grade
     await prisma.grade.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+    await logGradeChanges({
+      userId: session.user.id,
+      schoolId: existingGrade.evaluation.classSubject.class.schoolId,
+      evaluationId: existingGrade.evaluationId,
+      action: "GRADE_DELETED",
+      changes: [{ studentId: existingGrade.studentId, gradeId: id, before: existingGrade, after: null }],
     });
 
     await syncAnalyticsAfterGradeChange(existingGrade.evaluationId, [
@@ -195,6 +242,8 @@ export const DELETE = createApiHandler(
   },
   {
     requireAuth: true,
-    requiredPermissions: [Permission.GRADE_DELETE],
+    // Seul l'enseignant de la matière supprime ses notes (vérifié ci-dessus) ;
+    // la permission GRADE_DELETE, réservée à la direction, ne suffisait jamais
+    allowedRoles: ["TEACHER"],
   }
 );

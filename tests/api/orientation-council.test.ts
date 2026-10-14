@@ -7,8 +7,18 @@ import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Calculs adaptés pour un élève : aucun par défaut
+    studentFormula: { findMany: vi.fn().mockResolvedValue([]) },
+    // Une seule période dans les jeux de test (semestre p1)
+    period: { findMany: vi.fn().mockResolvedValue([{ id: "p1" }]) },
     class: { findUnique: vi.fn() },
     enrollment: { findMany: vi.fn() },
+    classCouncil: { findMany: vi.fn().mockResolvedValue([]) },
+    externalPeriodAverage: { findMany: vi.fn().mockResolvedValue([]) },
+    configOption: { findFirst: vi.fn().mockResolvedValue(null) },
+    grade: { findMany: vi.fn() },
+    // Formules choisies par les enseignants (aucune : formule de l'école)
+    classSubject: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -18,7 +28,10 @@ function makeClass(overrides: Record<string, unknown> = {}) {
     name: "3ème A",
     schoolId: FIXTURES.schoolA,
     classLevel: { name: "Troisième" },
-    classSubjects: [{ id: "cs1", subject: { id: "s1", name: "Maths" } }],
+    classSubjects: [
+      { id: "cs1", coefficient: 3, subject: { id: "s1", name: "Maths" } },
+      { id: "cs2", coefficient: 2, subject: { id: "s2", name: "Français" } },
+    ],
     ...overrides,
   } as never;
 }
@@ -38,6 +51,26 @@ function makeEnrollment(
       studentOrientations: orientations,
     },
   };
+}
+
+type Enr = ReturnType<typeof makeEnrollment>;
+
+/** Même jeu de données pour l'effectif de la route et le calcul annuel de la classe. */
+function wireClass(enrollments: Enr[]) {
+  vi.mocked(prisma.enrollment.findMany).mockImplementation((async (args: { select?: unknown }) =>
+    args?.select ? enrollments.map((e) => ({ studentId: e.student.id, enrolledAt: null })) : enrollments) as never);
+  vi.mocked(prisma.grade.findMany).mockResolvedValue(
+    enrollments.flatMap((e) =>
+      (e.student.grades as Array<{ id: string; value: number; isAbsent: boolean; isExcused: boolean; evaluation: Record<string, unknown> }>).map((g) => ({
+        studentId: e.student.id,
+        evaluationId: g.id,
+        value: g.value,
+        isAbsent: g.isAbsent,
+        isExcused: g.isExcused,
+        evaluation: { ...g.evaluation, date: new Date("2026-02-01"), classSubject: { subjectId: null } },
+      }))
+    ) as never
+  );
 }
 
 describe("GET /api/orientation/council", () => {
@@ -78,11 +111,11 @@ describe("GET /api/orientation/council", () => {
   it("should compute council rows, metrics and distribution", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue(makeClass());
-    vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
+    wireClass([
       makeEnrollment("stu1", "Awa Diallo", [
-        { id: "g1", value: 17, isAbsent: false, isExcused: false, evaluation: { coefficient: 2 } },
-        { id: "g2", value: 16, isAbsent: false, isExcused: false, evaluation: { coefficient: 1 } },
-        { id: "g3", value: 15, isAbsent: false, isExcused: false, evaluation: { coefficient: 1 } },
+        { id: "g1", value: 17, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "IE", name: "Interrogation écrite" }, classSubjectId: "cs1", coefficient: 1 } },
+        { id: "g2", value: 16, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "DS", name: "Devoir surveillé" }, classSubjectId: "cs1", coefficient: 1 } },
+        { id: "g3", value: 15, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "DS", name: "Devoir surveillé" }, classSubjectId: "cs2", coefficient: 1 } },
       ], [
         {
           id: "o1",
@@ -93,8 +126,8 @@ describe("GET /api/orientation/council", () => {
         },
       ]),
       makeEnrollment("stu2", "Jean Mensah", [
-        { id: "g4", value: 8, isAbsent: false, isExcused: false, evaluation: { coefficient: 1 } },
-        { id: "g5", value: 10, isAbsent: false, isExcused: false, evaluation: { coefficient: 1, type: { name: "BEPC blanc" } } },
+        { id: "g4", value: 8, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "DS", name: "Devoir surveillé" }, classSubjectId: "cs1", coefficient: 1 } },
+        { id: "g5", value: 10, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", classSubjectId: "cs1", coefficient: 1, type: { code: "BEPC", name: "BEPC blanc" } } },
       ]),
       makeEnrollment("stu3", "Koffi Yao", [], [
         {
@@ -105,7 +138,7 @@ describe("GET /api/orientation/council", () => {
           ],
         },
       ]),
-    ] as never);
+    ]);
 
     const res = await GET(makeRequest("http://localhost/api/orientation/council?classId=cl1&academicYearId=ay1"), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
@@ -118,7 +151,8 @@ describe("GET /api/orientation/council", () => {
 
     const awa = body.students[0];
     expect(awa.name).toBe("Awa Diallo");
-    expect(awa.generalAverage).toBeCloseTo(16.25, 2);
+    // Maths : (MI 17 + D 16) / 2 = 16,5 ; Français : 15 → (16,5×3 + 15×2) / 5 = 15,9
+    expect(awa.generalAverage).toBe(15.9);
     expect(awa.bepcAverage).toBeNull();
     expect(awa.aiSeries).toBe("A1");
     expect(awa.familyWish).toBe("A2");
@@ -128,6 +162,7 @@ describe("GET /api/orientation/council", () => {
     expect(awa.hasAi).toBe(true);
 
     const jean = body.students[1];
+    // Maths : (MI 10 [BEPC blanc] + D 8) / 2 = 9
     expect(jean.generalAverage).toBe(9);
     expect(jean.bepcAverage).toBe(10);
     expect(jean.state).toBe("arbitrage");

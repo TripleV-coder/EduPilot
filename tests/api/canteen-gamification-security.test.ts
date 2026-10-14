@@ -6,6 +6,20 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/gamification/service", () => ({
   gamificationService: { unlockAchievement: vi.fn() },
 }));
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     user: { findFirst: vi.fn() },

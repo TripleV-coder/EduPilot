@@ -11,6 +11,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-shell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetcher } from "@/lib/fetcher";
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import { assessRisk } from "@/lib/schools/school-parameters";
+import type { SchoolThresholds } from "@/lib/schools/school-thresholds";
 
 type RiskMode = "dropout" | "failure";
 
@@ -22,7 +25,7 @@ type AnalyticsStudent = {
     averageGrade: number | null;
     attendanceRate: number | null;
     absenceCount: number;
-    riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+    riskLevel: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
 };
 
 type BehaviorIncidentItem = {
@@ -67,31 +70,32 @@ function extractCollection<T>(payload: unknown, keys: string[]): T[] {
     return [];
 }
 
-function toRiskStatus(score: number): RiskRow["status"] {
-    if (score >= 80) return "CRITICAL";
-    if (score >= 60) return "HIGH";
-    if (score >= 40) return "MEDIUM";
-    return "LOW";
+const SEVERITY: Record<RiskRow["status"], number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+const STATUS_LABEL: Record<RiskRow["status"], string> = { CRITICAL: "Critique", HIGH: "Élevé", MEDIUM: "Modéré", LOW: "Faible" };
+
+/**
+ * Niveau OFFICIEL de l'élève : celui des analyses enregistrées (calculées
+ * avec les seuils de l'école) ; à défaut, le même calcul sur les données
+ * affichées. Les points affichés viennent de ce calcul unique — plus de
+ * formule propre à l'écran, plus de « plancher » artificiel.
+ */
+function officialRisk(analytics: AnalyticsStudent, incidentsCount: number, t: SchoolThresholds): { score: number; status: RiskRow["status"] } {
+    const computed = assessRisk(analytics.averageGrade, analytics.attendanceRate, incidentsCount, t.followUp, t.passingGrade);
+    const stored = analytics.riskLevel;
+    const level = stored ?? computed.level;
+    return { score: computed.score, status: level === "NONE" ? "LOW" : level };
 }
 
-function scoreWithRiskFloor(score: number, riskLevel: AnalyticsStudent["riskLevel"]): number {
-    if (riskLevel === "CRITICAL") return Math.max(score, 85);
-    if (riskLevel === "HIGH") return Math.max(score, 70);
-    if (riskLevel === "MEDIUM") return Math.max(score, 45);
-    return score;
-}
-
-function computeRiskScore(mode: RiskMode, analytics: AnalyticsStudent, incidentsCount: number): number {
-    const attendance = analytics.attendanceRate ?? 100;
-    const average = analytics.averageGrade ?? 20;
-    const absences = analytics.absenceCount ?? 0;
-
-    const rawScore = mode === "dropout"
-        ? ((100 - attendance) * 0.55) + (absences * 5) + (incidentsCount * 8)
-        : ((20 - average) * 5) + ((100 - attendance) * 0.2) + (incidentsCount * 4);
-
-    const boundedScore = Math.max(0, Math.min(100, Math.round(rawScore)));
-    return scoreWithRiskFloor(boundedScore, analytics.riskLevel);
+/** Tri : niveau d'abord, puis le critère du tableau (assiduité ou moyenne), une donnée absente en dernier. */
+function compareRows(mode: RiskMode) {
+    return (left: RiskRow, right: RiskRow) => {
+        const bySeverity = SEVERITY[right.status] - SEVERITY[left.status];
+        if (bySeverity !== 0) return bySeverity;
+        const key = mode === "dropout" ? "attendanceRate" : "averageGrade";
+        const a = left[key] ?? Number.POSITIVE_INFINITY;
+        const b = right[key] ?? Number.POSITIVE_INFINITY;
+        return a - b || right.score - left.score;
+    };
 }
 
 function statusTone(status: RiskRow["status"]): string {
@@ -102,6 +106,7 @@ function statusTone(status: RiskRow["status"]): string {
 }
 
 export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: StudentRiskBoardProps) {
+    const thresholds = useSchoolThresholds();
     const [classFilter, setClassFilter] = useState<string>("ALL");
 
     const { data: analyticsPayload, isLoading: analyticsLoading } = useSWR<AnalyticsStudent[]>(
@@ -131,7 +136,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                 const classId = entry.classId ?? "UNASSIGNED";
                 const className = entry.className ?? "Non assignée";
                 const incidentsCount = incidentsByStudent[entry.studentId] || 0;
-                const score = computeRiskScore(mode, entry, incidentsCount);
+                const { score, status } = officialRisk(entry, incidentsCount, thresholds);
 
                 return {
                     studentId: entry.studentId,
@@ -143,11 +148,11 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                     absenceCount: entry.absenceCount,
                     incidentsCount,
                     score,
-                    status: toRiskStatus(score),
+                    status,
                 };
             })
-            .sort((left, right) => right.score - left.score);
-    }, [analytics, incidents, mode]);
+            .sort(compareRows(mode));
+    }, [analytics, incidents, mode, thresholds]);
 
     const rows = useMemo(
         () => allRows.filter((row) => classFilter === "ALL" || row.classId === classFilter),
@@ -168,16 +173,18 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
         [allRows]
     );
 
-    const highRiskCount = rows.filter((row) => row.score >= 60).length;
-    const criticalCount = rows.filter((row) => row.score >= 80).length;
+    const highRiskCount = rows.filter((row) => row.status === "HIGH" || row.status === "CRITICAL").length;
+    const criticalCount = rows.filter((row) => row.status === "CRITICAL").length;
     // Seuls les élèves dont l'assiduité est mesurée comptent (null n'est pas 0 %).
     const measuredAttendance = rows.filter((row) => row.attendanceRate !== null);
     const averageAttendance = measuredAttendance.length > 0
         ? Math.round(measuredAttendance.reduce((sum, row) => sum + (row.attendanceRate ?? 0), 0) / measuredAttendance.length)
         : null;
-    const averageGrade = rows.length > 0
-        ? Number((rows.reduce((sum, row) => sum + (row.averageGrade ?? 0), 0) / rows.length).toFixed(1))
-        : 0;
+    // Seuls les élèves qui ont une moyenne comptent (une moyenne absente n'est pas 0/20).
+    const graded = rows.filter((row) => row.averageGrade !== null);
+    const averageGrade = graded.length > 0
+        ? Number((graded.reduce((sum, row) => sum + (row.averageGrade ?? 0), 0) / graded.length).toFixed(1))
+        : null;
 
     const columns = useMemo<ColumnDef<RiskRow>[]>(
         () => [
@@ -219,7 +226,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                 accessorKey: "score",
                 header: ({ column }) => (
                     <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                        Score
+                        Points de risque
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
@@ -227,7 +234,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
                     <div className="flex items-center gap-2">
                         <span className="font-semibold">{row.original.score}</span>
                         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase ${statusTone(row.original.status)}`}>
-                            {row.original.status}
+                            {STATUS_LABEL[row.original.status]}
                         </span>
                     </div>
                 ),
@@ -248,7 +255,7 @@ export function StudentRiskBoard({ mode, title, description, breadcrumbLabel }: 
     const loading = analyticsLoading || incidentsLoading;
     const leadingMetric = mode === "dropout"
         ? { title: "Assiduité moyenne", value: averageAttendance === null ? "—" : `${averageAttendance} %`, icon: UserX }
-        : { title: "Moyenne moyenne", value: `${averageGrade}/20`, icon: BookX };
+        : { title: "Moyenne moyenne", value: averageGrade === null ? "—" : `${String(averageGrade).replace(".", ",")}/20`, icon: BookX };
 
     return (
         <div className="space-y-6">

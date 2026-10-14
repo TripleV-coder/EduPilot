@@ -24,10 +24,15 @@ describe("GET /api/admin/curriculum-config", () => {
     expect(res.status).toBe(401);
   });
 
-  it("should forbid non-SUPER_ADMIN roles", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+  it("la direction peut lire le programme ; les autres rôles sont refusés", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     const res = await GET(makeRequest("http://localhost/api/admin/curriculum-config?classId=c1"));
     expect(res.status).toBe(403);
+
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([] as never);
+    const allowed = await GET(makeRequest("http://localhost/api/admin/curriculum-config?classId=c1"));
+    expect(allowed.status).toBe(200);
   });
 
   it("should return 400 when classId missing", async () => {

@@ -394,6 +394,8 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.ATTENDANCE_READ,
     Permission.ATTENDANCE_CREATE,
     Permission.ATTENDANCE_UPDATE,
+    Permission.INCIDENT_READ,
+    Permission.INCIDENT_CREATE,
     Permission.CANTEEN_READ,
     Permission.LIBRARY_READ,
   ],

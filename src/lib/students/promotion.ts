@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
+import { computeClassAnnual } from "@/lib/academic/class-averages";
+import { getGradingSettings, getPassingGrade } from "@/lib/academic/grading-settings";
 
 /**
  * Moteur de promotion de fin d'année.
@@ -214,6 +216,17 @@ export async function promoteClass(params: {
     });
   }
 
+  // Rachat : passer un élève dont la moyenne annuelle est sous le seuil de
+  // passage n'est possible qu'APRÈS le conseil de classe de fin d'année, et
+  // seulement si l'établissement a activé l'option (décision du 2026-10-02)
+  const rescued = await checkRescues({
+    schoolId,
+    classId: sourceClassId,
+    academicYearId: currentYear.id,
+    promotedIds: decisions.filter((d) => d.decision === "PROMOTE").map((d) => d.studentId),
+    names: new Map(sourceEnrollments.map((e) => [e.studentId, `${e.student.user.firstName} ${e.student.user.lastName}`])),
+  });
+
   const ops = planPromotion(
     { sourceClassId, targetClassId, hasNextLevel: Boolean(nextLevel), students },
     decisions
@@ -299,6 +312,7 @@ export async function promoteClass(params: {
           repeated: result.repeated,
           left: result.left,
           skipped: result.skipped.length,
+          rescued,
         } as Prisma.InputJsonValue,
       },
     });
@@ -312,4 +326,58 @@ export async function promoteClass(params: {
 
   logger.info("Promotion de classe exécutée", { schoolId, sourceClassId, ...result, skipped: result.skipped.length });
   return result;
+}
+
+/**
+ * Contrôle des rachats : un élève promu avec une moyenne annuelle (officielle,
+ * ou provisoire si une période manque) inférieure au seuil de passage est un
+ * rachat. Refusé si l'option est désactivée ou si le conseil de classe de la
+ * dernière période n'est pas validé. Renvoie les élèves rachetés (journal).
+ */
+async function checkRescues(params: {
+  schoolId: string;
+  classId: string;
+  academicYearId: string;
+  promotedIds: string[];
+  names: Map<string, string>;
+}): Promise<Array<{ studentId: string; average: number }>> {
+  if (params.promotedIds.length === 0) return [];
+  const classSubjects = await prisma.classSubject.findMany({
+    where: { classId: params.classId },
+    select: { id: true, subjectId: true, coefficient: true },
+  });
+  const [annual, passingGrade] = await Promise.all([
+    computeClassAnnual({ classId: params.classId, academicYearId: params.academicYearId, classSubjects }),
+    getPassingGrade(params.schoolId),
+  ]);
+  const rescued: Array<{ studentId: string; average: number }> = [];
+  for (const id of params.promotedIds) {
+    const row = annual.students.get(id);
+    const average = row ? row.general ?? row.provisional : null;
+    if (average !== null && average < passingGrade) rescued.push({ studentId: id, average });
+  }
+  if (rescued.length === 0) return [];
+
+  const list = rescued
+    .map((r) => `${params.names.get(r.studentId) ?? r.studentId} (${String(r.average).replace(".", ",")})`)
+    .join(", ");
+  const settings = await getGradingSettings(params.schoolId);
+  if (!settings.rescueAfterCouncil) {
+    throw new PromotionError(
+      `Moyenne annuelle sous le seuil de passage (${passingGrade}) : ${list}. Le rachat n'est pas activé dans les règles de l'établissement.`,
+    );
+  }
+  const lastPeriod = annual.periods[annual.periods.length - 1];
+  const council = lastPeriod
+    ? await prisma.classCouncil.findUnique({
+        where: { classId_periodId: { classId: params.classId, periodId: lastPeriod.id } },
+        select: { validatedAt: true },
+      })
+    : null;
+  if (!council) {
+    throw new PromotionError(
+      `Rachat demandé pour ${list} : il n'est possible qu'après la validation du conseil de classe de fin d'année.`,
+    );
+  }
+  return rescued;
 }

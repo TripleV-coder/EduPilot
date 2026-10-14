@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("bcryptjs", () => ({ default: { compare: vi.fn() } }));
+vi.mock("@/lib/auth/password", () => ({ default: { compare: vi.fn() } }));
 
 vi.mock("@/lib/auth/account-lockout", () => ({
   isAccountLocked: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock("@/lib/auth/school-access", () => ({
 
 vi.mock("@/lib/utils/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import prisma from "@/lib/prisma";
 import { isAccountLocked, recordFailedLoginAttempt, resetFailedLoginAttempts } from "@/lib/auth/account-lockout";
 import { verifyToken, findMatchingBackupCode } from "@/lib/auth/two-factor";

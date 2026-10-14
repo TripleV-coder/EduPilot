@@ -6,6 +6,8 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getOwnStudentIds } from "@/lib/auth/family-scope";
+import { countsInAverage } from "@/lib/academic/average-engine";
+import { studentAveragesSummary } from "@/lib/academic/class-averages";
 
 /**
  * GET /api/grades
@@ -82,7 +84,7 @@ export const GET = createApiHandler(async (request, { session }) => {
                             },
                         },
                         period: { select: { id: true, name: true } },
-                        type: { select: { id: true, name: true } },
+                        type: { select: { id: true, name: true, code: true, category: true } },
                     },
                 },
             },
@@ -113,6 +115,10 @@ export const GET = createApiHandler(async (request, { session }) => {
         // Transform to the format the frontend expects
         const data = grades.map((g) => ({
             id: g.id,
+            evaluationId: g.evaluationId,
+            studentId: g.studentId,
+            // Évaluation de compétence : affichée, jamais comptée dans les moyennes
+            countsInAverage: countsInAverage(g.evaluation.type),
             value: g.value !== null ? Number(g.value) : null,
             maxValue: Number(g.evaluation.maxGrade),
             isAbsent: g.isAbsent,
@@ -124,10 +130,17 @@ export const GET = createApiHandler(async (request, { session }) => {
             period: g.evaluation.period,
             class: g.evaluation.classSubject.class,
             coefficient: Number(g.evaluation.coefficient),
-            classAverage: avgMap.get(g.evaluationId) || null,
+            classSubjectId: g.evaluation.classSubjectId,
+            subjectCoefficient: Number(g.evaluation.classSubject.coefficient),
+            classAverage: avgMap.get(g.evaluationId) ?? null,
         }));
 
-        return NextResponse.json({ data });
+        // Un seul élève : ses moyennes exactement comme au bulletin (règles de
+        // l'école, coefficients gelés…) — les vues famille n'ont rien à recalculer
+        const singleStudent = studentId ?? (ownIds && ownIds.length === 1 ? ownIds[0] : null);
+        const summary = singleStudent ? await studentAveragesSummary(singleStudent) : null;
+
+        return NextResponse.json({ data, summary });
     } catch (error) {
         logger.error("Error fetching grades", error as Error);
         return NextResponse.json({ error: "Erreur lors du chargement des notes" }, { status: 500 });

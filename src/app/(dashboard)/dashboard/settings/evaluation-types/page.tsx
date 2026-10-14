@@ -34,11 +34,22 @@ import { toast } from "sonner";
 
  
 
+type Category = "INTERROGATION" | "DEVOIR" | "COMPOSITION" | "COMPETENCE";
+
+/** Rôle du type dans le calcul des moyennes, en mots simples. */
+const CATEGORIES: Array<{ value: Category; label: string; help: string }> = [
+    { value: "INTERROGATION", label: "Interrogation", help: "Entre dans la moyenne des interrogations (MI)." },
+    { value: "DEVOIR", label: "Devoir", help: "Compte comme un devoir à côté de la MI." },
+    { value: "COMPOSITION", label: "Composition", help: "Compte comme un devoir, ou à part selon la formule de l'établissement." },
+    { value: "COMPETENCE", label: "Compétence", help: "Grille de compétences seulement : ne compte jamais dans les moyennes." },
+];
+const categoryLabel = (c: Category) => CATEGORIES.find((x) => x.value === c)?.label ?? c;
+
 type EvaluationType = {
     id: string;
     name: string;
     code: string;
-    weight: number;
+    category: Category;
     maxCount: number | null;
     isActive: boolean;
 };
@@ -46,18 +57,18 @@ type EvaluationType = {
 type FormData = {
     name: string;
     code: string;
-    weight: string;
+    category: Category;
     maxCount: string;
 };
 
 type EvaluationTypePayload = {
     name: string;
     code: string;
-    weight: number;
+    category: Category;
     maxCount?: number;
 };
 
-const EMPTY_FORM: FormData = { name: "", code: "", weight: "1", maxCount: "" };
+const EMPTY_FORM: FormData = { name: "", code: "", category: "INTERROGATION", maxCount: "" };
 
 async function errorMessage(res: Response, fallback: string): Promise<string> {
     const body = await res.json().catch(() => null);
@@ -88,7 +99,7 @@ export default function EvaluationTypesPage() {
         setForm({
             name: t.name,
             code: t.code,
-            weight: String(t.weight),
+            category: t.category,
             maxCount: t.maxCount ? String(t.maxCount) : "",
         });
         setFormErrors({});
@@ -100,8 +111,6 @@ export default function EvaluationTypesPage() {
         if (!form.name.trim() || form.name.trim().length < 2) errs.name = "Min. 2 caractères";
         if (!form.code.trim()) errs.code = "Le code est requis";
         if (form.code.trim().length > 10) errs.code = "Max. 10 caractères";
-        const w = Number(form.weight);
-        if (isNaN(w) || w < 0.1 || w > 10) errs.weight = "Entre 0.1 et 10";
         if (form.maxCount.trim()) {
             const mc = Number(form.maxCount);
             if (isNaN(mc) || mc < 1 || !Number.isInteger(mc)) errs.maxCount = "Entier positif requis";
@@ -117,7 +126,7 @@ export default function EvaluationTypesPage() {
             const payload: EvaluationTypePayload = {
                 name: form.name.trim(),
                 code: form.code.trim(),
-                weight: Number(form.weight),
+                category: form.category,
             };
             if (form.maxCount.trim()) {
                 payload.maxCount = Number(form.maxCount);
@@ -241,7 +250,7 @@ export default function EvaluationTypesPage() {
                                     <TableRow>
                                         <TableHead className="w-[250px]">Libellé</TableHead>
                                         <TableHead>Code</TableHead>
-                                        <TableHead>Poids (Coeff.)</TableHead>
+                                        <TableHead>Rôle dans la moyenne</TableHead>
                                         <TableHead>Nb max</TableHead>
                                         <TableHead>Statut</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -260,7 +269,7 @@ export default function EvaluationTypesPage() {
                                                 <Badge variant="outline" className="font-mono text-xs">{type.code}</Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary" className="font-mono">x {Number(type.weight)}</Badge>
+                                                <Badge variant="secondary">{categoryLabel(type.category)}</Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
                                                 {type.maxCount ?? "—"}
@@ -340,17 +349,20 @@ export default function EvaluationTypesPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="eval-weight">Coefficient (poids)</Label>
-                                <Input
-                                    id="eval-weight"
-                                    type="number"
-                                    step="0.5"
-                                    min="0.1"
-                                    max="10"
-                                    value={form.weight}
-                                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                                />
-                                {formErrors.weight && <p className="text-xs text-destructive">{formErrors.weight}</p>}
+                                <Label htmlFor="eval-category">Rôle dans la moyenne</Label>
+                                <select
+                                    id="eval-category"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    value={form.category}
+                                    onChange={(e) => setForm({ ...form, category: e.target.value as Category })}
+                                >
+                                    {CATEGORIES.map((c) => (
+                                        <option key={c.value} value={c.value}>{c.label}</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    {CATEGORIES.find((c) => c.value === form.category)?.help}
+                                </p>
                             </div>
 
                             <div className="space-y-2">

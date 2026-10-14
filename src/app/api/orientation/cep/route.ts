@@ -1,71 +1,50 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { calculateWeightedAverage } from "@/lib/utils/grades";
+import { computeAnnualAverages, gradedEvaluations, toDisplay, type GradeRecord } from "@/lib/academic/average-engine";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { computeClassAnnual } from "@/lib/academic/class-averages";
+import { getGradingSettings, mentionFor, type MentionScale } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
 const ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 
 type Variant = "success" | "info" | "neutral" | "warning" | "danger";
 
-function pronosticFromAvg(avg: number | null): {
+/**
+ * Pronostic CEP selon les règles de l'école : mention tirée du barème de
+ * l'établissement, aptitude à partir du seuil d'admission réglé (10 par défaut).
+ */
+function pronosticFromAvg(
+    avg: number | null,
+    passMark: number,
+    mentions: MentionScale
+): {
     label: string;
     variant: Variant;
     aptForGrade6: boolean;
     needsReinforcement: boolean;
 } {
     if (avg === null) {
-        return {
-            label: "À évaluer",
-            variant: "neutral",
-            aptForGrade6: false,
-            needsReinforcement: true,
-        };
+        return { label: "À évaluer", variant: "neutral", aptForGrade6: false, needsReinforcement: true };
     }
-    if (avg >= 16)
-        return {
-            label: "Très Bien",
-            variant: "success",
-            aptForGrade6: true,
-            needsReinforcement: false,
-        };
-    if (avg >= 14)
-        return {
-            label: "Bien",
-            variant: "success",
-            aptForGrade6: true,
-            needsReinforcement: false,
-        };
-    if (avg >= 12)
-        return {
-            label: "Passable",
-            variant: "info",
-            aptForGrade6: true,
-            needsReinforcement: false,
-        };
-    if (avg >= 10)
-        return {
-            label: "Risque échec",
-            variant: "warning",
-            aptForGrade6: false,
-            needsReinforcement: true,
-        };
-    return {
-        label: "Échec probable",
-        variant: "danger",
-        aptForGrade6: false,
-        needsReinforcement: true,
-    };
+    const apt = avg >= passMark;
+    const label = mentionFor(avg, mentions) ?? "—";
+    if (avg >= passMark + 4) return { label, variant: "success", aptForGrade6: true, needsReinforcement: false };
+    if (apt) return { label, variant: "info", aptForGrade6: true, needsReinforcement: false };
+    if (avg >= passMark - 2) return { label, variant: "warning", aptForGrade6: false, needsReinforcement: true };
+    return { label, variant: "danger", aptForGrade6: false, needsReinforcement: true };
 }
 
-function recommendationFromAvg(avg: number | null): string {
+/** Recommandation : paliers 14 / 12 / 10 / 8 au seuil par défaut de 10, décalés avec le seuil de l'école. */
+function recommendationFromAvg(avg: number | null, passMark: number): string {
     if (avg === null) return "Évaluation à compléter";
-    if (avg >= 14) return "Apte 6ᵉ";
-    if (avg >= 12) return "Apte 6ᵉ · revision conseillée";
-    if (avg >= 10) return "Soutien · vacances";
-    if (avg >= 8) return "Soutien intensif";
-    return "Redoublement conseillé";
+    if (avg >= passMark + 4) return "Apte 6ᵉ";
+    if (avg >= passMark + 2) return "Apte 6ᵉ · révision conseillée";
+    if (avg >= passMark) return "Soutien · vacances";
+    if (avg >= passMark - 2) return "Soutien intensif";
+    return "Redoublement à étudier";
 }
 
 // Subject-name heuristic for CEP pillars
@@ -133,6 +112,8 @@ export const GET = createApiHandler(async (request, context) => {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
+        const schoolRules = await getGradingSettings(klass.schoolId);
+
         // Build a map classSubjectId → CEP pillar bucket
         const csBucket = new Map<string, "lecture" | "calcul" | "dictee">();
         for (const cs of klass.classSubjects) {
@@ -151,8 +132,12 @@ export const GET = createApiHandler(async (request, context) => {
                     include: {
                         user: { select: { firstName: true, lastName: true } },
                         grades: {
+                            where: {
+                                deletedAt: null,
+                                evaluation: { period: { academicYearId } },
+                            },
                             include: {
-                                evaluation: { include: { classSubject: true } },
+                                evaluation: { include: { classSubject: true, type: true } },
                             },
                         },
                     },
@@ -160,44 +145,64 @@ export const GET = createApiHandler(async (request, context) => {
             },
         });
 
-        const rows = enrollments.map((e) => {
-            const student = e.student;
-            const allGrades = student.grades.map((g) => ({
+        // Périodes de l'année : (S1 + S2) / 2 ou (T1 + T2 + T3) / 3
+        const yearPeriods = await prisma.period.findMany({
+            where: { academicYearId },
+            select: { id: true },
+            orderBy: { sequence: "asc" },
+        });
+        const toRecords = (grades: (typeof enrollments)[number]["student"]["grades"]): GradeRecord[] =>
+            grades.map((g) => ({
+                evaluationId: g.evaluationId,
+                classSubjectId: g.evaluation.classSubjectId,
+                periodId: g.evaluation.periodId,
                 value: g.value,
-                coefficient: g.evaluation.coefficient,
                 isAbsent: g.isAbsent,
                 isExcused: g.isExcused,
+                deletedAt: g.deletedAt,
+                maxGrade: g.evaluation.maxGrade,
+                type: g.evaluation.type,
             }));
-            const generalAverage = calculateWeightedAverage(allGrades);
+        const expected = gradedEvaluations(enrollments.flatMap((e) => toRecords(e.student.grades)));
+        // Moyenne générale annuelle : exactement celle du bulletin (règles de l'école,
+        // coefficients et règles gelés par les conseils, moyennes d'origine des transférés)
+        const classAnnual = await computeClassAnnual({
+            classId,
+            academicYearId,
+            classSubjects: klass.classSubjects.map((cs) => ({ id: cs.id, subjectId: cs.subjectId, coefficient: cs.coefficient })),
+        });
+        const rules = schoolRules.calculation;
 
-            // Per-pillar grades
-            const lectureGrades: typeof allGrades = [];
-            const calculGrades: typeof allGrades = [];
-            const dicteeGrades: typeof allGrades = [];
-            for (const g of student.grades) {
-                const bucket = csBucket.get(g.evaluation.classSubjectId);
-                const item = {
-                    value: g.value,
-                    coefficient: g.evaluation.coefficient,
-                    isAbsent: g.isAbsent,
-                    isExcused: g.isExcused,
-                };
-                if (bucket === "lecture") lectureGrades.push(item);
-                else if (bucket === "calcul") calculGrades.push(item);
-                else if (bucket === "dictee") dicteeGrades.push(item);
-            }
+        const rows = enrollments.map((e) => {
+            const student = e.student;
+            // Moteur unique : formule officielle, calcul exact, moyenne annuelle
+            const records = toRecords(student.grades);
+            const subjectsOf = (bucket?: "lecture" | "calcul" | "dictee") =>
+                klass.classSubjects
+                    .filter((cs) => bucket === undefined || csBucket.get(cs.id) === bucket)
+                    .map((cs) => ({ id: cs.id, coefficient: cs.coefficient }));
+            // Piliers CEP (lecture, calcul, dictée) : même moteur, règles de l'école
+            const averageOf = (bucket: "lecture" | "calcul" | "dictee") => {
+                const annual = computeAnnualAverages(records, subjectsOf(bucket), yearPeriods, expected, { rules });
+                return toDisplay(annual.general ?? annual.provisional, rules.rounding);
+            };
 
-            const lecture = calculateWeightedAverage(lectureGrades);
-            const calcul = calculateWeightedAverage(calculGrades);
-            const dictee = calculateWeightedAverage(dicteeGrades);
+            const overall = classAnnual.students.get(student.id);
+            const generalAverage = overall ? overall.general ?? overall.provisional : null;
+            const averageIsProvisional = !overall || overall.general === null || !overall.annual.complete;
+            const lecture = averageOf("lecture");
+            const calcul = averageOf("calcul");
+            const dictee = averageOf("dictee");
 
-            const pronostic = pronosticFromAvg(generalAverage);
-            const recommendation = recommendationFromAvg(generalAverage);
+            const pronostic = pronosticFromAvg(generalAverage, schoolRules.cepPassMark, schoolRules.mentions);
+            const recommendation = recommendationFromAvg(generalAverage, schoolRules.cepPassMark);
 
             return {
                 studentId: student.id,
                 name: `${student.user.firstName} ${student.user.lastName}`,
                 generalAverage,
+                averageIsProvisional,
+                missingGrades: overall?.annual.missing.length ?? 0,
                 lecture,
                 calcul,
                 dictee,
@@ -214,8 +219,11 @@ export const GET = createApiHandler(async (request, context) => {
 
         const total = rows.length;
         const apt = rows.filter((r) => r.pronostic.aptForGrade6).length;
+        // Élèves projetés au seuil « mention Bien » réglé par l'école (14 par défaut),
+        // compté sur la moyenne et non sur un libellé que l'école peut renommer
+        const { cepMentionGoodFrom } = (await getSchoolParameters(klass.schoolId)).exams;
         const mentionBien = rows.filter(
-            (r) => r.pronostic.label === "Bien" || r.pronostic.label === "Très Bien"
+            (r) => r.generalAverage !== null && r.generalAverage >= cepMentionGoodFrom
         ).length;
         const toReinforce = rows.filter((r) => r.pronostic.needsReinforcement).length;
         const successRateEstimate =
@@ -232,9 +240,9 @@ export const GET = createApiHandler(async (request, context) => {
                 candidatesCount: total,
                 successRateEstimate,
                 mentionBienProjected: mentionBien,
+                mentionBienFrom: cepMentionGoodFrom,
                 toReinforce,
-                decInscriptionsSent: total,
-                decInscriptionsTotal: total,
+                passMark: schoolRules.cepPassMark,
             },
             students: rows,
             cyclesInfo: [
@@ -269,3 +277,39 @@ export const GET = createApiHandler(async (request, context) => {
     }
 
 });
+
+/** Inscrit les élèves actifs de la classe à la session CEP. */
+export const POST = createApiHandler(
+    async (request, { session }) => {
+        const schoolId = getActiveSchoolId(session);
+        const body = await request.json().catch(() => ({}));
+        const classId = String(body.classId ?? "");
+        const academicYearId = String(body.academicYearId ?? "");
+        if (!classId || !academicYearId) {
+            return NextResponse.json({ error: "classId et academicYearId sont requis" }, { status: 400 });
+        }
+        const klass = await prisma.class.findFirst({
+            where: { id: classId, ...(schoolId ? { schoolId } : {}) },
+            select: {
+                classLevelId: true,
+                enrollments: { where: { status: "ACTIVE" }, select: { studentId: true } },
+            },
+        });
+        if (!klass) return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
+        let enrolled = 0;
+        for (const enrollment of klass.enrollments) {
+            await prisma.studentOrientation.upsert({
+                where: { studentId_academicYearId: { studentId: enrollment.studentId, academicYearId } },
+                create: {
+                    studentId: enrollment.studentId,
+                    academicYearId,
+                    classLevelId: klass.classLevelId,
+                },
+                update: {},
+            });
+            enrolled += 1;
+        }
+        return NextResponse.json({ enrolled }, { status: 201 });
+    },
+    { allowedRoles: ROLES },
+);

@@ -98,6 +98,7 @@ const CHANNEL_GUIDANCE: {
 export default function WhatsAppPage() {
     const [status, setStatus] = useState<ChannelStatus | null>(null);
     const [loading, setLoading] = useState(true);
+    const [verifyOpen, setVerifyOpen] = useState(false);
 
     useEffect(() => {
         fetch("/api/integrations/whatsapp")
@@ -221,7 +222,15 @@ export default function WhatsAppPage() {
                                                 flexWrap: "wrap",
                                             }}
                                         >
-                                            <Button icon="sparkle">Démarrer la vérification</Button>
+                                            <Button icon="sparkle" onClick={() => setVerifyOpen(true)}>Démarrer la vérification</Button>
+                                            {verifyOpen ? (
+                                                <div role="dialog" aria-label="Vérification WhatsApp" className="w-full text-sm">
+                                                    WhatsApp Business n&apos;est pas configuré. Aucun fournisseur (Twilio, 360dialog ou Meta) n&apos;est relié à cet établissement.
+                                                    <div className="mt-2">
+                                                        <Button type="button" variant="secondary" onClick={() => setVerifyOpen(false)}>Fermer</Button>
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                             <Button variant="secondary" icon="info">
                                                 Documentation Meta
                                             </Button>

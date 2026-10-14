@@ -1,38 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { calculateWeightedAverage } from "@/lib/utils/grades";
+import { studentAveragesSummary } from "@/lib/academic/class-averages";
 import { computeIndicativeRecommendations } from "@/lib/services/orientation";
 import { logger } from "@/lib/utils/logger";
-import type { RecommendedSeries } from "@prisma/client";
+import { seriesShortLabel as seriesLabel } from "@/lib/benin/series";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
-function seriesLabel(s: RecommendedSeries | null | undefined): string | null {
-    if (!s) return null;
-    const map: Partial<Record<RecommendedSeries, string>> = {
-        SERIE_A1: "A1",
-        SERIE_A2: "A2",
-        SERIE_B: "B",
-        SERIE_C: "C",
-        SERIE_D: "D",
-        SERIE_E: "E",
-        SERIE_F1: "F1",
-        SERIE_F2: "F2",
-        SERIE_F3: "F3",
-        SERIE_F4: "F4",
-        SERIE_G1: "G1",
-        SERIE_G2: "G2",
-        SERIE_G3: "G3",
-        STI: "STI",
-        STA: "STA",
-        EFS: "EFS",
-        MMV: "MMV",
-        TOUR: "TOUR",
-        HR: "HR",
-        FORMATION_PRO: "FP",
-        APPRENTISSAGE: "App.",
-    };
-    return map[s] ?? s.replace("SERIE_", "");
-}
 
 export const GET = createApiHandler(async (request, context) => {
     try {
@@ -136,6 +109,7 @@ export const GET = createApiHandler(async (request, context) => {
         const grades = await prisma.grade.findMany({
             where: {
                 studentId: student.id,
+                deletedAt: null,
                 evaluation: {
                     period: { academicYearId: academicYear.id },
                 },
@@ -144,39 +118,27 @@ export const GET = createApiHandler(async (request, context) => {
                 evaluation: {
                     include: {
                         classSubject: { include: { subject: true } },
+                        type: true,
                     },
                 },
             },
         });
 
-        const bySubject = new Map<
-            string,
-            { name: string; grades: { value: typeof grades[number]["value"]; coefficient: typeof grades[number]["evaluation"]["coefficient"]; isAbsent: boolean; isExcused: boolean }[] }
-        >();
-        for (const g of grades) {
-            const subjectId = g.evaluation.classSubject.subject.id;
-            const entry =
-                bySubject.get(subjectId) ??
-                {
-                    name: g.evaluation.classSubject.subject.name,
-                    grades: [],
-                };
-            entry.grades.push({
-                value: g.value,
-                coefficient: g.evaluation.coefficient,
-                isAbsent: g.isAbsent,
-                isExcused: g.isExcused,
-            });
-            bySubject.set(subjectId, entry);
-        }
-
-        const subjectAverages = Array.from(bySubject.values())
-            .map((s) => ({
-                name: s.name,
-                average: calculateWeightedAverage(s.grades),
-            }))
-            .filter((s) => s.average !== null)
-            .sort((a, b) => (b.average! - a.average!));
+        // Moteur unique : formule officielle, calcul exact, moyenne annuelle par matière
+        const classSubjectInfo = new Map(
+            grades.map((g) => [
+                g.evaluation.classSubjectId,
+                { name: g.evaluation.classSubject.subject.name, coefficient: g.evaluation.classSubject.coefficient },
+            ])
+        );
+        // Moyennes annuelles par matière : exactement celles du bulletin
+        const summary = await studentAveragesSummary(student.id);
+        const subjectAverages = Array.from(classSubjectInfo, ([id, info]) => ({
+            name: info.name,
+            average: summary?.annual.subjects[id] ?? null,
+        }))
+            .filter((s): s is { name: string; average: number } => s.average !== null)
+            .sort((a, b) => b.average - a.average);
 
         const recommendations = orientation.recommendations.map((r) => ({
             id: r.id,

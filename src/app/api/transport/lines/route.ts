@@ -95,3 +95,24 @@ export const GET = createApiHandler(
     },
     { requireAuth: true }
 );
+
+/** POST /api/transport/lines — ouvre une ligne (numéro + libellé). */
+export const POST = createApiHandler(
+    async (request, { session }) => {
+        const schoolId = getActiveSchoolId(session);
+        if (!schoolId) {
+            return NextResponse.json({ error: "Aucun établissement actif associé au compte." }, { status: 400 });
+        }
+        const body = await request.json().catch(() => ({}));
+        const number = String(body.number ?? "").trim();
+        const label = String(body.label ?? "").trim();
+        if (!number || !label) {
+            return NextResponse.json({ error: "Le numéro et le libellé de la ligne sont requis." }, { status: 400 });
+        }
+        const line = await prisma.transportLine.create({
+            data: { schoolId, number, label },
+        });
+        return NextResponse.json({ id: line.id, number: line.number, label: line.label }, { status: 201 });
+    },
+    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"] },
+);

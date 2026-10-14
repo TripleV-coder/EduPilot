@@ -31,7 +31,7 @@ function freshIp(): string {
 
 // tests/setup.ts remplace NextRequest par un vi.fn() : on passe une Request
 // native, que le handler reçoit en production sous la même forme.
-function loginRequest(ip: string): NextRequest {
+function loginRequest(ip: string, email = "eleve@ecole.bj"): NextRequest {
     return new Request(LOGIN_URL, {
         method: "POST",
         headers: {
@@ -40,7 +40,7 @@ function loginRequest(ip: string): NextRequest {
             "x-forwarded-for": ip,
             "x-edupilot-peer-token": TOKEN,
         },
-        body: "email=eleve%40ecole.bj&password=mauvais",
+        body: new URLSearchParams({ email, password: "mauvais" }).toString(),
     }) as unknown as NextRequest;
 }
 
@@ -122,5 +122,42 @@ describe("rate-limit des échecs de connexion", () => {
         await statusesFor(freshIp(), 12);
 
         expect((await POST(loginRequest(freshIp()))).status).toBe(200);
+    });
+
+    it("une classe entière se connecte en même temps depuis le routeur de l'école (G3)", async () => {
+        authPostMock.mockImplementation(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            return successfulLogin();
+        });
+        const ip = freshIp();
+        const statuses = await Promise.all(
+            Array.from({ length: 30 }, (_, i) => POST(loginRequest(ip, `eleve${i}@ecole.bj`)).then((r) => r.status)),
+        );
+
+        expect(statuses.every((s) => s === 200)).toBe(true);
+    });
+
+    it("les fautes de frappe de quelques élèves ne bloquent pas toute l'école (G3)", async () => {
+        const ip = freshIp();
+        authPostMock.mockImplementation(async () => failedLogin());
+        for (let i = 0; i < 15; i++) await POST(loginRequest(ip, `distrait${i}@ecole.bj`));
+
+        authPostMock.mockImplementation(async () => successfulLogin());
+        expect((await POST(loginRequest(ip, "studieux@ecole.bj"))).status).toBe(200);
+    });
+
+    it("les essais en masse sur une liste de comptes restent plafonnés par adresse", async () => {
+        process.env.LOGIN_IP_FAILURES_PER_15MIN = "20";
+        try {
+            authPostMock.mockImplementation(async () => failedLogin());
+            const ip = freshIp();
+            const statuses: number[] = [];
+            for (let i = 0; i < 22; i++) statuses.push((await POST(loginRequest(ip, `cible${i}@ecole.bj`))).status);
+
+            expect(statuses.slice(0, 20).every((s) => s === 200)).toBe(true);
+            expect(statuses.slice(20)).toEqual([429, 429]);
+        } finally {
+            delete process.env.LOGIN_IP_FAILURES_PER_15MIN;
+        }
     });
 });

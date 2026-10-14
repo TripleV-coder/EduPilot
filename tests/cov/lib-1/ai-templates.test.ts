@@ -224,6 +224,8 @@ describe("gabarits IA — alertes", () => {
 
 describe("gabarits IA — orientation", () => {
   const perf = (subjectName: string, average: number | null) => ({ subjectName, average });
+  // Scores attendus calculés à la main : aptitude dans les disciplines clés × 5 × part des
+  // disciplines indispensables évaluées (référentiel src/lib/benin/series.ts).
 
   it("recommande la série C pour un profil scientifique solide", () => {
     const r = generateOrientationSynthesis({
@@ -233,40 +235,34 @@ describe("gabarits IA — orientation", () => {
       subjectPerformances: [perf("Mathématiques", 15), perf("Physique", 14), perf("Français", 10)],
     });
     expect(r.series).toBe("SERIE_C");
-    expect(r.alternatives).toEqual(["SERIE_D", "SERIE_E"]);
-    expect(r.synthesis).toContain("Koffi (3e A) — orientation recommandée : Série C.");
+    expect(r.score).toBe(73); // (15×4 + 14×3) / 7 = 14,57 → 72,9
+    expect(r.synthesis).toContain("Koffi (3e A) — orientation recommandée : Série C — Sciences et Techniques.");
     expect(r.synthesis).toContain("Points forts observés : Maths, PCT, SVT.");
-    expect(r.synthesis).toContain("Alternatives envisageables : Série D, Série E.");
+    expect(r.alternatives).toHaveLength(2);
   });
 
-  it("recommande la série D pour de bonnes aptitudes en sciences", () => {
+  it("recommande la série D quand la SVT domine", () => {
     const r = generateOrientationSynthesis({ subjectPerformances: [perf("SVT", 12), perf("Philosophie", 9)] });
     expect(r.series).toBe("SERIE_D");
-    expect(r.justification).toContain("12.0/20");
+    expect(r.score).toBe(30); // 12 × 5 × (4/8)
+    expect(r.justification).toContain("SVT : 12,00/20");
     expect(r.synthesis).toMatch(/^L'élève — orientation/);
   });
 
-  it("recommande A1 puis A2 pour les profils littéraires", () => {
+  it("recommande A1 pour un profil de lettres, B quand l'histoire-géographie s'ajoute aux maths", () => {
     expect(generateOrientationSynthesis({ subjectPerformances: [perf("Français", 14), perf("Maths", 9)] }).series).toBe("SERIE_A1");
-    expect(generateOrientationSynthesis({ subjectPerformances: [perf("Histoire", 11.5), perf("Maths", 11.5)] }).series).toBe("SERIE_A2");
+    expect(generateOrientationSynthesis({ subjectPerformances: [perf("Histoire", 11.5), perf("Maths", 11.5)] }).series).toBe("SERIE_B");
   });
 
-  it("recommande G pour un profil économique", () => {
+  it("recommande G2 pour un profil de gestion", () => {
     const r = generateOrientationSynthesis({ subjectPerformances: [perf("Comptabilité", 12), perf("Maths", null)] });
-    expect(r.series).toBe("SERIE_G");
-    expect(r.alternatives).toEqual(["SERIE_B", "SERIE_A2"]);
+    expect(r.series).toBe("SERIE_G2");
   });
 
-  it("recommande D (polyvalent) selon la moyenne générale quand aucun profil ne se dégage", () => {
-    const poly = generateOrientationSynthesis({ generalAverage: 12.5, subjectPerformances: [perf("EPS", 12)] });
-    expect(poly.series).toBe("SERIE_D");
-    expect(poly.justification).toContain("Profil polyvalent");
-    expect(poly.alternatives).toEqual(["SERIE_C", "SERIE_A2"]);
-
-    const prudent = generateOrientationSynthesis({});
-    expect(prudent.series).toBe("SERIE_D");
-    expect(prudent.justification).toContain("Moyenne générale de 0.0/20");
-    expect(prudent.alternatives).toEqual(["SERIE_G", "SERIE_A2"]);
+  it("ne tire aucune conclusion de l'EPS seule", () => {
+    const r = generateOrientationSynthesis({ generalAverage: 12.5, subjectPerformances: [perf("EPS", 12)] });
+    expect(r.score).toBe(0);
+    expect(r.justification).toContain("critère non évalué");
   });
 });
 

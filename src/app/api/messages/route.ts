@@ -8,7 +8,8 @@ import { withHttpCache } from "@/lib/api/cache-http";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 
-import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
+import { ensureSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { recipientIsAllowed } from "@/lib/messages/recipients";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/services/notification.service";
@@ -188,6 +189,21 @@ export const POST = createApiHandler(async (request, context) => {
     const accessError = ensureSchoolAccess(context.session, recipient.schoolId);
     if (accessError) {
       return accessError;
+    }
+
+    if (!validatedData.parentId) {
+      const allowed = await recipientIsAllowed(
+        context.session.user.id,
+        context.session.user.role,
+        getActiveSchoolId(context.session),
+        validatedData.recipientId,
+      );
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "Ce destinataire n'est pas dans votre périmètre." },
+          { status: 403 },
+        );
+      }
     }
 
     // Neutralise tout HTML embarqué (le contenu est rendu en texte,

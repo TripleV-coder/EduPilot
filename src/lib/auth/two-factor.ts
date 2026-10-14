@@ -74,7 +74,7 @@ export function generateBackupCodes(count = 10): string[] {
  * À appeler avant de sauvegarder les codes en DB.
  */
 export async function hashBackupCodes(plainCodes: string[]): Promise<string[]> {
-    const bcrypt = await import('bcryptjs');
+    const bcrypt = await import("@/lib/auth/password");
     return Promise.all(plainCodes.map((code) => bcrypt.hash(code, 10)));
 }
 
@@ -87,7 +87,7 @@ export async function findMatchingBackupCode(
     plainCode: string,
     hashedCodes: string[]
 ): Promise<number> {
-    const bcrypt = await import('bcryptjs');
+    const bcrypt = await import("@/lib/auth/password");
     for (let i = 0; i < hashedCodes.length; i++) {
         const match = await bcrypt.compare(plainCode, hashedCodes[i]);
         if (match) return i;

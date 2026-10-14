@@ -1,4 +1,4 @@
-import type { ActionPlanTemplate, StudentTemplateContext } from "./types";
+import { DEFAULT_TEMPLATE_THRESHOLDS, type ActionPlanTemplate, type StudentTemplateContext } from "./types";
 
 function formatName(ctx: StudentTemplateContext): string {
   return [ctx.firstName, ctx.lastName].filter(Boolean).join(" ").trim() || "l'élève";
@@ -10,15 +10,17 @@ function formatName(ctx: StudentTemplateContext): string {
 export function generateActionPlan(ctx: StudentTemplateContext): ActionPlanTemplate {
   const name = formatName(ctx);
   const weaknesses = ctx.weaknesses ?? [];
-  const average = ctx.generalAverage ?? 0;
+  const t = ctx.thresholds ?? DEFAULT_TEMPLATE_THRESHOLDS;
+  // Sans moyenne : ni « sous la moyenne », ni « 0/20 »
+  const average = ctx.generalAverage ?? null;
   const riskLevel = ctx.riskLevel ?? "LOW";
 
   const priority: ActionPlanTemplate["priority"] =
-    riskLevel === "CRITICAL" || (ctx.failureProbability ?? 0) >= 75
+    riskLevel === "CRITICAL" || (ctx.failureProbability ?? 0) >= t.levelVeryHigh
       ? "CRITICAL"
-      : riskLevel === "HIGH" || (ctx.failureProbability ?? 0) >= 55
+      : riskLevel === "HIGH" || (ctx.failureProbability ?? 0) >= t.levelHigh
         ? "HIGH"
-        : average < 10
+        : average !== null && average < t.passingGrade
           ? "HIGH"
           : "MEDIUM";
 
@@ -34,7 +36,7 @@ export function generateActionPlan(ctx: StudentTemplateContext): ActionPlanTempl
     steps.push("Organisation de séances de méthodologie et de travail personnel encadré.");
   }
 
-  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < 85) {
+  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < t.attendanceWarning) {
     steps.push("Suivi renforcé de l'assiduité avec alerte parents en cas d'absence non justifiée.");
   }
 
@@ -46,7 +48,7 @@ export function generateActionPlan(ctx: StudentTemplateContext): ActionPlanTempl
 
   return {
     title: `Plan de remédiation — ${name}`,
-    description: `Intervention pédagogique ciblée pour ${name}${ctx.className ? ` (${ctx.className})` : ""}. Moyenne actuelle : ${average > 0 ? `${average.toFixed(2)}/20` : "non disponible"}.`,
+    description: `Intervention pédagogique ciblée pour ${name}${ctx.className ? ` (${ctx.className})` : ""}. Moyenne actuelle : ${average !== null ? `${average.toFixed(2)}/20` : "non disponible"}.`,
     priority,
     steps,
     suggestedBy: "EduPilot — moteur par gabarits",

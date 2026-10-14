@@ -15,6 +15,11 @@ vi.mock("@/lib/library/service", () => ({
     getStudentBorrowings: vi.fn(),
   },
 }));
+// Paramètres de l'établissement : valeurs par défaut (prêt de 14 jours)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return { getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS) };
+});
 vi.mock("@/lib/prisma", () => ({
   default: {
     book: { create: vi.fn(), findUnique: vi.fn() },
@@ -73,13 +78,16 @@ describe("POST /api/library/books", () => {
   });
 });
 
+// La route refuse une date de retour passée : une date figée finit par expirer.
+const DUE_DATE = new Date(Date.now() + 14 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+
 describe("POST /api/library/borrowings", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("should return 403 when user has no student profile", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue(null);
-    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: "2026-10-01" } }));
+    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: DUE_DATE } }));
     expect(res.status).toBe(403);
   });
 
@@ -87,7 +95,7 @@ describe("POST /api/library/borrowings", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: "sp1", schoolId: FIXTURES.schoolA } as never);
     vi.mocked(prisma.book.findUnique).mockResolvedValue(null);
-    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: "2026-10-01" } }));
+    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: DUE_DATE } }));
     expect(res.status).toBe(404);
   });
 
@@ -95,7 +103,7 @@ describe("POST /api/library/borrowings", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: "sp1", schoolId: FIXTURES.schoolA } as never);
     vi.mocked(prisma.book.findUnique).mockResolvedValue({ id: "b1", schoolId: FIXTURES.schoolB } as never);
-    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: "2026-10-01" } }));
+    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: DUE_DATE } }));
     expect(res.status).toBe(403);
   });
 
@@ -105,9 +113,22 @@ describe("POST /api/library/borrowings", () => {
     vi.mocked(prisma.book.findUnique).mockResolvedValue({ id: "b1", schoolId: FIXTURES.schoolA } as never);
     vi.mocked(libraryService.borrowBook).mockResolvedValue({ id: "r1" } as never);
 
-    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: "2026-10-01" } }));
+    const res = await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: DUE_DATE } }));
     expect(res.status).toBe(200);
     expect(libraryService.borrowBook).toHaveBeenCalledWith("sp1", "b1", expect.any(Date));
+    // Date de retour = maintenant + durée de prêt de l'école (14 jours par défaut), jamais celle du navigateur
+    const due = vi.mocked(libraryService.borrowBook).mock.calls[0][2] as Date;
+    expect(Math.round((due.getTime() - Date.now()) / 86_400_000)).toBe(14);
+  });
+
+  it("ignore une date de retour envoyée par le navigateur", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({ id: "sp1", schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.book.findUnique).mockResolvedValue({ id: "b1", schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(libraryService.borrowBook).mockResolvedValue({ id: "r1" } as never);
+    await POST(makeRequest("http://localhost/api/library/borrowings", { method: "POST", body: { bookId: "b1", dueDate: "2099-01-01" } }));
+    const due = vi.mocked(libraryService.borrowBook).mock.calls[0][2] as Date;
+    expect(due.getFullYear()).toBeLessThan(2099);
   });
 });
 

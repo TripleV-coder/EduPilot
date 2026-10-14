@@ -93,7 +93,7 @@ export function StudentAiPrediction({ studentId }: { studentId: string }) {
             <BrainCircuit className="h-5 w-5 text-primary" />
             Prédiction IA
             <Badge variant="secondary" className="ml-auto text-xs">
-              Confiance : {data.confidence}%
+              Fiabilité de la prévision : {data.confidence}% à ±1 point
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -113,13 +113,30 @@ export function StudentAiPrediction({ studentId }: { studentId: string }) {
           )}
 
           <div className="rounded-lg bg-muted/50 border border-border p-4">
-            <p className="text-sm font-medium mb-1">Note prédite — prochaine période</p>
-            <p className="text-2xl font-bold">
-              {formatDecimal(nextPeriodGrade.predicted, 1)}/20
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                (fourchette {formatDecimal(nextPeriodGrade.range.min, 1)}–{formatDecimal(nextPeriodGrade.range.max, 1)})
-              </span>
-            </p>
+            <p className="text-sm font-medium mb-1">Moyenne prévue — prochaine période</p>
+            {nextPeriodGrade.predicted === null || nextPeriodGrade.range === null ? (
+              <p className="text-sm text-muted-foreground">
+                Pas encore de moyenne enregistrée : aucune prévision possible.
+              </p>
+            ) : (
+              <>
+                <p className="text-2xl font-bold">
+                  {formatDecimal(nextPeriodGrade.predicted, 1)}/20
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    (95 % de chances entre {formatDecimal(nextPeriodGrade.range.min, 1)} et {formatDecimal(nextPeriodGrade.range.max, 1)})
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {nextPeriodGrade.range80
+                    ? `80 % de chances entre ${formatDecimal(nextPeriodGrade.range80.min, 1)} et ${formatDecimal(nextPeriodGrade.range80.max, 1)} · `
+                    : ""}
+                  {nextPeriodGrade.confidence} % de chances d&apos;être à ±1 point · calculé sur {nextPeriodGrade.dataPoints} moyenne(s) passée(s)
+                </p>
+                {nextPeriodGrade.warning ? (
+                  <p className="text-xs text-warning mt-1">{nextPeriodGrade.warning}</p>
+                ) : null}
+              </>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

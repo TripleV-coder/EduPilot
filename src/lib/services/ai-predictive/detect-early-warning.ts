@@ -12,6 +12,8 @@ import prisma from "@/lib/prisma";
 import type { EarlyWarning } from "./types";
 import { detectAnomalies, temporalWeightedAverage } from "./algorithms/statistics";
 
+import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Seuils centralisés (calibrage + tests). */
@@ -52,7 +54,16 @@ function longestAbsenceStreak(records: { status: string; date: Date }[]): {
 
 export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarning[]> {
     const now = Date.now();
-    const windowStart = new Date(now - EARLY_WARNING_THRESHOLDS.windowDays * DAY);
+    // Seuils de l'école (paramètres « Alertes précoces ») ; défauts = EARLY_WARNING_THRESHOLDS
+    const ew = (await getSchoolParametersForStudent(studentId)).earlyWarning;
+    const T = {
+        windowDays: ew.windowDays,
+        gradeDropPoints: ew.gradeDropPoints,
+        attendanceCliffAbsences: ew.consecutiveAbsences,
+        homeworkStopMinDue: ew.homeworkStopMinDue,
+        behaviorSpikeCount: ew.behaviorSpikeCount,
+    };
+    const windowStart = new Date(now - T.windowDays * DAY);
 
     const [gradeHistory, attendance, submissions, incidents] = await Promise.all([
         prisma.gradeHistory.findMany({
@@ -86,10 +97,10 @@ export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarni
         const anomalies = detectAnomalies(values);
         const isAnomalousDrop = anomalies[anomalies.length - 1] && latest < baseline;
 
-        if (drop >= EARLY_WARNING_THRESHOLDS.gradeDropPoints || isAnomalousDrop) {
+        if (drop >= T.gradeDropPoints || isAnomalousDrop) {
             warnings.push({
                 type: "GRADE_DROP",
-                severity: drop >= 2 * EARLY_WARNING_THRESHOLDS.gradeDropPoints ? "CRITICAL" : "WARNING",
+                severity: drop >= 2 * T.gradeDropPoints ? "CRITICAL" : "WARNING",
                 value: Math.round(drop * 100) / 100,
                 message: `Chute de moyenne de ${drop.toFixed(1)} pt (${latest.toFixed(1)}/20 vs baseline ${baseline.toFixed(1)}/20)`,
                 since: null,
@@ -99,10 +110,10 @@ export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarni
 
     // 2. ATTENDANCE_CLIFF — absences non justifiées consécutives
     const streak = longestAbsenceStreak(attendance);
-    if (streak.length >= EARLY_WARNING_THRESHOLDS.attendanceCliffAbsences) {
+    if (streak.length >= T.attendanceCliffAbsences) {
         warnings.push({
             type: "ATTENDANCE_CLIFF",
-            severity: streak.length >= 5 ? "CRITICAL" : "WARNING",
+            severity: streak.length >= T.attendanceCliffAbsences + 2 ? "CRITICAL" : "WARNING",
             value: streak.length,
             message: `${streak.length} absences non justifiées consécutives`,
             since: streak.since,
@@ -120,12 +131,12 @@ export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarni
                 },
             },
         });
-        if (dueInWindow >= EARLY_WARNING_THRESHOLDS.homeworkStopMinDue) {
+        if (dueInWindow >= T.homeworkStopMinDue) {
             warnings.push({
                 type: "HOMEWORK_STOP",
-                severity: dueInWindow >= 4 ? "CRITICAL" : "WARNING",
+                severity: dueInWindow >= 2 * T.homeworkStopMinDue ? "CRITICAL" : "WARNING",
                 value: dueInWindow,
-                message: `Aucun devoir rendu sur ${EARLY_WARNING_THRESHOLDS.windowDays} jours (${dueInWindow} attendus)`,
+                message: `Aucun devoir rendu sur ${T.windowDays} jours (${dueInWindow} attendus)`,
                 since: windowStart,
             });
         }
@@ -135,7 +146,7 @@ export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarni
     const severeIncidents = incidents.filter(
         (i) => i.severity === "HIGH" || i.severity === "CRITICAL"
     );
-    if (severeIncidents.length >= EARLY_WARNING_THRESHOLDS.behaviorSpikeCount) {
+    if (severeIncidents.length >= T.behaviorSpikeCount) {
         const earliest = severeIncidents
             .map((i) => new Date(i.date).getTime())
             .reduce((min, t) => Math.min(min, t), now);
@@ -143,7 +154,7 @@ export async function detectEarlyWarnings(studentId: string): Promise<EarlyWarni
             type: "BEHAVIOR_SPIKE",
             severity: severeIncidents.some((i) => i.severity === "CRITICAL") ? "CRITICAL" : "WARNING",
             value: severeIncidents.length,
-            message: `${severeIncidents.length} incidents graves sur ${EARLY_WARNING_THRESHOLDS.windowDays} jours`,
+            message: `${severeIncidents.length} incidents graves sur ${T.windowDays} jours`,
             since: new Date(earliest),
         });
     }

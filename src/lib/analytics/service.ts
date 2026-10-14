@@ -5,6 +5,8 @@
 
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { normalizeGradeTo20 } from "@/lib/analytics/helpers";
 import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
 
@@ -101,7 +103,13 @@ export const analyticsService = {
             },
         });
 
-        const bins = [0, 0, 0, 0, 0];
+        // Tranches aux seuils réglés par l'école : Excellent, Très bien, Bien, seuil de passage
+        const [perf, passingGrade] = await Promise.all([
+            getSchoolParameters(_schoolId).then((params) => params.performance),
+            getPassingGrade(_schoolId),
+        ]);
+        const thresholds = Array.from(new Set([perf.excellentFrom, perf.veryGoodFrom, perf.goodFrom, passingGrade])).sort((a, b) => b - a);
+        const bins = new Array<number>(thresholds.length + 1).fill(0);
 
         for (const grade of grades) {
             const normalizedValue = normalizeGradeTo20(
@@ -111,15 +119,16 @@ export const analyticsService = {
 
             if (normalizedValue === null) continue;
 
-            if (normalizedValue >= 16) bins[0]++;
-            else if (normalizedValue >= 14) bins[1]++;
-            else if (normalizedValue >= 12) bins[2]++;
-            else if (normalizedValue >= 10) bins[3]++;
-            else bins[4]++;
+            const index = thresholds.findIndex((t) => normalizedValue >= t);
+            bins[index === -1 ? thresholds.length : index]++;
         }
 
+        const fmt = (n: number) => String(n).replace(".", ",");
+        const labels = thresholds.map((t, i) => (i === 0 ? `${fmt(t)}-20` : `${fmt(t)}-<${fmt(thresholds[i - 1])}`));
+        labels.push(`<${fmt(thresholds[thresholds.length - 1])}`);
+
         return {
-            labels: ["16-20", "14-15.99", "12-13.99", "10-11.99", "<10"],
+            labels,
             datasets: [{ data: bins }]
         };
     },

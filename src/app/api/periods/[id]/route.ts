@@ -5,6 +5,7 @@ import { z } from "zod";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { checkPeriodPlan } from "@/lib/academic/period-rules";
 
 const updatePeriodSchema = z.object({
   name: z.string().min(1).optional(),
@@ -73,6 +74,26 @@ export const PUT = createApiHandler(
       if (session.user.role !== "SUPER_ADMIN" &&
           !canAccessSchool(session, existingPeriod.academicYear.schoolId)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
+
+      // Découpage cohérent après modification (dates, numéro)
+      const siblings = await prisma.period.findMany({
+        where: { academicYearId: existingPeriod.academicYearId },
+        select: { id: true, type: true, sequence: true, startDate: true, endDate: true },
+      });
+      const planError = checkPeriodPlan(
+        {
+          id: existingPeriod.id,
+          type: existingPeriod.type,
+          sequence: validatedData.sequence ?? existingPeriod.sequence,
+          startDate: validatedData.startDate ?? existingPeriod.startDate,
+          endDate: validatedData.endDate ?? existingPeriod.endDate,
+        },
+        siblings,
+        existingPeriod.academicYear,
+      );
+      if (planError) {
+        return NextResponse.json({ error: planError }, { status: 400 });
       }
 
       // Check for duplicate sequence if changing

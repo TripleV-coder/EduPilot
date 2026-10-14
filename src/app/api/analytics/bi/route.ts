@@ -7,6 +7,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roundTo } from "@/lib/analytics/helpers";
 import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 
 function monthKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -30,10 +31,21 @@ export const GET = createApiHandler(
         const { searchParams } = new URL(request.url);
         const schoolId = searchParams.get("schoolId") ?? getActiveSchoolId(session);
         if (!schoolId) {
+            if (session.user.role === "SUPER_ADMIN") {
+                return NextResponse.json({
+                    kpis: { studentCount: 0, collectionRate: 0, attendanceRate: 0, passRate: 0 },
+                    totalCollected: 0,
+                    monthly: [],
+                    methods: [],
+                    topSubjects: [],
+                    insight: null,
+                });
+            }
             return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
         }
 
-        const academicYearId = searchParams.get("academicYearId");
+        const requestedYear = searchParams.get("academicYearId");
+        const academicYearId = requestedYear === "ALL" ? null : requestedYear;
         const now = new Date();
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
@@ -65,7 +77,7 @@ export const GET = createApiHandler(
                 },
                 _count: { _all: true },
             }),
-            latestSnapshotStats(scope),
+            latestSnapshotStats(scope, await getPassingGrade(schoolId)),
         ]);
 
         // ── Finance totals + payment method breakdown ──────

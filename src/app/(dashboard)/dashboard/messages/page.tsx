@@ -115,6 +115,11 @@ export default function MessagesPage() {
     const [activeOtherId, setActiveOtherId] = useState<string | null>(null);
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
+    const [composing, setComposing] = useState(false);
+    const [recipients, setRecipients] = useState<UserStub[]>([]);
+    const [recipientId, setRecipientId] = useState("");
+    const [newSubject, setNewSubject] = useState("");
+    const [newContent, setNewContent] = useState("");
     const threadRef = useRef<HTMLDivElement>(null);
 
     const refresh = async () => {
@@ -282,6 +287,50 @@ export default function MessagesPage() {
         }
     };
 
+    const openCompose = async () => {
+        setComposing(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/messages/recipients");
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Destinataires indisponibles");
+            const list: UserStub[] = body.data ?? [];
+            setRecipients(list);
+            setRecipientId(list[0]?.id ?? "");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
+        }
+    };
+
+    const handleCreate = async () => {
+        if (!recipientId || !newSubject.trim() || !newContent.trim() || sending) return;
+        setSending(true);
+        try {
+            const res = await fetch("/api/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    recipientId,
+                    subject: newSubject.trim(),
+                    content: newContent.trim(),
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Échec de l'envoi");
+            }
+            setNewContent("");
+            setNewSubject("");
+            setComposing(false);
+            setActiveOtherId(recipientId);
+            await refresh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
+        } finally {
+            setSending(false);
+        }
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -300,23 +349,73 @@ export default function MessagesPage() {
                         { label: "Messagerie" },
                     ]}
                     actions={
-                        <Button
-                            icon="plus"
-                            onClick={() => {
-                                // Best-effort: focus the composer if a conversation is active.
-                                const el = document.getElementById(
-                                    "message-composer"
-                                ) as HTMLInputElement | null;
-                                el?.focus();
-                            }}
-                        >
-                            Répondre
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button icon="plus" onClick={() => void openCompose()}>
+                                Nouveau message
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    const el = document.getElementById(
+                                        "message-composer"
+                                    ) as HTMLInputElement | null;
+                                    el?.focus();
+                                }}
+                            >
+                                Répondre
+                            </Button>
+                        </div>
                     }
                 />
 
                 {error ? (
                     <PageError message={error} onRetry={() => void refresh()} />
+                ) : null}
+
+                {composing ? (
+                    <Card padding={16} className="mb-4">
+                        <div className="grid gap-3">
+                            <label className="grid gap-1 text-sm">
+                                Destinataire
+                                <select
+                                    aria-label="Destinataire"
+                                    value={recipientId}
+                                    onChange={(e) => setRecipientId(e.target.value)}
+                                    className="h-10 rounded-lg border px-3"
+                                    style={{ borderColor: "var(--eduflow-border-default)", background: "var(--eduflow-surface-card)" }}
+                                >
+                                    {recipients.length === 0 ? (
+                                        <option value="">Aucun destinataire dans votre périmètre</option>
+                                    ) : null}
+                                    {recipients.map((person) => (
+                                        <option key={person.id} value={person.id}>
+                                            {person.firstName} {person.lastName} · {ROLE_LABEL[person.role] ?? person.role}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <Input
+                                aria-label="Objet"
+                                placeholder="Objet"
+                                value={newSubject}
+                                onChange={(e) => setNewSubject(e.target.value)}
+                            />
+                            <Input
+                                aria-label="Message"
+                                placeholder="Votre message"
+                                value={newContent}
+                                onChange={(e) => setNewContent(e.target.value)}
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button variant="secondary" onClick={() => setComposing(false)}>
+                                    Annuler
+                                </Button>
+                                <Button onClick={() => void handleCreate()} disabled={sending || !recipientId}>
+                                    Envoyer
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
                 ) : null}
 
                 {loading ? (

@@ -56,6 +56,8 @@ export interface GovernanceRequest {
 
 export interface OrientationRecommendation {
   series: string;
+  /** Adéquation 0-100 calculée localement (absente si la série vient du modèle externe). */
+  score?: number;
   justification: string;
   alternatives?: string[];
   synthesis?: string;

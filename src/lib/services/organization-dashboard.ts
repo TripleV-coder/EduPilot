@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { countTeachersForSchool } from "@/lib/teachers/school-assignments";
 
@@ -702,9 +703,10 @@ export async function getOrganizationDashboardData(params: OrganizationDashboard
               gradedAnalytics.length
           )
         : 0;
+      const sitePassingGrade = await getPassingGrade(school.id);
       const passRate = gradedAnalytics.length > 0
         ? roundTo(
-            (gradedAnalytics.filter((item) => Number(item.generalAverage) >= 10).length /
+            (gradedAnalytics.filter((item) => Number(item.generalAverage) >= sitePassingGrade).length /
               gradedAnalytics.length) *
               100
           )

@@ -10,6 +10,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
+import { getTcpRedis, tcpRedisCircuit } from "@/lib/redis/tcp";
 
 let _upstashRedis: import("@upstash/redis").Redis | null = null;
 /** L'absence de configuration n'est signalée qu'une fois par processus. */
@@ -215,7 +216,81 @@ class UpstashCache implements CacheService {
 }
 
 // ---------------------------------------------------------------------------
-// Factory — retourne Redis ou MemoryCache
+// Implémentation Redis TCP auto-hébergé (REDIS_URL)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cache partagé entre processus et instances (analyse de capacité 2026-10-01) :
+ * avec plusieurs processus, un cache mémoire par processus recalcule la même
+ * réponse N fois. Même client borné que les quotas (`lib/redis/tcp`) : client
+ * pas prêt, lent ou injoignable → cache mémoire du processus, sans attendre.
+ */
+class TcpRedisCache implements CacheService {
+    async get<T>(key: string): Promise<T | null> {
+        const client = getTcpRedis();
+        if (!client) return memoryFallback.get<T>(key);
+        const raw = await tcpRedisCircuit.run(
+            () => client.get(`cache:${key}`),
+            async () => {
+                const local = await memoryFallback.get<T>(key);
+                return local === null ? null : JSON.stringify(local);
+            },
+        );
+        if (raw === null || raw === undefined) return null;
+        try {
+            return JSON.parse(raw) as T;
+        } catch {
+            return null;
+        }
+    }
+
+    async set(key: string, value: unknown, ttl = 3600): Promise<void> {
+        const client = getTcpRedis();
+        if (!client) return memoryFallback.set(key, value, ttl);
+        let serialized: string;
+        try {
+            serialized = JSON.stringify(value);
+        } catch {
+            return; // valeur non sérialisable : non mise en cache
+        }
+        await tcpRedisCircuit.run(
+            async () => {
+                await client.set(`cache:${key}`, serialized, "EX", ttl);
+            },
+            () => memoryFallback.set(key, value, ttl),
+        );
+    }
+
+    async delete(key: string): Promise<void> {
+        await memoryFallback.delete(key);
+        const client = getTcpRedis();
+        if (!client) return;
+        await tcpRedisCircuit.run(async () => {
+            await client.del(`cache:${key}`);
+        }, () => undefined);
+    }
+
+    async clear(pattern?: string): Promise<void> {
+        await memoryFallback.clear(pattern);
+        const client = getTcpRedis();
+        if (!client) return;
+        // SCAN (jamais KEYS, bloquant) ; le préfixe du client ne s'applique pas
+        // au motif de SCAN mais s'applique à DEL : on le retire avant.
+        const prefix = client.options.keyPrefix ?? "";
+        const match = `${prefix}cache:${pattern ?? "*"}`;
+        await tcpRedisCircuit.run(async () => {
+            let cursor = "0";
+            do {
+                const [next, keys] = await client.scan(cursor, "MATCH", match, "COUNT", 500);
+                cursor = next;
+                if (keys.length > 0) await client.del(...keys.map((k) => k.slice(prefix.length)));
+            } while (cursor !== "0");
+        }, () => undefined);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Factory — Redis TCP, Upstash ou MemoryCache
 // ---------------------------------------------------------------------------
 
 const memoryFallback = new MemoryCache();
@@ -223,6 +298,11 @@ let cacheInstance: CacheService | null = null;
 
 export function getCacheService(): CacheService {
     if (cacheInstance) return cacheInstance;
+    // REDIS_URL prioritaire sur Upstash, comme pour les quotas (.env.example).
+    if (process.env.REDIS_URL) {
+        cacheInstance = new TcpRedisCache();
+        return cacheInstance;
+    }
     const client = getUpstashClient();
     cacheInstance = client ? new UpstashCache(client) : memoryFallback;
     return cacheInstance;

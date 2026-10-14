@@ -201,7 +201,29 @@ export default function ExamsPlanningPage() {
                     ]}
                     actions={
                         <>
-                            <Button variant="secondary" icon="download">
+                            <Button
+                                variant="secondary"
+                                icon="download"
+                                onClick={async () => {
+                                    const { jsPDF } = await import("jspdf");
+                                    const doc = new jsPDF();
+                                    doc.setFontSize(16);
+                                    doc.text("Convocations", 14, 20);
+                                    doc.setFontSize(11);
+                                    let y = 32;
+                                    if (evals.length === 0) doc.text("Aucune épreuve sur cette semaine.", 14, y);
+                                    for (const item of evals) {
+                                        const line = `${item.classSubject.class.name} · ${item.classSubject.subject.name} · ${item.title ?? "Épreuve"} · ${item.date.slice(0, 10)}`;
+                                        doc.text(line, 14, y);
+                                        y += 8;
+                                        if (y > 280) {
+                                            doc.addPage();
+                                            y = 20;
+                                        }
+                                    }
+                                    doc.save("convocations.pdf");
+                                }}
+                            >
                                 Convocations PDF
                             </Button>
                             <Link href="/dashboard/exams/new" style={{ textDecoration: "none" }}>

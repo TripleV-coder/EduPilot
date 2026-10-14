@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -24,6 +25,20 @@ interface ParentFinanceData {
 
 export function ParentFinanceView() {
     const { data, error, isLoading, mutate } = useSWR<ParentFinanceData>("/api/finance/my-payments", fetcher);
+    const [payNote, setPayNote] = React.useState<string | null>(null);
+
+    const explainPay = async () => {
+        try {
+            const res = await fetch("/api/payments/online-status");
+            const body = await res.json().catch(() => ({}));
+            setPayNote(
+                body.message ??
+                    "Paiement en ligne non configuré. Mobile Money et FedaPay ne sont pas activés : réglez auprès de l'économat.",
+            );
+        } catch {
+            setPayNote("Paiement en ligne non configuré. Réglez auprès de l'économat.");
+        }
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("fr-BJ", {
@@ -127,6 +142,12 @@ export function ParentFinanceView() {
                         },
                     ]}
                 />
+                <div className="mt-4 flex flex-col items-start gap-2">
+                    <button type="button" className={homeStyles.pill} onClick={() => void explainPay()}>
+                        Payer
+                    </button>
+                    {payNote ? <p className="text-sm text-muted-foreground">{payNote}</p> : null}
+                </div>
             </Block>
 
             <Block id="parent-finance-history" title="Historique des paiements">

@@ -10,18 +10,28 @@ import { Permission } from "@/lib/rbac/permissions";
 import { Badge, Button, Card, Icon, Logo } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading } from "@/components/layout/page-states";
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import type { SchoolThresholds } from "@/lib/schools/school-thresholds";
 
 type BulletinSubject = {
     subjectId: string;
     subjectName: string;
     coefficient: number;
+    /** null = « NC » (non classé dans la matière) */
     average: number | null;
+    /** Moyenne des interrogations (MI) */
+    interroAverage: number | null;
     previousAverage: number | null;
     classAverage: number | null;
     classMin: number | null;
     classMax: number | null;
     appreciation: string;
     evaluationsCount: number;
+    /** Formule particulière décidée par l'enseignant pour cet élève. */
+    adaptedFormula?: string | null;
+    adaptationReason?: string | null;
+    /** Notes que l'enseignant ne compte pas pour cet élève. */
+    excludedGrades?: number;
 };
 
 type BulletinData = {
@@ -48,6 +58,13 @@ type BulletinData = {
     previousPeriod: { id: string; name: string } | null;
     subjects: BulletinSubject[];
     generalAverage: number | null;
+    /** false tant qu'une note attendue n'est ni saisie ni justifiée */
+    /** Notes « NC » (non tranchées par le professeur) : exclues du calcul, rien n'est bloqué */
+    ncGrades: number;
+    promotionRank: number | null;
+    promotionSize: number | null;
+    annual: { average: number | null; isProvisional: boolean; rank: number | null } | null;
+    councilValidated: boolean;
     previousGeneralAverage: number | null;
     classGeneralAverage: number | null;
     rank: string | null;
@@ -91,6 +108,7 @@ const FR_DATE_LONG = (iso: string) => {
 const ALL_STUDENTS = "ALL";
 
 export default function BulletinsPage() {
+    const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
     const [students, setStudents] = useState<StudentOption[]>([]);
@@ -108,6 +126,34 @@ export default function BulletinsPage() {
     const [error, setError] = useState<string | null>(null);
 
     const printRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const studentId = params.get("studentId");
+        const periodId = params.get("periodId");
+        if (!studentId || !periodId) return;
+        setSelectedStudent(studentId);
+        setSelectedPeriod(periodId);
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`/api/bulletins?studentId=${studentId}&periodId=${periodId}`);
+                const data = await res.json();
+                if (cancelled) return;
+                if (!res.ok) throw new Error(data.error || "Erreur lors de la génération du bulletin");
+                setBulletin(data);
+            } catch (err) {
+                if (!cancelled) setError(err instanceof Error ? err.message : "Erreur inconnue");
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchInitial = async () => {
@@ -207,8 +253,9 @@ export default function BulletinsPage() {
             );
             results.forEach((data, index) => {
                 const s = chunk[index];
-                if (data) ready.push(data);
-                else missing.push(s.user ? `${s.user.firstName} ${s.user.lastName}` : s.id);
+                const name = s.user ? `${s.user.firstName} ${s.user.lastName}` : s.id;
+                if (!data) missing.push(name);
+                else ready.push(data);
             });
         }
         setClassBulletins(ready);
@@ -399,7 +446,7 @@ export default function BulletinsPage() {
                                     </div>
                                     {bulletin.generalAverage !== null ? (
                                         <Badge
-                                            variant={pickAverageVariant(bulletin.generalAverage)}
+                                            variant={pickAverageVariant(bulletin.generalAverage, thresholds)}
                                             size="sm"
                                         >
                                             Moyenne {FR_NUM(bulletin.generalAverage)}/20
@@ -421,6 +468,22 @@ export default function BulletinsPage() {
                                     </Button>
                                 </div>
                             </div>
+                            {bulletin.ncGrades > 0 ? (
+                                <div
+                                    role="status"
+                                    className="mt-3 rounded-lg px-3 py-2"
+                                    style={{
+                                        fontSize: 13,
+                                        background: "var(--eduflow-warning-50)",
+                                        color: "var(--eduflow-warning-700)",
+                                    }}
+                                >
+                                    {bulletin.ncGrades} note{bulletin.ncGrades > 1 ? "s" : ""} « NC » : non tranchée
+                                    {bulletin.ncGrades > 1 ? "s" : ""} par le professeur, exclue
+                                    {bulletin.ncGrades > 1 ? "s" : ""} du calcul. Le professeur peut saisir la note ou
+                                    indiquer l&apos;absence (justifiée : exclue ; non justifiée : 0).
+                                </div>
+                            ) : null}
                         </Card>
 
                         {/* Printable A4 — pixel-perfect per student-suite.jsx Bulletin */}
@@ -514,7 +577,7 @@ export default function BulletinsPage() {
 }
 
 function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
-    const schoolName = bulletin.school?.name || "EduPilot Academy";
+    const schoolName = bulletin.school?.name || "Établissement";
     const schoolAddr = bulletin.school?.address || "—";
     const schoolMemp = bulletin.school?.mempCode
         ? `Code MEMP ${bulletin.school.mempCode}`
@@ -526,7 +589,8 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
         ? `Bulletin du ${ordinalFr(bulletin.periodSequence)} trimestre`
         : `Bulletin · ${periodLabel}`;
     const generatedLabel = `Année ${bulletin.academicYear} · édité le ${FR_DATE_LONG(bulletin.generatedAt)}`;
-    const honorsLabel = computeHonorsLabel(bulletin.generalAverage);
+    const thresholds = useSchoolThresholds();
+    const honorsLabel = computeHonorsLabel(bulletin.generalAverage, thresholds);
     const sanctionsCount = bulletin.vieScolaire.incidents;
 
     return (
@@ -652,6 +716,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                         {[
                             "Matière",
                             "Coef.",
+                            "Moy. interro",
                             bulletin.previousPeriod ? `Moy. ${bulletin.previousPeriod.name}` : "Moy. préc.",
                             `Moy. ${bulletin.period}`,
                             "Moy. classe",
@@ -678,9 +743,9 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                         const cellColor =
                             cur === null
                                 ? "var(--eduflow-text-tertiary)"
-                                : cur >= 14
+                                : cur >= thresholds.performance.veryGoodFrom
                                 ? "var(--eduflow-success-700, #047857)"
-                                : cur < 10
+                                : cur < thresholds.passingGrade
                                 ? "var(--eduflow-danger-700, #B91C1C)"
                                 : "var(--eduflow-text-primary)";
                         return (
@@ -707,6 +772,15 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                     }}
                                     className="tabular"
                                 >
+                                    {s.interroAverage !== null ? FR_NUM(s.interroAverage) : "—"}
+                                </td>
+                                <td
+                                    style={{
+                                        padding: "9px 10px",
+                                        color: "var(--eduflow-text-secondary)",
+                                    }}
+                                    className="tabular"
+                                >
                                     {s.previousAverage !== null
                                         ? FR_NUM(s.previousAverage)
                                         : "—"}
@@ -719,7 +793,10 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                     }}
                                     className="tabular"
                                 >
-                                    {cur !== null ? FR_NUM(cur) : "—"}
+                                    {cur !== null ? FR_NUM(cur) : s.evaluationsCount > 0 ? "NC" : "—"}
+                                    {s.adaptedFormula || (s.excludedGrades ?? 0) > 0 ? (
+                                        <sup title="Calcul adapté pour cet élève (voir la note sous le tableau)"> *</sup>
+                                    ) : null}
                                 </td>
                                 <td
                                     style={{
@@ -768,6 +845,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 {bulletin.subjects.reduce((sum, s) => sum + s.coefficient, 0)}
                             </strong>
                         </td>
+                        <td style={{ padding: "12px 10px" }} />
                         <td style={{ padding: "12px 10px" }} className="tabular">
                             <strong>
                                 {bulletin.previousGeneralAverage !== null
@@ -804,10 +882,51 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                             <strong style={{ fontSize: 14 }}>
                                 {bulletin.rank ? `${bulletin.rank} / ${bulletin.classSize}` : "—"}
                             </strong>
+                            {bulletin.promotionRank !== null && bulletin.promotionSize !== null ? (
+                                <div style={{ fontSize: 11 }}>
+                                    Rang promotion : {bulletin.promotionRank} / {bulletin.promotionSize}
+                                </div>
+                            ) : null}
                         </td>
                     </tr>
+                    {bulletin.annual ? (
+                        <tr style={{ background: "var(--brand-50)" }}>
+                            <td colSpan={4} style={{ padding: "10px", fontWeight: 800 }}>
+                                MOYENNE ANNUELLE{bulletin.annual.isProvisional ? " (provisoire)" : ""}
+                            </td>
+                            <td style={{ padding: "10px", fontSize: 15 }} className="tabular">
+                                <strong>
+                                    {bulletin.annual.average !== null ? FR_NUM(bulletin.annual.average) : "—"}
+                                </strong>
+                            </td>
+                            <td colSpan={3} style={{ padding: "10px", textAlign: "right" }}>
+                                Rang annuel :{" "}
+                                <strong>
+                                    {bulletin.annual.rank ? `${bulletin.annual.rank} / ${bulletin.classSize}` : "—"}
+                                </strong>
+                            </td>
+                        </tr>
+                    ) : null}
                 </tfoot>
             </table>
+
+            {/* Calculs adaptés par l'enseignant pour cet élève : toujours expliqués */}
+            {bulletin.subjects.some((s) => s.adaptedFormula || (s.excludedGrades ?? 0) > 0) ? (
+                <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)", margin: "-8px 0 16px" }}>
+                    {bulletin.subjects
+                        .filter((s) => s.adaptedFormula || (s.excludedGrades ?? 0) > 0)
+                        .map((s) => (
+                            <p key={s.subjectId} style={{ margin: "2px 0" }}>
+                                * {s.subjectName} : calcul adapté par l&apos;enseignant
+                                {(s.excludedGrades ?? 0) > 0
+                                    ? ` — ${s.excludedGrades} note${(s.excludedGrades ?? 0) > 1 ? "s" : ""} non comptée${(s.excludedGrades ?? 0) > 1 ? "s" : ""}`
+                                    : ""}
+                                {s.adaptedFormula ? ` — formule ${s.adaptedFormula}` : ""}
+                                {s.adaptationReason ? ` (${s.adaptationReason})` : ""}.
+                            </p>
+                        ))}
+                </div>
+            ) : null}
 
             {/* Discipline + appreciation */}
             <div
@@ -982,20 +1101,22 @@ function ordinalFr(n: number): string {
     return `${n}ᵉ`;
 }
 
-function computeHonorsLabel(avg: number | null): string | null {
+/** Distinctions aux seuils du conseil de classe réglés par l'école. */
+function computeHonorsLabel(avg: number | null, t: SchoolThresholds): string | null {
     if (avg === null) return null;
-    if (avg >= 16) return "Tableau d'honneur";
-    if (avg >= 14) return "Encouragements";
-    if (avg >= 12) return "Satisfaisant";
+    if (avg >= t.council.honorMin) return "Tableau d'honneur";
+    if (avg >= t.council.encouragementMin) return "Encouragements";
+    if (avg >= t.performance.goodFrom) return "Satisfaisant";
     return null;
 }
 
 function pickAverageVariant(
-    avg: number
+    avg: number,
+    t: SchoolThresholds
 ): "success" | "brand" | "warning" | "danger" {
-    if (avg >= 16) return "success";
-    if (avg >= 14) return "brand";
-    if (avg >= 10) return "warning";
+    if (avg >= t.performance.excellentFrom) return "success";
+    if (avg >= t.performance.veryGoodFrom) return "brand";
+    if (avg >= t.passingGrade) return "warning";
     return "danger";
 }
 

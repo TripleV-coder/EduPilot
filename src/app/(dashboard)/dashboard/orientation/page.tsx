@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { OFFICIAL_SERIES, seriesFullLabel } from "@/lib/benin/series";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,6 +61,7 @@ type BatchResult = {
     studentId: string;
     studentName: string;
     series?: string;
+    score?: number | null;
     justification?: string;
     alternatives?: string[];
     confidence?: number;
@@ -67,21 +69,8 @@ type BatchResult = {
     error?: string;
 };
 
-const POST_BEPC_SERIES = [
-    { value: "SERIE_A1", label: "Seconde Littéraire: Lettres - Langues (A1)" },
-    { value: "SERIE_A2", label: "Seconde Littéraire: Sciences Humaines (A2)" },
-    { value: "SERIE_B", label: "Seconde Économique: Sciences Sociales (B)" },
-    { value: "SERIE_C", label: "Seconde Scientifique: Sciences et Techniques (C)" },
-    { value: "SERIE_D", label: "Seconde Scientifique: Biologie - Géologie (D)" },
-    { value: "SERIE_E", label: "Seconde Mathématiques et Techniques (E)" },
-    { value: "SERIE_F1", label: "Seconde Industrielle: Construction Mécanique (F1)" },
-    { value: "SERIE_F2", label: "Seconde Industrielle: Électronique (F2)" },
-    { value: "SERIE_F3", label: "Seconde Industrielle: Électrotechnique (F3)" },
-    { value: "SERIE_F4", label: "Seconde Industrielle: Génie Civil (F4)" },
-    { value: "SERIE_G1", label: "Seconde Tertiaire: Secrétariat (G1)" },
-    { value: "SERIE_G2", label: "Seconde Tertiaire: Comptabilité (G2)" },
-    { value: "SERIE_G3", label: "Seconde Tertiaire: Marketing (G3)" },
-];
+// Séries officielles (référentiel unique : src/lib/benin/series.ts)
+const POST_BEPC_SERIES = OFFICIAL_SERIES.map((s) => ({ value: s.code as string, label: seriesFullLabel(s.code) }));
 
 const POST_BAC_OPTIONS = [
     { value: "UNIV_SCIENCES", label: "FAST: Sciences et Techniques" },
@@ -250,7 +239,7 @@ export default function OrientationPage() {
                         body: JSON.stringify({
                             recommendedSeries: res.series,
                             rank: 1,
-                            score: 0,
+                            score: res.score ?? 0,
                             justification: res.justification
                         })
                     });

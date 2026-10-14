@@ -1,5 +1,6 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { formatDecimal } from "@/lib/utils/formatters";
 
 import { useMemo, useState } from "react";
@@ -150,6 +151,7 @@ function studentClass(s: Incident["student"]): string {
 }
 
 export default function DisciplinePage() {
+    const thresholds = useSchoolThresholds();
     const [filter, setFilter] = useState<FilterCategory>("all");
 
     const { data: incRaw, isLoading: incLoading, error: loadError, mutate: reloadPage } = useSWR<IncidentsResponse>(
@@ -277,11 +279,9 @@ export default function DisciplinePage() {
                     />
                     <MetricCard
                         label="Climat global"
-                        value={weeklyCount < 10 ? "Excellent" : weeklyCount < 20 ? "Bon" : "À surveiller"}
+                        value={weeklyCount < thresholds.followUp.climateExcellentBelow ? "Excellent" : weeklyCount < thresholds.followUp.climateWatchFrom ? "Bon" : "À surveiller"}
                         icon="check"
-                        variant={
-                            weeklyCount < 10 ? "success" : weeklyCount < 20 ? "success" : "warning"
-                        }
+                        variant={weeklyCount < thresholds.followUp.climateWatchFrom ? "success" : "warning"}
                     />
                 </div>
 

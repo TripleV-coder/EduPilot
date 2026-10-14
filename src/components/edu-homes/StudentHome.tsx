@@ -1,6 +1,7 @@
 "use client";
 
 import { frenchToday } from "./_shared";
+import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 import { Bars, Block, Figures, HomeHeader, HomePage, MODULE, QuickActions, Row, decimal } from "./home-kit";
 
 export interface StudentHomeProps {
@@ -19,6 +20,7 @@ export interface StudentHomeProps {
 
 /* Accueil élève — même langage que l'accueil direction validé (docs/design/directions/live). */
 export function StudentHome({ userName, schoolName, periodName, data }: StudentHomeProps) {
+    const lang = useUiLang();
     const firstName = userName.trim().split(/\s+/)[0] || userName;
     const graded = data.subjectPerformances.filter((s) => s.average > 0);
     return (
@@ -27,7 +29,7 @@ export function StudentHome({ userName, schoolName, periodName, data }: StudentH
                 title={`Bonjour, ${firstName}`}
                 sub={`${frenchToday()} · ${periodName ?? "Année en cours"}${schoolName ? ` · ${schoolName}` : ""}`}
             />
-            <Block id="student-overview" title="Vue d'ensemble" link={{ href: "/dashboard/grades", label: "Mes notes" }}>
+            <Block id="student-overview" title="Vue d'ensemble" link={{ href: "/dashboard/grades", label: pick(lang, "Mes notes", "My grades") }}>
                 <Figures
                     items={[
                         { label: "Ma moyenne", value: data.myAverage > 0 ? `${decimal(data.myAverage, 2)}/20` : "—", note: periodName ?? "période en cours", color: MODULE.blue, href: "/dashboard/grades" },
@@ -40,9 +42,9 @@ export function StudentHome({ userName, schoolName, periodName, data }: StudentH
             <Block id="student-actions" title="Actions rapides">
                 <QuickActions
                     actions={[
-                        { href: "/dashboard/grades", label: "Mes notes", icon: "book", color: MODULE.blue },
-                        { href: "/dashboard/homework", label: "Devoirs", icon: "cards", color: MODULE.green },
-                        { href: "/dashboard/schedule", label: "Emploi du temps", icon: "calendar", color: MODULE.orange },
+                        { href: "/dashboard/grades", label: pick(lang, "Mes notes", "My grades"), icon: "book", color: MODULE.blue },
+                        { href: "/dashboard/homework", label: pick(lang, "Devoirs", "Homework"), icon: "cards", color: MODULE.green },
+                        { href: "/dashboard/schedule", label: pick(lang, "Emploi du temps", "Timetable"), icon: "calendar", color: MODULE.orange },
                         { href: "/dashboard/orientation/me", label: "Mon orientation", icon: "sparkle", color: MODULE.purple },
                         { href: "/dashboard/messages", label: "Messagerie", icon: "sms", color: MODULE.pink },
                         { href: "/dashboard/ai", label: "Assistant IA", icon: "sparkle", color: MODULE.teal },

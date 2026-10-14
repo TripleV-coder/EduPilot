@@ -208,6 +208,36 @@ describe("POST /api/payment-plans", () => {
     expect(prisma.notification.create).toHaveBeenCalled();
     expect(prisma.notification.createMany).toHaveBeenCalled();
   });
+
+  it("répartit 100 000 FCFA en 3 échéances entières qui tombent juste, sans déborder du 31 janvier", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockStudentAndFee(100000);
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([] as unknown as Scholarship[]);
+    vi.mocked(prisma.paymentPlan.create).mockImplementation(async (args: Prisma.PaymentPlanCreateArgs) => ({
+      id: planId,
+      ...args.data,
+      installmentPayments: args.data.installmentPayments.create,
+      student: { user: { id: cuid("userstudenta"), firstName: "Awa", lastName: "Dossou" }, parentStudents: [] },
+      fee: { id: FIXTURES.feeA, name: "Scolarité" },
+    }) as unknown as PaymentPlan);
+
+    const response = await POST(
+      makeRequest("http://localhost:3000/api/payment-plans", {
+        method: "POST",
+        body: { ...validBody, installments: 3, startDate: "2026-01-31T12:00:00.000Z" },
+      })
+    );
+    expect(response.status).toBe(201);
+    const createArgs = vi.mocked(prisma.paymentPlan.create).mock.calls[0][0];
+    const installments = createArgs.data.installmentPayments.create as Array<{ amount: number; dueDate: Date }>;
+    // Avant : 3 × 33 333,33 = 99 999,99 → plan jamais soldé (0,01 FCFA de reste)
+    expect(installments.map((i) => i.amount)).toEqual([33334, 33333, 33333]);
+    expect(installments.reduce((a, i) => a + i.amount, 0)).toBe(100000);
+    // 31 janvier + 1 mois = 28 février (pas 3 mars)
+    expect(new Date(installments[1].dueDate).getMonth()).toBe(1);
+    expect(new Date(installments[1].dueDate).getDate()).toBe(28);
+  });
 });
 
 describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => {

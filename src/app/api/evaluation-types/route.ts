@@ -73,6 +73,7 @@ export const POST = createApiHandler(
         code: validatedData.code,
         weight: validatedData.weight,
         maxCount: validatedData.maxCount,
+        category: validatedData.category,
       },
     });
 

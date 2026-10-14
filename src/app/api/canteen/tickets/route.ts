@@ -1,3 +1,4 @@
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -102,7 +103,8 @@ export const POST = createApiHandler(async (request, context) => {
                 userId: beneficiary.id,
                 qrCode: `TKT-${crypto.randomUUID().slice(0, 12).toUpperCase()}`,
                 balance: amount,
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                // Validité réglée par l'école (paramètres « Communication et services »)
+                expiresAt: new Date(Date.now() + (await getSchoolParameters(schoolId)).services.canteenTicketDays * 24 * 60 * 60 * 1000)
             }
         });
 

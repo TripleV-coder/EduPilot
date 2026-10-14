@@ -24,20 +24,20 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => {
     checkRateLimitKey: checkRateLimitMock,
   };
 });
-// bcryptjs : hash/compare réels inutiles ici → mock au niveau module.
+// Hachage (lib/auth/password) : hash/compare réels inutiles ici → mock au niveau module.
 // La route utilise l'import par défaut : on expose compare/hash via default.
 const { bcryptCompareMock, bcryptHashMock } = vi.hoisted(() => ({
   bcryptCompareMock: vi.fn(),
   bcryptHashMock: vi.fn().mockResolvedValue("hashed-new"),
 }));
-vi.mock("bcryptjs", () => ({
+vi.mock("@/lib/auth/password", () => ({
   default: { compare: bcryptCompareMock, hash: bcryptHashMock },
   compare: bcryptCompareMock,
   hash: bcryptHashMock,
 }));
 
 import prisma from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import { GET, POST } from "@/app/api/auth/first-login/route";
 
 const TOKEN = "first-login-token-abc";

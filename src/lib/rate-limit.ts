@@ -11,6 +11,7 @@
  * échecs de connexion comptent.
  *
  * Stratégie de stockage :
+ *  - `REDIS_URL` (Redis auto-hébergé) → partagé entre instances, prioritaire ;
  *  - Upstash configuré → Redis, partagé entre instances ;
  *  - sinon → repli mémoire (exact tant que l'application tourne en un seul
  *    processus, ce qui est le déploiement retenu).
@@ -20,7 +21,9 @@
 
 import type { NextRequest } from "next/server";
 import type { Redis } from "@upstash/redis";
+import type TcpRedis from "ioredis";
 import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
+import { getTcpRedis, tcpRedisCircuit } from "@/lib/redis/tcp";
 import { getClientIp as getTrustedClientIp } from "@/lib/security/client-ip";
 import { logger } from "@/lib/utils/logger";
 
@@ -91,13 +94,20 @@ const hasUpstash = !!(
     process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-if (!hasUpstash && process.env.NODE_ENV === "production") {
-    // Déploiement retenu : un seul processus (image Docker). Le repli mémoire
-    // est alors exact ; il ne le serait plus avec plusieurs instances.
-    logger.info(
-        "[RateLimit] Limites en mémoire (instance unique). Ne pas lancer plusieurs " +
-        "instances sans magasin partagé : les limites seraient multipliées."
-    );
+if (!hasUpstash && !process.env.REDIS_URL && process.env.NODE_ENV === "production") {
+    // Sans magasin partagé, le repli mémoire n'est exact qu'avec UN processus.
+    // Les lanceurs (scripts/server/cluster.cjs, ecosystem.config.js) refusent
+    // d'en démarrer plusieurs sans REDIS_URL ; ce message couvre les autres.
+    const multiProcess = Boolean(process.env.NODE_APP_INSTANCE && process.env.NODE_APP_INSTANCE !== "0")
+        || Number(process.env.WEB_CONCURRENCY) > 1;
+    if (multiProcess) {
+        logger.error(
+            "[RateLimit] Plusieurs processus sans REDIS_URL : limites et compteurs d'échecs de connexion " +
+            "propres à chaque processus (protections multipliées). Configurer REDIS_URL."
+        );
+    } else {
+        logger.info("[RateLimit] Limites en mémoire (processus unique, sans REDIS_URL).");
+    }
 }
 
 let redisClient: Redis | null = null;
@@ -108,6 +118,21 @@ function getRedis(): Redis | null {
 }
 
 // ─── Moteur ───────────────────────────────────────────────────────────────────
+
+/**
+ * Redis auto-hébergé (`REDIS_URL`) : SET NX pose la fenêtre à la première
+ * unité, INCR compte — un seul aller-retour, compatible avec toute version.
+ */
+async function consumeTcp(client: TcpRedis, key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+    const results = await client.multi().set(key, "0", "PX", config.windowMs, "NX").incr(key).pttl(key).exec();
+    const count = Number(results?.[1]?.[1] ?? 0);
+    const ttl = Number(results?.[2]?.[1] ?? config.windowMs);
+    return {
+        success: count <= config.maxAttempts,
+        remaining: Math.max(0, config.maxAttempts - count),
+        reset: new Date(Date.now() + (ttl > 0 ? ttl : config.windowMs)),
+    };
+}
 
 /** Les erreurs remontent au coupe-circuit, qui bascule sur le repli mémoire. */
 async function consumeRedis(
@@ -168,6 +193,13 @@ export async function checkRateLimitKey(
     key: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
+    const tcp = getTcpRedis();
+    if (tcp) {
+        return tcpRedisCircuit.run(
+            () => consumeTcp(tcp, key, config),
+            () => consumeMemory(key, config)
+        );
+    }
     const redis = getRedis();
     if (!redis) return consumeMemory(key, config);
     return redisCircuit.run(
@@ -193,6 +225,16 @@ export async function checkRateLimit(
 /** Remet un compteur à zéro (ex. second facteur validé). */
 export async function resetRateLimit(key: string): Promise<void> {
     memoryStore.delete(key);
+    const tcp = getTcpRedis();
+    if (tcp) {
+        await tcpRedisCircuit.run(
+            async () => {
+                await tcp.del(key);
+            },
+            () => undefined
+        );
+        return;
+    }
     const redis = getRedis();
     if (!redis) return;
     await redisCircuit.run(
@@ -209,8 +251,20 @@ export async function resetRateLimit(key: string): Promise<void> {
  * parallèle dépasse la limite.
  */
 export async function releaseRateLimit(key: string): Promise<void> {
+    const tcp = getTcpRedis();
+    if (tcp) {
+        const released = await tcpRedisCircuit.run(
+            async () => {
+                const remaining = await tcp.decr(key);
+                if (remaining <= 0) await tcp.del(key);
+                return true;
+            },
+            () => false
+        );
+        if (released) return;
+    }
     const redis = getRedis();
-    if (redis) {
+    if (!tcp && redis) {
         const released = await redisCircuit.run(
             async () => {
                 const remaining = await redis.decr(key);
@@ -288,14 +342,72 @@ export const uploadLimiter: LimiterHandle = {
 // ─── Configurations nommées (clé construite par l'appelant) ───────────────────
 
 /**
- * Échecs de connexion par IP (audit H4). Seuls les échecs comptent : une
- * école derrière une même IP publique, ou des mobiles derrière le NAT de
- * l'opérateur, peuvent se connecter en nombre sans être bloqués.
+ * Échecs de connexion par COMPTE depuis une adresse (audit H4). Seuls les
+ * échecs comptent. Une devinette de mot de passe vise un compte : c'est lui
+ * que l'on protège ; depuis plusieurs adresses, le verrouillage du compte
+ * (`auth/account-lockout`) prend le relais.
  */
 export const LOGIN_FAILURE_RATE_LIMIT: RateLimitConfig = {
     maxAttempts: 10,
     windowMs: 15 * 60 * 1000,
 };
+
+/**
+ * Échecs de connexion par ADRESSE, tous comptes confondus (essais en masse
+ * sur une liste de comptes). Large : une école entière sort souvent par un
+ * seul routeur 4G, les familles par le NAT de l'opérateur. L'ancienne limite
+ * (10 par IP, tentatives en cours comprises) refusait 20 élèves sur 30 qui se
+ * connectaient ensemble et bloquait toute l'école 15 min après 10 fautes de
+ * frappe (analyse de capacité 2026-10-01, G3).
+ */
+export function loginIpFailureRateLimit(): RateLimitConfig {
+    const configured = Number(process.env.LOGIN_IP_FAILURES_PER_15MIN);
+    return {
+        maxAttempts: Number.isFinite(configured) && configured >= 1 ? configured : 200,
+        windowMs: 15 * 60 * 1000,
+    };
+}
+
+export type LoginAttempt =
+    | { allowed: true; release: () => Promise<void> }
+    | { allowed: false; reset: Date };
+
+/**
+ * Réserve une tentative de connexion (ou d'activation) : une unité sur le
+ * compteur du compte depuis cette adresse, une sur celui de l'adresse. La
+ * tentative est comptée AVANT la vérification (une rafale parallèle ne
+ * dépasse pas les limites) ; l'appelant appelle `release()` si elle n'était
+ * pas un échec d'identifiants.
+ */
+export async function reserveLoginAttempt(
+    scope: string,
+    ip: string,
+    account: string | null | undefined,
+): Promise<LoginAttempt> {
+    const normalizedAccount = account?.trim().toLowerCase();
+    const accountKey = normalizedAccount
+        ? createRateLimitKey(`${scope}:account`, `${ip}:${normalizedAccount}`)
+        : null;
+    const ipKey = createRateLimitKey(`${scope}:ip`, ip);
+
+    if (accountKey) {
+        const perAccount = await checkRateLimitKey(accountKey, LOGIN_FAILURE_RATE_LIMIT);
+        if (!perAccount.success) return { allowed: false, reset: perAccount.reset };
+    }
+    const perIp = await checkRateLimitKey(ipKey, loginIpFailureRateLimit());
+    if (!perIp.success) {
+        if (accountKey) await releaseRateLimit(accountKey);
+        return { allowed: false, reset: perIp.reset };
+    }
+
+    return {
+        allowed: true,
+        release: async () => {
+            await releaseRateLimit(ipKey);
+            if (accountKey) await releaseRateLimit(accountKey);
+        },
+    };
+}
 
 export const LOGIN_RATE_LIMIT: RateLimitConfig = {
     maxAttempts: 5,

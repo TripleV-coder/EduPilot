@@ -3,6 +3,7 @@
 // C3 : analyses lues avec les seuls champs utiles ; résumé par matière et
 // élèves à risque calculés par des requêtes ciblées (voir ./queries).
 
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
@@ -356,6 +357,8 @@ async function buildSiteComparison(input: {
           ).map((performance) => Number(performance.average))
         : [];
 
+      // Seuil de passage propre à chaque école comparée
+      const schoolPassingGrade = await getPassingGrade(school.id);
       const scoredAnalytics = schoolSubject
         ? []
         : currentAnalytics.filter((item) => item.generalAverage !== null);
@@ -368,10 +371,10 @@ async function buildSiteComparison(input: {
           : 0;
       const passRate = schoolSubject
         ? subjectScores.length > 0
-          ? (subjectScores.filter((value) => value >= 10).length / subjectScores.length) * 100
+          ? (subjectScores.filter((value) => value >= schoolPassingGrade).length / subjectScores.length) * 100
           : 0
         : scoredAnalytics.length > 0
-          ? (scoredAnalytics.filter((item) => Number(item.generalAverage) >= 10).length / scoredAnalytics.length) * 100
+          ? (scoredAnalytics.filter((item) => Number(item.generalAverage) >= schoolPassingGrade).length / scoredAnalytics.length) * 100
           : 0;
 
       const attendanceTotal = attendanceStats.reduce((sum, item) => sum + item._count, 0);
@@ -547,12 +550,13 @@ export async function getAdminDashboardData(
     ? ((attendanceDistribution.present + attendanceDistribution.late) / totalAttendance) * 100
     : 0;
 
+  const passingGrade = await getPassingGrade(schoolId);
   const passRate = scoredCurrentAnalytics.length > 0
-    ? (scoredCurrentAnalytics.filter(a => Number(a.generalAverage) >= 10).length / scoredCurrentAnalytics.length) * 100
+    ? (scoredCurrentAnalytics.filter(a => Number(a.generalAverage) >= passingGrade).length / scoredCurrentAnalytics.length) * 100
     : 0;
 
   const failureRate = scoredCurrentAnalytics.length > 0
-    ? (scoredCurrentAnalytics.filter(a => Number(a.generalAverage) < 10).length / scoredCurrentAnalytics.length) * 100
+    ? (scoredCurrentAnalytics.filter(a => Number(a.generalAverage) < passingGrade).length / scoredCurrentAnalytics.length) * 100
     : 0;
 
   const dropoutRate = studentsInSchoolCount > 0 ? (droppedStudentsCount / studentsInSchoolCount) * 100 : 0;

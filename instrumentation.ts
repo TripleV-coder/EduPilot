@@ -16,12 +16,16 @@ export async function register() {
     // ce qui suit ne doit pouvoir empêcher cet enregistrement : sans lui, un
     // arrêt laisse des connexions PostgreSQL ouvertes. Sans le préchargement
     // (développement), l'enregistrement ne fait rien.
-    const [{ registerShutdownTask }, { prisma: db }, { logger: log }] = await Promise.all([
+    const [{ registerShutdownTask }, { prisma: db }, { logger: log }, jobs] = await Promise.all([
       import("./src/lib/system/shutdown"),
       import("./src/lib/prisma"),
       import("./src/lib/utils/logger"),
+      import("./src/lib/jobs/queue"),
     ]);
     registerShutdownTask(async () => {
+      // Les fermetures tournent en parallèle : le passage en cours de la file
+      // doit finir d'écrire avant que PostgreSQL ne soit déconnecté.
+      await jobs.stopJobWorker();
       await db.$disconnect();
       log.info("Connexions PostgreSQL fermées", { module: "server/shutdown" });
     });
@@ -29,6 +33,10 @@ export async function register() {
       const { closeRedis } = await import("./src/lib/cache/redis");
       await closeRedis();
       log.info("Client Redis fermé", { module: "server/shutdown" });
+    });
+    registerShutdownTask(async () => {
+      const { closeTcpRedis } = await import("./src/lib/redis/tcp");
+      await closeTcpRedis();
     });
 
     // RLS effective (audit M2) : refus d'un rôle PostgreSQL qui l'ignorerait.
@@ -39,6 +47,12 @@ export async function register() {
 
     const { warmCache } = await import("./src/lib/cache/warm");
     warmCache().catch(() => {});
+
+    // File d'envoi (e-mails, SMS) : traitée par ce processus. JOB_WORKER_DISABLED=true
+    // pour la confier à un autre processus pointant sur la même base.
+    if (process.env.JOB_WORKER_DISABLED !== "true") {
+      jobs.startJobWorker();
+    }
 
     // Surveillance des erreurs — facultative, et chargée en dernier.
     //

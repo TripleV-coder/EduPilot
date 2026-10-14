@@ -17,6 +17,7 @@
  *   Webhook.constructEvent(rawBody, signatureHeader, secret) → event (throw si invalide)
  */
 import { FedaPay, Transaction, Webhook } from "fedapay";
+import { CIRCUITS, getCircuitBreaker, isProviderFailureStatus } from "@/lib/resilience/circuit-breaker";
 
 /** Statuts FedaPay considérés comme payés (cf. SDK Transaction.PAID_STATUS). */
 const FEDAPAY_PAID = new Set(["approved", "transferred"]);
@@ -39,10 +40,23 @@ export async function retrieveFedaPayTransaction(
   transactionId: string
 ): Promise<{ status: PaymentStatus; raw: unknown }> {
   ensureInit();
-  const tx = (await Transaction.retrieve(transactionId)) as unknown as {
+  const tx = (await fedapayCircuit(() => Transaction.retrieve(transactionId))) as unknown as {
     status?: string;
   };
   return { status: mapFedaPayStatus(tx.status), raw: tx };
+}
+
+/**
+ * Appels au SDK sous coupe-circuit : erreur réseau (sans statut), 5xx et 429
+ * sont des pannes ; un refus 4xx prouve que FedaPay répond.
+ */
+function fedapayCircuit<T>(operation: () => Promise<T>): Promise<T> {
+  return getCircuitBreaker(CIRCUITS.fedapay).execute(operation, {
+    isFailureError: (error) => {
+      const status = (error as { httpStatus?: unknown })?.httpStatus;
+      return typeof status !== "number" || isProviderFailureStatus(status);
+    },
+  });
 }
 
 export function isFedaPayConfigured(): boolean {
@@ -95,7 +109,7 @@ export async function createFedaPayCheckout(params: {
 }): Promise<FedaPayCheckout> {
   ensureInit();
 
-  const transaction = await Transaction.create({
+  const transaction = await fedapayCircuit(() => Transaction.create({
     description: params.description,
     amount: Math.round(params.amount),
     currency: { iso: "XOF" },
@@ -109,10 +123,10 @@ export async function createFedaPayCheckout(params: {
         ? { phone_number: { number: params.customer.phone, country: "bj" } }
         : {}),
     },
-  });
+  }));
 
   const tx = transaction as unknown as { id: string | number };
-  const token = (await transaction.generateToken()) as unknown as {
+  const token = (await fedapayCircuit(() => transaction.generateToken())) as unknown as {
     token: string;
     url: string;
   };

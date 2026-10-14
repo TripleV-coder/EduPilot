@@ -18,6 +18,11 @@ const { initiatePayment } = vi.hoisted(() => ({ initiatePayment: vi.fn() }));
 vi.mock("@/lib/finance/factory", () => ({
   PaymentProviderFactory: { getProvider: () => ({ initiatePayment }) },
 }));
+// La route refuse (503) un rail non configuré ; le fournisseur est simulé ci-dessus.
+vi.mock("@/lib/finance/providers/momo", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/providers/momo")>()),
+  isMomoConfigured: () => true,
+}));
 
 import { POST as initiate } from "@/app/api/payments/initiate/route";
 import { POST as momoWebhook } from "@/app/api/payments/momo/webhook/route";

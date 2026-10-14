@@ -29,11 +29,15 @@ async function statuses(n, headersFn, url = "/api/auth/csrf") {
 // placée avant, elle faisait refuser (429) les jetons CSRF de H4, qui ne
 // mesurait plus rien.
 
-// H4 — la connexion réelle (/api/auth/callback/credentials) doit être limitée par IP.
-if (want("bruteforce")) {
+// H4 — la connexion réelle (/api/auth/callback/credentials) limite les échecs :
+// par COMPTE depuis une adresse (10 / 15 min), et par adresse tous comptes
+// confondus (200 / 15 min). Depuis l'analyse de capacité du 2026-10-01 (G3),
+// des échecs sur des comptes DIFFÉRENTS depuis une même adresse (salle
+// informatique, routeur 4G d'école) ne bloquent plus l'établissement.
+async function loginAttempts(ip, emailFor, n) {
   const st = {};
-  for (let i = 0; i < 12; i++) {
-    const c = await fetch(`${BASE}/api/auth/csrf`, { headers: { "x-forwarded-for": "203.0.113.50" } });
+  for (let i = 0; i < n; i++) {
+    const c = await fetch(`${BASE}/api/auth/csrf`, { headers: { "x-forwarded-for": ip } });
     if (c.status !== 200) {
       st[`csrf-${c.status}`] = (st[`csrf-${c.status}`] || 0) + 1;
       continue;
@@ -43,13 +47,21 @@ if (want("bruteforce")) {
     const r = await fetch(`${BASE}/api/auth/callback/credentials`, {
       method: "POST",
       redirect: "manual",
-      headers: { "content-type": "application/x-www-form-urlencoded", cookie, "x-forwarded-for": "203.0.113.50" },
-      body: new URLSearchParams({ csrfToken, email: `nobody${i}@example.invalid`, password: "wrong", json: "true" }),
+      headers: { "content-type": "application/x-www-form-urlencoded", cookie, "x-forwarded-for": ip },
+      body: new URLSearchParams({ csrfToken, email: emailFor(i), password: "wrong", json: "true" }),
     });
     await r.arrayBuffer();
     st[r.status] = (st[r.status] || 0) + 1;
   }
-  check("H4", "12 échecs de connexion depuis la même IP", (st[429] || 0) > 0, JSON.stringify(st));
+  return st;
+}
+
+if (want("bruteforce")) {
+  const sameAccount = await loginAttempts("203.0.113.50", () => "cible@example.invalid", 12);
+  check("H4", "12 échecs sur UN compte depuis la même IP → 429", (sameAccount[429] || 0) > 0, JSON.stringify(sameAccount));
+
+  const distinctAccounts = await loginAttempts("203.0.113.51", (i) => `eleve${i}@example.invalid`, 12);
+  check("G3", "12 échecs sur des comptes DIFFÉRENTS depuis une IP d'école → aucun 429", !distinctAccounts[429], JSON.stringify(distinctAccounts));
 }
 
 // H3 — le rate-limit ne doit pas être contournable en faisant varier X-Forwarded-For.

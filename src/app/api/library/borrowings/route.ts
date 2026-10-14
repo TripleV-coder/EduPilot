@@ -5,6 +5,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
 /** Erreurs métier du service traduites ; tout le reste reste dans le journal. */
 const LIBRARY_ERRORS: Record<string, string> = {
@@ -31,7 +32,7 @@ async function getStudentProfileId(userId: string): Promise<string | null> {
 export const POST = createApiHandler(async (request, context) => {
 try {
         const session = context.session;
-        const { bookId, dueDate } = await request.json();
+        const { bookId } = await request.json();
 
         const studentProfile = await prisma.studentProfile.findUnique({
             where: { userId: session.user.id },
@@ -52,10 +53,10 @@ try {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
-        const due = new Date(dueDate);
-        if (typeof dueDate !== "string" || Number.isNaN(due.getTime()) || due.getTime() <= Date.now()) {
-            return NextResponse.json({ error: "Date de retour invalide." }, { status: 400 });
-        }
+        // Date de retour fixée par le serveur : durée de prêt réglée par l'école
+        // (avant : date choisie par le navigateur, qu'un élève pouvait repousser à volonté)
+        const loanDays = (await getSchoolParameters(studentProfile.schoolId)).services.libraryLoanDays;
+        const due = new Date(Date.now() + loanDays * 24 * 60 * 60 * 1000);
         const record = await libraryService.borrowBook(studentProfile.id, bookId, due);
         return NextResponse.json(record);
     } catch (error) {

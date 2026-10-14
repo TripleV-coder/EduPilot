@@ -53,6 +53,10 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function ResourcesPage() {
+    const [composer, setComposer] = useState(false);
+    const [title, setTitle] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
     const limit = 20;
@@ -81,11 +85,52 @@ export default function ResourcesPage() {
                         { label: "Ressources numériques" },
                     ]}
                     actions={
-                        <Button variant="primary" size="sm" icon="plus">
+                        <Button variant="primary" size="sm" icon="plus" onClick={() => setComposer(true)}>
                             Ajouter une ressource
                         </Button>
                     }
                 />
+
+                {composer ? (
+                    <Card padding={16}>
+                        <form
+                            role="dialog"
+                            aria-label="Ajouter une ressource"
+                            className="flex flex-col gap-3"
+                            onSubmit={async (event) => {
+                                event.preventDefault();
+                                setSaving(true);
+                                setSaveError(null);
+                                try {
+                                    const res = await fetch("/api/resources", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ title, type: "DOCUMENT" }),
+                                    });
+                                    const body = await res.json().catch(() => ({}));
+                                    if (!res.ok) throw new Error(body.error || "Enregistrement impossible");
+                                    setComposer(false);
+                                    setTitle("");
+                                    window.location.reload();
+                                } catch (err) {
+                                    setSaveError(err instanceof Error ? err.message : "Enregistrement impossible");
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                        >
+                            <label className="text-sm font-medium">
+                                Titre
+                                <input className="mt-1 w-full rounded border px-2 py-1" value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} />
+                            </label>
+                            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
+                            <div className="flex gap-2">
+                                <Button type="submit" loading={saving}>Enregistrer</Button>
+                                <Button type="button" variant="secondary" onClick={() => setComposer(false)}>Annuler</Button>
+                            </div>
+                        </form>
+                    </Card>
+                ) : null}
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                     <div className="flex-1">

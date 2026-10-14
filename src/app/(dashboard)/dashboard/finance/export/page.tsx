@@ -42,6 +42,62 @@ export default function FinanceExportPage() {
         }
     };
 
+    const downloadResponse = async (res: Response, fallbackName: string) => {
+        if (!res.ok) throw new Error("Erreur d'export");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const disposition = res.headers.get("content-disposition") ?? "";
+        const named = disposition.match(/filename="([^"]+)"/);
+        a.href = url;
+        a.download = named?.[1] ?? fallbackName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleStandardExport = async () => {
+        setError(null);
+        try {
+            const res = await fetch("/api/finance/export?format=csv&type=payments");
+            await downloadResponse(res, "export-comptable-standard.csv");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Une erreur est survenue lors de l'export");
+        }
+    };
+
+    const handleRemindersPdf = async () => {
+        setError(null);
+        try {
+            const res = await fetch("/api/finance/dashboard");
+            if (!res.ok) throw new Error("Impossible de charger les impayés");
+            const data = await res.json();
+            const rows: Array<{ studentName: string; balance: number }> = data.overdueStudents ?? [];
+            const { jsPDF } = await import("jspdf");
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text("Liste de relance", 14, 20);
+            doc.setFontSize(11);
+            let y = 32;
+            if (rows.length === 0) {
+                doc.text("Aucun impayé échu.", 14, y);
+            } else {
+                for (const row of rows) {
+                    doc.text(`${row.studentName} — ${Number(row.balance).toLocaleString("fr-FR")} FCFA`, 14, y);
+                    y += 8;
+                    if (y > 280) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                }
+            }
+            doc.save("liste-de-relance.pdf");
+        } catch (err) {
+            setError(getErrorMessage(err) || "Une erreur est survenue lors de l'export");
+        }
+    };
+
     return (
         <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
             <PageShell>
@@ -145,7 +201,7 @@ export default function FinanceExportPage() {
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Cet export est compatible avec la majorité des logiciels de comptabilité (Sage, Cegid, QuickBooks). Il inclut les comptes liés aux scolarités.
                                 </p>
-                                <Button variant="outline" className="w-full">
+                                <Button variant="outline" className="w-full" onClick={() => void handleStandardExport()}>
                                     Lancer l'export standard
                                 </Button>
                             </CardContent>
@@ -160,7 +216,7 @@ export default function FinanceExportPage() {
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Génère la liste exacte des parents à relancer ce mois-ci, avec leurs numéros de téléphone et le montant du solde.
                                 </p>
-                                <Button variant="outline" className="w-full">
+                                <Button variant="outline" className="w-full" onClick={() => void handleRemindersPdf()}>
                                     {t("appActions.exportRemindersPdf")}
                                 </Button>
                             </CardContent>

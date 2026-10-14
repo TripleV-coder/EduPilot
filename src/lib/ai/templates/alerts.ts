@@ -1,4 +1,4 @@
-import type { StudentTemplateContext, TemplateAlert } from "./types";
+import { DEFAULT_TEMPLATE_THRESHOLDS, type StudentTemplateContext, type TemplateAlert } from "./types";
 
 interface AtRiskStudent {
   id: string;
@@ -31,6 +31,7 @@ export function generateStudentAlerts(ctx: StudentTemplateContext, studentId = "
   const name = [ctx.firstName, ctx.lastName].filter(Boolean).join(" ").trim() || "Élève";
   const level = ctx.riskLevel ?? "LOW";
   const average = ctx.generalAverage;
+  const t = ctx.thresholds ?? DEFAULT_TEMPLATE_THRESHOLDS;
 
   if (["CRITICAL", "HIGH"].includes(level)) {
     alerts.push({
@@ -43,18 +44,18 @@ export function generateStudentAlerts(ctx: StudentTemplateContext, studentId = "
     });
   }
 
-  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < 80) {
+  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < t.attendanceWarning) {
     alerts.push({
       id: `attendance_${studentId}`,
       type: "warning",
       title: "Assiduité insuffisante",
-      message: `${name} affiche un taux de présence de ${ctx.attendanceRate.toFixed(0)} % sur les 90 derniers jours.`,
+      message: `${name} affiche un taux de présence de ${ctx.attendanceRate.toFixed(0)} % sur les ${t.attendanceWindowDays} derniers jours.`,
       targetRoles: ["TEACHER", "SCHOOL_ADMIN"],
       actionRequired: true,
     });
   }
 
-  if ((ctx.incidentCount ?? 0) >= 3) {
+  if ((ctx.incidentCount ?? 0) >= t.incidentsWarning) {
     alerts.push({
       id: `behavior_${studentId}`,
       type: "warning",
@@ -65,7 +66,7 @@ export function generateStudentAlerts(ctx: StudentTemplateContext, studentId = "
     });
   }
 
-  if ((ctx.weaknesses?.length ?? 0) >= 3 && (average ?? 20) < 10) {
+  if ((ctx.weaknesses?.length ?? 0) >= t.weakSubjectsAlert && average !== null && average !== undefined && average < t.passingGrade) {
     alerts.push({
       id: `academic_${studentId}`,
       type: "error",

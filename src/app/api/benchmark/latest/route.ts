@@ -18,6 +18,9 @@ export const GET = createApiHandler(async (request, context) => {
 
     const schoolId = requestedSchoolId ?? getActiveSchoolId(session);
     if (!schoolId) {
+        if (session.user.role === "SUPER_ADMIN") {
+            return NextResponse.json({ schoolId: null, snapshot: null });
+        }
         return NextResponse.json(
             { error: "Aucun établissement actif associé au compte." },
             { status: 400 },

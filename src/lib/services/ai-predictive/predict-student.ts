@@ -3,6 +3,8 @@
  * High-level functions that combine all prediction modules.
  */
 
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 import prisma from "@/lib/prisma";
 import type { StudentPrediction, ClassPrediction } from "./types";
 import { assessDataQuality } from "./algorithms/statistics";
@@ -11,6 +13,8 @@ import { predictNextPeriodGrade } from "./predict-grade";
 import { predictBehaviorRisk } from "./predict-behavior";
 import { predictDropoutRisk } from "./predict-dropout";
 import { detectEarlyWarnings } from "./detect-early-warning";
+import { computeIndicativeRecommendations } from "@/lib/services/orientation";
+import { seriesShortLabel } from "@/lib/benin/series";
 
 /**
  * Génère toutes les prédictions pour un élève
@@ -27,92 +31,43 @@ export async function generateStudentPredictions(
         detectEarlyWarnings(studentId),
     ]);
 
-    // Prédiction d'orientation (basée sur les analytics existantes)
-    const latestAnalytics = await prisma.studentAnalytics.findFirst({
-        where: { studentId },
-        orderBy: { createdAt: "desc" },
-        include: {
-            subjectPerformances: {
-                include: { subject: true },
-            },
-        },
-    });
-
+    // Orientation : le calcul officiel (moyennes du bulletin, critères de
+    // l'école). Sans moyenne dans une discipline déterminante, aucune série
+    // n'est proposée — jamais de série « par défaut ».
     const orientationFit = {
         series: [] as string[],
         scores: [] as number[],
-        reasoning: "Analyse basée sur les performances actuelles",
+        reasoning: "Données insuffisantes : aucune moyenne dans une discipline déterminante.",
     };
-
-    if (latestAnalytics) {
-        const strengths = latestAnalytics.subjectPerformances.filter(
-            (sp) => sp.isStrength
-        );
-
-        // Logique améliorée de recommandation avec scores pondérés
-        const hasScience = strengths.some((s) =>
-            ["mathématiques", "physique", "chimie", "svt", "sciences"].some((kw) =>
-                s.subject.name.toLowerCase().includes(kw)
-            )
-        );
-        const hasLiterature = strengths.some((s) =>
-            ["français", "philosophie", "histoire", "littérature"].some((kw) =>
-                s.subject.name.toLowerCase().includes(kw)
-            )
-        );
-        const hasEconomics = strengths.some((s) =>
-            ["économie", "gestion", "comptabilité", "commerce"].some((kw) =>
-                s.subject.name.toLowerCase().includes(kw)
-            )
-        );
-
-        // Calcul des scores basé sur les moyennes des matières
-        const sciencePerfs = latestAnalytics.subjectPerformances.filter((sp) =>
-            ["mathématiques", "physique", "chimie", "svt", "sciences"].some((kw) =>
-                sp.subject.name.toLowerCase().includes(kw)
-            )
-        );
-        const litPerfs = latestAnalytics.subjectPerformances.filter((sp) =>
-            ["français", "philosophie", "histoire", "littérature"].some((kw) =>
-                sp.subject.name.toLowerCase().includes(kw)
-            )
-        );
-
-        if (hasScience && sciencePerfs.length > 0) {
-            const scienceAvg = sciencePerfs.reduce((sum, sp) => sum + Number(sp.average || 0), 0) / sciencePerfs.length;
-            const scienceScore = Math.min(95, Math.round(scienceAvg * 5)); // Score sur 100
-            orientationFit.series.push("Série C", "Série D");
-            orientationFit.scores.push(scienceScore, scienceScore - 5);
-        }
-        if (hasLiterature && litPerfs.length > 0) {
-            const litAvg = litPerfs.reduce((sum, sp) => sum + Number(sp.average || 0), 0) / litPerfs.length;
-            const litScore = Math.min(95, Math.round(litAvg * 5));
-            orientationFit.series.push("Série A");
-            orientationFit.scores.push(litScore);
-        }
-        if (hasEconomics) {
-            orientationFit.series.push("Série G");
-            orientationFit.scores.push(75);
-        }
-
-        // Si aucune force détectée, recommander série générale
-        if (orientationFit.series.length === 0) {
-            orientationFit.series.push("Série A", "Série D");
-            orientationFit.scores.push(60, 60);
-            orientationFit.reasoning = "Profil polyvalent - plusieurs options possibles";
+    const enrollment = await prisma.enrollment.findFirst({
+        where: { studentId, status: "ACTIVE" },
+        orderBy: { enrolledAt: "desc" },
+        select: { academicYearId: true },
+    });
+    if (enrollment) {
+        const indicative = await computeIndicativeRecommendations(studentId, enrollment.academicYearId);
+        if (indicative.recommendations.length > 0) {
+            orientationFit.series = indicative.recommendations.map((r) => `Série ${seriesShortLabel(r.series) ?? r.series}`);
+            orientationFit.scores = indicative.recommendations.map((r) => r.score);
+            orientationFit.reasoning = `Selon les moyennes de l'année et les critères d'orientation de l'établissement${
+                indicative.generalAverage !== null ? ` (moyenne ${String(indicative.generalAverage).replace(".", ",")}/20)` : ""
+            }. Indicatif : la décision revient au conseil de classe.`;
         }
     }
 
-    // Évaluation de la qualité des données
-    const dataPoints = latestAnalytics ? latestAnalytics.subjectPerformances.length : 0;
+    // Qualité des données : nombre de matières évaluées (dernière analyse)
+    const latestAnalytics = await prisma.studentAnalytics.findFirst({
+        where: { studentId, generalAverage: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { subjectPerformances: { select: { id: true } } },
+    });
+    const dataPoints = latestAnalytics?.subjectPerformances.length ?? 0;
     const dataQuality = assessDataQuality(dataPoints);
 
-    // Confiance globale (moyenne pondérée)
-    const confidence = Math.round(
-        nextGrade.confidence * 0.6 +
-        (100 - failureRisk.probability) * 0.2 +
-        (100 - behaviorRisk.probability) * 0.2
-    );
+    // Confiance = celle de la prévision de note (validation croisée). Avant, elle
+    // mélangeait la prévision et le risque de l'élève (plus le risque était
+    // faible, plus la « confiance » montait) : deux choses sans rapport.
+    const confidence = nextGrade.confidence;
 
     return {
         studentId,
@@ -125,6 +80,8 @@ export async function generateStudentPredictions(
                 predicted: nextGrade.predicted,
                 confidence: nextGrade.confidence,
                 range: nextGrade.range,
+                range80: nextGrade.range80,
+                dataPoints: nextGrade.dataPoints,
                 warning: nextGrade.warning,
                 modelUsed: nextGrade.modelUsed,
             },
@@ -161,7 +118,7 @@ export async function generateClassPredictions(
         return {
             classId,
             predictions: {
-                averageNextPeriod: 0,
+                averageNextPeriod: null,
                 studentsAtRisk: 0,
                 studentsAtRiskIds: [],
                 dropoutRisk: 0,
@@ -186,11 +143,21 @@ export async function generateClassPredictions(
         })
     );
 
-    const averageNextPeriod =
-        perStudent.reduce((sum, p) => sum + p.grade.predicted, 0) / perStudent.length;
+    // Seuls les élèves avec une prévision comptent (pas de 10/20 inventé pour les autres)
+    const forecasts = perStudent.flatMap((p) => (p.grade.predicted === null ? [] : [p.grade.predicted]));
+    const averageNextPeriod = forecasts.length > 0 ? forecasts.reduce((sum, v) => sum + v, 0) / forecasts.length : null;
 
+    // Paramètres et seuil de réussite de l'école de la classe
+    const klass = await prisma.class.findUnique({ where: { id: classId }, select: { schoolId: true } });
+    const [params, passingGrade] = await Promise.all([
+        getSchoolParameters(klass?.schoolId),
+        klass?.schoolId ? getPassingGrade(klass.schoolId) : Promise.resolve(10),
+    ]);
+    const A = params.analysis;
+
+    // Élève à risque = niveau « élevé » ou « très élevé » de l'école
     const studentsAtRiskIds = perStudent
-        .filter((p) => p.failure.probability >= 50) // Risque élevé ou très élevé
+        .filter((p) => p.failure.probability >= A.levelHigh)
         .map((p) => p.id);
 
     // Décrochage réel = moyenne du modèle de décrochage sur la classe
@@ -203,14 +170,14 @@ export async function generateClassPredictions(
     const riskShare = (studentsAtRiskIds.length / perStudent.length) * 100;
 
     const recommendations: string[] = [];
-    if (riskShare > 30) {
+    if (riskShare > A.classRiskUrgentShare) {
         recommendations.push(
             "Taux de risque d'échec élevé dans la classe - Intervention urgente nécessaire"
         );
         recommendations.push(
             "Organiser des séances de soutien scolaire renforcées"
         );
-    } else if (riskShare > 15) {
+    } else if (riskShare > A.classRiskWatchShare) {
         recommendations.push("Surveiller attentivement les élèves à risque");
         recommendations.push("Proposer du tutorat personnalisé");
     } else {
@@ -223,7 +190,7 @@ export async function generateClassPredictions(
         );
     }
 
-    if (averageNextPeriod < 10) {
+    if (averageNextPeriod !== null && averageNextPeriod < passingGrade) {
         recommendations.push(
             "Moyenne de classe prédite faible - Revoir les méthodes pédagogiques"
         );
@@ -232,7 +199,7 @@ export async function generateClassPredictions(
     return {
         classId,
         predictions: {
-            averageNextPeriod: Math.round(averageNextPeriod * 100) / 100,
+            averageNextPeriod: averageNextPeriod === null ? null : Math.round(averageNextPeriod * 100) / 100,
             studentsAtRisk: studentsAtRiskIds.length,
             studentsAtRiskIds,
             dropoutRisk: Math.round(dropoutRisk * 100) / 100,

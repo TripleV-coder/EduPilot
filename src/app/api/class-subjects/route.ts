@@ -26,7 +26,19 @@ export const GET = createApiHandler(
       if (classAccess) return classAccess;
       where.classId = classId;
     }
-    if (teacherId) {
+    // Un enseignant ne voit que les matières qui lui sont affectées
+    // (ClassSubject.teacherId). Sinon la saisie de notes lui propose
+    // aussi celles de ses collègues (ex. Mathématiques pour le français).
+    if (session.user.role === "TEACHER") {
+      const ownProfile = await prisma.teacherProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      if (!ownProfile) {
+        return NextResponse.json([]);
+      }
+      where.teacherId = ownProfile.id;
+    } else if (teacherId) {
       if (session.user.role !== "SUPER_ADMIN") {
         const teacher = await prisma.teacherProfile.findUnique({
           where: { id: teacherId },

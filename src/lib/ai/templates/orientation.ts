@@ -1,21 +1,5 @@
 import type { OrientationTemplateResult, StudentTemplateContext } from "./types";
-
-const SCIENCE_KEYWORDS = ["math", "physique", "chimie", "svt", "sciences"];
-const LITERATURE_KEYWORDS = ["français", "philosophie", "histoire", "géo", "lettres", "littérature", "langue"];
-const ECONOMY_KEYWORDS = ["économie", "gestion", "comptabilité", "commerce"];
-
-function subjectAverage(
-  performances: StudentTemplateContext["subjectPerformances"],
-  keywords: string[]
-): number | null {
-  if (!performances?.length) return null;
-  const matches = performances.filter((p) =>
-    keywords.some((kw) => p.subjectName.toLowerCase().includes(kw))
-  );
-  if (matches.length === 0) return null;
-  const sum = matches.reduce((acc, p) => acc + (p.average ?? 0), 0);
-  return sum / matches.length;
-}
+import { disciplineAverages, rankSeries, type SeriesProfiles, type SeriesReadingThresholds } from "@/lib/benin/series";
 
 function formatName(ctx: StudentTemplateContext): string {
   return [ctx.firstName, ctx.lastName].filter(Boolean).join(" ").trim() || "L'élève";
@@ -24,56 +8,38 @@ function formatName(ctx: StudentTemplateContext): string {
 /**
  * Synthèse d'orientation scolaire (système béninois) à partir des performances réelles.
  */
-export function generateOrientationSynthesis(ctx: StudentTemplateContext): OrientationTemplateResult {
+export function generateOrientationSynthesis(
+  ctx: StudentTemplateContext,
+  profiles?: SeriesProfiles,
+  reading?: SeriesReadingThresholds
+): OrientationTemplateResult {
   const name = formatName(ctx);
   const generalAverage = ctx.generalAverage ?? 0;
   const performances = ctx.subjectPerformances ?? [];
   const strengths = ctx.strengths ?? [];
 
-  const sciAvg = subjectAverage(performances, SCIENCE_KEYWORDS) ?? 0;
-  const litAvg = subjectAverage(performances, LITERATURE_KEYWORDS) ?? 0;
-  const ecoAvg = subjectAverage(performances, ECONOMY_KEYWORDS) ?? 0;
-
-  let series: string;
-  let justification: string;
-  let alternatives: string[];
-
-  if (sciAvg >= 13 && sciAvg >= litAvg) {
-    series = "SERIE_C";
-    justification = `Profil scientifique solide (moyenne sciences : ${sciAvg.toFixed(1)}/20). La série C convient pour approfondir mathématiques et physique-chimie.`;
-    alternatives = ["SERIE_D", "SERIE_E"];
-  } else if (sciAvg >= 11 && sciAvg > litAvg) {
-    series = "SERIE_D";
-    justification = `Bonnes aptitudes en sciences naturelles (${sciAvg.toFixed(1)}/20). La série D permet de valoriser le profil SVT et sciences expérimentales.`;
-    alternatives = ["SERIE_C", "SERIE_E"];
-  } else if (litAvg >= 13 && litAvg > sciAvg) {
-    series = "SERIE_A1";
-    justification = `Excellentes performances littéraires (${litAvg.toFixed(1)}/20). La série A1 est adaptée pour les langues, le français et la philosophie.`;
-    alternatives = ["SERIE_A2", "SERIE_B"];
-  } else if (litAvg >= 11 && litAvg >= sciAvg) {
-    series = "SERIE_A2";
-    justification = `Profil littéraire et sciences humaines affirmé (${litAvg.toFixed(1)}/20). La série A2 offre une voie équilibrée en histoire-géographie et langues.`;
-    alternatives = ["SERIE_A1", "SERIE_B"];
-  } else if (ecoAvg >= 11) {
-    series = "SERIE_G";
-    justification = `Aptitudes en gestion et économie (${ecoAvg.toFixed(1)}/20). Les séries G conviennent pour un parcours tertiaire et commercial.`;
-    alternatives = ["SERIE_B", "SERIE_A2"];
-  } else if (generalAverage >= 12) {
-    series = "SERIE_D";
-    justification = `Profil polyvalent avec une moyenne générale de ${generalAverage.toFixed(1)}/20. La série D offre une base scientifique équilibrée.`;
-    alternatives = ["SERIE_C", "SERIE_A2"];
-  } else {
-    series = "SERIE_D";
-    justification = `Moyenne générale de ${generalAverage.toFixed(1)}/20. La série D constitue une orientation prudente et polyvalente pour consolider les acquis.`;
-    alternatives = ["SERIE_G", "SERIE_A2"];
-  }
+  // Même aide à l'orientation que partout ailleurs : disciplines réelles
+  // (maths, physique-chimie, SVT…) comparées aux disciplines clés des séries officielles.
+  const ranking = rankSeries(
+    disciplineAverages(performances.map((p) => ({ name: p.subjectName, average: p.average ?? null }))),
+    ctx.generalAverage ?? null,
+    profiles,
+    reading
+  );
+  const [top, ...others] = ranking;
+  const series = top.series as string;
+  const alternatives = others.slice(0, 2).map((r) => r.series as string);
+  const justification =
+    `${top.name} (adéquation ${top.score}/100, moyenne générale ${generalAverage.toFixed(2).replace(".", ",")}/20).` +
+    (top.strengths.length > 0 ? ` Atouts : ${top.strengths.join(", ")}.` : "") +
+    (top.warnings.length > 0 ? ` Points de vigilance : ${top.warnings.join(" ; ")}.` : "");
 
   const strengthText =
     strengths.length > 0
       ? ` Points forts observés : ${strengths.slice(0, 3).join(", ")}.`
       : "";
 
-  const synthesis = `${name}${ctx.className ? ` (${ctx.className})` : ""} — orientation recommandée : ${series.replace("SERIE_", "Série ")}. ${justification}${strengthText} Alternatives envisageables : ${alternatives.map((s) => s.replace("SERIE_", "Série ")).join(", ")}.`;
+  const synthesis = `${name}${ctx.className ? ` (${ctx.className})` : ""} — orientation recommandée : ${top.name}. ${justification}${strengthText} Alternatives envisageables : ${others.slice(0, 2).map((r) => r.name).join(", ")}.`;
 
-  return { series, justification, alternatives, synthesis };
+  return { series, score: top.score, justification, alternatives, synthesis };
 }

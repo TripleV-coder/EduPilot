@@ -1,3 +1,4 @@
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -21,7 +22,6 @@ type LiaisonEntry = {
     actionLabel?: string;
 };
 
-const SIGNATURE_DEADLINE_DAYS = 14;
 
 function fromIncidentSeverity(severity: string): {
     label: string;
@@ -338,7 +338,8 @@ export const GET = createApiHandler(async (request, { session }) => {
                 : null,
             entries,
             toSignCount,
-            signatureWindowDays: SIGNATURE_DEADLINE_DAYS,
+            // Délai de signature réglé par l'école (paramètres « Communication et services »)
+            signatureWindowDays: (await getSchoolParameters(student.schoolId)).services.liaisonSignatureDays,
             recap,
             recipients: recipientList,
         });

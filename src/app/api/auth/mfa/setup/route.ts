@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { generateSecret, generateQRCode, verifyToken, generateBackupCodes, hashBackupCodes, encryptSecret } from "@/lib/auth/two-factor";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 
 /**
  * POST /api/auth/mfa/generate - Generate secret and QR code for setup

@@ -7,12 +7,20 @@ import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Calculs adaptés pour un élève : aucun par défaut
+    studentFormula: { findMany: vi.fn().mockResolvedValue([]) },
     period: { findUnique: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findFirst: vi.fn() },
     grade: { findMany: vi.fn() },
     enrollment: { findMany: vi.fn() },
     attendance: { findMany: vi.fn() },
+    class: { findUnique: vi.fn() },
+    classCouncil: { findUnique: vi.fn() },
+    configOption: { findFirst: vi.fn() },
+    academicConfig: { findUnique: vi.fn() },
+    // Formules choisies par les enseignants (aucune : formule de l'école)
+    classSubject: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -45,17 +53,29 @@ function setupNominalStudent(periodId: string) {
         {
           classId,
           academicYearId: cuid("annee2026"),
-          class: { id: classId, name: "6e A", classLevel: { name: "Sixième" } },
+          class: {
+            id: classId,
+            name: "6e A",
+            schoolId: FIXTURES.schoolA,
+            classLevel: { name: "Sixième" },
+            classSubjects: [
+              { id: cuid("csmath"), subjectId: "smath", coefficient: 3 },
+              { id: cuid("csfr"), subjectId: "sfr", coefficient: 2 },
+            ],
+          },
           academicYear: { name: "2025-2026" },
         },
       ],
     } as unknown as StudentProfile;
   });
 
-  function gradeRow(subject: string, code: string, subjectCoeff: number, value: number, coeff: number) {
+  function gradeRow(subject: string, code: string, subjectCoeff: number, value: number, coeff: number, kind: "IE" | "DS" = "DS", evaluationId = "") {
     return {
       studentId: FIXTURES.studentA,
+      evaluationId,
       value,
+      isAbsent: false,
+      isExcused: false,
       comment: subject === "Mathématiques" ? "Bon trimestre" : null,
       evaluation: {
         date: new Date("2026-02-01"),
@@ -67,48 +87,57 @@ function setupNominalStudent(periodId: string) {
           subject: { name: subject, code },
           teacher: { user: { firstName: "Prof", lastName: code } },
         },
-        type: { name: "Devoir" },
+        type: kind === "IE" ? { code: "IE", name: "Interrogation écrite" } : { code: "DS", name: "Devoir surveillé" },
       },
     };
   }
 
-  vi.mocked(prisma.grade.findMany).mockImplementation(async (args: Prisma.GradeFindManyArgs) => {
+  // Maths coeff 3 : interrogations 15 et 13, devoirs 10 et 16 — Français coeff 2 : devoir 8
+  const evals = [
+    { id: "e1", cs: cuid("csmath"), kind: "IE" as const, a: 15, b: 18 },
+    { id: "e2", cs: cuid("csmath"), kind: "IE" as const, a: 13, b: 18 },
+    { id: "e3", cs: cuid("csmath"), kind: "DS" as const, a: 10, b: 15 },
+    { id: "e4", cs: cuid("csmath"), kind: "DS" as const, a: 16, b: 15 },
+    { id: "e5", cs: cuid("csfr"), kind: "DS" as const, a: 8, b: 12 },
+  ];
+  const typeOf = (kind: "IE" | "DS") =>
+    kind === "IE"
+      ? { code: "IE", name: "Interrogation écrite", category: "INTERROGATION" }
+      : { code: "DS", name: "Devoir surveillé", category: "DEVOIR" };
+  vi.mocked(prisma.grade.findMany).mockImplementation((async (args: Prisma.GradeFindManyArgs) => {
     if (args?.include) {
-      // Notes du bulletin : Maths coeff 3 (15 coeff 2, 10 coeff 1), Français coeff 2 (8)
       return [
-        gradeRow("Mathématiques", "math", 3, 15, 2),
-        gradeRow("Mathématiques", "math", 3, 10, 1),
-        gradeRow("Français", "fr", 2, 8, 1),
-      ] as unknown as Grade[];
+        gradeRow("Mathématiques", "math", 3, 15, 1, "IE", "e1"),
+        gradeRow("Mathématiques", "math", 3, 13, 1, "IE", "e2"),
+        gradeRow("Mathématiques", "math", 3, 10, 2, "DS", "e3"),
+        gradeRow("Mathématiques", "math", 3, 16, 2, "DS", "e4"),
+        gradeRow("Français", "fr", 2, 8, 1, "DS", "e5"),
+      ];
     }
-    // Notes du classement : notre élève (moyenne ~11.2) et un meilleur élève
-    return [
-      {
-        studentId: FIXTURES.studentA,
-        value: 11.2,
+    // Notes de toute la classe (calcul du bulletin) : notre élève et un meilleur élève
+    return [FIXTURES.studentA, FIXTURES.studentB].flatMap((studentId) =>
+      evals.map((e) => ({
+        studentId,
+        evaluationId: e.id,
+        value: studentId === FIXTURES.studentA ? e.a : e.b,
+        isAbsent: false,
+        isExcused: false,
         evaluation: {
+          date: new Date("2026-02-01"),
           maxGrade: 20,
-          coefficient: 1,
-          classSubjectId: cuid("csmath"),
-          classSubject: { coefficient: 1 },
+          periodId,
+          classSubjectId: e.cs,
+          classSubject: { subjectId: e.cs === cuid("csmath") ? "smath" : "sfr" },
+          type: typeOf(e.kind),
         },
-      },
-      {
-        studentId: FIXTURES.studentB,
-        value: 14,
-        evaluation: {
-          maxGrade: 20,
-          coefficient: 1,
-          classSubjectId: cuid("csmath"),
-          classSubject: { coefficient: 1 },
-        },
-      },
-    ] as unknown as Grade[];
-  });
+      }))
+    );
+  }) as never);
+  vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
 
   vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
-    { studentId: FIXTURES.studentA },
-    { studentId: FIXTURES.studentB },
+    { studentId: FIXTURES.studentA, enrolledAt: null },
+    { studentId: FIXTURES.studentB, enrolledAt: null },
   ] as unknown as Enrollment[]);
   vi.mocked(prisma.attendance.findMany).mockResolvedValue([
     { status: "PRESENT" },
@@ -196,7 +225,7 @@ describe("GET /api/grades/report-cards", () => {
     expect(bulletin.studentName).toBe("Awa Dossou");
     expect(bulletin.className).toContain("6e A");
 
-    // Maths : (15×2 + 10×1) / 3 = 13.33 — Français : 8
+    // Maths : MI = (15 + 13) / 2 = 14 ; (MI + D1 + D2) / 3 = (14 + 10 + 16) / 3 = 13,333… → 13,33 — Français : 8
     const maths = bulletin.subjects.find((s: { subject: string }) => s.subject === "Mathématiques");
     const francais = bulletin.subjects.find((s: { subject: string }) => s.subject === "Français");
     expect(maths.average20).toBe(13.33);
@@ -204,7 +233,7 @@ describe("GET /api/grades/report-cards", () => {
     expect(francais.average20).toBe(8);
     expect(francais.passed).toBe(false);
 
-    // Générale : (13.33×3 + 8×2) / 5 = 11.2
+    // Générale exacte : (40/3 × 3 + 8 × 2) / 5 = 56 / 5 = 11,2
     expect(bulletin.overallAverage20).toBe(11.2);
 
     // Classement : 11.2 < 14 → 2e sur 2

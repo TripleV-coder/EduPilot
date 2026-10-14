@@ -11,8 +11,10 @@
 
 import { PaymentProvider } from '../types';
 import { logger } from '@/lib/utils/logger';
+import { CIRCUITS, circuitFetch } from '@/lib/resilience/circuit-breaker';
 
 const FLW_BASE_URL = 'https://api.flutterwave.com/v3';
+const FLW_TIMEOUT_MS = 20_000;
 
 interface FlwInitiateResponse {
     status: string;
@@ -79,8 +81,9 @@ export class FlutterwaveProvider implements PaymentProvider {
             meta: metadata,
         };
 
-        const response = await fetch(`${FLW_BASE_URL}/payments`, {
+        const response = await circuitFetch(CIRCUITS.flutterwave, `${FLW_BASE_URL}/payments`, {
             method: 'POST',
+            signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
             headers: {
                 Authorization: `Bearer ${this.secretKey}`,
                 'Content-Type': 'application/json',
@@ -118,15 +121,17 @@ export class FlutterwaveProvider implements PaymentProvider {
         // On cherche par tx_ref en premier (correspond à notre reference interne)
         const url = `${FLW_BASE_URL}/transactions/verify_by_reference?tx_ref=${encodeURIComponent(transactionId)}`;
 
-        let response = await fetch(url, {
+        let response = await circuitFetch(CIRCUITS.flutterwave, url, {
             method: 'GET',
+            signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
             headers: { Authorization: `Bearer ${this.secretKey}` },
         });
 
         // Fallback : chercher par ID numérique si transactionId est un nombre
         if (!response.ok && /^\d+$/.test(transactionId)) {
-            response = await fetch(`${FLW_BASE_URL}/transactions/${transactionId}/verify`, {
+            response = await circuitFetch(CIRCUITS.flutterwave, `${FLW_BASE_URL}/transactions/${transactionId}/verify`, {
                 method: 'GET',
+                signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
                 headers: { Authorization: `Bearer ${this.secretKey}` },
             });
         }

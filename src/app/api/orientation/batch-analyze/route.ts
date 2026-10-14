@@ -77,6 +77,7 @@ export const POST = createApiHandler(async (request, context) => {
                     studentId: student.id,
                     studentName: `${student.user.firstName} ${student.user.lastName}`,
                     series: recommendation.data.series,
+                    score: recommendation.data.score ?? null,
                     justification: recommendation.data.justification,
                     alternatives: recommendation.recommendations,
                     confidence: recommendation.confidence,

@@ -1,10 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     studentAnalytics: { findFirst: vi.fn() },
-    enrollment: { findMany: vi.fn() },
+    enrollment: { findMany: vi.fn(), findFirst: vi.fn() },
+    class: { findUnique: vi.fn(async () => ({ schoolId: "sch1" })) },
   },
+}));
+vi.mock("@/lib/services/orientation", () => ({
+  computeIndicativeRecommendations: vi.fn(),
 }));
 vi.mock("@/lib/services/ai-predictive/predict-failure", () => ({
   predictFailureRisk: vi.fn(),
@@ -28,6 +46,7 @@ import { predictNextPeriodGrade } from "@/lib/services/ai-predictive/predict-gra
 import { predictBehaviorRisk } from "@/lib/services/ai-predictive/predict-behavior";
 import { predictDropoutRisk } from "@/lib/services/ai-predictive/predict-dropout";
 import { detectEarlyWarnings } from "@/lib/services/ai-predictive/detect-early-warning";
+import { computeIndicativeRecommendations } from "@/lib/services/orientation";
 import {
   generateStudentPredictions,
   generateClassPredictions,
@@ -44,7 +63,9 @@ function mockPredictors(options: {
     predicted: options.predicted ?? 13,
     confidence: options.gradeConfidence ?? 80,
     range: { min: 11, max: 15 },
-    modelUsed: "linear_regression",
+    range80: { min: 12, max: 14 },
+    dataPoints: 4,
+    modelUsed: "exponential_smoothing",
   });
   vi.mocked(predictFailureRisk).mockResolvedValue({
     probability: options.failureProbability ?? 10,
@@ -100,70 +121,55 @@ beforeEach(() => {
 });
 
 describe("generateStudentPredictions", () => {
-  it("profil scientifique → Séries C et D, scores dérivés des moyennes", async () => {
-    mockPredictors({ gradeConfidence: 80, failureProbability: 10, behaviorProbability: 5 });
-    vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue({
-      subjectPerformances: [
-        subjectPerf("Mathématiques", 16, true),
-        subjectPerf("Physique-Chimie", 14, true),
-        subjectPerf("Français", 11, false),
-        subjectPerf("EPS", 13, false),
+  it("orientation = calcul officiel (moyennes du bulletin, critères de l'école), indicative", async () => {
+    mockPredictors({ gradeConfidence: 62 });
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ academicYearId: "y1" } as never);
+    vi.mocked(computeIndicativeRecommendations).mockResolvedValue({
+      recommendations: [
+        { series: "SERIE_C", name: "Série C", description: "", score: 78, strengths: [], warnings: [] },
+        { series: "SERIE_D", name: "Série D", description: "", score: 71, strengths: [], warnings: [] },
       ],
+      generalAverage: 13.25,
+    } as never);
+    vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue({
+      subjectPerformances: [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }],
     } as unknown as StudentAnalyticsResult);
 
     const result = await generateStudentPredictions("s1");
 
+    expect(computeIndicativeRecommendations).toHaveBeenCalledWith("s1", "y1");
     expect(result.predictions.orientationFit.series).toEqual(["Série C", "Série D"]);
-    // Moyenne sciences = 15 → score 75, Série D = 70
-    expect(result.predictions.orientationFit.scores).toEqual([75, 70]);
-    // Confiance = 80*0.6 + 90*0.2 + 95*0.2 = 85
-    expect(result.confidence).toBe(85);
-    // 4 matières → qualité MEDIUM
-    expect(result.dataQuality).toBe("MEDIUM");
+    expect(result.predictions.orientationFit.scores).toEqual([78, 71]);
+    expect(result.predictions.orientationFit.reasoning).toContain("13,25/20");
+    expect(result.predictions.orientationFit.reasoning).toContain("conseil de classe");
+    // Confiance = celle, calibrée, de la prévision de note (chances d'être à ±1 point)
+    expect(result.confidence).toBe(62);
+    expect(result.dataQuality).toBe("MEDIUM"); // 4 matières évaluées
     expect(result.predictions.nextPeriodGrade.predicted).toBe(13);
   });
 
-  it("profil littéraire + éco → Séries A et G", async () => {
+  it("sans moyenne déterminante : aucune série proposée (jamais une série « par défaut »)", async () => {
     mockPredictors({});
-    vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue({
-      subjectPerformances: [
-        subjectPerf("Français", 15, true),
-        subjectPerf("Économie", 14, true),
-        subjectPerf("Histoire-Géographie", 13, false),
-        subjectPerf("Philosophie", 12, false),
-        subjectPerf("Anglais", 12, false),
-        subjectPerf("Maths", 8, false),
-      ],
-    } as unknown as StudentAnalyticsResult);
-
-    const result = await generateStudentPredictions("s1");
-
-    expect(result.predictions.orientationFit.series).toContain("Série A");
-    expect(result.predictions.orientationFit.series).toContain("Série G");
-    expect(result.dataQuality).toBe("HIGH"); // 6 matières
-  });
-
-  it("sans force détectée → profil polyvalent (Séries A et D à 60)", async () => {
-    mockPredictors({});
-    vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue({
-      subjectPerformances: [subjectPerf("EPS", 12, false)],
-    } as unknown as StudentAnalyticsResult);
-
-    const result = await generateStudentPredictions("s1");
-
-    expect(result.predictions.orientationFit.series).toEqual(["Série A", "Série D"]);
-    expect(result.predictions.orientationFit.scores).toEqual([60, 60]);
-    expect(result.predictions.orientationFit.reasoning).toContain("polyvalent");
-  });
-
-  it("sans analytics : orientation vide et qualité LOW", async () => {
-    mockPredictors({});
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ academicYearId: "y1" } as never);
+    vi.mocked(computeIndicativeRecommendations).mockResolvedValue({ recommendations: [], generalAverage: null } as never);
     vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
 
     const result = await generateStudentPredictions("s1");
 
     expect(result.predictions.orientationFit.series).toEqual([]);
+    expect(result.predictions.orientationFit.reasoning).toContain("Données insuffisantes");
     expect(result.dataQuality).toBe("LOW");
+  });
+
+  it("élève sans inscription active : pas d'orientation calculée", async () => {
+    mockPredictors({});
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
+
+    const result = await generateStudentPredictions("s1");
+
+    expect(computeIndicativeRecommendations).not.toHaveBeenCalled();
+    expect(result.predictions.orientationFit.series).toEqual([]);
   });
 });
 
@@ -173,13 +179,13 @@ describe("generateClassPredictions", () => {
 
     const result = await generateClassPredictions("cl1");
 
-    expect(result.predictions.averageNextPeriod).toBe(0);
+    expect(result.predictions.averageNextPeriod).toBeNull();
     expect(result.predictions.studentsAtRisk).toBe(0);
     expect(result.predictions.recommendations[0]).toContain("Aucun élève actif");
     expect(predictNextPeriodGrade).not.toHaveBeenCalled();
   });
 
-  it("agrège les prédictions et identifie les élèves à risque (≥ 50%)", async () => {
+  it("agrège les prédictions et identifie les élèves à risque (niveau « élevé » de l'école, 55 %)", async () => {
     vi.mocked(prisma.enrollment.findMany).mockResolvedValue([
       { studentId: "s1" },
       { studentId: "s2" },

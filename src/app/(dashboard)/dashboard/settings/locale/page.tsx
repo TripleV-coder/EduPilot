@@ -11,6 +11,7 @@ import { Button, Card, Icon, SaveStatus } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { useAutoSave } from "@/hooks/use-autosave";
+import { rememberUiLang } from "@/lib/i18n/ui-lang";
 
 interface LocalePrefs {
     language: string;
@@ -103,6 +104,7 @@ export default function LocaleSettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ preferences: updatedPrefs }),
             });
+            rememberUiLang(prefs.language);
             if (!res.ok) {
                 const data = await res.json().catch(() => null);
                 throw new Error(data?.error || "Erreur lors de la sauvegarde");

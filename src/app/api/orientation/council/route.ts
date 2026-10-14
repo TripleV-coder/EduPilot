@@ -1,51 +1,19 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { calculateWeightedAverage } from "@/lib/utils/grades";
+import {
+    computeStudentAverages,
+    gradedEvaluations,
+    toDisplay,
+    type GradeRecord,
+} from "@/lib/academic/average-engine";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import type { RecommendedSeries } from "@prisma/client";
+import { seriesFamily, seriesShortLabel as seriesLabel } from "@/lib/benin/series";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { computeClassAnnual } from "@/lib/academic/class-averages";
+import { getGradingSettings } from "@/lib/academic/grading-settings";
 
 const ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
-
-// Map enum series → display label
-function seriesLabel(s: RecommendedSeries | null | undefined): string | null {
-    if (!s) return null;
-    const map: Partial<Record<RecommendedSeries, string>> = {
-        SERIE_A1: "A1",
-        SERIE_A2: "A2",
-        SERIE_B: "B",
-        SERIE_C: "C",
-        SERIE_D: "D",
-        SERIE_E: "E",
-        SERIE_F1: "F1",
-        SERIE_F2: "F2",
-        SERIE_F3: "F3",
-        SERIE_F4: "F4",
-        SERIE_G1: "G1",
-        SERIE_G2: "G2",
-        SERIE_G3: "G3",
-        STI: "STI",
-        STA: "STA",
-        EFS: "EFS",
-        MMV: "MMV",
-        TOUR: "TOUR",
-        HR: "HR",
-        FORMATION_PRO: "FP",
-        APPRENTISSAGE: "App.",
-    };
-    return map[s] ?? s.replace("SERIE_", "");
-}
-
-// Reduce a label to its top-level family for distribution bucketing
-function familyOf(label: string | null): string | null {
-    if (!label) return null;
-    if (label === "DT") return "DT";
-    if (label.startsWith("A")) return "A";
-    if (label.startsWith("F")) return "F";
-    if (label.startsWith("G")) return "G";
-    return label[0];
-}
 
 type State = "ok" | "arbitrage" | "conflict";
 
@@ -120,6 +88,10 @@ export const GET = createApiHandler(async (request, context) => {
                     include: {
                         user: { select: { firstName: true, lastName: true } },
                         grades: {
+                            where: {
+                                deletedAt: null,
+                                evaluation: { period: { academicYearId } },
+                            },
                             include: {
                                 evaluation: { include: { classSubject: true, type: true } },
                             },
@@ -135,28 +107,56 @@ export const GET = createApiHandler(async (request, context) => {
             },
         });
 
-        const rows = enrollments.map((e) => {
-            const student = e.student;
-            const allGrades = student.grades.map((g) => ({
+        const classSubjects = klass.classSubjects.map((cs) => ({ id: cs.id, coefficient: cs.coefficient }));
+        const toRecords = (grades: (typeof enrollments)[number]["student"]["grades"]): GradeRecord[] =>
+            grades.map((g) => ({
+                evaluationId: g.evaluationId,
+                classSubjectId: g.evaluation.classSubjectId,
+                periodId: g.evaluation.periodId,
                 value: g.value,
-                coefficient: g.evaluation.coefficient,
                 isAbsent: g.isAbsent,
                 isExcused: g.isExcused,
+                deletedAt: g.deletedAt,
+                maxGrade: g.evaluation.maxGrade,
+                type: g.evaluation.type,
             }));
-            const generalAverage = calculateWeightedAverage(allGrades);
+        // Notes attendues : évaluations déjà notées chez au moins un camarade
+        const expected = gradedEvaluations(enrollments.flatMap((e) => toRecords(e.student.grades)));
+        // Moyenne annuelle : exactement celle du bulletin (règles de l'école, conseils gelés)
+        const [classAnnual, schoolRules] = await Promise.all([
+            computeClassAnnual({
+                classId,
+                academicYearId,
+                classSubjects: klass.classSubjects.map((cs) => ({ id: cs.id, subjectId: cs.subjectId, coefficient: cs.coefficient })),
+            }),
+            getGradingSettings(klass.schoolId),
+        ]);
+        const rules = schoolRules.calculation;
 
-            // BEPC blanc: average of grades whose evaluation.type.name starts with "BEPC"
-            const bepcGrades = student.grades
-                .filter((g) =>
-                    g.evaluation.type?.name?.toLowerCase().includes("bepc")
-                )
-                .map((g) => ({
-                    value: g.value,
-                    coefficient: g.evaluation.coefficient,
-                    isAbsent: g.isAbsent,
-                    isExcused: g.isExcused,
-                }));
-            const bepcAverage = calculateWeightedAverage(bepcGrades);
+        const rows = enrollments.map((e) => {
+            const student = e.student;
+            // Moteur unique : formule officielle, calcul exact, moyenne annuelle
+            const records = toRecords(student.grades);
+            // Moyenne annuelle officielle, ou provisoire tant que l'année n'est pas terminée
+            const annual = classAnnual.students.get(student.id);
+            const generalAverage = annual ? annual.general ?? annual.provisional : null;
+            const averageIsProvisional = !annual || annual.general === null || !annual.annual.complete;
+
+            // BEPC blanc : notes dont le type d'évaluation mentionne « BEPC »
+            const bepcAverage = toDisplay(
+                computeStudentAverages(
+                    records.filter((_, i) =>
+                        student.grades[i].evaluation.type?.name?.toLowerCase().includes("bepc")
+                    ),
+                    classSubjects,
+                    expected.filter((m) => {
+                        const ev = enrollments.flatMap((x) => x.student.grades).find((g) => g.evaluationId === m.evaluationId);
+                        return Boolean(ev?.evaluation.type?.name?.toLowerCase().includes("bepc"));
+                    }),
+                    { rules }
+                ).general,
+                rules.rounding
+            );
 
             const orientation = student.studentOrientations[0] ?? null;
             const recs = orientation?.recommendations ?? [];
@@ -173,10 +173,14 @@ export const GET = createApiHandler(async (request, context) => {
                 studentId: student.id,
                 name: `${student.user.firstName} ${student.user.lastName}`,
                 generalAverage,
+                averageIsProvisional,
+                missingGrades: annual?.annual.missing.length ?? 0,
                 bepcAverage,
                 aiSeries,
                 familyWish,
                 councilDecision,
+                aiSeriesCode: aiTopRec?.recommendedSeries ?? null,
+                councilSeries: validatedRec?.recommendedSeries ?? null,
                 state,
                 orientationId: orientation?.id ?? null,
                 hasAi: aiTopRec !== null,
@@ -206,7 +210,7 @@ export const GET = createApiHandler(async (request, context) => {
             E: "E · Math & Tech.",
             F: "F (F1-F4) · Indus.",
             G: "G (G1-G3) · Tertiaire",
-            DT: "DT · Pro",
+            DT: "DT · EA, MIA, HR",
         };
         const FAMILY_COLORS: Record<string, string> = {
             A: "brand",
@@ -220,8 +224,7 @@ export const GET = createApiHandler(async (request, context) => {
         };
         const familyCounts = new Map<string, number>(families.map((f) => [f, 0]));
         for (const r of rows) {
-            const decided = r.councilDecision ?? r.aiSeries;
-            const fam = familyOf(decided);
+            const fam = seriesFamily(r.councilSeries ?? r.aiSeriesCode);
             if (fam && familyCounts.has(fam)) {
                 familyCounts.set(fam, (familyCounts.get(fam) ?? 0) + 1);
             }

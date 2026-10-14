@@ -8,7 +8,6 @@ import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
-import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ModuleGuard } from "@/components/guard/module-guard";
 
 type SidebarContextType = {
@@ -256,10 +255,6 @@ export function DashboardLayoutClient({
                             )}
                         >
                             <ModuleGuard>{children}</ModuleGuard>
-                            {/* Le pied de page défile avec le contenu, il ne mange pas l'écran. */}
-                            <div className="print:hidden">
-                                <DashboardFooter />
-                            </div>
                         </main>
                 </div>
                 <div className="contents print:hidden">

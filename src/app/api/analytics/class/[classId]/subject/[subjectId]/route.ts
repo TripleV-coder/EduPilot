@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
+import { performanceLevel } from "@/lib/schools/school-parameters";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
@@ -121,13 +124,20 @@ export const GET = createApiHandler(async (request, context) => {
       : 0;
 
     // Grade distribution
+    // Mêmes niveaux que partout ailleurs, aux seuils réglés par l'école
+    const [perf, passingGrade] = await Promise.all([
+      getSchoolParameters(schoolId).then((params) => params.performance),
+      getPassingGrade(schoolId),
+    ]);
+    const levels = averages.map((a) => performanceLevel(a, perf, passingGrade));
+    const countLevel = (level: string) => levels.filter((l) => l === level).length;
     const gradeDistribution = {
-      excellent: averages.filter(a => a >= 16).length,
-      veryGood: averages.filter(a => a >= 14 && a < 16).length,
-      good: averages.filter(a => a >= 12 && a < 14).length,
-      average: averages.filter(a => a >= 10 && a < 12).length,
-      insufficient: averages.filter(a => a >= 8 && a < 10).length,
-      weak: averages.filter(a => a < 8).length,
+      excellent: countLevel("EXCELLENT"),
+      veryGood: countLevel("VERY_GOOD"),
+      good: countLevel("GOOD"),
+      average: countLevel("AVERAGE"),
+      insufficient: countLevel("INSUFFICIENT"),
+      weak: countLevel("WEAK"),
     };
 
     // Student grades sorted desc with rank

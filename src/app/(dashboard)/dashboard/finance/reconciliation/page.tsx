@@ -45,6 +45,7 @@ type PendingPaymentsResponse = {
 export default function FinanceReconciliationPage() {
     const [reconcilingId, setReconcilingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
+    const [statement, setStatement] = useState<Array<{ date: string; label: string; amount: number; reference: string; matched: boolean }>>([]);
     const { data: paymentsData, isLoading, error: loadError, mutate: reloadPage } = useSWR<PendingPaymentsResponse>(
         "/api/finance/payments?status=PENDING&limit=50",
         fetcher
@@ -62,6 +63,42 @@ export default function FinanceReconciliationPage() {
     }, [pendingPayments, search]);
     const pendingCount = pendingPayments.length;
     const pendingTotalAmount = pendingPayments.reduce((sum: number, payment) => sum + Number(payment.amount || 0), 0);
+
+    const importStatement = async (file: File) => {
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        if (lines.length < 2) {
+            toast.error("Le relevé CSV est vide.");
+            return;
+        }
+        const split = (line: string) => line.split(/[;,]/).map((cell) => cell.trim());
+        const header = split(lines[0]).map((cell) => cell.toLowerCase());
+        const col = (name: string) => header.findIndex((cell) => cell.includes(name));
+        const dateIdx = col("date");
+        const labelIdx = col("libel");
+        const amountIdx = col("montant");
+        const refIdx = col("ref");
+        const rows = lines.slice(1).map((line) => {
+            const cells = split(line);
+            const amount = Number(String(cells[amountIdx] ?? "").replace(/\s/g, "").replace(",", "."));
+            const reference = refIdx >= 0 ? cells[refIdx] ?? "" : "";
+            const matched = pendingPayments.some((payment) => {
+                const sameRef = reference && payment.reference && payment.reference === reference;
+                const sameAmount = Number.isFinite(amount) && Number(payment.amount) === amount;
+                return Boolean(sameRef || sameAmount);
+            });
+            return {
+                date: dateIdx >= 0 ? cells[dateIdx] ?? "" : "",
+                label: labelIdx >= 0 ? cells[labelIdx] ?? "" : "",
+                amount: Number.isFinite(amount) ? amount : 0,
+                reference,
+                matched,
+            };
+        });
+        setStatement(rows);
+        const hits = rows.filter((row) => row.matched).length;
+        toast.success(`${rows.length} ligne${rows.length > 1 ? "s" : ""} lue${rows.length > 1 ? "s" : ""}, ${hits} correspondance${hits > 1 ? "s" : ""}.`);
+    };
 
     const handleReconcile = async (paymentId: string) => {
         setReconcilingId(paymentId);
@@ -115,9 +152,31 @@ export default function FinanceReconciliationPage() {
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Importez votre relevé bancaire (CSV) pour faire correspondre automatiquement les paiements.
                                 </p>
-                                <Button type="button" variant="outline" className="w-full">
+                                <input
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    aria-label="Importer CSV"
+                                    className="mb-3 block w-full text-sm"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file) void importStatement(file);
+                                    }}
+                                />
+                                <Button type="button" variant="outline" className="w-full" onClick={() => document.querySelector<HTMLInputElement>('main input[type="file"]')?.click()}>
                                     {t("common.import")} CSV
                                 </Button>
+                                {statement.length > 0 ? (
+                                    <ul className="mt-4 space-y-2 text-sm">
+                                        {statement.map((row) => (
+                                            <li key={`${row.reference}-${row.amount}`}>
+                                                {row.date} · {row.label} · {row.amount.toLocaleString("fr-FR")} FCFA
+                                                {row.reference ? ` · ${row.reference}` : ""}
+                                                {" — "}
+                                                {row.matched ? "correspondance trouvée" : "aucune correspondance"}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : null}
                             </CardContent>
                         </Card>
 

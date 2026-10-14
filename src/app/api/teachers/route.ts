@@ -4,7 +4,7 @@ import { logger } from "@/lib/utils/logger";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import { teacherCreateSchema } from "@/lib/validations/user";
 import { issueProvisionalPassword } from "@/lib/auth/provisional-password";
 import { checkTeacherQuota } from "@/lib/saas/quotas";

@@ -9,6 +9,7 @@ import { incidentCreateSchema } from "@/lib/validations/incident";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 
 /**
  * GET /api/incidents
@@ -132,6 +133,16 @@ export const POST = createApiHandler(
     try {
       const body = await request.json();
       const validatedData = incidentCreateSchema.parse(body);
+
+      if (session.user.role === "TEACHER") {
+        const allowed = await teacherTeachesStudent(session.user.id, validatedData.studentId);
+        if (!allowed) {
+          return NextResponse.json(
+            { error: "Vous ne pouvez signaler un incident que pour un élève de vos classes." },
+            { status: 403 },
+          );
+        }
+      }
 
       const incident = await prisma.behaviorIncident.create({
         data: {

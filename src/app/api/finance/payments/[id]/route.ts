@@ -7,9 +7,10 @@ import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 
 const paymentUpdateSchema = z.object({
-    amount: z.number().optional().or(z.preprocess(v => Number(v), z.number())),
+    amount: fcfaAmountSchema.optional(),
     method: z.string().optional(),
     reference: z.string().optional(),
     status: z.enum(["PENDING", "COMPLETED", "FAILED", "CANCELLED", "VERIFIED", "RECONCILED"]).optional(),

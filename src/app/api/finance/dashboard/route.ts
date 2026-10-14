@@ -9,7 +9,8 @@ import {
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
 import { computePlanlessExpected } from "@/lib/finance/expected-fees";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { memoizeAsync } from "@/lib/cache/memo";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 
@@ -24,6 +25,264 @@ function isWithinRange(date: Date, range?: FinanceDateRange | null): boolean {
   return true;
 }
 
+/**
+ * Tableau de bord financier d'un établissement : ~17 000 lignes lues par appel
+ * pour une école de 1 000 élèves (analyse de capacité 2026-10-01). Agrégats
+ * d'établissement (contrôle d'accès fait avant l'appel) : calcul unique par
+ * minute et par processus, un seul pour les demandes simultanées.
+ */
+const financeDashboard = memoizeAsync(
+  {
+    ttlMs: 60_000,
+    key: (schoolId: string, academicYearId: string | null, periodId: string | null) =>
+      ["finance-dashboard", schoolId, academicYearId ?? "", periodId ?? ""].join("|"),
+  },
+  async (schoolId: string, academicYearId: string | null, periodId: string | null) => {
+  const feeScope = {
+    schoolId,
+    ...(academicYearId ? { academicYearId } : {}),
+  };
+
+  let periodRange: FinanceDateRange | null = null;
+  if (periodId) {
+    const period = await prisma.period.findUnique({ where: { id: periodId } });
+    if (period) {
+      periodRange = {
+        startDate: period.startDate,
+        endDate: period.endDate,
+      };
+    }
+  }
+
+  // Build base where clause
+  const paymentWhere: Prisma.PaymentWhereInput = {
+    fee: feeScope,
+  };
+  Object.assign(paymentWhere, buildPaymentDateWhere(periodRange));
+
+  // Get current date for trend calculations
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const trendRange = periodRange ?? {
+    startDate: thirtyDaysAgo,
+    endDate: now,
+  };
+
+  // Fetch summary data
+  const [
+    totalCollected,
+    recentPayments,
+    paymentPlans,
+    paymentsTrend,
+  ] = await Promise.all([
+    // Total collected payments
+    prisma.payment.aggregate({
+      where: {
+        ...paymentWhere,
+        status: { in: ["VERIFIED", "RECONCILED"] },
+      },
+      _sum: { amount: true },
+    }),
+
+    // Recent payments (optimized select)
+    prisma.payment.findMany({
+      where: paymentWhere,
+      select: {
+        id: true,
+        amount: true,
+        paidAt: true,
+        createdAt: true,
+        status: true,
+        method: true,
+        student: {
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+        fee: { select: { name: true } },
+      },
+      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+      take: 10,
+    }),
+
+    // Payment plans (optimized select to reduce memory footprint)
+    prisma.paymentPlan.findMany({
+      where: {
+        fee: feeScope,
+        status: { not: "CANCELLED" },
+      },
+      select: {
+        id: true,
+        studentId: true,
+        feeId: true,
+        totalAmount: true,
+        paidAmount: true,
+        status: true,
+        student: {
+          select: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+        fee: { select: { name: true, dueDate: true } },
+        installmentPayments: {
+          select: { amount: true, dueDate: true, status: true },
+        },
+      },
+    }),
+
+    // Payments trend (only select essential fields)
+    prisma.payment.findMany({
+      where: {
+        fee: feeScope,
+        status: { in: ["VERIFIED", "RECONCILED"] },
+        ...buildPaymentDateWhere(trendRange),
+      },
+      select: { amount: true, paidAt: true, createdAt: true },
+      orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+
+  let totalFeesAmount = 0;
+  let totalPendingAmount = 0;
+  const overdueBalances = new Map<
+    string,
+    { studentId: string; studentName: string; balance: number }
+  >();
+
+  for (const plan of paymentPlans) {
+    const studentName = `${plan.student.user.firstName} ${plan.student.user.lastName}`;
+    const totalAmount = Number(plan.totalAmount);
+    const paidAmount = Number(plan.paidAmount);
+    const balance = Math.max(0, totalAmount - paidAmount);
+
+    if (periodRange) {
+      const relevantInstallments = plan.installmentPayments.filter((installment) =>
+        isWithinRange(installment.dueDate, periodRange)
+      );
+      const hasInstallmentsInRange = relevantInstallments.length > 0;
+      const feeDueInRange =
+        plan.fee.dueDate !== null && isWithinRange(plan.fee.dueDate, periodRange);
+      const expectedAmount = hasInstallmentsInRange
+        ? relevantInstallments.reduce(
+            (sum, installment) => sum + Number(installment.amount),
+            0
+          )
+        : feeDueInRange
+          ? totalAmount
+          : 0;
+      const pendingAmount = hasInstallmentsInRange
+        ? relevantInstallments
+            .filter((installment) => isUnpaidInstallment(installment.status))
+            .reduce((sum, installment) => sum + Number(installment.amount), 0)
+        : feeDueInRange
+          ? balance
+          : 0;
+
+      totalFeesAmount += expectedAmount;
+      totalPendingAmount += pendingAmount;
+
+      const overdueAmount = hasInstallmentsInRange
+        ? relevantInstallments
+            .filter(
+              (installment) =>
+                isUnpaidInstallment(installment.status) && installment.dueDate <= now
+            )
+            .reduce((sum, installment) => sum + Number(installment.amount), 0)
+        : feeDueInRange && plan.fee.dueDate !== null && plan.fee.dueDate <= now
+          ? balance
+          : 0;
+
+      if (overdueAmount > 0) {
+        const current = overdueBalances.get(plan.studentId) ?? {
+          studentId: plan.studentId,
+          studentName,
+          balance: 0,
+        };
+        current.balance += overdueAmount;
+        overdueBalances.set(plan.studentId, current);
+      }
+
+      continue;
+    }
+
+    totalFeesAmount += totalAmount;
+    totalPendingAmount += balance;
+
+    const hasOverdueInstallment = plan.installmentPayments.some(
+      (installment) =>
+        isUnpaidInstallment(installment.status) && installment.dueDate <= now
+    );
+    const isFeeOverdue =
+      plan.fee.dueDate !== null && plan.fee.dueDate <= now && balance > 0;
+
+    if (balance > 0 && (hasOverdueInstallment || isFeeOverdue || plan.status === "OVERDUE")) {
+      overdueBalances.set(plan.studentId, {
+        studentId: plan.studentId,
+        studentName,
+        balance,
+      });
+    }
+  }
+
+  // Frais facturés sans échéancier : sans eux, « Total attendu » restait à 0
+  // pour une école qui n'utilise pas d'échéanciers.
+  const planless = await computePlanlessExpected({
+    schoolId,
+    academicYearId,
+    periodRange,
+    plannedKeys: new Set(paymentPlans.map((plan) => `${plan.feeId}:${plan.studentId}`)),
+  });
+  totalFeesAmount += planless.expected;
+  totalPendingAmount += planless.pending;
+  for (const [studentId, late] of planless.overdue) {
+    const current = overdueBalances.get(studentId) ?? {
+      studentId,
+      studentName: late.studentName,
+      balance: 0,
+    };
+    current.balance += late.balance;
+    overdueBalances.set(studentId, current);
+  }
+
+  const overdueStudentsWithBalance = Array.from(overdueBalances.values())
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 10);
+
+  const totalCollectedAmount = Number(totalCollected._sum.amount) || 0;
+  const collectionRate = totalFeesAmount > 0
+    ? (totalCollectedAmount / totalFeesAmount) * 100
+    : 0;
+
+  // Calculate payments trend by day
+  const paymentsByDay = paymentsTrend.reduce((acc, payment) => {
+    const dateKey = getEffectivePaymentDate(payment).toISOString().split("T")[0];
+    if (!acc[dateKey]) {
+      acc[dateKey] = { date: dateKey, amount: 0, count: 0 };
+    }
+    acc[dateKey].amount += Number(payment.amount);
+    acc[dateKey].count += 1;
+    return acc;
+  }, {} as Record<string, { date: string; amount: number; count: number }>);
+
+  const paymentsTrendArray = Object.values(paymentsByDay).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  return {
+    summary: {
+      totalFees: roundTo(totalFeesAmount),
+      totalCollected: totalCollectedAmount,
+      totalPending: roundTo(totalPendingAmount),
+      collectionRate: roundTo(collectionRate),
+    },
+    recentPayments,
+    overdueStudents: overdueStudentsWithBalance,
+    paymentsTrend: paymentsTrendArray,
+  };
+  },
+);
+
 export const GET = createApiHandler(
   async (request, { session }) => {
     const { searchParams } = new URL(request.url);
@@ -31,6 +290,12 @@ export const GET = createApiHandler(
     const academicYearId = searchParams.get("academicYearId");
     const periodId = searchParams.get("periodId");
     
+    // Un établissement demandé explicitement doit être dans le périmètre de la
+    // session (même contrôle que /api/analytics/school/overview) : sans lui,
+    // ?schoolId= d'une autre école était accepté.
+    const schoolAccess = ensureRequestedSchoolAccess(session, querySchoolId);
+    if (schoolAccess) return schoolAccess;
+
     const activeSchoolId = getActiveSchoolId(session);
     const schoolId = querySchoolId || activeSchoolId;
 
@@ -41,248 +306,7 @@ export const GET = createApiHandler(
       );
     }
 
-    const feeScope = {
-      schoolId,
-      ...(academicYearId ? { academicYearId } : {}),
-    };
-
-    let periodRange: FinanceDateRange | null = null;
-    if (periodId) {
-      const period = await prisma.period.findUnique({ where: { id: periodId } });
-      if (period) {
-        periodRange = {
-          startDate: period.startDate,
-          endDate: period.endDate,
-        };
-      }
-    }
-
-    // Build base where clause
-    const paymentWhere: Prisma.PaymentWhereInput = {
-      fee: feeScope,
-    };
-    Object.assign(paymentWhere, buildPaymentDateWhere(periodRange));
-
-    // Get current date for trend calculations
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const trendRange = periodRange ?? {
-      startDate: thirtyDaysAgo,
-      endDate: now,
-    };
-
-    // Fetch summary data
-    const [
-      totalCollected,
-      recentPayments,
-      paymentPlans,
-      paymentsTrend,
-    ] = await Promise.all([
-      // Total collected payments
-      prisma.payment.aggregate({
-        where: {
-          ...paymentWhere,
-          status: { in: ["VERIFIED", "RECONCILED"] },
-        },
-        _sum: { amount: true },
-      }),
-
-      // Recent payments (optimized select)
-      prisma.payment.findMany({
-        where: paymentWhere,
-        select: {
-          id: true,
-          amount: true,
-          paidAt: true,
-          createdAt: true,
-          status: true,
-          method: true,
-          student: {
-            select: {
-              id: true,
-              user: { select: { firstName: true, lastName: true } },
-            },
-          },
-          fee: { select: { name: true } },
-        },
-        orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-        take: 10,
-      }),
-
-      // Payment plans (optimized select to reduce memory footprint)
-      prisma.paymentPlan.findMany({
-        where: {
-          fee: feeScope,
-          status: { not: "CANCELLED" },
-        },
-        select: {
-          id: true,
-          studentId: true,
-          feeId: true,
-          totalAmount: true,
-          paidAmount: true,
-          status: true,
-          student: {
-            select: {
-              user: { select: { firstName: true, lastName: true } },
-            },
-          },
-          fee: { select: { name: true, dueDate: true } },
-          installmentPayments: {
-            select: { amount: true, dueDate: true, status: true },
-          },
-        },
-      }),
-
-      // Payments trend (only select essential fields)
-      prisma.payment.findMany({
-        where: {
-          fee: feeScope,
-          status: { in: ["VERIFIED", "RECONCILED"] },
-          ...buildPaymentDateWhere(trendRange),
-        },
-        select: { amount: true, paidAt: true, createdAt: true },
-        orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
-      }),
-    ]);
-
-    let totalFeesAmount = 0;
-    let totalPendingAmount = 0;
-    const overdueBalances = new Map<
-      string,
-      { studentId: string; studentName: string; balance: number }
-    >();
-
-    for (const plan of paymentPlans) {
-      const studentName = `${plan.student.user.firstName} ${plan.student.user.lastName}`;
-      const totalAmount = Number(plan.totalAmount);
-      const paidAmount = Number(plan.paidAmount);
-      const balance = Math.max(0, totalAmount - paidAmount);
-
-      if (periodRange) {
-        const relevantInstallments = plan.installmentPayments.filter((installment) =>
-          isWithinRange(installment.dueDate, periodRange)
-        );
-        const hasInstallmentsInRange = relevantInstallments.length > 0;
-        const feeDueInRange =
-          plan.fee.dueDate !== null && isWithinRange(plan.fee.dueDate, periodRange);
-        const expectedAmount = hasInstallmentsInRange
-          ? relevantInstallments.reduce(
-              (sum, installment) => sum + Number(installment.amount),
-              0
-            )
-          : feeDueInRange
-            ? totalAmount
-            : 0;
-        const pendingAmount = hasInstallmentsInRange
-          ? relevantInstallments
-              .filter((installment) => isUnpaidInstallment(installment.status))
-              .reduce((sum, installment) => sum + Number(installment.amount), 0)
-          : feeDueInRange
-            ? balance
-            : 0;
-
-        totalFeesAmount += expectedAmount;
-        totalPendingAmount += pendingAmount;
-
-        const overdueAmount = hasInstallmentsInRange
-          ? relevantInstallments
-              .filter(
-                (installment) =>
-                  isUnpaidInstallment(installment.status) && installment.dueDate <= now
-              )
-              .reduce((sum, installment) => sum + Number(installment.amount), 0)
-          : feeDueInRange && plan.fee.dueDate !== null && plan.fee.dueDate <= now
-            ? balance
-            : 0;
-
-        if (overdueAmount > 0) {
-          const current = overdueBalances.get(plan.studentId) ?? {
-            studentId: plan.studentId,
-            studentName,
-            balance: 0,
-          };
-          current.balance += overdueAmount;
-          overdueBalances.set(plan.studentId, current);
-        }
-
-        continue;
-      }
-
-      totalFeesAmount += totalAmount;
-      totalPendingAmount += balance;
-
-      const hasOverdueInstallment = plan.installmentPayments.some(
-        (installment) =>
-          isUnpaidInstallment(installment.status) && installment.dueDate <= now
-      );
-      const isFeeOverdue =
-        plan.fee.dueDate !== null && plan.fee.dueDate <= now && balance > 0;
-
-      if (balance > 0 && (hasOverdueInstallment || isFeeOverdue || plan.status === "OVERDUE")) {
-        overdueBalances.set(plan.studentId, {
-          studentId: plan.studentId,
-          studentName,
-          balance,
-        });
-      }
-    }
-
-    // Frais facturés sans échéancier : sans eux, « Total attendu » restait à 0
-    // pour une école qui n'utilise pas d'échéanciers.
-    const planless = await computePlanlessExpected({
-      schoolId,
-      academicYearId,
-      periodRange,
-      plannedKeys: new Set(paymentPlans.map((plan) => `${plan.feeId}:${plan.studentId}`)),
-    });
-    totalFeesAmount += planless.expected;
-    totalPendingAmount += planless.pending;
-    for (const [studentId, late] of planless.overdue) {
-      const current = overdueBalances.get(studentId) ?? {
-        studentId,
-        studentName: late.studentName,
-        balance: 0,
-      };
-      current.balance += late.balance;
-      overdueBalances.set(studentId, current);
-    }
-
-    const overdueStudentsWithBalance = Array.from(overdueBalances.values())
-      .sort((a, b) => b.balance - a.balance)
-      .slice(0, 10);
-
-    const totalCollectedAmount = Number(totalCollected._sum.amount) || 0;
-    const collectionRate = totalFeesAmount > 0
-      ? (totalCollectedAmount / totalFeesAmount) * 100
-      : 0;
-
-    // Calculate payments trend by day
-    const paymentsByDay = paymentsTrend.reduce((acc, payment) => {
-      const dateKey = getEffectivePaymentDate(payment).toISOString().split("T")[0];
-      if (!acc[dateKey]) {
-        acc[dateKey] = { date: dateKey, amount: 0, count: 0 };
-      }
-      acc[dateKey].amount += Number(payment.amount);
-      acc[dateKey].count += 1;
-      return acc;
-    }, {} as Record<string, { date: string; amount: number; count: number }>);
-
-    const paymentsTrendArray = Object.values(paymentsByDay).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    return NextResponse.json({
-      summary: {
-        totalFees: roundTo(totalFeesAmount),
-        totalCollected: totalCollectedAmount,
-        totalPending: roundTo(totalPendingAmount),
-        collectionRate: roundTo(collectionRate),
-      },
-      recentPayments,
-      overdueStudents: overdueStudentsWithBalance,
-      paymentsTrend: paymentsTrendArray,
-    });
+    return NextResponse.json(await financeDashboard(schoolId, academicYearId, periodId));
   },
   {
     allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],

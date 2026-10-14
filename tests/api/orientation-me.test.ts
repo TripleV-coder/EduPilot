@@ -4,13 +4,20 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { computeIndicativeRecommendations } from "@/lib/services/orientation";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
+import { studentAveragesSummary } from "@/lib/academic/class-averages";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/services/orientation", () => ({
   computeIndicativeRecommendations: vi.fn(),
 }));
+// Moyennes par matière : celles du bulletin (calcul de classe prouvé par tests/precision)
+vi.mock("@/lib/academic/class-averages", () => ({
+  studentAveragesSummary: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Une seule période dans les jeux de test (semestre p1)
+    period: { findMany: vi.fn().mockResolvedValue([{ id: "p1" }]) },
     studentProfile: { findFirst: vi.fn() },
     academicYear: { findUnique: vi.fn(), findFirst: vi.fn() },
     enrollment: { findFirst: vi.fn() },
@@ -138,15 +145,22 @@ describe("GET /api/orientation/me", () => {
     } as never);
     vi.mocked(prisma.studentOrientation.findFirst).mockResolvedValue(makeOrientation());
     vi.mocked(prisma.grade.findMany).mockResolvedValue([
-      { id: "g1", value: 16, isAbsent: false, isExcused: false, evaluation: { coefficient: 2, classSubject: { subject: { id: "s1", name: "Maths" } } } },
-      { id: "g2", value: 12, isAbsent: false, isExcused: false, evaluation: { coefficient: 1, classSubject: { subject: { id: "s1", name: "Maths" } } } },
-      { id: "g3", value: 10, isAbsent: false, isExcused: false, evaluation: { coefficient: 1, classSubject: { subject: { id: "s2", name: "Français" } } } },
+      { id: "g1", value: 16, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "DS", name: "Devoir surveillé" }, coefficient: 2, classSubjectId: "cs1", classSubject: { coefficient: 3, subject: { id: "s1", name: "Maths" } } } },
+      { id: "g2", value: 12, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "IE", name: "Interrogation écrite" }, coefficient: 1, classSubjectId: "cs1", classSubject: { coefficient: 3, subject: { id: "s1", name: "Maths" } } } },
+      { id: "g3", value: 10, isAbsent: false, isExcused: false, evaluation: { maxGrade: 20, periodId: "p1", type: { code: "DS", name: "Devoir surveillé" }, coefficient: 1, classSubjectId: "cs2", classSubject: { coefficient: 2, subject: { id: "s2", name: "Français" } } } },
     ] as never);
+
+    vi.mocked(studentAveragesSummary).mockResolvedValue({
+      periods: {},
+      // Maths : (MI 12 + D 16) / 2 = 14 ; Français : 10
+      annual: { general: 12.4, provisional: null, subjects: { cs1: 14, cs2: 10 } },
+    });
 
     const res = await GET(makeRequest("http://localhost/api/orientation/me"), { session: makeSession("STUDENT") });
     expect(res.status).toBe(200);
     const body = await res.json();
 
+    expect(studentAveragesSummary).toHaveBeenCalledWith(FIXTURES.studentA);
     expect(body.hasOrientation).toBe(true);
     expect(body.orientationId).toBe("o1");
     expect(body.status).toBe("ANALYZED");
@@ -158,7 +172,7 @@ describe("GET /api/orientation/me", () => {
     expect(body.recommendations).toHaveLength(3);
     expect(body.recommendations[2].isValidated).toBe(true);
     expect(body.subjectAverages[0].name).toBe("Maths");
-    expect(body.subjectAverages[0].average).toBeCloseTo(14.67, 2);
+    expect(body.subjectAverages[0].average).toBe(14); // (MI 12 + D 16) / 2
     expect(body.subjectAverages[1].name).toBe("Français");
     expect(body.subjectAverages[1].average).toBe(10);
   });

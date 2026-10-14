@@ -5,6 +5,20 @@ import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     academicYear: { findFirst: vi.fn(), findUnique: vi.fn() },
@@ -65,17 +79,21 @@ describe("GET /api/analytics/school/overview", () => {
     expect(res.status).toBe(403);
   });
 
-  it("should return 400 when no school available", async () => {
+  it("super-admin sans école : vue d'ensemble vide (200)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await GET(makeRequest("http://localhost/api/analytics/school/overview"), { session: makeSession("SUPER_ADMIN", { schoolId: null }) });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.summary.totalStudents).toBe(0);
   });
 
-  it("should return 400 when no academic year", async () => {
+  it("aucune année académique : vue d'ensemble vide (200), pas d'erreur", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.academicYear.findFirst).mockResolvedValue(null);
     const res = await GET(makeRequest("http://localhost/api/analytics/school/overview"), { session: makeSession("DIRECTOR") });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.summary.totalStudents).toBe(0);
   });
 
   it("should compute the full overview", async () => {

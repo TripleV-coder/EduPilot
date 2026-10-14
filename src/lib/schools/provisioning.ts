@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/auth/password";
 import { Prisma, SchoolLevel, SchoolType, SiteType, UserRole } from "@prisma/client";
 import { DEFAULT_ENABLED_MODULES } from "@/lib/modules/catalog";
 import { defaultRetentionPoliciesForNewSchool } from "@/lib/security/retention-defaults";

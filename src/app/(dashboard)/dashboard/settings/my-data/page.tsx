@@ -52,6 +52,11 @@ export default function MyDataSettingsPage() {
     const handleExportData = async () => {
         setExporting(true);
         try {
+            await fetch("/api/compliance/data-requests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requestType: "PORTABILITY", notes: "Demande d'archive" }),
+            });
             const res = await fetch("/api/user/data");
             if (!res.ok) throw new Error("Erreur lors de l'export");
             const data = await res.json();

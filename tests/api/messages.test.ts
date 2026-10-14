@@ -15,6 +15,10 @@ vi.mock("@/lib/prisma", () => ({
     enrollment: { findMany: vi.fn() },
   },
 }));
+vi.mock("@/lib/messages/recipients", () => ({
+  recipientIsAllowed: vi.fn().mockResolvedValue(true),
+  listMessageRecipients: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("@/lib/services/notification.service", () => ({
   createNotification: vi.fn().mockResolvedValue({ id: "notif1" }),
   createBulkNotifications: vi.fn().mockResolvedValue({ count: 2 }),

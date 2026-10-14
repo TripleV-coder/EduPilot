@@ -8,9 +8,12 @@ export type Student = {
     lastName: string;
 };
 export type GradeEntry = {
+    id?: string;
     value: number | null;
     isAbsent: boolean;
     isExcused: boolean;
+    /** Motif si l'enseignant ne compte pas cette note pour l'élève. */
+    excludedReason?: string | null;
     comment: string | null;
 };
 export type EvalStats = {
@@ -28,7 +31,11 @@ export type EvaluationData = {
     coefficient: number;
     subject: string;
     classSubjectId: string;
+    subjectCoefficient: number;
     type: string;
+    typeCode: string;
+    /** Rôle dans la moyenne (INTERROGATION, DEVOIR, COMPOSITION, COMPETENCE). */
+    typeCategory?: "INTERROGATION" | "DEVOIR" | "COMPOSITION" | "COMPETENCE";
     typeId: string;
     period: string;
     periodId: string;
@@ -40,6 +47,8 @@ export type SubjectInfo = {
     name: string;
     teacher: string | null;
     evaluationCount: number;
+    /** Formule de l'enseignant pour sa matière (vide = formule de l'école). */
+    formula?: string | null;
 };
 export type ClassOption = { id: string; name: string };
 export type PeriodOption = { id: string; name: string };

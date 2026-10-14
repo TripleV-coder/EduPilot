@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
@@ -60,7 +60,15 @@ export interface AuthUser {
 }
 
 const loginSchema = z.object({
-  email: z.string().email("Email invalide").toLowerCase().trim(),
+  // Pas de `.email()` : zod 4 refuse les adresses accentuées (« zoé.dossou@… »),
+  // qui ne pouvaient donc plus se connecter. La connexion compare l'adresse
+  // saisie aux comptes existants ; il suffit d'une forme « x@y ».
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(254)
+    .regex(/^[^\s@]+@[^\s@]+$/, "Email invalide"),
   password: z.string().min(1, "Le mot de passe est requis"),
   twoFactorCode: z.string().optional(),
 });

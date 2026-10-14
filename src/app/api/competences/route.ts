@@ -1,8 +1,13 @@
+import { DEFAULT_SCHOOL_PARAMETERS, type SchoolParameters } from "@/lib/schools/school-parameters";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { z } from "zod";
+import { guardPeriodWritable } from "@/lib/academic/year-lock";
+import { assertNotCouncilLocked, assertSubjectTeacher } from "@/lib/academic/grade-write-guard";
 
 const ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 
@@ -21,6 +26,9 @@ const COMPETENCES = [
 type CompetenceId = typeof COMPETENCES[number]["id"];
 
 function classifyEvaluation(title: string, idx: number): CompetenceId {
+    // Étiquette explicite posée à l'enregistrement (« C3 · représenter »)
+    const tagged = /^(C[1-6])\s*·/.exec(title.trim());
+    if (tagged) return tagged[1] as CompetenceId;
     const t = title.toLowerCase();
     if (t.includes("problème") || t.includes("probleme") || t.includes("chercher"))
         return "C1";
@@ -41,11 +49,15 @@ function classifyEvaluation(title: string, idx: number): CompetenceId {
     return COMPETENCES[idx % COMPETENCES.length].id;
 }
 
-function bucket(value: number | null | undefined, max = 20): "A" | "EC" | "NA" | "NE" {
+function bucket(
+    value: number | null | undefined,
+    max = 20,
+    c: Pick<SchoolParameters["competences"], "acquiredFrom" | "inProgressFrom"> = DEFAULT_SCHOOL_PARAMETERS.competences,
+): "A" | "EC" | "NA" | "NE" {
     if (value === null || value === undefined) return "NE";
     const norm = (Number(value) / max) * 20;
-    if (norm >= 14) return "A";
-    if (norm >= 10) return "EC";
+    if (norm >= c.acquiredFrom) return "A";
+    if (norm >= c.inProgressFrom) return "EC";
     return "NA";
 }
 
@@ -88,6 +100,9 @@ export const GET = createApiHandler(
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
+        // Seuils Acquis / En cours réglés par l'école
+        const competenceParams = (await getSchoolParameters(klass.schoolId)).competences;
+
         const classSubjects = subjectId
             ? klass.classSubjects.filter((cs) => cs.subject.id === subjectId)
             : klass.classSubjects;
@@ -129,7 +144,7 @@ export const GET = createApiHandler(
             const max = Number(ev.maxGrade) || 20;
             for (const g of ev.grades) {
                 if (g.isAbsent) continue;
-                const bk = bucket(g.value !== null ? Number(g.value) : null, max);
+                const bk = bucket(g.value !== null ? Number(g.value) : null, max, competenceParams);
                 if (bk === "NE") continue;
                 const map = perStudent.get(g.studentId) ?? {};
                 // Best score wins (A > EC > NA)
@@ -208,4 +223,98 @@ export const GET = createApiHandler(
 
   },
   { allowedRoles: ROLES },
+);
+
+
+const competenceEvaluationSchema = z.object({
+  classId: z.string().min(1),
+  subjectId: z.string().min(1),
+  competenceId: z.enum(["C1", "C2", "C3", "C4", "C5", "C6"]),
+  level: z.enum(["A", "EC", "NA"]),
+});
+
+/**
+ * Enregistre une évaluation de compétence pour les élèves actifs de la classe.
+ * Réservé à l'enseignant de la matière, dans la période en cours, hors période
+ * figée. Le type « Compétence » est classé hors moyenne : ces niveaux
+ * alimentent la grille de compétences sans jamais modifier les moyennes.
+ */
+export const POST = createApiHandler(
+  async (request, { session }) => {
+    const parsed = competenceEvaluationSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Classe, matière, compétence (C1 à C6) et niveau (Acquis, En cours, Non acquis) sont requis." },
+        { status: 400 },
+      );
+    }
+    const { classId, subjectId, competenceId, level } = parsed.data;
+    const schoolId = getActiveSchoolId(session);
+
+    const klass = await prisma.class.findFirst({
+      where: { id: classId, ...(schoolId ? { schoolId } : {}) },
+      select: {
+        schoolId: true,
+        classSubjects: {
+          where: { subjectId },
+          select: { id: true, classId: true, teacher: { select: { userId: true } } },
+        },
+        enrollments: { where: { status: "ACTIVE" }, select: { studentId: true } },
+      },
+    });
+    if (!klass) return NextResponse.json({ error: "Classe introuvable" }, { status: 404 });
+    const classSubject = klass.classSubjects[0];
+    // Valeur enregistrée pour chaque niveau, réglée par l'école
+    const { scoreAcquired, scoreInProgress, scoreNotAcquired } = (await getSchoolParameters(klass.schoolId)).competences;
+    const levelScore = { A: scoreAcquired, EC: scoreInProgress, NA: scoreNotAcquired } as const;
+    if (!classSubject) return NextResponse.json({ error: "Cette matière n'est pas enseignée dans la classe." }, { status: 400 });
+
+    const notTeacher = assertSubjectTeacher(session, classSubject);
+    if (notTeacher) return notTeacher;
+
+    // Période en cours (celle qui contient la date du jour), pas la première de l'année
+    const now = new Date();
+    const period = await prisma.period.findFirst({
+      where: {
+        academicYear: { schoolId: klass.schoolId, isCurrent: true },
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      select: { id: true },
+    });
+    if (!period) {
+      return NextResponse.json({ error: "Aucune période en cours aujourd'hui pour cet établissement." }, { status: 400 });
+    }
+    const yearLock = await guardPeriodWritable(period.id);
+    if (yearLock) return yearLock;
+    const councilLock = await assertNotCouncilLocked(classSubject.classId, period.id);
+    if (councilLock) return councilLock;
+
+    const type = await prisma.evaluationType.upsert({
+      where: { schoolId_code: { schoolId: klass.schoolId, code: "COMPETENCE" } },
+      create: { schoolId: klass.schoolId, code: "COMPETENCE", name: "Compétence", category: "COMPETENCE" },
+      update: { category: "COMPETENCE" },
+      select: { id: true },
+    });
+
+    const label = COMPETENCES.find((c) => c.id === competenceId)!.label;
+    const evaluation = await prisma.evaluation.create({
+      data: {
+        classSubjectId: classSubject.id,
+        periodId: period.id,
+        typeId: type.id,
+        title: label,
+        date: now,
+        maxGrade: 20,
+        grades: {
+          create: klass.enrollments.map((enrollment) => ({
+            studentId: enrollment.studentId,
+            value: levelScore[level],
+          })),
+        },
+      },
+    });
+    return NextResponse.json({ id: evaluation.id }, { status: 201 });
+  },
+  { allowedRoles: ["TEACHER"] },
 );

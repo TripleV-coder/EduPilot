@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
+import { meanOf, Rational, toDisplay } from "@/lib/academic/average-engine";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { getGradingSettings } from "@/lib/academic/grading-settings";
 import { Prisma } from "@prisma/client";
 
 /**
@@ -63,6 +65,7 @@ const { searchParams } = new URL(request.url);
                 type: true,
                 period: true,
                 grades: {
+                    where: { deletedAt: null },
                     include: {
                         student: {
                             include: {
@@ -103,19 +106,35 @@ const { searchParams } = new URL(request.url);
 
         const formattedEvaluations = evaluations.map(ev => {
             // Build a grade map by student ID for easy lookup
-            const gradeMap: Record<string, { value: number | null; isAbsent: boolean; isExcused: boolean; comment: string | null }> = {};
+            const gradeMap: Record<
+                string,
+                {
+                    id: string;
+                    value: number | null;
+                    isAbsent: boolean;
+                    isExcused: boolean;
+                    excuseReason: string | null;
+                    /** Motif si l'enseignant ne compte pas cette note pour l'élève. */
+                    excludedReason: string | null;
+                    comment: string | null;
+                }
+            > = {};
             ev.grades.forEach(g => {
                 gradeMap[g.studentId] = {
+                    id: g.id,
                     value: g.value !== null ? Number(g.value) : null,
                     isAbsent: g.isAbsent,
                     isExcused: g.isExcused,
+                    excuseReason: g.excuseReason,
+                    excludedReason: g.excludedReason,
                     comment: g.comment,
                 };
             });
 
-            // Compute stats
-            const numericGrades = ev.grades.filter(g => g.value !== null && !g.isAbsent).map(g => Number(g.value));
-            const avg = numericGrades.length > 0 ? numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length : null;
+            // Statistiques de l'évaluation (sur son barème) : moyenne exacte, arrondie au centième
+            const counted = ev.grades.filter(g => g.value !== null && !g.isAbsent && !g.isExcused);
+            const numericGrades = counted.map(g => Number(g.value));
+            const avg = toDisplay(meanOf(counted.map(g => Rational.from(g.value!))));
             const min = numericGrades.length > 0 ? Math.min(...numericGrades) : null;
             const max = numericGrades.length > 0 ? Math.max(...numericGrades) : null;
 
@@ -127,16 +146,29 @@ const { searchParams } = new URL(request.url);
                 coefficient: Number(ev.coefficient),
                 subject: ev.classSubject.subject.name,
                 classSubjectId: ev.classSubjectId,
+                subjectCoefficient: Number(ev.classSubject.coefficient),
                 type: ev.type.name,
+                typeCode: ev.type.code,
+                // Rôle dans la moyenne (une compétence ne compte jamais)
+                typeCategory: ev.type.category,
                 typeId: ev.typeId,
                 period: ev.period.name,
                 periodId: ev.periodId,
-                stats: { average: avg ? Number(avg.toFixed(2)) : null, min, max, graded: numericGrades.length, total: students.length },
+                stats: { average: avg, min, max, graded: numericGrades.length, total: students.length },
                 grades: gradeMap
             };
         });
 
         // Also compute summary by subject for this class
+        // Formules en vigueur (enseignant si l'école le permet) et calculs adaptés
+        // par élève : la page recalcule alors exactement les moyennes du bulletin
+        const schoolId = classSubjects[0] ? (await prisma.class.findUnique({ where: { id: classId }, select: { schoolId: true } }))?.schoolId : null;
+        const settings = schoolId ? await getGradingSettings(schoolId) : null;
+        const studentFormulas = await prisma.studentFormula.findMany({
+            where: { classSubjectId: { in: classSubjectIds } },
+            select: { classSubjectId: true, periodId: true, studentId: true, formula: true },
+        });
+
         const subjectSummary = classSubjects.map(cs => {
             const subjectEvals = formattedEvaluations.filter(e => e.classSubjectId === cs.id);
             return {
@@ -144,12 +176,14 @@ const { searchParams } = new URL(request.url);
                 name: cs.subject.name,
                 teacher: cs.teacher ? `${cs.teacher.user.lastName} ${cs.teacher.user.firstName}` : null,
                 evaluationCount: subjectEvals.length,
+                formula: settings?.teacherFormulas && cs.averageFormula?.trim() ? cs.averageFormula : null,
             };
         });
 
         return NextResponse.json({
             students,
             evaluations: formattedEvaluations,
+            studentFormulas,
             subjects: subjectSummary,
         });
     } catch (error) {

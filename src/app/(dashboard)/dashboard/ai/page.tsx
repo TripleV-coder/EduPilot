@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { useSchool } from "@/components/providers/school-provider";
 import { Badge, Button, Card, Icon } from "@/components/edu";
 
 type Message = {
@@ -16,6 +17,8 @@ type Message = {
 
 export default function AiAssistantPage() {
     const { data: session } = useSession();
+    const { enabledModules } = useSchool();
+    const aiOff = enabledModules.length > 0 && !enabledModules.includes("ai");
     const userInitial =
         session?.user?.name?.charAt(0)?.toUpperCase() ||
         session?.user?.email?.charAt(0)?.toUpperCase() ||
@@ -48,6 +51,7 @@ export default function AiAssistantPage() {
     }, [messages, isLoading]);
 
     useEffect(() => {
+        if (aiOff) return;
         let cancelled = false;
         (async () => {
             try {
@@ -72,7 +76,7 @@ export default function AiAssistantPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [aiOff]);
 
     const stopGeneration = () => {
         abortRef.current?.abort();
@@ -83,6 +87,10 @@ export default function AiAssistantPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
+        if (aiOff) {
+            setError("Le module Assistant IA n'est pas activé pour cet établissement.");
+            return;
+        }
 
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -189,6 +197,11 @@ export default function AiAssistantPage() {
         >
             <PageShell className="eduflow-scope max-w-[1000px] pb-6">
                 <div style={{ minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column", gap: 16 }}>
+                {aiOff ? (
+                    <Card padding={16}>
+                        <p className="text-sm">Le module Assistant IA n&apos;est pas activé pour cet établissement.</p>
+                    </Card>
+                ) : null}
                 <PageHeader
                     title="Assistant EduPilot"
                     description="Intelligence artificielle d'aide à la décision et au suivi pédagogique."

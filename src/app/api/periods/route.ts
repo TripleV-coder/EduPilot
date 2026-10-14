@@ -5,6 +5,7 @@ import { z } from "zod";
 import { canAccessSchool, ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { checkPeriodPlan } from "@/lib/academic/period-rules";
 
 const periodSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -103,6 +104,25 @@ export const POST = createApiHandler(
       // Verify school access
       if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, year.schoolId)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+      }
+
+      // Découpage cohérent : même système, 2 semestres / 3 trimestres, sans chevauchement
+      const siblings = await prisma.period.findMany({
+        where: { academicYearId },
+        select: { id: true, type: true, sequence: true, startDate: true, endDate: true },
+      });
+      const planError = checkPeriodPlan(
+        {
+          type: validatedData.type,
+          sequence: validatedData.sequence,
+          startDate: validatedData.startDate,
+          endDate: validatedData.endDate,
+        },
+        siblings,
+        year,
+      );
+      if (planError) {
+        return NextResponse.json({ error: planError }, { status: 400 });
       }
 
       // Check for duplicate sequence

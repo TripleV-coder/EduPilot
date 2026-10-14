@@ -37,11 +37,11 @@ export const POST = createApiHandler(async (request, context) => {
                 {
                     series: result.data.series,
                     justification: result.data.justification,
-                    score: result.confidence * 100
+                    score: result.data.score ?? null
                 },
                 ...(result.recommendations || []).map((alt: string) => ({
                     series: alt,
-                    score: (result.confidence * 100) - 10,
+                    score: null,
                     justification: "Alternative suggérée par l'IA"
                 }))
             ],

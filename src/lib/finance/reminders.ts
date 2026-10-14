@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { DEFAULT_SCHOOL_PARAMETERS, PARAMETER_SECTIONS } from "@/lib/schools/school-parameters";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { createBulkNotifications } from "@/lib/services/notification.service";
 import { formatCurrency } from "@/lib/types/finance";
 import { logger } from "@/lib/utils/logger";
@@ -14,8 +16,11 @@ import { logger } from "@/lib/utils/logger";
  *     → relances ÉTAGÉES + idempotence via `lastReminderStage`.
  */
 
-export const REMINDER_LEAD_DAYS = 7;
-export const CRITICAL_OVERDUE_DAYS = 30;
+/** Valeurs par défaut ; chaque école règle les siennes (paramètres « Finances »). */
+export const REMINDER_LEAD_DAYS = DEFAULT_SCHOOL_PARAMETERS.finance.reminderLeadDays;
+export const CRITICAL_OVERDUE_DAYS = DEFAULT_SCHOOL_PARAMETERS.finance.criticalOverdueDays;
+/** Plus long délai de rappel possible (borne du paramètre) : fenêtre de recherche commune. */
+const MAX_LEAD_DAYS = PARAMETER_SECTIONS.find((sec) => sec.key === "finance")!.params.find((x) => x.key === "reminderLeadDays")!.max;
 
 export type ReminderStage = "UPCOMING" | "DUE" | "OVERDUE" | "CRITICAL";
 
@@ -72,7 +77,7 @@ export function computeReminderStage(params: {
 /** Titre + message FR d'une relance selon l'étape. */
 export function reminderContent(
   stage: ReminderStage,
-  params: { studentName: string; amount: number; dueDate: Date }
+  params: { studentName: string; amount: number; dueDate: Date; criticalDays?: number }
 ): { title: string; message: string } {
   const amountText = formatCurrency(params.amount);
   const dateText = params.dueDate.toLocaleDateString("fr-FR");
@@ -97,7 +102,7 @@ export function reminderContent(
     case "CRITICAL":
       return {
         title: "Retard de paiement critique",
-        message: `Le paiement de l'échéance du ${dateText} (${amountText}) pour ${student} est en retard de plus de ${CRITICAL_OVERDUE_DAYS} jours. Merci de régulariser au plus vite.`,
+        message: `Le paiement de l'échéance du ${dateText} (${amountText}) pour ${student} est en retard de plus de ${params.criticalDays ?? CRITICAL_OVERDUE_DAYS} jours. Merci de régulariser au plus vite.`,
       };
   }
 }
@@ -135,7 +140,9 @@ export async function runInstallmentReminders(now: Date = new Date()): Promise<R
   //    généreront plus de relance, inutile de les recharger chaque jour — cela
   //    borne l'ensemble des candidats dans le temps.
   const horizon = new Date(today);
-  horizon.setUTCDate(horizon.getUTCDate() + REMINDER_LEAD_DAYS);
+  // Fenêtre commune la plus large ; chaque échéance est ensuite jugée avec les
+  // délais de SON école
+  horizon.setUTCDate(horizon.getUTCDate() + MAX_LEAD_DAYS);
 
   const candidates = await prisma.installmentPayment.findMany({
     where: {
@@ -172,11 +179,24 @@ export async function runInstallmentReminders(now: Date = new Date()): Promise<R
     CRITICAL: 0,
   };
 
+  const financeBySchool = new Map<string, { reminderLeadDays: number; criticalOverdueDays: number }>();
+  const financeOf = async (schoolId: string) => {
+    let finance = financeBySchool.get(schoolId);
+    if (!finance) {
+      finance = (await getSchoolParameters(schoolId)).finance;
+      financeBySchool.set(schoolId, finance);
+    }
+    return finance;
+  };
+
   for (const installment of candidates) {
+    const finance = await financeOf(installment.paymentPlan.student.schoolId);
     const stage = computeReminderStage({
       status: installment.status,
       dueDate: installment.dueDate,
       now,
+      leadDays: finance.reminderLeadDays,
+      criticalDays: finance.criticalOverdueDays,
     });
     if (!stage) continue;
     // Déjà notifié pour cette étape : on ne renvoie pas la même relance.
@@ -208,6 +228,7 @@ export async function runInstallmentReminders(now: Date = new Date()): Promise<R
         studentName,
         amount: Number(installment.amount),
         dueDate: installment.dueDate,
+        criticalDays: finance.criticalOverdueDays,
       });
       await createBulkNotifications({
         userIds: parentIds,

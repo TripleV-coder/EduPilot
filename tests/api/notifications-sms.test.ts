@@ -48,7 +48,7 @@ beforeEach(() => {
   vi.mocked(sendAttendanceSMS).mockResolvedValue({ success: true, messageId: "sms2", queued: true });
   vi.mocked(sendPaymentReminderSMS).mockResolvedValue({ success: true, messageId: "sms3", queued: true });
   vi.mocked(sendGradesNotificationSMS).mockResolvedValue({ success: true, messageId: "sms4", queued: true });
-  vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 1, failed: 0 });
+  vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 0, failed: 0, queued: 1 });
 });
 
 describe("POST /api/notifications/sms — envoi simple", () => {
@@ -167,9 +167,9 @@ describe("POST /api/notifications/sms — envoi simple", () => {
 });
 
 describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
-  it("envoie aux destinataires fournis explicitement", async () => {
+  it("met en file les SMS des destinataires fournis explicitement", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
-    vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 2, failed: 0 });
+    vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 0, failed: 0, queued: 2 });
     const res = await smsRequest(
       {
         type: "CUSTOM",
@@ -182,7 +182,8 @@ describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.sent).toBe(2);
+    expect(body.queued).toBe(2);
+    expect(body.failed).toBe(0);
     expect(body.recipientsCount).toBe(2);
     expect(sendBulkSMS).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ phone: "0101010101" })]),

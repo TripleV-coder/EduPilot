@@ -20,8 +20,11 @@
  */
 import { PaymentProvider } from "../types";
 import { logger } from "@/lib/utils/logger";
+import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 
 const DEFAULT_BASE = "https://sandbox.momodeveloper.mtn.com";
+/** API opérateur muette : le parent reçoit une erreur au lieu d'un écran figé. */
+const MOMO_TIMEOUT_MS = 20_000;
 
 export function isMomoConfigured(): boolean {
     return Boolean(
@@ -62,8 +65,9 @@ export class MomoProvider implements PaymentProvider {
             `${process.env.MOMO_API_USER}:${process.env.MOMO_API_KEY}`
         ).toString("base64");
 
-        const res = await fetch(`${baseUrl()}/collection/token/`, {
+        const res = await circuitFetch(CIRCUITS.momo, `${baseUrl()}/collection/token/`, {
             method: "POST",
+            signal: AbortSignal.timeout(MOMO_TIMEOUT_MS),
             headers: {
                 Authorization: `Basic ${basic}`,
                 "Ocp-Apim-Subscription-Key": process.env.MOMO_SUBSCRIPTION_KEY as string,
@@ -96,8 +100,9 @@ export class MomoProvider implements PaymentProvider {
         const token = await this.getToken();
         const referenceId = globalThis.crypto.randomUUID();
 
-        const res = await fetch(`${baseUrl()}/collection/v1_0/requesttopay`, {
+        const res = await circuitFetch(CIRCUITS.momo, `${baseUrl()}/collection/v1_0/requesttopay`, {
             method: "POST",
+            signal: AbortSignal.timeout(MOMO_TIMEOUT_MS),
             headers: {
                 Authorization: `Bearer ${token}`,
                 "X-Reference-Id": referenceId,
@@ -134,10 +139,12 @@ export class MomoProvider implements PaymentProvider {
         this.requireConfig();
         const token = await this.getToken();
 
-        const res = await fetch(
+        const res = await circuitFetch(
+            CIRCUITS.momo,
             `${baseUrl()}/collection/v1_0/requesttopay/${transactionId}`,
             {
                 method: "GET",
+                signal: AbortSignal.timeout(MOMO_TIMEOUT_MS),
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "X-Target-Environment": targetEnv(),

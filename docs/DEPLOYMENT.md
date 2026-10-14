@@ -6,6 +6,7 @@
 - [Déploiement avec Docker](#déploiement-avec-docker)
 - [Déploiement avec PM2](#déploiement-avec-pm2)
 - [Déploiement Cloud](#déploiement-cloud)
+- [Montée en charge](#montée-en-charge)
 - [Configuration Production](#configuration-production)
 - [Migrations de base de données](#migrations-de-base-de-données)
 - [Backup et restauration](#backup-et-restauration)
@@ -23,9 +24,9 @@
 - Windows 11 avec WSL2 (développement uniquement)
 
 ### Logiciels requis
-- **Node.js**: 20.x LTS minimum
+- **Node.js**: 24.x LTS (22.x accepté ; 20.x n'est plus maintenu)
 - **PostgreSQL**: 15+ minimum (16+ recommandé)
-- **Redis**: 7+ (Upstash recommandé pour la production)
+- **Redis**: 7+ (`REDIS_URL`, obligatoire dès 2 processus — voir [Montée en charge](#montée-en-charge))
 - **Docker**: 24+ (optionnel mais recommandé)
 - **PM2**: dernière version (pour déploiement sans Docker)
 
@@ -308,6 +309,33 @@ docker push ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/edupilot:latest
 # Créer la task definition et le service ECS
 # (Utiliser AWS Console ou Terraform)
 ```
+
+---
+
+## Montée en charge
+
+Mesures et modèle complets : [`docs/ANALYSE_PERFORMANCE_CAPACITE.md`](ANALYSE_PERFORMANCE_CAPACITE.md).
+
+Un processus Node n'exécute le code applicatif que sur **un cœur**. Pour utiliser
+plusieurs cœurs, plusieurs processus partagent le port :
+
+| Variable | Rôle | Valeur conseillée |
+|---|---|---|
+| `WEB_CONCURRENCY` | nombre de processus serveur (`1`, `N`, `max`) | nombre de vCPU alloués à l'application (pas ceux de PostgreSQL) |
+| `REDIS_URL` | limites de débit, compteurs d'échecs de connexion, cache partagés | **obligatoire** dès `WEB_CONCURRENCY` > 1 (le lanceur refuse sinon) |
+| `DATABASE_POOL_SIZE` | connexions PostgreSQL **par processus** (défaut 10) | `WEB_CONCURRENCY × DATABASE_POOL_SIZE × serveurs` < `max_connections` (100 par défaut) ; au-delà, PgBouncer en mode transaction |
+| `UV_THREADPOOL_SIZE` | threads du hachage des mots de passe (bcrypt natif) ; 2 restent toujours libres pour le reste | 4 (défaut) ; 6–8 si beaucoup de connexions simultanées et des cœurs libres |
+
+- **Docker** : `WEB_CONCURRENCY` et `REDIS_URL` dans `.env` (le service `redis` du
+  `docker-compose.yml` convient : `REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379`).
+  Les fichiers téléversés sont dans le volume `uploads_data`.
+- **PM2** : `ecosystem.config.js` passe en mode cluster avec `WEB_CONCURRENCY` quand
+  `REDIS_URL` est défini, sinon il reste à un processus.
+- **Plusieurs serveurs** derrière un répartiteur : même `REDIS_URL` pour tous, et le
+  dossier `uploads/` sur un stockage partagé (NFS, volume réseau) — sans cela, un
+  fichier téléversé sur un serveur est introuvable depuis les autres.
+- **PostgreSQL devient la limite** au-delà de quelques dizaines de processus :
+  serveur dédié, PgBouncer, puis réplica en lecture pour l'analytique.
 
 ---
 

@@ -19,20 +19,20 @@ vi.mock("@/lib/prisma", () => ({
     auditLog: { create: vi.fn() },
   },
 }));
-// bcryptjs : compare réel inutile ici → mock au niveau module.
+// Hachage (lib/auth/password) : compare réel inutile ici → mock au niveau module.
 // La route utilise l'import par défaut : on expose compare/hash via default.
 const { bcryptCompareMock, bcryptHashMock } = vi.hoisted(() => ({
   bcryptCompareMock: vi.fn(),
   bcryptHashMock: vi.fn(),
 }));
-vi.mock("bcryptjs", () => ({
+vi.mock("@/lib/auth/password", () => ({
   default: { compare: bcryptCompareMock, hash: bcryptHashMock },
   compare: bcryptCompareMock,
   hash: bcryptHashMock,
 }));
 
 import prisma from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/auth/password";
 import {
   generateSecret,
   generateQRCode,

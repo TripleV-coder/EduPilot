@@ -53,12 +53,20 @@ describe("N41 — activation des comptes derrière une même adresse", () => {
     expect(statuses).toEqual([200, 200, 200, 200, 200]);
   });
 
-  it("les échecs répétés restent limités (devinette d'un mot de passe provisoire)", async () => {
+  it("les échecs répétés sur un compte restent limités (devinette d'un mot de passe provisoire)", async () => {
+    const target = await provisionalAccount();
     const statuses: number[] = [];
     for (let i = 0; i < 12; i++) {
-      statuses.push((await activate(await provisionalAccount(), "FAUX-0000")).status);
+      statuses.push((await activate(target, "FAUX-0000")).status);
     }
     expect(statuses.slice(0, 10)).toEqual(Array(10).fill(401));
     expect(statuses.slice(10)).toEqual([429, 429]);
+  });
+
+  it("les fautes de frappe de quelques comptes ne bloquent pas l'activation des autres (G3)", async () => {
+    for (let i = 0; i < 12; i++) {
+      expect((await activate(await provisionalAccount(), "FAUX-0000")).status).toBe(401);
+    }
+    expect((await activate(await provisionalAccount(), PROVISIONAL)).status).toBe(200);
   });
 });

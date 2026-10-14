@@ -28,5 +28,7 @@ export interface GradeCell {
     value: string;
     isAbsent: boolean;
     isExcused: boolean;
+    /** Motif d'une absence justifiée (billet visé). */
+    excuseReason?: string;
     comment: string;
 }

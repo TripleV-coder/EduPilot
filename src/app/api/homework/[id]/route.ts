@@ -104,6 +104,10 @@ const guard = await assertModelAccess(session, "homework", id, "Devoir non trouv
       if (!studentProfile || studentProfile.enrollments.length === 0) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
+      return NextResponse.json({
+        ...homework,
+        submissions: (homework.submissions ?? []).filter((submission) => submission.studentId === studentProfile.id),
+      });
     }
 
     return NextResponse.json(homework);

@@ -131,8 +131,9 @@ export default function NewCoursePage() {
                 throw new Error(error.error || "Erreur lors de la création du cours");
             }
 
+            const created = await response.json().catch(() => null);
             toast({ title: "Succès !", description: "Votre cours a été créé avec succès." });
-            router.push("/dashboard/courses");
+            router.push(created?.id ? `/dashboard/courses/${created.id}` : "/dashboard/courses");
         } catch (error) {
             toast({ title: "Erreur", description: getErrorMessage(error), variant: "destructive" });
         } finally {

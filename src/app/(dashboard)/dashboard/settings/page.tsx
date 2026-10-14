@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 
 interface SettingItem {
     icon: IconName;
@@ -84,6 +85,20 @@ const ADMIN_SETTINGS: SettingItem[] = [
         accent: "brand",
     },
     {
+        icon: "chart",
+        title: "Règles de l'établissement",
+        desc: "Calcul des moyennes, mentions, rachat, orientation",
+        href: "/dashboard/settings/grading",
+        accent: "brand",
+    },
+    {
+        icon: "sparkle",
+        title: "Paramètres de l'établissement",
+        desc: "Seuils d'alerte, niveaux, délais, analyses",
+        href: "/dashboard/settings/parameters",
+        accent: "info",
+    },
+    {
         icon: "school",
         title: "Niveaux d'étude",
         desc: "Configuration des cycles et classes",
@@ -142,6 +157,7 @@ const ADMIN_SETTINGS: SettingItem[] = [
 ];
 
 export default function SettingsPage() {
+    const lang = useUiLang();
     const { data: session } = useSession();
     const [search, setSearch] = useState("");
 
@@ -158,7 +174,7 @@ export default function SettingsPage() {
     return (
         <PageShell>
             <PageHeader
-                title="Paramètres"
+                title={pick(lang, "Paramètres", "Settings")}
                 description="Préférences de ton compte et configuration de l'établissement."
             />
 
@@ -192,7 +208,7 @@ export default function SettingsPage() {
             {/* Personnel */}
             <Section
                 eyebrow="Compte"
-                title="Paramètres personnels"
+                title={pick(lang, "Paramètres personnels", "Personal settings")}
                 empty={search ? personalFiltered.length === 0 : false}
             >
                 <SettingsGrid items={personalFiltered} />
@@ -242,6 +258,7 @@ function Section({
     empty?: boolean;
     children: React.ReactNode;
 }) {
+    const lang = useUiLang();
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
@@ -280,7 +297,7 @@ function Section({
                                 color: "var(--eduflow-text-secondary)",
                             }}
                         >
-                            Aucun paramètre ne correspond à la recherche dans cette section.
+                            {pick(lang, "Aucun paramètre ne correspond à la recherche dans cette section.", "No setting matches the search in this section.")}
                         </p>
                     </div>
                 </Card>

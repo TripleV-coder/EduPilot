@@ -3,6 +3,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -11,7 +12,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 const updateScholarshipSchema = z.object({
   name: z.string().min(3).max(200).optional(),
   type: z.enum(["MERIT", "NEED_BASED", "ATHLETIC", "PARTIAL", "FULL", "OTHER"]).optional(),
-  amount: z.number().positive().optional(),
+  amount: fcfaAmountSchema.optional(),
   percentage: z.number().int().min(1).max(100).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional().nullable(),

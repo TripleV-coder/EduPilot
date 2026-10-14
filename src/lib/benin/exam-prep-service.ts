@@ -1,5 +1,8 @@
 import prisma from "@/lib/prisma";
 import { configService } from "@/lib/services/config-service";
+import { computeAnnualAverages, toDisplay } from "@/lib/academic/average-engine";
+import { getGradingSettings } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
 export interface ExamSubject {
     code: string;
@@ -19,12 +22,32 @@ export interface StudentExamReadiness {
         trend: "UP" | "DOWN" | "STABLE";
         recommendation: string;
     }[];
-    predictedSuccess: number; // 0-100%
+    /** Chance estimée d'atteindre la moyenne d'admission (%), null sans aucune note. */
+    predictedSuccess: number | null;
     weakAreas: string[];
     strongAreas: string[];
 }
 
 // Les définitions par défaut (fallbacks) sont importées de @/lib/benin/config
+
+/**
+ * Chance (en %) qu'une moyenne d'examen atteigne `passMark`, la note d'examen
+ * étant supposée s'écarter de la moyenne de l'année d'environ `uncertainty`
+ * points (loi normale). Bornée à 1–99 % : l'application n'annonce jamais une
+ * certitude. Avec 2 points d'écart : 10/20 → 50 %, 12/20 → 84 %, 8/20 → 16 %.
+ */
+export function examSuccessProbability(average: number, passMark: number, uncertainty: number): number {
+    const z = (average - passMark) / Math.max(uncertainty, 0.01);
+    return Math.min(99, Math.max(1, Math.round(normalCdf(z) * 100)));
+}
+
+/** Fonction de répartition de la loi normale centrée réduite (Abramowitz-Stegun 7.1.26, erreur < 1,5e-7). */
+function normalCdf(z: number): number {
+    const x = Math.abs(z) / Math.SQRT2;
+    const t = 1 / (1 + 0.3275911 * x);
+    const erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
+}
 
 export class ExamPrepService {
     /**
@@ -41,14 +64,20 @@ export class ExamPrepService {
 
         if (!student) return null;
 
-        // Récupérer toutes les notes de l'année
+        // Notes de l'année en cours uniquement (avant : toutes les années mélangées)
+        const enrollment = await prisma.enrollment.findFirst({
+            where: { studentId, status: "ACTIVE" },
+            select: { academicYearId: true },
+        });
+        if (!enrollment) return null;
         const grades = await prisma.grade.findMany({
-            where: { studentId, deletedAt: null },
+            where: { studentId, deletedAt: null, evaluation: { period: { academicYearId: enrollment.academicYearId } } },
             include: {
                 evaluation: {
                     include: {
                         classSubject: { include: { subject: true } },
                         period: true,
+                        type: { select: { code: true, name: true, category: true } },
                     },
                 },
             },
@@ -56,19 +85,44 @@ export class ExamPrepService {
         });
 
         const examSubjects = await configService.getExamDefinition(examType);
+        const schoolRules = await getGradingSettings(student.schoolId);
+        const examParams = (await getSchoolParameters(student.schoolId)).exams;
+        // Moyenne d'admission de l'examen : règles de l'établissement (10 par défaut)
+        const passMark = examType === "CEP" ? schoolRules.cepPassMark : schoolRules.bepcPassMark;
         const subjectReadiness: StudentExamReadiness["subjectReadiness"] = [];
         const weakAreas: string[] = [];
         const strongAreas: string[] = [];
 
         for (const examSubject of examSubjects) {
             const subjectGrades = grades.filter(
-                g => g.evaluation.classSubject.subject.code === examSubject.code && g.value
+                g => g.evaluation.classSubject.subject.code === examSubject.code
             );
 
-            if (subjectGrades.length === 0) continue;
+            // Moyenne de la matière : moteur unique (formule officielle, notes ramenées sur 20,
+            // absence non justifiée = 0), moyenne des périodes déjà évaluées
+            const annual = computeAnnualAverages(
+                subjectGrades.map((g) => ({
+                    evaluationId: g.evaluationId,
+                    classSubjectId: g.evaluation.classSubjectId,
+                    periodId: g.evaluation.periodId,
+                    value: g.value,
+                    isAbsent: g.isAbsent,
+                    isExcused: g.isExcused,
+                    maxGrade: g.evaluation.maxGrade,
+                    type: g.evaluation.type,
+                })),
+                Array.from(new Set(subjectGrades.map((g) => g.evaluation.classSubjectId)), (id) => ({ id, coefficient: 1 })),
+                Array.from(new Set(subjectGrades.map((g) => g.evaluation.periodId)), (id) => ({ id })),
+                [],
+                { rules: schoolRules.calculation }
+            );
+            const avgScore = toDisplay(annual.general ?? annual.provisional, schoolRules.calculation.rounding);
+            if (avgScore === null) continue;
 
-            const values = subjectGrades.map(g => g.value!.toNumber());
-            const avgScore = values.reduce((a, b) => a + b, 0) / values.length;
+            // Tendance sur les notes ramenées sur 20 (les plus récentes d'abord ; 0 compris)
+            const values = subjectGrades
+                .filter((g) => g.value !== null && !g.isAbsent && !g.isExcused && Number(g.evaluation.maxGrade) > 0)
+                .map((g) => (Number(g.value) / Number(g.evaluation.maxGrade)) * 20);
 
             // Calculer la tendance (dernières notes vs premières)
             let trend: "UP" | "DOWN" | "STABLE" = "STABLE";
@@ -81,10 +135,10 @@ export class ExamPrepService {
 
             // Générer recommandation
             let recommendation = "";
-            if (avgScore < 10) {
+            if (avgScore < passMark) {
                 recommendation = `Renforcement intensif requis en ${examSubject.name}`;
                 weakAreas.push(examSubject.name);
-            } else if (avgScore >= 14) {
+            } else if (avgScore >= examParams.strongSubjectFrom) {
                 recommendation = `Excellent niveau, maintenir l'effort`;
                 strongAreas.push(examSubject.name);
             } else {
@@ -93,7 +147,7 @@ export class ExamPrepService {
 
             subjectReadiness.push({
                 subject: examSubject.name,
-                averageScore: Math.round(avgScore * 100) / 100,
+                averageScore: avgScore,
                 trend,
                 recommendation,
             });
@@ -110,14 +164,14 @@ export class ExamPrepService {
             return sum + (sr.averageScore * (subject?.coefficient || 1));
         }, 0);
 
-        const overallAvg = totalCoefficients > 0 ? weightedSum / totalCoefficients : 0;
+        const overallAvg = totalCoefficients > 0 ? weightedSum / totalCoefficients : null;
 
-        const overallReadiness = Math.min(100, Math.round((overallAvg / 20) * 100));
+        const overallReadiness = overallAvg === null ? 0 : Math.min(100, Math.round((overallAvg / 20) * 100));
 
-        // Prédiction de succès (basée sur la moyenne pondérée)
-        const predictedSuccess = overallAvg >= 10
-            ? Math.min(95, Math.round(50 + (overallAvg - 10) * 5))
-            : Math.max(5, Math.round(overallAvg * 5));
+        // Chance d'atteindre la moyenne d'admission : sans note, pas d'estimation (jamais un faux 5 %)
+        const predictedSuccess = overallAvg === null
+            ? null
+            : examSuccessProbability(overallAvg, passMark, examParams.examUncertainty);
 
         return {
             studentId,
@@ -151,8 +205,10 @@ export class ExamPrepService {
             ? readinessResults.reduce((a, b) => a + b.overallReadiness, 0) / readinessResults.length
             : 0;
 
-        const atRisk = readinessResults.filter(r => r.predictedSuccess < 50);
-        const confident = readinessResults.filter(r => r.predictedSuccess >= 70);
+        const classSchoolId = (await prisma.class.findUnique({ where: { id: classId }, select: { schoolId: true } }))?.schoolId;
+        const { examAtRiskBelow, examConfidentFrom } = (await getSchoolParameters(classSchoolId)).exams;
+        const atRisk = readinessResults.filter(r => r.predictedSuccess !== null && r.predictedSuccess < examAtRiskBelow);
+        const confident = readinessResults.filter(r => r.predictedSuccess !== null && r.predictedSuccess >= examConfidentFrom);
 
         return {
             totalStudents: readinessResults.length,

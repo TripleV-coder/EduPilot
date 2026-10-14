@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { findUnique: vi.fn() },
     studentAnalytics: { findFirst: vi.fn(), findMany: vi.fn() },
-    subject: { findMany: vi.fn() },
+    classSubject: { findMany: vi.fn() },
     attendance: { groupBy: vi.fn(), findMany: vi.fn() },
     paymentPlan: { findMany: vi.fn() },
     grade: { findMany: vi.fn() },
@@ -94,7 +94,8 @@ beforeEach(() => {
     makeAnalytics({ id: cuid("analytics2"), generalAverage: 12.5 }),
     makeAnalytics({ id: cuid("analytics3"), generalAverage: 11.25, createdAt: new Date("2025-12-01") }),
   ] as never);
-  vi.mocked(prisma.subject.findMany).mockResolvedValue([{ id: cuid("subj1"), coefficient: 3 }] as never);
+  // Coefficient de la CLASSE (celui qui sert au calcul), pas celui du catalogue
+  vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ subjectId: cuid("subj1"), coefficient: 3 }] as never);
   vi.mocked(prisma.attendance.groupBy).mockResolvedValue([
     { status: "PRESENT", _count: { _all: 18 } },
     { status: "LATE", _count: { _all: 2 } },

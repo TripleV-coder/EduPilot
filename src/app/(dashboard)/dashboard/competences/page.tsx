@@ -37,6 +37,15 @@ const STATUS_META = {
     NE: { label: "Non évalué", color: "neutral" },
 } as const;
 
+const COMPETENCE_OPTIONS = [
+    { id: "C1", label: "C1 · Chercher · résoudre un problème" },
+    { id: "C2", label: "C2 · Modéliser · traduire une situation" },
+    { id: "C3", label: "C3 · Représenter · figures, graphiques" },
+    { id: "C4", label: "C4 · Raisonner · démontrer" },
+    { id: "C5", label: "C5 · Calculer · technique opératoire" },
+    { id: "C6", label: "C6 · Communiquer · expression" },
+];
+
 export default function CompetencesPage() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
@@ -45,6 +54,10 @@ export default function CompetencesPage() {
     const [data, setData] = useState<CompetencesData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [evaluateOpen, setEvaluateOpen] = useState(false);
+    const [level, setLevel] = useState("EC");
+    const [competenceId, setCompetenceId] = useState("C1");
+    const [savingEval, setSavingEval] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -116,11 +129,69 @@ export default function CompetencesPage() {
                                 <Button variant="secondary" icon="download">
                                     Bilan PDF
                                 </Button>
-                                <Button icon="plus">Évaluer</Button>
+                                <Button icon="plus" onClick={() => setEvaluateOpen(true)}>Évaluer</Button>
                             </>
                         ) : null
                     }
                 />
+
+                {evaluateOpen ? (
+                    <Card padding={16}>
+                        <form
+                            role="dialog"
+                            aria-label="Évaluer une compétence"
+                            className="flex flex-col gap-3"
+                            onSubmit={async (event) => {
+                                event.preventDefault();
+                                if (!selectedSubject) {
+                                    setError("Choisissez d'abord la matière évaluée.");
+                                    return;
+                                }
+                                setSavingEval(true);
+                                setError(null);
+                                try {
+                                    const res = await fetch("/api/competences", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, competenceId, level }),
+                                    });
+                                    const body = await res.json().catch(() => ({}));
+                                    if (!res.ok) throw new Error(body.error || "Évaluation impossible");
+                                    setEvaluateOpen(false);
+                                    await handleGenerate();
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Évaluation impossible");
+                                } finally {
+                                    setSavingEval(false);
+                                }
+                            }}
+                        >
+                            <p className="text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
+                                Le niveau de compétence alimente cette grille ; il ne compte pas dans les moyennes.
+                            </p>
+                            <label className="text-sm font-medium">
+                                Compétence
+                                <select className="mt-1 w-full rounded border px-2 py-1" value={competenceId} onChange={(e) => setCompetenceId(e.target.value)}>
+                                    {COMPETENCE_OPTIONS.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="text-sm font-medium">
+                                Niveau
+                                <select className="mt-1 w-full rounded border px-2 py-1" value={level} onChange={(e) => setLevel(e.target.value)}>
+                                    <option value="A">Acquis</option>
+                                    <option value="EC">En cours</option>
+                                    <option value="NA">Non acquis</option>
+                                </select>
+                            </label>
+                            <div className="flex gap-2">
+                                <Button type="submit" loading={savingEval}>Enregistrer</Button>
+                                <Button type="button" variant="secondary" onClick={() => setEvaluateOpen(false)}>Annuler</Button>
+                            </div>
+                        </form>
+                    </Card>
+                ) : null}
 
                 <Card padding={0} style={{ display: "block" }}>
                     <div

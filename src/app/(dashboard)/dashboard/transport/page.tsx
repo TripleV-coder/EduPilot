@@ -49,6 +49,10 @@ export default function TransportPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [direction, setDirection] = useState<DirectionFilter>("all");
+    const [lineOpen, setLineOpen] = useState(false);
+    const [lineNumber, setLineNumber] = useState("");
+    const [lineLabel, setLineLabel] = useState("");
+    const [savingLine, setSavingLine] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -85,13 +89,77 @@ export default function TransportPage() {
                     ]}
                     actions={
                         <>
-                            <Button variant="secondary" icon="download">
+                            <Button
+                                variant="secondary"
+                                icon="download"
+                                onClick={async () => {
+                                    const { jsPDF } = await import("jspdf");
+                                    const doc = new jsPDF();
+                                    doc.setFontSize(16);
+                                    doc.text("Liste des passagers", 14, 20);
+                                    doc.setFontSize(11);
+                                    let y = 32;
+                                    const lines = data?.lines ?? [];
+                                    if (lines.length === 0) doc.text("Aucune ligne de transport.", 14, y);
+                                    for (const line of lines) {
+                                        doc.text(`${line.number} · ${line.label} — ${line.studentCount} élève(s)`, 14, y);
+                                        y += 8;
+                                    }
+                                    doc.save("liste-passagers.pdf");
+                                }}
+                            >
                                 Liste passagers PDF
                             </Button>
-                            <Button icon="plus">Nouvelle ligne</Button>
+                            <Button icon="plus" onClick={() => setLineOpen(true)}>Nouvelle ligne</Button>
                         </>
                     }
                 />
+
+                {lineOpen ? (
+                    <Card padding={16}>
+                        <form
+                            role="dialog"
+                            aria-label="Nouvelle ligne"
+                            className="flex flex-col gap-3"
+                            onSubmit={async (event) => {
+                                event.preventDefault();
+                                setSavingLine(true);
+                                setError(null);
+                                try {
+                                    const res = await fetch("/api/transport/lines", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ number: lineNumber, label: lineLabel }),
+                                    });
+                                    const body = await res.json().catch(() => ({}));
+                                    if (!res.ok) throw new Error(body.error || "Création impossible");
+                                    const reload = await fetch("/api/transport/lines");
+                                    if (reload.ok) setData(await reload.json());
+                                    setLineOpen(false);
+                                    setLineNumber("");
+                                    setLineLabel("");
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Création impossible");
+                                } finally {
+                                    setSavingLine(false);
+                                }
+                            }}
+                        >
+                            <label className="text-sm font-medium">
+                                Numéro
+                                <input className="mt-1 w-full rounded border px-2 py-1" value={lineNumber} onChange={(e) => setLineNumber(e.target.value)} required />
+                            </label>
+                            <label className="text-sm font-medium">
+                                Libellé
+                                <input className="mt-1 w-full rounded border px-2 py-1" value={lineLabel} onChange={(e) => setLineLabel(e.target.value)} required />
+                            </label>
+                            <div className="flex gap-2">
+                                <Button type="submit" loading={savingLine}>Enregistrer la ligne</Button>
+                                <Button type="button" variant="secondary" onClick={() => setLineOpen(false)}>Annuler</Button>
+                            </div>
+                        </form>
+                    </Card>
+                ) : null}
 
                 {loading ? (
                     <PageLoading label="Chargement du module transport…" />

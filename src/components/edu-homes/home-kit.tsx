@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/edu";
 import styles from "./home.module.css";
@@ -281,12 +282,13 @@ export function DayTimeline({
 
 /** Moyennes sur 20 en barres (matières), couleur selon le niveau. */
 export function Bars({ items, empty }: { items: { label: string; value: number }[]; empty: string }) {
+    const thresholds = useSchoolThresholds();
     if (items.length === 0) return <p className={styles.empty}>{empty}</p>;
     return (
         <ul className={styles.bars}>
             {items.map((b) => {
                 const v = Math.max(0, Math.min(20, b.value));
-                const color = v >= 14 ? MODULE.green : v >= 10 ? MODULE.blue : MODULE.orange;
+                const color = v >= thresholds.performance.veryGoodFrom ? MODULE.green : v >= thresholds.passingGrade ? MODULE.blue : MODULE.orange;
                 // 0 = aucune note publiée (même convention que les cartes de classe).
                 const shown = v > 0 ? `${decimal(v)}/20` : "—";
                 return (

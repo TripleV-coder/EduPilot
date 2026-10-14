@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getRedisClient } from "@/lib/cache/redis";
+import { getJobQueueStats } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,12 @@ export const GET = createApiHandler(async (_request, context) => {
       where: { isActive: true },
     });
 
+    const jobQueue = await getJobQueueStats();
+    const jobBacklogMs = jobQueue.oldestPendingRunAt
+      ? Date.now() - jobQueue.oldestPendingRunAt.getTime()
+      : 0;
+    const jobsStatus: "healthy" | "warning" = jobBacklogMs > 10 * 60_000 ? "warning" : "healthy";
+
     // Runtime uptime in seconds (process-based, non-simulated)
     const uptimeSeconds = Math.floor(process.uptime());
     const uptimeHuman = `${Math.floor(uptimeSeconds / 3600)}h ${Math.floor((uptimeSeconds % 3600) / 60)}m`;
@@ -77,7 +84,9 @@ export const GET = createApiHandler(async (_request, context) => {
       totalUsers,
       totalSchools,
       timestamp: new Date().toISOString(),
+      jobs: { ...jobQueue, backlogMs: jobBacklogMs },
       checks: {
+        jobs: jobsStatus,
         database: dbResponseTime < 500 ? "healthy" : dbResponseTime < 1000 ? "warning" : "critical",
         api: totalResponseTime < 200 ? "healthy" : totalResponseTime < 500 ? "warning" : "critical",
         cache: cacheStatus,

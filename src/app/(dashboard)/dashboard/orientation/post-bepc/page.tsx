@@ -1,5 +1,6 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -156,6 +157,7 @@ const FR_NUM = (v: number | null, digits = 1): string =>
     v === null ? "—" : v.toFixed(digits).replace(".", ",");
 
 export default function OrientationPostBepcPage() {
+    const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [years, setYears] = useState<YearOption[]>([]);
     const [selectedClass, setSelectedClass] = useState("");
@@ -567,9 +569,9 @@ export default function OrientationPostBepcPage() {
                                                     const avgColor =
                                                         r.generalAverage === null
                                                             ? "var(--eduflow-text-tertiary)"
-                                                            : r.generalAverage >= 14
+                                                            : r.generalAverage >= thresholds.performance.veryGoodFrom
                                                             ? "var(--eduflow-success-700)"
-                                                            : r.generalAverage < 12
+                                                            : r.generalAverage < thresholds.performance.goodFrom
                                                             ? "var(--eduflow-warning-700)"
                                                             : "var(--eduflow-text-primary)";
                                                     return (

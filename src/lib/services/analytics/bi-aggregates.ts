@@ -39,10 +39,11 @@ export async function collectedByLocalMonth(
 
 /**
  * Dernier instantané d'analyse de CHAQUE élève de l'établissement (le plus
- * récent par `createdAt`) : nombre d'élèves, élèves à 10/20 ou plus (moyenne
- * absente comptée 0), moyenne par matière (moyenne absente comptée 0).
+ * récent par `createdAt`) : nombre d'élèves AYANT une moyenne, élèves au seuil
+ * de passage de l'école ou plus, moyenne par matière. Une moyenne absente
+ * (élève pas encore évalué) n'est jamais comptée 0 : elle est écartée.
  */
-export async function latestSnapshotStats(scope: BiScope): Promise<{
+export async function latestSnapshotStats(scope: BiScope, passingGrade = 10): Promise<{
   total: number;
   passing: number;
   subjects: Array<{ subject: string; average: number }>;
@@ -59,14 +60,14 @@ export async function latestSnapshotStats(scope: BiScope): Promise<{
   const [counts, subjects] = await Promise.all([
     prisma.$queryRaw<Array<{ total: number; passing: number }>>(Prisma.sql`
       WITH latest AS (${latest})
-      SELECT COUNT(*)::int AS total,
-             COUNT(*) FILTER (WHERE COALESCE(latest."generalAverage", 0) >= 10)::int AS passing
+      SELECT COUNT(latest."generalAverage")::int AS total,
+             COUNT(*) FILTER (WHERE latest."generalAverage" >= ${passingGrade})::int AS passing
       FROM latest`),
     prisma.$queryRaw<Array<{ subject: string; average: Prisma.Decimal | null }>>(Prisma.sql`
       WITH latest AS (${latest})
-      SELECT s.name AS subject, AVG(COALESCE(p.average, 0)) AS average
+      SELECT s.name AS subject, AVG(p.average) AS average
       FROM latest
-      JOIN subject_performances p ON p."analyticsId" = latest.id
+      JOIN subject_performances p ON p."analyticsId" = latest.id AND p.average IS NOT NULL
       JOIN subjects s ON s.id = p."subjectId"
       GROUP BY s.name`),
   ]);

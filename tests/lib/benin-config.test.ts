@@ -6,7 +6,6 @@ import {
   collegeSubjects,
   gradeMentions,
   getMention,
-  calculateWeightedAverage,
   bacSubjects,
   levelConfig,
 } from "@/lib/benin/config";
@@ -58,6 +57,9 @@ describe("benin/config", () => {
     it("returns PASSABLE for 10–11.99", () => {
       expect(getMention(10)?.code).toBe("PASSABLE");
       expect(getMention(11.99)?.code).toBe("PASSABLE");
+      // Plus de trou entre deux tranches
+      expect(getMention(9.995)?.code).toBe("ECHEC");
+      expect(getMention(11.999)?.code).toBe("PASSABLE");
     });
 
     it("returns ASSEZ_BIEN for 12–13.99", () => {
@@ -88,25 +90,6 @@ describe("benin/config", () => {
       for (const m of gradeMentions) {
         expect(m.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       }
-    });
-  });
-
-  describe("calculateWeightedAverage", () => {
-    it("returns 0 on empty array", () => {
-      expect(calculateWeightedAverage([])).toBe(0);
-    });
-
-    it("returns 0 when total coefficients = 0", () => {
-      expect(calculateWeightedAverage([{ value: 10, coefficient: 0 }])).toBe(0);
-    });
-
-    it("computes weighted average rounded to 2 decimals", () => {
-      const r = calculateWeightedAverage([
-        { value: 12, coefficient: 2 },
-        { value: 16, coefficient: 1 },
-      ]);
-      // (12*2 + 16*1) / 3 = 40/3 = 13.33...
-      expect(r).toBe(13.33);
     });
   });
 

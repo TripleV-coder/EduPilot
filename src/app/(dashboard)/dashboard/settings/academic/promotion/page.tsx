@@ -31,6 +31,8 @@ type StudentPromotion = {
   id: string;
   name: string;
   average: number | null;
+  /** false : moyenne annuelle provisoire (période manquante ou note à justifier) */
+  complete: boolean;
   status: PromotionStatus;
 };
 
@@ -38,6 +40,7 @@ type RankedStudent = {
   studentId: string;
   studentName: string;
   average: number | string;
+  complete?: boolean;
 };
 
 type RosterStudent = {
@@ -101,30 +104,44 @@ function PromotionEngineContent() {
     fetcher
   );
 
+  // Seuil de passage et option de rachat de l'établissement
+  const { data: rulesData } = useSWR<{ passingGrade: number; settings: { rescueAfterCouncil: boolean } }>(
+    "/api/config/grading",
+    fetcher
+  );
+  const passingGrade = (typeof rulesData?.passingGrade === "number" ? rulesData.passingGrade : 10);
+  const rescueAllowed = rulesData?.settings?.rescueAfterCouncil ?? false;
+
   const students = useMemo<StudentPromotion[]>(() => {
     const roster = (rosterData?.data ?? []) as RosterStudent[];
     // Moyennes par élève (seuls ceux ayant des notes apparaissent ici).
     const averageById = new Map<string, number>();
+    const completeById = new Map<string, boolean>();
     for (const r of (gradeStatsData?.ranking?.students ?? []) as RankedStudent[]) {
       averageById.set(r.studentId, Number(r.average));
+      completeById.set(r.studentId, r.complete !== false);
     }
 
     return roster.map((student) => {
       const average = averageById.has(student.id) ? averageById.get(student.id)! : null;
-      // Suggestion par défaut : promotion pour une moyenne >= 10. Tous les autres
+      // Suggestion par défaut : promotion pour une moyenne >= seuil de passage. Tous les autres
       // cas (sous la moyenne OU sans note) restent « non décidés » et exigent un
       // choix explicite — aucune réinscription/redoublement n'est appliqué à l'aveugle.
+      // Moyenne annuelle officielle (S1+S2)/2 ou (T1+T2+T3)/3 : aucune suggestion
+      // tant qu'elle est provisoire (période manquante, note à justifier).
+      const complete = completeById.get(student.id) ?? false;
       const defaultStatus: PromotionStatus =
-        average !== null && average >= 10 ? "PROMOTE" : "UNDECIDED";
+        average !== null && complete && average >= passingGrade ? "PROMOTE" : "UNDECIDED";
 
       return {
         id: student.id,
         name: `${student.user.firstName} ${student.user.lastName}`.trim(),
         average,
+        complete,
         status: statusOverrides[student.id] ?? defaultStatus,
       };
     });
-  }, [rosterData, gradeStatsData, statusOverrides]);
+  }, [rosterData, gradeStatsData, statusOverrides, passingGrade]);
 
   const decidedStudents = useMemo(
     () => students.filter((s) => s.status !== "UNDECIDED"),
@@ -338,6 +355,13 @@ function PromotionEngineContent() {
                       <tr key={s.id} className="hover:bg-background/30 transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-bold">{s.name}</p>
+                          {s.status === "PROMOTE" && s.average !== null && s.average < passingGrade ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              {rescueAllowed
+                                ? "Rachat : possible seulement après la validation du conseil de classe de fin d'année."
+                                : "Rachat non activé dans les règles de l'établissement : l'enregistrement sera refusé."}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-6 py-4 text-center">
                           {s.average === null ? (
@@ -345,8 +369,11 @@ function PromotionEngineContent() {
                           ) : (
                             <span className={cn(
                               "text-sm font-bold px-2.5 py-1 rounded-lg",
-                              s.average >= 10 ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
-                            )}>{formatDecimal(s.average, 2)} / 20</span>
+                              s.average >= passingGrade ? "bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"
+                            )}>
+                              {formatDecimal(s.average, 2)} / 20
+                              {!s.complete ? <span className="ml-1 font-normal">(provisoire)</span> : null}
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -358,7 +385,8 @@ function PromotionEngineContent() {
                                 s.status === "PROMOTE" ? "bg-[hsl(var(--success))] border-[hsl(var(--success))] text-white shadow-md shadow-[hsl(var(--success))]/20" : "bg-background border-border/50 text-muted-foreground hover:border-[hsl(var(--success))]/50"
                               )}
                             >
-                              <ArrowUpRight className="w-3 h-3" /> Promouvoir
+                              <ArrowUpRight className="w-3 h-3" />{" "}
+                              {s.average !== null && s.average < passingGrade ? "Racheter" : "Promouvoir"}
                             </button>
                             <button 
                               onClick={() => setStatus(s.id, "REPEAT")}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
@@ -14,11 +15,26 @@ export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
 
     const { searchParams } = new URL(request.url);
-    const academicYearId = searchParams.get("academicYearId");
+    const requestedYear = searchParams.get("academicYearId");
     const classId = searchParams.get("classId");
     const periodIds = searchParams.getAll("periodIds"); // Multiple periodIds
+    let academicYearId = requestedYear === "ALL" ? null : requestedYear;
+    if (!academicYearId && classId) {
+      const klass = await prisma.class.findFirst({
+        where: { id: classId },
+        select: { schoolId: true },
+      });
+      if (klass) {
+        const current = await prisma.academicYear.findFirst({
+          where: { schoolId: klass.schoolId, isCurrent: true },
+          select: { id: true },
+        });
+        academicYearId = current?.id ?? null;
+      }
+    }
 
     if (!academicYearId || !classId || periodIds.length === 0) {
+      if (requestedYear === "ALL") return NextResponse.json([]);
       return NextResponse.json(
         { error: "Paramètres manquants" },
         { status: 400 }
@@ -37,6 +53,9 @@ export const GET = createApiHandler(async (request, context) => {
     if (!canAccessSchool(session, classRecord.schoolId)) {
       return NextResponse.json({ error: "Accès refusé à cette classe" }, { status: 403 });
     }
+
+    // Taux de réussite au seuil de passage réglé par l'école
+    const passingGrade = await getPassingGrade(classRecord.schoolId);
 
     const comparisons = await Promise.all(
       periodIds.map(async (periodId) => {
@@ -64,7 +83,7 @@ export const GET = createApiHandler(async (request, context) => {
 
         const passRate =
           scoredAnalytics.length > 0
-            ? (scoredAnalytics.filter((a) => Number(a.generalAverage) >= 10).length /
+            ? (scoredAnalytics.filter((a) => Number(a.generalAverage) >= passingGrade).length /
               scoredAnalytics.length) *
               100
             : 0;

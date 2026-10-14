@@ -4,18 +4,15 @@
  */
 
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import bcrypt from "@/lib/auth/password";
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { isZodError } from "@/lib/is-zod-error";
 import { normalizeTempPassword } from '@/lib/auth/password-generator';
 import { logger } from "@/lib/utils/logger";
 import {
-  checkRateLimitKey,
-  releaseRateLimit,
   getClientIp,
-  createRateLimitKey,
-  LOGIN_FAILURE_RATE_LIMIT,
+  reserveLoginAttempt,
 } from '@/lib/rate-limit';
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
@@ -145,15 +142,20 @@ export const GET = createApiHandler(
  * adresse ; l'ancienne limite (3 tentatives / 15 min, réussites comprises)
  * bloquait l'activation au 4e compte. La tentative est comptée AVANT le
  * traitement (une rafale parallèle ne dépasse pas la limite), puis rendue si
- * elle n'est pas un échec de mot de passe — même principe que la connexion (H4).
+ * elle n'est pas un échec de mot de passe — même principe que la connexion (H4) :
+ * 10 échecs par compte (session ou lien d'activation) depuis une adresse,
+ * 200 par adresse tous comptes confondus.
  */
 export const POST = createApiHandler(
-  async (req) => {
-    const rateLimitKey = createRateLimitKey('first-login-failures', getClientIp(req));
-    const rateLimitResult = await checkRateLimitKey(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
+  async (req, { session }) => {
+    const attempt = await reserveLoginAttempt(
+      'first-login-failures',
+      getClientIp(req),
+      session?.user?.id ?? (await activationToken(req)),
+    );
 
-    if (!rateLimitResult.success) {
-      const retryAfter = Math.ceil((rateLimitResult.reset.getTime() - Date.now()) / 1000);
+    if (!attempt.allowed) {
+      const retryAfter = Math.ceil((attempt.reset.getTime() - Date.now()) / 1000);
       return NextResponse.json(
         {
           error: 'Trop de tentatives. Veuillez réessayer plus tard.',
@@ -169,11 +171,21 @@ export const POST = createApiHandler(
     }
 
     const response = await changeFirstLoginPassword(req);
-    if (response.status !== 401) await releaseRateLimit(rateLimitKey);
+    if (response.status !== 401) await attempt.release();
     return response;
   },
   { requireAuth: false },
 );
+
+/** Jeton du lien d'activation (lu sur une copie : le corps reste intact). */
+async function activationToken(req: Request): Promise<string | null> {
+  try {
+    const { token } = (await req.clone().json()) as { token?: unknown };
+    return typeof token === 'string' && token ? `token:${token}` : null;
+  } catch {
+    return null;
+  }
+}
 
 async function changeFirstLoginPassword(req: Request): Promise<NextResponse> {
     try {

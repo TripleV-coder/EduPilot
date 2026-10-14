@@ -7,11 +7,37 @@ import {
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { memoizeAsync } from "@/lib/cache/memo";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import {
   DASHBOARD_ANALYTICS_SELECT,
   loadStudentIdentities,
   summarizeSubjectsWithPassRate,
 } from "@/lib/services/analytics-dashboard/queries";
+
+function emptySchoolOverview(yearId: string | null) {
+  return {
+    summary: {
+      totalStudents: 0,
+      activeStudents: 0,
+      averageGeneral: 0,
+      passRate: 0,
+      failureRate: 0,
+      dropoutRiskCount: 0,
+      atRiskCount: 0,
+    },
+    performanceDistribution: {},
+    riskDistribution: {},
+    topStudents: [],
+    atRiskStudents: [],
+    subjectSummary: [],
+    attendanceDistribution: {},
+    periodComparison: [],
+    academicYearId: yearId,
+    periods: [],
+  };
+}
 
 function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
   const scoredAnalytics = analytics
@@ -24,26 +50,19 @@ function averageGeneral(analytics: Array<{ generalAverage: unknown }>): number {
 }
 
 /**
- * GET /api/analytics/school/overview
- * Obtenir une vue d'ensemble des analytics de l'établissement
+ * Vue d'ensemble d'un établissement : ~10 requêtes et ~50 000 lignes lues pour
+ * une école de 1 000 élèves (analyse de capacité 2026-10-01). Agrégats
+ * d'établissement, identiques pour toute personne autorisée (contrôle d'accès
+ * fait avant l'appel) : calcul unique par minute et par processus, et un seul
+ * calcul pour les demandes simultanées.
  */
-export const GET = createApiHandler(async (request, context) => {
-    try {
-        const session = context.session;
-
-
-    const { searchParams } = new URL(request.url);
-    const requestedSchoolId = searchParams.get("schoolId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
-    const schoolId = requestedSchoolId || getActiveSchoolId(session);
-
-    if (!schoolId) {
-      return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
-    }
-    const periodId = searchParams.get("periodId");
-    const academicYearId = searchParams.get("academicYearId");
-
+const schoolOverview = memoizeAsync(
+  {
+    ttlMs: 60_000,
+    key: (schoolId: string, academicYearId: string | null, periodId: string | null) =>
+      ["school-overview", schoolId, academicYearId ?? "", periodId ?? ""].join("|"),
+  },
+  async (schoolId: string, academicYearId: string | null, periodId: string | null) => {
     // Get current academic year if not specified
     let yearId: string | null = academicYearId;
     if (!yearId) {
@@ -55,7 +74,7 @@ export const GET = createApiHandler(async (request, context) => {
     }
 
     if (!yearId) {
-      return NextResponse.json({ error: "Année académique requise" }, { status: 400 });
+      return emptySchoolOverview(null);
     }
 
     const academicYear = await prisma.academicYear.findUnique({
@@ -90,6 +109,10 @@ export const GET = createApiHandler(async (request, context) => {
     const currentAnalytics = periodId
       ? analytics
       : dedupeLatestAnalyticsByStudent(analytics);
+    // Seuils réglés par l'école : moyenne de passage, « meilleurs élèves »
+    const [passingGrade, schoolParams] = await Promise.all([getPassingGrade(schoolId), getSchoolParameters(schoolId)]);
+    // Un élève sans moyenne (pas encore évalué) n'est ni en réussite ni en échec
+    const scoredAnalytics = currentAnalytics.filter((a) => a.generalAverage !== null);
     const avgGeneral = averageGeneral(currentAnalytics);
 
     const performanceDistribution = {
@@ -109,7 +132,7 @@ export const GET = createApiHandler(async (request, context) => {
     };
 
     const topAnalytics = currentAnalytics
-      .filter((item) => item.generalAverage !== null && Number(item.generalAverage) >= 15)
+      .filter((item) => item.generalAverage !== null && Number(item.generalAverage) >= schoolParams.performance.topStudentsFrom)
       .sort((left, right) => Number(right.generalAverage) - Number(left.generalAverage))
       .slice(0, 10);
     const atRiskAnalytics = currentAnalytics
@@ -119,7 +142,7 @@ export const GET = createApiHandler(async (request, context) => {
 
     const [identities, subjectSummary] = await Promise.all([
       loadStudentIdentities([...topAnalytics, ...atRiskAnalytics].map((item) => item.studentId), yearId),
-      summarizeSubjectsWithPassRate(currentAnalytics.map((item) => item.id)),
+      summarizeSubjectsWithPassRate(currentAnalytics.map((item) => item.id), passingGrade),
     ]);
     const studentView = (studentId: string) => {
       const identity = identities.get(studentId);
@@ -221,14 +244,14 @@ export const GET = createApiHandler(async (request, context) => {
       orderBy: { sequence: "asc" },
     });
 
-    return NextResponse.json({
+    return {
       overview: {
         totalStudents,
         activeStudents,
         averageGrade: roundTo(avgGeneral).toFixed(2),
         totalAnalytics: currentAnalytics.length,
-        failureRate: currentAnalytics.length > 0 
-          ? roundTo((currentAnalytics.filter(a => Number(a.generalAverage || 0) < 10).length / currentAnalytics.length) * 100)
+        failureRate: scoredAnalytics.length > 0
+          ? roundTo((scoredAnalytics.filter(a => Number(a.generalAverage) < passingGrade).length / scoredAnalytics.length) * 100)
           : 0,
         dropoutRiskCount: riskDistribution.critical,
         atRiskCount: riskDistribution.high,
@@ -242,7 +265,36 @@ export const GET = createApiHandler(async (request, context) => {
       periodComparison,
       academicYearId: yearId,
       periods,
-    });
+    };
+  },
+);
+
+/**
+ * GET /api/analytics/school/overview
+ * Obtenir une vue d'ensemble des analytics de l'établissement
+ */
+export const GET = createApiHandler(async (request, context) => {
+    try {
+        const session = context.session;
+
+
+    const { searchParams } = new URL(request.url);
+    const requestedSchoolId = searchParams.get("schoolId");
+    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
+    if (schoolAccess) return schoolAccess;
+    const schoolId = requestedSchoolId || getActiveSchoolId(session);
+
+    if (!schoolId) {
+      if (session.user.role === "SUPER_ADMIN") {
+        return NextResponse.json(emptySchoolOverview(null));
+      }
+      return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
+    }
+    const periodId = searchParams.get("periodId");
+    const requestedYear = searchParams.get("academicYearId");
+    const academicYearId = requestedYear === "ALL" ? null : requestedYear;
+
+    return NextResponse.json(await schoolOverview(schoolId, academicYearId, periodId));
   
     } catch (error) {
     logger.error(" fetching school analytics overview:", error as Error);

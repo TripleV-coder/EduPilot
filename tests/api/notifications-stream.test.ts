@@ -119,8 +119,11 @@ describe("GET /api/notifications/stream", () => {
 
     const res = await GET(streamRequest("http://localhost:3000/api/notifications/stream"));
     expect(res.status).toBe(200);
-    expect(redisInstances).toHaveLength(1);
-    const subscriber = redisInstances[0];
+    // Le client de commandes partagé (limites de débit) est distinct : un
+    // client abonné ne peut plus rien exécuter d'autre.
+    const subscribers = redisInstances.filter((instance) => instance.subscribe.mock.calls.length > 0);
+    expect(subscribers).toHaveLength(1);
+    const subscriber = subscribers[0];
     expect(subscriber.subscribe).toHaveBeenCalledWith(`notifications:${USER_ID}`, expect.any(Function));
 
     const reader = (res.body as ReadableStream<Uint8Array>).getReader();

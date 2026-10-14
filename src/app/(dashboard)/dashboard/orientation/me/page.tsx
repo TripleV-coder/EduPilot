@@ -1,5 +1,6 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -200,6 +201,7 @@ const FR_NUM = (v: number | null, digits = 1): string =>
     v === null ? "—" : v.toFixed(digits).replace(".", ",");
 
 export default function OrientationMePage() {
+    const thresholds = useSchoolThresholds();
     const [data, setData] = useState<MeData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -647,9 +649,9 @@ export default function OrientationMePage() {
                                     ) : (
                                         strongSubjects.map((s) => {
                                             const tone =
-                                                s.average >= 14
+                                                s.average >= thresholds.performance.veryGoodFrom
                                                     ? "success"
-                                                    : s.average >= 12
+                                                    : s.average >= thresholds.performance.goodFrom
                                                     ? "info"
                                                     : "warning";
                                             return (

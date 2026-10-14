@@ -1,4 +1,4 @@
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/auth/password";
 import { generateTempPassword } from "./password-generator";
 
 /**

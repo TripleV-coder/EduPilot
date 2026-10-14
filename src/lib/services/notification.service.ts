@@ -50,6 +50,27 @@ export async function createNotification(params: CreateNotificationParams) {
   return notif;
 }
 
+/** Notifications au contenu propre à chaque destinataire, en une seule insertion. */
+export async function createNotifications(items: CreateNotificationParams[]) {
+  if (items.length === 0) return { count: 0 };
+  const result = await prisma.notification.createMany({
+    data: items.map((item) => ({
+      userId: item.userId,
+      type: item.type,
+      title: item.title,
+      message: item.message,
+      link: item.link,
+    })),
+  });
+
+  const pub = getPublisher();
+  for (const userId of new Set(items.map((item) => item.userId))) {
+    pub?.publish(`notifications:${userId}`, JSON.stringify({ REFRESH_REQUIRED: true })).catch(() => { });
+  }
+
+  return result;
+}
+
 export async function createBulkNotifications(params: BulkNotificationParams) {
   const data = params.userIds.map((userId) => ({
     userId,

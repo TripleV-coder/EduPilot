@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { DEFAULT_SCHOOL_PARAMETERS } from "@/lib/schools/school-parameters";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 import { createBulkNotifications } from "@/lib/services/notification.service";
 import { runInstallmentReminders } from "@/lib/finance/reminders";
@@ -108,11 +110,16 @@ export class AutomationService {
             perClass.set(row.classId, tally);
         }
 
+        // Seuil d'alerte réglé par chaque école (paramètres « Suivi des élèves »)
+        const alertThreshold = new Map<string, number>();
+        for (const schoolId of new Set(classes.map((cls) => cls.schoolId))) {
+            alertThreshold.set(schoolId, (await getSchoolParameters(schoolId)).followUp.classAbsenceAlert);
+        }
         const flagged = classes.flatMap((cls) => {
             const tally = perClass.get(cls.id);
             if (!tally || tally.total === 0) return [];
             const rate = (tally.absent / tally.total) * 100;
-            return rate > 15 ? [{ cls, rate }] : [];
+            return rate > (alertThreshold.get(cls.schoolId) ?? DEFAULT_SCHOOL_PARAMETERS.followUp.classAbsenceAlert) ? [{ cls, rate }] : [];
         });
         if (flagged.length === 0) return 0;
 

@@ -13,7 +13,8 @@ vi.mock("@/lib/prisma", () => {
     studentProfile: { findUnique: vi.fn() },
     fee: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
-    payment: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    // Rien encore payé par défaut : reste à payer = montant du frais
+    payment: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), aggregate: vi.fn().mockResolvedValue({ _sum: { amount: null } }) },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg)

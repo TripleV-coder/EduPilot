@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 import {
   dedupeLatestAnalyticsByStudent,
   roundTo,
@@ -76,6 +77,8 @@ export const GET = createApiHandler(async (request, context) => {
         });
 
         const latestAnalytics = dedupeLatestAnalyticsByStudent(analytics);
+        // Taux de réussite au seuil de passage réglé par l'école de la classe
+        const passingGrade = await getPassingGrade(classRecord.schoolId);
         const scoredLatestAnalytics = latestAnalytics.filter(
           (item) => item.generalAverage !== null
         );
@@ -88,7 +91,7 @@ export const GET = createApiHandler(async (request, context) => {
 
         const passRate =
           scoredLatestAnalytics.length > 0
-            ? (scoredLatestAnalytics.filter((a) => Number(a.generalAverage) >= 10).length /
+            ? (scoredLatestAnalytics.filter((a) => Number(a.generalAverage) >= passingGrade).length /
               scoredLatestAnalytics.length) *
               100
             : 0;

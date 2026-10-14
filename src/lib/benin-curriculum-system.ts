@@ -24,34 +24,6 @@ export function validateGrade(grade: unknown, maxGrade: number = 20): { valid: b
   return { valid: true };
 }
 
-export function calculateWeightedAverage(grades: { value: number | null; coefficient: number; isOptional?: boolean; }[]): { average: number | null; totalCoefficients: number; hasError: boolean; error?: string } {
-  if (!grades || grades.length === 0) return { average: null, totalCoefficients: 0, hasError: true, error: "Aucune note fournie" };
-  for (const g of grades) {
-    const v = validateCoefficient(g.coefficient);
-    if (!v.valid) return { average: null, totalCoefficients: 0, hasError: true, error: v.error };
-  }
-  const validGrades = grades.filter(g => g.value !== null && g.value !== undefined);
-  if (validGrades.length === 0) return { average: null, totalCoefficients: 0, hasError: true, error: "Aucune note" };
-  let sum = 0, totalCoeff = 0;
-  for (const g of validGrades) {
-    sum += (g.value || 0) * g.coefficient;
-    totalCoeff += g.coefficient;
-  }
-  return { average: Number((sum / totalCoeff).toFixed(2)), totalCoefficients: totalCoeff, hasError: false };
-}
-
-export function calculateGeneralAverage(subjects: { subjectId: string; subjectName: string; average: number | null; coefficient: number; isEvaluated: boolean; }[]): { average: number | null; totalCoefficients: number; hasError: boolean; error?: string } {
-  if (!subjects || subjects.length === 0) return { average: null, totalCoefficients: 0, hasError: true, error: "Aucun sujet fourni" };
-  const validSubjects = subjects.filter(s => s.isEvaluated && s.average !== null);
-  if (validSubjects.length === 0) return { average: null, totalCoefficients: 0, hasError: true, error: "Aucun sujet évalué" };
-  let sum = 0, totalCoeff = 0;
-  for (const s of validSubjects) {
-    sum += (s.average || 0) * s.coefficient;
-    totalCoeff += s.coefficient;
-  }
-  return { average: Number((sum / totalCoeff).toFixed(2)), totalCoefficients: totalCoeff, hasError: false };
-}
-
 export const BENIN_SCHOOL_LEVELS = { PRIMARY: "PRIMARY", SECONDARY_COLLEGE: "SECONDARY_COLLEGE" } as const;
 export const BENIN_PRIMARY_GRADES = ["CI", "CP", "CE1", "CE2", "CM1", "CM2"];
 export const BENIN_COLLEGE_GRADES = ["6E", "5E", "4E", "3E"];
@@ -59,8 +31,6 @@ export const BENIN_COLLEGE_GRADES = ["6E", "5E", "4E", "3E"];
 export default {
   validateCoefficient,
   validateGrade,
-  calculateWeightedAverage,
-  calculateGeneralAverage,
   BENIN_SCHOOL_LEVELS,
   BENIN_PRIMARY_GRADES,
   BENIN_COLLEGE_GRADES,

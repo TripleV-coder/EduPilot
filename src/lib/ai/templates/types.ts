@@ -11,7 +11,40 @@ export interface SubjectPerformanceContext {
   isWeakness?: boolean;
 }
 
+/**
+ * Seuils de lecture des gabarits, réglés par l'école (règles + paramètres de
+ * l'établissement). Absents : valeurs par défaut (comportement d'origine).
+ */
+export interface TemplateThresholds {
+  passingGrade: number;
+  excellentFrom: number;
+  veryGoodFrom: number;
+  goodFrom: number;
+  attendanceWarning: number;
+  attendanceWindowDays: number;
+  incidentsWarning: number;
+  weakSubjectsAlert: number;
+  levelVeryHigh: number;
+  levelHigh: number;
+  levelModerate: number;
+}
+
+export const DEFAULT_TEMPLATE_THRESHOLDS: TemplateThresholds = {
+  passingGrade: 10,
+  excellentFrom: 16,
+  veryGoodFrom: 14,
+  goodFrom: 12,
+  attendanceWarning: 85,
+  attendanceWindowDays: 90,
+  incidentsWarning: 3,
+  weakSubjectsAlert: 3,
+  levelVeryHigh: 75,
+  levelHigh: 55,
+  levelModerate: 35,
+};
+
 export interface StudentTemplateContext {
+  thresholds?: TemplateThresholds;
   firstName?: string | null;
   lastName?: string | null;
   className?: string | null;
@@ -35,6 +68,8 @@ export interface StudentTemplateContext {
 
 export interface OrientationTemplateResult {
   series: string;
+  /** Adéquation 0-100 de la série recommandée (référentiel des séries). */
+  score: number;
   justification: string;
   alternatives: string[];
   synthesis: string;

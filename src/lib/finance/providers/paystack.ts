@@ -9,8 +9,10 @@
 
 import { PaymentProvider } from '../types';
 import { logger } from '@/lib/utils/logger';
+import { CIRCUITS, circuitFetch } from '@/lib/resilience/circuit-breaker';
 
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
+const PAYSTACK_TIMEOUT_MS = 20_000;
 
 interface PaystackInitResponse {
     status: boolean;
@@ -71,8 +73,9 @@ export class PaystackProvider implements PaymentProvider {
             },
         };
 
-        const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
+        const response = await circuitFetch(CIRCUITS.paystack, `${PAYSTACK_BASE_URL}/transaction/initialize`, {
             method: 'POST',
+            signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
             headers: {
                 Authorization: `Bearer ${this.secretKey}`,
                 'Content-Type': 'application/json',
@@ -100,10 +103,12 @@ export class PaystackProvider implements PaymentProvider {
     async verifyPayment(
         transactionId: string
     ): Promise<{ status: 'SUCCESS' | 'FAILED' | 'PENDING'; rawData: unknown }> {
-        const response = await fetch(
+        const response = await circuitFetch(
+            CIRCUITS.paystack,
             `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(transactionId)}`,
             {
                 method: 'GET',
+                signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
                 headers: { Authorization: `Bearer ${this.secretKey}` },
             }
         );

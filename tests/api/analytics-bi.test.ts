@@ -7,6 +7,20 @@ import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { count: vi.fn() },
@@ -58,11 +72,13 @@ describe("GET /api/analytics/bi", () => {
     expect((await res.json()).error).toBe("Accès refusé");
   });
 
-  it("should return 400 when no school is available", async () => {
+  it("super-admin sans école : tableau de bord vide (200), pas d'erreur", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await GET(makeRequest("http://localhost/api/analytics/bi"), { session: makeSession("SUPER_ADMIN", { schoolId: null }) });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Établissement requis");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kpis).toEqual({ studentCount: 0, collectionRate: 0, attendanceRate: 0, passRate: 0 });
+    expect(body.monthly).toEqual([]);
   });
 
   it("should forbid cross-school request via query param", async () => {
@@ -119,7 +135,7 @@ describe("GET /api/analytics/bi", () => {
     const res = await GET(makeRequest(`http://localhost/api/analytics/bi?academicYearId=${ay}`), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
     expect(computeYearFeeRecovery).toHaveBeenCalledWith(expect.any(String), ay);
-    expect(latestSnapshotStats).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }));
+    expect(latestSnapshotStats).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }), 10); // seuil de passage de l'école
     expect(collectedByLocalMonth).toHaveBeenCalledWith(expect.objectContaining({ academicYearId: ay }), expect.any(Date));
   });
 

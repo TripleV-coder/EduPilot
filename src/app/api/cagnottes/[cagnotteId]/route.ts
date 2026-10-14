@@ -22,7 +22,7 @@ export const GET = createApiHandler(
             include: {
                 host: { select: { firstName: true, lastName: true } },
                 class: {
-                    select: { name: true, classLevel: { select: { name: true } } },
+                    select: { id: true, name: true, classLevel: { select: { name: true } } },
                 },
                 contributions: {
                     orderBy: { paidAt: "desc" },
@@ -60,6 +60,7 @@ export const GET = createApiHandler(
             title: cagnotte.title,
             description: cagnotte.description,
             status: cagnotte.status,
+            classId: cagnotte.class?.id ?? null,
             classLabel: cagnotte.class
                 ? `${cagnotte.class.classLevel?.name ?? ""} ${cagnotte.class.name}`.trim()
                 : null,

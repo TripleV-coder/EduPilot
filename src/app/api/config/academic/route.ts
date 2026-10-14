@@ -4,6 +4,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import type { PeriodType } from "@prisma/client";
+import { checkPeriodsCount, periodsCountFor } from "@/lib/academic/period-rules";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const WRITE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
@@ -15,11 +16,6 @@ const patchSchema = z.object({
     passingGrade: z.number().min(0).max(100).optional(),
 });
 
-function periodsCountFor(type: PeriodType): number {
-    if (type === "SEMESTER") return 2;
-    if (type === "HYBRID") return 4;
-    return 3;
-}
 
 export const GET = createApiHandler(async (_request, context) => {
     try {
@@ -111,7 +107,12 @@ export const PATCH = createApiHandler(async (request, context) => {
 
         const body = await request.json();
         const data = patchSchema.parse(body);
-        const periodsCount = data.periodsCount ?? periodsCountFor(data.periodType);
+        // Semestres = 2 périodes, trimestres = 3 : la moyenne annuelle en dépend
+        const periodsCount = data.periodsCount ?? periodsCountFor(data.periodType) ?? 4;
+        const countError = checkPeriodsCount(data.periodType, periodsCount);
+        if (countError) {
+            return NextResponse.json({ error: countError }, { status: 400 });
+        }
 
         const config = await prisma.academicConfig.upsert({
             where: { schoolId },

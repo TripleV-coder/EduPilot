@@ -120,13 +120,12 @@ export default function LibraryPage() {
     const handleBorrow = async (bookId: string) => {
         setBorrowingBookId(bookId);
         try {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 14);
+            // La date de retour est fixée par le serveur (durée de prêt de l'école)
             const res = await fetch("/api/library/borrowings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ bookId, dueDate: dueDate.toISOString() }),
+                body: JSON.stringify({ bookId }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));

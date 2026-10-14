@@ -105,16 +105,17 @@ export const GET = createApiHandler(
             })
             : [];
 
-        // Subject coefficients via Subject.coefficient
+        // Coefficients de la CLASSE (ceux qui servent au calcul des moyennes),
+        // pas le coefficient par défaut du catalogue de matières
         const subjectIds = lastAnalytics?.subjectPerformances.map((sp) => sp.subjectId) ?? [];
-        const subjectsForCoef = subjectIds.length > 0
-            ? await prisma.subject.findMany({
-                where: { id: { in: subjectIds } },
-                select: { id: true, coefficient: true },
+        const classSubjectsForCoef = subjectIds.length > 0 && classId
+            ? await prisma.classSubject.findMany({
+                where: { classId, subjectId: { in: subjectIds } },
+                select: { subjectId: true, coefficient: true },
             })
             : [];
         const coefficientBySubject = new Map(
-            subjectsForCoef.map((s) => [s.id, Number(s.coefficient ?? 1)]),
+            classSubjectsForCoef.map((cs) => [cs.subjectId, Number(cs.coefficient)]),
         );
 
         // ── Attendance rate over the year ────────────────────
@@ -144,7 +145,7 @@ export const GET = createApiHandler(
         const subjects = (lastAnalytics?.subjectPerformances ?? []).map((sp) => ({
             subjectId: sp.subjectId,
             name: sp.subject?.name ?? "—",
-            coefficient: coefficientBySubject.get(sp.subjectId) ?? 1,
+            coefficient: coefficientBySubject.get(sp.subjectId) ?? null,
             average: sp.average !== null ? roundTo(Number(sp.average), 2) : null,
             min: sp.minGrade !== null ? Number(sp.minGrade) : null,
             max: sp.maxGrade !== null ? Number(sp.maxGrade) : null,
@@ -152,10 +153,12 @@ export const GET = createApiHandler(
             isWeakness: sp.isWeakness,
         }));
 
+        // Une période sans moyenne n'est pas tracée (avant : affichée à 0)
         const evolution = evolutionRows
+            .filter((row) => row.generalAverage !== null)
             .map((row) => ({
                 label: row.period?.name ?? row.academicYear?.name ?? "—",
-                average: row.generalAverage !== null ? roundTo(Number(row.generalAverage), 2) : 0,
+                average: roundTo(Number(row.generalAverage), 2),
             }))
             .reverse();
 

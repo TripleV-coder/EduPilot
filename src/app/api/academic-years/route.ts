@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { withTenantRls } from "@/lib/db/tenant-rls";
 import { academicYearSchema } from "@/lib/validations/school";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
+import { periodsCountFor } from "@/lib/academic/period-rules";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -101,7 +102,8 @@ export const POST = createApiHandler(
 
       if (academicConfig) {
         const periodType = academicConfig.periodType;
-        const periodsCount = academicConfig.periodsCount;
+        // Semestres = 2, trimestres = 3, quel que soit un ancien réglage incohérent
+        const periodsCount = periodsCountFor(periodType) ?? academicConfig.periodsCount;
         const periodLabels = periodType === "SEMESTER"
           ? ["1er Semestre", "2ème Semestre"]
           : ["1er Trimestre", "2ème Trimestre", "3ème Trimestre"];

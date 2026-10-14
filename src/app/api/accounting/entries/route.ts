@@ -3,6 +3,7 @@ import { withTenantRls } from "@/lib/db/tenant-rls";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { ensureOpenChart } from "@/lib/accounting/ensure-chart";
 
 // ─── GET /api/accounting/entries — plan de comptes + dernières écritures ──
 export const GET = createApiHandler(
@@ -22,18 +23,25 @@ export const GET = createApiHandler(
 
         return withTenantRls(schoolId, async (tx) => {
             if (wantAccounts) {
-                const [accounts, fiscalYears] = await Promise.all([
-                    tx.ohadaAccount.findMany({
-                        where: { schoolId, isActive: true },
-                        orderBy: { syscohadaCode: "asc" },
-                        select: { id: true, syscohadaCode: true, label: true, type: true },
-                    }),
-                    tx.fiscalYear.findMany({
-                        where: { schoolId, status: "OPEN" },
-                        orderBy: { startDate: "desc" },
-                        select: { id: true, label: true },
-                    }),
-                ]);
+                const loadAccounts = () =>
+                    Promise.all([
+                        tx.ohadaAccount.findMany({
+                            where: { schoolId, isActive: true },
+                            orderBy: { syscohadaCode: "asc" },
+                            select: { id: true, syscohadaCode: true, label: true, type: true },
+                        }),
+                        tx.fiscalYear.findMany({
+                            where: { schoolId, status: "OPEN" },
+                            orderBy: { startDate: "desc" },
+                            select: { id: true, label: true },
+                        }),
+                    ]);
+                let [accounts, fiscalYears] = await loadAccounts();
+                const hasClass6 = accounts.some((account) => account.syscohadaCode.startsWith("60"));
+                if (fiscalYears.length === 0 || !hasClass6) {
+                    await ensureOpenChart(tx, schoolId);
+                    [accounts, fiscalYears] = await loadAccounts();
+                }
                 return NextResponse.json({ accounts, fiscalYears });
             }
 
@@ -126,7 +134,15 @@ export const POST = createApiHandler(
         let totalDebit = BigInt(0);
         let totalCredit = BigInt(0);
         for (const l of lines) {
-            const amount = BigInt(Math.round(Number(l.amountFcfa ?? 0)));
+            // FCFA entiers : un montant décimal était arrondi en silence (et NaN faisait planter BigInt)
+            const raw = Number(l.amountFcfa ?? 0);
+            if (!Number.isInteger(raw) || raw <= 0) {
+                return NextResponse.json(
+                    { error: "Chaque ligne doit avoir un montant en FCFA entiers, strictement positif." },
+                    { status: 400 },
+                );
+            }
+            const amount = BigInt(raw);
             if (amount <= BigInt(0)) {
                 return NextResponse.json(
                     { error: "Chaque ligne doit avoir un montant strictement positif." },

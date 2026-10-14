@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     gradeHistory: { findMany: vi.fn() },
@@ -26,53 +40,68 @@ beforeEach(() => {
 });
 
 describe("predictNextPeriodGrade", () => {
-  it("retombe sur une baseline prudente sans historique", async () => {
+  it("sans aucune moyenne passée : aucune prévision (jamais un 10/20 inventé)", async () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([]);
 
     const result = await predictNextPeriodGrade("s1");
 
-    expect(result.modelUsed).toBe("baseline_last_value");
-    expect(result.predicted).toBe(10);
-    expect(result.confidence).toBe(5);
-    expect(result.warning).toContain("Données insuffisantes");
+    expect(result.modelUsed).toBe("none");
+    expect(result.predicted).toBeNull();
+    expect(result.range).toBeNull();
+    expect(result.confidence).toBe(0);
+    expect(result.warning).toContain("Aucune moyenne");
   });
 
-  it("baseline = dernière moyenne quand l'historique est trop court", async () => {
+  it("lit l'historique dans l'ordre des dates de période (plusieurs années)", async () => {
+    vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([]);
+    await predictNextPeriodGrade("s1");
+    expect(vi.mocked(prisma.gradeHistory.findMany).mock.calls[0][0]).toMatchObject({
+      where: { studentId: "s1", subjectId: null },
+      orderBy: [{ period: { startDate: "asc" } }, { period: { sequence: "asc" } }],
+    });
+  });
+
+  it("historique court : prévision lissée, fourchette large et signalée", async () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue([
-      { average: 13, period: { sequence: 1 } },
-      { average: 14, period: { sequence: 2 } },
+      { average: 13 },
+      { average: 14 },
     ] as unknown as GradeHistoryList);
 
     const result = await predictNextPeriodGrade("s1");
 
-    expect(result.modelUsed).toBe("baseline_last_value");
-    expect(result.predicted).toBe(14);
-    expect(result.confidence).toBe(30); // 15 * 2 points de données
-    expect(result.range.min).toBe(10);
-    expect(result.range.max).toBe(18);
+    // Lissage 0,6 : 0,6 × 14 + 0,4 × 13 = 13,6 ; écart-type a priori 1,8 (poids 3) + l'écart observé
+    expect(result.modelUsed).toBe("exponential_smoothing");
+    expect(result.predicted).toBe(13.6);
+    expect(result.range).toEqual({ min: 10.71, max: 16.49 });
+    expect(result.range80).toEqual({ min: 11.71, max: 15.49 });
+    expect(result.confidence).toBe(50); // chances d'être à ±1 point
+    expect(result.dataPoints).toBe(2);
+    expect(result.warning).toContain("Historique court");
   });
 
-  it("prédit la suite d'une progression linéaire régulière", async () => {
+  it("progression régulière : suit la hausse sans l'extrapoler aveuglément", async () => {
     vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue(
-      [10, 11, 12, 13, 14].map((average, index) => ({
-        average,
-        period: { sequence: index + 1 },
-      })) as unknown as GradeHistoryList
+      [10, 11, 12, 13, 14].map((average) => ({ average })) as unknown as GradeHistoryList
     );
 
     const result = await predictNextPeriodGrade("s1");
 
-    // Tendance +1/période : la prédiction d'ensemble se situe entre la
-    // dernière valeur et l'extrapolation linéaire (15)
-    expect(result.predicted).toBeGreaterThan(13.5);
-    expect(result.predicted).toBeLessThanOrEqual(15.5);
-    expect(result.confidence).toBeGreaterThan(50);
+    expect(result.predicted).toBe(13.35);
+    expect(result.range).toEqual({ min: 10.54, max: 16.16 });
+    expect(result.confidence).toBe(51);
     expect(result.warning).toBeUndefined();
-    expect(result.range.min).toBeLessThan(result.range.max);
-    expect(result.range.max).toBeLessThanOrEqual(20);
-    expect(["linear_regression", "polynomial_regression", "ensemble_learning"]).toContain(
-      result.modelUsed
+  });
+
+  it("résultats réguliers : fourchette plus serrée, confiance plus haute", async () => {
+    vi.mocked(prisma.gradeHistory.findMany).mockResolvedValue(
+      [12, 12, 12, 12].map((average) => ({ average })) as unknown as GradeHistoryList
     );
+
+    const result = await predictNextPeriodGrade("s1");
+
+    expect(result.predicted).toBe(12);
+    expect(result.range).toEqual({ min: 9.75, max: 14.25 });
+    expect(result.confidence).toBe(62);
   });
 
   it("borne la prédiction dans [0, 20]", async () => {
@@ -85,7 +114,7 @@ describe("predictNextPeriodGrade", () => {
 
     const result = await predictNextPeriodGrade("s1");
     expect(result.predicted).toBeLessThanOrEqual(20);
-    expect(result.range.max).toBeLessThanOrEqual(20);
+    expect(result.range?.max).toBeLessThanOrEqual(20);
   });
 });
 

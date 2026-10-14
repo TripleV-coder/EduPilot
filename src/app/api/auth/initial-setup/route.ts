@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/auth/password";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
 import { logger } from "@/lib/utils/logger";

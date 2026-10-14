@@ -1,8 +1,16 @@
 # Documentation EduPilot
 
-Index de la documentation technique. Organisée par audience cible.
+Index de la documentation. Organisée par audience cible.
 
 ---
+
+## Pour les utilisateurs de l'application (sans aucun terme technique)
+- [Guide d'utilisation](./guide-utilisateur/README.md) — tout ce que fait EduPilot, chapitre par chapitre : rôles, configuration, calcul des moyennes, bulletins, réclamations, passage, orientation, vie scolaire, argent, personnel, communication, services, confidentialité, lexique
+- [Vérification des calculs et fonctionnement de l'IA](./VERIFICATION_CALCULS_ET_IA.md) — 24 jeux de notes calculés à la main puis par l'application (aucun écart), quand un élève reçoit 0, sur quoi se basent les prédictions et l'orientation
+- [Paramètres de l'établissement — inventaire complet](./PARAMETRES_ETABLISSEMENT.md) — chaque seuil, délai et poids réglable par l'école (bornes, valeur d'origine, où il agit) et ce qui reste volontairement fixe, avec la raison
+- [Registre des décisions — notes et moyennes](./QUESTIONS_NOTES_MOYENNES.md) — chaque règle décidée avec l'établissement, et les questions encore ouvertes
+
+## Pour l'équipe technique
 
 ## Pour démarrer
 - [README projet](../README.md) — installation locale, premier `npm run dev`

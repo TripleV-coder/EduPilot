@@ -1,7 +1,9 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -53,6 +55,8 @@ type CouncilData = {
         median: number | null;
         pctAbove14: number;
         pctBelow10: number;
+        highFrom: number;
+        passingGrade: number;
     };
     participants: { id: string; name: string }[];
     participantsExpected: number;
@@ -64,8 +68,13 @@ type CouncilData = {
         description: string | null;
     } | null;
     pendingDecisions: { studentId: string; name: string; note: string }[];
+    /** Conseil validé : notes figées (réclamation obligatoire), coefficients et règles gelés. */
+    councilValidated: boolean;
     students: StudentRow[];
 };
+
+/** Rôles qui valident le conseil (directeur des études = DIRECTOR). */
+const VALIDATE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
 type FilterTab = "all" | "honor" | "enc" | "warn";
 
@@ -94,6 +103,7 @@ const FR_EVENT_DATE = (iso: string): string => {
 };
 
 export default function CouncilsPage() {
+    const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
 
@@ -104,6 +114,33 @@ export default function CouncilsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterTab>("all");
+    const [validating, setValidating] = useState(false);
+    const { data: session } = useSession();
+    const canValidate = VALIDATE_ROLES.includes(session?.user?.role ?? "");
+
+    const handleValidate = async () => {
+        if (!council || council.councilValidated) return;
+        const ok = window.confirm(
+            "Valider le conseil de classe ? Les notes de la période seront figées : toute correction passera ensuite par une réclamation approuvée par le directeur des études. Les coefficients et les règles de calcul actuels seront gelés pour cette période."
+        );
+        if (!ok) return;
+        setValidating(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/grades/councils", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ classId: council.class.id, periodId: council.period.id }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Validation du conseil impossible");
+            setCouncil({ ...council, councilValidated: true });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Validation du conseil impossible");
+        } finally {
+            setValidating(false);
+        }
+    };
 
     useEffect(() => {
         const load = async () => {
@@ -210,10 +247,18 @@ export default function CouncilsPage() {
                     actions={
                         council ? (
                             <>
-                                <Button variant="secondary" icon="download">
-                                    Bulletins ZIP
-                                </Button>
-                                <Button icon="check">Clôturer le conseil</Button>
+                                <Link href="/dashboard/grades/bulletins">
+                                    <Button variant="secondary" icon="download">
+                                        Bulletins
+                                    </Button>
+                                </Link>
+                                {council.councilValidated ? (
+                                    <Badge variant="success">Conseil validé · notes figées</Badge>
+                                ) : canValidate ? (
+                                    <Button icon={validating ? undefined : "check"} loading={validating} onClick={handleValidate}>
+                                        Valider le conseil
+                                    </Button>
+                                ) : null}
                             </>
                         ) : null
                     }
@@ -469,9 +514,9 @@ export default function CouncilsPage() {
                                                     const avgColor =
                                                         r.generalAverage === null
                                                             ? "var(--eduflow-text-tertiary)"
-                                                            : r.generalAverage >= 14
+                                                            : r.generalAverage >= thresholds.performance.veryGoodFrom
                                                             ? "var(--eduflow-success-700)"
-                                                            : r.generalAverage < 10
+                                                            : r.generalAverage < thresholds.passingGrade
                                                             ? "var(--eduflow-danger-700)"
                                                             : "var(--eduflow-text-primary)";
                                                     return (
@@ -623,11 +668,7 @@ export default function CouncilsPage() {
                                                         borderRadius: "50%",
                                                     }}
                                                 >
-                                                    <Avatar
-                                                        name={p.name}
-                                                        size="sm"
-                                                        status={i < 6 ? "online" : "away"}
-                                                    />
+                                                    <Avatar name={p.name} size="sm" />
                                                 </div>
                                             ))
                                         )}
@@ -668,12 +709,12 @@ export default function CouncilsPage() {
                                             tone="info"
                                         />
                                         <StatTile
-                                            label="% ≥ 14"
+                                            label={`% ≥ ${FR_NUM(council.stats.highFrom, Number.isInteger(council.stats.highFrom) ? 0 : 2)}`}
                                             value={FR_PCT(council.stats.pctAbove14)}
                                             tone="success"
                                         />
                                         <StatTile
-                                            label="% < 10"
+                                            label={`% < ${FR_NUM(council.stats.passingGrade, Number.isInteger(council.stats.passingGrade) ? 0 : 2)}`}
                                             value={FR_PCT(council.stats.pctBelow10)}
                                             tone="warning"
                                         />

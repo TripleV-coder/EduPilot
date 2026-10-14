@@ -14,6 +14,9 @@ services:
       target: runner
     container_name: edupilot-app
     restart: unless-stopped
+    # L'arrêt propre dure jusqu'à 25 s (20 s de requêtes en cours + 5 s de
+    # fermetures) ; Docker tue le conteneur après 10 s par défaut.
+    stop_grace_period: 30s
     ports:
       - "3000:3000"
     env_file:
@@ -27,6 +30,15 @@ services:
       # connexion propriétaire passe par cette variable.
       MIGRATE_DATABASE_URL: "${MIGRATE_DATABASE_URL:-postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public}"
       NODE_ENV: production
+      # Processus serveur (1, N ou « max ») : un processus Node n'utilise qu'un
+      # cœur. Au-delà de 1, REDIS_URL est obligatoire (limites partagées), ex. :
+      #   REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"
+      REDIS_URL: "${REDIS_URL:-}"
+    volumes:
+      # Fichiers téléversés (justificatifs, avatars, documents) : sans volume,
+      # ils disparaissaient à chaque recréation du conteneur.
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,6 +133,7 @@ services:
       retries: 3
 
 volumes:
+  uploads_data:
   postgres_data:
   n8n_data:
   redis_data:

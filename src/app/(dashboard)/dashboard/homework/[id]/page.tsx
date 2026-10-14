@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Permission } from "@/lib/rbac/permissions";
 import {
@@ -25,6 +27,8 @@ import { Spinner } from "@/components/edu";
 type Submission = {
   id: string;
   submittedAt: string;
+  content: string | null;
+  attachments: string[];
   grade: number | null;
   feedback: string | null;
   gradedAt: string | null;
@@ -53,7 +57,9 @@ type HomeworkDetail = {
 export default function HomeworkDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const { toast } = useToast();
+  const isStudent = session?.user?.role === "STUDENT";
   const id = params.id as string;
 
   const { data: homework, error, isLoading, mutate } = useSWR<HomeworkDetail>(
@@ -65,6 +71,8 @@ export default function HomeworkDetailPage() {
   const [gradeValue, setGradeValue] = useState<number>(0);
   const [feedbackValue, setFeedbackValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [workText, setWorkText] = useState("");
+  const [workFile, setWorkFile] = useState<File | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
@@ -126,6 +134,46 @@ export default function HomeworkDetailPage() {
       toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
     }
   };
+
+  const handleSubmitWork = async () => {
+    if (!workText.trim() && !workFile) {
+      toast({ title: "Travail incomplet", description: "Ajoutez un texte ou un fichier.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let attachments: string[] = [];
+      if (workFile) {
+        const form = new FormData();
+        form.append("file", workFile);
+        form.append("type", "document");
+        const upload = await fetch("/api/upload", { method: "POST", body: form });
+        const uploaded = await upload.json();
+        if (!upload.ok) throw new Error(uploaded.error || "Fichier refusé");
+        attachments = [uploaded.url as string];
+      }
+      const res = await fetch(`/api/homework/${id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: workText.trim() || undefined,
+          attachments,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      toast({ title: "Devoir rendu", description: "Votre enseignant peut maintenant le consulter." });
+      setWorkText("");
+      setWorkFile(null);
+      mutate();
+    } catch (err) {
+      toast({ title: "Erreur", description: getErrorMessage(err), variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const ownSubmission = isStudent ? homework?.submissions[0] : undefined;
 
   if (isLoading) {
     return (
@@ -246,7 +294,49 @@ export default function HomeworkDetailPage() {
           </Card>
         </div>
 
-        {/* Submissions */}
+        {isStudent ? (
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                Rendre le devoir
+              </CardTitle>
+              <CardDescription>
+                {ownSubmission
+                  ? `Rendu le ${formatDateTimeLong(ownSubmission.submittedAt)}`
+                  : "Texte, fichier, ou les deux."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ownSubmission ? (
+                <Badge variant="secondary" className="gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Rendu
+                </Badge>
+              ) : null}
+              {ownSubmission?.grade != null ? (
+                <p className="text-sm">Note : {ownSubmission.grade}/{homework.maxGrade ?? 20}</p>
+              ) : (
+                <>
+                  <Textarea
+                    aria-label="Texte du devoir"
+                    value={workText}
+                    onChange={(e) => setWorkText(e.target.value)}
+                    placeholder="Votre réponse"
+                    className="min-h-[120px]"
+                  />
+                  <Input
+                    aria-label="Fichier du devoir"
+                    type="file"
+                    onChange={(e) => setWorkFile(e.target.files?.[0] ?? null)}
+                  />
+                  <Button type="button" onClick={handleSubmitWork} disabled={submitting} className="gap-2">
+                    <Send className="h-4 w-4" /> {ownSubmission ? "Renvoyer" : "Rendre"}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="border-border shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -276,8 +366,15 @@ export default function HomeworkDetailPage() {
                           {sub.student.user.firstName} {sub.student.user.lastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="mr-2">Rendu</Badge>
                           Soumis le {formatDateTimeLong(sub.submittedAt)}
                         </p>
+                        {sub.content ? (
+                          <p className="text-xs mt-1 max-w-md whitespace-pre-wrap">{sub.content}</p>
+                        ) : null}
+                        {sub.attachments?.map((url) => (
+                          <a key={url} href={url} className="text-xs underline">Fichier joint</a>
+                        ))}
                       </div>
                     </div>
 
@@ -348,6 +445,7 @@ export default function HomeworkDetailPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     </PageGuard>
   );

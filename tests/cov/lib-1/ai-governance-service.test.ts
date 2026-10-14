@@ -2,6 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const env = vi.hoisted(() => ({ ai: { enabled: false, hasExternalKeys: false } }));
 
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { findUnique: vi.fn() },
@@ -16,6 +30,8 @@ vi.mock("@/lib/prisma", () => ({
     payment: { aggregate: vi.fn() },
     enrollment: { findMany: vi.fn() },
     gradeHistory: { findMany: vi.fn() },
+    // Règles de l'école (critères d'orientation) : aucun réglage → règles officielles
+    configOption: { findFirst: vi.fn().mockResolvedValue(null) },
   },
 }));
 vi.mock("@/lib/env", () => ({ appEnv: env }));
@@ -499,10 +515,11 @@ describe("gouvernance IA — prédiction des notes", () => {
     expect(data.student).toEqual({ id: "stu-1", name: "Koffi Adjovi" });
     expect(data.generalAveragePrediction).toEqual({ predicted: 11, confidence: 99, range: [10, 12], modelUsed: "linear", warning: "Baisse en maths" });
     expect(data.subjectPredictions).toEqual([
-      { subjectId: "a", subjectName: "Anglais", latestAverage: 11.3, lastPeriod: "T2", trend: "stable", projectedAverage: 11.6, dataPoints: 2 },
-      { subjectId: "f", subjectName: "Français", latestAverage: 14, lastPeriod: "T2", trend: "up", projectedAverage: 16, dataPoints: 2 },
-      { subjectId: "h", subjectName: "Histoire", latestAverage: 19.5, lastPeriod: "T1", trend: "stable", projectedAverage: 19.5, dataPoints: 1 },
-      { subjectId: "m", subjectName: "Maths", latestAverage: 8, lastPeriod: "T2", trend: "down", projectedAverage: 6, dataPoints: 2 },
+      // Projection calibrée (lissage exponentiel 0,6) : plus « dernière + dernier écart »
+      { subjectId: "a", subjectName: "Anglais", latestAverage: 11.3, lastPeriod: "T2", trend: "stable", projectedAverage: 11.18, projectedRange: { min: 8.42, max: 13.94 }, dataPoints: 2 },
+      { subjectId: "f", subjectName: "Français", latestAverage: 14, lastPeriod: "T2", trend: "up", projectedAverage: 13.2, projectedRange: { min: 9.93, max: 16.47 }, dataPoints: 2 },
+      { subjectId: "h", subjectName: "Histoire", latestAverage: 19.5, lastPeriod: "T1", trend: "stable", projectedAverage: 19.5, projectedRange: { min: 16.32, max: 20 }, dataPoints: 1 },
+      { subjectId: "m", subjectName: "Maths", latestAverage: 8, lastPeriod: "T2", trend: "down", projectedAverage: 8.8, projectedRange: { min: 5.53, max: 12.07 }, dataPoints: 2 },
     ]);
     expect(res.recommendations).toEqual([
       "Baisse en maths",
@@ -543,23 +560,31 @@ describe("gouvernance IA — prédiction des notes", () => {
 describe("gouvernance IA — orientation", () => {
   const record = { ...studentRecord, enrollments: [{ class: { name: "3e A" } }] };
 
-  it("renvoie une recommandation par défaut sans analyses", async () => {
+  it("refuse de recommander une série sans moyennes (plus de série D « par défaut »)", async () => {
     m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
     m(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
-    const res = await run(req({ action: "recommend-orientation", studentId: "stu-1" }));
-    expect(res.data).toEqual({ series: "SERIE_D", justification: "Données analytiques insuffisantes. Recommandation par défaut." });
-    expect(res.confidence).toBe(0.3);
+    await expect(run(req({ action: "recommend-orientation", studentId: "stu-1" }))).rejects.toMatchObject({
+      status: 422,
+      code: "INSUFFICIENT_DATA",
+    });
   });
 
   it("utilise le gabarit sans IA externe", async () => {
     m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
     m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(
-      studentAnalytics({ subjectPerformances: [{ subjectId: "m", average: 15, isStrength: true, isWeakness: false, subject: { name: "Mathématiques" } }] })
+      studentAnalytics({
+        subjectPerformances: [
+          { subjectId: "m", average: 15, isStrength: true, isWeakness: false, subject: { name: "Mathématiques" } },
+          { subjectId: "p", average: 14, isStrength: true, isWeakness: false, subject: { name: "Physique-Chimie" } },
+        ],
+      })
     );
     const res = await run(req({ action: "recommend-orientation", studentId: "stu-1" }));
     expect(res.confidence).toBe(0.75);
     expect((res.data as Json).series).toBe("SERIE_C");
-    expect(res.recommendations).toEqual(["SERIE_D", "SERIE_E"]);
+    // (15×4 + 14×3) / 7 × 5 = 73, moins 15 : moyenne générale du gabarit (9,5) sous les 12 conseillés en C
+    expect((res.data as Json).score).toBe(58);
+    expect(res.recommendations).toHaveLength(2);
     expect(callExternalAI).not.toHaveBeenCalled();
   });
 
@@ -576,8 +601,11 @@ describe("gouvernance IA — orientation", () => {
     expect(call.role).toBe("TEACHER");
     expect(call.message).toContain("K. A.");
     expect(call.message).not.toContain("Koffi");
-    expect(call.studentData).toMatchObject({ generalAverage: 0, currentClass: "3e A" });
-    expect((call.studentData.subjects as Array<{ average: number }>)[1].average).toBe(0);
+    // Une moyenne absente n'est jamais envoyée comme un 0 (elle fausserait l'orientation)
+    expect(call.studentData).toMatchObject({ generalAverage: null, currentClass: "3e A" });
+    expect(call.message).toContain("Moyenne Générale: non disponible");
+    // Le français, sans moyenne, n'est pas transmis ; les maths (7) le sont
+    expect(call.studentData.subjects).toEqual([expect.objectContaining({ name: "Maths", average: 7 })]);
   });
 
   it("garde le gabarit si l'IA externe échoue, ne renvoie pas de JSON ou lève", async () => {
@@ -696,7 +724,9 @@ describe("gouvernance IA — plan d'action", () => {
     m(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
     const res = await run(req({ action: "generate-action-plan", studentId: "stu-1" }));
     expect(callExternalAI).not.toHaveBeenCalled();
-    expect(res.data).toMatchObject({ title: "Plan de remédiation — l'élève", priority: "HIGH" });
+    // Sans moyenne, l'élève n'est plus lu « 0/20 » (avant : priorité HIGH à tort)
+    expect(res.data).toMatchObject({ title: "Plan de remédiation — l'élève", priority: "MEDIUM" });
+    expect((res.data as Json).description).toContain("Moyenne actuelle : non disponible");
   });
 
   it("adopte le plan JSON de l'IA externe (prompt pseudonymisé)", async () => {

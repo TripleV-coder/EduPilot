@@ -4,6 +4,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { generateLinkCode, hashLinkCode, linkCodeExpiry } from "@/lib/parents/link-code";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
 /**
  * POST /api/students/[id]/link-code
@@ -36,7 +37,8 @@ export const POST = createApiHandler(
 
         const code = generateLinkCode();
         const codeHash = await hashLinkCode(code);
-        const expiresAt = linkCodeExpiry();
+        // Validité réglée par l'école (paramètres « Communication et services »)
+        const expiresAt = linkCodeExpiry(Date.now(), (await getSchoolParameters(student.schoolId)).services.parentLinkCodeDays);
 
         await prisma.$transaction([
             // Un seul code actif à la fois : on supprime les codes non utilisés.

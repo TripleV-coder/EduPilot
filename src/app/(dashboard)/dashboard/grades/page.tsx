@@ -1,5 +1,7 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import type { SchoolThresholds } from "@/lib/schools/school-thresholds";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -74,6 +76,7 @@ function GradesByRole() {
 }
 
 function GradesContent() {
+    const thresholds = useSchoolThresholds();
     const { data: session } = useSession();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"list" | "stats">("list");
@@ -120,12 +123,29 @@ function GradesContent() {
                                 Bulletins
                             </Button>
                         </Link>
-                        <Link href="/dashboard/grades/entry">
-                            <Button variant="secondary" icon="pencil">
-                                Saisie rapide
-                            </Button>
-                        </Link>
+                        {isTeacher ? (
+                            <Link href="/dashboard/grades/entry">
+                                <Button variant="secondary" icon="pencil">
+                                    Saisie rapide
+                                </Button>
+                            </Link>
+                        ) : null}
                         {isAdmin || isTeacher ? (
+                            <>
+                                <Link href="/dashboard/grades/councils">
+                                    <Button variant="secondary" icon="users">
+                                        Conseils
+                                    </Button>
+                                </Link>
+                                <Link href="/dashboard/grades/corrections">
+                                    <Button variant="secondary" icon="check">
+                                        Réclamations
+                                    </Button>
+                                </Link>
+                            </>
+                        ) : null}
+                        {/* Seul l'enseignant de la matière crée ses évaluations */}
+                        {isTeacher ? (
                             <Button icon="plus" onClick={() => setIsSheetOpen(true)}>
                                 Nouvelle évaluation
                             </Button>
@@ -266,7 +286,7 @@ function GradesContent() {
                                     value={stats.average.toFixed(2).replace(".", ",")}
                                     unit="/20"
                                     icon="chart"
-                                    variant={pickAverageVariant(stats.average)}
+                                    variant={pickAverageVariant(stats.average, thresholds)}
                                 />
                                 <MetricCard
                                     label="Taux de réussite"
@@ -293,7 +313,7 @@ function GradesContent() {
                                     value={stats.lowest.toFixed(1).replace(".", ",")}
                                     unit="/20"
                                     icon="warning"
-                                    variant={stats.lowest < 8 ? "danger" : "warning"}
+                                    variant={stats.lowest < thresholds.performance.weakBelow ? "danger" : "warning"}
                                 />
                             </div>
 
@@ -378,7 +398,7 @@ function GradesContent() {
                                         .sort(([, a], [, b]) => b.average - a.average)
                                         .slice(0, 8)
                                         .map(([subject, s]) => {
-                                            const variant = pickAverageVariant(s.average);
+                                            const variant = pickAverageVariant(s.average, thresholds);
                                             const ratio = Math.max(
                                                 0,
                                                 Math.min(100, (s.average / 20) * 100)
@@ -445,11 +465,13 @@ function GradesContent() {
     );
 }
 
+/** Couleur d'une moyenne aux seuils de l'école (très bien, passage, faible). */
 function pickAverageVariant(
-    avg: number
+    avg: number,
+    t: SchoolThresholds
 ): "success" | "brand" | "warning" | "danger" {
-    if (avg >= 14) return "success";
-    if (avg >= 10) return "brand";
-    if (avg >= 8) return "warning";
+    if (avg >= t.performance.veryGoodFrom) return "success";
+    if (avg >= t.passingGrade) return "brand";
+    if (avg >= t.performance.weakBelow) return "warning";
     return "danger";
 }

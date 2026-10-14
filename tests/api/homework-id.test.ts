@@ -8,7 +8,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     homework: { findUnique: vi.fn(), update: vi.fn() },
-    homeworkSubmission: { findUnique: vi.fn(), update: vi.fn() },
+    homeworkSubmission: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
     teacherProfile: { findUnique: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     notification: { create: vi.fn() },
@@ -22,6 +22,7 @@ vi.mock("@/lib/api/cache-helpers", () => ({
 
 import prisma from "@/lib/prisma";
 import { GET, PATCH, DELETE } from "@/app/api/homework/[id]/route";
+import { POST as POST_SUBMIT } from "@/app/api/homework/[id]/submit/route";
 import { POST as POST_GRADE } from "@/app/api/homework/submissions/[id]/grade/route";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
 
@@ -411,5 +412,68 @@ describe("POST /api/homework/submissions/[id]/grade", () => {
       gradeParams
     );
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/homework/[id]/submit", () => {
+  const submitParams = { params: Promise.resolve({ id: homeworkId }) };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("enregistre le rendu d'un élève de la classe (201)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { id: studentUserId }));
+    vi.mocked(prisma.homework.findUnique).mockImplementation(async (args: Prisma.HomeworkFindUniqueArgs) => {
+      const select = args?.select as Record<string, unknown> | undefined;
+      if (select && "isPublished" in select) {
+        return {
+          id: homeworkId,
+          isPublished: true,
+          classSubject: { classId },
+        } as unknown as Homework;
+      }
+      return {
+        classSubject: { class: { schoolId: FIXTURES.schoolA } },
+      } as unknown as Homework;
+    });
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
+      id: studentProfileId,
+      enrollments: [{ id: "e1" }],
+    } as unknown as StudentProfile);
+    vi.mocked(prisma.homeworkSubmission.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.homeworkSubmission.create).mockResolvedValue({
+      id: submissionId,
+      content: "Ma réponse",
+      attachments: [],
+    } as unknown as HomeworkSubmission);
+
+    const res = await POST_SUBMIT(
+      makeRequest(`${homeworkRoute}/submit`, { method: "POST", body: { content: "Ma réponse" } }),
+      submitParams,
+    );
+    expect(res.status).toBe(201);
+    expect(prisma.homeworkSubmission.create).toHaveBeenCalled();
+  });
+
+  it("refuse un rendu vide (400)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { id: studentUserId }));
+    vi.mocked(prisma.homework.findUnique).mockResolvedValue({
+      classSubject: { class: { schoolId: FIXTURES.schoolA } },
+    } as unknown as Homework);
+    const res = await POST_SUBMIT(
+      makeRequest(`${homeworkRoute}/submit`, { method: "POST", body: {} }),
+      submitParams,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("refuse un enseignant (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(teacherSession());
+    const res = await POST_SUBMIT(
+      makeRequest(`${homeworkRoute}/submit`, { method: "POST", body: { content: "x" } }),
+      submitParams,
+    );
+    expect(res.status).toBe(403);
   });
 });

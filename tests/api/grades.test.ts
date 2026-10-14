@@ -4,6 +4,20 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     evaluation: { findUnique: vi.fn() },
@@ -14,6 +28,9 @@ vi.mock("@/lib/prisma", () => {
     studentProfile: { findUnique: vi.fn() },
     classSubject: { count: vi.fn() },
     class: { count: vi.fn() },
+    classCouncil: { findUnique: vi.fn() },
+    configOption: { findFirst: vi.fn() },
+    auditLog: { createMany: vi.fn() },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: unknown) => Promise<unknown>)(prismaMock)
@@ -28,6 +45,7 @@ vi.mock("@/lib/services/analytics-sync", () => ({
 // tests/integration-db/grade-statistics.test.ts ; ici, la route seule.
 vi.mock("@/lib/services/grade-statistics", () => ({
   aggregateGradeStatistics: vi.fn(),
+  gradeBandsForSchool: vi.fn(async () => ({ passingGrade: 10, excellentFrom: 16, veryGoodFrom: 14 })),
   averageGrade: vi.fn(),
   rankStudents: vi.fn(),
 }));
@@ -81,6 +99,11 @@ beforeEach(async () => {
 });
 
 describe("POST /api/grades/batch", () => {
+  // État avant saisie (historique des changements) : aucune note existante
+  beforeEach(() => {
+    vi.mocked(prisma.grade.findMany).mockResolvedValue([]);
+  });
+
   const validBody = {
     evaluationId,
     grades: [
@@ -117,20 +140,77 @@ describe("POST /api/grades/batch", () => {
     expect(response.status).toBe(404);
   });
 
-  it("refuse la saisie sur une période clôturée (400)", async () => {
+  it("accepte la saisie après la date de fin de période (compositions corrigées, rattrapages)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(
       evaluationRecord({
         period: { endDate: new Date("2025-12-31"), name: "Trimestre 1" },
       }) as unknown as Evaluation
     );
+    vi.mocked(prisma.enrollment.count).mockResolvedValue(2);
+    vi.mocked(prisma.grade.upsert).mockResolvedValue({ id: cuid("grade1") } as unknown as Grade);
 
     const response = await POST_BATCH(
       makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
     );
+    expect(response.status).toBe(201);
+  });
+
+  it("refuse la saisie après validation du conseil de classe (409 COUNCIL_LOCKED)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
+    vi.mocked(prisma.classCouncil.findUnique).mockResolvedValueOnce({ validatedAt: new Date() } as never);
+
+    const response = await POST_BATCH(
+      makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("COUNCIL_LOCKED");
+    expect(prisma.grade.upsert).not.toHaveBeenCalled();
+  });
+
+  it("refuse la direction : seul l'enseignant de la matière saisit (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    const response = await POST_BATCH(
+      makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: validBody })
+    );
+    expect(response.status).toBe(403);
+  });
+
+  it("applique la précision de saisie de l'école (pas de 0,5 : 12,25 refusé)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
+    vi.mocked(prisma.configOption.findFirst).mockResolvedValueOnce({ metadata: { gradeStep: "0.5" } } as never);
+
+    const response = await POST_BATCH(
+      makeRequest("http://localhost:3000/api/grades/batch", {
+        method: "POST",
+        body: { evaluationId, grades: [{ studentId: FIXTURES.studentA, value: 12.25 }] },
+      })
+    );
+    const body = await response.json();
 
     expect(response.status).toBe(400);
+    expect(body.code).toBe("GRADE_STEP_MISMATCH");
     expect(prisma.grade.upsert).not.toHaveBeenCalled();
+  });
+
+  it("exige le motif d'une absence justifiée, sauf si l'école l'a désactivé", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(evaluationRecord() as unknown as Evaluation);
+    const excused = { evaluationId, grades: [{ studentId: FIXTURES.studentA, value: null, isAbsent: true, isExcused: true }] };
+
+    const refused = await POST_BATCH(makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: excused }));
+    expect(refused.status).toBe(400);
+    expect((await refused.json()).code).toBe("EXCUSE_REASON_REQUIRED");
+
+    vi.mocked(prisma.configOption.findFirst).mockResolvedValueOnce({ metadata: { excuseReasonRequired: false } } as never);
+    vi.mocked(prisma.enrollment.count).mockResolvedValue(1);
+    vi.mocked(prisma.grade.upsert).mockResolvedValue({ id: cuid("grade1") } as unknown as Grade);
+    const accepted = await POST_BATCH(makeRequest("http://localhost:3000/api/grades/batch", { method: "POST", body: excused }));
+    expect(accepted.status).toBe(201);
   });
 
   it("bloque la saisie cross-tenant (évaluation d'une autre école)", async () => {
@@ -272,7 +352,11 @@ describe("GET /api/grades/statistics", () => {
     expect(response.status).toBe(200);
     expect(body.statistics).toMatchObject({ totalGrades: 5, average: 12.83, passRate: 80 });
     expect(body.statistics.bySubject["Mathématiques"]).toEqual({ average: 12.83, count: 5 });
-    expect(aggregateGradeStatistics).toHaveBeenCalledWith(expect.objectContaining({ schoolId: FIXTURES.schoolA }));
+    // Bandes de l'école (seuil de passage, Excellent, Très bien) transmises à l'agrégation
+    expect(aggregateGradeStatistics).toHaveBeenCalledWith(
+      expect.objectContaining({ schoolId: FIXTURES.schoolA }),
+      { passingGrade: 10, excellentFrom: 16, veryGoodFrom: 14 },
+    );
   });
 
   /**

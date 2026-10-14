@@ -8,23 +8,16 @@
 
 import prisma from "@/lib/prisma";
 import type { BehaviorRisk, CausalFactor, DataQuality } from "./types";
+import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// Poids de gravité (contribution par incident selon sa sévérité)
-const SEVERITY_WEIGHT: Record<string, number> = {
-    CRITICAL: 30,
-    HIGH: 15,
-    MEDIUM: 6,
-    LOW: 2,
-};
-
-function recencyWeight(date: Date): number {
-    // Décroissance linéaire sur 90 jours : incident du jour = 1, 90j+ = 0.2
+function recencyWeight(date: Date, horizonDays: number): number {
+    // Décroissance linéaire sur la période réglée : incident du jour = 1, au-delà = 0.2
     const ageDays = (Date.now() - new Date(date).getTime()) / DAY;
     if (ageDays <= 0) return 1;
-    if (ageDays >= 90) return 0.2;
-    return 1 - (ageDays / 90) * 0.8;
+    if (ageDays >= horizonDays) return 0.2;
+    return 1 - (ageDays / horizonDays) * 0.8;
 }
 
 function assessBehaviorDataQuality(sampleSize: number): DataQuality {
@@ -37,6 +30,15 @@ function assessBehaviorDataQuality(sampleSize: number): DataQuality {
  * Prédit le risque d'incident comportemental.
  */
 export async function predictBehaviorRisk(studentId: string): Promise<BehaviorRisk> {
+    // Paramètres de l'école : poids de gravité, période, niveaux
+    const A = (await getSchoolParametersForStudent(studentId)).analysis;
+    const SEVERITY_WEIGHT: Record<string, number> = {
+        CRITICAL: A.behaviorWeightCritical,
+        HIGH: A.behaviorWeightHigh,
+        MEDIUM: A.behaviorWeightMedium,
+        LOW: A.behaviorWeightLow,
+    };
+    const H = A.behaviorRecencyDays;
     const incidents = await prisma.behaviorIncident.findMany({
         where: { studentId },
         orderBy: { date: "desc" },
@@ -58,14 +60,14 @@ export async function predictBehaviorRisk(studentId: string): Promise<BehaviorRi
     const recommendations: string[] = [];
 
     const recentIncidents = incidents.filter(
-        (i) => new Date(i.date).getTime() > Date.now() - 90 * DAY
+        (i) => new Date(i.date).getTime() > Date.now() - H * DAY
     );
 
     // 1. Score de fréquence pondéré par récence et gravité
     let weightedScore = 0;
     for (const incident of recentIncidents) {
         const severity = SEVERITY_WEIGHT[incident.severity] ?? SEVERITY_WEIGHT.LOW;
-        weightedScore += severity * recencyWeight(incident.date);
+        weightedScore += severity * recencyWeight(incident.date, H);
     }
     weightedScore = Math.min(100, Math.round(weightedScore));
 
@@ -76,16 +78,16 @@ export async function predictBehaviorRisk(studentId: string): Promise<BehaviorRi
         causalFactors.push({
             factor: "incidents_critiques",
             weight: 0.4,
-            contribution: Math.min(100, criticalCount * 30),
-            description: `${criticalCount} incident(s) critique(s) sur 90 jours`,
+            contribution: Math.min(100, criticalCount * A.behaviorWeightCritical),
+            description: `${criticalCount} incident(s) critique(s) sur ${H} jours`,
         });
         recommendations.push("Suivi comportemental immédiat avec le conseiller d'éducation");
     } else if (highCount > 0) {
         causalFactors.push({
             factor: "incidents_graves",
             weight: 0.25,
-            contribution: Math.min(100, highCount * 15),
-            description: `${highCount} incident(s) grave(s) sur 90 jours`,
+            contribution: Math.min(100, highCount * A.behaviorWeightHigh),
+            description: `${highCount} incident(s) grave(s) sur ${H} jours`,
         });
         recommendations.push("Mise en place d'un contrat comportemental");
     }
@@ -124,11 +126,11 @@ export async function predictBehaviorRisk(studentId: string): Promise<BehaviorRi
     const probability = Math.min(100, weightedScore + trendPenalty);
 
     let nextIncidentPrediction: string;
-    if (probability >= 70) {
+    if (probability >= A.behaviorLevelHigh) {
         nextIncidentPrediction = "Risque élevé d'incident dans les 30 prochains jours";
-    } else if (probability >= 40) {
+    } else if (probability >= A.behaviorLevelModerate) {
         nextIncidentPrediction = "Risque modéré d'incident, surveillance recommandée";
-    } else if (probability >= 20) {
+    } else if (probability >= A.behaviorLevelLow) {
         nextIncidentPrediction = "Risque faible, continuer le suivi habituel";
     } else {
         nextIncidentPrediction = "Comportement stable, risque très faible";

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
+import { isReservedCategory, RESERVED_ERROR } from "@/lib/security/reserved-config-categories";
 
 const configOptionSchema = z.object({
   category: z.string().min(1).max(100),
@@ -57,6 +58,9 @@ export const POST = createApiHandler(
 
     const body = await request.json();
     const data = configOptionSchema.parse(body);
+    if (isReservedCategory(data.category)) {
+      return NextResponse.json(RESERVED_ERROR, { status: 403 });
+    }
 
     const existing = await prisma.configOption.findUnique({
       where: {

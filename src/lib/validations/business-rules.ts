@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
 
 /**
  * Business validation rules for EduPilot
@@ -38,7 +39,7 @@ export const paymentPlanValidations = {
     const remainder = data.totalAmount - installmentAmount * data.installments;
     if (Math.abs(remainder) > 0.01 * data.installments) {
       throw new ValidationError(
-        `Le montant total (${data.totalAmount}€) ne peut pas être divisé équitablement en ${data.installments} mensualités`
+        `Le montant total (${data.totalAmount.toLocaleString("fr-FR")} FCFA) ne peut pas être divisé équitablement en ${data.installments} mensualités`
       );
     }
 
@@ -55,9 +56,12 @@ export const paymentPlanValidations = {
       throw new ValidationError("Un plan de paiement actif existe déjà pour ces frais");
     }
 
-    // Validate minimum installment amount (10€)
-    if (installmentAmount < 10) {
-      throw new ValidationError("Le montant de chaque mensualité doit être d'au moins 10€");
+    // Montant minimum d'une échéance : paramètre de l'école (FCFA)
+    const minimum = (await getSchoolParametersForStudent(data.studentId)).finance.minInstallmentAmount;
+    if (installmentAmount < minimum) {
+      throw new ValidationError(
+        `Le montant de chaque mensualité doit être d'au moins ${minimum.toLocaleString("fr-FR")} FCFA`
+      );
     }
   },
 

@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GET as AuthGET, POST as AuthPOST } from "@/lib/auth";
-import {
-  checkRateLimitKey,
-  getClientIp,
-  createRateLimitKey,
-  releaseRateLimit,
-  LOGIN_FAILURE_RATE_LIMIT,
-} from '@/lib/rate-limit';
+import { getClientIp, reserveLoginAttempt } from '@/lib/rate-limit';
 import { SERVICE_UNAVAILABLE_CODE } from '@/lib/auth/login-failure';
 
 /** Point d'entrée réel de la connexion par identifiants (NextAuth v5). */
@@ -28,15 +22,36 @@ function issuedSession(response: Response): boolean {
 }
 
 /**
- * POST : limite les ÉCHECS de connexion par IP (audit H4).
+ * Identifiant saisi (formulaire de next-auth/react ou JSON), lu sur une copie
+ * de la requête : le corps reste intact pour NextAuth.
+ */
+async function submittedEmail(req: NextRequest): Promise<string | null> {
+  try {
+    const type = req.headers.get("content-type") ?? "";
+    if (type.includes("application/json")) {
+      const body = (await req.clone().json()) as { email?: unknown };
+      return typeof body.email === "string" ? body.email : null;
+    }
+    const email = new URLSearchParams(await req.clone().text()).get("email");
+    return email || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * POST : limite les ÉCHECS de connexion (audit H4), par compte depuis une
+ * adresse (10 / 15 min) et par adresse tous comptes confondus (200 / 15 min,
+ * `LOGIN_IP_FAILURES_PER_15MIN`).
  *
  * Chaque tentative est comptée avant la vérification des identifiants, puis
  * rendue si elle réussit : une rafale parallèle ne peut pas dépasser la limite,
  * et les connexions réussies ne la consomment pas. Au-delà, 429 sans vérifier
  * les identifiants ; le corps garde le champ `url` attendu par next-auth/react.
  *
- * (L'ancien filtre sur le paramètre `nextauth` ne correspondait à aucune
- * requête sous l'App Router : la connexion n'était jamais limitée.)
+ * Une salle informatique ou un routeur 4G d'école partage une seule adresse :
+ * ni 30 connexions simultanées ni quelques fautes de frappe ne doivent bloquer
+ * l'établissement (analyse de capacité 2026-10-01, G3).
  */
 export async function POST(req: NextRequest) {
   const { pathname } = new URL(req.url);
@@ -44,10 +59,9 @@ export async function POST(req: NextRequest) {
     return AuthPOST(req);
   }
 
-  const rateLimitKey = createRateLimitKey("login-failures", getClientIp(req));
-  const attempt = await checkRateLimitKey(rateLimitKey, LOGIN_FAILURE_RATE_LIMIT);
+  const attempt = await reserveLoginAttempt("login-failures", getClientIp(req), await submittedEmail(req));
 
-  if (!attempt.success) {
+  if (!attempt.allowed) {
     const retryAfter = Math.max(1, Math.ceil((attempt.reset.getTime() - Date.now()) / 1000));
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("error", LOGIN_RATE_LIMITED_ERROR);
@@ -73,7 +87,7 @@ export async function POST(req: NextRequest) {
   // Ni une connexion réussie, ni une panne technique (M10) ne comptent comme
   // un échec : sinon une école entière resterait bloquée après la panne.
   if (issuedSession(response) || (await reportsServiceUnavailable(response))) {
-    await releaseRateLimit(rateLimitKey);
+    await attempt.release();
   }
   return response;
 }

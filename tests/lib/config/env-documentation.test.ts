@@ -11,7 +11,9 @@ import path from "node:path";
 const ROOT = path.resolve(__dirname, "../../..");
 
 /** Variables posées par Node/Next eux-mêmes : rien à configurer. */
-const FRAMEWORK_VARIABLES = new Set(["NODE_ENV", "NEXT_PHASE", "NEXT_RUNTIME"]);
+// NODE_APP_INSTANCE : posée par PM2 pour chaque processus du cluster.
+// NEXT_MANUAL_SIG_HANDLE : posée (et non lue) par scripts/server/graceful-shutdown.cjs.
+const FRAMEWORK_VARIABLES = new Set(["NODE_ENV", "NEXT_PHASE", "NEXT_RUNTIME", "NODE_APP_INSTANCE", "NEXT_MANUAL_SIG_HANDLE"]);
 
 const READ_PATTERNS = [
     /process\.env\.([A-Z][A-Z0-9_]+)/g,
@@ -31,7 +33,9 @@ function sourceFiles(dir: string): string[] {
 function variablesReadByCode(): Set<string> {
     const files = [
         ...sourceFiles(path.join(ROOT, "src")),
-        ...["instrumentation.ts", "next.config.js", "sentry.server.config.ts", "sentry.edge.config.ts"]
+        // Lanceurs de production : ils lisent aussi l'environnement (WEB_CONCURRENCY…).
+        ...sourceFiles(path.join(ROOT, "scripts/server")),
+        ...["instrumentation.ts", "next.config.js", "sentry.server.config.ts", "sentry.edge.config.ts", "ecosystem.config.js"]
             .map((f) => path.join(ROOT, f))
             .filter((f) => {
                 try {

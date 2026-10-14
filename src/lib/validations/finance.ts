@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 
 // Fee Schema
 export const feeSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100),
   description: z.string().max(500).optional(),
-  amount: z.coerce.number().positive("Le montant doit être supérieur à 0"),
+  amount: fcfaAmountSchema,
   academicYearId: z.string().cuid("ID année scolaire invalide").optional().nullable(),
   classLevelCode: z.string().max(20).optional().nullable(),
   dueDate: z.coerce.date().optional().nullable(),
@@ -15,7 +16,7 @@ export const feeSchema = z.object({
 export const paymentSchema = z.object({
   studentId: z.string().cuid("ID étudiant invalide"),
   feeId: z.string().cuid("ID frais invalide"),
-  amount: z.coerce.number().positive("Le montant doit être supérieur à 0"),
+  amount: fcfaAmountSchema,
   method: z.enum(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER", "CHECK", "OTHER"]),
   reference: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
@@ -36,7 +37,7 @@ export const scholarshipSchema = z.object({
   studentId: z.string().cuid("ID étudiant invalide"),
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100),
   type: z.enum(["MERIT", "NEED_BASED", "SPORTS", "ACADEMIC", "OTHER"]),
-  amount: z.coerce.number().positive().optional(),
+  amount: fcfaAmountSchema.optional(),
   percentage: z.coerce.number().min(0).max(100).optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional().nullable(),

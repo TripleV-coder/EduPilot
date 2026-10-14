@@ -21,13 +21,13 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
   checkRateLimit: checkRateLimitMock,
 }));
-// bcryptjs : hash réel coûteux → mock au niveau module.
+// Hachage (lib/auth/password) : hash réel coûteux → mock au niveau module.
 // La route utilise l'import par défaut : on expose compare/hash via default.
 const { bcryptCompareMock, bcryptHashMock } = vi.hoisted(() => ({
   bcryptCompareMock: vi.fn(),
   bcryptHashMock: vi.fn().mockResolvedValue("hashed-new"),
 }));
-vi.mock("bcryptjs", () => ({
+vi.mock("@/lib/auth/password", () => ({
   default: { compare: bcryptCompareMock, hash: bcryptHashMock },
   compare: bcryptCompareMock,
   hash: bcryptHashMock,

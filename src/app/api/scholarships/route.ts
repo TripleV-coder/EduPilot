@@ -3,6 +3,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -12,7 +13,7 @@ const createScholarshipSchema = z.object({
   studentId: z.string().cuid(),
   name: z.string().min(3).max(200),
   type: z.enum(["MERIT", "NEED_BASED", "ATHLETIC", "PARTIAL", "FULL", "OTHER"]),
-  amount: z.number().positive().optional(),
+  amount: fcfaAmountSchema.optional(),
   percentage: z.number().int().min(1).max(100).optional(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional(),

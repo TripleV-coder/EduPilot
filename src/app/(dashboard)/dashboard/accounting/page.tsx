@@ -109,11 +109,26 @@ export default function AccountingPage() {
 }
 
 function AccountingPageContent() {
-    const { data, error, isLoading } = useSWR<AccountingOverview>(
+    const { data, error, isLoading, mutate } = useSWR<AccountingOverview>(
         "/api/accounting/overview",
         fetcher,
         { revalidateOnFocus: false },
     );
+    const [opening, setOpening] = React.useState(false);
+
+    const openExercise = async () => {
+        setOpening(true);
+        try {
+            const res = await fetch("/api/accounting/fiscal-year", { method: "POST" });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Impossible d'ouvrir l'exercice");
+            await mutate();
+        } catch (err) {
+            window.alert(err instanceof Error ? err.message : "Impossible d'ouvrir l'exercice");
+        } finally {
+            setOpening(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -196,8 +211,9 @@ function AccountingPageContent() {
             {!hasFiscalYear ? (
                 <PageEmpty
                     icon="money"
-                    title="Aucun exercice comptable ouvert"
-                    description="Ouvrez l'exercice fiscal (ex. 2025-2026) et chargez le plan comptable SYSCOHADA pour démarrer la tenue de comptabilité. Les écritures sont ensuite générées automatiquement depuis les paiements scolarité et les décaissements Wallet."
+                    title="Ouvrir l'exercice fiscal"
+                    description="Chargez le plan comptable SYSCOHADA (classes 1 à 8, dont le compte 60 Achats et le compte 57 Caisse) pour saisir les écritures."
+                    actions={[{ label: opening ? "Ouverture…" : "Ouvrir l'exercice", onClick: () => void openExercise() }]}
                 />
             ) : (
                 <>

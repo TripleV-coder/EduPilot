@@ -1,5 +1,6 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
 import { formatDecimal } from "@/lib/utils/formatters";
 
 import dynamic from "next/dynamic";
@@ -66,6 +67,7 @@ type SubjectAnalyticsResponse = {
 };
 
 export default function SubjectAnalyticsPage() {
+    const thresholds = useSchoolThresholds();
     const params = useParams();
     const classId = params.classId as string;
     const subjectId = params.subjectId as string;
@@ -85,7 +87,7 @@ export default function SubjectAnalyticsPage() {
             accessorKey: "average",
             header: "Moyenne",
             cell: ({ row }) => (
-                <span className={`font-black ${Number(row.original.average) >= 10 ? 'text-primary' : 'text-destructive'}`}>
+                <span className={`font-black ${Number(row.original.average) >= thresholds.passingGrade ? 'text-primary' : 'text-destructive'}`}>
                     {formatDecimal(Number(row.original.average), 2)}/20
                 </span>
             )

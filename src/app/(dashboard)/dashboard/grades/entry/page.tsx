@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -27,6 +30,8 @@ import {
     type GradeCell,
 } from "@/components/grades/entry/types";
 import { AppreciationButton } from "@/components/ai/appreciation-button";
+import { SubjectFormulaCard } from "@/components/grades/subject-formula-card";
+import { StudentAdjustPanel } from "@/components/grades/student-adjust-panel";
 import {
     computeCellState,
     StateBadge,
@@ -68,6 +73,8 @@ function readUrlParam(name: string): string | null {
 
 export default function GradesEntryPage() {
     const { isFocusMode } = useSidebar();
+    const { data: session } = useSession();
+    const isTeacher = session?.user?.role === "TEACHER";
 
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
@@ -83,11 +90,24 @@ export default function GradesEntryPage() {
     const [periodId, setPeriodId] = useState("");
     const [maxGrade, setMaxGrade] = useState(20);
     const [coefficient, setCoefficient] = useState(1);
+    // Règles de saisie de l'établissement : précision des notes, motif d'absence
+    const { data: schoolRules } = useSWR<{
+        settings: { gradeStep: string; excuseReasonRequired: boolean; calculation?: { unjustifiedAbsence?: "ZERO" | "EXCLUDE" } };
+    }>(
+        "/api/config/grading",
+        fetcher
+    );
+    const gradeStep = schoolRules?.settings?.gradeStep ?? "0.01";
+    const excuseReasonRequired = schoolRules?.settings?.excuseReasonRequired ?? true;
+    // Absence non justifiée : 0 dans la moyenne (règle officielle), sauf réglage contraire de l'école
+    const unjustifiedCountsZero = (schoolRules?.settings?.calculation?.unjustifiedAbsence ?? "ZERO") === "ZERO";
 
     const [students, setStudents] = useState<StudentItem[]>([]);
     const [grades, setGrades] = useState<Record<string, GradeCell>>({});
     const [initialGrades, setInitialGrades] = useState<Record<string, GradeCell>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
+    // Élève dont l'enseignant adapte le calcul (note non comptée, formule particulière)
+    const [adjusting, setAdjusting] = useState<{ id: string; name: string } | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -95,25 +115,39 @@ export default function GradesEntryPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    // Mode « modifier les notes » d'une évaluation existante (?evaluationId=) :
+    // correction d'une note, recomposition d'un élève absent, absence justifiée.
+    const [editEvaluationId] = useState<string | null>(() => readUrlParam("evaluationId"));
+
     const [pendingDraft, setPendingDraft] = useState<GradeDraft | null>(null);
     const [draftDismissed, setDraftDismissed] = useState(false);
 
+    // Pas de brouillon local en modification : les notes viennent du serveur.
     const draftKey =
-        selectedClass && selectedSubject
+        !editEvaluationId && selectedClass && selectedSubject
             ? `${DRAFT_PREFIX}:${selectedClass}:${selectedSubject}`
             : null;
 
     useEffect(() => {
         const fetchInitial = async () => {
             try {
-                const [clsRes, perRes, typRes] = await Promise.all([
+                const [clsRes, perRes, typRes, mineRes] = await Promise.all([
                     fetch("/api/classes"),
                     fetch("/api/periods"),
                     fetch("/api/evaluation-types"),
+                    isTeacher ? fetch("/api/me/subjects") : Promise.resolve(null),
                 ]);
                 if (clsRes.ok) {
                     const d = await clsRes.json();
-                    setClasses(Array.isArray(d) ? d : d.data || d.classes || []);
+                    let list: ClassOption[] = Array.isArray(d) ? d : d.data || d.classes || [];
+                    if (isTeacher && mineRes?.ok) {
+                        const mine = await mineRes.json();
+                        const classIds = new Set(
+                            (Array.isArray(mine) ? mine : []).map((cs: { classId?: string }) => cs.classId).filter(Boolean)
+                        );
+                        list = list.filter((c) => classIds.has(c.id));
+                    }
+                    setClasses(list);
                 }
                 if (perRes.ok) {
                     const d = await perRes.json();
@@ -146,7 +180,7 @@ export default function GradesEntryPage() {
             }
         };
         fetchInitial();
-    }, []);
+    }, [isTeacher]);
 
     // Ouverture en un geste depuis « Ma journée » (?classId=&classSubjectId=), ou
     // la seule classe / la seule matière de l'enseignant.
@@ -207,11 +241,63 @@ export default function GradesEntryPage() {
         fetchClassData();
     }, [selectedClass]);
 
+    // Mode modification : charge l'évaluation et ses notes existantes.
+    useEffect(() => {
+        if (!editEvaluationId || !selectedClass || !selectedSubject || students.length === 0) return;
+        const loadExisting = async () => {
+            try {
+                const res = await fetch(
+                    `/api/grades/cahier?classId=${selectedClass}&classSubjectId=${selectedSubject}`
+                );
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                const ev = (data.evaluations ?? []).find((e: { id: string }) => e.id === editEvaluationId);
+                if (!ev) {
+                    setError("Évaluation introuvable pour cette classe et cette matière.");
+                    return;
+                }
+                setTitle(ev.title ?? "");
+                setDate(String(ev.date).split("T")[0]);
+                setTypeId(ev.typeId);
+                setPeriodId(ev.periodId);
+                setMaxGrade(ev.maxGrade);
+                setCoefficient(ev.coefficient);
+                const existing: Record<string, GradeCell> = {};
+                students.forEach((stu) => {
+                    const g = ev.grades?.[stu.id];
+                    existing[stu.id] = {
+                        value: g && g.value !== null ? String(g.value) : "",
+                        isAbsent: g?.isAbsent ?? false,
+                        isExcused: g?.isExcused ?? false,
+                        excuseReason: g?.excuseReason ?? "",
+                        comment: g?.comment ?? "",
+                    };
+                });
+                setGrades(existing);
+                setInitialGrades(existing);
+            } catch {
+                setError("Impossible de charger les notes de l'évaluation.");
+            }
+        };
+        loadExisting();
+    }, [editEvaluationId, selectedClass, selectedSubject, students]);
+
     const handleGradeChange = (
         studentId: string,
         field: keyof GradeCell,
         val: GradeCell[keyof GradeCell]
     ) => {
+        if (field === "value" && typeof val === "string" && val !== "") {
+            const numeric = Number(val);
+            if (!Number.isNaN(numeric) && numeric > maxGrade) {
+                toast.error(`La note ne peut pas dépasser ${maxGrade}.`);
+                return;
+            }
+            if (!Number.isNaN(numeric) && numeric < 0) {
+                toast.error("La note ne peut pas être négative.");
+                return;
+            }
+        }
         setGrades((prev) => ({
             ...prev,
             [studentId]: {
@@ -271,39 +357,71 @@ export default function GradesEntryPage() {
             );
             return;
         }
+        const gradeList = Object.keys(grades)
+            .map((stuId) => {
+                const g = grades[stuId];
+                return {
+                    studentId: stuId,
+                    value: g.value === "" ? null : parseFloat(g.value),
+                    isAbsent: g.isAbsent,
+                    isExcused: g.isExcused,
+                    excuseReason: g.isAbsent && g.isExcused ? (g.excuseReason ?? "").trim() || undefined : undefined,
+                    comment: g.comment || undefined,
+                };
+            })
+            // Nouvelle évaluation : seules les cases remplies. Modification : aussi
+            // les cases modifiées (une note effacée redevient « à justifier »).
+            .filter((g) => {
+                if (g.value !== null || g.isAbsent) return true;
+                if (!editEvaluationId) return false;
+                const initial = initialGrades[g.studentId];
+                return Boolean(initial && (initial.value !== "" || initial.isAbsent));
+            });
+        const overScale = gradeList.find(
+            (g) => g.value !== null && !Number.isNaN(g.value) && g.value > maxGrade
+        );
+        if (overScale) {
+            setError(`La note ne peut pas dépasser ${maxGrade}.`);
+            return;
+        }
+        // Précision de saisie de l'établissement (contrôlée aussi par le serveur)
+        const stepCents = Math.round(Number(gradeStep) * 100);
+        const offStep = gradeList.find(
+            (g) => g.value !== null && !Number.isNaN(g.value) && Math.round(g.value * 100) % stepCents !== 0
+        );
+        if (offStep) {
+            setError(`L'établissement saisit les notes par pas de ${gradeStep.replace(".", ",")} : ${String(offStep.value).replace(".", ",")} n'est pas accepté.`);
+            return;
+        }
+        if (excuseReasonRequired && gradeList.some((g) => g.isAbsent && g.isExcused && !g.excuseReason)) {
+            setError("Indiquez le motif de chaque absence justifiée (billet visé par le directeur des études).");
+            return;
+        }
         setSaving(true);
         setError(null);
         try {
-            const evalRes = await fetch("/api/evaluations", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    classSubjectId: selectedSubject,
-                    periodId,
-                    typeId,
-                    title: title || undefined,
-                    date: new Date(date).toISOString(),
-                    maxGrade,
-                    coefficient,
-                }),
-            });
-            if (!evalRes.ok) {
-                const data = await evalRes.json();
-                throw new Error(data.error || "Erreur lors de la création de l'évaluation");
+            let evaluation: { id: string };
+            if (editEvaluationId) {
+                evaluation = { id: editEvaluationId };
+            } else {
+                const evalRes = await fetch("/api/evaluations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        classSubjectId: selectedSubject,
+                        periodId,
+                        typeId,
+                        title: title || undefined,
+                        date: new Date(date).toISOString(),
+                        maxGrade,
+                    }),
+                });
+                if (!evalRes.ok) {
+                    const data = await evalRes.json();
+                    throw new Error(data.error || "Erreur lors de la création de l'évaluation");
+                }
+                evaluation = await evalRes.json();
             }
-            const evaluation = await evalRes.json();
-            const gradeList = Object.keys(grades)
-                .map((stuId) => {
-                    const g = grades[stuId];
-                    return {
-                        studentId: stuId,
-                        value: g.value === "" ? null : parseFloat(g.value),
-                        isAbsent: g.isAbsent,
-                        isExcused: g.isExcused,
-                        comment: g.comment || undefined,
-                    };
-                })
-                .filter((g) => g.value !== null || g.isAbsent);
             if (gradeList.length > 0) {
                 const batchRes = await fetch("/api/grades/batch", {
                     method: "POST",
@@ -321,6 +439,7 @@ export default function GradesEntryPage() {
                 }
             }
             if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
+            if (editEvaluationId) setInitialGrades(grades);
             setSuccess(true);
             try {
                 localStorage.setItem(LAST_TYPE_KEY, typeId);
@@ -352,6 +471,8 @@ export default function GradesEntryPage() {
                 return (
                     current.value !== initial.value ||
                     current.isAbsent !== initial.isAbsent ||
+                    current.isExcused !== initial.isExcused ||
+                    (current.excuseReason ?? "") !== (initial.excuseReason ?? "") ||
                     current.comment !== initial.comment
                 );
             }).length,
@@ -508,7 +629,13 @@ export default function GradesEntryPage() {
                         </Link>
                     ) : null}
                     <PageHeader
-                        title={isFocusMode ? "Saisie rapide" : "Nouvelle saisie de notes"}
+                        title={
+                            editEvaluationId
+                                ? "Modifier les notes"
+                                : isFocusMode
+                                  ? "Saisie rapide"
+                                  : "Nouvelle saisie de notes"
+                        }
                         description={
                             isFocusMode
                                 ? "Mode focus actif — entre tes notes sans distraction."
@@ -611,6 +738,7 @@ export default function GradesEntryPage() {
                             >
                                 <FieldSelect
                                     label="Classe"
+                                    disabled={Boolean(editEvaluationId)}
                                     required
                                     value={selectedClass}
                                     onChange={setSelectedClass}
@@ -623,7 +751,7 @@ export default function GradesEntryPage() {
                                 <FieldSelect
                                     label="Matière"
                                     required
-                                    disabled={!selectedClass}
+                                    disabled={!selectedClass || Boolean(editEvaluationId)}
                                     value={selectedSubject}
                                     onChange={setSelectedSubject}
                                     placeholder={
@@ -636,6 +764,7 @@ export default function GradesEntryPage() {
                                 />
                                 <FieldSelect
                                     label="Période"
+                                    disabled={Boolean(editEvaluationId)}
                                     required
                                     value={periodId}
                                     onChange={setPeriodId}
@@ -647,6 +776,7 @@ export default function GradesEntryPage() {
                                 />
                                 <FieldSelect
                                     label="Type"
+                                    disabled={Boolean(editEvaluationId)}
                                     required
                                     value={typeId}
                                     onChange={setTypeId}
@@ -671,6 +801,7 @@ export default function GradesEntryPage() {
                                 {!isFocusMode ? (
                                     <FieldText
                                         label="Titre (optionnel)"
+                                    disabled={Boolean(editEvaluationId)}
                                         placeholder="Ex : DST chapitre 2"
                                         value={title}
                                         onChange={setTitle}
@@ -679,6 +810,7 @@ export default function GradesEntryPage() {
                                 ) : null}
                                 <FieldText
                                     label="Date"
+                                    disabled={Boolean(editEvaluationId)}
                                     type="date"
                                     value={date}
                                     onChange={setDate}
@@ -686,26 +818,32 @@ export default function GradesEntryPage() {
                                 />
                                 <FieldText
                                     label="Note max"
+                                    disabled={Boolean(editEvaluationId)}
                                     type="number"
                                     value={String(maxGrade)}
                                     onChange={(v) => setMaxGrade(parseInt(v) || 20)}
                                     required
                                     min={1}
                                 />
-                                {!isFocusMode ? (
-                                    <FieldText
-                                        label="Coefficient"
-                                        type="number"
-                                        step="0.5"
-                                        value={String(coefficient)}
-                                        onChange={(v) => setCoefficient(parseFloat(v) || 1)}
-                                        required
-                                        min={0.5}
-                                    />
-                                ) : null}
+
                             </div>
                         </div>
                     </Card>
+
+                    {/* Formule de calcul de la matière (choisie par son enseignant) */}
+                    {selectedSubject ? <SubjectFormulaCard classSubjectId={selectedSubject} /> : null}
+
+                    {adjusting && selectedClass && selectedSubject && periodId ? (
+                        <StudentAdjustPanel
+                            key={`${adjusting.id}-${selectedSubject}-${periodId}`}
+                            classId={selectedClass}
+                            classSubjectId={selectedSubject}
+                            periodId={periodId}
+                            studentId={adjusting.id}
+                            studentName={adjusting.name}
+                            onClose={() => setAdjusting(null)}
+                        />
+                    ) : null}
 
                     {/* Étape 2 — Grille de saisie */}
                     {selectedClass ? (
@@ -729,7 +867,7 @@ export default function GradesEntryPage() {
                                             margin: "2px 0 0",
                                         }}
                                     >
-                                        Coefficient {coefficient} · {completedCount} / {students.length}{" "}
+                                        {completedCount} / {students.length}{" "}
                                         saisie{completedCount > 1 ? "s" : ""}
                                     </p>
                                     {draftStatus === "saving" ? (
@@ -826,7 +964,7 @@ export default function GradesEntryPage() {
                                                 <Th width={140}>Note (/{maxGrade})</Th>
                                                 <Th width={90}>Évolution</Th>
                                                 <Th width={120}>État</Th>
-                                                <Th width={80}>Absent</Th>
+                                                <Th width={130}>Absence</Th>
                                                 {!isFocusMode ? <Th>Appréciation</Th> : null}
                                             </tr>
                                         </thead>
@@ -849,6 +987,7 @@ export default function GradesEntryPage() {
                                                 const isDirty =
                                                     g.value !== initial.value ||
                                                     g.isAbsent !== initial.isAbsent ||
+                                                    g.isExcused !== initial.isExcused ||
                                                     g.comment !== initial.comment;
                                                 const isEditing = editingId === stu.id;
                                                 const numericValue =
@@ -905,6 +1044,7 @@ export default function GradesEntryPage() {
                                                                 editing={isEditing}
                                                                 dirty={isDirty}
                                                                 maxGrade={maxGrade}
+                                                                step={gradeStep}
                                                                 onFocus={() => setEditingId(stu.id)}
                                                                 onBlur={() =>
                                                                     setEditingId((prev) =>
@@ -926,14 +1066,76 @@ export default function GradesEntryPage() {
                                                             <StateBadge state={cellState} />
                                                         </td>
                                                         <td style={{ padding: "10px 16px" }}>
-                                                            <ToggleAbsent
-                                                                checked={g.isAbsent}
-                                                                onChange={(c) => {
-                                                                    handleGradeChange(stu.id, "isAbsent", c);
-                                                                    if (c)
-                                                                        handleGradeChange(stu.id, "value", "");
-                                                                }}
-                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <ToggleAbsent
+                                                                    checked={g.isAbsent}
+                                                                    onChange={(c) => {
+                                                                        handleGradeChange(stu.id, "isAbsent", c);
+                                                                        if (c)
+                                                                            handleGradeChange(stu.id, "value", "");
+                                                                        else
+                                                                            handleGradeChange(stu.id, "isExcused", false);
+                                                                    }}
+                                                                />
+                                                                {g.isAbsent ? (
+                                                                    <label
+                                                                        className="inline-flex items-center gap-1"
+                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        title="Justifiée : exclue du calcul. Non justifiée : comptée 0 (modifiable si l'élève recompose)."
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={g.isExcused}
+                                                                            onChange={(e) => {
+                                                                                handleGradeChange(stu.id, "isExcused", e.target.checked);
+                                                                                if (!e.target.checked) handleGradeChange(stu.id, "excuseReason", "");
+                                                                            }}
+                                                                            aria-label={`Absence justifiée de ${fullName}`}
+                                                                        />
+                                                                        justifiée
+                                                                    </label>
+                                                                ) : null}
+                                                                {g.isAbsent && !g.isExcused && unjustifiedCountsZero ? (
+                                                                    <span
+                                                                        role="note"
+                                                                        style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-danger-600)" }}
+                                                                    >
+                                                                        compte 0 — cochez « justifiée » si l&apos;élève a un justificatif
+                                                                    </span>
+                                                                ) : null}
+                                                                {isTeacher && selectedSubject && periodId ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="underline"
+                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        aria-label={`Adapter le calcul pour ${fullName}`}
+                                                                        onClick={() => {
+                                                                            setAdjusting({ id: stu.id, name: fullName });
+                                                                            document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "smooth" });
+                                                                        }}
+                                                                    >
+                                                                        Adapter
+                                                                    </button>
+                                                                ) : null}
+                                                                {g.isAbsent && g.isExcused ? (
+                                                                    <input
+                                                                        value={g.excuseReason ?? ""}
+                                                                        maxLength={300}
+                                                                        onChange={(e) => handleGradeChange(stu.id, "excuseReason", e.target.value)}
+                                                                        placeholder={excuseReasonRequired ? "Motif (obligatoire)" : "Motif"}
+                                                                        aria-label={`Motif de l'absence de ${fullName}`}
+                                                                        aria-required={excuseReasonRequired}
+                                                                        style={{
+                                                                            width: 150,
+                                                                            height: 28,
+                                                                            padding: "0 8px",
+                                                                            borderRadius: 8,
+                                                                            border: `1px solid ${excuseReasonRequired && !(g.excuseReason ?? "").trim() ? "var(--eduflow-danger-600)" : "var(--eduflow-border-default)"}`,
+                                                                            fontSize: 11,
+                                                                        }}
+                                                                    />
+                                                                ) : null}
+                                                            </div>
                                                         </td>
                                                         {!isFocusMode ? (
                                                             <td style={{ padding: "10px 16px" }}>

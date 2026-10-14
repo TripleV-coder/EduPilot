@@ -79,7 +79,8 @@ Sur quel aspect souhaitez-vous des détails ?`;
 function generateOrientationInfo(): string {
   return `**Orientation scolaire — système béninois** :
 
-Séries principales : A1/A2 (littéraire), B (économique), C/D (scientifique), E (technique), F/G (professionnel).
+Enseignement général : A1 (Lettres - Langues), A2 (Lettres - Sciences Humaines), B (Lettres - Sciences Sociales), C (Sciences et Techniques), D (Biologie - Géologie).
+Enseignement technique et professionnel : E (Mathématiques et Techniques), F1 à F4 (industrielles), G1 à G3 (commerciales), et filières DT : EA (Eau et Assainissement), MIA (Maintenance et Informatique Appliquée), HR (Hôtellerie Restauration).
 
 EduPilot analyse vos matières fortes et votre moyenne générale pour proposer une orientation. Utilisez l'action « Proposer une orientation » sur la fiche élève pour une synthèse personnalisée.`;
 }

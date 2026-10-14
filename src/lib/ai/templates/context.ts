@@ -2,7 +2,7 @@
  * Construction du contexte gabarit à partir de données analytiques réelles.
  */
 
-import type { StudentTemplateContext } from "./types";
+import type { StudentTemplateContext, TemplateThresholds } from "./types";
 
 type AnalyticsLike = {
   generalAverage?: unknown;
@@ -35,6 +35,7 @@ export function buildStudentTemplateContext(
     failureProbability?: number;
     failureLevel?: string;
     failureRecommendations?: string[];
+    thresholds?: TemplateThresholds;
   }
 ): StudentTemplateContext {
   const strengths =
@@ -83,5 +84,6 @@ export function buildStudentTemplateContext(
     failureProbability: extras?.failureProbability,
     failureLevel: extras?.failureLevel,
     failureRecommendations: extras?.failureRecommendations,
+    thresholds: extras?.thresholds,
   };
 }

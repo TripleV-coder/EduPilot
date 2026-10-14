@@ -15,6 +15,7 @@ vi.mock("@/lib/prisma", () => ({
     parentProfile: { findUnique: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     enrollment: { findMany: vi.fn() },
+    classCouncil: { findUnique: vi.fn() },
   },
 }));
 
@@ -165,6 +166,28 @@ describe("POST /api/evaluations", () => {
     coefficient: 1,
   };
 
+  it("refuse la direction : seul l'enseignant de la matière crée ses évaluations (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
+    expect(res.status).toBe(403);
+    expect(prisma.evaluation.create).not.toHaveBeenCalled();
+  });
+
+  it("refuse une évaluation dans une période au conseil validé (409 COUNCIL_LOCKED)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
+      id: classSubjectId,
+      classId: cuid("classe6a"),
+      class: { schoolId: FIXTURES.schoolA },
+      teacher: { userId: teacherUserId },
+    } as never);
+    vi.mocked(prisma.period.findUnique).mockResolvedValue({ id: periodId, academicYear: { schoolId: FIXTURES.schoolA } } as never);
+    vi.mocked(prisma.classCouncil.findUnique).mockResolvedValueOnce({ validatedAt: new Date() } as never);
+    const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("COUNCIL_LOCKED");
+  });
+
   it("refuse un STUDENT (403)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
@@ -172,7 +195,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("retourne 404 si la matière n'existe pas", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue(null);
     const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
     expect(res.status).toBe(404);
@@ -180,7 +203,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("refuse une matière d'une autre école (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolB },
@@ -202,7 +225,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("retourne 404 si la période n'existe pas", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },
@@ -215,7 +238,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("refuse une période d'une autre école (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },
@@ -230,7 +253,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("retourne 404 si le type d'évaluation n'existe pas", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },
@@ -246,7 +269,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("refuse un type d'évaluation d'une autre école (403)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },
@@ -265,7 +288,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("crée l'évaluation (201)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },
@@ -297,7 +320,7 @@ describe("POST /api/evaluations", () => {
   // Audit M3 : exigeait 500 — l'erreur de validation remontait en erreur
   // serveur. createApiHandler la convertit désormais en 400 détaillé.
   it("convertit une erreur de validation non interceptée en 400 VALIDATION_ERROR (audit M3)", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     const res = await POST(
       makeRequest(evaluationRoute, {
         method: "POST",
@@ -309,7 +332,7 @@ describe("POST /api/evaluations", () => {
   });
 
   it("retourne 500 si prisma échoue", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
       id: classSubjectId,
       class: { schoolId: FIXTURES.schoolA },

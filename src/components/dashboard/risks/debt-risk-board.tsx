@@ -60,6 +60,9 @@ export function DebtRiskBoard() {
     );
 
     const plans = Array.isArray(plansPayload) ? plansPayload : [];
+    const { data: financeDash } = useSWR<{
+        overdueStudents?: Array<{ studentId: string; studentName: string; balance: number }>;
+    }>("/api/finance/dashboard", fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
 
     const rows = useMemo<DebtRow[]>(
         () =>
@@ -86,9 +89,25 @@ export function DebtRiskBoard() {
         [plans]
     );
 
-    const totalOutstanding = rows.reduce((sum, row) => sum + row.remainingAmount, 0);
-    const totalPlans = rows.length;
-    const totalOverdueInstallments = rows.reduce((sum, row) => sum + row.overdueInstallments, 0);
+    const rowsWithPlanless = useMemo<DebtRow[]>(() => {
+        const names = new Set(rows.map((row) => row.studentName));
+        const extra = (financeDash?.overdueStudents ?? [])
+            .filter((student) => student.balance > 0 && !names.has(student.studentName))
+            .map((student) => ({
+                id: `due-${student.studentId}`,
+                studentName: student.studentName,
+                feeName: "Frais échu non soldé",
+                overdueInstallments: 1,
+                oldestDueDate: null,
+                remainingAmount: student.balance,
+                totalAmount: student.balance,
+            }));
+        return [...rows, ...extra];
+    }, [rows, financeDash]);
+
+    const totalOutstanding = rowsWithPlanless.reduce((sum, row) => sum + row.remainingAmount, 0);
+    const totalPlans = rowsWithPlanless.length;
+    const totalOverdueInstallments = rowsWithPlanless.reduce((sum, row) => sum + row.overdueInstallments, 0);
     const averageOutstanding = totalPlans > 0 ? Math.round(totalOutstanding / totalPlans) : 0;
 
     const columns = useMemo<ColumnDef<DebtRow>[]>(
@@ -203,7 +222,7 @@ export function DebtRiskBoard() {
                     ) : (
                         <DataTable
                             columns={columns}
-                            data={rows}
+                            data={rowsWithPlanless}
                             searchKey="studentName"
                             searchPlaceholder="Rechercher un élève..."
                             pageSizeOptions={[25, 50, 100]}

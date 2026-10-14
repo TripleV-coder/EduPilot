@@ -7,7 +7,7 @@ import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 import { checkStudentQuota } from "@/lib/saas/quotas";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("bcryptjs", () => ({ default: { hash: vi.fn().mockResolvedValue("hashed") } }));
+vi.mock("@/lib/auth/password", () => ({ default: { hash: vi.fn().mockResolvedValue("hashed") } }));
 vi.mock("@/lib/saas/quotas", () => ({
   checkStudentQuota: vi.fn().mockResolvedValue({ allowed: true, limit: 1000 }),
 }));
@@ -20,7 +20,9 @@ vi.mock("@/lib/prisma", () => ({
     academicYear: { findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     studentProfile: { findMany: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
-    class: { findUnique: vi.fn() },
+    class: { findUnique: vi.fn(), findMany: vi.fn() },
+    teacherProfile: { findUnique: vi.fn() },
+    classSubject: { findMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
     enrollment: { findFirst: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
@@ -89,13 +91,31 @@ describe("GET /api/students", () => {
   it("should filter by search and classId", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "ay1" } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1" } as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "cl1" }] as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
     vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([]);
     vi.mocked(prisma.studentProfile.count).mockResolvedValue(0);
 
     await GET(makeRequest("http://localhost/api/students?search=Dupont&classId=cl1"));
     const call = vi.mocked(prisma.studentProfile.findMany).mock.calls[0][0] as { where: { OR?: object[]; enrollments: object } };
     expect(call.where.OR).toBeDefined();
-    expect(call.where.enrollments).toBeDefined();
+    expect(call.where.enrollments).toEqual({
+      some: expect.objectContaining({ classId: "cl1", status: "ACTIVE" }),
+    });
+  });
+
+  it("un enseignant ne voit pas les élèves d'une classe qu'il n'a pas", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "ay1" } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1" } as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "autre" }] as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
+
+    const res = await GET(makeRequest("http://localhost/api/students?classId=cl1"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual([]);
+    expect(prisma.studentProfile.findMany).not.toHaveBeenCalled();
   });
 });
 

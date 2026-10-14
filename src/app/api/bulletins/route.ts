@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { calculateWeightedAverage, getAppreciation, getRank } from "@/lib/utils/grades";
+import { gradeStatus, toDisplay } from "@/lib/academic/average-engine";
+import { computeClassAnnual, computeClassPeriod, computePromotionRanks } from "@/lib/academic/class-averages";
+import { getGradingSettings, mentionFor } from "@/lib/academic/grading-settings";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -41,7 +43,7 @@ const { searchParams } = new URL(request.url);
                       where: { periodId },
                       include: {
                         grades: {
-                          where: { studentId },
+                          where: { studentId, deletedAt: null },
                         },
                         type: true,
                       },
@@ -125,182 +127,119 @@ const { searchParams } = new URL(request.url);
       },
     });
 
-    // ── Class-wide grades for this period (needed for class min/max/avg per subject)
-    const classStudents = await prisma.enrollment.findMany({
-      where: {
+    // Moyennes de la classe : module unique (formule officielle, calcul exact,
+    // coefficients figés par le conseil, notes « NC » exclues sans rien bloquer)
+    const classSubjectRefs = enrollment.class.classSubjects.map((cs) => ({
+      id: cs.id,
+      subjectId: cs.subjectId,
+      coefficient: cs.coefficient,
+    }));
+    const [current, previous, nextPeriod, gradingSettings] = await Promise.all([
+      computeClassPeriod({
         classId: enrollment.classId,
+        periodId,
         academicYearId: enrollment.academicYearId,
-        status: "ACTIVE",
-      },
-      include: {
-        student: {
-          include: {
-            grades: {
-              where: {
-                evaluation: { periodId },
-              },
-              include: {
-                evaluation: {
-                  include: { classSubject: true },
-                },
-              },
-            },
-          },
-        },
-      },
+        classSubjects: classSubjectRefs,
+      }),
+      previousPeriod
+        ? computeClassPeriod({
+            classId: enrollment.classId,
+            periodId: previousPeriod.id,
+            academicYearId: enrollment.academicYearId,
+            classSubjects: classSubjectRefs,
+          })
+        : Promise.resolve(null),
+      period
+        ? prisma.period.findFirst({
+            where: { academicYearId: period.academicYearId, sequence: { gt: period.sequence } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      getGradingSettings(student.schoolId),
+    ]);
+    const mine = current.students.get(studentId);
+    // Calculs adaptés par l'enseignant pour cet élève (signalés sur le bulletin)
+    const adaptedRows = await prisma.studentFormula.findMany({
+      where: { studentId, periodId },
+      select: { classSubjectId: true, formula: true, reason: true },
     });
+    const adaptedBySubject = new Map(adaptedRows.map((r) => [r.classSubjectId, r]));
+    const previousMine = previous?.students.get(studentId);
 
-    // Per-class-subject stats (avg/min/max across the class)
-    const classStatsBySubject = new Map<
-      string,
-      { sum: number; n: number; min: number; max: number }
-    >();
-    for (const cs of enrollment.class.classSubjects) {
-      let sum = 0;
-      let n = 0;
-      let min = Infinity;
-      let max = -Infinity;
-      for (const e of classStudents) {
-        const grades = e.student.grades
-          .filter((g) => g.evaluation.classSubjectId === cs.id)
-          .map((g) => ({
-            value: g.value,
-            coefficient: g.evaluation.coefficient,
-            isAbsent: g.isAbsent,
-            isExcused: g.isExcused,
-          }));
-        const avg = calculateWeightedAverage(grades);
-        if (avg !== null) {
-          sum += avg;
-          n += 1;
-          if (avg < min) min = avg;
-          if (avg > max) max = avg;
-        }
-      }
-      classStatsBySubject.set(cs.id, {
-        sum,
-        n,
-        min: n > 0 ? min : 0,
-        max: n > 0 ? max : 0,
-      });
-    }
-
-    // Previous-period averages for THIS student (one per class-subject)
-    const prevGrades = previousPeriod
-      ? await prisma.grade.findMany({
-          where: {
-            studentId,
-            evaluation: { periodId: previousPeriod.id },
-          },
-          include: { evaluation: { include: { classSubject: true } } },
-        })
-      : [];
-    const prevBySubjectId = new Map<string, number | null>();
-    for (const cs of enrollment.class.classSubjects) {
-      const gs = prevGrades
-        .filter((g) => g.evaluation.classSubjectId === cs.id)
-        .map((g) => ({
-          value: g.value,
-          coefficient: g.evaluation.coefficient,
-          isAbsent: g.isAbsent,
-          isExcused: g.isExcused,
-        }));
-      prevBySubjectId.set(cs.subject.id, calculateWeightedAverage(gs));
-    }
-
-    // Calculate averages for each subject (current period)
     const subjectResults = enrollment.class.classSubjects.map((cs) => {
-      const grades = cs.evaluations.flatMap((eval_) =>
-        eval_.grades.map((g) => ({
-          value: g.value,
-          coefficient: eval_.coefficient,
-          isAbsent: g.isAbsent,
-          isExcused: g.isExcused,
-        }))
-      );
-
-      const average = calculateWeightedAverage(grades);
-      const stats = classStatsBySubject.get(cs.id) ?? { sum: 0, n: 0, min: 0, max: 0 };
+      // Arrondi selon les règles de la période (gelées par le conseil, sinon celles de l'école)
+      const average = toDisplay(mine?.averages.subjects.get(cs.id) ?? null, current.rules.rounding);
+      const stats = current.subjectStats.get(cs.id);
+      const teacherNotes = [
+        ...new Set(
+          cs.evaluations
+            .flatMap((evaluation) => evaluation.grades.map((grade) => grade.comment?.trim() || ""))
+            .filter((note) => note.length > 0),
+        ),
+      ];
 
       return {
         subjectId: cs.subject.id,
         subjectName: cs.subject.name,
-        coefficient: Number(cs.coefficient),
+        coefficient: Number(current.coefficients.get(cs.id) ?? cs.coefficient),
+        // null = « NC » (non classé dans la matière)
         average,
-        previousAverage: prevBySubjectId.get(cs.subject.id) ?? null,
-        classAverage: stats.n > 0 ? stats.sum / stats.n : null,
-        classMin: stats.n > 0 ? stats.min : null,
-        classMax: stats.n > 0 ? stats.max : null,
-        appreciation: getAppreciation(average),
+        // Moyenne des interrogations (colonne MI du bulletin)
+        interroAverage: toDisplay(mine?.averages.interrogations.get(cs.id) ?? null, current.rules.rounding),
+        previousAverage: previous ? toDisplay(previousMine?.averages.subjects.get(cs.id) ?? null, previous.rules.rounding) : null,
+        classAverage: stats?.average ?? null,
+        classMin: stats?.min ?? null,
+        classMax: stats?.max ?? null,
+        appreciation: teacherNotes.length > 0 ? teacherNotes.join(" · ") : mentionFor(average, gradingSettings.mentions) ?? "Non évalué",
         evaluationsCount: cs.evaluations.length,
-        grades: cs.evaluations.map((eval_) => ({
-          title: eval_.title || eval_.type.name,
-          date: eval_.date,
-          maxGrade: Number(eval_.maxGrade),
-          value: eval_.grades[0]?.value ? Number(eval_.grades[0].value) : null,
-          isAbsent: eval_.grades[0]?.isAbsent || false,
-        })),
+        // Calcul adapté pour cet élève : formule particulière et/ou notes non comptées
+        adaptedFormula: adaptedBySubject.get(cs.id)?.formula ?? null,
+        adaptationReason: adaptedBySubject.get(cs.id)?.reason ?? null,
+        excludedGrades: cs.evaluations.filter((evaluation) => (evaluation.grades[0]?.excludedReason ?? "").trim()).length,
+        grades: cs.evaluations.map((eval_) => {
+          const g = eval_.grades[0];
+          const status = g ? gradeStatus(g) : "EMPTY";
+          return {
+            title: eval_.title || eval_.type.name,
+            date: eval_.date,
+            maxGrade: Number(eval_.maxGrade),
+            value: g && g.value !== null ? Number(g.value) : null,
+            isAbsent: g?.isAbsent || false,
+            isExcused: g?.isExcused || false,
+            // « NC » : note pas encore tranchée par le professeur (exclue du calcul)
+            status: status === "EMPTY" || status === "DELETED" ? "NC" : status,
+          };
+        }),
       };
     });
 
-    // Calculate general average
-    const validSubjects = subjectResults.filter((s) => s.average !== null);
-    const generalAverage =
-      validSubjects.length > 0
-        ? validSubjects.reduce((sum, s) => sum + s.average! * s.coefficient, 0) /
-          validSubjects.reduce((sum, s) => sum + s.coefficient, 0)
-        : null;
+    const generalAverage = mine?.general ?? null;
+    const previousGeneralAverage = previousMine?.general ?? null;
+    const rank = mine?.rank ?? null;
+    // Effectif : inscrits actifs (un élève qui abandonne n'est plus compté)
+    const classSize = current.classSize;
+    const classGeneralAverage = current.classGeneralAverage;
+    const ncGrades = (mine?.averages.missing ?? []).length;
 
-    // Previous-period general average (same weighting, computed on prevBySubjectId)
-    const prevValidSubjects = enrollment.class.classSubjects
-      .map((cs) => ({
-        coefficient: Number(cs.coefficient),
-        average: prevBySubjectId.get(cs.subject.id) ?? null,
-      }))
-      .filter((s) => s.average !== null);
-    const previousGeneralAverage =
-      prevValidSubjects.length > 0
-        ? prevValidSubjects.reduce((sum, s) => sum + s.average! * s.coefficient, 0) /
-          prevValidSubjects.reduce((sum, s) => sum + s.coefficient, 0)
-        : null;
+    // Dernière période de l'année : moyenne et rang annuels
+    const annualResult = !nextPeriod
+      ? await computeClassAnnual({
+          classId: enrollment.classId,
+          academicYearId: enrollment.academicYearId,
+          classSubjects: classSubjectRefs,
+        })
+      : null;
+    const annualMine = annualResult?.students.get(studentId) ?? null;
 
-    // Class-wide general averages for ranking
-    const allAverages = classStudents.map((e) => {
-      const studentGrades = e.student.grades;
-      const subjectAverages: { average: number | null; coefficient: number }[] = [];
-
-      enrollment.class.classSubjects.forEach((cs) => {
-        const subjectGrades = studentGrades.filter(
-          (g) => g.evaluation.classSubjectId === cs.id
-        );
-        const gradesData = subjectGrades.map((g) => ({
-          value: g.value,
-          coefficient: g.evaluation.coefficient,
-          isAbsent: g.isAbsent,
-          isExcused: g.isExcused,
-        }));
-        const avg = calculateWeightedAverage(gradesData);
-        subjectAverages.push({ average: avg, coefficient: Number(cs.coefficient) });
-      });
-
-      const validSubs = subjectAverages.filter((s) => s.average !== null);
-      if (validSubs.length === 0) return null;
-
-      return (
-        validSubs.reduce((sum, s) => sum + s.average! * s.coefficient, 0) /
-        validSubs.reduce((sum, s) => sum + s.coefficient, 0)
-      );
-    });
-
-    const rank = getRank(generalAverage, allAverages);
-    const classSize = classStudents.length;
-
-    // Class general average (sum of valid student averages / count)
-    const classValidAverages = allAverages.filter((a): a is number => a !== null);
-    const classGeneralAverage =
-      classValidAverages.length > 0
-        ? classValidAverages.reduce((sum, a) => sum + a, 0) / classValidAverages.length
-        : null;
+    // Rang par promotion (option de l'établissement)
+    const promotion = gradingSettings.promotionRank
+      ? await computePromotionRanks({
+          schoolId: student.schoolId,
+          classLevelId: enrollment.class.classLevelId,
+          academicYearId: enrollment.academicYearId,
+          periodId,
+        })
+      : null;
 
     // ── Vie scolaire: attendance + incidents during the period
     const periodRange =
@@ -380,11 +319,24 @@ const { searchParams } = new URL(request.url);
         : null,
       subjects: subjectResults,
       generalAverage,
+      // Notes « NC » (non tranchées par le professeur) : exclues du calcul, rien n'est bloqué
+      ncGrades,
       previousGeneralAverage,
       classGeneralAverage,
       rank,
       classSize,
-      appreciation: getAppreciation(generalAverage),
+      promotionRank: promotion ? promotion.ranks.get(studentId) ?? null : null,
+      promotionSize: promotion ? promotion.size : null,
+      annual: annualMine
+        ? {
+            // Officielle quand toutes les périodes ont une moyenne, sinon provisoire
+            average: annualMine.general ?? annualMine.provisional,
+            isProvisional: annualMine.general === null,
+            rank: annualMine.rank,
+          }
+        : null,
+      councilValidated: current.councilValidated,
+      appreciation: mentionFor(generalAverage, gradingSettings.mentions) ?? "Non évalué",
       vieScolaire: {
         absences,
         lates,

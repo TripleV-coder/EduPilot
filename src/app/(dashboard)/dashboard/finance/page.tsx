@@ -115,6 +115,7 @@ export default function FinanceDashboardPage() {
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>("ALL");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
     const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
+    const [reminding, setReminding] = useState(false);
 
     const { data: academicYears } = useSWR<AcademicYear[]>(
         schoolId ? `/api/academic-years?schoolId=${schoolId}` : null,
@@ -392,6 +393,28 @@ export default function FinanceDashboardPage() {
                                 )}
                             </Block>
                             <Block id="fin-overdue" title="Impayés à relancer">
+                                <div className="mb-3 flex justify-end">
+                                    <Button
+                                        size="sm"
+                                        icon="sms"
+                                        loading={reminding}
+                                        onClick={async () => {
+                                            setReminding(true);
+                                            try {
+                                                const res = await fetch("/api/finance/reminders", { method: "POST" });
+                                                const body = await res.json().catch(() => ({}));
+                                                if (!res.ok) throw new Error(body.error || "Relance impossible");
+                                                toast.success(body.message ?? "Relances envoyées");
+                                            } catch (err) {
+                                                toast.error(err instanceof Error ? err.message : "Relance impossible");
+                                            } finally {
+                                                setReminding(false);
+                                            }
+                                        }}
+                                    >
+                                        Relancer
+                                    </Button>
+                                </div>
                                 <WatchList
                                     calm="Aucun impayé en retard : tous les paiements échus sont à jour."
                                     items={dashData.overdueStudents.slice(0, 6).map((s) => ({

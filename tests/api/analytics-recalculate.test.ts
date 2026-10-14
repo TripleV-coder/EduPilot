@@ -23,97 +23,57 @@ const AY = cuid("ay1");
 describe("POST /api/analytics/recalculate", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("should return 401 when unauthenticated", async () => {
+  it("refuse sans session (401) et pour un rôle non autorisé (403)", async () => {
     vi.mocked(auth).mockResolvedValue(null);
-    const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: null });
-    expect(res.status).toBe(401);
-  });
-
-  it("should forbid DIRECTOR", async () => {
+    const anon = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: null });
+    expect(anon.status).toBe(401);
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("DIRECTOR") });
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Accès refusé");
+    const director = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("DIRECTOR") });
+    expect(director.status).toBe(403);
   });
 
-  it("should return 400 when schoolId is missing", async () => {
+  it("exige un établissement (400)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("SUPER_ADMIN", { schoolId: null }) });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("schoolId requis");
   });
 
-  it("should recompute risk levels from academic signals", async () => {
+  it("refuse de recalculer un AUTRE établissement (403)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([
-      {
-        id: FIXTURES.studentA,
-        enrollments: [{ academicYearId: AY }],
-        studentAnalytics: [{ generalAverage: 15 }],
-      },
-      {
-        id: FIXTURES.studentB,
-        enrollments: [{ academicYearId: AY }],
-        studentAnalytics: [{ generalAverage: 9 }],
-      },
-      {
-        id: "cstud3",
-        enrollments: [{ academicYearId: AY }],
-        studentAnalytics: [{ generalAverage: 7 }],
-      },
-    ] as never);
-    vi.mocked(prisma.studentAnalytics.updateMany).mockResolvedValue({ count: 1 } as never);
+    const res = await POST_RECALCULATE(
+      makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: { schoolId: FIXTURES.schoolB } }),
+      { session: makeSession("SCHOOL_ADMIN") },
+    );
+    expect(res.status).toBe(403);
+    expect(syncAllStudentsForSchool).not.toHaveBeenCalled();
+  });
+
+  it("recalcule avec le modèle officiel (paramètres de l'école), sans modèle parallèle", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
+    vi.mocked(syncAllStudentsForSchool).mockResolvedValue({ processed: 3, errors: 0 });
 
     const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("SCHOOL_ADMIN") });
-    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.processed).toBe(3);
 
-    expect(prisma.studentAnalytics.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ riskLevel: "LOW" }) })
-    );
-    expect(prisma.studentAnalytics.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ riskLevel: "MEDIUM" }) })
-    );
-    expect(prisma.studentAnalytics.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ riskLevel: "HIGH" }) })
-    );
-    expect(prisma.studentProfile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ schoolId: FIXTURES.schoolA }) })
-    );
-  });
-
-  it("should add risk points for students without enrollments", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([
-      {
-        id: FIXTURES.studentA,
-        enrollments: [],
-        studentAnalytics: [{ generalAverage: 9 }],
-      },
-    ] as never);
-    vi.mocked(prisma.studentAnalytics.updateMany).mockResolvedValue({ count: 1 } as never);
-
-    const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: { schoolId: FIXTURES.schoolA } }), { session: makeSession("SCHOOL_ADMIN") });
     expect(res.status).toBe(200);
-    expect(prisma.studentAnalytics.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ riskLevel: "MEDIUM" }) })
-    );
+    expect(body).toMatchObject({ success: true, processed: 3, errors: 0 });
+    expect(syncAllStudentsForSchool).toHaveBeenCalledWith(FIXTURES.schoolA, AY);
+    // Plus aucune écriture directe et approximative du niveau de risque
+    expect(prisma.studentAnalytics.updateMany).not.toHaveBeenCalled();
   });
 
-  it("should handle an empty student list", async () => {
+  it("signale l'absence d'année en cours (400)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue(null);
     const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("SCHOOL_ADMIN") });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.processed).toBe(0);
+    expect(res.status).toBe(400);
   });
 
-  it("should return 500 when a query fails", async () => {
+  it("renvoie 500 si le recalcul échoue", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.studentProfile.findMany).mockRejectedValue(new Error("boom"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
+    vi.mocked(syncAllStudentsForSchool).mockRejectedValue(new Error("boom"));
     const res = await POST_RECALCULATE(makeRequest("http://localhost/api/analytics/recalculate", { method: "POST", body: {} }), { session: makeSession("SCHOOL_ADMIN") });
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Erreur lors du calcul");

@@ -79,6 +79,32 @@ describe("GET /api/class-subjects", () => {
     expect(res.status).toBe(403);
   });
 
+  it("un enseignant ne reçoit que ses matières, même s'il demande celles d'un collègue", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: cuid("monprof") } as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([makeClassSubject({ teacherId: cuid("monprof") })]);
+
+    const res = await GET(makeRequest(`http://localhost/api/class-subjects?classId=cl1&teacherId=${cuid("autre")}`));
+    expect(res.status).toBe(200);
+    expect(prisma.classSubject.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ classId: "cl1", teacherId: cuid("monprof") }),
+      })
+    );
+  });
+
+  it("un enseignant sans profil reçoit une liste vide", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue(null);
+
+    const res = await GET(makeRequest("http://localhost/api/class-subjects?classId=cl1"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
+    expect(prisma.classSubject.findMany).not.toHaveBeenCalled();
+  });
+
   it("should list class subjects with filters", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);

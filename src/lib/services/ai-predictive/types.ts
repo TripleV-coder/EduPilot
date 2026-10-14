@@ -73,9 +73,15 @@ export interface StudentPrediction {
             causalFactors: CausalFactor[];
         };
         nextPeriodGrade: {
-            predicted: number;
-            confidence: number; // 0-100%
-            range: { min: number; max: number };
+            /** null : aucune moyenne passée, pas de prévision. */
+            predicted: number | null;
+            /** Probabilité (%) que la vraie moyenne soit à ±1 point. */
+            confidence: number;
+            /** Fourchette calibrée à 95 % (null sans historique). */
+            range: { min: number; max: number } | null;
+            /** Fourchette calibrée à 80 % (null sans historique). */
+            range80: { min: number; max: number } | null;
+            dataPoints: number;
             warning?: string;
             modelUsed: string;
         };
@@ -104,7 +110,8 @@ export interface CausalFactor {
 export interface ClassPrediction {
     classId: string;
     predictions: {
-        averageNextPeriod: number;
+        /** Moyenne des prévisions des élèves qui ont un historique (null : aucun). */
+        averageNextPeriod: number | null;
         studentsAtRisk: number;
         studentsAtRiskIds: string[];
         dropoutRisk: number; // moyenne du vrai modèle de décrochage (0-100)

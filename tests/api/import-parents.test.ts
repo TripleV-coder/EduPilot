@@ -3,11 +3,11 @@ import { POST } from "@/app/api/import/parents/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { invalidateByPath } from "@/lib/api/cache-helpers";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/auth/password";
 import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("bcryptjs", () => ({
+vi.mock("@/lib/auth/password", () => ({
   default: { hash: vi.fn().mockResolvedValue("hashed") },
   hash: vi.fn().mockResolvedValue("hashed"),
 }));

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { createApiHandler, isValidCuid } from "@/lib/api/api-helpers";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
+import { isReservedCategory, RESERVED_ERROR } from "@/lib/security/reserved-config-categories";
 
 const updateSchema = z.object({
   category: z.string().min(1).max(100).optional(),
@@ -61,6 +62,9 @@ export const PATCH = createApiHandler(
 
     const body = await request.json();
     const data = updateSchema.parse(body);
+    if (isReservedCategory(existing.category) || isReservedCategory(data.category)) {
+      return NextResponse.json(RESERVED_ERROR, { status: 403 });
+    }
 
     const newCategory = data.category ?? existing.category;
     const newCode = data.code ?? existing.code;
@@ -121,6 +125,9 @@ export const DELETE = createApiHandler(
     });
     if (!existing) {
       return NextResponse.json({ error: "Option non trouvée" }, { status: 404 });
+    }
+    if (isReservedCategory(existing.category)) {
+      return NextResponse.json(RESERVED_ERROR, { status: 403 });
     }
 
     await prisma.configOption.delete({ where: { id } });

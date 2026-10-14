@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -24,6 +25,10 @@ import {
     pickScoreVariant,
     variantToken,
 } from "@/components/grades/cahier/types";
+import { computeAnnualAverages, gradedEvaluations, toDisplay, type GradeRecord } from "@/lib/academic/average-engine";
+import type { CalculationRules } from "@/lib/academic/grading-rules";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import {
     ExpandedEvalGrades,
     SegmentedToggle,
@@ -38,6 +43,10 @@ import {
 // découpe (P3.1, 2026-06-11). Logique inchangée.
 
 export default function CahierDeNotesPage() {
+    // Règles de calcul de l'établissement (même calcul que le bulletin)
+    const { data: rulesData } = useSWR<{ settings?: { calculation?: CalculationRules } }>("/api/config/grading", fetcher);
+    const calcRules = rulesData?.settings?.calculation;
+
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
     const [evalTypes, setEvalTypes] = useState<EvalTypeOption[]>([]);
@@ -51,6 +60,10 @@ export default function CahierDeNotesPage() {
     const [students, setStudents] = useState<Student[]>([]);
     const [evaluations, setEvaluations] = useState<EvaluationData[]>([]);
     const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
+    // Calculs adaptés par l'enseignant pour des élèves précis
+    const [studentFormulas, setStudentFormulas] = useState<
+        Array<{ classSubjectId: string; periodId: string; studentId: string; formula: string }>
+    >([]);
 
     const [loading, setLoading] = useState(true);
     const [dataLoading, setDataLoading] = useState(false);
@@ -111,6 +124,7 @@ export default function CahierDeNotesPage() {
                 setStudents(data.students || []);
                 setEvaluations(data.evaluations || []);
                 setSubjects(data.subjects || []);
+                setStudentFormulas(data.studentFormulas || []);
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Erreur inconnue");
             } finally {
@@ -142,29 +156,57 @@ export default function CahierDeNotesPage() {
     }, [evaluations]);
 
     const studentSummary = useMemo(() => {
+        // Formule de l'enseignant pour sa matière (sinon celle de l'école)
+        const subjectFormula = new Map(subjects.map((s) => [s.id, s.formula ?? null]));
+        const classSubjects = Array.from(
+            new Map(evaluations.map((ev) => [ev.classSubjectId, ev.subjectCoefficient])),
+            ([id, coefficient]) => ({ id, coefficient, formula: subjectFormula.get(id) ?? null })
+        );
+        // Périodes affichées (dans l'ordre) : (S1 + S2) / 2 ou (T1 + T2 + T3) / 3 si toutes sont chargées
+        const periods = Array.from(new Set(evaluations.map((ev) => ev.periodId)), (id) => ({ id }));
+        const recordsOf = (studentId: string): GradeRecord[] =>
+            evaluations.flatMap((ev) => {
+                const grade = ev.grades[studentId];
+                return grade
+                    ? [{
+                          evaluationId: ev.id,
+                          date: ev.date,
+                          classSubjectId: ev.classSubjectId,
+                          periodId: ev.periodId,
+                          value: grade.value,
+                          isAbsent: grade.isAbsent,
+                          isExcused: grade.isExcused,
+                          excludedReason: grade.excludedReason ?? null,
+                          maxGrade: ev.maxGrade,
+                          type: { code: ev.typeCode, name: ev.type, category: ev.typeCategory },
+                      }]
+                    : [];
+            });
+        // Notes attendues : évaluations déjà notées chez au moins un élève de la classe
+        const expected = gradedEvaluations(students.flatMap((s) => recordsOf(s.id)));
         return filteredStudents
             .map((student) => {
-                let totalWeightedSum = 0;
-                let totalCoefficient = 0;
-                let gradeCount = 0;
-                let absentCount = 0;
-                evaluations.forEach((ev) => {
-                    const grade = ev.grades[student.id];
-                    if (grade) {
-                        if (grade.isAbsent) absentCount++;
-                        else if (grade.value !== null) {
-                            const normalized = (grade.value / ev.maxGrade) * 20;
-                            totalWeightedSum += normalized * ev.coefficient;
-                            totalCoefficient += ev.coefficient;
-                            gradeCount++;
-                        }
-                    }
+                const records = recordsOf(student.id);
+                const gradeCount = records.filter((r) => !r.isAbsent && r.value !== null).length;
+                const absentCount = records.filter((r) => r.isAbsent).length;
+                // Moteur unique : formule officielle, calcul exact, arrondi au centième
+                // Calculs adaptés pour cet élève, période par période
+                const studentFormulasByPeriod = new Map<string, Map<string, string>>();
+                for (const f of studentFormulas) {
+                    if (f.studentId !== student.id) continue;
+                    const bySubject = studentFormulasByPeriod.get(f.periodId) ?? new Map<string, string>();
+                    bySubject.set(f.classSubjectId, f.formula);
+                    studentFormulasByPeriod.set(f.periodId, bySubject);
+                }
+                const annual = computeAnnualAverages(records, classSubjects, periods, expected, {
+                    rules: calcRules,
+                    studentFormulasByPeriod,
                 });
-                const average =
-                    totalCoefficient > 0 ? totalWeightedSum / totalCoefficient : null;
+                const average = toDisplay(annual.general ?? annual.provisional, calcRules?.rounding);
                 return {
                     ...student,
                     average,
+                    missingCount: annual.missing.length,
                     gradeCount,
                     absentCount,
                     totalEvals: evaluations.length,
@@ -176,7 +218,7 @@ export default function CahierDeNotesPage() {
                 if (b.average === null) return -1;
                 return b.average - a.average;
             });
-    }, [filteredStudents, evaluations]);
+    }, [filteredStudents, evaluations, students, calcRules, subjects, studentFormulas]);
 
     const resetFilters = () => {
         setSelectedPeriod("");
@@ -591,10 +633,20 @@ export default function CahierDeNotesPage() {
                                                             </button>
 
                                                             {expanded ? (
-                                                                <ExpandedEvalGrades
-                                                                    ev={ev}
-                                                                    students={filteredStudents}
-                                                                />
+                                                                <>
+                                                                    <div className="px-5 pb-2" style={{ fontSize: 12 }}>
+                                                                        <Link
+                                                                            href={`/dashboard/grades/entry?classId=${selectedClass}&classSubjectId=${ev.classSubjectId}&evaluationId=${ev.id}`}
+                                                                            style={{ color: "var(--brand-700)", fontWeight: 600 }}
+                                                                        >
+                                                                            Modifier les notes (correction, recomposition, absence justifiée)
+                                                                        </Link>
+                                                                    </div>
+                                                                    <ExpandedEvalGrades
+                                                                        ev={ev}
+                                                                        students={filteredStudents}
+                                                                    />
+                                                                </>
                                                             ) : null}
                                                         </div>
                                                     );
@@ -625,7 +677,7 @@ export default function CahierDeNotesPage() {
                                             margin: "2px 0 0",
                                         }}
                                     >
-                                        Moyenne pondérée par coefficients, normalisée sur 20.
+                                        Par matière : (moyenne des interrogations + devoirs) / (1 + nombre de devoirs), notes ramenées sur 20 ; moyenne pondérée par les coefficients de matière.
                                     </p>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -752,6 +804,14 @@ export default function CahierDeNotesPage() {
                                                             {student.average !== null
                                                                 ? student.average.toFixed(2).replace(".", ",")
                                                                 : "—"}
+                                                            {student.missingCount > 0 ? (
+                                                                <div
+                                                                    title="Note absente alors que les camarades sont notés : saisir la note ou indiquer l'absence (justifiée ou non)"
+                                                                    style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-warning-700)" }}
+                                                                >
+                                                                    {student.missingCount} à justifier
+                                                                </div>
+                                                            ) : null}
                                                         </Td>
                                                         <Td
                                                             center

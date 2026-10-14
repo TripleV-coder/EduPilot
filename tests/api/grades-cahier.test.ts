@@ -6,9 +6,14 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/security/tenant", () => ({ assertModelAccess: vi.fn().mockResolvedValue(null) }));
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Calculs adaptés pour un élève : aucun par défaut
+    studentFormula: { findMany: vi.fn().mockResolvedValue([]) },
     classSubject: { findMany: vi.fn() },
     evaluation: { findMany: vi.fn() },
     enrollment: { findMany: vi.fn() },
+    // École de la classe et ses règles (formules des enseignants autorisées par défaut)
+    class: { findUnique: vi.fn().mockResolvedValue({ schoolId: "school-a" }) },
+    configOption: { findFirst: vi.fn().mockResolvedValue(null) },
   },
 }));
 

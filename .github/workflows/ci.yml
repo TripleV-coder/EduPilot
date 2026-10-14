@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION_DEFAULT: "20"
+  NODE_VERSION_DEFAULT: "24"
   NEXT_TELEMETRY_DISABLED: "1"
   SKIP_ENV_VALIDATION: "true"
 
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "22"]
+        node: ["22", "24"]
     steps:
       - uses: actions/checkout@v4
 

@@ -1,4 +1,7 @@
 import { Prisma } from "@prisma/client";
+import { disciplineAverages, OFFICIAL_SERIES, seriesFullLabel, seriesReadingFor } from "@/lib/benin/series";
+import { getGradingSettings, getPassingGrade } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import prisma from "@/lib/prisma";
 import { averageNumbers, dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { analyticsService } from "@/lib/analytics/service";
@@ -7,6 +10,8 @@ import { generateStudentPredictions } from "@/lib/services/ai-predictive";
 import { predictFailureRisk as predictStudentFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
 import { logger } from "@/lib/utils/logger";
 import { studentAlias } from "./pii";
+import { forecastNextAverage } from "@/lib/services/ai-predictive/algorithms/forecast";
+import { templateThresholdsForSchool } from "./school-template-thresholds";
 import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/env";
 import { roleSatisfies } from "@/lib/rbac/permissions";
@@ -199,9 +204,8 @@ class GovernanceService {
         className: student.enrollments[0]?.class.name,
       },
       analytics,
-      {
-        failureProbability: analytics?.riskLevel === "CRITICAL" ? 80 : analytics?.riskLevel === "HIGH" ? 60 : undefined,
-      }
+      // Pas de probabilité inventée : le gabarit lit le niveau de risque réel
+      { thresholds: await templateThresholdsForSchool(student.schoolId) }
     );
 
     let planData;
@@ -248,7 +252,8 @@ class GovernanceService {
         firstName: student.user?.firstName,
         lastName: student.user?.lastName,
       },
-      analytics
+      analytics,
+      { thresholds: await templateThresholdsForSchool(student.schoolId) }
     );
 
     let comment = generateAppreciation(templateCtx);
@@ -549,20 +554,22 @@ class GovernanceService {
     }
 
     await this.ensureStudentScope(request, student);
+    // Fenêtre d'assiduité et seuil d'alerte réglés par l'école
+    const studentParams = await getSchoolParameters(student.schoolId);
 
     const [analytics, attendances, incidents, failurePrediction] = await Promise.all([
       this.getLatestStudentAnalytics(student.id, student.schoolId),
       prisma.attendance.findMany({
         where: {
           studentId: student.id,
-          date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          date: { gte: new Date(Date.now() - studentParams.analysis.attendanceWindowDays * 24 * 60 * 60 * 1000) },
         },
         select: { status: true },
       }),
       prisma.behaviorIncident.findMany({
         where: {
           studentId: student.id,
-          date: { gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
+          date: { gte: new Date(Date.now() - studentParams.analysis.behaviorWindowDays * 24 * 60 * 60 * 1000) },
         },
         select: { severity: true, description: true },
         orderBy: { date: "desc" },
@@ -593,7 +600,7 @@ class GovernanceService {
       ...(weaknesses.length > 0
         ? [`Renforcer les matières faibles: ${weaknesses.join(", ")}.`]
         : []),
-      ...(attendanceRate !== null && attendanceRate < 85
+      ...(attendanceRate !== null && attendanceRate < studentParams.followUp.attendanceWarning
         ? ["Améliorer l'assiduité pour réduire le risque académique."]
         : []),
     ]);
@@ -690,6 +697,11 @@ class GovernanceService {
     }
 
     await this.ensureClassScope(request, classRecord);
+    // Seuils réglés par l'école : moyenne de passage et assiduité
+    const [classParams, classPassingGrade] = await Promise.all([
+      getSchoolParameters(classRecord.schoolId),
+      getPassingGrade(classRecord.schoolId),
+    ]);
 
     const studentIds = classRecord.enrollments.map((enrollment) => enrollment.studentId);
     const academicYearIds = uniq(classRecord.enrollments.map((enrollment) => enrollment.academicYearId));
@@ -702,7 +714,7 @@ class GovernanceService {
       prisma.attendance.findMany({
         where: {
           studentId: { in: studentIds },
-          date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          date: { gte: new Date(Date.now() - classParams.analysis.attendanceWindowDays * 24 * 60 * 60 * 1000) },
         },
         select: { status: true },
       }),
@@ -753,10 +765,10 @@ class GovernanceService {
     }, {});
 
     const recommendations = uniq([
-      ...(classAverage !== null && classAverage < 10
+      ...(classAverage !== null && classAverage < classPassingGrade
         ? ["La moyenne de classe est insuffisante: prévoir un plan de remédiation."]
         : []),
-      ...(attendanceRate !== null && attendanceRate < 85
+      ...(attendanceRate !== null && attendanceRate < classParams.followUp.attendanceWarning
         ? ["Le taux d'assiduité de la classe est faible: renforcer le suivi des absences."]
         : []),
       ...(atRiskStudents.length > 0
@@ -802,6 +814,7 @@ class GovernanceService {
 
     this.ensureSchoolWideScope(request, schoolId);
 
+    const schoolPassingGrade = await getPassingGrade(schoolId);
     const academicYearId = await this.getPreferredAcademicYearId(schoolId);
 
     const [schoolStats, verifiedPayments, latestAnalytics] = await Promise.all([
@@ -862,7 +875,7 @@ class GovernanceService {
     }, {});
 
     const recommendations = uniq([
-      ...(overallAverage !== null && overallAverage < 10
+      ...(overallAverage !== null && overallAverage < schoolPassingGrade
         ? ["Le niveau académique global est insuffisant: une stratégie pédagogique est nécessaire."]
         : []),
       ...(atRiskStudents.length > 0
@@ -1054,7 +1067,8 @@ class GovernanceService {
             select: { id: true, name: true, sequence: true },
           },
         },
-        orderBy: [{ subjectId: "asc" }, { period: { sequence: "asc" } }],
+        // Ordre chronologique réel (plusieurs années : les numéros de période se répètent)
+        orderBy: [{ subjectId: "asc" }, { period: { startDate: "asc" } }, { period: { sequence: "asc" } }],
       }),
     ]);
 
@@ -1083,7 +1097,10 @@ class GovernanceService {
         const latest = history[history.length - 1];
         const previous = history.length > 1 ? history[history.length - 2] : null;
         const delta = previous ? latest.average - previous.average : 0;
-        const projected = roundTo(clamp(latest.average + delta, 0, 20));
+        // Même méthode calibrée que la moyenne générale (et non « dernière + dernier écart »,
+        // qui double le bruit d'une période à l'autre)
+        const forecast = forecastNextAverage(history.map((h) => h.average));
+        const projected = roundTo(forecast?.predicted ?? latest.average);
         return {
           subjectId,
           subjectName: latest.subjectName,
@@ -1097,19 +1114,21 @@ class GovernanceService {
                 : "stable"
             : "stable",
           projectedAverage: projected,
+          projectedRange: forecast?.range95 ?? null,
           dataPoints: history.length,
         };
       })
       .sort((left, right) => left.subjectName.localeCompare(right.subjectName));
 
+    const predictionPassingGrade = await getPassingGrade(student.schoolId);
     const lowProjectionSubjects = subjectPredictions
-      .filter((subject) => subject.projectedAverage < 10)
+      .filter((subject) => subject.projectedAverage < predictionPassingGrade)
       .map((subject) => subject.subjectName);
 
     const recommendations = uniq([
       ...(generalPrediction?.warning ? [generalPrediction.warning] : []),
       ...(lowProjectionSubjects.length > 0
-        ? [`Renforcer prioritairement les matières projetées sous 10/20: ${lowProjectionSubjects.join(", ")}.`]
+        ? [`Renforcer prioritairement les matières projetées sous ${predictionPassingGrade}/20: ${lowProjectionSubjects.join(", ")}.`]
         : []),
     ]);
 
@@ -1164,11 +1183,23 @@ class GovernanceService {
 
     const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
 
-    if (!analytics) {
-      return {
-        data: { series: "SERIE_D", justification: "Données analytiques insuffisantes. Recommandation par défaut." },
-        confidence: 0.3,
-      };
+    // Aucune série « par défaut » : sans moyennes, aucune recommandation n'a de sens.
+    const decisive = analytics
+      ? disciplineAverages(
+          analytics.subjectPerformances.map((p) => ({
+            name: p.subject.name,
+            average: p.average === null ? null : Number(p.average),
+          }))
+        )
+      : new Map();
+    // EPS et arts ne départagent pas les séries
+    const hasDecisive = Array.from(decisive.keys()).some((d) => d !== "EPS" && d !== "ARTS");
+    if (!analytics || !hasDecisive) {
+      throw new AIServiceError(
+        "Données insuffisantes : aucune moyenne dans une discipline déterminante (maths, sciences, lettres, langues…). Saisissez ses notes avant de demander une orientation.",
+        422,
+        "INSUFFICIENT_DATA"
+      );
     }
 
     const templateCtx = buildStudentTemplateContext(
@@ -1177,17 +1208,25 @@ class GovernanceService {
         lastName: student.user?.lastName,
         className: student.enrollments[0]?.class.name,
       },
-      analytics
+      analytics,
+      { thresholds: await templateThresholdsForSchool(student.schoolId) }
     );
 
-    const templateResult = generateOrientationSynthesis(templateCtx);
+    // Critères d'orientation de l'école
+    const templateResult = generateOrientationSynthesis(
+      templateCtx,
+      (await getGradingSettings(student.schoolId)).orientation,
+      seriesReadingFor((await getSchoolParameters(student.schoolId)).exams),
+    );
     let result: {
       series: string;
+      score?: number;
       justification: string;
       alternatives: string[];
       synthesis: string;
     } = {
       series: templateResult.series,
+      score: templateResult.score,
       justification: templateResult.justification,
       alternatives: templateResult.alternatives,
       synthesis: templateResult.synthesis,
@@ -1199,20 +1238,24 @@ class GovernanceService {
         const context = {
           studentName: studentAlias(student.user?.firstName, student.user?.lastName),
           currentClass: student.enrollments[0]?.class.name,
-          generalAverage: Number(analytics.generalAverage || 0),
-          subjects: analytics.subjectPerformances.map((p) => ({
-            name: p.subject.name,
-            average: Number(p.average || 0),
-            isStrength: p.isStrength,
-            isWeakness: p.isWeakness,
-          })),
+          // Une matière ou une moyenne absente n'est jamais envoyée comme un 0
+          generalAverage: analytics.generalAverage === null ? null : Number(analytics.generalAverage),
+          subjects: analytics.subjectPerformances
+            .filter((p) => p.average !== null)
+            .map((p) => ({
+              name: p.subject.name,
+              average: Number(p.average),
+              isStrength: p.isStrength,
+              isWeakness: p.isWeakness,
+            })),
         };
 
         const prompt = `En tant qu'expert en orientation scolaire du système béninois, analyse les résultats de l'élève ${context.studentName} (${context.currentClass}) qui finit son cycle BEPC.
         Notes: ${JSON.stringify(context.subjects)}
-        Moyenne Générale: ${context.generalAverage}
+        Moyenne Générale: ${context.generalAverage ?? "non disponible"}
 
-        Recommande la meilleure série pour la classe de Seconde parmi: A1, A2 (Littéraire), B (Économique), C, D (Scientifique), E (Technique), F1-F4 (Industrielle), G1-G3 (Tertiaire).
+        Recommande la meilleure série pour la classe de Seconde parmi (codes exacts) :
+        ${OFFICIAL_SERIES.map((s) => `${s.code} = ${seriesFullLabel(s.code)}`).join("\n        ")}
         
         Réponds UNIQUEMENT par un objet JSON au format:
         {
@@ -1230,8 +1273,23 @@ class GovernanceService {
         if (externalResponse.success) {
           const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            result = { ...JSON.parse(jsonMatch[0]), synthesis: templateResult.synthesis };
-            engine = "external";
+            // Réponse du modèle acceptée seulement si les séries existent au référentiel officiel
+            const parsed = JSON.parse(jsonMatch[0]) as { series?: unknown; justification?: unknown; alternatives?: unknown };
+            const official = new Set<string>(OFFICIAL_SERIES.map((s) => s.code));
+            const alternatives = Array.isArray(parsed.alternatives)
+              ? parsed.alternatives.filter((a): a is string => typeof a === "string" && official.has(a))
+              : [];
+            if (typeof parsed.series === "string" && official.has(parsed.series) && typeof parsed.justification === "string") {
+              result = {
+                series: parsed.series,
+                justification: parsed.justification,
+                alternatives,
+                synthesis: templateResult.synthesis,
+              };
+              engine = "external";
+            } else {
+              logger.warn("Orientation IA externe hors référentiel, synthèse locale conservée", { series: parsed.series });
+            }
           }
         }
       } catch (error) {
@@ -1273,6 +1331,8 @@ class GovernanceService {
 
     const { predictFailureRisk } = await import("@/lib/services/ai-predictive/predict-failure");
     const localRisk = await predictFailureRisk(student.id);
+    // Seuils de priorité = niveaux de risque réglés par l'école
+    const riskLevels = (await getSchoolParameters(student.schoolId)).analysis;
 
     const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
 
@@ -1287,6 +1347,7 @@ class GovernanceService {
         failureProbability: localRisk.probability,
         failureLevel: localRisk.level,
         failureRecommendations: localRisk.recommendations,
+        thresholds: await templateThresholdsForSchool(student.schoolId),
       }
     );
 
@@ -1321,7 +1382,7 @@ class GovernanceService {
           "riskScore": ${context.riskProbability},
           "factors": ${JSON.stringify(context.factors)},
           "recommendations": ["Recommandation 1", "Recommandation 2"],
-          "priority": "${localRisk.probability >= 75 ? 'CRITICAL' : localRisk.probability >= 55 ? 'HIGH' : 'MEDIUM'}",
+          "priority": "${localRisk.probability >= riskLevels.levelVeryHigh ? 'CRITICAL' : localRisk.probability >= riskLevels.levelHigh ? 'HIGH' : 'MEDIUM'}",
           "suggestedActions": [
             { "title": "Titre court", "description": "Description détaillée", "type": "Pédagogique" | "Suivi" }
           ],

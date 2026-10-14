@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
@@ -88,6 +89,9 @@ interface ApiAchievement {
 }
 
 export default function GamificationPage() {
+    const { data: session, status } = useSession();
+    const role = session?.user?.role ?? null;
+    const canListStudents = role !== null && !["STUDENT", "PARENT"].includes(role);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -114,23 +118,24 @@ export default function GamificationPage() {
 
         const fetchAwardBasics = async () => {
             try {
-                const [achRes, stuRes] = await Promise.all([
-                    fetch("/api/gamification/achievements/award"),
-                    fetch("/api/students?limit=100"),
-                ]);
+                const achRes = await fetch("/api/gamification/achievements/award");
                 if (achRes.ok) setAllAchievements(await achRes.json());
-                if (stuRes.ok) {
-                    const d = await stuRes.json();
-                    setStudents(d.students || d.data || []);
+                if (canListStudents) {
+                    const stuRes = await fetch("/api/students?limit=100");
+                    if (stuRes.ok) {
+                        const d = await stuRes.json();
+                        setStudents(d.students || d.data || []);
+                    }
                 }
             } catch {
                 // ignore — they're optional
             }
         };
 
+        if (status === "loading") return;
         fetchLeaderboard();
         fetchAwardBasics();
-    }, []);
+    }, [status, canListStudents]);
 
     const handleAward = async (e: React.FormEvent) => {
         e.preventDefault();

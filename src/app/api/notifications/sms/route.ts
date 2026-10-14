@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -276,6 +277,7 @@ export const POST = createApiHandler(async (request, { session }) => {
                 success: true,
                 sent: result.sent,
                 failed: result.failed,
+                queued: result.queued,
                 recipientsCount: recipients.length,
             });
         }
@@ -371,6 +373,7 @@ export const POST = createApiHandler(async (request, { session }) => {
             );
         }
 
+        if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
         logger.error("SMS API error:", error as Error);
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }

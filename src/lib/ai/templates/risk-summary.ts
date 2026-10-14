@@ -1,4 +1,4 @@
-import type { RiskSummaryResult, StudentTemplateContext } from "./types";
+import { DEFAULT_TEMPLATE_THRESHOLDS, type RiskSummaryResult, type StudentTemplateContext } from "./types";
 
 function formatName(ctx: StudentTemplateContext): string {
   const name = [ctx.firstName, ctx.lastName].filter(Boolean).join(" ").trim();
@@ -7,9 +7,10 @@ function formatName(ctx: StudentTemplateContext): string {
 
 function resolvePriority(ctx: StudentTemplateContext): RiskSummaryResult["priority"] {
   const probability = ctx.failureProbability ?? 0;
-  if (probability >= 75 || ctx.riskLevel === "CRITICAL") return "CRITICAL";
-  if (probability >= 55 || ctx.riskLevel === "HIGH") return "HIGH";
-  if (probability >= 35 || ctx.riskLevel === "MEDIUM") return "MEDIUM";
+  const t = ctx.thresholds ?? DEFAULT_TEMPLATE_THRESHOLDS;
+  if (probability >= t.levelVeryHigh || ctx.riskLevel === "CRITICAL") return "CRITICAL";
+  if (probability >= t.levelHigh || ctx.riskLevel === "HIGH") return "HIGH";
+  if (probability >= t.levelModerate || ctx.riskLevel === "MEDIUM") return "MEDIUM";
   return "LOW";
 }
 
@@ -46,7 +47,7 @@ export function generateRiskSummary(ctx: StudentTemplateContext): RiskSummaryRes
     summary += ` Moyenne actuelle : ${ctx.generalAverage.toFixed(2)}/20.`;
   }
 
-  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < 85) {
+  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < (ctx.thresholds ?? DEFAULT_TEMPLATE_THRESHOLDS).attendanceWarning) {
     summary += ` Assiduité insuffisante (${ctx.attendanceRate.toFixed(0)} %).`;
   }
 
@@ -79,7 +80,7 @@ export function generateRiskSummary(ctx: StudentTemplateContext): RiskSummaryRes
     });
   }
 
-  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < 85) {
+  if (ctx.attendanceRate !== null && ctx.attendanceRate !== undefined && ctx.attendanceRate < (ctx.thresholds ?? DEFAULT_TEMPLATE_THRESHOLDS).attendanceWarning) {
     suggestedActions.push({
       title: "Suivi de l'assiduité",
       description: "Contrôle quotidien des présences et alerte immédiate des parents en cas d'absence non justifiée.",

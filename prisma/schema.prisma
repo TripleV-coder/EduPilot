@@ -157,6 +157,8 @@ model School {
 
   clubs Club[]
 
+  backgroundJobs BackgroundJob[]
+
   @@index([organizationId])
   @@index([parentSchoolId]) // P10: Performance index for hierarchy queries (childSchools)
   @@index([email]) // P4: Index for email lookups (not unique — multi-site orgs may share email)
@@ -203,18 +205,21 @@ model AcademicYear {
 }
 
 model Period {
-  id               String             @id @default(cuid())
+  id               String                  @id @default(cuid())
   academicYearId   String
   name             String
   type             PeriodType
   startDate        DateTime
   endDate          DateTime
   sequence         Int
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
   evaluations      Evaluation[]
   gradeHistory     GradeHistory[]
-  academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  councils         ClassCouncil[]
+  externalAverages ExternalPeriodAverage[]
+  studentFormulas  StudentFormula[]
+  academicYear     AcademicYear            @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   studentAnalytics StudentAnalytics[]
 
   @@unique([academicYearId, sequence])
@@ -394,6 +399,28 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+/// File de tâches de fond durable (`src/lib/jobs/queue.ts`) : envois e-mail et
+/// SMS sortis des requêtes HTTP, repris après un arrêt ou un échec.
+model BackgroundJob {
+  id          String              @id @default(cuid())
+  type        String
+  payload     Json
+  schoolId    String?
+  status      BackgroundJobStatus @default(PENDING)
+  attempts    Int                 @default(0)
+  maxAttempts Int                 @default(5)
+  runAt       DateTime            @default(now())
+  lockedAt    DateTime?
+  lastError   String?
+  createdAt   DateTime            @default(now())
+  completedAt DateTime?
+  school      School?             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([schoolId])
+  @@map("background_jobs")
+}
+
 model TeacherProfile {
   id                String                    @id @default(cuid())
   userId            String                    @unique
@@ -445,46 +472,49 @@ model TeacherSchoolAssignment {
 }
 
 model StudentProfile {
-  id                  String               @id @default(cuid())
-  userId              String               @unique
-  matricule           String
-  schoolId            String
-  dateOfBirth         DateTime?
-  gender              Gender?
-  birthPlace          String?
-  nationality         String?
-  address             String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  deletedAt           DateTime?
-  appointments        Appointment[]
-  attendances         Attendance[]
-  behaviorIncidents   BehaviorIncident[]
-  borrowings          BorrowingRecord[]
-  certificates        Certificate[]
-  courseEnrollments   CourseEnrollment[]
-  enrollments         Enrollment[]
-  eventParticipations EventParticipation[]
-  examSessions        ExamSession[]
-  gradeHistory        GradeHistory[]
-  grades              Grade[]
-  homeworkSubmissions HomeworkSubmission[]
-  lessonCompletions   LessonCompletion[]
-  medicalRecord       MedicalRecord?
-  linkCodes           StudentLinkCode[]
-  badge               Badge?
-  scanLogs            ScanLog[]
-  parentStudents      ParentStudent[]
-  guardians           StudentGuardian[]
-  paymentPlans        PaymentPlan[]
-  payments            Payment[]
-  scholarships        Scholarship[]
-  studentAnalytics    StudentAnalytics[]
-  studentOrientations StudentOrientation[]
-  alumni              Alumni[]
-  school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transports          StudentTransport[]
+  id                      String                   @id @default(cuid())
+  userId                  String                   @unique
+  matricule               String
+  schoolId                String
+  dateOfBirth             DateTime?
+  gender                  Gender?
+  birthPlace              String?
+  nationality             String?
+  address                 String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  deletedAt               DateTime?
+  appointments            Appointment[]
+  attendances             Attendance[]
+  behaviorIncidents       BehaviorIncident[]
+  borrowings              BorrowingRecord[]
+  certificates            Certificate[]
+  courseEnrollments       CourseEnrollment[]
+  enrollments             Enrollment[]
+  eventParticipations     EventParticipation[]
+  examSessions            ExamSession[]
+  gradeHistory            GradeHistory[]
+  grades                  Grade[]
+  gradeCorrectionRequests GradeCorrectionRequest[]
+  externalPeriodAverages  ExternalPeriodAverage[]
+  studentFormulas         StudentFormula[]
+  homeworkSubmissions     HomeworkSubmission[]
+  lessonCompletions       LessonCompletion[]
+  medicalRecord           MedicalRecord?
+  linkCodes               StudentLinkCode[]
+  badge                   Badge?
+  scanLogs                ScanLog[]
+  parentStudents          ParentStudent[]
+  guardians               StudentGuardian[]
+  paymentPlans            PaymentPlan[]
+  payments                Payment[]
+  scholarships            Scholarship[]
+  studentAnalytics        StudentAnalytics[]
+  studentOrientations     StudentOrientation[]
+  alumni                  Alumni[]
+  school                  School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transports              StudentTransport[]
 
   clubMemberships ClubMembership[]
 
@@ -663,6 +693,7 @@ model Class {
   deletedAt     DateTime?
   attendances   Attendance[]
   classSubjects ClassSubject[]
+  councils      ClassCouncil[]
   classLevel    ClassLevel      @relation(fields: [classLevelId], references: [id], onDelete: Cascade)
   mainTeacher   TeacherProfile? @relation(fields: [mainTeacherId], references: [id])
   school        School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -699,22 +730,25 @@ model Subject {
 }
 
 model ClassSubject {
-  id            String          @id @default(cuid())
-  classId       String
-  subjectId     String
-  teacherId     String?
-  coefficient   Decimal         @default(1) @db.Decimal(5, 2)
-  weeklyHours   Decimal?        @db.Decimal(4, 2)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  class         Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject       Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher       TeacherProfile? @relation(fields: [teacherId], references: [id])
-  courses       Course[]
-  evaluations   Evaluation[]
-  examTemplates ExamTemplate[]
-  homeworks     Homework[]
-  schedules     Schedule[]
+  id              String           @id @default(cuid())
+  classId         String
+  subjectId       String
+  teacherId       String?
+  coefficient     Decimal          @default(1) @db.Decimal(5, 2)
+  weeklyHours     Decimal?         @db.Decimal(4, 2)
+  /// Formule de la moyenne de la matière choisie par son enseignant (vide = formule de l'école)
+  averageFormula  String?          @db.VarChar(300)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  class           Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher         TeacherProfile?  @relation(fields: [teacherId], references: [id])
+  courses         Course[]
+  evaluations     Evaluation[]
+  studentFormulas StudentFormula[]
+  examTemplates   ExamTemplate[]
+  homeworks       Homework[]
+  schedules       Schedule[]
 
   @@unique([classId, subjectId])
   @@index([teacherId])
@@ -744,16 +778,19 @@ model Enrollment {
 }
 
 model EvaluationType {
-  id          String       @id @default(cuid())
+  id          String             @id @default(cuid())
   schoolId    String
   name        String
   code        String
-  weight      Decimal      @default(1) @db.Decimal(5, 2)
+  weight      Decimal            @default(1) @db.Decimal(5, 2)
   maxCount    Int?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  /// Rôle dans la moyenne : interrogation (MI), devoir, composition, ou compétence
+  /// (grille de compétences, jamais comptée dans les moyennes). Réglé par l'établissement.
+  category    EvaluationCategory @default(INTERROGATION)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  school      School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   evaluations Evaluation[]
 
   @@unique([schoolId, code])
@@ -761,20 +798,21 @@ model EvaluationType {
 }
 
 model Evaluation {
-  id             String         @id @default(cuid())
-  classSubjectId String
-  periodId       String
-  typeId         String
-  title          String?
-  date           DateTime
-  maxGrade       Decimal        @default(20) @db.Decimal(5, 2)
-  coefficient    Decimal        @default(1) @db.Decimal(5, 2)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  classSubject   ClassSubject   @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)
-  period         Period         @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  type           EvaluationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
-  grades         Grade[]
+  id                 String                   @id @default(cuid())
+  classSubjectId     String
+  periodId           String
+  typeId             String
+  title              String?
+  date               DateTime
+  maxGrade           Decimal                  @default(20) @db.Decimal(5, 2)
+  coefficient        Decimal                  @default(1) @db.Decimal(5, 2)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  classSubject       ClassSubject             @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)
+  period             Period                   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  type               EvaluationType           @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  grades             Grade[]
+  correctionRequests GradeCorrectionRequest[]
 
   @@index([classSubjectId])
   @@index([periodId])
@@ -785,18 +823,22 @@ model Evaluation {
 }
 
 model Grade {
-  id           String         @id @default(cuid())
-  evaluationId String
-  studentId    String
-  value        Decimal?       @db.Decimal(5, 2)
-  isAbsent     Boolean        @default(false)
-  isExcused    Boolean        @default(false)
-  comment      String?
-  deletedAt    DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  evaluation   Evaluation     @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id             String         @id @default(cuid())
+  evaluationId   String
+  studentId      String
+  value          Decimal?       @db.Decimal(5, 2)
+  isAbsent       Boolean        @default(false)
+  isExcused      Boolean        @default(false)
+  /// Motif de l'absence justifiée (billet visé par le directeur des études).
+  excuseReason   String?
+  /// Note que l'enseignant ne compte pas pour cet élève (motif) ; vide = note comptée
+  excludedReason String?        @db.VarChar(300)
+  comment        String?
+  deletedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  evaluation     Evaluation     @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([evaluationId, studentId])
   @@index([evaluationId])
@@ -2075,6 +2117,13 @@ enum PaymentStatus {
   CANCELLED
 }
 
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
 enum NotificationType {
   INFO
   SUCCESS
@@ -2296,6 +2345,8 @@ enum RecommendedSeries {
   MMV
   TOUR
   HR
+  EA
+  MIA
   FORMATION_PRO
   APPRENTISSAGE
 }
@@ -3237,4 +3288,104 @@ model ClubMembership {
   @@unique([clubId, studentId])
   @@index([studentId])
   @@map("club_memberships")
+}
+
+enum EvaluationCategory {
+  INTERROGATION
+  DEVOIR
+  COMPOSITION
+  COMPETENCE
+}
+
+enum GradeCorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Conseil de classe validé pour une période : fige les notes (sauf réclamation
+/// approuvée) et les coefficients appliqués aux moyennes de la période.
+model ClassCouncil {
+  id            String   @id @default(cuid())
+  classId       String
+  periodId      String
+  validatedAt   DateTime @default(now())
+  validatedById String
+  /// Coefficients figés : { [classSubjectId]: "3.00" }
+  coefficients  Json
+  /// Règles de calcul de l'établissement en vigueur au moment de la validation (gelées)
+  rules         Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period        Period   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, periodId])
+  @@map("class_councils")
+}
+
+/// Correction de note après conseil (réclamation) : saisie par l'enseignant de
+/// la matière, appliquée seulement après approbation du directeur des études.
+model GradeCorrectionRequest {
+  id              String                @id @default(cuid())
+  evaluationId    String
+  studentId       String
+  requestedById   String
+  proposedValue   Decimal?              @db.Decimal(5, 2)
+  proposedAbsent  Boolean               @default(false)
+  proposedExcused Boolean               @default(false)
+  excuseReason    String?
+  reason          String
+  status          GradeCorrectionStatus @default(PENDING)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  evaluation      Evaluation            @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  student         StudentProfile        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([evaluationId, studentId])
+  @@map("grade_correction_requests")
+}
+
+/// Moyenne générale d'une période obtenue dans l'établissement d'origine
+/// (élève transféré), saisie depuis son bulletin de transfert.
+model ExternalPeriodAverage {
+  id           String         @id @default(cuid())
+  studentId    String
+  periodId     String
+  average      Decimal        @db.Decimal(5, 2)
+  originSchool String
+  enteredById  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  period       Period         @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, periodId])
+  @@map("external_period_averages")
+}
+
+/// Calcul adapté pour UN élève dans une matière et une période, écrit par
+/// l'enseignant de la matière (motif obligatoire, figé au conseil de classe).
+model StudentFormula {
+  id             String         @id @default(cuid())
+  classSubjectId String
+  periodId       String
+  studentId      String
+  formula        String         @db.VarChar(300)
+  reason         String         @db.VarChar(300)
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  classSubject   ClassSubject   @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)
+  period         Period         @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classSubjectId, periodId, studentId])
+  @@index([studentId])
+  @@index([periodId])
+  @@map("student_formulas")
 }

@@ -57,22 +57,11 @@ export const gradeMentions = [
     { code: "EXCELLENT", label: "Excellent", minScore: 18, maxScore: 20, color: "#8B5CF6" },
 ];
 
-// Fonction pour obtenir la mention d'une moyenne
+// Mention d'une moyenne, en tranches semi-ouvertes [min ; min suivant[ :
+// aucune moyenne entre 9,99 et 10 (ou 11,99 et 12…) ne reste sans mention.
 export function getMention(average: number): typeof gradeMentions[0] | null {
-    return gradeMentions.find(m => average >= m.minScore && average <= m.maxScore) || null;
-}
-
-// Fonction pour calculer la moyenne pondérée
-export function calculateWeightedAverage(
-    grades: { value: number; coefficient: number }[]
-): number {
-    if (grades.length === 0) return 0;
-
-    const totalWeighted = grades.reduce((sum, g) => sum + (g.value * g.coefficient), 0);
-    const totalCoefficients = grades.reduce((sum, g) => sum + g.coefficient, 0);
-
-    if (totalCoefficients === 0) return 0;
-    return Math.round((totalWeighted / totalCoefficients) * 100) / 100;
+    if (!Number.isFinite(average) || average < 0 || average > 20) return null;
+    return [...gradeMentions].reverse().find((m) => average >= m.minScore) ?? null;
 }
 
 // Matières BAC (Exemple Série D - Très courante au Bénin)

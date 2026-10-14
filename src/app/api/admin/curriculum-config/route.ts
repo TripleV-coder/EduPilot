@@ -67,7 +67,7 @@ export const GET = createApiHandler(
       count: classSubjects.length,
     });
   },
-  { requireAuth: true, allowedRoles: ["SUPER_ADMIN"] }
+  { requireAuth: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] }
 );
 
 // ============================================

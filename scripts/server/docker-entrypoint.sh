@@ -6,8 +6,9 @@
 #    d'un schéma plus ancien sert des erreurs 500 : mieux vaut refuser de
 #    démarrer. `migrate deploy` n'applique que des migrations déjà écrites,
 #    ne génère rien et ne supprime rien.
-# 2. Lance le serveur standalone AVEC les deux préchargements : adresse client
-#    fiable (audit H3) et arrêt propre sur SIGTERM (Lot 7).
+# 2. Lance le serveur standalone via cluster.cjs, qui charge les deux
+#    préchargements (adresse client fiable H3, arrêt propre Lot 7) et démarre
+#    WEB_CONCURRENCY processus (1 par défaut ; REDIS_URL obligatoire au-delà).
 #
 # `exec` est indispensable : le serveur devient PID 1 et reçoit lui-même le
 # SIGTERM de `docker stop`. Sans lui, le shell l'intercepterait et les requêtes
@@ -22,6 +23,7 @@
 #                           À défaut, DATABASE_URL est utilisée.
 #   SKIP_MIGRATIONS=true  — démarre sans migrer (reprise après incident, quand
 #                           l'exploitant veut migrer à la main).
+#   WEB_CONCURRENCY       — nombre de processus serveur (1, N ou « max »).
 set -e
 
 MIGRATION_URL="${MIGRATE_DATABASE_URL:-$DATABASE_URL}"
@@ -37,5 +39,5 @@ else
   echo "[edupilot] Migrations à jour."
 fi
 
-echo "[edupilot] Démarrage du serveur sur le port ${PORT:-3000}."
-exec node --require ./client-ip-preload.cjs --require ./graceful-shutdown.cjs server.js
+echo "[edupilot] Démarrage du serveur sur le port ${PORT:-3000} (WEB_CONCURRENCY=${WEB_CONCURRENCY:-1})."
+exec node ./cluster.cjs server.js

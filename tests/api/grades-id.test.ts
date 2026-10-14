@@ -22,6 +22,9 @@ vi.mock("@/lib/prisma", () => ({
     grade: { findUnique: vi.fn(), update: vi.fn() },
     teacherProfile: { findUnique: vi.fn() },
     period: { findUnique: vi.fn() },
+    classCouncil: { findUnique: vi.fn() },
+    configOption: { findFirst: vi.fn() },
+    auditLog: { createMany: vi.fn() },
   },
 }));
 
@@ -47,7 +50,12 @@ function existingGrade(overrides: Record<string, unknown> = {}) {
     evaluation: {
       periodId: "period-1",
       maxGrade: 20,
-      classSubject: { teacherId: teacherProfileId },
+      classSubject: {
+        teacherId: teacherProfileId,
+        classId: cuid("classe6a"),
+        teacher: { userId: teacherUserId },
+        class: { schoolId: FIXTURES.schoolA },
+      },
     },
     student: { user: { firstName: "Awa", lastName: "Dossou" } },
     ...overrides,
@@ -187,12 +195,50 @@ describe("PATCH /api/grades/[id]", () => {
     expect(body.comment).toBe("Très bien");
     expect(syncAnalyticsAfterGradeChange).toHaveBeenCalledWith(evaluationId, [FIXTURES.studentA]);
     expect(invalidateByPath).toHaveBeenCalled();
+    // Historique : valeur avant / après, visible du personnel
+    expect(prisma.auditLog.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ action: "GRADE_CHANGED", oldValues: expect.objectContaining({ value: 12 }), newValues: expect.objectContaining({ value: 17 }) })],
+    });
+  });
+
+  it("une note saisie sur une absence justifiée retire l'absence et son motif (recomposition)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.grade.findUnique).mockResolvedValue(
+      existingGrade({ value: null, isAbsent: true, isExcused: true, excuseReason: "Maladie" }) as unknown as Grade
+    );
+    vi.mocked(prisma.grade.update).mockResolvedValue(existingGrade({ value: 11 }) as unknown as Grade);
+
+    const response = await PATCH(
+      makeRequest(`http://localhost:3000/api/grades/${gradeId}`, { method: "PATCH", body: { value: 11 } }),
+      params
+    );
+    expect(response.status).toBe(200);
+    expect(vi.mocked(prisma.grade.update).mock.calls[0][0].data).toEqual(
+      expect.objectContaining({ value: 11, isAbsent: false, isExcused: false, excuseReason: null })
+    );
   });
 });
 
 describe("DELETE /api/grades/[id]", () => {
-  it("effectue un soft-delete et synchronise les dépendances", async () => {
+  it("refuse la direction : seul l'enseignant de la matière supprime (403)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.grade.findUnique).mockResolvedValue(existingGrade() as unknown as Grade);
+    const response = await DELETE(makeRequest(`http://localhost:3000/api/grades/${gradeId}`, { method: "DELETE" }), params);
+    expect(response.status).toBe(403);
+    expect(prisma.grade.update).not.toHaveBeenCalled();
+  });
+
+  it("refuse après validation du conseil (409 COUNCIL_LOCKED)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.grade.findUnique).mockResolvedValue(existingGrade() as unknown as Grade);
+    vi.mocked(prisma.classCouncil.findUnique).mockResolvedValueOnce({ validatedAt: new Date() } as never);
+    const response = await DELETE(makeRequest(`http://localhost:3000/api/grades/${gradeId}`, { method: "DELETE" }), params);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COUNCIL_LOCKED");
+  });
+
+  it("effectue un soft-delete et synchronise les dépendances", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
     vi.mocked(prisma.grade.findUnique).mockResolvedValue(existingGrade() as unknown as Grade);
     vi.mocked(prisma.grade.update).mockResolvedValue(existingGrade() as unknown as Grade);
 

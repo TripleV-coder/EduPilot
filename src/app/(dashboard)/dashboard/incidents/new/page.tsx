@@ -127,7 +127,7 @@ export default function NewIncidentPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
             <PageShell>
                 <PageHeader
                     title="Signaler un incident"
@@ -168,6 +168,11 @@ export default function NewIncidentPage() {
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
+                                                {!isLoadingStudents && students.length === 0 ? (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Aucun élève dans vos classes.
+                                                    </p>
+                                                ) : null}
                                             </FormItem>
                                         )}
                                     />

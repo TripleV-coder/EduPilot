@@ -8,11 +8,15 @@
  * - seulement quand l'élève DEVIENT absent ou en retard (pas à chaque
  *   réenregistrement du même appel) — l'appelant fournit ces changements ;
  * - un échec d'envoi ne remet jamais en cause l'appel déjà enregistré.
+ *
+ * Courriels et SMS passent par la file d'envoi : l'enseignant n'attend plus
+ * un aller-retour fournisseur par famille avant de voir son appel enregistré.
  */
 import prisma from "@/lib/prisma";
-import { createNotification } from "@/lib/services/notification.service";
-import { sendAttendanceSMS } from "@/lib/notifications/sms-service";
-import { sendEmail } from "@/lib/email";
+import { createNotifications } from "@/lib/services/notification.service";
+import { attendanceSmsMessage, isSmsProviderConfigured } from "@/lib/notifications/sms-service";
+import { enqueueJobs } from "@/lib/jobs/queue";
+import type { NewJob } from "@/lib/jobs/types";
 import { logger } from "@/lib/utils/logger";
 
 const escapeHtml = (value: string) =>
@@ -46,8 +50,9 @@ export async function notifyParentsOfAbsences(input: {
     });
 
     const day = input.date.toLocaleDateString("fr-FR");
-    const smsEnabled = Boolean(process.env.SMS_WEBHOOK_URL);
-    let notified = 0;
+    const smsEnabled = isSmsProviderConfigured();
+    const notifications: Parameters<typeof createNotifications>[0] = [];
+    const jobs: NewJob[] = [];
     let sms = 0;
 
     for (const student of students) {
@@ -57,27 +62,26 @@ export async function notifyParentsOfAbsences(input: {
         const accountUsers = student.parentStudents.map((link) => link.parent.user);
 
         for (const parent of accountUsers) {
-            try {
-                await createNotification({
-                    userId: parent.id,
-                    type: "ATTENDANCE",
-                    title: status === "ABSENT" ? "Absence signalée" : "Retard signalé",
-                    message: `${name} a été marqué(e) ${STATUS_LABEL[status]} le ${day}.`,
-                    link: `/dashboard/students/${student.id}`,
-                });
-                notified++;
-            } catch (error) {
-                logger.error("[appel] notification parent impossible", error as Error);
-            }
+            notifications.push({
+                userId: parent.id,
+                type: "ATTENDANCE",
+                title: status === "ABSENT" ? "Absence signalée" : "Retard signalé",
+                message: `${name} a été marqué(e) ${STATUS_LABEL[status]} le ${day}.`,
+                link: `/dashboard/students/${student.id}`,
+            });
             // Courriel : le parent n'ouvre pas forcément l'application le jour même.
             if (parent.email) {
                 const title = status === "ABSENT" ? "Absence" : "Retard";
-                await sendEmail({
-                    to: parent.email,
-                    subject: `${title} de ${name} le ${day}`,
-                    html: `<p>Bonjour ${escapeHtml(parent.firstName ?? "")},</p><p>${escapeHtml(name)} a été marqué(e) ${STATUS_LABEL[status]} le ${day} lors de l'appel.</p><p>Vous pouvez justifier cette ${status === "ABSENT" ? "absence" : "arrivée tardive"} depuis votre espace EduPilot, rubrique Assiduité.</p>`,
-                    text: `${name} a été marqué(e) ${STATUS_LABEL[status]} le ${day}. Justification possible depuis votre espace EduPilot (Assiduité).`,
-                }).catch((error) => logger.error("[appel] courriel parent impossible", error as Error));
+                jobs.push({
+                    type: "email.send",
+                    schoolId: input.schoolId,
+                    payload: {
+                        to: parent.email,
+                        subject: `${title} de ${name} le ${day}`,
+                        html: `<p>Bonjour ${escapeHtml(parent.firstName ?? "")},</p><p>${escapeHtml(name)} a été marqué(e) ${STATUS_LABEL[status]} le ${day} lors de l'appel.</p><p>Vous pouvez justifier cette ${status === "ABSENT" ? "absence" : "arrivée tardive"} depuis votre espace EduPilot, rubrique Assiduité.</p>`,
+                        text: `${name} a été marqué(e) ${STATUS_LABEL[status]} le ${day}. Justification possible depuis votre espace EduPilot (Assiduité).`,
+                    },
+                });
             }
         }
 
@@ -88,15 +92,31 @@ export async function notifyParentsOfAbsences(input: {
             (phone) => !accountPhones.has(phone),
         );
         for (const phone of phones) {
-            const result = await sendAttendanceSMS({
-                parentPhone: phone,
-                studentName: name,
-                status: STATUS_LABEL[status],
-                date: input.date,
+            jobs.push({
+                type: "sms.send",
                 schoolId: input.schoolId,
-            }).catch(() => ({ success: false }));
-            if (result.success) sms++;
+                payload: {
+                    phoneNumber: phone,
+                    message: attendanceSmsMessage({ studentName: name, status: STATUS_LABEL[status], date: input.date }),
+                    smsType: "ATTENDANCE",
+                    schoolId: input.schoolId,
+                },
+            });
+            sms++;
         }
+    }
+
+    let notified = 0;
+    try {
+        notified = (await createNotifications(notifications)).count;
+    } catch (error) {
+        logger.error("[appel] notifications parents impossibles", error as Error);
+    }
+    try {
+        await enqueueJobs(jobs);
+    } catch (error) {
+        sms = 0;
+        logger.error("[appel] courriels et SMS aux familles non programmés", error as Error);
     }
 
     return { notified, sms };

@@ -1,12 +1,12 @@
 # ============================================================
 # EduPilot — Dockerfile multi-stage optimisé
-# Node 20 Alpine · next build standalone · rootless
+# Node 24 LTS Alpine · next build standalone · rootless
 # ============================================================
 
 # -----------------------------------------------
 # Étape 1 : deps — installer les dépendances npm
 # -----------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN npm ci --frozen-lockfile
 # -----------------------------------------------
 # Étape 2 : builder — compiler l'application
 # -----------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 RUN apk add --no-cache openssl
 
 WORKDIR /app
@@ -37,7 +37,7 @@ RUN npm run build
 # -----------------------------------------------
 # Étape 3 : runner — image de production minimale
 # -----------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 RUN apk add --no-cache openssl curl
 
@@ -47,6 +47,10 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# Pool de threads libuv : le hachage des mots de passe (bcrypt natif) s'y
+# exécute, hors du thread des requêtes. 4 par défaut ; un par cœur alloué au
+# processus. Avec WEB_CONCURRENCY > 1, chaque processus a son propre pool.
+ENV UV_THREADPOOL_SIZE=4
 
 # Créer un utilisateur non-root pour la sécurité
 RUN addgroup --system --gid 1001 nodejs && \
@@ -64,6 +68,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/client-ip-preload.cjs ./client-ip-preload.cjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/graceful-shutdown.cjs ./graceful-shutdown.cjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/docker-entrypoint.sh ./docker-entrypoint.sh
+# Lanceur multi-processus (WEB_CONCURRENCY), analyse de capacité 2026-10-01.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/cluster.cjs ./cluster.cjs
+
+# Fichiers téléversés : à monter sur un volume (docker-compose : uploads_data),
+# sinon ils disparaissent à chaque recréation du conteneur.
+RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 
 # Schéma et migrations, appliquées au démarrage par l'entrypoint.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma

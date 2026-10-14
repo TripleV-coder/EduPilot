@@ -20,6 +20,7 @@ import { entityIdFromPath, sensitiveAreaForPath, shouldLogRead } from "@/lib/sec
 import { createAuditLog } from "@/lib/security/audit-log";
 import { getEnabledModules } from "@/lib/modules/school-modules";
 import { InvalidCursorError } from "@/lib/api/pagination";
+import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
 
@@ -505,6 +506,10 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             }
             if (error instanceof InvalidCursorError) {
                 return NextResponse.json({ error: error.message, code: "INVALID_CURSOR" }, { status: 400 });
+            }
+            // Surcharge (file saturée, fournisseur coupé) : pas une panne, le client réessaie.
+            if (error instanceof ServiceUnavailableError) {
+                return serviceUnavailableResponse(error);
             }
 
             // Journal expurgé (Lot 6) et identifié (Lot 7). L'URL brute

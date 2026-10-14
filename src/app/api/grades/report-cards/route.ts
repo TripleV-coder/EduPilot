@@ -3,7 +3,9 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
-import { normalizeGradeTo20, roundTo } from "@/lib/analytics/helpers";
+import { countsInAverage, gradeStatus, toDisplay } from "@/lib/academic/average-engine";
+import { computeClassPeriod } from "@/lib/academic/class-averages";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
 
 // Types for report card data
 interface SubjectGrade {
@@ -38,6 +40,9 @@ interface ReportCardData {
   overallAverage20: number;
   classRank?: number;
   classSize?: number;
+  /** false tant qu'une note attendue n'est ni saisie ni justifiée */
+  isComplete: boolean;
+  missingGrades: number;
   attendance: {
     present: number;
     absent: number;
@@ -45,86 +50,6 @@ interface ReportCardData {
   };
   comments?: string;
   generatedAt: Date;
-}
-
-// Simple in-memory cache for rankings to avoid N^2 during batch generation
-const rankingCache = new Map<string, { studentId: string; rank: number; size: number; timestamp: number }[]>();
-const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-
-async function getClassRanking(studentId: string, classId: string, periodId: string, academicYearId: string) {
-  const cacheKey = `${classId}-${periodId}`;
-  const now = Date.now();
-
-  let ranking = rankingCache.get(cacheKey);
-
-  if (!ranking || (now - ranking[0].timestamp) > CACHE_TTL) {
-    const classStudents = await prisma.enrollment.findMany({
-      where: { classId, academicYearId, status: "ACTIVE" },
-      select: { studentId: true },
-    });
-
-    if (classStudents.length === 0) return { classRank: undefined, classSize: 0 };
-
-    const rankingGrades = await prisma.grade.findMany({
-      where: {
-        studentId: { in: classStudents.map(s => s.studentId) },
-        deletedAt: null,
-        value: { not: null },
-        isAbsent: false,
-        evaluation: { periodId, classSubject: { classId } },
-      },
-      select: {
-        studentId: true,
-        value: true,
-        evaluation: {
-          select: {
-            maxGrade: true,
-            coefficient: true,
-            classSubjectId: true,
-            classSubject: { select: { coefficient: true } },
-          },
-        },
-      },
-    });
-
-    const studentStats = new Map<string, Map<string, { sum: number; coeff: number; subCoeff: number }>>();
-
-    rankingGrades.forEach(g => {
-      const norm = normalizeGradeTo20(Number(g.value), Number(g.evaluation.maxGrade));
-      if (norm === null) return;
-
-      if (!studentStats.has(g.studentId)) studentStats.set(g.studentId, new Map());
-      const subMap = studentStats.get(g.studentId)!;
-      const subId = g.evaluation.classSubjectId;
-
-      if (!subMap.has(subId)) {
-        subMap.set(subId, { sum: 0, coeff: 0, subCoeff: Number(g.evaluation.classSubject.coefficient) || 1 });
-      }
-      const stat = subMap.get(subId)!;
-      stat.sum += norm * (Number(g.evaluation.coefficient) || 1);
-      stat.coeff += Number(g.evaluation.coefficient) || 1;
-    });
-
-    const finalRanking = Array.from(studentStats.entries()).map(([sId, subs]) => {
-      let totalWeighted = 0;
-      let totalSubCoeff = 0;
-      subs.forEach(s => {
-        if (s.coeff > 0) {
-          totalWeighted += (s.sum / s.coeff) * s.subCoeff;
-          totalSubCoeff += s.subCoeff;
-        }
-      });
-      return { studentId: sId, average: totalSubCoeff > 0 ? totalWeighted / totalSubCoeff : 0 };
-    })
-      .sort((a, b) => b.average - a.average)
-      .map((r, index, arr) => ({ studentId: r.studentId, rank: index + 1, size: arr.length, timestamp: now }));
-
-    rankingCache.set(cacheKey, finalRanking);
-    ranking = finalRanking;
-  }
-
-  const studentRank = ranking.find(r => r.studentId === studentId);
-  return { classRank: studentRank?.rank, classSize: ranking.length };
 }
 
 // Helper function to get report card data
@@ -143,10 +68,14 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
         where: {
           academicYearId: period.academicYearId,
         },
+        // Inscription active d'abord (un élève passé d'une classe à l'autre garde
+        // une inscription close)
+        orderBy: { status: "asc" },
         include: {
           class: {
             include: {
               classLevel: true,
+              classSubjects: { select: { id: true, subjectId: true, coefficient: true } },
             },
           },
           academicYear: true,
@@ -166,9 +95,6 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
     where: {
       studentId,
       deletedAt: null,
-      value: { not: null },
-      isAbsent: false,
-      isExcused: false,
       evaluation: { periodId, classSubject: { classId: enrollment.classId } },
     },
     include: {
@@ -184,11 +110,23 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
               },
             },
           },
-          type: { select: { name: true } },
+          type: { select: { name: true, code: true, category: true } },
         },
       },
     },
   });
+
+  // Calcul de la classe entière, identique au bulletin : règles de l'école,
+  // coefficients et règles gelés par le conseil, notes manquantes, rang, effectif
+  const classPeriod = await computeClassPeriod({
+    classId: classObj.id,
+    periodId,
+    academicYearId: enrollment.academicYearId,
+    classSubjects: classObj.classSubjects,
+  });
+  const own = classPeriod.students.get(studentId);
+  const rules = classPeriod.rules;
+  const passingGrade = await getPassingGrade(classObj.schoolId);
 
   // Process grades into report card format
   interface SubjectData {
@@ -206,7 +144,7 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
     average: number;
     average20: number;
     passed: boolean;
-    subjectCoefficient: number;
+    classSubjectId: string;
   }
   const subjectMap = new Map<string, SubjectData>();
 
@@ -224,47 +162,37 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
         average: 0,
         average20: 0,
         passed: false,
-        subjectCoefficient: Number(grade.evaluation.classSubject.coefficient) || 1,
+        classSubjectId: grade.evaluation.classSubjectId,
       });
     }
 
     const subject = subjectMap.get(subjectName)!;
+    // Liste imprimée : notes comptées dans la moyenne (hors compétences) et,
+    // si l'école les compte 0, les absences non justifiées
+    if (!countsInAverage(grade.evaluation.type)) return;
+    const status = gradeStatus(grade);
+    const absenceCounted = status === "ABSENT_UNJUSTIFIED" && rules.unjustifiedAbsence === "ZERO";
+    if (status !== "GRADED" && !absenceCounted) return;
     subject.grades.push({
       date: grade.evaluation.date,
-      type: grade.evaluation.type.name,
-      grade: Number(grade.value),
+      type: absenceCounted ? `${grade.evaluation.type.name} (absence non justifiée)` : grade.evaluation.type.name,
+      grade: status === "ABSENT_UNJUSTIFIED" ? 0 : Number(grade.value),
       maxGrade: Number(grade.evaluation.maxGrade),
       coefficient: Number(grade.evaluation.coefficient) || 1,
       comment: grade.comment,
     });
   });
 
-  const subjects: SubjectGrade[] = [];
-  let totalWeighted = 0;
-  let totalCoefficients = 0;
+  const show = (v: Parameters<typeof toDisplay>[0]) => toDisplay(v, rules.rounding);
 
+  const subjects: SubjectGrade[] = [];
   subjectMap.forEach((subject) => {
     subject.grades.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-
-    let weightedSum = 0;
-    let totalCoeff = 0;
-
-    subject.grades.forEach((grade) => {
-      const normalizedGrade = normalizeGradeTo20(grade.grade, grade.maxGrade);
-      if (normalizedGrade === null) return;
-
-      weightedSum += normalizedGrade * grade.coefficient;
-      totalCoeff += grade.coefficient;
-    });
-
-    const subjectAverage = totalCoeff > 0 ? weightedSum / totalCoeff : 0;
-    const subjectAverage20 = roundTo(subjectAverage);
-
-    totalWeighted += subjectAverage20 * subject.subjectCoefficient;
-    totalCoefficients += subject.subjectCoefficient;
-
+    const subjectAverage20 = show(own?.averages.subjects.get(subject.classSubjectId) ?? null);
+    // Matière sans note comptée (uniquement des absences justifiées) : rien à imprimer
+    if (subjectAverage20 === null) return;
     subjects.push({
       subject: subject.subject,
       subjectCode: subject.subjectCode,
@@ -272,15 +200,12 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
       grades: subject.grades,
       average: subjectAverage20,
       average20: subjectAverage20,
-      passed: subjectAverage20 >= 10,
+      passed: subjectAverage20 >= passingGrade,
     });
   });
 
-  const overallAverage20 =
-    totalCoefficients > 0 ? roundTo(totalWeighted / totalCoefficients) : 0;
+  const overallAverage20 = own?.general ?? 0;
 
-  // Calculate class rank efficiently
-  const { classRank, classSize } = await getClassRanking(studentId, classObj.id, periodId, enrollment.academicYearId);
 
   // Get attendance
   const attendanceRecords = await prisma.attendance.findMany({
@@ -321,8 +246,10 @@ async function getReportCardData(studentId: string, periodId: string): Promise<R
     subjects: subjects.sort((a, b) => a.subject.localeCompare(b.subject)),
     overallAverage: overallAverage20,
     overallAverage20,
-    classRank,
-    classSize,
+    classRank: own?.rank ?? undefined,
+    classSize: classPeriod.classSize,
+    isComplete: own?.averages.complete ?? false,
+    missingGrades: own?.averages.missing.length ?? 0,
     attendance,
     comments,
     generatedAt: new Date(),
@@ -428,6 +355,8 @@ const body = await request.json();
       return NextResponse.json(reportCardData);
     }
 
+    // Une note « NC » ne bloque rien (décision du 2026-10-02) : le bulletin est
+    // édité, les notes manquantes restent signalées (missingGrades)
     logger.info("Generating PDF report card", { studentId, periodId });
 
     const pdfData = {

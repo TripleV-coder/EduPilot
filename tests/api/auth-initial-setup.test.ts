@@ -23,8 +23,8 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => {
     checkRateLimitKey: checkRateLimitMock,
   };
 });
-// bcryptjs : hash réel coûteux (12 rounds) → mock au niveau module.
-vi.mock("bcryptjs", () => ({
+// Hachage (lib/auth/password) : hash réel coûteux (12 rounds) → mock au niveau module.
+vi.mock("@/lib/auth/password", () => ({
   hash: vi.fn().mockResolvedValue("hashed-password"),
   compare: vi.fn(),
 }));

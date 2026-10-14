@@ -53,9 +53,9 @@ type CepData = {
         candidatesCount: number;
         successRateEstimate: number | null;
         mentionBienProjected: number;
+        mentionBienFrom: number;
         toReinforce: number;
-        decInscriptionsSent: number;
-        decInscriptionsTotal: number;
+        passMark: number;
     };
     students: StudentRow[];
     cyclesInfo: CycleInfo[];
@@ -75,6 +75,8 @@ export default function OrientationCepPage() {
     const [data, setData] = useState<CepData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [enrollOpen, setEnrollOpen] = useState(false);
+    const [enrolling, setEnrolling] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -166,11 +168,46 @@ export default function OrientationCepPage() {
                                 <Button variant="secondary" icon="download">
                                     Liste candidats DEC-MEMP
                                 </Button>
-                                <Button icon="check">Inscrire au CEP</Button>
+                                <Button icon="check" onClick={() => setEnrollOpen(true)}>Inscrire au CEP</Button>
                             </>
                         ) : null
                     }
                 />
+
+                {enrollOpen ? (
+                    <Card padding={16}>
+                        <form
+                            role="dialog"
+                            aria-label="Inscrire au CEP"
+                            className="flex flex-col gap-3"
+                            onSubmit={async (event) => {
+                                event.preventDefault();
+                                setEnrolling(true);
+                                setError(null);
+                                try {
+                                    const res = await fetch("/api/orientation/cep", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ classId: selectedClass, academicYearId: selectedYear }),
+                                    });
+                                    const body = await res.json().catch(() => ({}));
+                                    if (!res.ok) throw new Error(body.error || "Inscription impossible");
+                                    setEnrollOpen(false);
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Inscription impossible");
+                                } finally {
+                                    setEnrolling(false);
+                                }
+                            }}
+                        >
+                            <p className="text-sm">Inscrire les élèves actifs de cette classe à la session CEP.</p>
+                            <div className="flex gap-2">
+                                <Button type="submit" loading={enrolling}>Confirmer</Button>
+                                <Button type="button" variant="secondary" onClick={() => setEnrollOpen(false)}>Annuler</Button>
+                            </div>
+                        </form>
+                    </Card>
+                ) : null}
 
                 {/* Selector */}
                 <Card padding={0} style={{ display: "block" }}>
@@ -318,7 +355,7 @@ export default function OrientationCepPage() {
                                 variant="success"
                             />
                             <MetricCard
-                                label='Mention "Bien" projetée'
+                                label={`Mention « Bien » projetée (≥ ${data.metrics.mentionBienFrom})`}
                                 value={String(data.metrics.mentionBienProjected)}
                                 icon="trophy"
                                 variant="success"
@@ -328,12 +365,6 @@ export default function OrientationCepPage() {
                                 value={String(data.metrics.toReinforce)}
                                 icon="warning"
                                 variant="warning"
-                            />
-                            <MetricCard
-                                label="Inscriptions DEC envoyées"
-                                value={`${data.metrics.decInscriptionsSent}/${data.metrics.decInscriptionsTotal}`}
-                                icon="check"
-                                variant="success"
                             />
                         </div>
 
@@ -464,9 +495,9 @@ export default function OrientationCepPage() {
                                                 const avgColor =
                                                     r.generalAverage === null
                                                         ? "var(--eduflow-text-tertiary)"
-                                                        : r.generalAverage >= 14
+                                                        : r.generalAverage >= data.metrics.mentionBienFrom
                                                         ? "var(--eduflow-success-700)"
-                                                        : r.generalAverage < 10
+                                                        : r.generalAverage < data.metrics.passMark
                                                         ? "var(--eduflow-danger-700)"
                                                         : "var(--eduflow-text-primary)";
                                                 return (

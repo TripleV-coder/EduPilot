@@ -49,6 +49,7 @@ export function NoteCell({
     editing,
     dirty,
     maxGrade,
+    step = "0.01",
     onFocus,
     onBlur,
     onChange,
@@ -58,6 +59,8 @@ export function NoteCell({
     editing: boolean;
     dirty: boolean;
     maxGrade: number;
+    /** Précision de saisie de l'établissement (0,01 ; 0,25 ; 0,5 ; 1). */
+    step?: string;
     onFocus: () => void;
     onBlur: () => void;
     onChange: (v: string) => void;
@@ -88,7 +91,7 @@ export function NoteCell({
         >
             <input
                 type="number"
-                step="0.25"
+                step={step}
                 min={0}
                 max={maxGrade}
                 value={value}
@@ -282,10 +285,12 @@ export function FieldText({
     min,
     step,
     full,
+    disabled,
 }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
+    disabled?: boolean;
     type?: string;
     placeholder?: string;
     required?: boolean;
@@ -314,6 +319,7 @@ export function FieldText({
                 required={required}
                 min={min}
                 step={step}
+                disabled={disabled}
                 style={{
                     width: "100%",
                     height: 38,

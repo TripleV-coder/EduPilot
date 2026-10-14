@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    evaluation: { findFirst: vi.fn() },
+    auditLog: { create: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -39,6 +42,8 @@ function typeFixture(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Transaction interactive : le client de transaction est le client simulé
+  vi.mocked(prisma.$transaction).mockImplementation((async (fn: (tx: typeof prisma) => unknown) => fn(prisma)) as never);
 });
 
 describe("GET /api/evaluation-types", () => {
@@ -269,6 +274,38 @@ describe("PATCH /api/evaluation-types/[id]", () => {
     const body = await res.json();
     expect(body.name).toBe("Interrogation");
     expect(body.weight).toBe(2);
+  });
+
+  it("refuse de changer le rôle d'un type déjà utilisé dans une période figée (409)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.evaluationType.findUnique).mockResolvedValue({ ...typeFixture(), category: "INTERROGATION" } as never);
+    vi.mocked(prisma.evaluation.findFirst).mockResolvedValueOnce({ id: "ev1" } as never);
+    const res = await PATCH(
+      makeRequest(`${typeRoute}/${typeId}`, { method: "PATCH", body: { category: "DEVOIR" } }),
+      routeParams
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("EVALUATION_TYPE_FROZEN");
+    expect(prisma.evaluationType.update).not.toHaveBeenCalled();
+  });
+
+  it("change le rôle dans la moyenne et le trace (journal avant / après)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.evaluationType.findUnique).mockResolvedValue({ ...typeFixture(), category: "INTERROGATION" } as never);
+    vi.mocked(prisma.evaluation.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.evaluationType.update).mockResolvedValue({ ...typeFixture(), category: "DEVOIR" } as never);
+    const res = await PATCH(
+      makeRequest(`${typeRoute}/${typeId}`, { method: "PATCH", body: { category: "DEVOIR" } }),
+      routeParams
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "EVALUATION_TYPE_RULE_CHANGED",
+        oldValues: expect.objectContaining({ category: "INTERROGATION" }),
+        newValues: expect.objectContaining({ category: "DEVOIR" }),
+      }),
+    });
   });
 
   it("retourne 400 sur body invalide (poids > 10)", async () => {

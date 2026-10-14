@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -9,6 +10,7 @@ import { Permission } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon, Input, Progress } from "@/components/edu";
+import { GroupMessageButton } from "@/components/cagnotte/group-message-button";
 import { SubLabel } from "@/components/edu-homes/_shared";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
@@ -35,6 +37,7 @@ type CagnotteDetail = {
     title: string;
     description: string | null;
     status: "OPEN" | "CLOSED" | "CANCELLED";
+    classId: string | null;
     classLabel: string | null;
     hostLabel: string;
     targetFcfa: string;
@@ -77,6 +80,8 @@ export default function CagnotteDetailPage() {
 function CagnotteDetailContent() {
     const params = useParams<{ cagnotteId: string }>();
     const router = useRouter();
+    const { data: session } = useSession();
+    const canBroadcast = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(session?.user?.role ?? "");
     const { data, error, isLoading, mutate } = useSWR<CagnotteDetail>(
         params?.cagnotteId ? `/api/cagnottes/${params.cagnotteId}` : null,
         fetcher,
@@ -162,12 +167,21 @@ function CagnotteDetailContent() {
                 description={`${data.classLabel ?? "Toute l'école"} · organisé par ${data.hostLabel}`}
                 breadcrumbs={[...CAGNOTTE_DETAIL_BREADCRUMBS]}
                 actions={
-                    <Badge
-                        variant={data.status === "OPEN" ? "brand" : "neutral"}
-                        icon={data.status === "OPEN" ? undefined : "check"}
-                    >
-                        {data.status === "OPEN" ? `J−${data.daysLeft}` : "Clôturée"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        {canBroadcast ? (
+                            <GroupMessageButton
+                                cagnotteTitle={data.title}
+                                classId={data.classId}
+                                classLabel={data.classLabel}
+                            />
+                        ) : null}
+                        <Badge
+                            variant={data.status === "OPEN" ? "brand" : "neutral"}
+                            icon={data.status === "OPEN" ? undefined : "check"}
+                        >
+                            {data.status === "OPEN" ? `J−${data.daysLeft}` : "Clôturée"}
+                        </Badge>
+                    </div>
                 }
             />
 

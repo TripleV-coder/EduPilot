@@ -1,5 +1,8 @@
 "use client";
 
+import { useSchoolThresholds } from "@/hooks/use-school-thresholds";
+import { fmtThreshold, type SchoolThresholds } from "@/lib/schools/school-thresholds";
+import { mentionFor } from "@/lib/academic/grading-rules";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -38,7 +41,7 @@ type ExamItem = {
 
 type ReadinessResponse = {
     overallReadiness: number;
-    predictedSuccess: number;
+    predictedSuccess: number | null;
     weakAreas: string[];
     strongAreas: string[];
 };
@@ -67,16 +70,21 @@ function daysBetween(a: Date, b: Date): number {
     return Math.max(0, Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-function mentionFromAvg(avg: number | null): {
+/** Mention projetée : barème des mentions et moyenne d'admission au BEPC réglés par l'école. */
+function mentionFromAvg(avg: number | null, t: SchoolThresholds): {
     label: string;
     variant: "success" | "info" | "warning" | "neutral";
 } {
     if (avg === null) return { label: "À calculer", variant: "neutral" };
-    if (avg >= 16) return { label: "Mention Très Bien probable", variant: "success" };
-    if (avg >= 14) return { label: "Mention Bien probable", variant: "success" };
-    if (avg >= 12) return { label: "Mention Assez Bien probable", variant: "info" };
-    if (avg >= 10) return { label: "Admis probable · sans mention", variant: "warning" };
-    return { label: "Risque échec", variant: "warning" };
+    if (avg < t.bepcPassMark) return { label: "Risque échec", variant: "warning" };
+    const mention = mentionFor(avg, t.mentions);
+    // Mention atteinte dès l'admission = « sans mention » (ex. Passable)
+    const baseline = mentionFor(t.bepcPassMark, t.mentions);
+    if (!mention || mention === baseline) return { label: "Admis probable · sans mention", variant: "warning" };
+    return {
+        label: `Mention ${mention} probable`,
+        variant: avg >= t.performance.veryGoodFrom ? "success" : "info",
+    };
 }
 
 const REVISION_PLAN: { day: string; activity: string; duration: string }[] = [
@@ -88,6 +96,7 @@ const REVISION_PLAN: { day: string; activity: string; duration: string }[] = [
 ];
 
 export default function BepcPrepPage() {
+    const thresholds = useSchoolThresholds();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [generalAvg, setGeneralAvg] = useState<number | null>(null);
@@ -178,10 +187,10 @@ export default function BepcPrepPage() {
     }, []);
 
     const weakSubjects = useMemo(
-        () => subjectAverages.filter((s) => s.average < 14).slice(0, 3),
-        [subjectAverages]
+        () => subjectAverages.filter((s) => s.average < thresholds.performance.veryGoodFrom).slice(0, 3),
+        [subjectAverages, thresholds.performance.veryGoodFrom]
     );
-    const mention = mentionFromAvg(generalAvg);
+    const mention = mentionFromAvg(generalAvg, thresholds);
 
     return (
         <PageGuard
@@ -410,8 +419,8 @@ export default function BepcPrepPage() {
                                                     value={`${Math.round(readiness.overallReadiness)}%`}
                                                 />
                                                 <ReadinessStat
-                                                    label="Succès prédit"
-                                                    value={`${Math.round(readiness.predictedSuccess)}%`}
+                                                    label="Chance d'admission estimée"
+                                                    value={readiness.predictedSuccess === null ? "Pas encore de notes" : `${Math.round(readiness.predictedSuccess)}%`}
                                                 />
                                             </div>
                                             {readiness.strongAreas.length > 0 ? (
@@ -532,15 +541,15 @@ export default function BepcPrepPage() {
                                 >
                                     {subjectAverages.length === 0
                                         ? "Aucune note disponible pour cette période."
-                                        : "Aucune matière sous 14/20 — continuez comme ça !"}
+                                        : `Aucune matière sous ${fmtThreshold(thresholds.performance.veryGoodFrom)}/20 — continuez comme ça !`}
                                 </p>
                             ) : (
                                 <div style={{ marginTop: 8 }}>
                                     {weakSubjects.map((s, i) => {
                                         const tone =
-                                            s.average < 10
+                                            s.average < thresholds.bepcPassMark
                                                 ? "danger"
-                                                : s.average < 12
+                                                : s.average < thresholds.performance.goodFrom
                                                 ? "warning"
                                                 : "info";
                                         return (
@@ -573,7 +582,7 @@ export default function BepcPrepPage() {
                                                             color: "var(--eduflow-text-tertiary)",
                                                         }}
                                                     >
-                                                        Cible : porter à 14/20
+                                                        Cible : porter à {fmtThreshold(thresholds.performance.veryGoodFrom)}/20
                                                     </div>
                                                 </div>
                                                 <span

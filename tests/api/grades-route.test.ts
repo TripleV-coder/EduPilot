@@ -12,7 +12,13 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+// Moyennes d'un élève : calcul de classe (prouvé par tests/precision) ; ici, la route seule
+vi.mock("@/lib/academic/class-averages", () => ({
+  studentAveragesSummary: vi.fn().mockResolvedValue({ periods: {}, annual: { general: 12.5, provisional: null, subjects: {} } }),
+}));
+
 import prisma from "@/lib/prisma";
+import { studentAveragesSummary } from "@/lib/academic/class-averages";
 import { GET } from "@/app/api/grades/route";
 
 const classId = cuid("classe6a");
@@ -173,8 +179,13 @@ describe("GET /api/grades", () => {
     vi.mocked(prisma.grade.findMany).mockResolvedValue([gradeListRow(14)] as unknown as Grade[]);
 
     const response = await GET(makeRequest("http://localhost:3000/api/grades"));
+    const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect((await response.json()).data[0].value).toBe(14);
+    expect(body.data[0].value).toBe(14);
+    // Les moyennes viennent du calcul du bulletin, pas d'un recalcul dans la page
+    expect(studentAveragesSummary).toHaveBeenCalledWith(FIXTURES.studentA);
+    expect(body.summary.annual.general).toBe(12.5);
+    expect(body.data[0].countsInAverage).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import type { SchoolLevel } from "@prisma/client";
+import { OFFICIAL_SERIES, seriesFullLabel } from "@/lib/benin/series";
 
 /**
  * Référentiel canonique des cycles du système éducatif béninois.
@@ -32,22 +33,11 @@ export interface LevelCycle {
   order: number;
 }
 
-// Séries du lycée (second cycle) — codes alignés sur services/orientation.ts
-export const LYCEE_SERIES: CycleSeries[] = [
-  { code: "SERIE_A1", name: "Série A1 (Littéraire — Lettres et Langues)" },
-  { code: "SERIE_A2", name: "Série A2 (Littéraire — Sciences Humaines)" },
-  { code: "SERIE_B", name: "Série B (Économique et Social)" },
-  { code: "SERIE_C", name: "Série C (Maths-Physique)" },
-  { code: "SERIE_D", name: "Série D (Sciences de la Vie)" },
-  { code: "SERIE_E", name: "Série E (Maths-Technique)" },
-  { code: "SERIE_F1", name: "Série F1 (Fabrication Mécanique)" },
-  { code: "SERIE_F2", name: "Série F2 (Électronique)" },
-  { code: "SERIE_F3", name: "Série F3 (Électrotechnique)" },
-  { code: "SERIE_F4", name: "Série F4 (Génie Civil)" },
-  { code: "SERIE_G1", name: "Série G1 (Techniques Administratives)" },
-  { code: "SERIE_G2", name: "Série G2 (Techniques Quantitatives de Gestion)" },
-  { code: "SERIE_G3", name: "Série G3 (Techniques Commerciales)" },
-];
+// Séries du lycée (second cycle) — référentiel unique : src/lib/benin/series.ts
+export const LYCEE_SERIES: CycleSeries[] = OFFICIAL_SERIES.map((s) => ({
+  code: s.code,
+  name: seriesFullLabel(s.code),
+}));
 
 export const LEVEL_CYCLES: Record<RealCycle, LevelCycle> = {
   PRIMARY: {

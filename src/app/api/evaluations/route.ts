@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { guardPeriodWritable } from "@/lib/academic/year-lock";
+import { assertNotCouncilLocked, assertSubjectTeacher } from "@/lib/academic/grade-write-guard";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 import { getOwnStudentIds } from "@/lib/auth/family-scope";
@@ -205,8 +206,22 @@ export const POST = createApiHandler(
       }
     }
 
+    // La période doit être celle de l'établissement de la classe
+    if (period.academicYear.schoolId !== classSubject.class.schoolId) {
+      return NextResponse.json(
+        translateError({ error: "Cette période n'appartient pas à l'établissement de la classe", key: "api.issues.period_wrong_school" }, t),
+        { status: 400 }
+      );
+    }
+
     const yearLock = await guardPeriodWritable(period.id);
     if (yearLock) return yearLock;
+
+    // Seul l'enseignant de la matière crée ses évaluations ; période figée après conseil
+    const notTeacher = assertSubjectTeacher(session, classSubject);
+    if (notTeacher) return notTeacher;
+    const councilLock = await assertNotCouncilLocked(classSubject.classId, period.id);
+    if (councilLock) return councilLock;
 
     // Verify evaluation type belongs to same school
     const evalType = await prisma.evaluationType.findUnique({
@@ -255,6 +270,7 @@ export const POST = createApiHandler(
   },
   {
     requireAuth: true,
-    allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"],
+    // Seul l'enseignant de la matière crée ses évaluations
+    allowedRoles: ["TEACHER"],
   }
 );

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
-import { calculateWeightedAverage, getRank } from "@/lib/utils/grades";
+import { competitionRank, meanOf, Rational, toDisplay } from "@/lib/academic/average-engine";
+import { computeClassPeriod } from "@/lib/academic/class-averages";
+import { getGradingSettings, getPassingGrade } from "@/lib/academic/grading-settings";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { getCouncilRules, pickDecision, type CouncilDecisionVariant } from "@/lib/academic/council-rules";
@@ -64,9 +67,11 @@ const { searchParams } = new URL(request.url);
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    const [period, councilRules] = await Promise.all([
+    const [period, councilRules, schoolParams, passingGrade] = await Promise.all([
       prisma.period.findUnique({ where: { id: periodId } }),
       getCouncilRules(klass.schoolId),
+      getSchoolParameters(klass.schoolId),
+      getPassingGrade(klass.schoolId),
     ]);
     if (!period) {
       return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
@@ -83,10 +88,6 @@ const { searchParams } = new URL(request.url);
         student: {
           include: {
             user: { select: { firstName: true, lastName: true } },
-            grades: {
-              where: { evaluation: { periodId } },
-              include: { evaluation: { include: { classSubject: true } } },
-            },
             behaviorIncidents: {
               where: {
                 date: { gte: period.startDate, lte: period.endDate },
@@ -98,39 +99,21 @@ const { searchParams } = new URL(request.url);
       },
     });
 
-    // Compute per-student averages + ranks
+    // Moyennes de la classe : module unique (formule officielle, coefficients
+    // figés si le conseil est validé, notes « NC » exclues sans rien bloquer)
+    const classPeriod = await computeClassPeriod({
+      classId,
+      periodId,
+      academicYearId: period.academicYearId,
+      classSubjects: klass.classSubjects.map((cs) => ({ id: cs.id, subjectId: cs.subjectId, coefficient: cs.coefficient })),
+    });
     const studentRows = enrollments.map((e) => {
-      const studentGrades = e.student.grades;
-      const subjectAverages: { csId: string; coefficient: number; average: number | null }[] = [];
-      let subjectsWithGrades = 0;
-
-      klass.classSubjects.forEach((cs) => {
-        const subjectGrades = studentGrades.filter(
-          (g) => g.evaluation.classSubjectId === cs.id
-        );
-        if (subjectGrades.length > 0) subjectsWithGrades += 1;
-        const gradesData = subjectGrades.map((g) => ({
-          value: g.value,
-          coefficient: g.evaluation.coefficient,
-          isAbsent: g.isAbsent,
-          isExcused: g.isExcused,
-        }));
-        const avg = calculateWeightedAverage(gradesData);
-        subjectAverages.push({
-          csId: cs.id,
-          coefficient: Number(cs.coefficient),
-          average: avg,
-        });
-      });
-
-      const valid = subjectAverages.filter((s) => s.average !== null);
-      const generalAverage =
-        valid.length > 0
-          ? valid.reduce((sum, s) => sum + s.average! * s.coefficient, 0) /
-            valid.reduce((sum, s) => sum + s.coefficient, 0)
-          : null;
-
+      const result = classPeriod.students.get(e.student.id);
+      const generalAverage = result?.general ?? null;
       const totalSubjects = klass.classSubjects.length || 1;
+      const subjectsWithGrades = klass.classSubjects.filter(
+        (cs) => (result?.averages.subjects.get(cs.id) ?? null) !== null
+      ).length;
       const completionRatio = subjectsWithGrades / totalSubjects;
       const incidents = e.student.behaviorIncidents.length;
 
@@ -143,6 +126,8 @@ const { searchParams } = new URL(request.url);
         generalAverage,
         incidents,
         completionRatio,
+        // Notes « NC » : information pour le professeur, sans blocage
+        ncGrades: result?.averages.missing.length ?? 0,
         decision: decision.decision,
         decisionVariant: decision.variant,
         status: status.status,
@@ -154,7 +139,7 @@ const { searchParams } = new URL(request.url);
     const rankedRows = studentRows
       .map((row) => ({
         ...row,
-        rank: getRank(row.generalAverage, allAverages),
+        rank: classPeriod.students.get(row.studentId)?.rank ?? competitionRank(row.generalAverage, allAverages),
       }))
       .sort((a, b) => {
         if (a.generalAverage === null) return 1;
@@ -178,25 +163,26 @@ const { searchParams } = new URL(request.url);
       r.decision.startsWith("Avertissement")
     ).length;
 
-    // Class stats: avg, median, % ≥ 14, % < 10
-    const avg =
-      validAverages.length > 0
-        ? validAverages.reduce((s, v) => s + v, 0) / validAverages.length
-        : null;
+    // Statistiques de classe : moyenne, médiane, part au niveau « Très bien »
+    // et part sous la moyenne de passage (seuils réglés par l'école)
+    const highFrom = schoolParams.performance.veryGoodFrom;
+    const avg = classPeriod.classGeneralAverage;
     let median: number | null = null;
     if (validAverages.length > 0) {
       const sorted = [...validAverages].sort((a, b) => a - b);
       const mid = Math.floor(sorted.length / 2);
       median =
-        sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        sorted.length % 2 === 0
+          ? toDisplay(meanOf([Rational.from(sorted[mid - 1]), Rational.from(sorted[mid])]))
+          : sorted[mid];
     }
     const pctAbove14 =
       totalCount > 0
-        ? (validAverages.filter((v) => v >= 14).length / totalCount) * 100
+        ? (validAverages.filter((v) => v >= highFrom).length / totalCount) * 100
         : 0;
     const pctBelow10 =
       totalCount > 0
-        ? (validAverages.filter((v) => v < 10).length / totalCount) * 100
+        ? (validAverages.filter((v) => v < passingGrade).length / totalCount) * 100
         : 0;
 
     // Participants: mainTeacher + distinct teachers of classSubjects
@@ -275,11 +261,15 @@ const { searchParams } = new URL(request.url);
         median,
         pctAbove14,
         pctBelow10,
+        highFrom,
+        passingGrade,
       },
       participants,
       participantsExpected: participants.length,
       nextCouncilEvent,
       pendingDecisions,
+      // Conseil validé : notes figées (sauf réclamation approuvée), coefficients gelés
+      councilValidated: classPeriod.councilValidated,
       students: rankedRows,
     });
   } catch (error) {
@@ -292,4 +282,79 @@ const { searchParams } = new URL(request.url);
 
   },
   { allowedRoles: COUNCIL_ROLES },
+);
+
+/** Validation du conseil de classe d'une période : réservée à la direction. */
+const VALIDATE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+
+/**
+ * POST /api/grades/councils — valide le conseil d'une classe pour une période.
+ * Effets : les notes de la période sont figées (seule une réclamation approuvée
+ * par le directeur des études peut encore les modifier) et les coefficients
+ * appliqués sont gelés pour cette période.
+ */
+export const POST = createApiHandler(
+  async (request, context) => {
+    const session = context.session;
+    const body = (await request.json().catch(() => ({}))) as { classId?: unknown; periodId?: unknown };
+    const classId = typeof body.classId === "string" ? body.classId : null;
+    const periodId = typeof body.periodId === "string" ? body.periodId : null;
+    if (!classId || !periodId) {
+      return NextResponse.json({ error: "classId et periodId sont requis" }, { status: 400 });
+    }
+    const klass = await prisma.class.findUnique({
+      where: { id: classId },
+      select: { id: true, schoolId: true, classSubjects: { select: { id: true, coefficient: true, averageFormula: true } } },
+    });
+    if (!klass) return NextResponse.json({ error: "Classe non trouvée" }, { status: 404 });
+    if (session.user.role !== "SUPER_ADMIN" && klass.schoolId !== getActiveSchoolId(session)) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+    const period = await prisma.period.findUnique({ where: { id: periodId }, select: { id: true } });
+    if (!period) return NextResponse.json({ error: "Période non trouvée" }, { status: 404 });
+
+    const existing = await prisma.classCouncil.findUnique({
+      where: { classId_periodId: { classId, periodId } },
+      select: { validatedAt: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "Le conseil de cette période est déjà validé.", validatedAt: existing.validatedAt },
+        { status: 409 }
+      );
+    }
+    const council = await prisma.classCouncil.create({
+      data: {
+        classId,
+        periodId,
+        validatedById: session.user.id,
+        coefficients: Object.fromEntries(klass.classSubjects.map((cs) => [cs.id, cs.coefficient.toString()])),
+        // Règles de l'établissement et formules des enseignants en vigueur :
+        // gelées pour cette période (un changement ultérieur ne la modifie pas)
+        rules: await (async () => {
+          const settings = await getGradingSettings(klass.schoolId);
+          const subjectFormulas = settings.teacherFormulas
+            ? Object.fromEntries(
+                klass.classSubjects
+                  .filter((cs) => cs.averageFormula?.trim())
+                  .map((cs) => [cs.id, cs.averageFormula as string]),
+              )
+            : {};
+          return { ...settings, subjectFormulas };
+        })(),
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        schoolId: klass.schoolId,
+        action: "COUNCIL_VALIDATED",
+        entity: "ClassCouncil",
+        entityId: council.id,
+        newValues: { classId, periodId },
+      },
+    });
+    return NextResponse.json({ councilValidated: true, validatedAt: council.validatedAt }, { status: 201 });
+  },
+  { allowedRoles: VALIDATE_ROLES },
 );

@@ -48,7 +48,7 @@ export async function computePlanlessExpected(params: {
         ? { dueDate: { gte: periodRange.startDate ?? undefined, lte: periodRange.endDate ?? undefined } }
         : {}),
     },
-    select: { id: true, amount: true, classLevelCode: true, academicYearId: true, dueDate: true },
+    select: { id: true, amount: true, classLevelCode: true, academicYearId: true, dueDate: true, isRequired: true },
   });
   if (fees.length === 0) return EMPTY();
 
@@ -104,6 +104,8 @@ export async function computePlanlessExpected(params: {
   let pending = 0;
   const overdue: PlanlessExpected["overdue"] = new Map();
   for (const fee of fees) {
+    // Facultatif non souscrit : pas d'échéancier, donc hors « attendu » et hors impayés.
+    if (fee.isRequired === false) continue;
     const yearId = fee.academicYearId ?? academicYearId ?? currentYearId;
     if (!yearId) continue;
     const due = Number(fee.amount);
@@ -218,6 +220,7 @@ export async function computeStudentFeeDues(studentIds: string[]): Promise<Stude
       schoolId: true,
       academicYearId: true,
       dueDate: true,
+      isRequired: true,
     },
   });
   if (fees.length === 0) return [];
@@ -249,6 +252,7 @@ export async function computeStudentFeeDues(studentIds: string[]): Promise<Stude
     if (seen.has(enrollment.studentId)) continue;
     seen.add(enrollment.studentId);
     for (const fee of fees) {
+      if (fee.isRequired === false) continue;
       if (fee.schoolId !== enrollment.class.schoolId) continue;
       if (fee.academicYearId && fee.academicYearId !== enrollment.academicYearId) continue;
       if (fee.classLevelCode && fee.classLevelCode !== enrollment.class.classLevel.code) continue;

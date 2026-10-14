@@ -7,12 +7,15 @@ import { isMomoConfigured } from "@/lib/finance/providers/momo";
 import { isFedaPayConfigured } from "@/lib/payments/fedapay";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
+import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
+import { fcfaAmountSchema } from "@/lib/finance/money";
 import { nanoid } from "nanoid";
 
 const initiateSchema = z.object({
-    amount: z.union([z.number(), z.string()]).transform(val => Number(val)),
+    // FCFA entiers, strictement positifs (avant : NaN et centimes passaient)
+    amount: fcfaAmountSchema,
     currency: z.string().optional(),
     feeId: z.string(),
     studentId: z.string(),
@@ -124,8 +127,17 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
             }
 
-            if (amount <= 0 || amount > Number(fee.amount)) {
-                return NextResponse.json({ error: `Montant invalide. Le maximum autorisé est ${fee.amount}` }, { status: 400 });
+            // Plafond = reste à payer (avant : le montant total des frais, payable plusieurs fois)
+            const alreadyPaid = await prisma.payment.aggregate({
+                where: { studentId, feeId, status: "VERIFIED" },
+                _sum: { amount: true },
+            });
+            const remaining = Math.max(0, Number(fee.amount) - Number(alreadyPaid._sum.amount ?? 0));
+            if (amount > remaining) {
+                return NextResponse.json(
+                    { error: `Montant invalide. Le reste à payer est de ${remaining} FCFA.` },
+                    { status: 400 }
+                );
             }
 
             const newMethod = provider === "MOOV" ? "MOBILE_MONEY_MOOV" : "MOBILE_MONEY_MTN";
@@ -202,6 +214,7 @@ export const POST = createApiHandler(
             });
 
         } catch (error) {
+            if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
             logger.error("Payment initiation failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/initiate" });
             return NextResponse.json({ error: "Payment initiation failed" }, { status: 500 });
         }

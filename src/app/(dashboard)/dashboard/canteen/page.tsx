@@ -99,7 +99,19 @@ export default function CanteenPage() {
             if (!res.ok) throw new Error("Erreur lors de la mise à jour du menu");
             toast.success("Le menu a été mis à jour.");
             setIsDialogOpen(false);
-            fetchMenus();
+            setMenus((current) => {
+                const rest = current.filter((menu) => menu.date.slice(0, 10) !== formData.date);
+                return [
+                    ...rest,
+                    {
+                        id: `saved-${formData.date}`,
+                        date: formData.date,
+                        starter: formData.starter,
+                        mainCourse: formData.mainCourse,
+                        dessert: formData.dessert,
+                    },
+                ];
+            });
         } catch {
             toast.error("Impossible de mettre à jour le menu.");
         } finally {
@@ -159,7 +171,7 @@ export default function CanteenPage() {
                                         >
                                             <Input
                                                 label="Date"
-                                                type="date"
+                                                type="text"
                                                 value={formData.date}
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, date: e.target.value })

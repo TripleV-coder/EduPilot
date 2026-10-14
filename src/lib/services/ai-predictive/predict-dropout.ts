@@ -13,11 +13,14 @@
 
 import prisma from "@/lib/prisma";
 import type { DropoutRisk, DropoutSignal, RiskLevel, DataQuality } from "./types";
+import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
+import { DEFAULT_SCHOOL_PARAMETERS, type SchoolParameters } from "@/lib/schools/school-parameters";
 import { linearRegression } from "./algorithms/regression";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// Pondération des signaux (somme = 1)
+// Pondération par défaut des signaux (somme = 1) ; l'école la règle dans ses
+// paramètres (Analyses prédictives)
 export const DROPOUT_WEIGHTS = {
     attendanceTrend: 0.3,
     consecutiveAbsences: 0.2,
@@ -27,17 +30,17 @@ export const DROPOUT_WEIGHTS = {
     engagementRecency: 0.05,
 } as const;
 
-function levelFromScore(score: number): RiskLevel {
-    if (score >= 75) return "TRÈS ÉLEVÉ";
-    if (score >= 55) return "ÉLEVÉ";
-    if (score >= 35) return "MODÉRÉ";
-    if (score >= 15) return "FAIBLE";
+function levelFromScore(score: number, a: SchoolParameters["analysis"] = DEFAULT_SCHOOL_PARAMETERS.analysis): RiskLevel {
+    if (score >= a.levelVeryHigh) return "TRÈS ÉLEVÉ";
+    if (score >= a.levelHigh) return "ÉLEVÉ";
+    if (score >= a.levelModerate) return "MODÉRÉ";
+    if (score >= a.levelLow) return "FAIBLE";
     return "TRÈS FAIBLE";
 }
 
-function severityFromScore(score: number): DropoutSignal["severity"] {
-    if (score >= 70) return "HIGH";
-    if (score >= 40) return "MEDIUM";
+function severityFromScore(score: number, a: SchoolParameters["analysis"] = DEFAULT_SCHOOL_PARAMETERS.analysis): DropoutSignal["severity"] {
+    if (score >= a.signalStrongFrom) return "HIGH";
+    if (score >= a.signalMediumFrom) return "MEDIUM";
     return "LOW";
 }
 
@@ -68,7 +71,18 @@ function longestAbsenceStreak(records: { status: string; date: Date }[]): number
 
 export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk> {
     const now = Date.now();
-    const since60 = new Date(now - 60 * DAY);
+    // Paramètres de l'école : période comparée, inactivité, poids et niveaux
+    const A = (await getSchoolParametersForStudent(studentId)).analysis;
+    const WIN = A.dropoutWindowDays;
+    const weights = {
+        attendanceTrend: A.dropoutWeightAttendanceTrend / 100,
+        consecutiveAbsences: A.dropoutWeightConsecutiveAbsences / 100,
+        homeworkAbandon: A.dropoutWeightHomework / 100,
+        gradeCollapse: A.dropoutWeightGrades / 100,
+        behaviorEscalation: A.dropoutWeightBehavior / 100,
+        engagementRecency: A.dropoutWeightRecency / 100,
+    };
+    const since60 = new Date(now - 2 * WIN * DAY);
 
     const [attendance, submissions, gradeHistory, incidents] = await Promise.all([
         prisma.attendance.findMany({
@@ -93,10 +107,10 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
     const signals: DropoutSignal[] = [];
     const recommendations: string[] = [];
 
-    const recentWindow = (d: Date) => new Date(d).getTime() > now - 30 * DAY;
+    const recentWindow = (d: Date) => new Date(d).getTime() > now - WIN * DAY;
     const priorWindow = (d: Date) => {
         const t = new Date(d).getTime();
-        return t <= now - 30 * DAY && t > now - 60 * DAY;
+        return t <= now - WIN * DAY && t > now - 2 * WIN * DAY;
     };
 
     // 1. Tendance d'assiduité (0-30j vs 30-60j)
@@ -112,9 +126,9 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         if (attendanceScore >= 30) {
             signals.push({
                 factor: "assiduite_en_deterioration",
-                severity: severityFromScore(attendanceScore),
+                severity: severityFromScore(attendanceScore, A),
                 contribution: Math.round(attendanceScore),
-                description: `Absences non justifiées ${recentRate.toFixed(0)}% (30 derniers j.)${
+                description: `Absences non justifiées ${recentRate.toFixed(0)}% (${WIN} derniers j.)${
                     delta > 0 ? `, en hausse vs ${priorRate.toFixed(0)}%` : ""
                 }`,
             });
@@ -129,7 +143,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         streakScore = Math.min(100, streak * 25);
         signals.push({
             factor: "absences_consecutives",
-            severity: severityFromScore(streakScore),
+            severity: severityFromScore(streakScore, A),
             contribution: Math.round(streakScore),
             description: `${streak} absences non justifiées consécutives`,
         });
@@ -142,7 +156,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         prisma.homework.count({
             where: {
                 isPublished: true,
-                dueDate: { gte: new Date(now - 30 * DAY), lte: new Date(now) },
+                dueDate: { gte: new Date(now - WIN * DAY), lte: new Date(now) },
                 classSubject: {
                     class: { enrollments: { some: { studentId, status: "ACTIVE" } } },
                 },
@@ -151,7 +165,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         prisma.homework.count({
             where: {
                 isPublished: true,
-                dueDate: { gte: new Date(now - 60 * DAY), lt: new Date(now - 30 * DAY) },
+                dueDate: { gte: new Date(now - 2 * WIN * DAY), lt: new Date(now - WIN * DAY) },
                 classSubject: {
                     class: { enrollments: { some: { studentId, status: "ACTIVE" } } },
                 },
@@ -169,7 +183,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         if (homeworkScore >= 30) {
             signals.push({
                 factor: "abandon_devoirs",
-                severity: severityFromScore(homeworkScore),
+                severity: severityFromScore(homeworkScore, A),
                 contribution: Math.round(homeworkScore),
                 description: `Rendu des devoirs ${recentRate.toFixed(0)}%${
                     drop > 0 ? `, en baisse vs ${priorRate.toFixed(0)}%` : ""
@@ -189,7 +203,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
             if (gradeScore >= 20) {
                 signals.push({
                     factor: "effondrement_notes",
-                    severity: severityFromScore(gradeScore),
+                    severity: severityFromScore(gradeScore, A),
                     contribution: Math.round(gradeScore),
                     description: `Moyenne en baisse de ${Math.abs(slope).toFixed(2)} pt/période`,
                 });
@@ -206,9 +220,9 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
         behaviorScore = Math.min(100, (recentInc - priorInc) * 25 + recentInc * 10);
         signals.push({
             factor: "escalade_comportementale",
-            severity: severityFromScore(behaviorScore),
+            severity: severityFromScore(behaviorScore, A),
             contribution: Math.round(behaviorScore),
-            description: `Incidents en hausse : de ${priorInc} à ${recentInc} sur 30 j.`,
+            description: `Incidents en hausse : de ${priorInc} à ${recentInc} sur ${WIN} j.`,
         });
         recommendations.push("Entretien avec le conseiller d'éducation");
     }
@@ -222,12 +236,12 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
     const lastEngagement = Math.max(0, ...lastPresent, ...lastSub);
     if (lastEngagement > 0) {
         const daysSince = (now - lastEngagement) / DAY;
-        if (daysSince > 7) {
-            recencyScore = Math.min(100, (daysSince - 7) * 8);
+        if (daysSince > A.inactivityDays) {
+            recencyScore = Math.min(100, (daysSince - A.inactivityDays) * 8);
             if (recencyScore >= 20) {
                 signals.push({
                     factor: "engagement_faible",
-                    severity: severityFromScore(recencyScore),
+                    severity: severityFromScore(recencyScore, A),
                     contribution: Math.round(recencyScore),
                     description: `Aucun engagement observé depuis ${Math.round(daysSince)} jours`,
                 });
@@ -239,12 +253,12 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
     const probability = Math.min(
         100,
         Math.round(
-            attendanceScore * DROPOUT_WEIGHTS.attendanceTrend +
-                streakScore * DROPOUT_WEIGHTS.consecutiveAbsences +
-                homeworkScore * DROPOUT_WEIGHTS.homeworkAbandon +
-                gradeScore * DROPOUT_WEIGHTS.gradeCollapse +
-                behaviorScore * DROPOUT_WEIGHTS.behaviorEscalation +
-                recencyScore * DROPOUT_WEIGHTS.engagementRecency
+            attendanceScore * weights.attendanceTrend +
+                streakScore * weights.consecutiveAbsences +
+                homeworkScore * weights.homeworkAbandon +
+                gradeScore * weights.gradeCollapse +
+                behaviorScore * weights.behaviorEscalation +
+                recencyScore * weights.engagementRecency
         )
     );
 
@@ -265,7 +279,7 @@ export async function predictDropoutRisk(studentId: string): Promise<DropoutRisk
 
     return {
         probability,
-        level: levelFromScore(probability),
+        level: levelFromScore(probability, A),
         signals,
         recommendations: [...new Set(recommendations)],
         confidence,

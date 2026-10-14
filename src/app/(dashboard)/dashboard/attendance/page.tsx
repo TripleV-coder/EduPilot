@@ -18,6 +18,7 @@ import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-states";
 import { FamilyAttendance } from "@/components/attendance/family-attendance";
+import { canSaveAttendanceCall } from "@/lib/attendance/can-save-call";
 import { PendingJustifications } from "@/components/attendance/pending-justifications";
 
 type RawStudent = {
@@ -258,7 +259,7 @@ function RollCallPage() {
         }, 0);
     }, [attendanceData, initialAttendanceData, orderedStudentIds]);
 
-    const canSave = dirtyCount > 0 || !callRecorded;
+    const canSave = canSaveAttendanceCall(dirtyCount, callRecorded);
 
     const filteredIds = useMemo(
         () =>

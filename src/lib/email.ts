@@ -11,6 +11,8 @@
 
 import { logger } from "@/lib/utils/logger";
 import nodemailer from "nodemailer";
+import { CIRCUITS, circuitFetch, getCircuitBreaker } from "@/lib/resilience/circuit-breaker";
+import { CircuitOpenError } from "@/lib/resilience/errors";
 
 interface EmailOptions {
   to: string;
@@ -24,6 +26,42 @@ export function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!domain) return "***";
   return `${local.slice(0, 2)}***@${domain}`;
+}
+
+/** Un fournisseur qui ne répond pas ne doit pas retenir une requête ni une tâche. */
+const EMAIL_API_TIMEOUT_MS = 15_000;
+
+let smtpTransport: { key: string; transporter: ReturnType<typeof nodemailer.createTransport> } | null = null;
+
+/**
+ * Transporteur SMTP réutilisé (connexions mutualisées) : en créer un par
+ * message ouvrait une connexion et une négociation TLS à chaque envoi.
+ */
+function getSmtpTransport() {
+  const config = {
+    host: process.env.SMTP_HOST || "localhost",
+    port: parseInt(process.env.SMTP_PORT || "587", 10),
+    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  };
+  const key = JSON.stringify(config);
+  if (smtpTransport?.key === key) return smtpTransport.transporter;
+
+  smtpTransport?.transporter.close?.();
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: (config.user && config.pass) ? { user: config.user, pass: config.pass } : undefined,
+    pool: true,
+    maxConnections: 3,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+  smtpTransport = { key, transporter };
+  return transporter;
 }
 
 interface PasswordResetEmailParams {
@@ -87,8 +125,9 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     // Resend integration
     if (emailProvider === "resend") {
-      const response = await fetch("https://api.resend.com/emails", {
+      const response = await circuitFetch(CIRCUITS.email, "https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(EMAIL_API_TIMEOUT_MS),
         headers: {
           "Authorization": `Bearer ${emailApiKey}`,
           "Content-Type": "application/json",
@@ -113,8 +152,9 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
     // SendGrid integration
     if (emailProvider === "sendgrid") {
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      const response = await circuitFetch(CIRCUITS.email, "https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
+        signal: AbortSignal.timeout(EMAIL_API_TIMEOUT_MS),
         headers: {
           "Authorization": `Bearer ${emailApiKey}`,
           "Content-Type": "application/json",
@@ -141,23 +181,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
     // SMTP (Nodemailer) integration
     if (emailProvider === "smtp") {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "localhost",
-        port: parseInt(process.env.SMTP_PORT || "587", 10),
-        secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
-        auth: (process.env.SMTP_USER && process.env.SMTP_PASS) ? {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        } : undefined,
-      });
-
-      await transporter.sendMail({
-        from: emailFrom,
-        to,
-        subject,
-        html,
-        text,
-      });
+      await getCircuitBreaker(CIRCUITS.email).execute(
+        () => getSmtpTransport().sendMail({ from: emailFrom, to, subject, html, text }),
+        { isFailureError: isSmtpOutage },
+      );
 
       return true;
     }
@@ -165,9 +192,22 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     logger.error("Unknown email provider", undefined, { module: "email", provider: emailProvider });
     return false;
   } catch (error) {
+    if (error instanceof CircuitOpenError) {
+      logger.warn("Email non envoyé : fournisseur coupé par son coupe-circuit", { module: "email", to: maskEmail(to) });
+      return false;
+    }
     logger.error("Error sending email", error instanceof Error ? error : new Error(String(error)), { module: "email" });
     return false;
   }
+}
+
+/**
+ * Panne du serveur SMTP (connexion, délai, refus temporaire 4xx) ; un refus
+ * définitif 5xx (adresse inexistante) prouve au contraire qu'il répond.
+ */
+function isSmtpOutage(error: unknown): boolean {
+  const responseCode = (error as { responseCode?: unknown })?.responseCode;
+  return !(typeof responseCode === "number" && responseCode >= 500);
 }
 
 /**

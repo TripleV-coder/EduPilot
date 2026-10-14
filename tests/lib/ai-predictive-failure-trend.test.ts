@@ -7,6 +7,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * bord d'un calcul inutilisé — le retirer naïvement inversait le signe de
  * la tendance.
  */
+// Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
+vi.mock("@/lib/schools/school-parameters-store", async () => {
+    const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
+    return {
+        getSchoolParameters: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        getSchoolParametersForStudent: vi.fn(async () => DEFAULT_SCHOOL_PARAMETERS),
+        saveSchoolParameters: vi.fn(),
+    };
+});
+vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/academic/grading-settings")>()),
+    getPassingGrade: vi.fn(async () => 10),
+    passingGradeForStudent: vi.fn(async () => 10),
+}));
 vi.mock("@/lib/prisma", () => ({
     default: {
         studentAnalytics: { findMany: vi.fn() },
@@ -59,5 +73,18 @@ describe("predictFailureRisk — sens de la tendance", () => {
         const result = await predictFailureRisk("s1");
 
         expect(result.causalFactors.map((f) => f.factor)).not.toContain("tendance_baisse");
+    });
+});
+
+describe("predictFailureRisk — une période sans moyenne n'est pas un 0", () => {
+    it("ne lit que les périodes qui ont une moyenne (jamais de « moyenne critique 0/20 » à tort)", async () => {
+        vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue(analyticsNewestFirst([14, 13]) as never);
+
+        const result = await predictFailureRisk("s1");
+
+        expect(vi.mocked(prisma.studentAnalytics.findMany).mock.calls.at(-1)![0]).toMatchObject({
+            where: { studentId: "s1", generalAverage: { not: null } },
+        });
+        expect(result.factors.some((f) => f.startsWith("Moyenne critique"))).toBe(false);
     });
 });

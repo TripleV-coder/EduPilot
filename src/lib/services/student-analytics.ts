@@ -1,5 +1,11 @@
 import prisma from "@/lib/prisma";
 import { normalizeGradeTo20, roundTo } from "@/lib/analytics/helpers";
+import { countsInAverage, toDisplay } from "@/lib/academic/average-engine";
+import { computeClassPeriod } from "@/lib/academic/class-averages";
+import { getPassingGrade } from "@/lib/academic/grading-settings";
+import { assessRisk, DEFAULT_SCHOOL_PARAMETERS, performanceLevel, type SchoolParameters } from "@/lib/schools/school-parameters";
+import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
+
 
 /**
  * Service d'analyse avancée des apprenants
@@ -38,27 +44,6 @@ export function calculateStatistics(grades: number[]) {
   return { min, max, average, standardDev };
 }
 
-type NormalizedGradeEntry = {
-  value: number;
-  coefficient: number;
-};
-
-function calculateWeightedAverage(entries: NormalizedGradeEntry[]): number | null {
-  if (entries.length === 0) return null;
-
-  let weightedSum = 0;
-  let totalCoefficient = 0;
-
-  for (const entry of entries) {
-    weightedSum += entry.value * entry.coefficient;
-    totalCoefficient += entry.coefficient;
-  }
-
-  if (totalCoefficient <= 0) return null;
-
-  return weightedSum / totalCoefficient;
-}
-
 /**
  * Détermine si une matière est un point fort ou une faiblesse
  */
@@ -81,17 +66,19 @@ export function analyzeSubjectStrength(
  */
 export function calculateTrend(
   currentAverage: number,
-  previousAverage: number | null
+  previousAverage: number | null,
+  perf: SchoolParameters["performance"] = DEFAULT_SCHOOL_PARAMETERS.performance
 ): "STRONG_INCREASE" | "INCREASE" | "STABLE" | "DECREASE" | "STRONG_DECREASE" | null {
   if (previousAverage === null || previousAverage <= 0) return null;
 
   const diff = currentAverage - previousAverage;
   const percentChange = (diff / previousAverage) * 100;
 
-  if (percentChange >= 15) return "STRONG_INCREASE";
-  if (percentChange >= 5) return "INCREASE";
-  if (percentChange > -5) return "STABLE";
-  if (percentChange > -15) return "DECREASE";
+  // Seuils d'évolution de l'école (paramètres « Niveaux de performance »)
+  if (percentChange >= perf.strongChangePercent) return "STRONG_INCREASE";
+  if (percentChange >= perf.changePercent) return "INCREASE";
+  if (percentChange > -perf.changePercent) return "STABLE";
+  if (percentChange > -perf.strongChangePercent) return "DECREASE";
   return "STRONG_DECREASE";
 }
 
@@ -99,16 +86,12 @@ export function calculateTrend(
  * Détermine le niveau de performance
  */
 export function getPerformanceLevel(
-  average: number | null
+  average: number | null,
+  perf: SchoolParameters["performance"] = DEFAULT_SCHOOL_PARAMETERS.performance,
+  passingGrade = 10
 ): "EXCELLENT" | "VERY_GOOD" | "GOOD" | "AVERAGE" | "INSUFFICIENT" | "WEAK" | null {
-  if (average === null) return null;
-
-  if (average >= 16) return "EXCELLENT";
-  if (average >= 14) return "VERY_GOOD";
-  if (average >= 12) return "GOOD";
-  if (average >= 10) return "AVERAGE";
-  if (average >= 8) return "INSUFFICIENT";
-  return "WEAK";
+  // Tranches de l'école ; « moyen » commence au seuil de réussite de l'école
+  return performanceLevel(average, perf, passingGrade);
 }
 
 /**
@@ -131,54 +114,15 @@ export function calculateConsistencyRate(standardDev: number, average: number): 
 export function assessRiskLevel(
   average: number | null,
   attendanceRate: number,
-  incidentsCount: number
+  incidentsCount: number,
+  f: SchoolParameters["followUp"] = DEFAULT_SCHOOL_PARAMETERS.followUp,
+  passingGrade = 10
 ): {
   level: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   factors: string[];
 } {
-  const factors: string[] = [];
-  let riskScore = 0;
-
-  // Facteur notes
-  if (average !== null) {
-    if (average < 6) {
-      riskScore += 40;
-      factors.push("Moyenne très faible (< 6)");
-    } else if (average < 8) {
-      riskScore += 30;
-      factors.push("Moyenne faible (< 8)");
-    } else if (average < 10) {
-      riskScore += 15;
-      factors.push("Moyenne insuffisante (< 10)");
-    }
-  }
-
-  // Facteur assiduité
-  if (attendanceRate < 70) {
-    riskScore += 30;
-    factors.push(`Assiduité très faible (${Math.round(attendanceRate)}%)`);
-  } else if (attendanceRate < 85) {
-    riskScore += 15;
-    factors.push(`Assiduité faible (${Math.round(attendanceRate)}%)`);
-  }
-
-  // Facteur comportement
-  if (incidentsCount >= 5) {
-    riskScore += 20;
-    factors.push(`Nombreux incidents (${incidentsCount})`);
-  } else if (incidentsCount >= 3) {
-    riskScore += 10;
-    factors.push(`Plusieurs incidents (${incidentsCount})`);
-  }
-
-  // Détermination du niveau
-  let level: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  if (riskScore >= 60) level = "CRITICAL";
-  else if (riskScore >= 40) level = "HIGH";
-  else if (riskScore >= 20) level = "MEDIUM";
-  else if (riskScore > 0) level = "LOW";
-  else level = "NONE";
-
+  // Calcul unique, partagé avec les écrans (src/lib/schools/school-parameters.ts)
+  const { level, factors } = assessRisk(average, attendanceRate, incidentsCount, f, passingGrade);
   return { level, factors };
 }
 
@@ -237,6 +181,7 @@ export async function generateStudentAnalytics(
               evaluations: {
                 where: { periodId },
                 include: {
+                  type: { select: { code: true, name: true, category: true } },
                   grades: {
                     where: {
                       studentId,
@@ -266,138 +211,48 @@ export async function generateStudentAnalytics(
     standardDev: number | null;
   }> = [];
 
-  let totalWeightedSum = 0;
-  let totalCoefficients = 0;
+  // Calcul de la classe entière (règles de l'école, coefficients et règles gelés
+  // par le conseil, notes manquantes, date d'inscription, rang, effectif) :
+  // exactement le calcul du bulletin
+  const classPeriod = await computeClassPeriod({
+    classId: enrollment.classId,
+    periodId,
+    academicYearId,
+    classSubjects: enrollment.class.classSubjects.map((cs) => ({
+      id: cs.id,
+      subjectId: cs.subjectId,
+      coefficient: cs.coefficient,
+    })),
+  });
+  const own = classPeriod.students.get(studentId);
+  const show = (v: Parameters<typeof toDisplay>[0]) => toDisplay(v, classPeriod.rules.rounding);
 
   for (const cs of enrollment.class.classSubjects) {
-    const normalizedGradeEntries = cs.evaluations.flatMap((ev) =>
+    const normalizedGrades = cs.evaluations.filter((ev) => countsInAverage(ev.type)).flatMap((ev) =>
       ev.grades
         .filter((g) => g.value !== null && !g.isAbsent && !g.isExcused)
-        .map((g) => {
-          const normalizedValue = normalizeGradeTo20(
-            Number(g.value),
-            Number(ev.maxGrade)
-          );
-
-          if (normalizedValue === null) return null;
-
-          return {
-            value: normalizedValue,
-            coefficient: Number(ev.coefficient) || 1,
-          };
-        })
-        .filter((entry): entry is NormalizedGradeEntry => entry !== null)
+        .map((g) => normalizeGradeTo20(Number(g.value), Number(ev.maxGrade)))
+        .filter((value): value is number => value !== null)
     );
-
-    const normalizedGrades = normalizedGradeEntries.map((entry) => entry.value);
     const stats = calculateStatistics(normalizedGrades);
-    const subjectAverage = calculateWeightedAverage(normalizedGradeEntries);
+    const subjectAverage = show(own?.averages.subjects.get(cs.id) ?? null);
 
     if (subjectAverage !== null && stats.average !== null) {
       subjectPerformances.push({
         subjectId: cs.subject.id,
-        average: roundTo(subjectAverage),
+        average: subjectAverage,
         gradesCount: normalizedGrades.length,
         min: stats.min !== null ? roundTo(stats.min) : null,
         max: stats.max !== null ? roundTo(stats.max) : null,
         standardDev: stats.standardDev !== null ? roundTo(stats.standardDev) : null,
       });
-
-      const coef = Number(cs.coefficient);
-      totalWeightedSum += subjectAverage * coef;
-      totalCoefficients += coef;
     }
   }
 
-  // 3. Calculer la moyenne générale
-  const generalAverage =
-    totalCoefficients > 0 ? roundTo(totalWeightedSum / totalCoefficients) : null;
-
-  // 4. Calculer le rang de classe
-  const classStudents = await prisma.enrollment.findMany({
-    where: {
-      classId: enrollment.classId,
-      academicYearId,
-      status: "ACTIVE",
-    },
-    include: {
-      student: {
-        include: {
-          grades: {
-            where: {
-              deletedAt: null,
-              evaluation: { periodId },
-            },
-            include: {
-              evaluation: {
-                include: {
-                  classSubject: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  // Calculer les moyennes de tous les élèves
-  const classAverages: Array<{ studentId: string; average: number | null }> = [];
-
-  for (const e of classStudents) {
-    let studentWeightedSum = 0;
-    let studentCoefficients = 0;
-
-    for (const cs of enrollment.class.classSubjects) {
-      const normalizedStudentEntries = e.student.grades
-        .filter(
-          (g) =>
-            g.evaluation.classSubjectId === cs.id &&
-            g.value !== null &&
-            !g.isAbsent &&
-            !g.isExcused
-        )
-        .map((g) => {
-          const normalizedValue = normalizeGradeTo20(
-            Number(g.value),
-            Number(g.evaluation.maxGrade)
-          );
-
-          if (normalizedValue === null) return null;
-
-          return {
-            value: normalizedValue,
-            coefficient: Number(g.evaluation.coefficient) || 1,
-          };
-        })
-        .filter((entry): entry is NormalizedGradeEntry => entry !== null);
-
-      const avg = calculateWeightedAverage(normalizedStudentEntries);
-
-      if (avg !== null) {
-        const coef = Number(cs.coefficient);
-        studentWeightedSum += avg * coef;
-        studentCoefficients += coef;
-      }
-    }
-
-    const studentAvg =
-      studentCoefficients > 0
-        ? roundTo(studentWeightedSum / studentCoefficients)
-        : null;
-    classAverages.push({ studentId: e.studentId, average: studentAvg });
-  }
-
-  // Tri par moyenne décroissante
-  const sortedAverages = classAverages
-    .filter((a) => a.average !== null)
-    .sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
-
-  const classRank =
-    generalAverage !== null
-      ? sortedAverages.findIndex((a) => a.studentId === studentId) + 1
-      : null;
-  const classSize = sortedAverages.length;
+  // 3. Moyenne générale, rang de classe et effectif (élèves inscrits actifs)
+  const generalAverage = own?.general ?? null;
+  const classRank = own?.rank ?? null;
+  const classSize = classPeriod.classSize;
 
   // 5. Calculer taux de constance global
   const allGrades = subjectPerformances
@@ -444,8 +299,11 @@ export async function generateStudentAnalytics(
   }
 
   // 7. Évaluer le risque
+  // Paramètres de l'école : fenêtre d'observation, seuils d'alerte, tranches
+  const schoolId = enrollment.class.schoolId;
+  const [params, passingGrade] = await Promise.all([getSchoolParameters(schoolId), getPassingGrade(schoolId)]);
   const rollingWindowStart = new Date(
-    currentPeriod.endDate.getTime() - 90 * 24 * 60 * 60 * 1000
+    currentPeriod.endDate.getTime() - params.analysis.attendanceWindowDays * 24 * 60 * 60 * 1000
   );
   const riskWindowStart = new Date(
     Math.max(currentPeriod.startDate.getTime(), rollingWindowStart.getTime())
@@ -478,7 +336,7 @@ export async function generateStudentAnalytics(
     },
   });
 
-  const riskAssessment = assessRiskLevel(generalAverage, attendanceRate, incidents.length);
+  const riskAssessment = assessRiskLevel(generalAverage, attendanceRate, incidents.length, params.followUp, passingGrade);
 
   // 8. Déterminer forces et faiblesses
   const subjectAnalyses = await Promise.all(
@@ -519,7 +377,7 @@ export async function generateStudentAnalytics(
           prevSubjectPerf?.average !== undefined
         ) {
           const prevAvg = Number(prevSubjectPerf.average);
-          subjectTrend = calculateTrend(sp.average, prevAvg);
+          subjectTrend = calculateTrend(sp.average, prevAvg, params.performance);
           subjectProgression = calculateProgressionRate(sp.average, prevAvg);
         }
       }
@@ -541,7 +399,7 @@ export async function generateStudentAnalytics(
     generalAverage,
     classRank,
     classSize,
-    performanceLevel: getPerformanceLevel(generalAverage),
+    performanceLevel: getPerformanceLevel(generalAverage, params.performance, passingGrade),
     progressionRate,
     consistencyRate,
     riskLevel: riskAssessment.level,
