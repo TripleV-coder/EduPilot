@@ -306,7 +306,9 @@ afterAll(() => {
 
 // ═════════════════════════════ A. ROUTES « MOYENNES » ═════════════════════════════
 
-describe("A. Moyennes servies par les routes vs oracle exact", () => {
+// Import à froid des routes (bulletins…) : jusqu'à 12,7 s mesurées sous la charge
+// de la suite complète (audit 2026-10-14) ; les assertions restent exactes.
+describe("A. Moyennes servies par les routes vs oracle exact", { timeout: 60_000 }, () => {
   for (const period of [P1, P2]) {
     it(`/api/bulletins — ${period.name}`, async () => {
       const { GET } = await import("@/app/api/bulletins/route");

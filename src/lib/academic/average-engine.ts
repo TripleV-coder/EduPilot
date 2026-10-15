@@ -566,7 +566,12 @@ export function computeAnnualAverages(
         const known = values as Rational[];
         const vars: Record<string, Rational | Rational[]> = { PERIODES: known };
         known.forEach((v, i) => (vars[`P${i + 1}`] = v));
-        return evaluateFormula(rules.annualFormula, vars);
+        const annual = evaluateFormula(rules.annualFormula, vars);
+        // Même garde-fou que pour une matière : la validation de la formule ne
+        // l'essaie que sur des cas types ; un résultat hors de 0 à 20 n'est
+        // jamais publié (« NC »).
+        if (annual !== null && (annual.cmp(Rational.ZERO) < 0 || annual.cmp(TWENTY) > 0)) return null;
+        return annual;
     };
 
     const subjects = new Map<string, Rational | null>();

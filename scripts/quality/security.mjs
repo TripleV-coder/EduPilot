@@ -15,16 +15,6 @@ const check = (id, label, pass, detail) => {
   console.log(`${pass ? "PASS" : "FAIL"} [${id}] ${label} — ${detail}`);
 };
 
-async function statuses(n, headersFn, url = "/api/auth/csrf") {
-  const st = {};
-  for (let i = 0; i < n; i++) {
-    const r = await fetch(`${BASE}${url}`, { headers: headersFn(i) });
-    await r.arrayBuffer();
-    st[r.status] = (st[r.status] || 0) + 1;
-  }
-  return st;
-}
-
 // H4 avant H3 : la rafale de H3 épuise volontairement le budget de l'adresse ;
 // placée avant, elle faisait refuser (429) les jetons CSRF de H4, qui ne
 // mesurait plus rien.
@@ -34,9 +24,11 @@ async function statuses(n, headersFn, url = "/api/auth/csrf") {
 // confondus (200 / 15 min). Depuis l'analyse de capacité du 2026-10-01 (G3),
 // des échecs sur des comptes DIFFÉRENTS depuis une même adresse (salle
 // informatique, routeur 4G d'école) ne bloquent plus l'établissement.
-async function loginAttempts(ip, emailFor, n) {
+async function loginAttempts(ipFor, emailFor, n) {
   const st = {};
   for (let i = 0; i < n; i++) {
+    // Adresse fixe (chaîne) ou différente à chaque essai (fonction)
+    const ip = typeof ipFor === "function" ? ipFor(i) : ipFor;
     const c = await fetch(`${BASE}/api/auth/csrf`, { headers: { "x-forwarded-for": ip } });
     if (c.status !== 200) {
       st[`csrf-${c.status}`] = (st[`csrf-${c.status}`] || 0) + 1;
@@ -65,9 +57,13 @@ if (want("bruteforce")) {
 }
 
 // H3 — le rate-limit ne doit pas être contournable en faisant varier X-Forwarded-For.
+// Une rafale anonyme ne prouve plus rien depuis le seau à 1 000 req/min par IP
+// (2026-10-01) : on vise le compteur d'échecs par COMPTE, indexé par adresse.
+// Si X-Forwarded-For était cru, chaque essai (adresse différente) repartirait
+// d'un compteur neuf et le 11ᵉ échec ne serait jamais refusé.
 if (want("xff")) {
-  const st = await statuses(130, (i) => ({ "x-forwarded-for": `198.51.100.${i % 250}` }));
-  check("H3", "rafale 130 req. avec XFF tournant", (st[429] || 0) > 0, JSON.stringify(st));
+  const st = await loginAttempts((i) => `198.51.100.${i + 1}`, () => "xff-cible@example.invalid", 12);
+  check("H3", "12 échecs sur UN compte, XFF différent à chaque essai → 429", (st[429] || 0) > 0, JSON.stringify(st));
 }
 
 // H5 — IDOR inter-établissement sur subjects/categories/[id].

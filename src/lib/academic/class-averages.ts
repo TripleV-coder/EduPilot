@@ -429,19 +429,32 @@ export async function studentAveragesSummary(studentId: string): Promise<Student
     });
     if (!enrollment) return null;
     const classSubjects = enrollment.class.classSubjects;
-    const annual = await computeClassAnnual({
-        classId: enrollment.classId,
-        academicYearId: enrollment.academicYearId,
-        classSubjects,
+    // Calculs indépendants (lectures seules) lancés ensemble : en séquence, la
+    // vue « Mes notes » attendait l'année puis chaque période l'une après
+    // l'autre (3,6 s mesurées pour un élève, audit du 2026-10-14).
+    const yearPeriods = await prisma.period.findMany({
+        where: { academicYearId: enrollment.academicYearId },
+        select: { id: true },
     });
+    const [annual, periodResults] = await Promise.all([
+        computeClassAnnual({ classId: enrollment.classId, academicYearId: enrollment.academicYearId, classSubjects }),
+        Promise.all(
+            yearPeriods.map(async (period) => {
+                const result = await computeClassPeriod({
+                    classId: enrollment.classId,
+                    periodId: period.id,
+                    academicYearId: enrollment.academicYearId,
+                    classSubjects,
+                });
+                return [period.id, result] as const;
+            }),
+        ),
+    ]);
+    const resultByPeriod = new Map(periodResults);
     const periods: StudentAveragesSummary["periods"] = {};
     for (const period of annual.periods) {
-        const result = await computeClassPeriod({
-            classId: enrollment.classId,
-            periodId: period.id,
-            academicYearId: enrollment.academicYearId,
-            classSubjects,
-        });
+        const result = resultByPeriod.get(period.id);
+        if (!result) continue;
         const own = result.students.get(studentId);
         periods[period.id] = {
             general: own?.general ?? null,

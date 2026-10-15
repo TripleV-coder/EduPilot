@@ -51,7 +51,8 @@ export function FamilyGrades({ role }: { role: "STUDENT" | "PARENT" }) {
     const thresholds = useSchoolThresholds();
     const lang = useUiLang();
     const isParent = role === "PARENT";
-    const { data: childrenData } = useSWR<unknown>(isParent ? "/api/students?limit=50" : "/api/students?limit=1", fetcher);
+    // Liste des enfants : parent uniquement (l'élève n'y a pas accès, 403)
+    const { data: childrenData } = useSWR<unknown>(isParent ? "/api/students?limit=50" : null, fetcher);
     const children: Child[] = Array.isArray(childrenData)
         ? (childrenData as Child[])
         : ((childrenData as { data?: Child[] } | undefined)?.data ?? []);
