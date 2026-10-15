@@ -130,6 +130,7 @@ model School {
   subjectCategories      SubjectCategory[]
   subjects               Subject[]
   teacherAssignments     TeacherSchoolAssignment[]
+  teacherInvitations     TeacherInvitation[]
   teacherProfiles        TeacherProfile[]
   users                  User[]
   walletAccounts         WalletAccount[]
@@ -2069,6 +2070,25 @@ enum UserRole {
   PARENT
   ACCOUNTANT
   STAFF
+}
+
+/// Code d'invitation remis par un établissement à un enseignant qui a DÉJÀ un
+/// compte EduPilot (rattachement à une école supplémentaire). Usage unique,
+/// durée limitée ; seule l'empreinte du code est stockée.
+model TeacherInvitation {
+  id           String    @id @default(cuid())
+  schoolId     String
+  codeHash     String    @unique
+  createdById  String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, usedAt])
+  @@map("teacher_invitations")
 }
 
 enum TeacherAssignmentStatus {
