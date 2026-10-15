@@ -158,10 +158,16 @@ function wire() {
         W.students.map((s) => ({ studentId: s.id, enrolledAt: s.enrolledAt ? new Date(s.enrolledAt) : null })),
     );
     p.grade.findMany.mockImplementation(
-        async ({ where }: { where: { studentId: { in: string[] }; evaluation: { periodId?: string } } }) =>
+        async ({ where }: { where: { studentId: { in: string[] }; evaluation: { periodId?: string | { in: string[] } } } }) =>
             gradeRows()
                 .filter((g) => where.studentId.in.includes(g.studentId))
-                .filter((g) => !where.evaluation.periodId || evalOf(g.evaluationId).period === where.evaluation.periodId)
+                .filter((g) => {
+                    // Égalité ou liste (`{ in: [...] }`), comme Prisma
+                    const pw = where.evaluation.periodId;
+                    if (!pw) return true;
+                    const period = evalOf(g.evaluationId).period;
+                    return typeof pw === "string" ? period === pw : pw.in.includes(period);
+                })
                 .map((g) => {
                     const e = evalOf(g.evaluationId);
                     return {
