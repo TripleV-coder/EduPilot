@@ -1,0 +1,440 @@
+{
+  "schema": {
+    "version": "1.0",
+    "description": "Résultats de l'audit EduPilot. Chaque valeur provient d'une commande consignée dans audit-reports/evidence/commands.tsv (champ evidence = préfixe du journal).",
+    "fields": {
+      "indicators[]": "name, definition, formula, numerator, denominator, value, unit, population, evidence, limits ; value=null si non calculable",
+      "defects[]": "id, priority (P0..P4|C), component, status (fixed_retested|improved_open|open|to_investigate), evidence",
+      "campaigns[]": "id, name, status (executed|blocked|not_executed), passed, failed, skipped, evidence"
+    }
+  },
+  "audit": {
+    "date": "2026-10-14",
+    "start_commit": "75b2377",
+    "verdict": "C — PRÊT SOUS RÉSERVES"
+  },
+  "campaigns": [
+    {
+      "id": "B5",
+      "name": "tests unitaires baseline",
+      "status": "executed",
+      "passed": 4096,
+      "failed": 2,
+      "skipped": 11,
+      "evidence": "05"
+    },
+    {
+      "id": "R62",
+      "name": "tests unitaires après corrections",
+      "status": "executed",
+      "passed": 4138,
+      "failed": 0,
+      "skipped": 11,
+      "evidence": "62"
+    },
+    {
+      "id": "B6",
+      "name": "tests d'intégration baseline",
+      "status": "executed",
+      "passed": 344,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "06"
+    },
+    {
+      "id": "R63",
+      "name": "tests d'intégration après corrections",
+      "status": "executed",
+      "passed": 344,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "63"
+    },
+    {
+      "id": "T4",
+      "name": "suite d'audit du moteur de formules (avant correction)",
+      "status": "executed",
+      "passed": 39,
+      "failed": 1,
+      "skipped": 0,
+      "evidence": "10"
+    },
+    {
+      "id": "T4b",
+      "name": "suite d'audit du moteur de formules (après correction)",
+      "status": "executed",
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "50"
+    },
+    {
+      "id": "T6",
+      "name": "scénarios dynamiques de formules (build corrigé)",
+      "status": "executed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "71"
+    },
+    {
+      "id": "T7",
+      "name": "sécurité dynamique (build corrigé)",
+      "status": "executed",
+      "passed": 11,
+      "failed": 1,
+      "skipped": 0,
+      "evidence": "74"
+    },
+    {
+      "id": "E2E",
+      "name": "Playwright (31 specs)",
+      "status": "blocked",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "evidence": null
+    },
+    {
+      "id": "BKP",
+      "name": "sauvegarde/restauration",
+      "status": "blocked",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "evidence": null
+    },
+    {
+      "id": "CI",
+      "name": "workflows CI distants",
+      "status": "not_executed",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "evidence": null
+    },
+    {
+      "id": "MUT",
+      "name": "tests de mutation",
+      "status": "not_executed",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "evidence": null
+    }
+  ],
+  "indicators": [
+    {
+      "name": "taux de réussite unitaire (baseline)",
+      "definition": "tests réussis / tests exécutés (hors ignorés)",
+      "formula": "100*passed/(passed+failed)",
+      "numerator": 4096,
+      "denominator": 4098,
+      "value": 99.95,
+      "unit": "%",
+      "population": "371 fichiers Vitest",
+      "evidence": "05",
+      "limits": "échecs = dépassements de délai sous charge"
+    },
+    {
+      "name": "taux de réussite unitaire (après)",
+      "definition": "idem",
+      "formula": "100*passed/(passed+failed)",
+      "numerator": 4138,
+      "denominator": 4138,
+      "value": 100.0,
+      "unit": "%",
+      "population": "372 fichiers Vitest",
+      "evidence": "62",
+      "limits": "11 tests ignorés non comptés"
+    },
+    {
+      "name": "taux de réussite intégration",
+      "definition": "idem",
+      "formula": "100*passed/(passed+failed)",
+      "numerator": 344,
+      "denominator": 344,
+      "value": 100.0,
+      "unit": "%",
+      "population": "54 fichiers, PostgreSQL éphémère",
+      "evidence": "63",
+      "limits": ""
+    },
+    {
+      "name": "taux de réussite sécurité dynamique",
+      "definition": "contrôles PASS / contrôles exécutés",
+      "formula": "100*pass/total",
+      "numerator": 11,
+      "denominator": 12,
+      "value": 91.67,
+      "unit": "%",
+      "population": "scripts/quality/security.mjs",
+      "evidence": "74",
+      "limits": "contrôles choisis par le projet, pas un DAST"
+    },
+    {
+      "name": "écart maximal moyenne de matière vs oracle",
+      "definition": "|moteur - oracle| en fraction exacte",
+      "formula": "max|a-b|",
+      "numerator": null,
+      "denominator": null,
+      "value": 0,
+      "unit": "point sur 20",
+      "population": "2 000 cas générés + 66 moyennes serveur",
+      "evidence": "50, 37, 71",
+      "limits": "formule officielle et préréglage composition double"
+    },
+    {
+      "name": "moyennes stockées identiques au recalcul",
+      "definition": "égales / comparées",
+      "formula": "100*equal/compared",
+      "numerator": 2985,
+      "denominator": 2985,
+      "value": 100.0,
+      "unit": "%",
+      "population": "école de démonstration, 29 classes × 3 périodes",
+      "evidence": "65, 72",
+      "limits": "base jetable, une école"
+    },
+    {
+      "name": "taux de campagnes bloquées",
+      "definition": "campagnes bloquées / campagnes planifiées",
+      "formula": "100*blocked/planned",
+      "numerator": 2,
+      "denominator": 16,
+      "value": 12.5,
+      "unit": "%",
+      "population": "16 campagnes du plan de tests (T1–T14, E2E, sauvegarde)",
+      "evidence": "test-plan.md",
+      "limits": "compte des campagnes, pas des tests"
+    },
+    {
+      "name": "couverture lignes (unitaires)",
+      "definition": "lignes couvertes / lignes instrumentées",
+      "formula": "100*covered/total",
+      "numerator": 15838,
+      "denominator": 20363,
+      "value": 77.77,
+      "unit": "%",
+      "population": "576 fichiers (src/lib, src/app/api, 2 dossiers de composants)",
+      "evidence": "80",
+      "limits": "intégration exclue ; 1 test temporel échoué pendant la mesure"
+    },
+    {
+      "name": "couverture branches (unitaires)",
+      "definition": "branches couvertes / branches instrumentées",
+      "formula": "100*covered/total",
+      "numerator": 10743,
+      "denominator": 15951,
+      "value": 67.35,
+      "unit": "%",
+      "population": "idem",
+      "evidence": "80",
+      "limits": "idem"
+    },
+    {
+      "name": "latence p50 /api/grades élève (avant)",
+      "definition": "médiane de 20 requêtes séquentielles",
+      "formula": "p50",
+      "numerator": null,
+      "denominator": null,
+      "value": 3619,
+      "unit": "ms",
+      "population": "base jetable 131 208 notes",
+      "evidence": "29",
+      "limits": "une machine, un processus"
+    },
+    {
+      "name": "latence p50 /api/grades élève (après)",
+      "definition": "idem",
+      "formula": "p50",
+      "numerator": null,
+      "denominator": null,
+      "value": 1983,
+      "unit": "ms",
+      "population": "idem",
+      "evidence": "75",
+      "limits": "idem"
+    },
+    {
+      "name": "vulnérabilités de production critiques (npm audit)",
+      "definition": "nombre",
+      "formula": "count",
+      "numerator": null,
+      "denominator": null,
+      "value": 0,
+      "unit": "avis",
+      "population": "npm audit --omit=dev",
+      "evidence": "55",
+      "limits": "avant : 1 critique ; 2 élevés restants"
+    },
+    {
+      "name": "taux de couverture des exigences",
+      "definition": "exigences vérifiées / exigences identifiées",
+      "formula": "100*verified/identified",
+      "numerator": null,
+      "denominator": null,
+      "value": null,
+      "unit": "%",
+      "population": "",
+      "evidence": null,
+      "limits": "non calculable : aucun référentiel d'exigences formel dans le dépôt"
+    }
+  ],
+  "defects": [
+    {
+      "id": "DEF-001",
+      "priority": "P1",
+      "component": "dépendances (next)",
+      "status": "fixed_retested",
+      "evidence": "09, 55"
+    },
+    {
+      "id": "DEF-002",
+      "priority": "P2",
+      "component": "moyenne annuelle non bornée",
+      "status": "fixed_retested",
+      "evidence": "10, 50"
+    },
+    {
+      "id": "DEF-003",
+      "priority": "P2",
+      "component": "latence vues famille",
+      "status": "improved_open",
+      "evidence": "29, 30, 75, 76"
+    },
+    {
+      "id": "DEF-004",
+      "priority": "P2",
+      "component": "dépendances (axios, brace-expansion, dompurify)",
+      "status": "fixed_retested",
+      "evidence": "09, 55"
+    },
+    {
+      "id": "DEF-005",
+      "priority": "P3",
+      "component": "tests de précision instables",
+      "status": "fixed_retested",
+      "evidence": "05, 62"
+    },
+    {
+      "id": "DEF-006",
+      "priority": "P4",
+      "component": "appel 403 espace élève",
+      "status": "fixed_retested",
+      "evidence": "navigateur"
+    },
+    {
+      "id": "DEF-007",
+      "priority": "P4",
+      "component": "versions Vitest désalignées",
+      "status": "fixed_retested",
+      "evidence": "08, 80"
+    },
+    {
+      "id": "DEF-008",
+      "priority": "P3",
+      "component": "validation de formule par cas types",
+      "status": "open",
+      "evidence": "50"
+    },
+    {
+      "id": "DEF-009",
+      "priority": "P4",
+      "component": "virgule ambiguë dans les formules",
+      "status": "open",
+      "evidence": "50"
+    },
+    {
+      "id": "DEF-010",
+      "priority": "P4",
+      "component": "cron automation 500 sans secret",
+      "status": "open",
+      "evidence": "74"
+    },
+    {
+      "id": "DEF-011",
+      "priority": "P4",
+      "component": "contrôle H3 non probant",
+      "status": "fixed_retested",
+      "evidence": "23, 74"
+    },
+    {
+      "id": "DEF-012",
+      "priority": "P3",
+      "component": "recalculs d'arrière-plan non regroupés",
+      "status": "open",
+      "evidence": "34"
+    },
+    {
+      "id": "DEF-013",
+      "priority": "P3",
+      "component": "base de développement non migrée",
+      "status": "open",
+      "evidence": "11, 12"
+    },
+    {
+      "id": "DEF-014",
+      "priority": "P3",
+      "component": "sharp, source-map-js",
+      "status": "open",
+      "evidence": "55"
+    },
+    {
+      "id": "DEF-015",
+      "priority": "P4",
+      "component": "test temporel sous couverture",
+      "status": "open",
+      "evidence": "80, 81"
+    },
+    {
+      "id": "DEF-016",
+      "priority": "P4",
+      "component": "installation sans jeton",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "DEF-017",
+      "priority": "P3",
+      "component": "absence de contraintes CHECK",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "DEF-018",
+      "priority": "P4",
+      "component": "pas de version de formule sur les résultats",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "DEF-019",
+      "priority": "P4",
+      "component": "callbackUrl ignoré après connexion",
+      "status": "open",
+      "evidence": "navigateur"
+    },
+    {
+      "id": "DEF-020",
+      "priority": "P4",
+      "component": "définition du taux de présence",
+      "status": "open",
+      "evidence": "navigateur"
+    },
+    {
+      "id": "IND-001",
+      "priority": "C",
+      "component": "contrat webhook Flutterwave",
+      "status": "to_investigate",
+      "evidence": null
+    },
+    {
+      "id": "IND-002",
+      "priority": "C",
+      "component": "recalcul non durable",
+      "status": "to_investigate",
+      "evidence": "72"
+    }
+  ]
+}

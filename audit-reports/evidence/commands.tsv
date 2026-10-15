@@ -1,0 +1,55 @@
+nom	code_sortie	duree_s	commande
+01-npm-ci-check	0	1.554838509	npm ls --depth=0
+02-prisma-validate	0	3.201152249	npx prisma validate
+03-typecheck	0	22.066320663	npm run type-check
+04-lint	0	87.845497234	npm run lint
+05-unit	1	186.835251273	npx vitest run
+05b-precision-isolated	0	128.271545955	npx vitest run tests/precision/precision.test.ts
+09-npm-audit	1	8.179309206	npm audit --omit=dev --json
+09b-npm-audit-all	1	20.703060538	npm audit --json
+06-integration	0	113.059234425	npm run test:integration
+10-formula-audit-before	1	2.149965991	npx vitest run tests/precision/formula-engine.audit.test.ts
+07-build	0	84.987887772	npm run build
+10-formula-audit-before	1	10.534342096	npx vitest run tests/precision/formula-engine.audit.test.ts
+11-migrate-status	1	8.613968504	npx prisma migrate status
+12-diff-db-vs-schema	0	7.825740597	npx prisma migrate diff --from-url postgresql://***:***@localhost:5432/edupilot?schema=public --to-schema-datamodel prisma/schema.prisma --script
+13-migrations-vs-schema	0	12.158167247	npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://***:***@localhost:5432/audit_shadow_20261014?schema=public --script
+21-migrate-deploy-fresh	0	3.170937704	npx prisma migrate deploy
+23-security-dynamic	1	4.902319352	node scripts/quality/security.mjs
+08-coverage-unit	1	288.008407137	npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text-summary
+24-security-dynamic-rerun	1	3.451275902	node scripts/quality/security.mjs
+25-xff-spoof-probe	0	.499896169	node audit-reports/evidence/xff-spoof-probe.mjs
+28-smoke-all	1	56.482571661	node scripts/quality/smoke.mjs ALL
+29-latency-student	0	109.189238775	node scripts/quality/latency.mjs STUDENT 20
+30-latency-parent	0	70.850907572	node scripts/quality/latency.mjs PARENT 20
+31-latency-admin	0	11.555896325	node scripts/quality/latency.mjs SCHOOL_ADMIN 30
+32-profile-summary-before	0	5.534756161	npx tsx --tsconfig tsconfig.json audit-reports/evidence/profile-summary.ts
+33-load-default	0	46.088330149	node scripts/quality/load.mjs
+35-load-rep1	0	46.172381093	node scripts/quality/load.mjs /api/classes,/api/students?limit=20,/api/health
+35-load-rep2	0	45.928160609	node scripts/quality/load.mjs /api/classes,/api/students?limit=20,/api/health
+35-load-rep3	0	46.078467865	node scripts/quality/load.mjs /api/classes,/api/students?limit=20,/api/health
+37-formula-scenarios	1	.140523655	node audit-reports/evidence/formula-scenarios.mjs
+37-formula-scenarios	0	21.624122652	node audit-reports/evidence/formula-scenarios.mjs
+36-coverage-unit-rerun	1	342.005776400	npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text-summary --testTimeout=60000
+50-formula-audit-after-fix	0	5.180879034	npx vitest run tests/precision/formula-engine.audit.test.ts tests/lib/academic
+51-summary-tests	0	216.646033012	npx vitest run tests/api/grades-route.test.ts tests/api/orientation-me.test.ts tests/api/bulletins.test.ts tests/api/school-rules.test.ts tests/precision
+52-npm-install	0	83.640471415	npm install --no-audit --no-fund
+53-npm-audit-after	1	5.215501436	npm audit --omit=dev --json
+53b-npm-audit-all-after	1	7.585016431	npm audit --json
+54-npm-install-pin	0	67.570242660	npm install --no-audit --no-fund
+55-npm-audit-final	1	3.793902950	npm audit --omit=dev --json
+60-typecheck-after	0	209.802059132	npm run type-check
+61-lint-after	0	151.613669061	npm run lint
+62-unit-after	0	9052.810953049	npx vitest run
+65-stored-vs-live	0	20.722778542	npx tsx --tsconfig tsconfig.json audit-reports/evidence/stored-vs-live.ts
+63-integration-after	0	127.933519979	npm run test:integration
+64-build-after	0	204.076079251	npm run build
+71-formula-s1-after-fix	0	12.355440106	node audit-reports/evidence/formula-scenarios.mjs
+72-stored-vs-live-after-kill	0	17.465255891	npx tsx --tsconfig tsconfig.json audit-reports/evidence/stored-vs-live.ts
+74-security-after	1	3.120656493	node scripts/quality/security.mjs
+75-latency-student-after	0	77.762898405	node scripts/quality/latency.mjs STUDENT 20
+76-latency-parent-after	0	40.658502849	node scripts/quality/latency.mjs PARENT 20
+80-coverage-final	1	275.877843760	npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text-summary --coverage.reportOnFailure
+81-redis-outage-rep1	0	2.524201112	npx vitest run tests/lib/redis/outage.test.ts
+81-redis-outage-rep2	0	2.314966473	npx vitest run tests/lib/redis/outage.test.ts
+81-redis-outage-rep3	0	2.078669494	npx vitest run tests/lib/redis/outage.test.ts
