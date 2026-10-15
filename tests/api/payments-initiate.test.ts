@@ -8,13 +8,18 @@ vi.mock("@/lib/payments/fedapay", () => ({ isFedaPayConfigured: vi.fn() }));
 vi.mock("@/lib/finance/factory", () => ({
   PaymentProviderFactory: { getProvider: vi.fn() },
 }));
+// Verrou et solde : sémantique testée sur une vraie base (integration-db/online-payments)
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(),
+  getFeeBalance: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     studentProfile: { findUnique: vi.fn() },
     fee: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
-    // Rien encore payé par défaut : reste à payer = montant du frais
-    payment: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), aggregate: vi.fn().mockResolvedValue({ _sum: { amount: null } }) },
+    payment: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg)
@@ -28,7 +33,15 @@ import prisma from "@/lib/prisma";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { isMomoConfigured } from "@/lib/finance/providers/momo";
 import { isFedaPayConfigured } from "@/lib/payments/fedapay";
+import { getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/initiate/route";
+
+/** Rien encore payé par défaut : reste à payer = montant du frais. */
+function balance(overrides: Record<string, number> = {}) {
+  const b = { billed: 100000, settled: 0, reserved: 0, ...overrides };
+  const remaining = Math.max(0, b.billed - b.settled);
+  return { ...b, remaining, available: Math.max(0, remaining - b.reserved) };
+}
 
 const providerMock = {
   name: "MOMO",
@@ -80,6 +93,8 @@ beforeEach(() => {
   vi.mocked(isMomoConfigured).mockReturnValue(true);
   vi.mocked(isFedaPayConfigured).mockReturnValue(true);
   vi.mocked(PaymentProviderFactory.getProvider).mockReturnValue(providerMock as never);
+  vi.mocked(getFeeBalance).mockResolvedValue(balance());
+  vi.mocked(prisma.payment.findFirst).mockResolvedValue(null as never);
   vi.mocked(providerMock.initiatePayment).mockResolvedValue({
     paymentUrl: "https://pay.example/x",
     transactionId: "TXN-1",
@@ -268,11 +283,16 @@ describe("POST /api/payments/initiate", () => {
     };
     expect(createArgs.data.status).toBe("PENDING");
     expect(createArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    // Audit N7 : ce test exigeait que la référence soit remplacée par
-    // l'identifiant du fournisseur (« TXN-1 »). Or les webhooks MoMo et FedaPay
-    // rapprochent par NOTRE référence (externalId / merchant_reference) : la
-    // remplacer rendait le paiement introuvable, qui restait PENDING.
-    expect(prisma.payment.update).not.toHaveBeenCalled();
+    expect(createArgs.data).toMatchObject({ provider: "MOMO" });
+    expect(lockStudentFee).toHaveBeenCalledWith(prisma, FIXTURES.studentA, FIXTURES.feeA);
+    // Audit N7 : la référence n'est jamais remplacée par l'identifiant du
+    // fournisseur (les webhooks rapprochent par NOTRE référence) ; cet
+    // identifiant est rangé à part, pour la réconciliation à 24 h.
+    expect(prisma.payment.update).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: "cpay1" },
+      data: { providerTransactionId: "TXN-1" },
+    });
     expect(providerMock.initiatePayment).toHaveBeenCalledWith(
       50000,
       "XOF",
@@ -301,6 +321,10 @@ describe("POST /api/payments/initiate", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.findFirst).mockResolvedValue(
+      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD" })
+    );
+    // L'essai repris reçoit le rail courant (fournisseur interrogé à 24 h)
+    vi.mocked(prisma.payment.update).mockResolvedValue(
       pendingPayment({ id: "cpay-existing", reference: "PAY-OLD" })
     );
 
@@ -337,9 +361,10 @@ describe("POST /api/payments/initiate", () => {
 
     expect(res.status).toBe(200);
     const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      data: { method: string };
+      data: { method: string; provider: string };
     };
     expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
+    expect(updateArgs.data.provider).toBe("MOMO");
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
   });
 
@@ -356,5 +381,55 @@ describe("POST /api/payments/initiate", () => {
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Payment initiation failed");
+    // L'essai échoué ne réserve plus le montant (sinon la famille reste bloquée 24 h)
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { id: "cpay1", status: "PENDING" },
+      data: expect.objectContaining({ status: "EXPIRED" }),
+    });
+  });
+
+  it("compte les paiements déjà encaissés : au-delà du reste à payer, 400", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(getFeeBalance).mockResolvedValue(balance({ settled: 70000 }));
+
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody({ amount: 40000 }),
+    }));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.remaining).toBe(30000);
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("un essai en cours réserve son montant : 409 explicite avec le montant payable", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
+    mockTenant();
+    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue({
+      parentStudents: [{ studentId: FIXTURES.studentA }],
+    } as never);
+    vi.mocked(getFeeBalance).mockResolvedValue(balance({ reserved: 80000 }));
+
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody({ amount: 50000 }),
+    }));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body).toMatchObject({ code: "PAYMENT_IN_PROGRESS", reserved: 80000, available: 20000 });
+    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+  });
+
+  it("refuse une devise autre que le franc CFA (400)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody({ currency: "EUR" }),
+    }));
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

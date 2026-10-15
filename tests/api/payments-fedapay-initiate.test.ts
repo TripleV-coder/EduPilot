@@ -35,6 +35,7 @@ function paymentRecord(overrides: Record<string, unknown> = {}) {
     amount: 50000,
     status: "PENDING",
     reference: "EDU-ref1",
+    createdAt: new Date(),
     studentId: FIXTURES.studentA,
     student: { schoolId: FIXTURES.schoolA },
     fee: { name: "Scolarité T1" },
@@ -182,6 +183,23 @@ describe("POST /api/payments/fedapay/initiate", () => {
     };
     expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
     expect(updateArgs.data.reference).toBe("EDU-ref1");
+    expect(updateArgs.data).toMatchObject({ provider: "FEDAPAY" });
+    // Identifiant FedaPay rangé pour la réconciliation à 24 h
+    const idArgs = vi.mocked(prisma.payment.update).mock.calls[1][0] as { data: Record<string, unknown> };
+    expect(idArgs.data).toHaveProperty("providerTransactionId");
+  });
+
+  it("refuse de relancer une demande de plus de 24 h (409, aucun appel FedaPay)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(
+      paymentRecord({ createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+    );
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PAYMENT_EXPIRED");
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
   });
 
   it("enregistre la référence AVANT de créer la transaction chez FedaPay (arrêt brutal)", async () => {
@@ -227,6 +245,6 @@ describe("POST /api/payments/fedapay/initiate", () => {
     const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0]?.[0] as
       | { data: Record<string, unknown> }
       | undefined;
-    expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN" });
+    expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" });
   });
 });

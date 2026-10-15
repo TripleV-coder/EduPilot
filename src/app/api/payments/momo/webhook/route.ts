@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { z } from "zod";
-import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { runAsSystem } from "@/lib/db/db-context";
 import { logger } from "@/lib/utils/logger";
+import { confirmOnlinePayment, failOnlinePayment, parseProviderAmount, parseProviderCurrency } from "@/lib/finance/online-payments";
 
 /**
  * POST /api/payments/momo/webhook — Webhook MTN MoMo signé (HMAC-SHA256).
@@ -15,15 +15,16 @@ import { logger } from "@/lib/utils/logger";
  * Enregistrer cette URL dans le portail développeur MTN MoMo :
  *   https://momodeveloper.mtn.com → Subscriptions → Collection → Webhook URL
  *
- * Le webhook rapproche automatiquement les paiements Mobile Money
- * (PaymentMethod.MOBILE_MONEY_MTN, status PENDING → VERIFIED).
+ * Le webhook valide un paiement Mobile Money en attente seulement si le
+ * montant et la devise reçus sont ceux attendus (`confirmOnlinePayment`).
  */
 
 const momoEventSchema = z.object({
     financialTransactionId: z.string(),
     externalId: z.string(),
     amount: z.string(),
-    currency: z.string().default("XOF"),
+    // Pas de devise par défaut : une devise absente est signalée, jamais supposée
+    currency: z.string().optional(),
     status: z.enum(["SUCCESSFUL", "FAILED", "PENDING"]),
     payerMessage: z.string().optional(),
     payeeNote: z.string().optional(),
@@ -71,35 +72,22 @@ export const POST = createApiHandler(async (request) => {
     // de paiement passent en contexte système déclaré (audit M2).
     try {
         if (event.status === "SUCCESSFUL") {
-            const updated = await runAsSystem("webhook:momo", () => prisma.payment.updateMany({
-                where: {
-                    reference: event.externalId,
-                    status: "PENDING",
-                    method: { in: ["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"] },
-                },
-                data: {
-                    status: "VERIFIED",
-                    paidAt: new Date(),
-                    notes: `MoMo txn ${event.financialTransactionId}`,
-                    reconciledAt: new Date(),
-                },
+            // Montant et devise contrôlés avant toute validation
+            const result = await runAsSystem("webhook:momo", () => confirmOnlinePayment({
+                reference: event.externalId,
+                provider: "MOMO",
+                receivedAmount: parseProviderAmount(event.amount, "MOMO"),
+                receivedCurrency: parseProviderCurrency(event.currency),
+                providerTransactionId: event.financialTransactionId,
+                source: `MoMo txn ${event.financialTransactionId}`,
             }));
-
-            logger.info(`MoMo webhook: ${updated.count} paiement(s) rapprochés`, {
+            logger.info("MoMo webhook: confirmation traitée", {
                 externalId: event.externalId,
                 txn: event.financialTransactionId,
+                outcome: result.outcome,
             });
         } else if (event.status === "FAILED") {
-            await runAsSystem("webhook:momo", () => prisma.payment.updateMany({
-                where: {
-                    reference: event.externalId,
-                    status: "PENDING",
-                    method: { in: ["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"] },
-                },
-                data: { status: "CANCELLED" },
-            }));
-
-            logger.info(`MoMo webhook: paiement annulé`, { externalId: event.externalId });
+            await runAsSystem("webhook:momo", () => failOnlinePayment(event.externalId, "webhook MoMo"));
         }
 
         return NextResponse.json({ received: true });

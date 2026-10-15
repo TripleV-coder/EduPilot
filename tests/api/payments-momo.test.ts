@@ -7,7 +7,14 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  // Règles de confirmation testées sur une vraie base (integration-db/online-payments)
+  confirmOnlinePayment: vi.fn(),
+}));
+
 import prisma from "@/lib/prisma";
+import { confirmOnlinePayment } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/momo/webhook/route";
 
 const MOMO_SECRET = "momo_whsec_test";
@@ -88,23 +95,32 @@ describe("POST /api/payments/momo/webhook (requireAuth: false)", () => {
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rapproche le paiement PENDING → VERIFIED sur SUCCESSFUL", async () => {
-    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
+  it("SUCCESSFUL : transmet montant, devise et transaction au contrôle de confirmation", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "CONFIRMED", paymentId: "p1", overpaid: 0 });
 
     const res = await signedPost(JSON.stringify(successfulEvent()));
-    const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.received).toBe(true);
-    const arg = vi.mocked(prisma.payment.updateMany).mock.calls[0][0] as {
-      where: { reference: string; status: string; method: { in: string[] } };
-      data: { status: string; notes: string; reconciledAt: Date };
-    };
-    expect(arg.where.reference).toBe("EDU-pmt1");
-    expect(arg.where.status).toBe("PENDING");
-    expect(arg.where.method.in).toEqual(["MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV"]);
-    expect(arg.data.status).toBe("VERIFIED");
-    expect(arg.data.notes).toBe("MoMo txn ftn_1");
+    expect((await res.json()).received).toBe(true);
+    expect(confirmOnlinePayment).toHaveBeenCalledWith({
+      reference: "EDU-pmt1",
+      provider: "MOMO",
+      receivedAmount: 50000,
+      receivedCurrency: "XOF",
+      providerTransactionId: "ftn_1",
+      source: "MoMo txn ftn_1",
+    });
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("SUCCESSFUL sans devise : aucune devise supposée (null transmis)", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "MISMATCH", paymentId: "p1", reason: "x" });
+    const event = successfulEvent();
+    delete (event as Record<string, unknown>).currency;
+
+    await signedPost(JSON.stringify(event));
+
+    expect(vi.mocked(confirmOnlinePayment).mock.calls[0][0].receivedCurrency).toBeNull();
   });
 
   it("annule le paiement sur FAILED", async () => {
@@ -130,7 +146,7 @@ describe("POST /api/payments/momo/webhook (requireAuth: false)", () => {
   });
 
   it("retourne 500 quand le rapprochement échoue", async () => {
-    vi.mocked(prisma.payment.updateMany).mockRejectedValue(new Error("db down"));
+    vi.mocked(confirmOnlinePayment).mockRejectedValue(new Error("db down"));
 
     const res = await signedPost(JSON.stringify(successfulEvent()));
 

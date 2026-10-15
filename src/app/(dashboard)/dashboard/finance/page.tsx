@@ -103,6 +103,7 @@ const PAYMENT_STATUS: Record<string, { label: string; variant: "success" | "warn
     RECONCILED: { label: "Rapproché", variant: "success" },
     PENDING: { label: "À valider", variant: "warning" },
     CANCELLED: { label: "Annulé", variant: "neutral" },
+    EXPIRED: { label: "Expiré · à rapprocher", variant: "warning" },
 };
 
 export default function FinanceDashboardPage() {

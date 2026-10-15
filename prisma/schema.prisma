@@ -903,6 +903,11 @@ model Payment {
   status           PaymentStatus  @default(PENDING)
   reconciledAt     DateTime?
   reconciledBy     String?
+  /// Fournisseur du paiement en ligne (FEDAPAY, MOMO, FLUTTERWAVE, PAYSTACK)
+  provider              String?
+  /// Identifiant de la transaction chez le fournisseur : sert à lui redemander
+  /// l'état d'un paiement resté sans réponse (réconciliation)
+  providerTransactionId String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   deletedAt        DateTime?
@@ -2135,6 +2140,10 @@ enum PaymentStatus {
   VERIFIED
   RECONCILED
   CANCELLED
+  /// Paiement en ligne non confirmé après 24 h (résultat incertain chez le
+  /// fournisseur) : n'est plus réservé, reste à rapprocher. Une confirmation
+  /// tardive authentique et au bon montant le valide encore.
+  EXPIRED
 }
 
 enum BackgroundJobStatus {

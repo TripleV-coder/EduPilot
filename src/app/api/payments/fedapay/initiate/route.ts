@@ -8,6 +8,7 @@ import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
+import { ONLINE_PAYMENT_TTL_MS } from "@/lib/finance/online-payments";
 
 const bodySchema = z.object({ paymentId: z.string().cuid() });
 
@@ -51,6 +52,7 @@ export const POST = createApiHandler(async (request, context) => {
             amount: true,
             status: true,
             reference: true,
+            createdAt: true,
             studentId: true,
             student: { select: { schoolId: true } },
             fee: { select: { name: true } },
@@ -85,6 +87,14 @@ export const POST = createApiHandler(async (request, context) => {
         );
     }
 
+    // Un essai de plus de 24 h ne réserve plus rien : il ne peut pas être relancé
+    if (Date.now() - payment.createdAt.getTime() > ONLINE_PAYMENT_TTL_MS) {
+        return NextResponse.json(
+            { error: "Cette demande de paiement a expiré. Créez-en une nouvelle.", code: "PAYMENT_EXPIRED" },
+            { status: 409 }
+        );
+    }
+
     const amount = Number(payment.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
         return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
@@ -111,7 +121,7 @@ export const POST = createApiHandler(async (request, context) => {
         // toujours PENDING : sans effet si l'appel échoue.
         await prisma.payment.update({
             where: { id: payment.id },
-            data: { reference, method: "MOBILE_MONEY_MTN" },
+            data: { reference, method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" },
         });
 
         const checkout = await createFedaPayCheckout({
@@ -124,6 +134,11 @@ export const POST = createApiHandler(async (request, context) => {
                 lastname: payer.lastName ?? "EduPilot",
                 email: payer.email,
             },
+        });
+
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: { providerTransactionId: checkout.transactionId },
         });
 
         logger.info("FedaPay: transaction initiée", {

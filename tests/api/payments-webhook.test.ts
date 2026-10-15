@@ -4,11 +4,17 @@ import { cuid } from "./test-helpers";
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    payment: { findFirst: vi.fn(), update: vi.fn() },
+    payment: { updateMany: vi.fn() },
   },
+}));
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  // Règles de confirmation testées sur une vraie base (integration-db/online-payments)
+  confirmOnlinePayment: vi.fn(),
 }));
 
 import prisma from "@/lib/prisma";
+import { confirmOnlinePayment } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/webhook/route";
 
 const FW_SECRET = "fw_secret_test";
@@ -34,10 +40,6 @@ function paystack(body: Record<string, unknown>) {
   return rawRequest(raw, { "x-paystack-signature": sig, "x-payment-provider": "PAYSTACK" });
 }
 
-function pendingPayment(overrides: Record<string, unknown> = {}) {
-  return { id: paymentId, amount: 50000, status: "PENDING", ...overrides } as never;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.FLUTTERWAVE_WEBHOOK_SECRET = FW_SECRET;
@@ -53,7 +55,7 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
     const res = await POST(rawRequest('{"id":"t1","status":"successful"}'));
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe("Non authentifié");
-    expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+    expect(confirmOnlinePayment).not.toHaveBeenCalled();
   });
 
   it("refuse une signature invalide (401)", async () => {
@@ -61,7 +63,7 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
       rawRequest('{"id":"t1","status":"successful"}', { "verif-hash": "deadbeef" })
     );
     expect(res.status).toBe(401);
-    expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+    expect(confirmOnlinePayment).not.toHaveBeenCalled();
   });
 
   it("refuse quand FLUTTERWAVE_WEBHOOK_SECRET n'est pas configuré (401)", async () => {
@@ -82,82 +84,79 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
     const res = await POST(flutterwave({ status: "successful" }));
     expect(res.status).toBe(200);
     expect((await res.json()).received).toBe(true);
-    expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+    expect(confirmOnlinePayment).not.toHaveBeenCalled();
   });
 
-  it("acquitte un webhook pour une transaction inconnue", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(null as never);
-    const res = await POST(flutterwave({ id: "txn_unknown", status: "successful" }));
-    expect(res.status).toBe(200);
-    expect(prisma.payment.update).not.toHaveBeenCalled();
-  });
+  it("Flutterwave charge.completed : référence tx_ref, montant et devise transmis au contrôle", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "CONFIRMED", paymentId, overpaid: 0 });
 
-  it("est idempotent pour un paiement déjà VERIFIED", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(
-      pendingPayment({ status: "VERIFIED" })
-    );
-    const res = await POST(flutterwave({ id: "txn1", status: "successful", amount: 50000 }));
-    expect(res.status).toBe(200);
-    expect(prisma.payment.update).not.toHaveBeenCalled();
-  });
-
-  it("passe le paiement à VERIFIED sur status successful", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(pendingPayment());
-    vi.mocked(prisma.payment.update).mockResolvedValue({} as never);
-
-    const res = await POST(flutterwave({ id: "txn1", status: "successful", amount: 50000 }));
+    const res = await POST(flutterwave({
+      event: "charge.completed",
+      data: { id: 285959875, tx_ref: "PAY-1-ABC", amount: 50000, currency: "XOF", status: "successful" },
+    }));
 
     expect(res.status).toBe(200);
-    expect((await res.json()).received).toBe(true);
-    const arg = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      where: { id: string };
-      data: { status: string; paidAt: Date };
-    };
-    expect(arg.where.id).toBe(paymentId);
-    expect(arg.data.status).toBe("VERIFIED");
-    expect(arg.data.paidAt).toBeInstanceOf(Date);
+    expect(confirmOnlinePayment).toHaveBeenCalledWith({
+      reference: "PAY-1-ABC",
+      provider: "FLUTTERWAVE",
+      receivedAmount: 50000,
+      receivedCurrency: "XOF",
+      providerTransactionId: "285959875",
+      source: "webhook FLUTTERWAVE",
+    });
   });
 
-  it("annule le paiement sur status failed", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(pendingPayment());
-    vi.mocked(prisma.payment.update).mockResolvedValue({} as never);
+  it("Paystack charge.success : montant ramené des centièmes en FCFA", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "CONFIRMED", paymentId, overpaid: 0 });
 
-    const res = await POST(flutterwave({ id: "txn1", status: "failed" }));
+    const res = await POST(paystack({
+      event: "charge.success",
+      data: { id: 4099260516, reference: "PAY-2-DEF", amount: 5000000, currency: "XOF", status: "success" },
+    }));
 
     expect(res.status).toBe(200);
-    const arg = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      data: { status: string };
-    };
-    expect(arg.data.status).toBe("CANCELLED");
+    expect(confirmOnlinePayment).toHaveBeenCalledWith(expect.objectContaining({
+      reference: "PAY-2-DEF",
+      provider: "PAYSTACK",
+      receivedAmount: 50000,
+      receivedCurrency: "XOF",
+    }));
   });
 
-  it("annule un paiement en cas de tentative de fraude (montant inférieur au DB)", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(pendingPayment());
-    vi.mocked(prisma.payment.update).mockResolvedValue({} as never);
+  it("le fournisseur vient de la signature, pas de l'en-tête déclaratif", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "CONFIRMED", paymentId, overpaid: 0 });
+    const raw = JSON.stringify({ data: { reference: "PAY-3", amount: 100, currency: "XOF", status: "success" } });
+    const sig = createHmac("sha512", PSK_SECRET).update(raw).digest("hex");
+
+    await POST(rawRequest(raw, { "x-paystack-signature": sig, "x-payment-provider": "FLUTTERWAVE" }));
+
+    expect(vi.mocked(confirmOnlinePayment).mock.calls[0][0]).toMatchObject({ provider: "PAYSTACK", receivedAmount: 1 });
+  });
+
+  it("annule l'essai sur status failed (en attente ou expiré seulement)", async () => {
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    const res = await POST(flutterwave({ data: { tx_ref: "PAY-1-ABC", status: "failed" } }));
+
+    expect(res.status).toBe(200);
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { reference: "PAY-1-ABC", status: { in: ["PENDING", "EXPIRED"] } },
+      data: { status: "CANCELLED" },
+    });
+    expect(confirmOnlinePayment).not.toHaveBeenCalled();
+  });
+
+  it("accepte encore l'ancien format à la racine (id, status, amount)", async () => {
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "MISMATCH", paymentId, reason: "montant" });
 
     const res = await POST(flutterwave({ id: "txn1", status: "successful", amount: 100 }));
 
     expect(res.status).toBe(200);
-    const arg = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      data: { status: string };
-    };
-    expect(arg.data.status).toBe("CANCELLED");
-  });
-
-  it("accepte une signature Paystack (HMAC-SHA512)", async () => {
-    vi.mocked(prisma.payment.findFirst).mockResolvedValue(pendingPayment());
-    vi.mocked(prisma.payment.update).mockResolvedValue({} as never);
-
-    const res = await POST(
-      paystack({ transaction_id: "txn2", status: "successful", amount: 50000 })
-    );
-
-    expect(res.status).toBe(200);
-    expect(prisma.payment.update).toHaveBeenCalled();
+    expect(vi.mocked(confirmOnlinePayment).mock.calls[0][0]).toMatchObject({ reference: "txn1", receivedAmount: 100, receivedCurrency: null });
   });
 
   it("retourne 500 quand le traitement échoue", async () => {
-    vi.mocked(prisma.payment.findFirst).mockRejectedValue(new Error("db down"));
+    vi.mocked(confirmOnlinePayment).mockRejectedValue(new Error("db down"));
 
     const res = await POST(flutterwave({ id: "txn1", status: "successful" }));
 

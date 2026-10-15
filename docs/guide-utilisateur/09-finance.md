@@ -36,11 +36,17 @@ Un paiement passe par ces états :
 | Validé | l'argent est reçu |
 | Rapproché | rapproché d'un relevé bancaire |
 | Annulé | le paiement n'a pas abouti |
+| Expiré · à rapprocher | paiement en ligne resté sans confirmation après 24 h : à comparer avec le relevé du fournisseur |
 
 ## 9.3 Payer en ligne par Mobile Money ✅
 Le parent peut payer depuis l'application si l'école a configuré le paiement en ligne (MTN Mobile Money ou FedaPay, qui couvre MTN, Moov et Celtiis).
-- Le montant est plafonné au **reste à payer**. Un même frais ne peut donc pas être payé deux fois.
-- La confirmation du fournisseur est **vérifiée** (authenticité, montant). Elle n'est prise en compte qu'une fois, même si elle arrive deux fois.
+- Le montant est plafonné au **reste à payer** : montant de l'échéancier s'il existe (bourses déduites), sinon montant du frais, moins ce qui est déjà validé ou rapproché.
+- Un paiement en ligne **en attente depuis moins de 24 h** réserve son montant : on ne peut pas relancer un second paiement qui dépasserait le reste à payer. Le message indique le montant encore payable. Passé 24 h, l'essai ne bloque plus rien.
+- Deux demandes envoyées **en même temps** (double clic, deux téléphones) ne créent jamais deux paiements pour le même reste à payer.
+- La confirmation du fournisseur est **vérifiée** : authenticité, **montant exact** et **devise (franc CFA)**. Un montant partiel, supérieur, absent ou une autre devise **ne valide rien** : le paiement reste visible avec la mention « À rapprocher » et l'écart constaté.
+- Une confirmation n'est prise en compte qu'**une fois**, même si elle arrive plusieurs fois.
+- **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur : payé au bon montant → validé ; échec → annulé ; incertain → « Expiré · à rapprocher ». Rien n'est supprimé.
+- Une confirmation **tardive** (après expiration) est encore acceptée si elle est authentique et au bon montant : l'argent a bien été reçu. Si la famille avait réglé autrement entre-temps, le **trop-perçu** est noté sur le paiement pour être traité.
 - Si le paiement en ligne n'est pas configuré, l'application le dit clairement. Un transfert déjà reçu s'enregistre alors à la main, avec sa référence.
 
 ## 9.4 Plans de paiement (échéancier) ✅
@@ -96,4 +102,4 @@ Une échéance non payée passe automatiquement « en retard ». Les jours sont 
 ## 9.12 Points sensibles encore ouverts 🔧
 - Le **numéro de reçu** est aujourd'hui un extrait d'identifiant. Il n'y a pas de numérotation continue (0001, 0002…), souvent exigée pour les pièces comptables.
 - La **suppression définitive** d'un compte élève par l'administrateur de la plateforme efface aussi ses paiements. Les pièces comptables doivent normalement être conservées.
-- La confirmation d'un paiement en ligne est acceptée **sans contrôle du montant** quand le fournisseur ne le transmet pas, et la **devise** n'est jamais vérifiée.
+- Le **remboursement** d'un trop-perçu se traite encore hors de l'application (décision à prendre).

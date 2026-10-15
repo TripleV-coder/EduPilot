@@ -138,7 +138,7 @@ export const POST = createApiHandler(
   { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
 );
 
-const PAYMENT_STATUSES: readonly PaymentStatus[] = ["PENDING", "VERIFIED", "RECONCILED", "CANCELLED"];
+const PAYMENT_STATUSES: readonly PaymentStatus[] = ["PENDING", "VERIFIED", "RECONCILED", "CANCELLED", "EXPIRED"];
 
 function isPaymentStatus(value: string): value is PaymentStatus {
   return (PAYMENT_STATUSES as readonly string[]).includes(value);

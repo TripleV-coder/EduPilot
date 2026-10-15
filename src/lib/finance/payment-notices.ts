@@ -104,7 +104,8 @@ export async function buildNoticeBatch(params: {
   const sums = studentIds.length
     ? await prisma.payment.groupBy({
         by: ["studentId", "status"],
-        where: { feeId: fee.id, studentId: { in: studentIds }, deletedAt: null, status: { not: "CANCELLED" } },
+        // EXPIRED exclu : un essai en ligne non confirmé n'est ni payé ni « en cours »
+        where: { feeId: fee.id, studentId: { in: studentIds }, deletedAt: null, status: { in: ["PENDING", "VERIFIED", "RECONCILED"] } },
         _sum: { amount: true },
       })
     : [];

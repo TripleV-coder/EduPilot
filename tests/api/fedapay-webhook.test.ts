@@ -7,7 +7,14 @@ vi.mock("@/lib/payments/fedapay", () => ({
   verifyFedaPayEvent: vi.fn(),
 }));
 
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  // Règles de confirmation testées sur une vraie base (integration-db/online-payments)
+  confirmOnlinePayment: vi.fn(),
+}));
+
 import prisma from "@/lib/prisma";
+import { confirmOnlinePayment } from "@/lib/finance/online-payments";
 import { verifyFedaPayEvent } from "@/lib/payments/fedapay";
 import { POST } from "@/app/api/payments/fedapay/webhook/route";
 
@@ -42,24 +49,38 @@ describe("POST /api/payments/fedapay/webhook", () => {
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rapproche le paiement PENDING → VERIFIED sur transaction.approved", async () => {
+  it("transaction.approved : transmet montant et devise au contrôle de confirmation", async () => {
     vi.mocked(verifyFedaPayEvent).mockReturnValue({
       name: "transaction.approved",
-      entity: { id: 4242, merchant_reference: "EDU-pmt1" },
+      entity: { id: 4242, merchant_reference: "EDU-pmt1", amount: 50000, currency: { iso: "XOF" } },
     });
-    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "CONFIRMED", paymentId: "p1", overpaid: 0 });
 
     const res = await post();
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.reconciled).toBe(1);
-    const arg = vi.mocked(prisma.payment.updateMany).mock.calls[0][0] as {
-      where: { reference: string; status: string };
-      data: { status: string };
-    };
-    expect(arg.where.reference).toBe("EDU-pmt1");
-    expect(arg.where.status).toBe("PENDING");
-    expect(arg.data.status).toBe("VERIFIED");
+    expect(body.outcome).toBe("CONFIRMED");
+    expect(confirmOnlinePayment).toHaveBeenCalledWith({
+      reference: "EDU-pmt1",
+      provider: "FEDAPAY",
+      receivedAmount: 50000,
+      receivedCurrency: "XOF",
+      providerTransactionId: "4242",
+      source: "FedaPay txn 4242",
+    });
+  });
+
+  it("transaction.approved sans montant : transmis comme inconnu (jamais validé d'office)", async () => {
+    vi.mocked(verifyFedaPayEvent).mockReturnValue({
+      name: "transaction.approved",
+      entity: { id: 9, merchant_reference: "EDU-pmt1" },
+    });
+    vi.mocked(confirmOnlinePayment).mockResolvedValue({ outcome: "MISMATCH", paymentId: "p1", reason: "x" });
+
+    const res = await post();
+    expect((await res.json()).outcome).toBe("MISMATCH");
+    expect(vi.mocked(confirmOnlinePayment).mock.calls[0][0].receivedAmount).toBeNull();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
   });
 
   it("annule le paiement sur transaction.canceled", async () => {
@@ -82,5 +103,6 @@ describe("POST /api/payments/fedapay/webhook", () => {
     const res = await post();
     expect(res.status).toBe(200);
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+    expect(confirmOnlinePayment).not.toHaveBeenCalled();
   });
 });

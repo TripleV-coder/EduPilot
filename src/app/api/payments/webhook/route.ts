@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
-import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { runAsSystem } from "@/lib/db/db-context";
-import { SupportedProvider } from "@/lib/finance/types";
+import { confirmOnlinePayment, failOnlinePayment, readProviderEvent, type WebhookProvider } from "@/lib/finance/online-payments";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { logger } from "@/lib/utils/logger";
 
@@ -47,21 +46,21 @@ const SYSTEM_REASON = "webhook:payments";
 export const POST = createApiHandler(async (req) => {
     try {
         const rawBody = await req.text();
-        const provider = req.headers.get("x-payment-provider") as SupportedProvider;
-
-        // --- Vérification de signature selon le provider ---
-        let signatureValid = false;
 
         const flutterwaveSig = req.headers.get("verif-hash");
         const paystackSig = req.headers.get("x-paystack-signature");
 
+        // Le fournisseur est déduit de la signature vérifiée, jamais d'un en-tête libre
+        let provider: WebhookProvider;
+        let signatureValid: boolean;
         if (flutterwaveSig) {
+            provider = "FLUTTERWAVE";
             signatureValid = verifyFlutterwaveSignature(rawBody, flutterwaveSig);
         } else if (paystackSig) {
+            provider = "PAYSTACK";
             signatureValid = verifyPaystackSignature(rawBody, paystackSig);
         } else {
-            // Aucun header de signature — refus
-            logger.warn("Webhook reçu sans header de signature", { module: "api/payments/webhook", provider });
+            logger.warn("Webhook reçu sans header de signature", { module: "api/payments/webhook" });
             return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
         }
 
@@ -77,12 +76,8 @@ export const POST = createApiHandler(async (req) => {
           return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
         }
 
-        // Simplification: In real world, each provider has different payload structure
-        // We assume the provider sends transactionId map-able data
-        const transactionId = body.id || body.transaction_id;
-        const status = body.status; // "successful", "failed"
-
-        if (!transactionId) {
+        const event = readProviderEvent(body, provider);
+        if (!event.reference) {
             logger.warn("Webhook received without transaction identifier", {
                 module: "api/payments/webhook",
                 provider,
@@ -93,53 +88,22 @@ export const POST = createApiHandler(async (req) => {
 
         // Signature vérifiée : le fournisseur n'a pas de session, les écritures
         // de paiement passent en contexte système déclaré (audit M2).
-        const payment = await runAsSystem(SYSTEM_REASON, () => prisma.payment.findFirst({
-            where: { reference: String(transactionId) }
-        }));
-
-        if (!payment) {
-            logger.warn("Webhook received for unknown transaction", { module: "api/payments/webhook", transactionId });
-            return NextResponse.json({ received: true });
-        }
-
-        // Idempotency : ignorer si le paiement est déjà dans un état terminal
-        if (payment.status === 'VERIFIED' || payment.status === 'CANCELLED') {
-            logger.info("Webhook idempotent — paiement déjà traité", { module: "api/payments/webhook", transactionId, status: payment.status });
-            return NextResponse.json({ received: true });
-        }
-
-        if (status === 'successful') {
-            // ANTI FRAUD CHECK: Verify amount matches the DB record
-            const data = body.data as { amount?: number | string } | undefined;
-            const amountPaid = body.amount || data?.amount;
-            if (amountPaid !== undefined && Number(amountPaid) < Number(payment.amount)) {
-                logger.error("Fraud attempt: Webhook amount paid is less than DB amount", {
-                    module: "api/payments/webhook",
-                    transactionId,
-                    expected: payment.amount,
-                    received: amountPaid
-                });
-                await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
-                    where: { id: payment.id },
-                    data: { status: 'CANCELLED' } // Reject partial/fraudulent payment
-                }));
-                return NextResponse.json({ received: true });
+        if (event.status === "SUCCESS") {
+            // Montant et devise contrôlés avant toute validation ; un écart
+            // laisse le paiement « à rapprocher » au lieu de le valider.
+            const result = await runAsSystem(SYSTEM_REASON, () => confirmOnlinePayment({
+                reference: event.reference!,
+                provider,
+                receivedAmount: event.amount,
+                receivedCurrency: event.currency,
+                providerTransactionId: event.providerTransactionId,
+                source: `webhook ${provider}`,
+            }));
+            if (result.outcome === "NOT_FOUND") {
+                logger.warn("Webhook received for unknown transaction", { module: "api/payments/webhook", reference: event.reference });
             }
-
-            await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
-                where: { id: payment.id },
-                data: {
-                    status: 'VERIFIED',
-                    paidAt: new Date()
-                }
-            }));
-        } else if (status === 'failed') {
-            await runAsSystem(SYSTEM_REASON, () => prisma.payment.update({
-                where: { id: payment.id },
-                data: {
-                    status: 'CANCELLED'
-                }
-            }));
+        } else if (event.status === "FAILED") {
+            await runAsSystem(SYSTEM_REASON, () => failOnlinePayment(event.reference!, `webhook ${provider}`));
         }
 
         await invalidateByPath(CACHE_PATHS.payments).catch(() => { });

@@ -622,7 +622,8 @@
               "PENDING",
               "VERIFIED",
               "RECONCILED",
-              "CANCELLED"
+              "CANCELLED",
+              "EXPIRED"
             ]
           },
           "startDate": {},

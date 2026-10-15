@@ -12,11 +12,13 @@ import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { nanoid } from "nanoid";
+import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
 
 const initiateSchema = z.object({
     // FCFA entiers, strictement positifs (avant : NaN et centimes passaient)
     amount: fcfaAmountSchema,
-    currency: z.string().optional(),
+    // Seul le franc CFA est accepté : un autre code est refusé, jamais converti
+    currency: z.literal(EXPECTED_CURRENCY).optional(),
     feeId: z.string(),
     studentId: z.string(),
     provider: z.string(),
@@ -64,7 +66,7 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Données de requête invalides", details: parsed.error.format() }, { status: 400 });
             }
 
-            const { amount, currency, feeId, studentId, provider, payerPhone } = parsed.data;
+            const { amount, feeId, studentId, provider, payerPhone } = parsed.data;
             const resolvedProvider = resolveProvider(provider);
             if (!isRailConfigured(resolvedProvider)) {
                 // Avant toute écriture : pas de paiement « en attente » orphelin.
@@ -127,57 +129,69 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
             }
 
-            // Plafond = reste à payer (avant : le montant total des frais, payable plusieurs fois)
-            const alreadyPaid = await prisma.payment.aggregate({
-                where: { studentId, feeId, status: "VERIFIED" },
-                _sum: { amount: true },
-            });
-            const remaining = Math.max(0, Number(fee.amount) - Number(alreadyPaid._sum.amount ?? 0));
-            if (amount > remaining) {
-                return NextResponse.json(
-                    { error: `Montant invalide. Le reste à payer est de ${remaining} FCFA.` },
-                    { status: 400 }
-                );
-            }
-
             const newMethod = provider === "MOOV" ? "MOBILE_MONEY_MOOV" : "MOBILE_MONEY_MTN";
 
-            const paymentRecord = await prisma.$transaction(async (tx) => {
+            // Verrou par élève et par frais : deux demandes simultanées ne
+            // peuvent pas réserver deux fois le même reste à payer.
+            const outcome = await prisma.$transaction(async (tx) => {
+                await lockStudentFee(tx, studentId, feeId);
+
+                // Même demande répétée (double clic, retour arrière) : on reprend l'essai en cours
                 const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
                 const existing = await tx.payment.findFirst({
-                    where: {
-                        studentId,
-                        feeId,
-                        status: "PENDING",
-                        createdAt: { gte: fiveMinutesAgo }
-                    },
-                    orderBy: { createdAt: "desc" }
+                    where: { studentId, feeId, amount, status: "PENDING", createdAt: { gte: fiveMinutesAgo } },
+                    orderBy: { createdAt: "desc" },
                 });
-
                 if (existing) {
-                    if (existing.method !== newMethod) {
-                        return await tx.payment.update({
-                            where: { id: existing.id },
-                            data: { method: newMethod }
-                        });
-                    }
-                    return existing;
+                    const payment = await tx.payment.update({
+                        where: { id: existing.id },
+                        data: { method: newMethod, provider: resolvedProvider },
+                    });
+                    return { kind: "attempt" as const, payment, created: false };
                 }
 
-                return await tx.payment.create({
+                // Reste à payer : échéancier (bourses déduites) sinon frais, moins
+                // l'encaissé et les essais en ligne de moins de 24 h
+                const balance = await getFeeBalance(tx, studentId, feeId);
+                if (!balance || amount > balance.available) return { kind: "refused" as const, balance };
+
+                const payment = await tx.payment.create({
                     data: {
                         amount,
                         method: newMethod,
                         feeId,
                         studentId,
                         status: "PENDING",
+                        provider: resolvedProvider,
                         reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
                     },
                 });
+                return { kind: "attempt" as const, payment, created: true };
             });
 
-            const isIdempotent = paymentRecord.createdAt.getTime() < Date.now() - 1000;
-            if (isIdempotent) {
+            if (outcome.kind === "refused") {
+                const balance = outcome.balance;
+                if (!balance) return NextResponse.json({ error: "Frais introuvables" }, { status: 404 });
+                if (balance.reserved > 0 && amount <= balance.remaining) {
+                    return NextResponse.json(
+                        {
+                            error: `Un paiement en ligne de ${balance.reserved} FCFA est déjà en attente de confirmation pour ces frais. Montant payable maintenant : ${balance.available} FCFA. Sans confirmation, l'essai en attente est libéré au bout de 24 h.`,
+                            code: "PAYMENT_IN_PROGRESS",
+                            remaining: balance.remaining,
+                            reserved: balance.reserved,
+                            available: balance.available,
+                        },
+                        { status: 409 }
+                    );
+                }
+                return NextResponse.json(
+                    { error: `Montant invalide. Le reste à payer est de ${balance.remaining} FCFA.`, remaining: balance.remaining },
+                    { status: 400 }
+                );
+            }
+            const paymentRecord = outcome.payment;
+
+            if (!outcome.created) {
                 logger.info("Payment idempotency hit — returning/refreshing pending payment", {
                     paymentId: paymentRecord.id,
                     studentId,
@@ -186,13 +200,33 @@ export const POST = createApiHandler(
             }
 
             const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
-            const result = await paymentProvider.initiatePayment(
-                Number(paymentRecord.amount),
-                currency || 'XOF',
-                session.user.email!,
-                paymentRecord.reference!,
-                { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
-            );
+            let result: { paymentUrl: string; transactionId: string };
+            try {
+                result = await paymentProvider.initiatePayment(
+                    Number(paymentRecord.amount),
+                    EXPECTED_CURRENCY,
+                    session.user.email!,
+                    paymentRecord.reference!,
+                    { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
+                );
+            } catch (error) {
+                // L'essai ne doit pas bloquer la famille 24 h : il cesse de réserver
+                // le montant (EXPIRED), mais reste rapprochable si le fournisseur
+                // l'a malgré tout reçu (expiration réseau après création).
+                await prisma.payment.updateMany({
+                    where: { id: paymentRecord.id, status: "PENDING" },
+                    data: {
+                        status: "EXPIRED",
+                        notes: "Échec de l'initialisation chez le fournisseur : à rapprocher si un débit apparaît.",
+                    },
+                });
+                throw error;
+            }
+
+            await prisma.payment.update({
+                where: { id: paymentRecord.id },
+                data: { providerTransactionId: result.transactionId },
+            });
 
             // N7 : `reference` est NOTRE clé de rapprochement, transmise au
             // fournisseur (MoMo externalId, FedaPay merchant_reference) et

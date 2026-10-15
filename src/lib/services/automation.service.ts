@@ -4,6 +4,8 @@ import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 import { createBulkNotifications } from "@/lib/services/notification.service";
 import { runInstallmentReminders } from "@/lib/finance/reminders";
+import { PaymentProviderFactory } from "@/lib/finance/factory";
+import { reconcileStalePayments, type ReconcileReport } from "@/lib/finance/online-payments";
 import { logger } from "@/lib/utils/logger";
 
 export class AutomationService {
@@ -17,9 +19,15 @@ export class AutomationService {
             absenteeismAlerts: 0,
             financeAlerts: 0,
             financeReminders: { swept: 0, notified: 0, UPCOMING: 0, DUE: 0, OVERDUE: 0, CRITICAL: 0 },
+            onlinePayments: { examined: 0, confirmed: 0, cancelled: 0, expired: 0, mismatched: 0 } as ReconcileReport,
         };
 
         try {
+            // 0. Paiements en ligne sans réponse depuis 24 h : interrogation du
+            // fournisseur, sinon « expiré, à rapprocher ». Isolé : un fournisseur
+            // en panne ne bloque pas le reste de la maintenance.
+            results.onlinePayments = await this.reconcileOnlinePayments();
+
             // 1. Sync Analytics
             results.analyticsSync = await this.syncAllSchoolsAnalytics();
 
@@ -39,6 +47,18 @@ export class AutomationService {
         } catch (error) {
             logger.error("❌ Error during daily maintenance:", error as Error);
             return { success: false, error: (error as Error).message };
+        }
+    }
+
+    /** Réconciliation des paiements en ligne restés en attente plus de 24 h. */
+    async reconcileOnlinePayments(): Promise<ReconcileReport> {
+        try {
+            return await reconcileStalePayments((provider, transactionId) =>
+                PaymentProviderFactory.getProvider(provider).verifyPayment(transactionId),
+            );
+        } catch (error) {
+            logger.error("Réconciliation des paiements en ligne en échec", error as Error);
+            return { examined: 0, confirmed: 0, cancelled: 0, expired: 0, mismatched: 0 };
         }
     }
 
