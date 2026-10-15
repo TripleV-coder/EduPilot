@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { classSchema } from "@/lib/validations/school";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
-import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { Permission } from "@/lib/rbac/permissions";
 import { API_ERRORS } from "@/lib/constants/api-messages";
@@ -47,7 +47,7 @@ export const GET = createApiHandler(
     }
 
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
     const handler = async () => {
       const [classes, total] = await Promise.all([

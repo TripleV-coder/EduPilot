@@ -5,6 +5,7 @@ import {
   CACHE_TTL_MEDIUM,
   generateCacheKey,
   withCache,
+  cacheScope,
 } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { roundTo } from "@/lib/analytics/helpers";
@@ -36,7 +37,7 @@ export const GET = createApiHandler(
   async (request, context) => {
     const session = context.session;
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey("/api/finance/stats", url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey("/api/finance/stats", url.searchParams, cacheScope(session));
 
     const handler = async () => {
       const activeSchoolId = getActiveSchoolId(session);

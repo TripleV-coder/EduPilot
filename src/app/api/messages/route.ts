@@ -3,7 +3,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
@@ -26,7 +26,7 @@ export const GET = createApiHandler(async (request, context) => {
   try {
     // Cache key based on user and query params
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey("/api/messages", url.searchParams, context.session.user.id);
+    const cacheKey = generateCacheKey("/api/messages", url.searchParams, cacheScope(context.session));
 
     const cachedHandler = cacheMiddleware({ ttl: 30, key: cacheKey }); // 30s cache for messages
 

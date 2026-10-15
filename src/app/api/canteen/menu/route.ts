@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { canteenService } from "@/lib/canteen/service";
-import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
+import { generateCacheKey, withCache, CACHE_TTL_MEDIUM, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -11,7 +11,7 @@ export const GET = createApiHandler(async (request, context) => {
     if (!session.user.schoolId) return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
 
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
     try {
         const response = await withCache(

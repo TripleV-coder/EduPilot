@@ -22,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/api/cache-helpers", () => ({
   generateCacheKey: () => "announcements:test",
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   cacheMiddleware: () => async (handler: () => unknown) => handler(),
   invalidateByPath: vi.fn(),
   CACHE_PATHS: { announcements: "announcements" },

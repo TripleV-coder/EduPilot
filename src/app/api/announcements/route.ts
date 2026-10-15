@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma, AnnouncementType, AnnouncementPriority } from "@prisma/client";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
@@ -34,7 +34,7 @@ export const GET = createApiHandler(async (request, { session }) => {
     if (activeSchoolId) {
       searchParams.set("schoolId", activeSchoolId);
     }
-    const cacheKey = generateCacheKey("/api/announcements", searchParams, session.user.id);
+    const cacheKey = generateCacheKey("/api/announcements", searchParams, cacheScope(session));
 
     const cachedHandler = cacheMiddleware({ ttl: 60, key: cacheKey }); // 60s cache for announcements
 

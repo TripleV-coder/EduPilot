@@ -19,6 +19,7 @@ import {
   invalidateByPath,
   CACHE_PATHS,
   withCache,
+  cacheScope,
 } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -74,7 +75,7 @@ export const GET = createApiHandler(
       where.user = userWhere;
     }
 
-    const cacheKey = generateCacheKey(request.nextUrl.pathname, request.nextUrl.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(request.nextUrl.pathname, request.nextUrl.searchParams, cacheScope(session));
 
     const handler = async () => {
       const [teachers, total] = await Promise.all([

@@ -12,5 +12,9 @@ import { tenantContext, type DbContext } from "./db-context";
 export function dbContextForSession(session: Session | null | undefined): DbContext | null {
     if (!session?.user) return null;
     if (session.user.role === "SUPER_ADMIN") return { kind: "system", reason: "super-admin" };
-    return tenantContext([getActiveSchoolId(session), ...getAccessibleSchoolIds(session)]);
+    // Enseignant de plusieurs établissements : une école à la fois, y compris en
+    // base. Un oubli de filtre dans une route ne peut pas mêler ses écoles.
+    const activeSchoolId = getActiveSchoolId(session);
+    if (session.user.role === "TEACHER" && activeSchoolId) return tenantContext([activeSchoolId]);
+    return tenantContext([activeSchoolId, ...getAccessibleSchoolIds(session)]);
 }

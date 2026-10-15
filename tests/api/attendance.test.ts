@@ -10,6 +10,7 @@ import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/api/cache-helpers", () => ({
   generateCacheKey: () => "attendance:stats:test",
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   withCache: (handler: () => unknown) => handler(),
   invalidateByPath: vi.fn(),
   CACHE_TTL_SHORT: 60,

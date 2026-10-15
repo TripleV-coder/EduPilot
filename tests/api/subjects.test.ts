@@ -10,6 +10,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/api/cache-helpers", () => ({
   withCache: (handler: () => unknown) => handler(),
   generateCacheKey: () => "subjects:list:test",
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   invalidateByPath: vi.fn(),
   CACHE_TTL_LONG: 300,
 }));

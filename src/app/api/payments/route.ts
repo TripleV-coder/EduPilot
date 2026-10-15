@@ -5,7 +5,7 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
-import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
 import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -13,7 +13,7 @@ import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 /** GET /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
-    const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, session.user.id);
+    const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, cacheScope(session));
 
     const cachedHandler = cacheMiddleware({ ttl: 60, key: cacheKey });
 

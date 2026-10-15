@@ -31,6 +31,16 @@ export function generateCacheKey(
 }
 
 /**
+ * Portée d'une entrée de cache : l'utilisateur ET son établissement actif. Un
+ * même compte peut changer d'établissement (enseignant de plusieurs écoles,
+ * administration réseau) : sans l'école dans la clé, il recevait les données
+ * de l'école précédente jusqu'à expiration du cache.
+ */
+export function cacheScope(session: { user: { id: string; schoolId?: string | null } }): string {
+  return `${session.user.id}:${session.user.schoolId ?? "sans-ecole"}`;
+}
+
+/**
  * Get cached response or execute handler
  */
 export async function withCache<T>(

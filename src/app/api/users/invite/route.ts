@@ -73,8 +73,10 @@ export const POST = createApiHandler(
             }
 
             if (currentUser.role !== "SUPER_ADMIN") {
-                // Force the schoolId to the director's school
-                validatedData.schoolId = currentUser.schoolId || undefined;
+                // École ACTIVE de la session (et non l'école principale relue en
+                // base) : un directeur de plusieurs établissements invite dans
+                // celui où il travaille.
+                validatedData.schoolId = getActiveSchoolId(session) || undefined;
                 if (!validatedData.schoolId) {
                     return NextResponse.json(
                         { error: "Aucun établissement associé à ce compte." },
@@ -129,7 +131,7 @@ export const POST = createApiHandler(
                 });
 
                 // Create associated profile based on role
-                const targetSchoolId = validatedData.schoolId || session.user.primarySchoolId || getActiveSchoolId(session);
+                const targetSchoolId = validatedData.schoolId || getActiveSchoolId(session) || session.user.primarySchoolId;
 
                 if (validatedData.role === "TEACHER" && targetSchoolId) {
                     const teacherProfile = await tx.teacherProfile.create({

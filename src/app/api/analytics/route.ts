@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyticsService } from "@/lib/analytics/service";
-import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
+import { generateCacheKey, withCache, CACHE_TTL_MEDIUM, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
@@ -16,7 +16,7 @@ export const GET = createApiHandler(
         }
 
         const url = new URL(req.url);
-        const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+        const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
         const handler = async () => {
             const type = url.searchParams.get("type") || "overview";

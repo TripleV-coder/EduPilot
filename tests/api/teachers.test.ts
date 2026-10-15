@@ -35,6 +35,7 @@ vi.mock("@/lib/teachers/school-assignments", () => ({
 vi.mock("@/lib/api/cache-helpers", () => ({
   withCache: (handler: () => unknown) => handler(),
   generateCacheKey: () => "teachers:list:test",
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   invalidateByPath: vi.fn().mockResolvedValue(undefined),
   CACHE_PATHS: { teachers: "/api/teachers" },
   CACHE_TTL_MEDIUM: 120,

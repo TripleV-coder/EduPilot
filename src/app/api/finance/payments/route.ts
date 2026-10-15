@@ -40,15 +40,12 @@ export const GET = createApiHandler(
         // Improve: Filter by school (via Student or Fee)
         // Account for accountant only seeing their school's payments
         // This requires cross-relation filtering which Prisma supports
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: { schoolId: true }
-        });
-
-        if (user?.schoolId) {
-            // Filter payments where the Student belongs to the School OR the Fee belongs to the School
-            // Usually Fee is bound to school
-            where.fee = { schoolId: user.schoolId };
+        // École ACTIVE de la session (et non l'école principale relue en base) :
+        // un comptable ou un directeur de plusieurs établissements voit les
+        // paiements de celui où il travaille.
+        const activeSchoolId = getActiveSchoolId(session);
+        if (activeSchoolId) {
+            where.fee = { schoolId: activeSchoolId };
         }
 
         const [payments, total] = await Promise.all([

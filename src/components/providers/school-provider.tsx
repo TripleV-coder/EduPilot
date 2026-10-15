@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import type { AcademicYear, Period } from "@/lib/types";
 
@@ -69,6 +69,7 @@ const clearCookie = (name: string) => {
 export function SchoolProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { data: session, status, update } = useSession();
+    const { mutate: mutateAll } = useSWRConfig();
     
     // Level 1: Hydrate from Cookies/LocalStorage for instant UI
     const [academicYearId, setAcademicYearId] = useState<string | null>(() => getCookie('edupilot_year_id'));
@@ -197,6 +198,10 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
             clearCookie("edupilot_year_id");
             clearCookie("edupilot_period_id");
             await update({ schoolId: id });
+            // Les clés SWR (« /api/classes »…) ne contiennent pas l'école : sans
+            // ce vidage, l'écran gardait les données de l'école précédente. Tout
+            // est oublié puis rechargé avec la nouvelle session.
+            await mutateAll(() => true, undefined, { revalidate: true });
             router.refresh();
         } finally {
             setIsSwitchingSchool(false);

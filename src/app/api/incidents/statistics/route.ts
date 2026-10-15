@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
-import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { CACHE_TTL_SHORT, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
@@ -21,7 +21,7 @@ export const GET = createApiHandler(
       const { startDate, endDate } = dateRange;
       const period = searchParams.get("period"); // "week", "month", "year"
 
-      const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+      const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
       const handler = async (): Promise<NextResponse> => {
       // Build date filter
       const dateFilter: Prisma.DateTimeFilter = {};
