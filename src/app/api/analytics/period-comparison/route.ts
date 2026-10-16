@@ -54,6 +54,32 @@ export const GET = createApiHandler(async (request, context) => {
       return NextResponse.json({ error: "Accès refusé à cette classe" }, { status: 403 });
     }
 
+    // Année et périodes viennent du navigateur : elles doivent appartenir à
+    // l'école de la classe. Une période d'une autre école renvoyait son nom
+    // (audit du 2026-10-16). Même réponse qu'un identifiant inexistant.
+    if (requestedYear && requestedYear !== "ALL") {
+      const year = await prisma.academicYear.findFirst({
+        where: { id: academicYearId, schoolId: classRecord.schoolId },
+        select: { id: true },
+      });
+      if (!year) {
+        return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 404 });
+      }
+    }
+    const requestedPeriodIds = [...new Set(periodIds)];
+    const periods = await prisma.period.findMany({
+      where: {
+        id: { in: requestedPeriodIds },
+        academicYearId,
+        academicYear: { schoolId: classRecord.schoolId },
+      },
+      select: { id: true, name: true },
+    });
+    if (periods.length !== requestedPeriodIds.length) {
+      return NextResponse.json({ error: "Période introuvable" }, { status: 404 });
+    }
+    const periodNames = new Map(periods.map((period) => [period.id, period.name]));
+
     // Taux de réussite au seuil de passage réglé par l'école
     const passingGrade = await getPassingGrade(classRecord.schoolId);
 
@@ -97,14 +123,9 @@ export const GET = createApiHandler(async (request, context) => {
           weak: analytics.filter((a) => a.performanceLevel === "WEAK").length,
         };
 
-        const period = await prisma.period.findUnique({
-          where: { id: periodId },
-          select: { name: true },
-        });
-
         return {
           periodId,
-          periodName: period?.name || "Unknown",
+          periodName: periodNames.get(periodId) ?? "",
           classId: classRecord.id,
           className: classRecord.name,
           schoolId: classRecord.schoolId,
