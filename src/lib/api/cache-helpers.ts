@@ -62,8 +62,9 @@ export async function withCache<T>(
         headers: {
           ...cached.headers,
           "X-Cache": "HIT",
-          // Réponses propres à un utilisateur ou une école : jamais en cache partagé (N29).
-          "Cache-Control": `private, max-age=${ttl}`,
+          // Réponses propres à un utilisateur ou une école : jamais conservées
+          // par le navigateur (N29, audit MS-03) ; le cache reste côté serveur.
+          "Cache-Control": "private, no-store",
         },
       });
     }
@@ -93,7 +94,7 @@ export async function withCache<T>(
       headers: {
         ...Object.fromEntries(response.headers.entries()),
         "X-Cache": "MISS",
-        "Cache-Control": `private, max-age=${ttl}`,
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (_err) {

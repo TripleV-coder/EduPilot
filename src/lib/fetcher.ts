@@ -2,8 +2,12 @@ export const fetcher = async (url: string) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25_000);
 
+    // Jamais de lecture du cache HTTP du navigateur (audit MS-03) : les réponses
+    // privées envoyées avant le passage à `no-store` (`private, max-age`) peuvent
+    // y rester quelques minutes et appartenir à un autre compte ou à une autre école.
     const res = await fetch(url, {
         signal: controller.signal,
+        cache: "no-store",
         headers: { Accept: "application/json" },
     }).finally(() => clearTimeout(timeout));
     if (!res.ok) {

@@ -264,6 +264,20 @@ function isJsonContentType(request: Request): boolean {
 }
 
 /**
+ * Interdit toute conservation d'une réponse privée (navigateur, proxy, service
+ * worker). `no-transform` est conservé : il empêche un proxy de compresser, et
+ * donc de retenir, un flux d'événements (SSE).
+ */
+function forbidPrivateCaching(response: Response): void {
+    try {
+        const keepNoTransform = /\bno-transform\b/i.test(response.headers.get("Cache-Control") ?? "");
+        response.headers.set("Cache-Control", keepNoTransform ? "private, no-store, no-transform" : "private, no-store");
+    } catch {
+        // En-têtes figés (réponse de redirection) : rien de privé à protéger
+    }
+}
+
+/**
  * Vérifie le corps AVANT le handler, sans le consommer (lecture d'un clone) :
  *  - Content-Length au-delà de la limite → refus sans rien lire ;
  *  - corps en flux sans Content-Length → lu jusqu'à la limite au plus ;
@@ -483,6 +497,13 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             if (session?.user && response.status < 400 && !anonymousSubmission) {
                 await recordSensitiveAccess(request, session, response.status);
             }
+
+            // Réponse propre à une session : jamais conservée par le navigateur
+            // ni par un intermédiaire (audit MS-03). Un `max-age` laissait le
+            // cache HTTP resservir la réponse d'un autre compte ou de l'école
+            // précédente sans interroger le serveur. Le cache serveur
+            // (`withCache`, clé utilisateur + école) n'est pas concerné.
+            if (session?.user) forbidPrivateCaching(response);
 
             return response;
         } catch (error: unknown) {

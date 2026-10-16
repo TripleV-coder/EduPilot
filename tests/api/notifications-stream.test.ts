@@ -79,7 +79,8 @@ describe("GET /api/notifications/stream", () => {
     const res = await GET(streamRequest("http://localhost:3000/api/notifications/stream"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
-    expect(res.headers.get("Cache-Control")).toContain("no-cache");
+    // Audit MS-03 : flux privé jamais conservé ; no-transform préservé pour les proxys
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store, no-transform");
 
     const reader = (res.body as ReadableStream<Uint8Array>).getReader();
     const { value } = await reader.read();

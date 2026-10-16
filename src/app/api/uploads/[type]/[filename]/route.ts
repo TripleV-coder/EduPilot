@@ -122,7 +122,9 @@ export const GET = createApiHandler(async (request, context) => {
     const headers = new Headers({
       "Content-Type": entry.mimeType || "application/octet-stream",
       "Content-Length": String(fileBuffer.length),
-      "Cache-Control": "private, max-age=3600",
+      // Fichier d'un élève ou d'un membre du personnel : jamais conservé par
+      // le navigateur ni par le service worker (audit MS-03)
+      "Cache-Control": "private, no-store",
     });
 
     if (!entry.mimeType?.startsWith("image/")) {

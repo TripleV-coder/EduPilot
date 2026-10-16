@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { navForRole, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 import { useSchool } from "@/components/providers/school-provider";
 import { isPageAllowedByModules } from "@/lib/modules/catalog";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 type Action = {
     id: string;
@@ -69,7 +70,7 @@ const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | und
         hint: "Quitter la session en cours",
         icon: "x",
         onSelect: () => {
-            void signOut({ callbackUrl: "/login" });
+            void signOutAndPurge({ callbackUrl: "/login" });
         },
         keywords: "logout déconnexion quitter session",
         category: "Action",

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 /**
  * Logique de l'écran /first-login (présentation dans la page).
@@ -70,7 +71,7 @@ export function useFirstLogin({
 
                 // Le serveur a invalidé la session en cours (passwordChangedAt) :
                 // elle est fermée ici, la reconnexion se fait avec le nouveau mot de passe.
-                if (mode === "session") await signOut({ redirect: false });
+                if (mode === "session") await signOutAndPurge({ redirect: false });
 
                 setIsSuccess(true);
                 redirectTimer.current = setTimeout(() => router.push("/login?firstLogin=1"), redirectDelayMs);

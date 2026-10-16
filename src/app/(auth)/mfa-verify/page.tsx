@@ -2,12 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 import { AuthShell } from "@/components/auth/AuthShell";
 import { OtpInput, OTP_LENGTH } from "@/components/auth/OtpInput";
 import { Button } from "@/components/edu";
 import { safeCallbackPath } from "@/lib/security/safe-redirect";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 const ERROR_ID = "mfa-verify-error";
 
@@ -199,7 +200,7 @@ function MfaVerifyForm() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => void signOut({ callbackUrl: "/login" })}
+                        onClick={() => void signOutAndPurge({ callbackUrl: "/login" })}
                     >
                         Se déconnecter
                     </Button>

@@ -1,6 +1,7 @@
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
+import { buildRuntimeCaching, purgePrivateCaches } from "@/lib/pwa/cache-policy";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -42,7 +43,8 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  // Ressources statiques seulement : API et pages toujours par le réseau (audit MS-03)
+  runtimeCaching: buildRuntimeCaching(defaultCache),
   fallbacks: {
     entries: [
       {
@@ -56,3 +58,13 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Les versions précédentes mettaient en cache API et pages : ces entrées sont
+// supprimées dès l'activation de ce service worker (skipWaiting + clientsClaim).
+const worker = self as unknown as {
+  caches: CacheStorage;
+  addEventListener(type: "activate", listener: (event: Event & { waitUntil(promise: Promise<unknown>): void }) => void): void;
+};
+worker.addEventListener("activate", (event) => {
+  event.waitUntil(purgePrivateCaches(worker.caches));
+});

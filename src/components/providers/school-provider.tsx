@@ -16,6 +16,8 @@ interface AccessibleSchool {
 }
 
 interface SchoolContextData {
+    /** École à laquelle se rapportent ces données (renvoyée par /api/schools/context). */
+    activeSchoolId?: string | null;
     schools: AccessibleSchool[];
     /** Modules actifs de l'école active (Lot 6) ; absent = rien n'est masqué. */
     enabledModules?: string[];
@@ -134,10 +136,18 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         isGlobalMode ? `/api/academic-years` : null,
         fetcher
     );
-    const schoolYears = isGlobalMode ? null : schoolContextData?.academicYears;
+    // Uniquement les années de l'école ACTIVE (audit R-CA-05) : pendant un
+    // changement d'école, les données encore en cache sont celles de l'école
+    // précédente ; les lire réimposait son année courante à la nouvelle école.
+    const schoolYears =
+        isGlobalMode || !schoolContextData || (schoolContextData.activeSchoolId ?? null) !== (session?.user?.schoolId ?? null)
+            ? null
+            : schoolContextData.academicYears;
 
     useEffect(() => {
-        if (!schoolYears) return;
+        // Pendant un changement d'école, les données encore en cache sont celles
+        // de l'école quittée : aucune année n'est choisie avant la fin (R-CA-05).
+        if (!schoolYears || isSwitchingSchool) return;
         // Année mémorisée d'une autre école ou supprimée : on revient à l'année courante.
         if (academicYearId && schoolYears.some((y) => y.id === academicYearId)) return;
         const current = schoolYears.find((y) => y.isCurrent);
@@ -147,7 +157,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         if (targetId) setCookie("edupilot_year_id", targetId);
         else clearCookie("edupilot_year_id");
         clearCookie("edupilot_period_id");
-    }, [schoolYears, academicYearId]);
+    }, [schoolYears, academicYearId, isSwitchingSchool]);
 
     // Fetch periods for the selected academic year
     const { data: periods, error: periodsError } = useSWR<Period[]>(

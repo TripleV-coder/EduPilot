@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 import { ModuleGuard } from "@/components/guard/module-guard";
+import { SchoolScopedContent } from "@/components/dashboard/school-scoped-content";
 
 type SidebarContextType = {
     isOpen: boolean;
@@ -254,7 +255,9 @@ export function DashboardLayoutClient({
                                 density === "dense" ? "p-3 md:p-4" : "p-4 md:p-6"
                             )}
                         >
-                            <ModuleGuard>{children}</ModuleGuard>
+                            <ModuleGuard>
+                                <SchoolScopedContent>{children}</SchoolScopedContent>
+                            </ModuleGuard>
                         </main>
                 </div>
                 <div className="contents print:hidden">

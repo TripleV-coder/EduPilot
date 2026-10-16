@@ -160,11 +160,11 @@ describe("Palette de commandes (EduCommandPalette)", () => {
         expect(navigation.push).toHaveBeenCalledWith("/dashboard/grades/entry");
     });
 
-    it("déconnecte via l'action « Se déconnecter »", () => {
+    it("déconnecte via l'action « Se déconnecter » (après purge des caches privés)", async () => {
         asRole("PARENT");
         renderPage(<EduCommandPalette open onOpenChange={vi.fn()} />);
         fireEvent.click(screen.getByRole("option", { name: /Se déconnecter/ }));
-        expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
+        await waitFor(() => expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login" }));
         expect(navigation.push).not.toHaveBeenCalled();
     });
 

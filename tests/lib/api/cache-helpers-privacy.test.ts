@@ -30,6 +30,10 @@ describe("withCache — en-têtes de cache (N29)", () => {
     expect(res.headers.get("X-Cache")).toBe("MISS");
     expect(cc).not.toMatch(/\bpublic\b/);
     expect(cc).toMatch(/\bprivate\b/);
+    // Audit MS-03 : aucun max-age, sinon le navigateur resert la réponse
+    // à un autre compte ou après un changement d'école
+    expect(cc).toMatch(/\bno-store\b/);
+    expect(cc).not.toMatch(/max-age/);
   });
 
   it("réponse servie du cache (HIT) : jamais « public », toujours « private »", async () => {
@@ -41,5 +45,7 @@ describe("withCache — en-têtes de cache (N29)", () => {
     expect(res.headers.get("X-Cache")).toBe("HIT");
     expect(cc).not.toMatch(/\bpublic\b/);
     expect(cc).toMatch(/\bprivate\b/);
+    expect(cc).toMatch(/\bno-store\b/);
+    expect(cc).not.toMatch(/max-age/);
   });
 });

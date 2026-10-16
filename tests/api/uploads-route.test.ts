@@ -111,7 +111,8 @@ describe("GET /api/uploads/[type]/[filename]", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
-    expect(res.headers.get("Cache-Control")).toBe("private, max-age=3600");
+    // Audit MS-03 : un fichier privé n'est jamais conservé par le navigateur
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(res.headers.get("Content-Disposition")).toBeNull();
     expect(readFile).toHaveBeenCalled();
   });
