@@ -3738,7 +3738,7 @@
     "/api/analytics/class-comparison": {
       "get": {
         "summary": "GET /api/analytics/class-comparison",
-        "description": "Session requise.",
+        "description": "Session requise. Permissions : ANALYTICS_VIEW.",
         "tags": [
           "analytics"
         ],
@@ -3756,6 +3756,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
