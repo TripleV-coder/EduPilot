@@ -5,6 +5,8 @@ import { roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 /**
  * GET /api/analytics/period-comparison
@@ -51,6 +53,11 @@ export const GET = createApiHandler(async (request, context) => {
     }
 
     if (!canAccessSchool(session, classRecord.schoolId)) {
+      return NextResponse.json({ error: "Accès refusé à cette classe" }, { status: 403 });
+    }
+    // Enseignant : ses classes seulement (matière ou professeur principal),
+    // comme le classement d'une classe dans /api/grades/statistics.
+    if (session.user.role === "TEACHER" && !(await taughtClassIds(session.user.id)).includes(classRecord.id)) {
       return NextResponse.json({ error: "Accès refusé à cette classe" }, { status: 403 });
     }
 
@@ -147,4 +154,8 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 
-});
+  // Statistiques de classe : fonction d'analyse réservée aux détenteurs de
+  // ANALYTICS_VIEW (direction, réseau, plateforme, enseignants). Aucun rôle
+  // n'était exigé : un parent ou un élève obtenait les moyennes et taux de
+  // réussite de toute classe de son école (audit du 2026-10-16).
+}, { requiredPermissions: [Permission.ANALYTICS_VIEW] });
