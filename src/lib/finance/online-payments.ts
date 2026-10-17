@@ -28,7 +28,7 @@
 import type { Prisma, PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { appendNote, syncPaymentPlanLedger } from "@/lib/finance/helpers";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -117,10 +117,6 @@ export function confirmationMismatch(expected: number, receivedAmount: number | 
     if (receivedAmount === null) return "montant non transmis par le fournisseur";
     if (receivedAmount !== expected) return `montant reçu ${receivedAmount} FCFA au lieu de ${expected} FCFA`;
     return null;
-}
-
-function appendNote(current: string | null, line: string): string {
-    return current ? `${current}\n${line}` : line;
 }
 
 /**

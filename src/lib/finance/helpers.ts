@@ -266,6 +266,14 @@ export async function resolvePreviousFinanceDateRange(
   };
 }
 
+/**
+ * Ajoute une ligne aux notes d'un paiement sans effacer les précédentes :
+ * elles portent la trace des trop-perçus et des écarts « à rapprocher ».
+ */
+export function appendNote(current: string | null, line: string): string {
+  return current ? `${current}\n${line}` : line;
+}
+
 export async function syncPaymentPlanLedger(
   db: PaymentPlanClient,
   studentId: string,

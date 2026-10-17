@@ -3,14 +3,26 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
-  default: {
-    payment: { findMany: vi.fn(), update: vi.fn(), aggregate: vi.fn() },
-    $transaction: vi.fn((promises: unknown[]) =>
-      Promise.all(promises as Promise<unknown>[])
+// Notes existantes lues sous verrou (SELECT … FOR UPDATE) par le rapprochement
+const { existingNotes } = vi.hoisted(() => ({ existingNotes: new Map<string, string | null>() }));
+
+vi.mock("@/lib/prisma", () => {
+  const payment = { findMany: vi.fn(), update: vi.fn(), aggregate: vi.fn() };
+  const tx = {
+    payment,
+    $queryRaw: vi.fn(async (_sql: TemplateStringsArray, ids: string[]) =>
+      ids.map((id) => ({ id, notes: existingNotes.get(id) ?? null }))
     ),
-  },
-}));
+  };
+  return {
+    default: {
+      payment,
+      $transaction: vi.fn((arg: unknown) =>
+        typeof arg === "function" ? (arg as (client: typeof tx) => unknown)(tx) : Promise.all(arg as Promise<unknown>[])
+      ),
+    },
+  };
+});
 
 import prisma from "@/lib/prisma";
 import { POST, GET } from "@/app/api/payments/reconcile/route";
@@ -29,7 +41,10 @@ function verifiedPayment(id: string, overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  existingNotes.clear();
+});
 
 describe("POST /api/payments/reconcile", () => {
   it("retourne 401 sans session", async () => {
@@ -94,7 +109,23 @@ describe("POST /api/payments/reconcile", () => {
     expect(arg.where.id).toBe(p1);
     expect(arg.data.status).toBe("RECONCILED");
     expect(arg.data.notes).toBe("rapprochement bancaire");
-    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Array));
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("ajoute la note de rapprochement aux notes existantes (trop-perçu conservé)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    existingNotes.set(p1, "Trop-perçu de 5000 FCFA à traiter.");
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([verifiedPayment(p1)]);
+    vi.mocked(prisma.payment.update).mockResolvedValue({ id: p1 } as never);
+
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/reconcile", {
+      method: "POST",
+      body: { paymentIds: [p1], notes: "relevé n° 4" },
+    }));
+
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.payment.update).mock.calls[0][0] as { data: { notes: string } };
+    expect(arg.data.notes).toBe("Trop-perçu de 5000 FCFA à traiter.\nrelevé n° 4");
   });
 
   it("bloque si un paiement appartient à une autre école (403)", async () => {
