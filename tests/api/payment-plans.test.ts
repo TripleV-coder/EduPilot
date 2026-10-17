@@ -37,6 +37,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import prisma from "@/lib/prisma";
+import { getFeeBalance } from "@/lib/finance/online-payments";
 import { GET, POST } from "@/app/api/payment-plans/route";
 import { POST as POST_PAY } from "@/app/api/payment-plans/[id]/installments/[installmentId]/pay/route";
 
@@ -378,21 +379,23 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     expect(response.status).toBe(400);
   });
 
-  it("encaisse la mensualité : statut PAID, montant cumulé, payment créé, notification", async () => {
+  it("encaisse la mensualité la plus ancienne non soldée pour son reste ; état final issu du recalcul (lot 3c)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(installmentRecord());
-    vi.mocked(prisma.installmentPayment.update).mockResolvedValue({
-      id: installmentId,
-      status: "PAID",
-    } as unknown as InstallmentPayment);
-    vi.mocked(prisma.paymentPlan.update).mockResolvedValue({
-      id: planId,
+    // Solde relu sous verrou : 60 000 déjà encaissés sur 4 × 30 000
+    vi.mocked(getFeeBalance).mockResolvedValueOnce({ billed: 120000, settled: 60000, reserved: 0, remaining: 60000, available: 60000 });
+    const at = (m: number) => new Date(Date.UTC(2026, m, 1));
+    vi.mocked(prisma.paymentPlan.findUnique).mockResolvedValue({
       status: "ACTIVE",
-      installments: 4,
-      installmentPayments: [{ status: "PAID" }],
+      installmentPayments: [
+        { id: cuid("echeance1"), amount: 30000, dueDate: at(6), status: "PAID" },
+        { id: cuid("echeance2"), amount: 30000, dueDate: at(7), status: "PAID" },
+        { id: installmentId, amount: 30000, dueDate: at(8), status: "PENDING" },
+        { id: cuid("echeance4"), amount: 30000, dueDate: at(9), status: "PENDING" },
+      ],
     } as unknown as PaymentPlan);
     vi.mocked(prisma.payment.create).mockResolvedValue({ id: cuid("pay1") } as unknown as Payment);
-    // syncPaymentPlanLedger : plan toujours actif après ce versement (90 000 / 120 000)
+    // syncPaymentPlanLedger (réel) : plan toujours actif après ce versement (90 000 / 120 000)
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({
       id: planId,
       totalAmount: 120000,
@@ -405,6 +408,11 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       { amount: 30000, paidAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") },
     ] as unknown as Payment[]);
     vi.mocked(prisma.installmentPayment.findMany).mockResolvedValue([] as unknown as InstallmentPayment[]);
+    vi.mocked(prisma.paymentPlan.update).mockResolvedValue({
+      id: planId,
+      status: "ACTIVE",
+      installmentPayments: [{ id: installmentId, status: "PAID" }],
+    } as unknown as PaymentPlan);
 
     const response = await POST_PAY(
       makeRequest("http://localhost:3000/api/payment-plans/x/installments/y/pay", {
@@ -417,18 +425,9 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
 
     expect(response.status).toBe(200);
     expect(body.isFullyPaid).toBe(false);
-
-    // La mensualité passe à PAID
-    expect(vi.mocked(prisma.installmentPayment.update).mock.calls[0][0]).toMatchObject({
-      where: { id: installmentId },
-      data: { status: "PAID" },
-    });
-    // Le cumul payé est mis à jour : 60 000 + 30 000
-    expect(vi.mocked(prisma.paymentPlan.update).mock.calls[0][0].data).toMatchObject({
-      paidAmount: 90000,
-      status: "ACTIVE",
-    });
-    // Une trace Payment VERIFIED est créée pour la mensualité
+    // État final (après recalcul) renvoyé
+    expect(body.installment).toMatchObject({ id: installmentId, status: "PAID" });
+    // Le reste de l'échéance est encaissé, numérotée à sa place dans l'échéancier
     expect(vi.mocked(prisma.payment.create).mock.calls[0][0].data).toMatchObject({
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
@@ -436,7 +435,12 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       method: "CASH",
       reference: "RECU-42",
       status: "VERIFIED",
+      notes: " - Mensualité 3/4",
     });
+    // Plus aucune écriture manuelle avant le recalcul : seul syncPaymentPlanLedger
+    // écrit le total payé (90 000 = somme des paiements)
+    expect(vi.mocked(prisma.paymentPlan.update).mock.calls).toHaveLength(1);
+    expect(vi.mocked(prisma.paymentPlan.update).mock.calls[0][0].data).toMatchObject({ paidAmount: 90000, status: "ACTIVE" });
     expect(prisma.auditLog.create).toHaveBeenCalled();
     expect(prisma.notification.create).toHaveBeenCalled();
   });

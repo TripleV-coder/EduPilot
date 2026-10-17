@@ -3,8 +3,8 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { assertReferenceFree, assertWithinAvailable, refuse, runFeeMutation } from "@/lib/finance/collection";
+import { chronologicalCoverage } from "@/lib/finance/installment-coverage";
 import { z } from "zod";
-import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -79,72 +79,60 @@ export const POST = createApiHandler(
 
       const paymentTimestamp = new Date();
       const { studentId, feeId } = installment.paymentPlan;
+      const dateFr = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC" });
 
-      // Une seule transaction sous verrou élève/frais (lot 3b) : état relu,
-      // montant plafonné au reste dû, référence contrôlée AVANT toute écriture.
-      // Le recalcul final (imputation chronologique) reste celui de
-      // syncPaymentPlanLedger, inchangé : le choix d'échéance relève du lot 3c.
+      // Une seule transaction sous verrou élève/frais (lot 3b). Imputation
+      // chronologique (lot 3c) : seule l'échéance la plus ancienne non soldée
+      // peut être réglée ici, pour son RESTE (une partie a pu être payée au
+      // guichet). Le recalcul final reste celui de syncPaymentPlanLedger.
       const result = await runFeeMutation(studentId, feeId, async (tx, balance) => {
-        const current = await tx.installmentPayment.findUnique({
-          where: { id: installmentId },
-          select: { status: true, paymentPlan: { select: { status: true, paidAmount: true, totalAmount: true } } },
+        const plan = await tx.paymentPlan.findUnique({
+          where: { id },
+          select: {
+            status: true,
+            installmentPayments: { select: { id: true, amount: true, dueDate: true, status: true } },
+          },
         });
-        if (!current) return refuse(404, "Mensualité non trouvée");
-        if (current.status === "PAID") refuse(400, "Mensualité déjà payée");
-        if (!["ACTIVE", "OVERDUE"].includes(current.paymentPlan.status)) refuse(400, "Plan de paiement non actif");
-        assertWithinAvailable(balance.available, Number(installment.amount));
+        if (!plan) return refuse(404, "Plan de paiement non trouvé");
+        if (!["ACTIVE", "OVERDUE"].includes(plan.status)) refuse(400, "Plan de paiement non actif");
+
+        const coverage = chronologicalCoverage(plan.installmentPayments, balance.settled);
+        const position = coverage.findIndex((c) => c.installment.id === installmentId);
+        if (position < 0) return refuse(404, "Mensualité non trouvée");
+        const target = coverage[position];
+        if (target.outstanding <= 0) refuse(400, "Mensualité déjà payée");
+        const oldest = coverage.find((c) => c.outstanding > 0)!;
+        if (oldest.installment.id !== installmentId) {
+          refuse(
+            409,
+            `Réglez d'abord l'échéance du ${dateFr.format(oldest.installment.dueDate)} (reste ${oldest.outstanding} FCFA) : les paiements sont imputés aux échéances les plus anciennes.`,
+          );
+        }
+        assertWithinAvailable(balance.available, target.outstanding);
         await assertReferenceFree(tx, validatedData.reference);
 
-        // Mark installment as paid
-        const updatedInstallment = await tx.installmentPayment.update({
-          where: { id: installmentId },
-          data: {
-            status: "PAID",
-            paidAt: paymentTimestamp,
-          },
-        });
-
-        // Update payment plan paid amount
-        const newPaidAmount = new Decimal(current.paymentPlan.paidAmount.toString())
-          .add(new Decimal(installment.amount.toString()));
-
-        const totalAmount = new Decimal(current.paymentPlan.totalAmount.toString());
-        const isFullyPaid = newPaidAmount.greaterThanOrEqualTo(totalAmount);
-
-        const updatedPlan = await tx.paymentPlan.update({
-          where: { id: id },
-          data: {
-            paidAmount: newPaidAmount.toNumber(),
-            status: isFullyPaid ? "COMPLETED" : "ACTIVE",
-          },
-          include: {
-            installmentPayments: {
-              orderBy: { dueDate: "asc" },
-            },
-          },
-        });
-
-        // Create payment record
         await tx.payment.create({
           data: {
             studentId,
             feeId,
-            amount: installment.amount,
+            amount: target.outstanding,
             method: validatedData.method,
             reference: validatedData.reference,
-            notes: `${validatedData.notes || ""} - Mensualité ${updatedPlan.installmentPayments.filter(i => i.status === "PAID").length}/${updatedPlan.installments}`,
+            notes: `${validatedData.notes || ""} - Mensualité ${position + 1}/${coverage.length}`,
             status: "VERIFIED",
             paidAt: paymentTimestamp,
             receivedBy: session.user.id,
           },
         });
-        return { updatedInstallment, updatedPlan };
+        return { amount: target.outstanding };
       });
       if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
 
-      const { updatedInstallment } = result.value;
-      const effectivePlan = result.plan ?? result.value.updatedPlan;
+      // État FINAL, après recalcul (et non l'état d'avant)
+      const effectivePlan = result.plan!;
+      const updatedInstallment = effectivePlan.installmentPayments.find((i) => i.id === installmentId) ?? null;
       const planCompleted = effectivePlan.status === "COMPLETED";
+      const paidAmount = result.value.amount;
 
       // Log audit
       await prisma.auditLog.create({
@@ -162,7 +150,7 @@ export const POST = createApiHandler(
           userId: installment.paymentPlan.student.user.id,
           type: "SUCCESS",
           title: "Paiement reçu",
-          message: `Votre paiement de ${installment.amount} a été reçu${planCompleted ? ". Plan de paiement terminé !" : ""}`,
+          message: `Votre paiement de ${paidAmount} FCFA a été reçu${planCompleted ? ". Plan de paiement terminé !" : ""}`,
           link: "/dashboard/finance",
         },
       });
@@ -174,7 +162,7 @@ export const POST = createApiHandler(
             userId: link.parent.user.id,
             type: "SUCCESS",
             title: "Paiement reçu",
-            message: `Paiement de ${installment.amount} reçu pour ${installment.paymentPlan.student.user.firstName}${planCompleted ? ". Plan de paiement terminé !" : ""}`,
+            message: `Paiement de ${paidAmount} FCFA reçu pour ${installment.paymentPlan.student.user.firstName}${planCompleted ? ". Plan de paiement terminé !" : ""}`,
             link: "/dashboard/finance",
           })),
         });

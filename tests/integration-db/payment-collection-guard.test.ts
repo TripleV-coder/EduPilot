@@ -435,7 +435,7 @@ describe("D — Intégrité : aucune écriture partielle", () => {
         expect(await expectLedgerConsistent(s, f)).toBe(5000);
     });
 
-    it("paiement d'échéance au-delà du reste dû : refusé ; dans le reste dû : accepté et cohérent", async () => {
+    it("paiement d'échéance après un versement partiel : son reste seul est encaissé, jamais au-delà du dû (lot 3c)", async () => {
         const s = await newStudent();
         const f = await newFee(50000);
         const plan = await newPlan(s, f, 50000);
@@ -447,11 +447,15 @@ describe("D — Intégrité : aucune écriture partielle", () => {
                 params: { id: plan.id, installmentId: installment.id }, body: { method: "CASH" },
             });
         };
+        // 10 000 déjà versés : l'échéance 1 ne règle que ses 15 000 restants
         expect((await pay(0)).status).toBe(200);
-        expect(await expectLedgerConsistent(s, f)).toBe(35000);
+        expect(await expectLedgerConsistent(s, f)).toBe(25000);
+        expect((await pay(1)).status).toBe(200);
+        expect(await expectLedgerConsistent(s, f)).toBe(50000);
+        // Plan soldé : plus rien à encaisser, le dû n'est jamais dépassé
         const over = await pay(1);
         expect(over.status).toBe(400);
-        expect(await expectLedgerConsistent(s, f)).toBe(35000);
+        expect(await expectLedgerConsistent(s, f)).toBe(50000);
     });
 
     it("deux paiements simultanés de la même échéance : un seul encaissement", async () => {

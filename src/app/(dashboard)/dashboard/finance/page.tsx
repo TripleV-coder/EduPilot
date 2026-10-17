@@ -31,6 +31,7 @@ import { PageError, PageLoading } from "@/components/layout/page-states";
 
 
 import { CHART_COLORS } from "@/components/charts/chart-theme";
+import { chronologicalCoverage } from "@/lib/finance/installment-coverage";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -506,9 +507,12 @@ export default function FinanceDashboardPage() {
                                                     (i) => i.status === "PAID"
                                                 ).length;
                                                 const ratio = (paidCount / plan.installments) * 100;
-                                                const next = plan.installmentPayments.find(
-                                                    (i) => i.status === "PENDING"
-                                                );
+                                                // Échéance que réglera l'encaissement : la plus ancienne non
+                                                // soldée, en retard comprise (même règle que le serveur, lot 3c)
+                                                const next = chronologicalCoverage(
+                                                    plan.installmentPayments,
+                                                    Number(plan.paidAmount)
+                                                ).find((c) => c.outstanding > 0);
                                                 return (
                                                     <tr
                                                         key={plan.id}
@@ -624,16 +628,17 @@ export default function FinanceDashboardPage() {
                                                                     size="sm"
                                                                     variant="secondary"
                                                                     icon={
-                                                                        payingInstallment === next.id
+                                                                        payingInstallment === next.installment.id
                                                                             ? undefined
                                                                             : "money"
                                                                     }
-                                                                    loading={payingInstallment === next.id}
+                                                                    loading={payingInstallment === next.installment.id}
+                                                                    title={`Échéance du ${new Date(next.installment.dueDate).toLocaleDateString("fr-FR", { timeZone: "UTC" })}`}
                                                                     onClick={() =>
-                                                                        handlePayInstallment(plan.id, next.id)
+                                                                        handlePayInstallment(plan.id, next.installment.id)
                                                                     }
                                                                 >
-                                                                    Encaisser
+                                                                    {`Encaisser ${formatCurrency(next.outstanding)}`}
                                                                 </Button>
                                                             ) : null}
                                                         </td>
