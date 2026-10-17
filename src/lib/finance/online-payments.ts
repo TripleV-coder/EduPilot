@@ -21,10 +21,14 @@
  * 6. Après 24 h sans réponse, le fournisseur est interrogé : payé et au bon
  *    montant → validé ; échec confirmé → annulé ; incertain → EXPIRED, à
  *    rapprocher. Rien n'est supprimé.
+ * 7. Toute validation recalcule l'échéancier (total payé, état des échéances)
+ *    dans la même transaction et sous le même verrou : relances, plafond du
+ *    guichet et soldes ne restent jamais sur un état antérieur (lot 3a).
  */
 import type { Prisma, PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -184,6 +188,8 @@ export async function confirmOnlinePayment(params: {
             where: { id: payment.id },
             data: { notes: appendNote(payment.notes, `Confirmé par ${params.source}${late}.${excess}`) },
         });
+        // Même règle d'imputation que le guichet ; une erreur annule toute la validation
+        await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
         if (overpaid > 0) logger.warn("Paiement en ligne : trop-perçu", { paymentId: payment.id, overpaid, source: params.source });
         return { outcome: "CONFIRMED" as const, paymentId: payment.id, overpaid };
     });
@@ -247,6 +253,8 @@ export interface ReconcileReport {
     cancelled: number;
     expired: number;
     mismatched: number;
+    /** Erreur pendant la validation (recalcul compris) : laissé en attente, repris au passage suivant. */
+    failed: number;
 }
 
 /** Montant et devise lus dans la réponse de vérification d'un fournisseur. */
@@ -261,7 +269,7 @@ function amountFromRaw(provider: OnlineProvider, raw: unknown): { amount: number
  * interrogé quand c'est possible, sinon l'essai passe à EXPIRED (à rapprocher).
  */
 export async function reconcileStalePayments(verify: VerifyFn, now = new Date(), limit = 200): Promise<ReconcileReport> {
-    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, expired: 0, mismatched: 0 };
+    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, expired: 0, mismatched: 0, failed: 0 };
     const stale = await prisma.payment.findMany({
         where: { status: "PENDING", deletedAt: null, createdAt: { lt: new Date(now.getTime() - ONLINE_PAYMENT_TTL_MS) } },
         select: { id: true, reference: true, provider: true, providerTransactionId: true, notes: true },
@@ -282,14 +290,22 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
         }
         if (verdict === "SUCCESS" && provider && p.reference) {
             const { amount, currency } = amountFromRaw(provider, raw);
-            const result = await confirmOnlinePayment({
-                reference: p.reference,
-                provider,
-                receivedAmount: amount,
-                receivedCurrency: currency,
-                providerTransactionId: p.providerTransactionId,
-                source: `réconciliation ${provider}`,
-            });
+            let result: ConfirmOutcome;
+            try {
+                result = await confirmOnlinePayment({
+                    reference: p.reference,
+                    provider,
+                    receivedAmount: amount,
+                    receivedCurrency: currency,
+                    providerTransactionId: p.providerTransactionId,
+                    source: `réconciliation ${provider}`,
+                });
+            } catch (error) {
+                // Validation annulée en bloc : le paiement reste en attente, les autres sont traités
+                report.failed++;
+                logger.error("Réconciliation : validation impossible, reprise au prochain passage", error, { paymentId: p.id });
+                continue;
+            }
             if (result.outcome === "CONFIRMED" || result.outcome === "ALREADY_PROCESSED") {
                 report.confirmed++;
                 continue;
