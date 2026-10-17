@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { assertReferenceFree, assertWithinAvailable, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { chronologicalCoverage } from "@/lib/finance/installment-coverage";
+import { CURRENT_PLAN_ORDER } from "@/lib/finance/helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -86,14 +87,19 @@ export const POST = createApiHandler(
       // peut être réglée ici, pour son RESTE (une partie a pu être payée au
       // guichet). Le recalcul final reste celui de syncPaymentPlanLedger.
       const result = await runFeeMutation(studentId, feeId, async (tx, balance) => {
-        const plan = await tx.paymentPlan.findUnique({
-          where: { id },
+        // Le plan payé doit être le plan en vigueur, celui que recalcule
+        // syncPaymentPlanLedger (même règle de choix, lot 3d)
+        const plan = await tx.paymentPlan.findFirst({
+          where: { studentId, feeId, status: { not: "CANCELLED" } },
+          orderBy: CURRENT_PLAN_ORDER,
           select: {
+            id: true,
             status: true,
             installmentPayments: { select: { id: true, amount: true, dueDate: true, status: true } },
           },
         });
         if (!plan) return refuse(404, "Plan de paiement non trouvé");
+        if (plan.id !== id) refuse(409, "Ce plan n'est plus le plan en vigueur pour ces frais : rechargez la page.");
         if (!["ACTIVE", "OVERDUE"].includes(plan.status)) refuse(400, "Plan de paiement non actif");
 
         const coverage = chronologicalCoverage(plan.installmentPayments, balance.settled);

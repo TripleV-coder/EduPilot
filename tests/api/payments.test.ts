@@ -452,7 +452,7 @@ describe("POST /api/payments/cash", () => {
         id: cuid("plan1"),
         totalAmount: 100000,
         paidAmount: 90000,
-        fee: { dueDate: null },
+        student: { schoolId: FIXTURES.schoolA }, fee: { dueDate: null, schoolId: FIXTURES.schoolA },
         installmentPayments: [
           { id: cuid("inst1"), amount: 100000, dueDate, status: "PENDING" },
         ],

@@ -20,7 +20,7 @@
 import { Prisma, type PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getFeeBalance, lockStudentFee, type FeeBalance } from "@/lib/finance/online-payments";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { INCOHERENT_PLAN_MESSAGE, IncoherentPaymentPlanError, syncPaymentPlanLedger } from "@/lib/finance/helpers";
 
 type Tx = Prisma.TransactionClient;
 
@@ -107,6 +107,8 @@ export async function runFeeMutation<T>(
         return { ok: true, value, plan };
     } catch (error) {
         if (error instanceof FeeMutationRefused) return { ok: false, refusal: error.refusal };
+        // Plan incohérent (journalisé par assertCoherentPaymentPlan) : tout est annulé
+        if (error instanceof IncoherentPaymentPlanError) return { ok: false, refusal: { status: 409, error: INCOHERENT_PLAN_MESSAGE } };
         // Référence invisible pour cette école (RLS) mais déjà prise ailleurs
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
             return { ok: false, refusal: { status: 409, error: "Cette référence de paiement est déjà utilisée." } };

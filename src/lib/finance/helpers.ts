@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logger } from "@/lib/utils/logger";
 
 export type FinanceDateRange = {
   startDate?: Date;
@@ -274,6 +275,60 @@ export function appendNote(current: string | null, line: string): string {
   return current ? `${current}\n${line}` : line;
 }
 
+/**
+ * Plan en vigueur pour un élève et un frais : le plus récent non annulé, l'id
+ * départageant deux créations simultanées. MÊME règle partout (recalcul,
+ * solde, paiement d'une échéance) : avec un doublon historique, toutes les
+ * fonctions travaillent sur le même plan (lot 3d).
+ */
+export const CURRENT_PLAN_ORDER = [{ createdAt: "desc" }, { id: "desc" }] satisfies Prisma.PaymentPlanOrderByWithRelationInput[];
+
+/**
+ * Plan dont l'élève et le frais relèvent d'établissements différents
+ * (souveraineté des écoles, lot 3d). Un tel plan, forcément historique, est
+ * conservé tel quel : aucune écriture financière n'est faite dessus tant qu'il
+ * n'a pas été examiné — l'opération qui en dépend échoue en bloc. Doublé en
+ * base par le trigger payment_plans_unique_guard.
+ */
+export class IncoherentPaymentPlanError extends Error {
+  constructor(readonly planId: string) {
+    super(`Plan de paiement ${planId} incohérent : élève et frais d'établissements différents.`);
+    this.name = "IncoherentPaymentPlanError";
+  }
+}
+
+export const INCOHERENT_PLAN_MESSAGE =
+  "Opération bloquée : le plan de paiement associe un élève et des frais d'établissements différents. Il doit être examiné avant toute opération financière.";
+
+/** Refuse (et journalise) toute écriture financière sur un plan incohérent. */
+export function assertCoherentPaymentPlan(plan: {
+  id: string;
+  student: { schoolId: string };
+  fee: { schoolId: string };
+}): void {
+  if (plan.student.schoolId === plan.fee.schoolId) return;
+  logger.error("Plan de paiement incohérent : écriture financière refusée", new IncoherentPaymentPlanError(plan.id), {
+    module: "finance/payment-plans",
+    planId: plan.id,
+    studentSchoolId: plan.student.schoolId,
+    feeSchoolId: plan.fee.schoolId,
+  });
+  throw new IncoherentPaymentPlanError(plan.id);
+}
+
+/**
+ * Plans incohérents (élève et frais d'écoles différentes), à tenir à l'écart
+ * des traitements de masse (relances) pour qu'ils n'y échouent pas.
+ */
+export async function incoherentPaymentPlanIds(db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma): Promise<string[]> {
+  const rows = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT pp."id" FROM "payment_plans" pp
+    JOIN "student_profiles" sp ON sp."id" = pp."studentId"
+    JOIN "fees" f ON f."id" = pp."feeId"
+    WHERE sp."schoolId" <> f."schoolId"`;
+  return rows.map((row) => row.id);
+}
+
 export async function syncPaymentPlanLedger(
   db: PaymentPlanClient,
   studentId: string,
@@ -285,10 +340,13 @@ export async function syncPaymentPlanLedger(
       feeId,
       status: { not: "CANCELLED" },
     },
+    orderBy: CURRENT_PLAN_ORDER,
     include: {
+      student: { select: { schoolId: true } },
       fee: {
         select: {
           dueDate: true,
+          schoolId: true,
         },
       },
       installmentPayments: {
@@ -300,6 +358,9 @@ export async function syncPaymentPlanLedger(
   if (!paymentPlan) {
     return null;
   }
+  // Plan en vigueur incohérent : refus AVANT toute écriture, jamais de repli
+  // silencieux sur un autre plan
+  assertCoherentPaymentPlan(paymentPlan);
 
   const payments = await db.payment.findMany({
     where: {

@@ -18,6 +18,7 @@ vi.mock("@/lib/prisma", () => {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -154,16 +155,36 @@ describe("POST /api/payment-plans", () => {
     expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
   });
 
-  it("refuse un doublon de plan actif (400)", async () => {
+  it("refuse au SUPER_ADMIN un plan associant l'élève d'une école aux frais d'une autre (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN"));
+    mockStudentAndFee();
+    vi.mocked(prisma.fee.findFirst).mockResolvedValue({
+      id: cuid("feeb"),
+      schoolId: FIXTURES.schoolB,
+      name: "Scolarité B",
+      amount: 120000,
+    } as unknown as Fee);
+
+    const response = await POST(
+      makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: { ...validBody, feeId: cuid("feeb") } })
+    );
+
+    expect(response.status).toBe(403);
+    expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
+  });
+
+  it("refuse un second plan non annulé pour ces frais (409, lot 3d)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
+    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([] as unknown as Scholarship[]);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: planId } as unknown as PaymentPlan);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toBe("Un plan de paiement est déjà en vigueur pour ces frais.");
     expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
   });
 
@@ -185,6 +206,9 @@ describe("POST /api/payment-plans", () => {
       },
       fee: { id: FIXTURES.feeA, name: "Scolarité" },
     }) as unknown as PaymentPlan);
+    // Plan relu après le recalcul (lot 3d) : celui qui vient d'être créé
+    vi.mocked(prisma.paymentPlan.findUniqueOrThrow).mockImplementation((async () =>
+      vi.mocked(prisma.paymentPlan.create).mock.results[0].value) as never);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
@@ -229,6 +253,8 @@ describe("POST /api/payment-plans", () => {
       student: { user: { id: cuid("userstudenta"), firstName: "Awa", lastName: "Dossou" }, parentStudents: [] },
       fee: { id: FIXTURES.feeA, name: "Scolarité" },
     }) as unknown as PaymentPlan);
+    vi.mocked(prisma.paymentPlan.findUniqueOrThrow).mockImplementation((async () =>
+      vi.mocked(prisma.paymentPlan.create).mock.results[0].value) as never);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", {
@@ -385,7 +411,9 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     // Solde relu sous verrou : 60 000 déjà encaissés sur 4 × 30 000
     vi.mocked(getFeeBalance).mockResolvedValueOnce({ billed: 120000, settled: 60000, reserved: 0, remaining: 60000, available: 60000 });
     const at = (m: number) => new Date(Date.UTC(2026, m, 1));
-    vi.mocked(prisma.paymentPlan.findUnique).mockResolvedValue({
+    // Plan en vigueur (règle commune, lot 3d), lu sous verrou par findFirst
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValueOnce({
+      id: planId,
       status: "ACTIVE",
       installmentPayments: [
         { id: cuid("echeance1"), amount: 30000, dueDate: at(6), status: "PAID" },
@@ -400,7 +428,7 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       id: planId,
       totalAmount: 120000,
       paidAmount: 60000,
-      fee: { dueDate: null },
+      student: { schoolId: FIXTURES.schoolA }, fee: { dueDate: null, schoolId: FIXTURES.schoolA },
       installmentPayments: [],
     } as unknown as PaymentPlan);
     vi.mocked(prisma.payment.findMany).mockResolvedValue([

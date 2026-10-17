@@ -36,7 +36,13 @@
 import type { Prisma, PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
-import { appendNote, syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import {
+    CURRENT_PLAN_ORDER,
+    INCOHERENT_PLAN_MESSAGE,
+    IncoherentPaymentPlanError,
+    appendNote,
+    syncPaymentPlanLedger,
+} from "@/lib/finance/helpers";
 import { createNotifications } from "@/lib/services/notification.service";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -69,7 +75,7 @@ export async function getFeeBalance(db: Db, studentId: string, feeId: string): P
         db.paymentPlan.findFirst({
             where: { studentId, feeId, status: { not: "CANCELLED" } },
             select: { totalAmount: true },
-            orderBy: { createdAt: "desc" },
+            orderBy: CURRENT_PLAN_ORDER,
         }),
         db.payment.findMany({
             where: { studentId, feeId, deletedAt: null, status: { in: ["VERIFIED", "RECONCILED", "PENDING"] } },
@@ -95,7 +101,11 @@ export type ConfirmOutcome =
     | { outcome: "CONFIRMED"; paymentId: string; overpaid: number }
     | { outcome: "ALREADY_PROCESSED"; paymentId: string }
     | { outcome: "MISMATCH"; paymentId: string; reason: string }
+    /** Plan incohérent : validation annulée en bloc, le paiement reste dans son état. */
+    | { outcome: "BLOCKED"; paymentId: string; reason: string }
     | { outcome: "NOT_FOUND" };
+
+const BLOCKED_NOTE = "Validation bloquée : le plan de paiement associe un élève et des frais d'établissements différents. À examiner avant tout encaissement.";
 
 /** Montant d'un fournisseur ramené en FCFA ; null s'il est absent ou illisible. */
 export function parseProviderAmount(value: unknown, provider: OnlineProvider): number | null {
@@ -165,53 +175,82 @@ export async function confirmOnlinePayment(params: {
         return { outcome: "MISMATCH", paymentId: payment.id, reason };
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-        await lockStudentFee(tx, payment.studentId, payment.feeId);
-        // État relu sous verrou : une annulation manuelle concurrente est vue ici
-        const current = await tx.payment.findUnique({
-            where: { id: payment.id },
-            select: { status: true, notes: true, cancellationSource: true },
-        });
-        if (!current || !(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
-            return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
-        }
-        const balance = await getFeeBalance(tx, payment.studentId, payment.feeId);
-        const now = new Date();
-        // Validation unique (idempotente) : en attente, expiré, ou annulé — une
-        // confirmation authentique prouve que l'argent est reçu (lot 3b)
-        const claimed = await tx.payment.updateMany({
-            where: { id: payment.id, status: current.status },
-            data: {
-                status: "VERIFIED",
-                paidAt: now,
-                reconciledAt: now,
-                ...(params.providerTransactionId ? { providerTransactionId: params.providerTransactionId } : {}),
-            },
-        });
-        if (claimed.count !== 1) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
+    let result;
+    try {
+        result = await prisma.$transaction(async (tx) => {
+            await lockStudentFee(tx, payment.studentId, payment.feeId);
+            // État relu sous verrou : une annulation manuelle concurrente est vue ici
+            const current = await tx.payment.findUnique({
+                where: { id: payment.id },
+                select: { status: true, notes: true, cancellationSource: true },
+            });
+            if (!current || !(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
+                return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
+            }
+            const balance = await getFeeBalance(tx, payment.studentId, payment.feeId);
+            const now = new Date();
+            // Validation unique (idempotente) : en attente, expiré, ou annulé — une
+            // confirmation authentique prouve que l'argent est reçu (lot 3b)
+            const claimed = await tx.payment.updateMany({
+                where: { id: payment.id, status: current.status },
+                data: {
+                    status: "VERIFIED",
+                    paidAt: now,
+                    reconciledAt: now,
+                    ...(params.providerTransactionId ? { providerTransactionId: params.providerTransactionId } : {}),
+                },
+            });
+            if (claimed.count !== 1) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
 
-        // Trop-perçu : l'argent est reçu (on l'enregistre), l'excédent est signalé
-        const overpaid = balance ? Math.max(0, balance.settled + expected - balance.billed) : 0;
-        const origin =
-            current.cancellationSource === "PROVIDER" ? "échec signalé par le fournisseur"
-            : current.cancellationSource === "MANUAL" ? "annulation manuelle par l'école"
-            : "origine inconnue";
-        const previous =
-            current.status === "EXPIRED" ? " (confirmation tardive, après expiration)"
-            : current.status === "CANCELLED" ? ` (validé après annulation — état antérieur : annulé, ${origin})`
-            : "";
-        const excess = overpaid > 0 ? ` Trop-perçu de ${overpaid} FCFA à traiter.` : "";
-        await tx.payment.update({
-            where: { id: payment.id },
-            data: { notes: appendNote(current.notes, `Confirmé par ${params.source}${previous}.${excess}`) },
+            // Trop-perçu : l'argent est reçu (on l'enregistre), l'excédent est signalé
+            const overpaid = balance ? Math.max(0, balance.settled + expected - balance.billed) : 0;
+            const origin =
+                current.cancellationSource === "PROVIDER" ? "échec signalé par le fournisseur"
+                : current.cancellationSource === "MANUAL" ? "annulation manuelle par l'école"
+                : "origine inconnue";
+            const previous =
+                current.status === "EXPIRED" ? " (confirmation tardive, après expiration)"
+                : current.status === "CANCELLED" ? ` (validé après annulation — état antérieur : annulé, ${origin})`
+                : "";
+            const excess = overpaid > 0 ? ` Trop-perçu de ${overpaid} FCFA à traiter.` : "";
+            await tx.payment.update({
+                where: { id: payment.id },
+                data: { notes: appendNote(current.notes, `Confirmé par ${params.source}${previous}.${excess}`) },
+            });
+            // Même règle d'imputation que le guichet ; une erreur annule toute la validation
+            await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
+            if (overpaid > 0) logger.warn("Paiement en ligne : trop-perçu", { paymentId: payment.id, overpaid, source: params.source });
+            // Annulation décidée par l'école (ou d'origine inconnue) : un responsable doit le savoir
+            const alert = current.status === "CANCELLED" && current.cancellationSource !== "PROVIDER" ? { origin, overpaid } : null;
+            return { outcome: "CONFIRMED" as const, paymentId: payment.id, overpaid, alert };
         });
-        // Même règle d'imputation que le guichet ; une erreur annule toute la validation
-        await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
-        if (overpaid > 0) logger.warn("Paiement en ligne : trop-perçu", { paymentId: payment.id, overpaid, source: params.source });
-        // Annulation décidée par l'école (ou d'origine inconnue) : un responsable doit le savoir
-        const alert = current.status === "CANCELLED" && current.cancellationSource !== "PROVIDER" ? { origin, overpaid } : null;
-        return { outcome: "CONFIRMED" as const, paymentId: payment.id, overpaid, alert };
-    });
+    } catch (error) {
+        if (!(error instanceof IncoherentPaymentPlanError)) throw error;
+        // Rien n'a été validé (transaction annulée) : le paiement reste dans son
+        // état et son montant réservé. Trace sur le paiement + alerte, une fois.
+        const current = await prisma.payment.findUnique({ where: { id: payment.id }, select: { notes: true } });
+        // Écriture conditionnelle aux notes relues : une seule trace, une seule alerte
+        const updated = current && !current.notes?.includes(BLOCKED_NOTE)
+            ? await prisma.payment.updateMany({
+                  where: { id: payment.id, notes: current.notes },
+                  data: { notes: appendNote(current.notes, BLOCKED_NOTE) },
+              })
+            : { count: 0 };
+        logger.error("Paiement en ligne : validation bloquée, plan incohérent", error, {
+            paymentId: payment.id,
+            planId: error.planId,
+            source: params.source,
+            providerTransactionId: params.providerTransactionId ?? null,
+        });
+        if (updated.count === 1) {
+            await alertFinanceStaff(
+                payment.student.schoolId,
+                "Paiement en ligne bloqué : plan incohérent",
+                `Le fournisseur a confirmé un paiement en ligne de ${expected} FCFA (référence ${params.reference}), mais le plan de paiement associe un élève et des frais d'établissements différents. Le paiement n'est pas comptabilisé tant que le plan n'a pas été examiné.`,
+            ).catch((alertError) => logger.error("Alerte financière non envoyée", alertError, { paymentId: payment.id }));
+        }
+        return { outcome: "BLOCKED", paymentId: payment.id, reason: INCOHERENT_PLAN_MESSAGE };
+    }
 
     if (result.alert) {
         logger.warn("Paiement en ligne : validé après une annulation manuelle ou d'origine inconnue", { paymentId: payment.id, source: params.source });
@@ -288,6 +327,8 @@ export interface ReconcileReport {
     mismatched: number;
     /** Erreur pendant la validation (recalcul compris) : laissé en attente, repris au passage suivant. */
     failed: number;
+    /** Validation refusée car le plan est incohérent (écoles différentes) : reste en attente, signalé. */
+    blocked: number;
 }
 
 /** Au-delà, un paiement toujours en attente est signalé à l'administration financière (jamais libéré). */
@@ -316,7 +357,7 @@ function amountFromRaw(provider: OnlineProvider, raw: unknown): { amount: number
  *   alertée une fois ; aucune libération automatique.
  */
 export async function reconcileStalePayments(verify: VerifyFn, now = new Date(), limit = 200): Promise<ReconcileReport> {
-    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0 };
+    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0 };
     const stale = await prisma.payment.findMany({
         where: { status: "PENDING", deletedAt: null, createdAt: { lt: new Date(now.getTime() - ONLINE_PAYMENT_TTL_MS) } },
         select: {
@@ -363,6 +404,11 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
             }
             // Montant ou devise non conformes : noté « à rapprocher », reste réservé
             if (result.outcome === "MISMATCH") report.mismatched++;
+            // Plan incohérent : déjà noté et signalé, reste en attente et réservé
+            if (result.outcome === "BLOCKED") {
+                report.blocked++;
+                continue;
+            }
         } else if (verdict === "FAILED" && p.reference) {
             report.cancelled += await failOnlinePayment(p.reference, `réconciliation ${provider}`);
             continue;

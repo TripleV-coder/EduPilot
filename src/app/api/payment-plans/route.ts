@@ -9,6 +9,7 @@ import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { addMonthsClamped, roundFcfa, splitInstallments } from "@/lib/finance/money";
+import { refuse, runFeeMutation } from "@/lib/finance/collection";
 
 const createPaymentPlanSchema = z.object({
   studentId: z.string().cuid(),
@@ -144,21 +145,11 @@ export const POST = createApiHandler(
       if (!fee) {
         return NextResponse.json({ error: "Frais non trouvés" }, { status: 404 });
       }
-      if (session.user.role !== "SUPER_ADMIN" && fee.schoolId !== student.schoolId) {
+      // Souveraineté des écoles : élève et frais du même établissement, pour
+      // TOUS les rôles — SUPER_ADMIN compris (lot 3d). Doublé en base par le
+      // trigger payment_plans_unique_guard.
+      if (fee.schoolId !== student.schoolId) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-
-      // Check if payment plan already exists for this fee
-      const existingPlan = await prisma.paymentPlan.findFirst({
-        where: {
-          studentId: validatedData.studentId,
-          feeId: validatedData.feeId,
-          status: "ACTIVE",
-        },
-      });
-
-      if (existingPlan) {
-        return NextResponse.json({ error: "Un plan de paiement actif existe déjà pour ces frais" }, { status: 400 });
       }
 
       // Check for active scholarships
@@ -203,23 +194,40 @@ export const POST = createApiHandler(
         addMonthsClamped(startDate, i)
       );
 
-      // Create payment plan with installments
-      const paymentPlan = await prisma.paymentPlan.create({
-        data: {
-          studentId: validatedData.studentId,
-          feeId: validatedData.feeId,
-          totalAmount: total,
-          installments: validatedData.installments,
-          paidAmount: 0,
-          status: "ACTIVE",
-          installmentPayments: {
-            create: installmentDates.map((dueDate, i) => ({
-              amount: installmentAmounts[i],
-              dueDate,
-              status: "PENDING",
-            })),
+      // Un seul plan non annulé par élève et par frais, quel que soit son
+      // statut (lot 3d) : contrôle et création sous le verrou élève/frais, puis
+      // recalcul immédiat — les paiements déjà reçus sont imputés aux premières
+      // échéances dès la création (imputation chronologique inchangée).
+      const created = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx) => {
+        const existing = await tx.paymentPlan.findFirst({
+          where: { studentId: validatedData.studentId, feeId: validatedData.feeId, status: { not: "CANCELLED" } },
+          select: { id: true },
+        });
+        if (existing) refuse(409, "Un plan de paiement est déjà en vigueur pour ces frais.");
+        return tx.paymentPlan.create({
+          data: {
+            studentId: validatedData.studentId,
+            feeId: validatedData.feeId,
+            totalAmount: total,
+            installments: validatedData.installments,
+            paidAmount: 0,
+            status: "ACTIVE",
+            installmentPayments: {
+              create: installmentDates.map((dueDate, i) => ({
+                amount: installmentAmounts[i],
+                dueDate,
+                status: "PENDING",
+              })),
+            },
           },
-        },
+          select: { id: true },
+        });
+      });
+      if (!created.ok) return NextResponse.json({ error: created.refusal.error }, { status: created.refusal.status });
+
+      // Plan relu APRÈS recalcul : total payé et échéances déjà à jour
+      const paymentPlan = await prisma.paymentPlan.findUniqueOrThrow({
+        where: { id: created.value.id },
         include: {
           installmentPayments: {
             orderBy: { dueDate: "asc" },

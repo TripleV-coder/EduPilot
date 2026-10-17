@@ -1,5 +1,4 @@
 import prisma from "@/lib/prisma";
-import { getSchoolParametersForStudent } from "@/lib/schools/school-parameters-store";
 
 /**
  * Business validation rules for EduPilot
@@ -12,99 +11,6 @@ export class ValidationError extends Error {
     this.name = "ValidationError";
   }
 }
-
-/**
- * Payment Plan Validations
- */
-export const paymentPlanValidations = {
-  /**
-   * Validate payment plan creation
-   */
-  async validatePaymentPlanCreation(data: {
-    studentId: string;
-    feeId: string;
-    totalAmount: number;
-    installments: number;
-    startDate: Date;
-  }): Promise<void> {
-    // Check that startDate is not in the past
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    if (data.startDate < now) {
-      throw new ValidationError("La date de début doit être aujourd'hui ou dans le futur");
-    }
-
-    // Validate installments divide amount evenly (within 1 cent tolerance)
-    const installmentAmount = data.totalAmount / data.installments;
-    const remainder = data.totalAmount - installmentAmount * data.installments;
-    if (Math.abs(remainder) > 0.01 * data.installments) {
-      throw new ValidationError(
-        `Le montant total (${data.totalAmount.toLocaleString("fr-FR")} FCFA) ne peut pas être divisé équitablement en ${data.installments} mensualités`
-      );
-    }
-
-    // Check for existing active payment plan for same fee
-    const existingPlan = await prisma.paymentPlan.findFirst({
-      where: {
-        studentId: data.studentId,
-        feeId: data.feeId,
-        status: "ACTIVE",
-      },
-    });
-
-    if (existingPlan) {
-      throw new ValidationError("Un plan de paiement actif existe déjà pour ces frais");
-    }
-
-    // Montant minimum d'une échéance : paramètre de l'école (FCFA)
-    const minimum = (await getSchoolParametersForStudent(data.studentId)).finance.minInstallmentAmount;
-    if (installmentAmount < minimum) {
-      throw new ValidationError(
-        `Le montant de chaque mensualité doit être d'au moins ${minimum.toLocaleString("fr-FR")} FCFA`
-      );
-    }
-  },
-
-  /**
-   * Validate installment payment
-   */
-  async validateInstallmentPayment(installmentId: string, _paymentDate: Date): Promise<void> {
-    const installment = await prisma.installmentPayment.findUnique({
-      where: { id: installmentId },
-      include: { paymentPlan: true },
-    });
-
-    if (!installment) {
-      throw new ValidationError("Mensualité non trouvée");
-    }
-
-    if (installment.status === "PAID") {
-      throw new ValidationError("Cette mensualité a déjà été payée");
-    }
-
-    if (installment.paymentPlan.status !== "ACTIVE") {
-      throw new ValidationError("Le plan de paiement n'est pas actif");
-    }
-
-    // Check if paying out of order (warn but don't block)
-    const unpaidPrevious = await prisma.installmentPayment.count({
-      where: {
-        paymentPlanId: installment.paymentPlanId,
-        dueDate: { lt: installment.dueDate },
-        status: { not: "PAID" },
-      },
-    });
-
-    if (unpaidPrevious > 0) {
-      const { logger } = await import("@/lib/utils/logger");
-      logger.warn("Paying installment out of order", {
-        module: "validations/business-rules",
-        unpaidPrevious,
-        paymentPlanId: installment.paymentPlanId,
-      });
-    }
-  },
-};
 
 /**
  * Course Validations
@@ -504,7 +410,6 @@ export const examValidations = {
 };
 
 const businessRules = {
-  paymentPlanValidations,
   courseValidations,
   gradeValidations,
   scheduleValidations,

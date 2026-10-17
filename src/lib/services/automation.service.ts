@@ -19,7 +19,7 @@ export class AutomationService {
             absenteeismAlerts: 0,
             financeAlerts: 0,
             financeReminders: { swept: 0, notified: 0, UPCOMING: 0, DUE: 0, OVERDUE: 0, CRITICAL: 0 },
-            onlinePayments: { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0 } as ReconcileReport,
+            onlinePayments: { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0 } as ReconcileReport,
         };
 
         try {
@@ -58,7 +58,7 @@ export class AutomationService {
             );
         } catch (error) {
             logger.error("Réconciliation des paiements en ligne en échec", error as Error);
-            return { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0 };
+            return { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0 };
         }
     }
 
