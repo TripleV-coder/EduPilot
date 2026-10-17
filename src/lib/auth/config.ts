@@ -20,6 +20,7 @@ import {
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
+import { getCachedUserStatus, invalidateUserStatusCache } from "./user-status-cache";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
 import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
@@ -32,10 +33,9 @@ import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
  * At login, if `user.roles` is populated, it is used; otherwise `[user.role]` is the fallback.
  * The session always exposes both fields for maximum flexibility.
  *
- * P15 NOTE: The JWT status cache (`userStatusCache`) is an in-memory Map with 30s TTL.
- * In multi-instance deployments (Vercel serverless, PM2 cluster), each instance has its own cache.
- * Token invalidation after password/role changes may take up to 30s × instances to propagate.
- * This is an acceptable trade-off vs. adding a Redis dependency for this single use case.
+ * P15 NOTE: account status AND school access are re-read on each request through a short
+ * in-memory cache (`user-status-cache.ts`, 5s TTL, one cache per instance). A revoked school
+ * leaves the token within that delay, without waiting for the token to expire (audit MS-01).
  */
 export interface AuthUser {
   id: string;
@@ -73,56 +73,7 @@ const loginSchema = z.object({
   twoFactorCode: z.string().optional(),
 });
 
-// P15: In-memory cache for JWT token invalidation checks (30s TTL).
-// Prevents a `SELECT` per authenticated request. Trade-off: multi-instance inconsistency (see AuthUser doc).
-const JWT_CACHE_TTL_MS = 30_000;
-interface CachedUserStatus {
-  passwordChangedAt: Date | null;
-  roleChangedAt: Date | null;
-  role: UserRole;
-  isActive: boolean;
-  school: { isActive: boolean } | null;
-  fetchedAt: number;
-}
-const userStatusCache = new Map<string, CachedUserStatus>();
-
-async function getCachedUserStatus(userId: string): Promise<CachedUserStatus | null> {
-  const cached = userStatusCache.get(userId);
-  if (cached && Date.now() - cached.fetchedAt < JWT_CACHE_TTL_MS) {
-    return cached;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      passwordChangedAt: true,
-      roleChangedAt: true,
-      role: true,
-      isActive: true,
-      school: { select: { isActive: true } },
-    },
-  });
-
-  if (!user) return null;
-
-  const entry: CachedUserStatus = { ...user, fetchedAt: Date.now() };
-  userStatusCache.set(userId, entry);
-
-  // Evict old entries periodically (keep map bounded)
-  if (userStatusCache.size > 1000) {
-    const now = Date.now();
-    for (const [key, val] of userStatusCache) {
-      if (now - val.fetchedAt > JWT_CACHE_TTL_MS) userStatusCache.delete(key);
-    }
-  }
-
-  return entry;
-}
-
-/** Invalidate cache for a specific user (call after password/role change) */
-export function invalidateUserStatusCache(userId: string): void {
-  userStatusCache.delete(userId);
-}
+export { invalidateUserStatusCache };
 
 export const authConfig: NextAuthConfig = {
   // Auth.js (NextAuth v5) bloque par défaut certains hosts en production.
@@ -409,6 +360,8 @@ export const authConfig: NextAuthConfig = {
           Object.prototype.hasOwnProperty.call(session, "schoolId");
 
         if (hasSchoolContextUpdate && userId) {
+          // Les droits relus plus bas doivent refléter l'état en base, pas le cache
+          invalidateUserStatusCache(userId);
           if (token.role === "SUPER_ADMIN") {
             token.schoolId = (session.schoolId as string | null | undefined) ?? null;
           } else {
@@ -475,6 +428,24 @@ export const authConfig: NextAuthConfig = {
           // Mettre à jour le rôle dans le token s'il a changé
           if (userStatus.role !== token.role) {
             token.role = userStatus.role;
+          }
+
+          // Droits d'établissement relus en base : un rattachement retiré ne
+          // survit pas dans le jeton, et l'école active retirée est remplacée.
+          // SUPER_ADMIN choisit librement son école (aucune liste à appliquer).
+          if (userStatus.role !== "SUPER_ADMIN") {
+            const { access } = userStatus;
+            token.primarySchoolId = access.primarySchoolId;
+            token.accessibleSchoolIds = access.accessibleSchoolIds;
+            token.organizationIds = access.organizationIds;
+            token.primaryOrganizationId = access.primaryOrganizationId;
+            token.isOrganizationManager = access.isOrganizationManager;
+            if (!token.schoolId || !access.accessibleSchoolIds.includes(token.schoolId as string)) {
+              token.schoolId = resolveActiveSchoolId({
+                primarySchoolId: access.primarySchoolId,
+                accessibleSchoolIds: access.accessibleSchoolIds,
+              });
+            }
           }
         }
       }

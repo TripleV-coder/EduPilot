@@ -12,6 +12,7 @@
  *   compte (création, mot de passe provisoire) et se gère par l'administration.
  */
 import prisma from "@/lib/prisma";
+import { invalidateUserStatusCache } from "@/lib/auth/user-status-cache";
 import { hashTeacherInvitationCode, isWellFormedTeacherInvitationCode } from "./invitation-code";
 
 export type JoinResult =
@@ -90,7 +91,7 @@ export async function detachTeacherFromSchool(params: {
 }): Promise<DetachResult> {
     const teacher = await prisma.teacherProfile.findUnique({
         where: { id: params.teacherId },
-        select: { id: true, schoolId: true, schoolAssignments: { where: { schoolId: params.schoolId }, select: { status: true, isPrimary: true } } },
+        select: { id: true, userId: true, schoolId: true, schoolAssignments: { where: { schoolId: params.schoolId }, select: { status: true, isPrimary: true } } },
     });
     const assignment = teacher?.schoolAssignments[0];
     if (!teacher || !assignment || assignment.status !== "ACTIVE") return { ok: false, reason: "NOT_FOUND" };
@@ -121,5 +122,7 @@ export async function detachTeacherFromSchool(params: {
             },
         });
     });
+    // Le jeton de l'enseignant perd l'école dès sa prochaine requête sur cette instance
+    invalidateUserStatusCache(teacher.userId);
     return { ok: true };
 }
