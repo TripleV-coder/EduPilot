@@ -101,7 +101,7 @@ export const PATCH = createApiHandler(
 
       if (
         session.user.role !== "SUPER_ADMIN" &&
-        !canAccessSchool(session, existingPayment.student.user.schoolId)
+        !canAccessSchool(session, existingPayment.student.schoolId)
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
@@ -178,7 +178,7 @@ export const DELETE = createApiHandler(
 
       if (
         session.user.role !== "SUPER_ADMIN" &&
-        !canAccessSchool(session, existingPayment.student.user.schoolId)
+        !canAccessSchool(session, existingPayment.student.schoolId)
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }

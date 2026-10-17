@@ -247,7 +247,7 @@ describe("/api/finance/payments/[id]", () => {
   const url = `http://localhost/api/finance/payments/${id}`;
   const existing = (schoolId: string, status = "PENDING") => ({
     studentId: "s1", feeId: "f1", paidAt: null, status, amount: 10000,
-    student: { user: { schoolId } }, fee: { schoolId },
+    student: { schoolId, user: { schoolId } }, fee: { schoolId },
   });
 
   it("PUT : accepte un montant transmis en chaîne (converti en nombre)", async () => {

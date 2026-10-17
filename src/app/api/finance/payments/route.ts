@@ -79,26 +79,28 @@ export const POST = createApiHandler(
         const receivedByUserId = authSession.user.id;
         const actorSchoolId = getActiveSchoolId(authSession);
 
-        // Vérification multi-tenant : le student ET la fee doivent appartenir
-        // à l'école de l'utilisateur connecté (sauf SUPER_ADMIN).
-        if (actorSchoolId) {
-            const [student, fee] = await Promise.all([
-                prisma.studentProfile.findUnique({
-                    where: { id: validatedData.studentId },
-                    select: { user: { select: { schoolId: true } } },
-                }),
-                prisma.fee.findUnique({
-                    where: { id: validatedData.feeId },
-                    select: { schoolId: true },
-                }),
-            ]);
+        // Vérification multi-tenant : l'élève (école de sa FICHE, pas de son
+        // compte) ET le frais doivent appartenir à l'école active de
+        // l'utilisateur (sauf SUPER_ADMIN), et toujours à la même école (lot 3f).
+        const [student, fee] = await Promise.all([
+            prisma.studentProfile.findUnique({
+                where: { id: validatedData.studentId },
+                select: { schoolId: true },
+            }),
+            prisma.fee.findUnique({
+                where: { id: validatedData.feeId },
+                select: { schoolId: true },
+            }),
+        ]);
 
-            if (!student || student.user.schoolId !== actorSchoolId) {
-                return NextResponse.json({ error: "Étudiant introuvable ou hors périmètre" }, { status: 403 });
-            }
-            if (!fee || fee.schoolId !== actorSchoolId) {
-                return NextResponse.json({ error: "Frais introuvable ou hors périmètre" }, { status: 403 });
-            }
+        if (!student || (actorSchoolId && student.schoolId !== actorSchoolId)) {
+            return NextResponse.json({ error: "Étudiant introuvable ou hors périmètre" }, { status: 403 });
+        }
+        if (!fee || (actorSchoolId && fee.schoolId !== actorSchoolId)) {
+            return NextResponse.json({ error: "Frais introuvable ou hors périmètre" }, { status: 403 });
+        }
+        if (fee.schoolId !== student.schoolId) {
+            return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
         }
 
         const payment = await prisma.$transaction(async (tx) => {

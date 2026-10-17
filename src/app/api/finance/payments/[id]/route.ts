@@ -33,11 +33,7 @@ export const PUT = createApiHandler(
                     feeId: true,
                     paidAt: true, status: true,
                     student: {
-                        select: {
-                            user: {
-                                select: { schoolId: true },
-                            },
-                        },
+                        select: { schoolId: true },
                     },
                     fee: {
                         select: { schoolId: true },
@@ -52,7 +48,7 @@ export const PUT = createApiHandler(
             if (
                 session.user.role !== "SUPER_ADMIN" &&
                 (
-                    !canAccessSchool(session, existingPayment.student.user.schoolId) ||
+                    !canAccessSchool(session, existingPayment.student.schoolId) ||
                     !canAccessSchool(session, existingPayment.fee.schoolId)
                 )
             ) {
@@ -122,11 +118,7 @@ export const DELETE = createApiHandler(
                     feeId: true,
                     status: true,
                     student: {
-                        select: {
-                            user: {
-                                select: { schoolId: true },
-                            },
-                        },
+                        select: { schoolId: true },
                     },
                     fee: {
                         select: { schoolId: true },
@@ -141,7 +133,7 @@ export const DELETE = createApiHandler(
             if (
                 session.user.role !== "SUPER_ADMIN" &&
                 (
-                    !canAccessSchool(session, payment.student.user.schoolId) ||
+                    !canAccessSchool(session, payment.student.schoolId) ||
                     !canAccessSchool(session, payment.fee.schoolId)
                 )
             ) {

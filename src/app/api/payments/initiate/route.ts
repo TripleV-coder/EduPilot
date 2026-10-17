@@ -109,6 +109,12 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Forbidden: cross-tenant access denied" }, { status: 403 });
             }
 
+            // Intégrité (lot 3f) : un parent d'enfants dans deux écoles ne peut
+            // pas payer le frais de l'une pour l'enfant de l'autre
+            if (fee.schoolId !== studentProfile.schoolId) {
+                return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
+            }
+
             if (session.user.role === "PARENT") {
                 const parentProfile = await prisma.parentProfile.findUnique({
                     where: { userId: session.user.id },

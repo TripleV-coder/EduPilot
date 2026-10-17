@@ -64,6 +64,11 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
 
+      // Intégrité (lot 3f) : un paiement n'impute jamais le frais d'une autre école
+      if (fee.schoolId !== student.schoolId) {
+        return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
+      }
+
       if (paymentPlan) {
         const remainingBalance = Number(paymentPlan.totalAmount) - Number(paymentPlan.paidAmount);
         if (validatedData.amount > remainingBalance) {

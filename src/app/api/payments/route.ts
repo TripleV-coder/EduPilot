@@ -256,6 +256,11 @@ export const POST = createApiHandler(
       );
     }
 
+    // Intégrité (lot 3f) : un paiement n'impute jamais le frais d'une autre école
+    if (fee.schoolId !== student.schoolId) {
+      return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
+    }
+
     const payment = await prisma.$transaction(async (tx) => {
       const createdPayment = await tx.payment.create({
         data: {

@@ -284,7 +284,7 @@ describe("PATCH /api/payments/[id]", () => {
       ...paymentRecord(),
       studentId: FIXTURES.studentB,
       feeId: FIXTURES.feeB,
-      student: { user: { schoolId: FIXTURES.schoolB } },
+      student: { schoolId: FIXTURES.schoolB, user: { schoolId: FIXTURES.schoolB } },
     } as unknown as Payment);
 
     const response = await PATCH_BY_ID(
@@ -305,7 +305,7 @@ describe("PATCH /api/payments/[id]", () => {
       ...paymentRecord(),
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
-      student: { user: { schoolId: FIXTURES.schoolA } },
+      student: { schoolId: FIXTURES.schoolA, user: { schoolId: FIXTURES.schoolA } },
     } as unknown as Payment);
 
     const response = await PATCH_BY_ID(
@@ -339,7 +339,7 @@ describe("DELETE /api/payments/[id]", () => {
       ...paymentRecord(),
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
-      student: { user: { schoolId: FIXTURES.schoolA } },
+      student: { schoolId: FIXTURES.schoolA, user: { schoolId: FIXTURES.schoolA } },
     } as unknown as Payment);
     vi.mocked(prisma.payment.update).mockResolvedValue(paymentRecord({ status: "CANCELLED" }) as unknown as Payment);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
