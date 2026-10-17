@@ -16,7 +16,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    payment: { findUnique: vi.fn(), update: vi.fn() },
+    payment: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     user: { findUnique: vi.fn() },
   },
@@ -246,5 +246,10 @@ describe("POST /api/payments/fedapay/initiate", () => {
       | { data: Record<string, unknown> }
       | undefined;
     expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" });
+    // Résultat inconnu (lot 3b) : l'essai reste PENDING, repéré par une note, sans changement de statut
+    const marked = vi.mocked(prisma.payment.updateMany).mock.calls[0]?.[0] as { where: unknown; data: Record<string, unknown> };
+    expect(marked.where).toEqual({ id: paymentId, status: "PENDING" });
+    expect(marked.data).not.toHaveProperty("status");
+    expect(String(marked.data.notes)).toContain("Résultat de l'initialisation inconnu");
   });
 });

@@ -12,6 +12,7 @@
 import { PaymentProvider } from '../types';
 import { logger } from '@/lib/utils/logger';
 import { CIRCUITS, circuitFetch } from '@/lib/resilience/circuit-breaker';
+import { ProviderInitError, outcomeForHttpStatus, outcomeForSendError } from './init-error';
 
 const FLW_BASE_URL = 'https://api.flutterwave.com/v3';
 const FLW_TIMEOUT_MS = 20_000;
@@ -81,17 +82,29 @@ export class FlutterwaveProvider implements PaymentProvider {
             meta: metadata,
         };
 
-        const response = await circuitFetch(CIRCUITS.flutterwave, `${FLW_BASE_URL}/payments`, {
-            method: 'POST',
-            signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
-            headers: {
-                Authorization: `Bearer ${this.secretKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+        // Notre référence marchande sert d'identifiant à la vérification : si la
+        // création reste incertaine, elle permet d'interroger Flutterwave plus tard
+        let response: Response;
+        try {
+            response = await circuitFetch(CIRCUITS.flutterwave, `${FLW_BASE_URL}/payments`, {
+                method: 'POST',
+                signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
+                headers: {
+                    Authorization: `Bearer ${this.secretKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+        } catch (error) {
+            const outcome = outcomeForSendError(error);
+            throw new ProviderInitError(`Flutterwave initiation failed: ${(error as Error).message}`, outcome, outcome === 'UNKNOWN' ? reference : undefined, { cause: error });
+        }
 
-        const data: FlwInitiateResponse = await response.json();
+        const data = (await response.json().catch(() => null)) as FlwInitiateResponse | null;
+        if (!data) {
+            const outcome = response.ok ? 'UNKNOWN' : outcomeForHttpStatus(response.status);
+            throw new ProviderInitError(`Flutterwave initiation failed: réponse illisible (${response.status})`, outcome, outcome === 'UNKNOWN' ? reference : undefined);
+        }
 
         if (!response.ok || data.status !== 'success' || !data.data?.link) {
             logger.error(
@@ -99,7 +112,9 @@ export class FlutterwaveProvider implements PaymentProvider {
                 new Error(data.message),
                 { reference, amount, currency }
             );
-            throw new Error(`Flutterwave initiation failed: ${data.message}`);
+            // Refus explicite (4xx) : aucune transaction ; sinon (5xx, réponse incomplète) : inconnu
+            const outcome = response.ok ? 'UNKNOWN' : outcomeForHttpStatus(response.status);
+            throw new ProviderInitError(`Flutterwave initiation failed: ${data.message}`, outcome, outcome === 'UNKNOWN' ? reference : undefined);
         }
 
         // L'ID de transaction Flutterwave n'est pas disponible avant la redirection ;

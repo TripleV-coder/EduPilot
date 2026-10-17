@@ -249,6 +249,30 @@ Relevés au nettoyage du 2026-09-18 (déclarations jamais lues).
   (garde `src/lib/academic/year-lock.ts`, branchée sur les 5 routes d'écriture).
   Boutons Clôturer / Rouvrir sur la page Années académiques.
 
+
+## TD-025 — Paiements en ligne sans issue définitive : aucune libération manuelle *(ouvert, à traiter avant la mise en production)*
+
+Lot 3b (audit paiements du 2026-10-17). Un paiement en ligne dont le résultat
+reste inconnu (fournisseur injoignable, réponse d'erreur à la création, essai
+sans identifiant fournisseur) reste PENDING et garde son montant réservé : une
+absence d'information ne vaut jamais échec, pour éviter un double encaissement.
+Une alerte unique part au service financier après 48 h.
+
+Il n'existe **aucun moyen pour un responsable de libérer une réservation** :
+une famille peut rester bloquée sur ce montant (au guichet comme en ligne)
+tant que le fournisseur ne donne pas de réponse définitive — par exemple après
+un numéro de téléphone mal saisi refusé par MoMo.
+
+À concevoir avant la production, sur décision métier :
+- qui peut libérer (rôle), après quelle vérification (relevé du fournisseur) ;
+- trace obligatoire (auteur, motif, date) et avertissement explicite sur le
+  risque d'une confirmation tardive, qui resterait comptabilisée
+  (`confirmOnlinePayment`, règle 5) ;
+- confirmation, auprès de chaque fournisseur réel, des codes d'erreur qui
+  garantissent qu'aucune transaction n'a été créée (aujourd'hui toute réponse
+  HTTP d'erreur à la création est traitée comme un résultat inconnu,
+  `src/lib/finance/providers/init-error.ts`).
+
 ---
 
 ## Règles

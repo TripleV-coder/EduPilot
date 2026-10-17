@@ -19,6 +19,7 @@
  *   MOMO_CURRENCY            — devise (défaut XOF ; EUR en sandbox)
  */
 import { PaymentProvider } from "../types";
+import { ProviderInitError, outcomeForHttpStatus, outcomeForSendError } from "./init-error";
 import { logger } from "@/lib/utils/logger";
 import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 
@@ -94,31 +95,50 @@ export class MomoProvider implements PaymentProvider {
 
         const msisdn = (metadata?.phone as string)?.replace(/[\s+]/g, "");
         if (!msisdn) {
-            throw new Error("[MoMo] Numéro du payeur requis (metadata.phone) pour requestToPay");
+            throw new ProviderInitError("[MoMo] Numéro du payeur requis (metadata.phone) pour requestToPay", "REFUSED");
         }
 
-        const token = await this.getToken();
+        // Jeton refusé ou injoignable : la demande de paiement n'est jamais envoyée
+        let token: string;
+        try {
+            token = await this.getToken();
+        } catch (error) {
+            throw new ProviderInitError((error as Error).message, "REFUSED", undefined, { cause: error });
+        }
+        // Identifiant de la transaction MoMo, connu AVANT l'envoi : il permet de
+        // la vérifier plus tard même si la réponse se perd
         const referenceId = globalThis.crypto.randomUUID();
 
-        const res = await circuitFetch(CIRCUITS.momo, `${baseUrl()}/collection/v1_0/requesttopay`, {
-            method: "POST",
-            signal: AbortSignal.timeout(MOMO_TIMEOUT_MS),
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "X-Reference-Id": referenceId,
-                "X-Target-Environment": targetEnv(),
-                "Ocp-Apim-Subscription-Key": process.env.MOMO_SUBSCRIPTION_KEY as string,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                amount: String(Math.round(amount)),
-                currency: currency || process.env.MOMO_CURRENCY || "XOF",
-                externalId: reference,
-                payer: { partyIdType: "MSISDN", partyId: msisdn },
-                payerMessage: (metadata?.description as string) || "Frais scolaires EduPilot",
-                payeeNote: "EduPilot",
-            }),
-        });
+        let res: Response;
+        try {
+            res = await circuitFetch(CIRCUITS.momo, `${baseUrl()}/collection/v1_0/requesttopay`, {
+                method: "POST",
+                signal: AbortSignal.timeout(MOMO_TIMEOUT_MS),
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "X-Reference-Id": referenceId,
+                    "X-Target-Environment": targetEnv(),
+                    "Ocp-Apim-Subscription-Key": process.env.MOMO_SUBSCRIPTION_KEY as string,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    amount: String(Math.round(amount)),
+                    currency: currency || process.env.MOMO_CURRENCY || "XOF",
+                    externalId: reference,
+                    payer: { partyIdType: "MSISDN", partyId: msisdn },
+                    payerMessage: (metadata?.description as string) || "Frais scolaires EduPilot",
+                    payeeNote: "EduPilot",
+                }),
+            });
+        } catch (error) {
+            const outcome = outcomeForSendError(error);
+            throw new ProviderInitError(
+                `[MoMo] requestToPay sans réponse : ${(error as Error).message}`,
+                outcome,
+                outcome === "UNKNOWN" ? referenceId : undefined,
+                { cause: error },
+            );
+        }
 
         // 202 Accepted = demande poussée sur le téléphone du payeur.
         if (res.status !== 202) {
@@ -127,7 +147,8 @@ export class MomoProvider implements PaymentProvider {
                 reference,
                 body: text.slice(0, 300),
             });
-            throw new Error(`[MoMo] requestToPay refusé (${res.status})`);
+            const outcome = outcomeForHttpStatus(res.status);
+            throw new ProviderInitError(`[MoMo] requestToPay refusé (${res.status})`, outcome, outcome === "UNKNOWN" ? referenceId : undefined);
         }
 
         return { paymentUrl: "", transactionId: referenceId };

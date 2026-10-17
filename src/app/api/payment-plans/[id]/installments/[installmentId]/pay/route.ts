@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@/lib/utils/logger";
@@ -78,57 +78,72 @@ export const POST = createApiHandler(
       }
 
       const paymentTimestamp = new Date();
+      const { studentId, feeId } = installment.paymentPlan;
 
-      // Mark installment as paid
-      const updatedInstallment = await prisma.installmentPayment.update({
-        where: { id: installmentId },
-        data: {
-          status: "PAID",
-          paidAt: paymentTimestamp,
-        },
-      });
+      // Une seule transaction sous verrou élève/frais (lot 3b) : état relu,
+      // montant plafonné au reste dû, référence contrôlée AVANT toute écriture.
+      // Le recalcul final (imputation chronologique) reste celui de
+      // syncPaymentPlanLedger, inchangé : le choix d'échéance relève du lot 3c.
+      const result = await runFeeMutation(studentId, feeId, async (tx, balance) => {
+        const current = await tx.installmentPayment.findUnique({
+          where: { id: installmentId },
+          select: { status: true, paymentPlan: { select: { status: true, paidAmount: true, totalAmount: true } } },
+        });
+        if (!current) return refuse(404, "Mensualité non trouvée");
+        if (current.status === "PAID") refuse(400, "Mensualité déjà payée");
+        if (!["ACTIVE", "OVERDUE"].includes(current.paymentPlan.status)) refuse(400, "Plan de paiement non actif");
+        assertWithinAvailable(balance.available, Number(installment.amount));
+        await assertReferenceFree(tx, validatedData.reference);
 
-      // Update payment plan paid amount
-      const newPaidAmount = new Decimal(installment.paymentPlan.paidAmount.toString())
-        .add(new Decimal(installment.amount.toString()));
-
-      const totalAmount = new Decimal(installment.paymentPlan.totalAmount.toString());
-      const isFullyPaid = newPaidAmount.greaterThanOrEqualTo(totalAmount);
-
-      const updatedPlan = await prisma.paymentPlan.update({
-        where: { id: id },
-        data: {
-          paidAmount: newPaidAmount.toNumber(),
-          status: isFullyPaid ? "COMPLETED" : "ACTIVE",
-        },
-        include: {
-          installmentPayments: {
-            orderBy: { dueDate: "asc" },
+        // Mark installment as paid
+        const updatedInstallment = await tx.installmentPayment.update({
+          where: { id: installmentId },
+          data: {
+            status: "PAID",
+            paidAt: paymentTimestamp,
           },
-        },
-      });
+        });
 
-      // Create payment record
-      await prisma.payment.create({
-        data: {
-          studentId: installment.paymentPlan.studentId,
-          feeId: installment.paymentPlan.feeId,
-          amount: installment.amount,
-          method: validatedData.method,
-          reference: validatedData.reference,
-          notes: `${validatedData.notes || ""} - Mensualité ${updatedPlan.installmentPayments.filter(i => i.status === "PAID").length}/${updatedPlan.installments}`,
-          status: "VERIFIED",
-          paidAt: paymentTimestamp,
-          receivedBy: session.user.id,
-        },
-      });
+        // Update payment plan paid amount
+        const newPaidAmount = new Decimal(current.paymentPlan.paidAmount.toString())
+          .add(new Decimal(installment.amount.toString()));
 
-      const syncedPlan = await syncPaymentPlanLedger(
-        prisma,
-        installment.paymentPlan.studentId,
-        installment.paymentPlan.feeId
-      );
-      const effectivePlan = syncedPlan ?? updatedPlan;
+        const totalAmount = new Decimal(current.paymentPlan.totalAmount.toString());
+        const isFullyPaid = newPaidAmount.greaterThanOrEqualTo(totalAmount);
+
+        const updatedPlan = await tx.paymentPlan.update({
+          where: { id: id },
+          data: {
+            paidAmount: newPaidAmount.toNumber(),
+            status: isFullyPaid ? "COMPLETED" : "ACTIVE",
+          },
+          include: {
+            installmentPayments: {
+              orderBy: { dueDate: "asc" },
+            },
+          },
+        });
+
+        // Create payment record
+        await tx.payment.create({
+          data: {
+            studentId,
+            feeId,
+            amount: installment.amount,
+            method: validatedData.method,
+            reference: validatedData.reference,
+            notes: `${validatedData.notes || ""} - Mensualité ${updatedPlan.installmentPayments.filter(i => i.status === "PAID").length}/${updatedPlan.installments}`,
+            status: "VERIFIED",
+            paidAt: paymentTimestamp,
+            receivedBy: session.user.id,
+          },
+        });
+        return { updatedInstallment, updatedPlan };
+      });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+
+      const { updatedInstallment } = result.value;
+      const effectivePlan = result.plan ?? result.value.updatedPlan;
       const planCompleted = effectivePlan.status === "COMPLETED";
 
       // Log audit

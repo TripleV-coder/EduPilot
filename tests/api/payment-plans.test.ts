@@ -5,6 +5,13 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
+// PostgreSQL (payment-collection-guard) ; ici solde ouvert.
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: vi.fn(async () => ({ billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 })),
+}));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     paymentPlan: {
@@ -15,7 +22,7 @@ vi.mock("@/lib/prisma", () => {
       update: vi.fn(),
     },
     installmentPayment: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
-    payment: { create: vi.fn(), findMany: vi.fn() },
+    payment: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     studentProfile: { findUnique: vi.fn(), findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     fee: { findFirst: vi.fn() },
@@ -277,6 +284,17 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     vi.mocked(prisma.installmentPayment.findUnique).mockImplementation(async (args: Prisma.InstallmentPaymentFindUniqueArgs) => {
       if (args?.select) {
         if (!record) return null;
+        // Relecture sous verrou (lot 3b) : statut de l'échéance et du plan
+        if ((args.select as { status?: boolean }).status) {
+          return {
+            status: record.status,
+            paymentPlan: {
+              status: record.paymentPlan.status,
+              paidAmount: record.paymentPlan.paidAmount,
+              totalAmount: record.paymentPlan.totalAmount,
+            },
+          } as unknown as InstallmentPayment;
+        }
         return {
           paymentPlan: {
             student: { schoolId: record.paymentPlan.student.schoolId },

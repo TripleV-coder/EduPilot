@@ -9,6 +9,8 @@ import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedap
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { ONLINE_PAYMENT_TTL_MS } from "@/lib/finance/online-payments";
+import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
+import { appendNote } from "@/lib/finance/helpers";
 
 const bodySchema = z.object({ paymentId: z.string().cuid() });
 
@@ -52,6 +54,7 @@ export const POST = createApiHandler(async (request, context) => {
             amount: true,
             status: true,
             reference: true,
+            notes: true,
             createdAt: true,
             studentId: true,
             student: { select: { schoolId: true } },
@@ -91,6 +94,17 @@ export const POST = createApiHandler(async (request, context) => {
     if (Date.now() - payment.createdAt.getTime() > ONLINE_PAYMENT_TTL_MS) {
         return NextResponse.json(
             { error: "Cette demande de paiement a expiré. Créez-en une nouvelle.", code: "PAYMENT_EXPIRED" },
+            { status: 409 }
+        );
+    }
+
+    // Création précédente incertaine : en créer une autre pourrait faire payer deux fois (lot 3b)
+    if (payment.notes?.includes(INIT_UNCERTAIN_NOTE)) {
+        return NextResponse.json(
+            {
+                error: "Ce paiement est en cours de vérification chez le fournisseur. Ne le relancez pas : il sera confirmé ou libéré automatiquement.",
+                code: "PAYMENT_INIT_UNCERTAIN",
+            },
             { status: 409 }
         );
     }
@@ -150,6 +164,22 @@ export const POST = createApiHandler(async (request, context) => {
         return NextResponse.json({ url: checkout.url, reference });
     } catch (error) {
         if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
+        if (error instanceof ProviderInitError && error.cause instanceof ServiceUnavailableError) {
+            return serviceUnavailableResponse(error.cause);
+        }
+        // Le paiement reste PENDING (réservé). Résultat inconnu : la transaction a
+        // pu être créée — identifiant conservé s'il est connu, essai repéré (lot 3b)
+        if (!(error instanceof ProviderInitError && error.outcome === "REFUSED")) {
+            const providerTransactionId = error instanceof ProviderInitError ? error.providerTransactionId : undefined;
+            const current = await prisma.payment.findUnique({ where: { id: payment.id }, select: { notes: true } });
+            await prisma.payment.updateMany({
+                where: { id: payment.id, status: "PENDING" },
+                data: {
+                    notes: current?.notes?.includes(INIT_UNCERTAIN_NOTE) ? current.notes : appendNote(current?.notes ?? null, INIT_UNCERTAIN_NOTE),
+                    ...(providerTransactionId ? { providerTransactionId } : {}),
+                },
+            });
+        }
         logger.error("FedaPay initiate error", error as Error, {
             module: "api/payments/fedapay/initiate",
         });

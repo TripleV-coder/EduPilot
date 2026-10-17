@@ -7,7 +7,7 @@ import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
 import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 /** GET /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
@@ -261,8 +261,11 @@ export const POST = createApiHandler(
       return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
     }
 
-    const payment = await prisma.$transaction(async (tx) => {
-      const createdPayment = await tx.payment.create({
+    // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
+    const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
+      assertWithinAvailable(balance.available, validatedData.amount);
+      await assertReferenceFree(tx, validatedData.reference);
+      return tx.payment.create({
         data: {
           studentId: validatedData.studentId,
           feeId: validatedData.feeId,
@@ -285,11 +288,9 @@ export const POST = createApiHandler(
           fee: true,
         },
       });
-
-      await syncPaymentPlanLedger(tx, validatedData.studentId, validatedData.feeId);
-
-      return createdPayment;
     });
+    if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+    const payment = result.value;
 
     await Promise.all([
       invalidateByPath(CACHE_PATHS.payments),

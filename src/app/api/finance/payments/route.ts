@@ -5,10 +5,8 @@ import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import {
-    buildPaymentDateWhere,
-    syncPaymentPlanLedger,
-} from "@/lib/finance/helpers";
+import { buildPaymentDateWhere } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 
@@ -103,9 +101,11 @@ export const POST = createApiHandler(
             return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
         }
 
-        const payment = await prisma.$transaction(async (tx) => {
-            // 1. Create Payment
-            const newPayment = await tx.payment.create({
+        // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
+        const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
+            assertWithinAvailable(balance.available, validatedData.amount);
+            await assertReferenceFree(tx, validatedData.reference);
+            return tx.payment.create({
                 data: {
                     studentId: validatedData.studentId,
                     feeId: validatedData.feeId,
@@ -119,15 +119,9 @@ export const POST = createApiHandler(
                     paidAt: validatedData.paidAt || new Date(),
                 },
             });
-
-            await syncPaymentPlanLedger(
-                tx,
-                validatedData.studentId,
-                validatedData.feeId
-            );
-
-            return newPayment;
         });
+        if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+        const payment = result.value;
 
         await Promise.all([
             invalidateByPath(CACHE_PATHS.payments),

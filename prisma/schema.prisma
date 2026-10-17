@@ -908,6 +908,11 @@ model Payment {
   /// Identifiant de la transaction chez le fournisseur : sert à lui redemander
   /// l'état d'un paiement resté sans réponse (réconciliation)
   providerTransactionId String?
+  /// Origine d'une annulation (status CANCELLED) : échec signalé par le
+  /// fournisseur, ou annulation manuelle par l'école. Null pour les paiements
+  /// annulés avant son introduction (origine inconnue). Conservé si une
+  /// confirmation authentique valide ensuite le paiement (trace).
+  cancellationSource    PaymentCancellationSource?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   deletedAt        DateTime?
@@ -2133,6 +2138,13 @@ enum PaymentMethod {
   BANK_TRANSFER
   CHECK
   OTHER
+}
+
+enum PaymentCancellationSource {
+  /// Échec ou expiration définitifs signalés par le fournisseur
+  PROVIDER
+  /// Annulation décidée par l'école (comptabilité, administration)
+  MANUAL
 }
 
 enum PaymentStatus {

@@ -13,6 +13,8 @@ import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { nanoid } from "nanoid";
 import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
+import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
+import { appendNote } from "@/lib/finance/helpers";
 
 const initiateSchema = z.object({
     // FCFA entiers, strictement positifs (avant : NaN et centimes passaient)
@@ -157,7 +159,7 @@ export const POST = createApiHandler(
                 }
 
                 // Reste à payer : échéancier (bourses déduites) sinon frais, moins
-                // l'encaissé et les essais en ligne de moins de 24 h
+                // l'encaissé et les essais en ligne encore en attente
                 const balance = await getFeeBalance(tx, studentId, feeId);
                 if (!balance || amount > balance.available) return { kind: "refused" as const, balance };
 
@@ -181,7 +183,7 @@ export const POST = createApiHandler(
                 if (balance.reserved > 0 && amount <= balance.remaining) {
                     return NextResponse.json(
                         {
-                            error: `Un paiement en ligne de ${balance.reserved} FCFA est déjà en attente de confirmation pour ces frais. Montant payable maintenant : ${balance.available} FCFA. Sans confirmation, l'essai en attente est libéré au bout de 24 h.`,
+                            error: `Un paiement en ligne de ${balance.reserved} FCFA est déjà en attente de confirmation pour ces frais. Montant payable maintenant : ${balance.available} FCFA. L'essai en attente est libéré dès que le fournisseur confirme son échec, ou lors de la réconciliation après 24 h sans réponse.`,
                             code: "PAYMENT_IN_PROGRESS",
                             remaining: balance.remaining,
                             reserved: balance.reserved,
@@ -203,6 +205,18 @@ export const POST = createApiHandler(
                     studentId,
                     feeId
                 });
+                // Création incertaine chez le fournisseur : le rappeler pourrait
+                // créer une seconde transaction pour la même dette (lot 3b)
+                if (paymentRecord.notes?.includes(INIT_UNCERTAIN_NOTE)) {
+                    return NextResponse.json(
+                        {
+                            error: "Un paiement en ligne de ce montant est en cours de vérification chez le fournisseur. Ne le relancez pas : il sera confirmé ou libéré automatiquement.",
+                            code: "PAYMENT_INIT_UNCERTAIN",
+                            paymentId: paymentRecord.id,
+                        },
+                        { status: 409 }
+                    );
+                }
             }
 
             const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
@@ -216,17 +230,44 @@ export const POST = createApiHandler(
                     { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
                 );
             } catch (error) {
-                // L'essai ne doit pas bloquer la famille 24 h : il cesse de réserver
-                // le montant (EXPIRED), mais reste rapprochable si le fournisseur
-                // l'a malgré tout reçu (expiration réseau après création).
+                // Demande jamais transmise au fournisseur (prouvé par le code) : aucune
+                // transaction n'existe, l'essai cesse de réserver (EXPIRED, toujours
+                // rapprochable). Toute autre erreur, réponse 4xx comprise, laisse un
+                // résultat INCONNU : l'essai reste PENDING et réservé (lot 3b).
+                const refused = error instanceof ProviderInitError && error.outcome === "REFUSED";
+                if (refused) {
+                    await prisma.payment.updateMany({
+                        where: { id: paymentRecord.id, status: "PENDING" },
+                        data: {
+                            status: "EXPIRED",
+                            notes: appendNote(paymentRecord.notes, "Demande jamais transmise au fournisseur : aucune transaction créée."),
+                        },
+                    });
+                    // Circuit ouvert : « service momentanément indisponible » (503)
+                    throw error.cause instanceof ServiceUnavailableError ? error.cause : error;
+                }
+                const providerTransactionId = error instanceof ProviderInitError ? error.providerTransactionId : undefined;
                 await prisma.payment.updateMany({
                     where: { id: paymentRecord.id, status: "PENDING" },
                     data: {
-                        status: "EXPIRED",
-                        notes: "Échec de l'initialisation chez le fournisseur : à rapprocher si un débit apparaît.",
+                        notes: appendNote(paymentRecord.notes, INIT_UNCERTAIN_NOTE),
+                        ...(providerTransactionId ? { providerTransactionId } : {}),
                     },
                 });
-                throw error;
+                logger.warn("Initialisation du paiement en ligne : résultat inconnu, essai conservé en attente", {
+                    paymentId: paymentRecord.id,
+                    provider: resolvedProvider,
+                    providerTransactionId: providerTransactionId ?? null,
+                    reason: (error as Error).message,
+                });
+                return NextResponse.json(
+                    {
+                        error: "Le fournisseur n'a pas confirmé la création du paiement. Ne le relancez pas : il sera vérifié automatiquement, puis confirmé ou libéré.",
+                        code: "PAYMENT_INIT_UNCERTAIN",
+                        paymentId: paymentRecord.id,
+                    },
+                    { status: 502 }
+                );
             }
 
             await prisma.payment.update({

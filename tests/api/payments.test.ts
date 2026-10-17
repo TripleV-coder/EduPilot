@@ -4,6 +4,17 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Verrou élève/frais et solde relu (lot 3b) : leur logique réelle est prouvée
+// contre PostgreSQL (tests/integration-db/payment-collection-guard.test.ts) ;
+// ici, solde réglable pour vérifier le branchement des routes.
+const { feeBalance } = vi.hoisted(() => ({ feeBalance: vi.fn() }));
+const OPEN_BALANCE = { billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 };
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: feeBalance,
+}));
+
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     payment: {
@@ -27,6 +38,11 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import prisma from "@/lib/prisma";
+
+beforeEach(() => {
+  feeBalance.mockReset();
+  feeBalance.mockResolvedValue(OPEN_BALANCE);
+});
 import { invalidateCache } from "@/lib/api/cache-helpers";
 import { GET, POST } from "@/app/api/payments/route";
 import {
@@ -352,7 +368,7 @@ describe("DELETE /api/payments/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(vi.mocked(prisma.payment.update).mock.calls[0][0].data).toEqual({ status: "CANCELLED" });
+    expect(vi.mocked(prisma.payment.update).mock.calls[0][0].data).toEqual({ status: "CANCELLED", cancellationSource: "MANUAL" });
   });
 });
 
@@ -379,6 +395,7 @@ describe("POST /api/payments/cash", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(null); // référence encore libre
     vi.mocked(prisma.payment.create).mockResolvedValue(paymentRecord({ amount: 10000 }) as unknown as Payment);
 
     const response = await POST_CASH(
@@ -410,10 +427,8 @@ describe("POST /api/payments/cash", () => {
   it("rejette un montant qui dépasse le solde restant du plan", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({
-      totalAmount: 100000,
-      paidAmount: 95000,
-    } as unknown as PaymentPlan);
+    // Reste dû relu sous verrou : 100 000 dus, 95 000 encaissés
+    feeBalance.mockResolvedValueOnce({ billed: 100000, settled: 95000, reserved: 0, remaining: 5000, available: 5000 });
 
     const response = await POST_CASH(
       makeRequest("http://localhost:3000/api/payments/cash", {
@@ -430,9 +445,9 @@ describe("POST /api/payments/cash", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
     const dueDate = new Date("2026-01-01");
-    // 1er findFirst : contrôle du solde restant — 2e : synchro du ledger
+    // Reste dû relu sous verrou : 10 000 ; puis synchro du ledger
+    feeBalance.mockResolvedValueOnce({ billed: 100000, settled: 90000, reserved: 0, remaining: 10000, available: 10000 });
     vi.mocked(prisma.paymentPlan.findFirst)
-      .mockResolvedValueOnce({ totalAmount: 100000, paidAmount: 90000 } as unknown as PaymentPlan)
       .mockResolvedValueOnce({
         id: cuid("plan1"),
         totalAmount: 100000,

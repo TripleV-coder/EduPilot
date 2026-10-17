@@ -35,6 +35,7 @@ import { isMomoConfigured } from "@/lib/finance/providers/momo";
 import { isFedaPayConfigured } from "@/lib/payments/fedapay";
 import { getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/initiate/route";
+import { ProviderInitError } from "@/lib/finance/providers/init-error";
 
 /** Rien encore payé par défaut : reste à payer = montant du frais. */
 function balance(overrides: Record<string, number> = {}) {
@@ -368,7 +369,27 @@ describe("POST /api/payments/initiate", () => {
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
   });
 
-  it("retourne 500 quand le provider échoue", async () => {
+  it("refus avéré du fournisseur : 500 et l'essai cesse de réserver (EXPIRED)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
+    vi.mocked(providerMock.initiatePayment).mockRejectedValue(new ProviderInitError("refusé (400)", "REFUSED"));
+
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody(),
+    }));
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Payment initiation failed");
+    // Aucune transaction créée : l'essai ne réserve plus le montant
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { id: "cpay1", status: "PENDING" },
+      data: expect.objectContaining({ status: "EXPIRED" }),
+    });
+  });
+
+  it("erreur sans preuve d'absence de transaction : 502, l'essai reste PENDING et réservé (lot 3b)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
@@ -379,13 +400,11 @@ describe("POST /api/payments/initiate", () => {
       body: validBody(),
     }));
 
-    expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Payment initiation failed");
-    // L'essai échoué ne réserve plus le montant (sinon la famille reste bloquée 24 h)
-    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
-      where: { id: "cpay1", status: "PENDING" },
-      data: expect.objectContaining({ status: "EXPIRED" }),
-    });
+    expect(res.status).toBe(502);
+    expect((await res.json()).code).toBe("PAYMENT_INIT_UNCERTAIN");
+    const marked = vi.mocked(prisma.payment.updateMany).mock.calls[0]?.[0] as { where: unknown; data: Record<string, unknown> };
+    expect(marked.where).toEqual({ id: "cpay1", status: "PENDING" });
+    expect(marked.data).not.toHaveProperty("status");
   });
 
   it("compte les paiements déjà encaissés : au-delà du reste à payer, 400", async () => {

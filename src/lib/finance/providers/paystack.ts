@@ -10,6 +10,7 @@
 import { PaymentProvider } from '../types';
 import { logger } from '@/lib/utils/logger';
 import { CIRCUITS, circuitFetch } from '@/lib/resilience/circuit-breaker';
+import { ProviderInitError, outcomeForHttpStatus, outcomeForSendError } from './init-error';
 
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 const PAYSTACK_TIMEOUT_MS = 20_000;
@@ -73,17 +74,29 @@ export class PaystackProvider implements PaymentProvider {
             },
         };
 
-        const response = await circuitFetch(CIRCUITS.paystack, `${PAYSTACK_BASE_URL}/transaction/initialize`, {
-            method: 'POST',
-            signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
-            headers: {
-                Authorization: `Bearer ${this.secretKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+        // Notre référence marchande sert d'identifiant à la vérification : si la
+        // création reste incertaine, elle permet d'interroger Paystack plus tard
+        let response: Response;
+        try {
+            response = await circuitFetch(CIRCUITS.paystack, `${PAYSTACK_BASE_URL}/transaction/initialize`, {
+                method: 'POST',
+                signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+                headers: {
+                    Authorization: `Bearer ${this.secretKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+        } catch (error) {
+            const outcome = outcomeForSendError(error);
+            throw new ProviderInitError(`Paystack initiation failed: ${(error as Error).message}`, outcome, outcome === 'UNKNOWN' ? reference : undefined, { cause: error });
+        }
 
-        const data: PaystackInitResponse = await response.json();
+        const data = (await response.json().catch(() => null)) as PaystackInitResponse | null;
+        if (!data) {
+            const outcome = response.ok ? 'UNKNOWN' : outcomeForHttpStatus(response.status);
+            throw new ProviderInitError(`Paystack initiation failed: réponse illisible (${response.status})`, outcome, outcome === 'UNKNOWN' ? reference : undefined);
+        }
 
         if (!response.ok || !data.status || !data.data?.authorization_url) {
             logger.error(
@@ -91,7 +104,9 @@ export class PaystackProvider implements PaymentProvider {
                 new Error(data.message),
                 { reference, amount, currency }
             );
-            throw new Error(`Paystack initiation failed: ${data.message}`);
+            // Refus explicite (4xx) : aucune transaction ; sinon (5xx, réponse incomplète) : inconnu
+            const outcome = response.ok ? 'UNKNOWN' : outcomeForHttpStatus(response.status);
+            throw new ProviderInitError(`Paystack initiation failed: ${data.message}`, outcome, outcome === 'UNKNOWN' ? reference : undefined);
         }
 
         return {

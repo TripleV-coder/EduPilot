@@ -7,20 +7,28 @@
  * 1. Solde d'un frais (même règle que le guichet, `computeStudentBalances`) :
  *    dû = total de l'échéancier s'il existe (bourses déduites à sa création),
  *    sinon montant du frais ; encaissé = validé + rapproché.
- * 2. Un essai en ligne en attente depuis moins de 24 h RÉSERVE son montant :
- *    disponible pour un nouvel essai = dû − encaissé − réservé. Un essai plus
- *    ancien ne réserve plus rien (il ne peut pas bloquer la famille).
+ * 2. Un essai en ligne en attente (PENDING) RÉSERVE son montant, quel que
+ *    soit son âge : disponible = dû − encaissé − réservé. La réservation ne
+ *    tombe que lorsque le statut l'établit : validé, annulé (échec ou
+ *    expiration définitifs chez le fournisseur) ou expiré (échec de
+ *    l'initialisation chez le fournisseur, voir initiate). Les 24 h ne
+ *    sont qu'un seuil de réconciliation : avant elle, une confirmation reste
+ *    possible et le guichet ne doit pas consommer ce montant (lot 3b).
  * 3. Création d'un essai et confirmation se font sous un verrou par élève et
  *    par frais : deux demandes simultanées ne créent pas deux essais.
  * 4. Une confirmation n'est prise en compte que si le montant reçu est
  *    EXACTEMENT le montant attendu (FCFA entiers) et la devise XOF. Sinon :
  *    aucune validation, le paiement est marqué « à rapprocher » (note + journal).
- * 5. Une confirmation authentique arrivée après l'expiration locale (EXPIRED)
- *    valide encore le paiement : l'argent a été reçu. Un éventuel trop-perçu
- *    est enregistré et signalé, jamais ignoré.
+ * 5. Une confirmation authentique (signature, référence, montant et devise
+ *    conformes) arrivée après l'expiration locale (EXPIRED) ou une annulation
+ *    (CANCELLED) valide encore le paiement : l'argent a été reçu. L'état
+ *    antérieur est noté ; après une annulation manuelle ou d'origine inconnue
+ *    (`cancellationSource`), l'administration financière est alertée. Un
+ *    éventuel trop-perçu est enregistré et signalé, jamais ignoré (lot 3b).
  * 6. Après 24 h sans réponse, le fournisseur est interrogé : payé et au bon
- *    montant → validé ; échec confirmé → annulé ; incertain → EXPIRED, à
- *    rapprocher. Rien n'est supprimé.
+ *    montant → validé ; échec ou expiration définitifs → annulé ; en attente,
+ *    injoignable ou incertain → reste PENDING (réservé), alerte à
+ *    l'administration financière après 48 h. Rien n'est supprimé (lot 3b).
  * 7. Toute validation recalcule l'échéancier (total payé, état des échéances)
  *    dans la même transaction et sous le même verrou : relances, plafond du
  *    guichet et soldes ne restent jamais sur un état antérieur (lot 3a).
@@ -29,6 +37,7 @@ import type { Prisma, PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { appendNote, syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { createNotifications } from "@/lib/services/notification.service";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -46,7 +55,7 @@ export async function lockStudentFee(tx: Db, studentId: string, feeId: string): 
 export interface FeeBalance {
     billed: number;
     settled: number;
-    /** Essais en ligne en attente depuis moins de 24 h. */
+    /** Essais en ligne encore en attente (PENDING), quel que soit leur âge. */
     reserved: number;
     /** Reste dû (dû − encaissé). */
     remaining: number;
@@ -54,7 +63,7 @@ export interface FeeBalance {
     available: number;
 }
 
-export async function getFeeBalance(db: Db, studentId: string, feeId: string, now = new Date()): Promise<FeeBalance | null> {
+export async function getFeeBalance(db: Db, studentId: string, feeId: string): Promise<FeeBalance | null> {
     const [fee, plan, payments] = await Promise.all([
         db.fee.findUnique({ where: { id: feeId }, select: { amount: true } }),
         db.paymentPlan.findFirst({
@@ -64,21 +73,17 @@ export async function getFeeBalance(db: Db, studentId: string, feeId: string, no
         }),
         db.payment.findMany({
             where: { studentId, feeId, deletedAt: null, status: { in: ["VERIFIED", "RECONCILED", "PENDING"] } },
-            select: { amount: true, status: true, createdAt: true },
+            select: { amount: true, status: true },
         }),
     ]);
     if (!fee) return null;
     const billed = Math.round(Number(plan?.totalAmount ?? fee.amount));
-    const reservedSince = now.getTime() - ONLINE_PAYMENT_TTL_MS;
     let settled = 0;
     let reserved = 0;
     for (const p of payments) {
         const amount = Math.round(Number(p.amount));
-        if (p.status === "PENDING") {
-            if (p.createdAt.getTime() > reservedSince) reserved += amount;
-        } else {
-            settled += amount;
-        }
+        if (p.status === "PENDING") reserved += amount;
+        else settled += amount;
     }
     const remaining = Math.max(0, billed - settled);
     return { billed, settled, reserved, remaining, available: Math.max(0, remaining - reserved) };
@@ -136,7 +141,7 @@ export async function confirmOnlinePayment(params: {
 }): Promise<ConfirmOutcome> {
     const payment = await prisma.payment.findUnique({
         where: { reference: params.reference },
-        select: { id: true, studentId: true, feeId: true, amount: true, status: true, notes: true },
+        select: { id: true, studentId: true, feeId: true, amount: true, status: true, notes: true, student: { select: { schoolId: true } } },
     });
     if (!payment) return { outcome: "NOT_FOUND" };
     if (payment.status === "VERIFIED" || payment.status === "RECONCILED") {
@@ -160,13 +165,22 @@ export async function confirmOnlinePayment(params: {
         return { outcome: "MISMATCH", paymentId: payment.id, reason };
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         await lockStudentFee(tx, payment.studentId, payment.feeId);
+        // État relu sous verrou : une annulation manuelle concurrente est vue ici
+        const current = await tx.payment.findUnique({
+            where: { id: payment.id },
+            select: { status: true, notes: true, cancellationSource: true },
+        });
+        if (!current || !(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
+            return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
+        }
         const balance = await getFeeBalance(tx, payment.studentId, payment.feeId);
         const now = new Date();
-        // Validation unique : seul un paiement encore en attente ou expiré passe à « validé »
+        // Validation unique (idempotente) : en attente, expiré, ou annulé — une
+        // confirmation authentique prouve que l'argent est reçu (lot 3b)
         const claimed = await tx.payment.updateMany({
-            where: { id: payment.id, status: { in: ["PENDING", "EXPIRED"] satisfies PaymentStatus[] } },
+            where: { id: payment.id, status: current.status },
             data: {
                 status: "VERIFIED",
                 paidAt: now,
@@ -174,28 +188,48 @@ export async function confirmOnlinePayment(params: {
                 ...(params.providerTransactionId ? { providerTransactionId: params.providerTransactionId } : {}),
             },
         });
-        if (claimed.count !== 1) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id };
+        if (claimed.count !== 1) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
 
         // Trop-perçu : l'argent est reçu (on l'enregistre), l'excédent est signalé
         const overpaid = balance ? Math.max(0, balance.settled + expected - balance.billed) : 0;
-        const late = payment.status === "EXPIRED" ? " (confirmation tardive, après expiration)" : "";
+        const origin =
+            current.cancellationSource === "PROVIDER" ? "échec signalé par le fournisseur"
+            : current.cancellationSource === "MANUAL" ? "annulation manuelle par l'école"
+            : "origine inconnue";
+        const previous =
+            current.status === "EXPIRED" ? " (confirmation tardive, après expiration)"
+            : current.status === "CANCELLED" ? ` (validé après annulation — état antérieur : annulé, ${origin})`
+            : "";
         const excess = overpaid > 0 ? ` Trop-perçu de ${overpaid} FCFA à traiter.` : "";
         await tx.payment.update({
             where: { id: payment.id },
-            data: { notes: appendNote(payment.notes, `Confirmé par ${params.source}${late}.${excess}`) },
+            data: { notes: appendNote(current.notes, `Confirmé par ${params.source}${previous}.${excess}`) },
         });
         // Même règle d'imputation que le guichet ; une erreur annule toute la validation
         await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
         if (overpaid > 0) logger.warn("Paiement en ligne : trop-perçu", { paymentId: payment.id, overpaid, source: params.source });
-        return { outcome: "CONFIRMED" as const, paymentId: payment.id, overpaid };
+        // Annulation décidée par l'école (ou d'origine inconnue) : un responsable doit le savoir
+        const alert = current.status === "CANCELLED" && current.cancellationSource !== "PROVIDER" ? { origin, overpaid } : null;
+        return { outcome: "CONFIRMED" as const, paymentId: payment.id, overpaid, alert };
     });
+
+    if (result.alert) {
+        logger.warn("Paiement en ligne : validé après une annulation manuelle ou d'origine inconnue", { paymentId: payment.id, source: params.source });
+        await alertFinanceStaff(
+            payment.student.schoolId,
+            "Paiement validé après une annulation",
+            `Le fournisseur a confirmé un paiement en ligne de ${expected} FCFA (référence ${params.reference}) qui avait été annulé (${result.alert.origin}). Il est désormais comptabilisé${result.alert.overpaid > 0 ? ` ; trop-perçu de ${result.alert.overpaid} FCFA à traiter` : ""}. Vérifiez la situation de la famille.`,
+        ).catch((error) => logger.error("Alerte financière non envoyée", error, { paymentId: payment.id }));
+    }
+    if (result.outcome === "CONFIRMED") return { outcome: "CONFIRMED", paymentId: result.paymentId, overpaid: result.overpaid };
+    return { outcome: "ALREADY_PROCESSED", paymentId: result.paymentId };
 }
 
 /** Échec confirmé par le fournisseur : l'essai est annulé (la dette reste due). */
 export async function failOnlinePayment(reference: string, source: string): Promise<number> {
     const result = await prisma.payment.updateMany({
         where: { reference, status: { in: ["PENDING", "EXPIRED"] satisfies PaymentStatus[] } },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELLED", cancellationSource: "PROVIDER" },
     });
     if (result.count > 0) logger.info("Paiement en ligne annulé par le fournisseur", { reference, source });
     return result.count;
@@ -247,11 +281,19 @@ export interface ReconcileReport {
     examined: number;
     confirmed: number;
     cancelled: number;
-    expired: number;
+    /** Résultat inconnu (en attente, injoignable, incertain) : reste PENDING, montant réservé. */
+    stillPending: number;
+    /** Alertes envoyées à l'administration financière (en attente depuis plus de 48 h). */
+    alerted: number;
     mismatched: number;
     /** Erreur pendant la validation (recalcul compris) : laissé en attente, repris au passage suivant. */
     failed: number;
 }
+
+/** Au-delà, un paiement toujours en attente est signalé à l'administration financière (jamais libéré). */
+export const PENDING_ALERT_MS = 48 * 60 * 60 * 1000;
+const UNCERTAIN_NOTE = "Sans réponse définitive du fournisseur après 24 h : reste en attente, montant réservé.";
+const ALERT_NOTE = "Signalé à l'administration financière : en attente depuis plus de 48 h.";
 
 /** Montant et devise lus dans la réponse de vérification d'un fournisseur. */
 function amountFromRaw(provider: OnlineProvider, raw: unknown): { amount: number | null; currency: string | null } {
@@ -262,13 +304,25 @@ function amountFromRaw(provider: OnlineProvider, raw: unknown): { amount: number
 
 /**
  * Essais en ligne en attente depuis plus de 24 h : le fournisseur est
- * interrogé quand c'est possible, sinon l'essai passe à EXPIRED (à rapprocher).
+ * interrogé (lot 3b) :
+ * - payé au bon montant → validé (chemin de confirmation, échéancier recalculé) ;
+ * - échec ou expiration DÉFINITIFS chez le fournisseur (FAILED : FedaPay
+ *   declined/canceled/expired, Paystack failed/abandoned, MoMo et
+ *   Flutterwave failed) → annulé, la réservation est libérée ;
+ * - en attente, injoignable, réponse illisible, sans identifiant fournisseur
+ *   ou montant non conforme → RESTE PENDING : une absence d'information ne
+ *   vaut jamais échec, le montant reste réservé et l'essai est réexaminé au
+ *   passage suivant. Au-delà de 48 h, l'administration financière est
+ *   alertée une fois ; aucune libération automatique.
  */
 export async function reconcileStalePayments(verify: VerifyFn, now = new Date(), limit = 200): Promise<ReconcileReport> {
-    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, expired: 0, mismatched: 0, failed: 0 };
+    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0 };
     const stale = await prisma.payment.findMany({
         where: { status: "PENDING", deletedAt: null, createdAt: { lt: new Date(now.getTime() - ONLINE_PAYMENT_TTL_MS) } },
-        select: { id: true, reference: true, provider: true, providerTransactionId: true, notes: true },
+        select: {
+            id: true, reference: true, provider: true, providerTransactionId: true, amount: true, createdAt: true,
+            student: { select: { schoolId: true } },
+        },
         orderBy: { createdAt: "asc" },
         take: limit,
     });
@@ -281,6 +335,7 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
             try {
                 ({ status: verdict, rawData: raw } = await verify(provider, p.providerTransactionId));
             } catch (error) {
+                // Fournisseur injoignable : résultat inconnu, pas un échec
                 logger.warn("Réconciliation : fournisseur injoignable", { paymentId: p.id, reason: (error as Error).message });
             }
         }
@@ -306,22 +361,47 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
                 report.confirmed++;
                 continue;
             }
+            // Montant ou devise non conformes : noté « à rapprocher », reste réservé
             if (result.outcome === "MISMATCH") report.mismatched++;
         } else if (verdict === "FAILED" && p.reference) {
             report.cancelled += await failOnlinePayment(p.reference, `réconciliation ${provider}`);
             continue;
         }
-        // Résultat incertain : plus de réservation, à rapprocher ; rien n'est supprimé
-        const current = await prisma.payment.findUnique({ where: { id: p.id }, select: { notes: true } });
-        const moved = await prisma.payment.updateMany({
-            where: { id: p.id, status: "PENDING" },
-            data: {
-                status: "EXPIRED",
-                notes: appendNote(current?.notes ?? null, "Non confirmé après 24 h : à rapprocher avec le relevé du fournisseur."),
-            },
-        });
-        report.expired += moved.count;
+
+        // Résultat inconnu : reste PENDING et réservé ; notes ajoutées une seule fois
+        report.stillPending++;
+        const current = await prisma.payment.findUnique({ where: { id: p.id }, select: { notes: true, status: true } });
+        if (!current || current.status !== "PENDING") continue;
+        let notes = current.notes ?? null;
+        if (!notes?.includes(UNCERTAIN_NOTE)) notes = appendNote(notes, UNCERTAIN_NOTE);
+        const overdue = p.createdAt.getTime() < now.getTime() - PENDING_ALERT_MS;
+        const alertNow = overdue && !notes.includes(ALERT_NOTE);
+        if (alertNow) notes = appendNote(notes, ALERT_NOTE);
+        if (notes !== current.notes) {
+            const updated = await prisma.payment.updateMany({ where: { id: p.id, status: "PENDING" }, data: { notes } });
+            if (updated.count === 0) continue;
+        }
+        if (alertNow) {
+            await alertFinanceStaff(
+                p.student.schoolId,
+                "Paiement en ligne sans réponse définitive",
+                `Un paiement en ligne de ${Math.round(Number(p.amount))} FCFA (référence ${p.reference ?? "inconnue"}) est en attente depuis plus de 48 h sans réponse définitive du fournisseur. Son montant reste réservé : vérifiez le relevé du fournisseur avant tout encaissement de ce montant.`,
+            );
+            report.alerted++;
+        }
     }
     if (report.examined > 0) logger.info("Réconciliation des paiements en ligne", { ...report });
     return report;
+}
+
+/** Alerte aux comptables et à l'administration de l'école (notification de type paiement). */
+async function alertFinanceStaff(schoolId: string, title: string, message: string): Promise<void> {
+    const staff = await prisma.user.findMany({
+        where: { schoolId, isActive: true, role: { in: ["ACCOUNTANT", "SCHOOL_ADMIN"] } },
+        select: { id: true },
+    });
+    if (staff.length === 0) return;
+    await createNotifications(
+        staff.map(({ id }) => ({ userId: id, type: "PAYMENT" as const, title, message, link: "/dashboard/finance/reconciliation" })),
+    );
 }

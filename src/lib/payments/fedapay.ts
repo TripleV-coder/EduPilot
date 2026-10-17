@@ -18,6 +18,7 @@
  */
 import { FedaPay, Transaction, Webhook } from "fedapay";
 import { CIRCUITS, getCircuitBreaker, isProviderFailureStatus } from "@/lib/resilience/circuit-breaker";
+import { ProviderInitError, outcomeForHttpStatus, outcomeForSendError } from "@/lib/finance/providers/init-error";
 
 /** Statuts FedaPay considérés comme payés (cf. SDK Transaction.PAID_STATUS). */
 const FEDAPAY_PAID = new Set(["approved", "transferred"]);
@@ -109,27 +110,40 @@ export async function createFedaPayCheckout(params: {
 }): Promise<FedaPayCheckout> {
   ensureInit();
 
-  const transaction = await fedapayCircuit(() => Transaction.create({
-    description: params.description,
-    amount: Math.round(params.amount),
-    currency: { iso: "XOF" },
-    callback_url: params.callbackUrl,
-    merchant_reference: params.reference,
-    customer: {
-      firstname: params.customer.firstname,
-      lastname: params.customer.lastname,
-      email: params.customer.email,
-      ...(params.customer.phone
-        ? { phone_number: { number: params.customer.phone, country: "bj" } }
-        : {}),
-    },
-  }));
+  // Création : refus 4xx du SDK ou circuit ouvert → aucune transaction ;
+  // erreur réseau ou 5xx → résultat inconnu (lot 3b)
+  let transaction: Awaited<ReturnType<typeof Transaction.create>>;
+  try {
+    transaction = await fedapayCircuit(() => Transaction.create({
+      description: params.description,
+      amount: Math.round(params.amount),
+      currency: { iso: "XOF" },
+      callback_url: params.callbackUrl,
+      merchant_reference: params.reference,
+      customer: {
+        firstname: params.customer.firstname,
+        lastname: params.customer.lastname,
+        email: params.customer.email,
+        ...(params.customer.phone
+          ? { phone_number: { number: params.customer.phone, country: "bj" } }
+          : {}),
+      },
+    }));
+  } catch (error) {
+    const status = (error as { httpStatus?: unknown })?.httpStatus;
+    const outcome = typeof status === "number" ? outcomeForHttpStatus(status) : outcomeForSendError(error);
+    throw new ProviderInitError(`[FedaPay] création de transaction : ${(error as Error).message}`, outcome, undefined, { cause: error });
+  }
 
   const tx = transaction as unknown as { id: string | number };
-  const token = (await fedapayCircuit(() => transaction.generateToken())) as unknown as {
-    token: string;
-    url: string;
-  };
+  // La transaction existe déjà chez FedaPay : un échec ici laisse un résultat
+  // inconnu, avec son identifiant pour la vérifier plus tard
+  let token: { token: string; url: string };
+  try {
+    token = (await fedapayCircuit(() => transaction.generateToken())) as unknown as { token: string; url: string };
+  } catch (error) {
+    throw new ProviderInitError(`[FedaPay] jeton de paiement : ${(error as Error).message}`, "UNKNOWN", String(tx.id), { cause: error });
+  }
 
   return {
     url: token.url,

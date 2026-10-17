@@ -5,7 +5,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, availableWithout, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
@@ -109,8 +109,15 @@ export const PATCH = createApiHandler(
       const body = await request.json();
       const validatedData = paymentUpdateSchema.parse(body);
 
-      const updatedPayment = await prisma.$transaction(async (tx) => {
-        const payment = await tx.payment.update({
+      // Sous verrou élève/frais : état relu, nouveau montant plafonné (lot 3b)
+      const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, async (tx, balance) => {
+        const current = await tx.payment.findUnique({ where: { id } });
+        if (!current) return refuse(404, "Paiement non trouvé");
+        if (validatedData.amount !== undefined) {
+          assertWithinAvailable(availableWithout(balance, current), validatedData.amount);
+        }
+        await assertReferenceFree(tx, validatedData.reference, id);
+        return tx.payment.update({
           where: { id },
           data: validatedData,
           include: {
@@ -124,10 +131,9 @@ export const PATCH = createApiHandler(
             fee: true,
           },
         });
-
-        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
-        return payment;
       });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+      const updatedPayment = result.value;
 
       await Promise.all([
         invalidateByPath(CACHE_PATHS.payments),
@@ -183,14 +189,11 @@ export const DELETE = createApiHandler(
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
 
-      await prisma.$transaction(async (tx) => {
-        await tx.payment.update({
-          where: { id },
-          data: { status: "CANCELLED" },
-        });
-
-        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
-      });
+      // Sous verrou élève/frais : pas de recalcul concurrent perdu (lot 3b)
+      const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, (tx) =>
+        tx.payment.update({ where: { id }, data: { status: "CANCELLED", cancellationSource: "MANUAL" } }),
+      );
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
 
       await Promise.all([
         invalidateByPath(CACHE_PATHS.payments),

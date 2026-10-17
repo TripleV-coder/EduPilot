@@ -141,7 +141,7 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
     expect(res.status).toBe(200);
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
       where: { reference: "PAY-1-ABC", status: { in: ["PENDING", "EXPIRED"] } },
-      data: { status: "CANCELLED" },
+      data: { status: "CANCELLED", cancellationSource: "PROVIDER" },
     });
     expect(confirmOnlinePayment).not.toHaveBeenCalled();
   });
