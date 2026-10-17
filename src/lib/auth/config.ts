@@ -20,7 +20,7 @@ import {
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
-import { getCachedUserStatus, invalidateUserStatusCache } from "./user-status-cache";
+import { getUserStatus, invalidateUserStatusCache } from "./user-status-cache";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
 import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
@@ -33,9 +33,10 @@ import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
  * At login, if `user.roles` is populated, it is used; otherwise `[user.role]` is the fallback.
  * The session always exposes both fields for maximum flexibility.
  *
- * P15 NOTE: account status AND school access are re-read on each request through a short
- * in-memory cache (`user-status-cache.ts`, 5s TTL, one cache per instance). A revoked school
- * leaves the token within that delay, without waiting for the token to expire (audit MS-01).
+ * P15 NOTE: the account row (status, role, primary school, rights marker `roleChangedAt`) is
+ * read on EVERY request; school access is recomputed whenever that marker changes
+ * (`user-status-cache.ts`, PostgreSQL triggers). Revocation applies on the next request on
+ * every instance, without logging the user out (audit MS-01).
  */
 export interface AuthUser {
   id: string;
@@ -400,52 +401,53 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // Vérifier l'invalidation du token après changement de mdp, rôle ou désactivation compte
+      // État du compte relu à chaque requête : désactivation, mot de passe,
+      // rôle et droits d'établissement s'appliquent dès la requête suivante.
       if (token.id && trigger !== "signIn") {
-        const userStatus = await getCachedUserStatus(token.id as string);
+        const userStatus = await getUserStatus(token.id as string);
 
-        if (userStatus) {
-          // Invalider si compte désactivé
-          if (!userStatus.isActive || isBlockedBySchoolSuspension(userStatus)) {
-            token.invalidated = true;
-            return token;
-          }
+        // Compte supprimé définitivement : aucun droit ne survit dans le jeton
+        if (!userStatus) {
+          token.invalidated = true;
+          return token;
+        }
 
-          const tokenIssuedAt = token.iat ? new Date(Number(token.iat) * 1000) : new Date(0);
+        // Invalider si compte désactivé
+        if (!userStatus.isActive || isBlockedBySchoolSuspension(userStatus)) {
+          token.invalidated = true;
+          return token;
+        }
 
-          // Invalider si mot de passe changé après émission du token
-          if (userStatus.passwordChangedAt && userStatus.passwordChangedAt > tokenIssuedAt) {
-            token.invalidated = true;
-            return token;
-          }
+        const tokenIssuedAt = token.iat ? new Date(Number(token.iat) * 1000) : new Date(0);
 
-          // Invalider si rôle changé après émission du token
-          if (userStatus.roleChangedAt && userStatus.roleChangedAt > tokenIssuedAt) {
-            token.invalidated = true;
-            return token;
-          }
+        // Invalider si mot de passe changé après émission du token
+        if (userStatus.passwordChangedAt && userStatus.passwordChangedAt > tokenIssuedAt) {
+          token.invalidated = true;
+          return token;
+        }
 
-          // Mettre à jour le rôle dans le token s'il a changé
-          if (userStatus.role !== token.role) {
-            token.role = userStatus.role;
-          }
+        // Rôle et permissions toujours ceux de la base, jamais ceux figés
+        // dans le jeton ; un changement de rôle ne déconnecte pas.
+        const effectiveRoles = userStatus.roles.length > 0 ? userStatus.roles : [userStatus.role];
+        token.role = userStatus.role;
+        token.roles = effectiveRoles;
+        token.permissions = getRolePermissions(effectiveRoles);
 
-          // Droits d'établissement relus en base : un rattachement retiré ne
-          // survit pas dans le jeton, et l'école active retirée est remplacée.
-          // SUPER_ADMIN choisit librement son école (aucune liste à appliquer).
-          if (userStatus.role !== "SUPER_ADMIN") {
-            const { access } = userStatus;
-            token.primarySchoolId = access.primarySchoolId;
-            token.accessibleSchoolIds = access.accessibleSchoolIds;
-            token.organizationIds = access.organizationIds;
-            token.primaryOrganizationId = access.primaryOrganizationId;
-            token.isOrganizationManager = access.isOrganizationManager;
-            if (!token.schoolId || !access.accessibleSchoolIds.includes(token.schoolId as string)) {
-              token.schoolId = resolveActiveSchoolId({
-                primarySchoolId: access.primarySchoolId,
-                accessibleSchoolIds: access.accessibleSchoolIds,
-              });
-            }
+        // Droits d'établissement relus en base : un rattachement retiré ne
+        // survit pas dans le jeton, et l'école active retirée est remplacée.
+        // SUPER_ADMIN choisit librement son école (aucune liste à appliquer).
+        if (userStatus.role !== "SUPER_ADMIN") {
+          const { access } = userStatus;
+          token.primarySchoolId = access.primarySchoolId;
+          token.accessibleSchoolIds = access.accessibleSchoolIds;
+          token.organizationIds = access.organizationIds;
+          token.primaryOrganizationId = access.primaryOrganizationId;
+          token.isOrganizationManager = access.isOrganizationManager;
+          if (!token.schoolId || !access.accessibleSchoolIds.includes(token.schoolId as string)) {
+            token.schoolId = resolveActiveSchoolId({
+              primarySchoolId: access.primarySchoolId,
+              accessibleSchoolIds: access.accessibleSchoolIds,
+            });
           }
         }
       }

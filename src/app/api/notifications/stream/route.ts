@@ -6,131 +6,76 @@
  *
  * Fonctionnement :
  * - Le client ouvre une connexion SSE persistante (EventSource).
- * - Le serveur poll les nouvelles notifications en DB toutes les 5 secondes
- *   et les pousse au client si de nouvelles sont arrivées.
- * - La connexion se ferme automatiquement côté client si signal AbortController.
- *
- * Évolution future : remplacer le polling par Redis Pub/Sub pour du push immédiat.
+ * - Redis Pub/Sub si REDIS_URL est configuré (push immédiat), sinon le serveur
+ *   relève les nouvelles notifications en base toutes les 5 secondes.
+ * - Le compte est revérifié toutes les 5 secondes et avant chaque message
+ *   poussé : compte supprimé, désactivé, suspendu ou mot de passe changé
+ *   depuis l'ouverture → flux fermé (audit MS-01, F2). Connexion plafonnée à
+ *   30 minutes ; le client se reconnecte via le contrôle d'authentification.
  */
 
 import { NextRequest } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
+import { getUserStatus } from "@/lib/auth/user-status-cache";
+import { isBlockedBySchoolSuspension } from "@/lib/auth/school-suspension";
+import { createNotificationStream } from "@/lib/notifications/notification-stream";
 import Redis from "ioredis";
-
-const KEEPALIVE_INTERVAL_MS = 25_000; // ping toutes les 25 s pour éviter les timeouts proxies
-const POLLING_INTERVAL_MS = 5_000;
 
 export const GET = createApiHandler(
     async (req: NextRequest, { session }) => {
         const userId = session.user.id;
         const redisUrl = process.env.REDIS_URL;
+        // La session était valide à l'ouverture : un mot de passe changé
+        // ensuite l'invalide, comme dans le callback `jwt`.
+        const openedAt = new Date();
 
-        const encoder = new TextEncoder();
-        let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
-        let pollingTimer: ReturnType<typeof setInterval> | null = null;
-        let subscriber: Redis | null = null;
-        let lastSeenAt = new Date();
-        let isPolling = false;
+        const verify = async () => {
+            const status = await getUserStatus(userId);
+            if (!status || !status.isActive || isBlockedBySchoolSuspension(status)) return false;
+            return !(status.passwordChangedAt && status.passwordChangedAt > openedAt);
+        };
 
-        const stream = new ReadableStream({
-            start(controller) {
-                function send(event: string, data: unknown) {
-                    const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-                    try {
-                        controller.enqueue(encoder.encode(payload));
-                    } catch {
-                        // Controller fermé
-                    }
-                }
+        const subscribe = redisUrl
+            ? (onMessage: (data: unknown) => void) => {
+                  const subscriber = new Redis(redisUrl);
+                  const channel = `notifications:${userId}`;
+                  subscriber.subscribe(channel, (err) => {
+                      if (err) logger.error("Redis Subscribe error", err as Error);
+                  });
+                  subscriber.on("message", (ch, message) => {
+                      if (ch !== channel) return;
+                      try {
+                          onMessage(JSON.parse(message));
+                      } catch (err) {
+                          logger.error("Redis parse error", err as Error);
+                      }
+                  });
+                  // Chaque libération est tentée même si l'autre échoue
+                  return () => {
+                      Promise.resolve().then(() => subscriber.unsubscribe()).catch(() => {});
+                      Promise.resolve().then(() => subscriber.quit()).catch(() => {});
+                  };
+              }
+            : undefined;
 
-                // Message de connexion initial
-                send("connected", { userId, timestamp: new Date().toISOString() });
-
-                // Subscribe to Redis if configured, otherwise fallback to DB polling
-                if (redisUrl) {
-                    try {
-                        subscriber = new Redis(redisUrl);
-                        const channel = `notifications:${userId}`;
-
-                        subscriber.subscribe(channel, (err) => {
-                            if (err) logger.error("Redis Subscribe error", err as Error);
-                        });
-
-                        subscriber.on("message", (ch, message) => {
-                            if (ch === channel) {
-                                try {
-                                    const data = JSON.parse(message);
-                                    if (data.REFRESH_REQUIRED) {
-                                        send("refresh", { reload: true });
-                                    } else {
-                                        send("notifications", [data]);
-                                    }
-                                } catch (err) {
-                                    logger.error("Redis parse error", err as Error);
-                                }
-                            }
-                        });
-                    } catch (error) {
-                        logger.error("Redis connection error", error as Error);
-                    }
-                } else {
-                    // Fallback: poll DB for new notifications
-                    pollingTimer = setInterval(async () => {
-                        if (isPolling) return;
-                        isPolling = true;
-                        try {
-                            const notifications = await prisma.notification.findMany({
-                                where: {
-                                    userId,
-                                    createdAt: { gt: lastSeenAt },
-                                },
-                                orderBy: { createdAt: "asc" },
-                                take: 50,
-                            });
-
-                            if (notifications.length > 0) {
-                                send("notifications", notifications);
-                                lastSeenAt = notifications[notifications.length - 1].createdAt;
-                            }
-                        } catch (error) {
-                            logger.error("Notification polling error", error as Error);
-                        } finally {
-                            isPolling = false;
-                        }
-                    }, POLLING_INTERVAL_MS);
-                }
-
-                // Keepalive pour éviter les timeouts des proxies/load balancers
-                keepaliveTimer = setInterval(() => {
-                    try {
-                        controller.enqueue(encoder.encode(": keepalive\n\n"));
-                    } catch {
-                        // Controller fermé
-                    }
-                }, KEEPALIVE_INTERVAL_MS);
-            },
-
-            cancel() {
-                if (keepaliveTimer) clearInterval(keepaliveTimer);
-                if (pollingTimer) clearInterval(pollingTimer);
-                if (subscriber) {
-                    subscriber.unsubscribe();
-                    subscriber.quit();
-                }
-            },
+        const { stream, close } = createNotificationStream({
+            userId,
+            verify,
+            subscribe,
+            fetchSince: subscribe
+                ? undefined
+                : (since) =>
+                      prisma.notification.findMany({
+                          where: { userId, createdAt: { gt: since } },
+                          orderBy: { createdAt: "asc" },
+                          take: 50,
+                      }),
         });
 
         // Fermeture propre si le client déconnecte
-        req.signal.addEventListener("abort", () => {
-            if (keepaliveTimer) clearInterval(keepaliveTimer);
-            if (pollingTimer) clearInterval(pollingTimer);
-            if (subscriber) {
-                subscriber.unsubscribe();
-                subscriber.quit();
-            }
-        });
+        req.signal.addEventListener("abort", () => close("client_closed"));
 
         return new Response(stream, {
             headers: {

@@ -88,10 +88,11 @@ export async function listMessageRecipients(
   }
 
   if (role === "TEACHER") {
+    // Classes des écoles où il est rattaché, et de l'école active seulement
     const classIds = await taughtClassIds(userId);
     const enrollments = classIds.length
       ? await prisma.enrollment.findMany({
-          where: { classId: { in: classIds }, status: "ACTIVE" },
+          where: { classId: { in: classIds }, status: "ACTIVE", class: { schoolId } },
           select: {
             student: {
               select: {

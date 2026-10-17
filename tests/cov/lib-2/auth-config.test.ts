@@ -298,7 +298,7 @@ describe("callback jwt — vérification MFA (trigger update)", () => {
   it("valide un TOTP correct, remet à zéro le plafond et journalise MFA_VERIFIED", async () => {
     findUnique
       .mockResolvedValueOnce({ twoFactorSecret: "S", twoFactorBackupCodes: [] } as never)
-      .mockResolvedValueOnce({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER" } as never);
+      .mockResolvedValueOnce({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER", roles: [], schoolId: "school-1" } as never);
     vi.mocked(verifyToken).mockResolvedValueOnce(true);
     const token = await jwt({ token: { id: "mfa-ok", role: "TEACHER" }, trigger: "update", session: { twoFactorCode: "123456" } });
     expect(token.isTwoFactorAuthenticated).toBe(true);
@@ -416,10 +416,11 @@ describe("callback jwt — changement d'école active", () => {
     expect(findUnique).toHaveBeenCalledTimes(1); // uniquement le contrôle de statut
   });
 
-  it("une mise à jour sans session ne fait aucun changement de contexte", async () => {
+  it("une mise à jour sans session ne change pas d'école ; compte introuvable : session invalidée (F1)", async () => {
     findUnique.mockResolvedValueOnce(null);
     const token = await jwt({ token: { id: "dir-6", role: "DIRECTOR" }, trigger: "update" });
-    expect(token).toEqual({ id: "dir-6", role: "DIRECTOR" });
+    expect(token).toEqual({ id: "dir-6", role: "DIRECTOR", invalidated: true });
+    expect(getOrganizationAccessForUser).not.toHaveBeenCalled();
   });
 });
 
@@ -444,54 +445,75 @@ describe("callback jwt — invalidation du jeton", () => {
     expect(token.invalidated).toBe(true);
   });
 
-  it("invalide le jeton si le rôle a changé après son émission", async () => {
-    findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: new Date("2025-01-01"), roleChangedAt: new Date("2026-02-01"), role: "TEACHER" } as never);
-    const token = await jwt({ token: { id: "inv-4", role: "TEACHER", iat: Date.parse("2026-01-01") / 1000 } });
-    expect(token.invalidated).toBe(true);
-  });
-
-  it("garde un jeton valide et synchronise le rôle courant", async () => {
-    findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: new Date("2025-01-01"), roleChangedAt: new Date("2025-01-01"), role: "DIRECTOR" } as never);
-    const token = await jwt({ token: { id: "inv-5", role: "TEACHER", iat: Date.parse("2026-01-01") / 1000 } });
+  it("un changement de rôle ne déconnecte pas : rôle et permissions repris de la base", async () => {
+    findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: new Date("2025-01-01"), roleChangedAt: new Date("2026-02-01"), role: "DIRECTOR", roles: [], schoolId: "school-1" } as never);
+    const token = await jwt({ token: { id: "inv-4", role: "TEACHER", roles: ["TEACHER"], permissions: [], iat: Date.parse("2026-01-01") / 1000 } });
     expect(token.invalidated).toBeUndefined();
     expect(token.role).toBe("DIRECTOR");
+    expect(token.roles).toEqual(["DIRECTOR"]);
+    expect(token.permissions).toEqual(expect.arrayContaining(["analytics:view"]));
   });
 
-  it("met en cache le statut 30 s puis le relit, et invalidateUserStatusCache force la relecture", async () => {
+  it("garde un jeton valide et synchronise rôle et droits d'établissement", async () => {
+    findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: new Date("2025-01-01"), roleChangedAt: new Date("2025-01-01"), role: "DIRECTOR", roles: [], schoolId: "school-1" } as never);
+    const token = await jwt({ token: { id: "inv-5", role: "TEACHER", schoolId: "school-9", accessibleSchoolIds: ["school-9"], iat: Date.parse("2026-01-01") / 1000 } });
+    expect(token.invalidated).toBeUndefined();
+    expect(token.role).toBe("DIRECTOR");
+    expect(token.accessibleSchoolIds).toEqual(["school-1", "school-2"]);
+    expect(token.schoolId).toBe("school-1");
+  });
+
+  it("relit le compte à chaque requête ; recalcule les droits si le marqueur, le rôle ou l'école changent, ou après 60 s", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01T10:00:00Z"));
-    findUnique.mockResolvedValue({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER" } as never);
-    await jwt({ token: { id: "cache-1", role: "TEACHER" } });
-    await jwt({ token: { id: "cache-1", role: "TEACHER" } });
-    expect(findUnique).toHaveBeenCalledTimes(1);
+    const row = { isActive: true, passwordChangedAt: null, roleChangedAt: null as Date | null, role: "TEACHER", roles: [], schoolId: "school-1" };
+    findUnique.mockImplementation(async () => ({ ...row }) as never);
+    const compute = vi.mocked(getAccessibleSchoolIdsForUser);
+    const run = () => jwt({ token: { id: "cache-1", role: "TEACHER" } });
 
-    vi.setSystemTime(new Date("2026-03-01T10:00:31Z"));
-    await jwt({ token: { id: "cache-1", role: "TEACHER" } });
-    expect(findUnique).toHaveBeenCalledTimes(2);
+    await run();
+    await run();
+    expect(findUnique).toHaveBeenCalledTimes(2); // ligne du compte : chaque requête
+    expect(compute).toHaveBeenCalledTimes(1); // droits : en cache
+
+    row.roleChangedAt = new Date("2026-03-01T10:00:01Z"); // trigger : droits modifiés
+    await run();
+    expect(compute).toHaveBeenCalledTimes(2);
+    await run();
+    expect(compute).toHaveBeenCalledTimes(2);
+
+    row.schoolId = "school-2"; // école principale modifiée
+    await run();
+    expect(compute).toHaveBeenCalledTimes(3);
+
+    vi.setSystemTime(new Date("2026-03-01T10:01:01Z")); // filet de sécurité
+    await run();
+    expect(compute).toHaveBeenCalledTimes(4);
 
     invalidateUserStatusCache("cache-1");
-    await jwt({ token: { id: "cache-1", role: "TEACHER" } });
-    expect(findUnique).toHaveBeenCalledTimes(3);
+    await run();
+    expect(compute).toHaveBeenCalledTimes(5);
     findUnique.mockReset();
   });
 
-  it("purge les entrées expirées quand le cache dépasse 1000 utilisateurs", async () => {
+  it("purge les calculs expirés quand le cache dépasse 1000 utilisateurs", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-01T10:00:00Z"));
-    findUnique.mockResolvedValue({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER" } as never);
+    findUnique.mockResolvedValue({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER", roles: [], schoolId: "school-1" } as never);
+    const compute = vi.mocked(getAccessibleSchoolIdsForUser);
     for (let i = 0; i < 1001; i++) {
       await jwt({ token: { id: `bulk-${i}`, role: "TEACHER" } });
     }
-    // Les 1000+ entrées récentes ne sont pas purgées : relecture servie par le cache.
-    const callsBefore = findUnique.mock.calls.length;
+    // Les 1000+ entrées récentes ne sont pas purgées : calcul servi par le cache.
+    const callsBefore = compute.mock.calls.length;
     await jwt({ token: { id: "bulk-0", role: "TEACHER" } });
-    expect(findUnique.mock.calls.length).toBe(callsBefore);
+    expect(compute.mock.calls.length).toBe(callsBefore);
 
-    // 31 s plus tard, un nouvel utilisateur déclenche la purge des entrées expirées.
-    vi.setSystemTime(new Date("2026-04-01T10:00:31Z"));
+    // 61 s plus tard, un nouvel utilisateur déclenche la purge des entrées expirées.
+    vi.setSystemTime(new Date("2026-04-01T10:01:01Z"));
     await jwt({ token: { id: "bulk-new", role: "TEACHER" } });
     await jwt({ token: { id: "bulk-new", role: "TEACHER" } });
-    expect(findUnique.mock.calls.length).toBe(callsBefore + 1);
+    expect(compute.mock.calls.length).toBe(callsBefore + 1);
     findUnique.mockReset();
   });
 });

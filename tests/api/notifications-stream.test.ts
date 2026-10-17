@@ -30,6 +30,11 @@ vi.mock("@/lib/prisma", () => ({
     notification: { findMany: vi.fn() },
   },
 }));
+// Compte toujours autorisé : la revérification périodique (audit MS-01, F2)
+// a ses propres tests (tests/lib/notification-stream.test.ts et intégration).
+vi.mock("@/lib/auth/user-status-cache", () => ({
+  getUserStatus: vi.fn(async () => ({ isActive: true, role: "TEACHER", passwordChangedAt: null, school: { isActive: true } })),
+}));
 
 import prisma from "@/lib/prisma";
 import { GET } from "@/app/api/notifications/stream/route";

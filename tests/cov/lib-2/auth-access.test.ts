@@ -90,11 +90,11 @@ describe("getAccessibleSchoolIdsForUser", () => {
     expect(await getAccessibleSchoolIdsForUser({ userId: "sa", role: "SUPER_ADMIN", primarySchoolId: null })).toEqual([]);
   });
 
-  it("TEACHER : cumule affectations, cours et classes principales", async () => {
+  it("TEACHER : école principale et rattachements actifs ; cours et classes principales n'ouvrent aucune école", async () => {
     vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValueOnce({ schoolId: "s1", schoolAssignments: [{ schoolId: "s2" }] } as never);
-    vi.mocked(prisma.classSubject.findMany).mockResolvedValueOnce([{ class: { schoolId: "s3" } }] as never);
-    vi.mocked(prisma.class.findMany).mockResolvedValueOnce([{ schoolId: "s4" }, { schoolId: "s1" }] as never);
-    expect(await getAccessibleSchoolIdsForUser({ userId: "t", role: "TEACHER", primarySchoolId: "s1" })).toEqual(["s1", "s2", "s3", "s4"]);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ class: { schoolId: "s3" } }] as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([{ schoolId: "s4" }] as never);
+    expect(await getAccessibleSchoolIdsForUser({ userId: "t", role: "TEACHER", primarySchoolId: "s1" })).toEqual(["s1", "s2"]);
   });
 
   it("PARENT : ajoute les écoles de ses enfants", async () => {

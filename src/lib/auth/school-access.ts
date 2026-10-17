@@ -41,28 +41,13 @@ async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
     return primarySchoolId ? [primarySchoolId] : [];
   }
 
+  // Un rattachement actif (ou l'école principale) est NÉCESSAIRE : les cours
+  // et classes confiés ne donnent jamais, à eux seuls, accès à une école dont
+  // le rattachement a été désactivé (audit MS-01). Ils déterminent ensuite,
+  // dans chaque route, les classes accessibles.
   if (role === "TEACHER") {
-    const [teacherSchoolIds, classSubjects, mainClasses] = await Promise.all([
-      getTeacherSchoolIdsForUser({
-        userId,
-        primarySchoolId,
-      }),
-      prisma.classSubject.findMany({
-        where: { teacher: { userId } },
-        select: { class: { select: { schoolId: true } } },
-      }),
-      prisma.class.findMany({
-        where: { mainTeacher: { userId } },
-        select: { schoolId: true },
-      }),
-    ]);
-
-    return uniqueSchoolIds(
-      organizationAccess.accessibleSchoolIds,
-      [primarySchoolId, ...teacherSchoolIds],
-      classSubjects.map((assignment) => assignment.class.schoolId),
-      mainClasses.map((schoolClass) => schoolClass.schoolId)
-    );
+    const teacherSchoolIds = await getTeacherSchoolIdsForUser({ userId, primarySchoolId });
+    return uniqueSchoolIds(organizationAccess.accessibleSchoolIds, [primarySchoolId, ...teacherSchoolIds]);
   }
 
   if (role === "PARENT") {
