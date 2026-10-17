@@ -69,7 +69,20 @@ export const GET = createApiHandler(
             return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
         }
 
-        if (!canAccessSchool(session, student.user.schoolId)) {
+        // École de la fiche élève (pas celle de son compte) ; l'accès à l'école
+        // ne suffit jamais à un parent ni à un élève : un parent ne voit que ses
+        // enfants, un élève que sa propre fiche. Refus avant toute autre lecture.
+        if (!canAccessSchool(session, student.schoolId)) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        if (session.user.role === "PARENT") {
+            const link = await prisma.parentStudent.findFirst({
+                where: { studentId: student.id, parent: { userId: session.user.id } },
+                select: { id: true },
+            });
+            if (!link) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        if (session.user.role === "STUDENT" && student.userId !== session.user.id) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
         }
 
