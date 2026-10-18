@@ -1,8 +1,10 @@
 .git
 .gitignore
+# Aucun fichier d'environnement dans l'image (Next recopie .env et
+# .env.production dans la sortie standalone) : secrets fournis à l'exécution.
 .env
-.env.local
-.env*.local
+.env.*
+!.env.example
 node_modules
 .next
 npm-debug.log*
@@ -13,9 +15,19 @@ tests
 coverage
 .github
 infrastructure
+# scripts/backup est exclu VOLONTAIREMENT : la sauvegarde est la tâche planifiée
+# de l'hôte (connexion propriétaire, phrase secrète hors conteneur), pas celle
+# du conteneur web ; l'API de sauvegarde y répond 503 (prérequis absents).
 scripts
 # …sauf les préchargements et l'entrée du conteneur, copiés par le Dockerfile.
 !scripts/server
 *.log
 logs
 .DS_Store
+
+# Notes, rapports et enregistrements locaux : jamais dans le contexte de build
+.claude
+.quality-tmp
+audit-reports
+recette-videos*
+test-results
