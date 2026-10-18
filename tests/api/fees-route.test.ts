@@ -6,6 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     fee: { findMany: vi.fn(), create: vi.fn() },
+    academicYear: { findFirst: vi.fn() },
   },
 }));
 
@@ -92,8 +93,20 @@ describe("POST /api/fees", () => {
     expect(res.status).toBe(403);
   });
 
+  it("refuse l'année scolaire d'un autre établissement (400, lot S2), aucun frais créé", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue(null);
+
+    const res = await POST(makeRequest("http://localhost:3000/api/fees", { method: "POST", body: validCreateBody() }));
+
+    expect(res.status).toBe(400);
+    expect(vi.mocked(prisma.academicYear.findFirst).mock.calls[0][0]).toMatchObject({ where: { id: academicYearId, schoolId: FIXTURES.schoolA } });
+    expect(prisma.fee.create).not.toHaveBeenCalled();
+  });
+
   it("crée un frais scolaire (201)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: academicYearId } as never);
     vi.mocked(prisma.fee.create).mockResolvedValue({
       id: FIXTURES.feeA,
       ...validCreateBody(),

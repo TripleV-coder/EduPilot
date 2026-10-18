@@ -160,6 +160,19 @@ export const PATCH = createApiHandler(
       if (!canAccessSchool(session, targetClass.schoolId)) {
         return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
       }
+
+      // Changement de classe : la classe doit être de l'école de l'année de
+      // l'inscription en cours (lot S2, doublé en base)
+      const activeEnrollment = await prisma.enrollment.findFirst({
+        where: { studentId: id, status: "ACTIVE" },
+        select: { academicYear: { select: { schoolId: true } } },
+      });
+      if (activeEnrollment && activeEnrollment.academicYear.schoolId !== targetClass.schoolId) {
+        return NextResponse.json(
+          { error: "Cette classe n'appartient pas à l'établissement de l'année scolaire de l'inscription." },
+          { status: 400 },
+        );
+      }
     }
 
     // Update user and student profile in a transaction

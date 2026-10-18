@@ -35,6 +35,10 @@ export const PATCH = createApiHandler(
             return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Données invalides" }, { status: 400 });
         }
         const data = parsed.data;
+        // Année du frais dans la même école (lot S2, doublé en base)
+        if (data.academicYearId && !(await prisma.academicYear.findFirst({ where: { id: data.academicYearId, schoolId: fee.schoolId }, select: { id: true } }))) {
+            return NextResponse.json({ error: "Cette année scolaire n'appartient pas à l'établissement concerné." }, { status: 400 });
+        }
 
         if (data.amount !== undefined && data.amount !== Number(fee.amount) && fee._count.payments > 0) {
             return NextResponse.json(

@@ -71,6 +71,10 @@ export const POST = createApiHandler(
       if (!schoolId) {
         return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
       }
+      // Année du frais dans la même école (lot S2, doublé en base)
+      if (data.academicYearId && !(await prisma.academicYear.findFirst({ where: { id: data.academicYearId, schoolId }, select: { id: true } }))) {
+        return NextResponse.json({ error: "Cette année scolaire n'appartient pas à l'établissement concerné." }, { status: 400 });
+      }
 
       const fee = await prisma.fee.create({
         data: {

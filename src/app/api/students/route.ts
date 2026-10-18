@@ -278,6 +278,14 @@ export const POST = createApiHandler(
     if (!targetSchoolId) {
       return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
     }
+    // Inscription : année de l'école de la classe (lot S2, doublé en base)
+    if (
+      validatedData.classId &&
+      validatedData.academicYearId &&
+      !(await prisma.academicYear.findFirst({ where: { id: validatedData.academicYearId, schoolId: targetSchoolId }, select: { id: true } }))
+    ) {
+      return NextResponse.json({ error: "Cette année scolaire n'appartient pas à l'établissement concerné." }, { status: 400 });
+    }
 
     // Check email uniqueness explicitly to match previous behavior/tests
     if (validatedData.email) {
