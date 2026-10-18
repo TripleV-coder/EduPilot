@@ -7,6 +7,7 @@ import { runInstallmentReminders } from "@/lib/finance/reminders";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { reconcileStalePayments, type ReconcileReport } from "@/lib/finance/online-payments";
 import { logger } from "@/lib/utils/logger";
+import { purgeExpiredRevokedSessions } from "@/lib/auth/session-revocation";
 
 export class AutomationService {
     /**
@@ -41,6 +42,11 @@ export class AutomationService {
             const finance = await this.runFinanceReminders();
             results.financeReminders = finance;
             results.financeAlerts = finance.CRITICAL;
+
+            // 4. Sessions fermées dont le jeton a expiré : la liste ne grossit pas
+            await purgeExpiredRevokedSessions().catch((error) =>
+                logger.error("Purge des sessions fermées impossible", error as Error),
+            );
 
             logger.info("✨ Daily maintenance complete!", results);
             return { success: true, ...results };

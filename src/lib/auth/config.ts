@@ -21,6 +21,7 @@ import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
 import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
 import { getUserStatus, invalidateUserStatusCache } from "./user-status-cache";
+import { isSessionRevoked, revokeSession } from "./session-revocation";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
 import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
@@ -269,6 +270,16 @@ export const authConfig: NextAuthConfig = {
       }),
     }),
   ],
+  events: {
+    // Déconnexion : la session est révoquée côté serveur, pas seulement le
+    // cookie du navigateur (sécurité HTTP, 2026-10-18)
+    async signOut(message) {
+      const token = "token" in message ? message.token : null;
+      if (token && typeof token.sid === "string" && typeof token.id === "string") {
+        await revokeSession(token.sid, token.id);
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
@@ -289,6 +300,9 @@ export const authConfig: NextAuthConfig = {
         token.isTwoFactorAuthenticated = authUser.isTwoFactorAuthenticated;
         token.mustChangePassword = authUser.mustChangePassword;
         token.avatar = authUser.avatar;
+        // Identifiant de session stable (le jti d'Auth.js change à chaque
+        // réémission) : la déconnexion le révoque côté serveur.
+        token.sid = globalThis.crypto.randomUUID();
       }
 
       // MFA Verification via Update
@@ -408,6 +422,12 @@ export const authConfig: NextAuthConfig = {
 
         // Compte supprimé définitivement : aucun droit ne survit dans le jeton
         if (!userStatus) {
+          token.invalidated = true;
+          return token;
+        }
+
+        // Session fermée par une déconnexion : une copie du cookie n'est plus acceptée
+        if (typeof token.sid === "string" && (await isSessionRevoked(token.sid))) {
           token.invalidated = true;
           return token;
         }

@@ -71,6 +71,8 @@ declare module "@auth/core/adapters" {
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
     id: string;
+    /** Identifiant de session stable, révoqué à la déconnexion. */
+    sid?: string;
     role: UserRole;
     roles?: UserRole[];
     permissions?: Permission[];

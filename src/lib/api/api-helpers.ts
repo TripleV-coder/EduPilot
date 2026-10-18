@@ -255,6 +255,40 @@ export const ANONYMOUS_SUBMISSION_HEADER = "x-edupilot-anonymous-submission";
 /** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
 export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function hostOf(url: string | undefined | null): string | null {
+    if (!url) return null;
+    try {
+        return new URL(url).host;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Mutation envoyée par un navigateur depuis un autre site : `Sec-Fetch-Site:
+ * cross-site`, Origin « null », ou Origin dont l'hôte n'est pas celui de
+ * l'application (hôte de la requête, hôte transmis par le proxy, URL publique
+ * configurée). Une requête sans Origin (client non navigateur) n'est pas visée.
+ */
+export function isCrossSiteBrowserMutation(request: Pick<Request, "method" | "url" | "headers">): boolean {
+    if (!MUTATING_METHODS.has((request.method ?? "").toUpperCase())) return false;
+    if (request.headers.get("sec-fetch-site") === "cross-site") return true;
+    const origin = request.headers.get("origin");
+    if (!origin) return false;
+    const originHost = hostOf(origin);
+    if (!originHost) return true; // « null » ou valeur illisible
+    const allowed = [
+        hostOf(request.url),
+        request.headers.get("host"),
+        request.headers.get("x-forwarded-host")?.split(",")[0]?.trim(),
+        hostOf(process.env.NEXTAUTH_URL),
+        hostOf(process.env.NEXT_PUBLIC_APP_URL),
+    ].filter((host): host is string => Boolean(host));
+    return !allowed.includes(originHost);
+}
+
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type BodyInspection = "ok" | "too-large" | "invalid-json";
@@ -384,6 +418,14 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
 
             if (options.requireAuth !== false && !session?.user) {
                 return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+            }
+
+            // ── CSRF (défense en profondeur, en plus de SameSite=Lax) ──
+            // Une mutation authentifiée par cookie, venue d'un navigateur sur
+            // un autre site, est refusée. Les clients sans en-tête Origin et
+            // les routes publiques (webhooks signés) ne sont pas concernés.
+            if (options.requireAuth !== false && isCrossSiteBrowserMutation(request)) {
+                return NextResponse.json({ error: "Origine de la requête refusée", code: "CROSS_SITE_REQUEST" }, { status: 403 });
             }
 
             // ── ISOLATION MULTI-TENANT STRICTE ──

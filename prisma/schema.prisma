@@ -387,6 +387,19 @@ model FirstLoginToken {
   @@map("first_login_tokens")
 }
 
+/// Sessions fermées (déconnexion) : identifiant de session stable porté par
+/// le jeton. Un cookie recopié avant la déconnexion n'est plus accepté
+/// (sécurité HTTP, 2026-10-18). Lignes purgées après expiration du jeton.
+model RevokedSession {
+  sid       String   @id
+  userId    String
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("revoked_sessions")
+}
+
 model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique

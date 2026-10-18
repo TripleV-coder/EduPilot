@@ -268,7 +268,8 @@ describe("callback jwt — connexion initiale", () => {
       mustChangePassword: false, avatar: null,
     };
     const token = await jwt({ token: {}, user, trigger: "signIn" });
-    expect(token).toEqual({ ...user });
+    // + identifiant de session stable, révocable à la déconnexion (sécurité HTTP)
+    expect(token).toEqual({ ...user, sid: expect.any(String) });
     expect(findUnique).not.toHaveBeenCalled();
   });
 
