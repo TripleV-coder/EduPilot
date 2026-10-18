@@ -7,6 +7,7 @@ import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/li
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
+import { isZodError } from "@/lib/is-zod-error";
 import { nanoid } from "nanoid";
 
 const MANUAL_PAYMENT_METHODS = ["CASH", "CHECK", "BANK_TRANSFER", "OTHER"] as const;
@@ -100,6 +101,9 @@ export const POST = createApiHandler(
 
       return NextResponse.json(payment);
     } catch (error) {
+      // Corps illisible ou invalide : faute du client. createApiHandler le
+      // convertit en 400 détaillé ; l'interception générique répondait 500.
+      if (isZodError(error) || (error instanceof SyntaxError && /JSON/i.test(error.message))) throw error;
       logger.error("Cash payment failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/cash" });
       return NextResponse.json({ error: "Impossible d'enregistrer le paiement" }, { status: 500 });
     }
