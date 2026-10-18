@@ -14838,6 +14838,37 @@
         }
       }
     },
+    "/api/payments/status": {
+      "get": {
+        "summary": "GET /api/payments/status",
+        "description": "Session requise.",
+        "tags": [
+          "payments"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/payments/webhook": {
       "post": {
         "summary": "POST /api/payments/webhook",

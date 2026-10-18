@@ -68,7 +68,7 @@ export class FlutterwaveProvider implements PaymentProvider {
             tx_ref: reference,
             amount,
             currency: currency || 'XOF',
-            redirect_url: `${appUrl}/api/payments/reconcile?ref=${reference}`,
+            redirect_url: `${appUrl}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
             customer: {
                 email,
                 name: (metadata?.studentName as string) || 'EduPilot Student',

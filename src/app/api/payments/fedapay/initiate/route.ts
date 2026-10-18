@@ -146,7 +146,7 @@ export const POST = createApiHandler(async (request, context) => {
             amount,
             description: payment.fee?.name ? `Frais : ${payment.fee.name}` : "Frais scolaires",
             reference,
-            callbackUrl: `${origin}/dashboard/finance?ref=${encodeURIComponent(reference)}`,
+            callbackUrl: `${origin}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
             customer: {
                 firstname: payer.firstName ?? "Parent",
                 lastname: payer.lastName ?? "EduPilot",

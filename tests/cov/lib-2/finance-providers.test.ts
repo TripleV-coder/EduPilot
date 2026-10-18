@@ -70,7 +70,7 @@ describe("FlutterwaveProvider", () => {
       tx_ref: "REF-1",
       amount: 15000,
       currency: "XOF",
-      redirect_url: "https://ecole.bj/api/payments/reconcile?ref=REF-1",
+      redirect_url: "https://ecole.bj/dashboard/finance/retour-paiement?ref=REF-1",
       customer: { email: "p@x.bj", name: "Awa", phonenumber: "229" },
       customizations: { description: "T1", logo: "https://ecole.bj/logo.png" },
     });
@@ -83,7 +83,7 @@ describe("FlutterwaveProvider", () => {
     await flw.initiatePayment(1, "NGN", "e", "R", undefined as never);
     const body = JSON.parse(fetchCall(0)[1].body as string);
     expect(body.currency).toBe("NGN");
-    expect(body.redirect_url).toBe("http://localhost:3000/api/payments/reconcile?ref=R");
+    expect(body.redirect_url).toBe("http://localhost:3000/dashboard/finance/retour-paiement?ref=R");
     expect(body.customer.name).toBe("EduPilot Student");
     expect(body.customer.phonenumber).toBeUndefined();
     expect(body.customizations.description).toBe("Paiement des frais scolaires");
@@ -161,7 +161,7 @@ describe("PaystackProvider", () => {
       amount: 1235,
       currency: "NGN",
       reference: "R-9",
-      callback_url: "https://ecole.bj/api/payments/reconcile?ref=R-9",
+      callback_url: "https://ecole.bj/dashboard/finance/retour-paiement?ref=R-9",
       metadata: { classe: "6e", cancel_action: "https://ecole.bj/dashboard/finance" },
     });
   });
@@ -171,7 +171,7 @@ describe("PaystackProvider", () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: true, message: "ok", data: { authorization_url: "u" } }));
     await ps.initiatePayment(1, "XOF", "e", "R", {});
-    expect(JSON.parse(fetchCall(0)[1].body as string).callback_url).toBe("http://localhost:3000/api/payments/reconcile?ref=R");
+    expect(JSON.parse(fetchCall(0)[1].body as string).callback_url).toBe("http://localhost:3000/dashboard/finance/retour-paiement?ref=R");
   });
 
   it.each([
@@ -229,7 +229,7 @@ describe("FedaPayProvider", () => {
     expect(feda.create).toHaveBeenCalledWith(
       expect.objectContaining({
         description: "Scolarité",
-        callback_url: "https://ecole.bj/api/payments/reconcile?ref=R%261",
+        callback_url: "https://ecole.bj/dashboard/finance/retour-paiement?ref=R%261",
         merchant_reference: "R&1",
         customer: expect.objectContaining({
           firstname: "Awa",
@@ -249,7 +249,7 @@ describe("FedaPayProvider", () => {
     expect(arg.customer).toMatchObject({ firstname: "Awa", lastname: "—" });
     expect(arg.customer.phone_number).toBeUndefined();
     expect(arg.description).toBe("Frais scolaires EduPilot");
-    expect(arg.callback_url).toBe("http://localhost:3000/api/payments/reconcile?ref=R");
+    expect(arg.callback_url).toBe("http://localhost:3000/dashboard/finance/retour-paiement?ref=R");
 
     await fp.initiatePayment(1, "XOF", "e", "R", undefined as never);
     arg = feda.create.mock.calls[1][0] as typeof arg;

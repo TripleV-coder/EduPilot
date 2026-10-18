@@ -38,7 +38,8 @@ export class FedaPayProvider implements PaymentProvider {
             amount,
             description: (metadata?.description as string) || "Frais scolaires EduPilot",
             reference,
-            callbackUrl: `${appUrl}/api/payments/reconcile?ref=${encodeURIComponent(reference)}`,
+            // Retour du navigateur : page qui lit le statut en base (S4), jamais une API
+            callbackUrl: `${appUrl}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
             customer: {
                 firstname,
                 lastname,

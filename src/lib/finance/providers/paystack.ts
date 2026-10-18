@@ -67,7 +67,7 @@ export class PaystackProvider implements PaymentProvider {
             amount: amountInKobo,
             currency: currency || 'NGN',
             reference,
-            callback_url: `${appUrl}/api/payments/reconcile?ref=${reference}`,
+            callback_url: `${appUrl}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
             metadata: {
                 ...metadata,
                 cancel_action: `${appUrl}/dashboard/finance`,
