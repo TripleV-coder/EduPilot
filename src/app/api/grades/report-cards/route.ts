@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
@@ -304,6 +305,11 @@ const { searchParams } = new URL(request.url);
       }
     }
 
+    // Enseignant (MS-02) : seulement les élèves de ses classes
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, studentId))) {
+      return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
+    }
+
     const reportCard = await getReportCardData(studentId, periodId);
     return NextResponse.json(reportCard);
 
@@ -346,6 +352,11 @@ const body = await request.json();
     const accessError = ensureSchoolAccess(session, student.schoolId);
     if (accessError) {
       return accessError;
+    }
+
+    // Enseignant (MS-02) : seulement les élèves de ses classes
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, studentId))) {
+      return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
     }
 
 

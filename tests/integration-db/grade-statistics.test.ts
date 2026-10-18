@@ -176,12 +176,14 @@ describe("C3 — statistiques agrégées en base", () => {
 });
 
 describe("N10 — périmètre des statistiques", () => {
-  it("ne montre pas le classement nominatif à un enseignant d'une autre classe", async () => {
+  // MS-02 : un enseignant d'une autre classe n'obtient plus du tout les
+  // statistiques de cette classe (avant : 200 sans les noms du classement)
+  it("refuse les statistiques d'une classe à un enseignant d'une autre classe (403), sans classement", async () => {
     actAs(sessionFor("TEACHER", schoolId, otherTeacherUserId));
-    const { body } = await stats(`type=class&classId=${classId}&periodId=${p2}`);
+    const { status, body } = await stats(`type=class&classId=${classId}&periodId=${p2}`);
 
-    expect(body.ranking?.students).toBeUndefined();
-    expect(body.ranking?.topStudent).toBeNull();
+    expect(status).toBe(403);
+    expect(body.ranking).toBeUndefined();
   });
 
   it("limite un parent aux notes de son enfant", async () => {
