@@ -20,10 +20,15 @@ export const GET = createApiHandler(async (request, context) => {
     let organizationId = requestedOrganizationId || session.user.primaryOrganizationId || null;
 
     if (session.user.role !== "SUPER_ADMIN") {
+      // Vue consolidée = données des écoles du réseau (moyennes, effectifs,
+      // finances par site) : réservée au NETWORK_ADMIN membre de
+      // l'organisation (S5). Être propriétaire ou gestionnaire d'une
+      // organisation ne donne pas accès aux données des écoles voisines.
+      if (session.user.role !== "NETWORK_ADMIN") {
+        return NextResponse.json({ error: "Accès organisation refusé" }, { status: 403 });
+      }
       const organizationAccess = await getOrganizationAccessForUser(session.user.id);
-      const manageableOrganizationIds = organizationAccess.memberships
-        .filter((membership) => membership.isOwner || membership.canManageSites)
-        .map((membership) => membership.organizationId);
+      const manageableOrganizationIds = organizationAccess.memberships.map((membership) => membership.organizationId);
 
       if (manageableOrganizationIds.length === 0) {
         return NextResponse.json({ error: "Accès organisation refusé" }, { status: 403 });

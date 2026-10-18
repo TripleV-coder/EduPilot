@@ -116,10 +116,22 @@ describe("getAccessibleSchoolIdsForUser", () => {
     expect(await getAccessibleSchoolIdsForUser({ userId: "e", role: "STUDENT", primarySchoolId: null })).toEqual([]);
   });
 
-  it("DIRECTOR sans école principale : écoles de ses organisations seulement", async () => {
+  // S5 : l'adhésion n'ouvre les écoles de l'organisation qu'au NETWORK_ADMIN
+  it("DIRECTOR sans école principale : aucune école, même membre d'une organisation", async () => {
     vi.mocked(prisma.organizationMembership.findMany).mockResolvedValueOnce([membership("o", ["s8"])] as never);
-    expect(await getAccessibleSchoolIdsForUser({ userId: "d", role: "DIRECTOR", primarySchoolId: null })).toEqual(["s8"]);
-    expect(prisma.school.findUnique).not.toHaveBeenCalled();
+    expect(await getAccessibleSchoolIdsForUser({ userId: "d", role: "DIRECTOR", primarySchoolId: null })).toEqual([]);
+  });
+
+  it("SCHOOL_ADMIN membre (même propriétaire) d'une organisation : son école seulement", async () => {
+    vi.mocked(prisma.organizationMembership.findMany).mockResolvedValue([membership("o", ["s8", "s9"], { isOwner: true, canManageSites: true })] as never);
+    vi.mocked(prisma.school.findUnique).mockResolvedValueOnce({ siteType: "INDEPENDENT", childSchools: [] } as never);
+    expect(await getAccessibleSchoolIdsForUser({ userId: "d", role: "SCHOOL_ADMIN", primarySchoolId: "s1" })).toEqual(["s1"]);
+  });
+
+  it("NETWORK_ADMIN : écoles de ses organisations, plus son école", async () => {
+    vi.mocked(prisma.organizationMembership.findMany).mockResolvedValue([membership("o", ["s8", "s9"])] as never);
+    vi.mocked(prisma.school.findUnique).mockResolvedValueOnce({ siteType: "INDEPENDENT", childSchools: [] } as never);
+    expect(await getAccessibleSchoolIdsForUser({ userId: "n", role: "NETWORK_ADMIN" as never, primarySchoolId: "s8" })).toEqual(["s8", "s9"]);
   });
 
   it("SCHOOL_ADMIN d'un site principal : inclut les annexes", async () => {
@@ -132,9 +144,9 @@ describe("getAccessibleSchoolIdsForUser", () => {
     expect(await getAccessibleSchoolIdsForUser({ userId: "d", role: "NETWORK_ADMIN" as never, primarySchoolId: "x" })).toEqual(["x"]);
   });
 
-  it("autre rôle (ACCOUNTANT) : école principale + organisations", async () => {
+  it("autre rôle (ACCOUNTANT) : école principale seulement, même membre d'une organisation", async () => {
     vi.mocked(prisma.organizationMembership.findMany).mockResolvedValueOnce([membership("o", ["s9"])] as never);
-    expect(await getAccessibleSchoolIdsForUser({ userId: "c", role: "ACCOUNTANT", primarySchoolId: "s1" })).toEqual(["s9", "s1"]);
+    expect(await getAccessibleSchoolIdsForUser({ userId: "c", role: "ACCOUNTANT", primarySchoolId: "s1" })).toEqual(["s1"]);
   });
 });
 

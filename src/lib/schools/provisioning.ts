@@ -291,12 +291,13 @@ export async function createOrganizationMembership(
       userId: input.userId,
       title: trimOrNull(input.title),
       isOwner: input.isOwner ?? false,
-      canManageSites: input.canManageSites ?? true,
+      // Jamais implicite (S5) : l'appelant demande la gestion explicitement
+      canManageSites: input.canManageSites ?? false,
     },
     update: {
       title: trimOrNull(input.title),
       isOwner: input.isOwner ?? false,
-      canManageSites: input.canManageSites ?? true,
+      canManageSites: input.canManageSites ?? false,
     },
   });
 }
