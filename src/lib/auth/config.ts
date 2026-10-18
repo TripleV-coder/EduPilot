@@ -378,7 +378,13 @@ export const authConfig: NextAuthConfig = {
           // Les droits relus plus bas doivent refléter l'état en base, pas le cache
           invalidateUserStatusCache(userId);
           if (token.role === "SUPER_ADMIN") {
-            token.schoolId = (session.schoolId as string | null | undefined) ?? null;
+            // S6 : l'école choisie doit exister ; sinon, retour à la vue globale
+            // (sans école active) plutôt qu'un identifiant arbitraire en session.
+            const requestedSchoolId = typeof session.schoolId === "string" && session.schoolId ? session.schoolId : null;
+            const school = requestedSchoolId
+              ? await prisma.school.findUnique({ where: { id: requestedSchoolId }, select: { id: true } })
+              : null;
+            token.schoolId = school?.id ?? null;
           } else {
             const dbUser = await prisma.user.findUnique({
               where: { id: userId },

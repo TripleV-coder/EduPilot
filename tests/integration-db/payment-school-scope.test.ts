@@ -102,8 +102,13 @@ describe("Élève et frais de la même école", () => {
             expect(res.status, path).toBe(403);
             expect(res.body, path).toEqual({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." });
         }
-        // Plateforme sans école active : seule la correspondance élève/frais protège
+        // Plateforme sans école sélectionnée : refus d'emblée (S6)
         actAs(as("SUPER_ADMIN", null, [], rootUser));
+        const unselected = await callRoute(financePayment, { method: "POST", path: "/api/finance/payments", body: body(studentA, feeB) });
+        expect(unselected.status).toBe(400);
+        expect(unselected.body).toMatchObject({ code: "SCHOOL_REQUIRED" });
+        // École A sélectionnée : la correspondance élève/frais refuse encore
+        actAs(as("SUPER_ADMIN", A, [], rootUser));
         const res = await callRoute(financePayment, { method: "POST", path: "/api/finance/payments", body: body(studentA, feeB) });
         expect(res.status).toBe(403);
         expect(await paymentsOf(studentA, feeB)).toBe(0);

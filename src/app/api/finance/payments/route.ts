@@ -8,6 +8,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { buildPaymentDateWhere } from "@/lib/finance/helpers";
 import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 
@@ -41,10 +42,11 @@ export const GET = createApiHandler(
         // École ACTIVE de la session (et non l'école principale relue en base) :
         // un comptable ou un directeur de plusieurs établissements voit les
         // paiements de celui où il travaille.
-        const activeSchoolId = getActiveSchoolId(session);
-        if (activeSchoolId) {
-            where.fee = { schoolId: activeSchoolId };
-        }
+        // S6 : toujours une seule école, choisie explicitement (le super-admin
+        // sans sélection recevait les paiements de tous les établissements).
+        const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "finance-payments:list");
+        if (!scope.ok) return scope.response;
+        where.fee = { schoolId: scope.schoolId };
 
         const [payments, total] = await Promise.all([
             prisma.payment.findMany({
@@ -75,7 +77,13 @@ export const POST = createApiHandler(
         const validatedData = paymentSchema.parse(body);
 
         const receivedByUserId = authSession.user.id;
-        const actorSchoolId = getActiveSchoolId(authSession);
+        let actorSchoolId = getActiveSchoolId(authSession);
+        // S6 : le super-admin n'encaisse que dans l'école sélectionnée
+        if (authSession.user.role === "SUPER_ADMIN") {
+            const scope = await resolveFinanceSchool(authSession, null, "finance-payments:create");
+            if (!scope.ok) return scope.response;
+            actorSchoolId = scope.schoolId;
+        }
 
         // Vérification multi-tenant : l'élève (école de sa FICHE, pas de son
         // compte) ET le frais doivent appartenir à l'école active de

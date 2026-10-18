@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withTenantRls } from "@/lib/db/tenant-rls";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { ensureOpenChart } from "@/lib/accounting/ensure-chart";
@@ -10,13 +10,10 @@ export const GET = createApiHandler(
     async (request, context) => {
         const session = context.session;
 
-        const schoolId = getActiveSchoolId(session);
-        if (!schoolId) {
-            return NextResponse.json(
-                { error: "Aucun établissement actif associé au compte." },
-                { status: 400 },
-            );
-        }
+        // S6 : école active vérifiée (existence, périmètre) et accès audité
+        const scope = await resolveFinanceSchool(session, null, "accounting:entries-list");
+        if (!scope.ok) return scope.response;
+        const schoolId = scope.schoolId;
 
         const url = new URL(request.url);
         const wantAccounts = url.searchParams.get("accounts") === "1";
@@ -89,13 +86,10 @@ export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;
 
-        const schoolId = getActiveSchoolId(session);
-        if (!schoolId) {
-            return NextResponse.json(
-                { error: "Aucun établissement actif associé au compte." },
-                { status: 400 },
-            );
-        }
+        // S6 : école active vérifiée (existence, périmètre) et accès audité
+        const scope = await resolveFinanceSchool(session, null, "accounting:entries-create");
+        if (!scope.ok) return scope.response;
+        const schoolId = scope.schoolId;
 
         let body: unknown;
         try {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { buildNoticeBatch, isNoticeError, renderNoticesPdf } from "@/lib/finance/payment-notices";
 
 const noticesSchema = z.object({
@@ -18,10 +19,17 @@ const noticesSchema = z.object({
 export const POST = createApiHandler(
   async (request, { session }) => {
     const body = noticesSchema.parse(await request.json());
+    // S6 : le super-admin n'édite les avis que de l'école sélectionnée
+    let selectedSchoolId: string | null = null;
+    if (session.user.role === "SUPER_ADMIN") {
+      const scope = await resolveFinanceSchool(session, null, "finance:payment-notices");
+      if (!scope.ok) return scope.response;
+      selectedSchoolId = scope.schoolId;
+    }
     const batch = await buildNoticeBatch({
       feeId: body.feeId,
       classLevelId: body.classLevelId,
-      canAccessSchool: (schoolId) => canAccessSchool(session, schoolId),
+      canAccessSchool: (schoolId) => (selectedSchoolId ? schoolId === selectedSchoolId : canAccessSchool(session, schoolId)),
     });
     if (isNoticeError(batch)) {
       return NextResponse.json({ error: batch.error }, { status: batch.status });

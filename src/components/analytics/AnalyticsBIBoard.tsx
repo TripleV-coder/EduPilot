@@ -83,7 +83,9 @@ export function AnalyticsBIBoard({ schoolId, academicYearId, onOpenReport }: Ana
                     fontSize: 13,
                 }}
             >
-                Impossible de charger le tableau BI pour le contexte sélectionné.
+                <p>Impossible de charger le tableau BI pour le contexte sélectionné.</p>
+                {/* S6 : sans école sélectionnée, le serveur explique quoi faire */}
+                {error instanceof Error && error.message && <p className="mt-1">{error.message}</p>}
             </div>
         );
     }

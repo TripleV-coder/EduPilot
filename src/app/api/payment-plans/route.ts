@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@/lib/utils/logger";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { addMonthsClamped, roundFcfa, splitInstallments } from "@/lib/finance/money";
@@ -54,6 +55,10 @@ export const GET = createApiHandler(async (request, context) => {
       }
       where.studentId = { in: parentProfile.parentStudents.map(c => c.student.id) };
     } else if (session.user.role === "SUPER_ADMIN") {
+      // S6 : les échéanciers d'une école sélectionnée, jamais de toutes
+      const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "payment-plans:list");
+      if (!scope.ok) return scope.response;
+      where.student = { schoolId: scope.schoolId };
       if (studentId) {
         where.studentId = studentId;
       }
@@ -134,6 +139,8 @@ export const POST = createApiHandler(
       if (session.user.role !== "SUPER_ADMIN" && !canAccessSchool(session, student.schoolId)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, student.schoolId, "payment-plans:create");
+      if (outOfScope) return outOfScope;
 
       // Verify fee exists
       const fee = await prisma.fee.findFirst({

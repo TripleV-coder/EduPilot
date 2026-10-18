@@ -17,6 +17,9 @@ vi.mock("@/lib/prisma", () => {
   return {
     default: {
       payment,
+      // S6 : école sélectionnée du super-admin vérifiée en base, accès audité
+      school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
+      auditLog: { create: vi.fn() },
       $transaction: vi.fn((arg: unknown) =>
         typeof arg === "function" ? (arg as (client: typeof tx) => unknown)(tx) : Promise.all(arg as Promise<unknown>[])
       ),
@@ -198,16 +201,17 @@ describe("POST /api/payments/reconcile", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("exige un schoolId pour la réconciliation en masse SUPER_ADMIN (400)", async () => {
+  it("exige une école sélectionnée pour la réconciliation en masse SUPER_ADMIN (400, S6)", async () => {
     vi.mocked(auth).mockResolvedValue(
-      makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" })
+      makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app", schoolId: null })
     );
     const res = await POST(makeRequest("http://localhost:3000/api/payments/reconcile", {
       method: "POST",
       body: { reconcileAllVerified: true },
     }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("ID d'établissement requis");
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
   });
 
   it("retourne 500 sur erreur de base de données", async () => {
@@ -271,9 +275,9 @@ describe("GET /api/payments/reconcile", () => {
     expect(where.where.reconciledAt).toBeNull();
   });
 
-  it("un SUPER_ADMIN peut cibler n'importe quelle école", async () => {
+  it("un SUPER_ADMIN sans école active peut désigner explicitement une école existante", async () => {
     vi.mocked(auth).mockResolvedValue(
-      makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" })
+      makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app", schoolId: null })
     );
     vi.mocked(prisma.payment.findMany).mockResolvedValue([verifiedPayment(p1)]);
     vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _count: { _all: 1 }, _sum: { amount: 10000 } } as never);
@@ -287,6 +291,16 @@ describe("GET /api/payments/reconcile", () => {
       where: { fee: { schoolId: string } };
     };
     expect(where.where.fee.schoolId).toBe(FIXTURES.schoolB);
+  });
+
+  it("un SUPER_ADMIN dans l'école A ne peut pas lister celle de B (S6, substitution)", async () => {
+    vi.mocked(auth).mockResolvedValue(
+      makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app", schoolId: FIXTURES.schoolA })
+    );
+    const res = await GET(makeRequest("http://localhost:3000/api/payments/reconcile?schoolId=" + FIXTURES.schoolB));
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("SCHOOL_MISMATCH");
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
   });
 
   // Audit M5 : liste non bornée (tous les paiements en attente de l'école,

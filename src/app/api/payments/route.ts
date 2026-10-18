@@ -9,10 +9,19 @@ import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cache
 import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
 import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 
 /** GET /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
+    // S6 : le super-admin lit les paiements d'UNE école sélectionnée, jamais
+    // de tous les établissements mélangés (contrôle hors cache : il est audité).
+    let superAdminSchoolId: string | null = null;
+    if (session.user.role === "SUPER_ADMIN") {
+      const scope = await resolveFinanceSchool(session, new URL(request.url).searchParams.get("schoolId"), "payments:list");
+      if (!scope.ok) return scope.response;
+      superAdminSchoolId = scope.schoolId;
+    }
     const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, cacheScope(session));
 
     const cachedHandler = cacheMiddleware({ ttl: 60, key: cacheKey });
@@ -39,8 +48,9 @@ export const GET = createApiHandler(
       if (feeId) where.feeId = feeId;
 
       // Multi-tenant security: filter by school
-      if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
-        where.fee = { schoolId: activeSchoolId };
+      const scopedSchoolId = session.user.role === "SUPER_ADMIN" ? superAdminSchoolId : activeSchoolId;
+      if (scopedSchoolId) {
+        where.fee = { schoolId: scopedSchoolId };
       }
 
       // PARENT can only see their children's payments
@@ -260,6 +270,8 @@ export const POST = createApiHandler(
     if (fee.schoolId !== student.schoolId) {
       return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
     }
+    const outOfScope = await superAdminTargetOutOfScope(session, fee.schoolId, "payments:create");
+    if (outOfScope) return outOfScope;
 
     // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
     const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {

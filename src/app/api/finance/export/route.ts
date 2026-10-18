@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import { escapeCsvCell } from "@/lib/utils/export";
 import { logger } from "@/lib/utils/logger";
@@ -15,13 +15,10 @@ export const GET = createApiHandler(async (request, context) => {
   try {
     const session = context.session;
     const { searchParams } = new URL(request.url);
-    const requestedSchoolId = searchParams.get("schoolId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
-    const activeSchoolId = getActiveSchoolId(session);
-    const schoolId = session.user.role === "SUPER_ADMIN"
-      ? requestedSchoolId
-      : requestedSchoolId || activeSchoolId;
+    // S6 : école explicite, vérifiée et dans le périmètre (export audité)
+    const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "finance:export");
+    if (!scope.ok) return scope.response;
+    const schoolId = scope.schoolId;
     const academicYearId = searchParams.get("academicYearId");
     const dateRange = parseDateRangeParams(searchParams);
     if (!dateRange.success) return dateRange.response;

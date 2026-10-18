@@ -29,6 +29,8 @@ let schoolB: string;
 let accountantA: Session;
 let accountantB: Session;
 let superAdmin: Session;
+let superAdminInA: Session;
+let superAdminInB: Session;
 const MIGRATION = path.resolve(__dirname, "../../prisma/migrations/20261017140000_payment_plan_unique_guard/migration.sql");
 
 async function newStudent(schoolId = schoolA) {
@@ -103,9 +105,13 @@ beforeAll(async () => {
         })).id);
     accountantA = await mk(schoolA);
     accountantB = await mk(schoolB);
-    superAdmin = sessionFor("SUPER_ADMIN", null, (await prisma.user.create({
+    const rootId = (await prisma.user.create({
         data: { email: `${uniqueCode("root")}@integration.test`, password: "x", firstName: "Root", lastName: "3d", role: "SUPER_ADMIN" },
-    })).id);
+    })).id;
+    superAdmin = sessionFor("SUPER_ADMIN", null, rootId);
+    // S6 : le super-admin travaille dans une école sélectionnée
+    superAdminInA = sessionFor("SUPER_ADMIN", schoolA, rootId);
+    superAdminInB = sessionFor("SUPER_ADMIN", schoolB, rootId);
 });
 beforeEach(() => actAs(accountantA));
 
@@ -180,15 +186,22 @@ describe("Création d'un plan", () => {
     it("SUPER_ADMIN : élève d'une école et frais d'une autre refusés (403), aucun plan", async () => {
         const s = await newStudent(schoolA);
         const f = await newFee(schoolB);
-        actAs(superAdmin);
+        actAs(superAdminInA);
         expect((await create(s, f)).status).toBe(403);
+        // Sans école sélectionnée : refus d'emblée (S6)
+        actAs(superAdmin);
+        expect((await create(s, f)).status).toBe(400);
         expect(await livePlans(s, f)).toHaveLength(0);
     });
 
-    it("SUPER_ADMIN : plan accepté quand élève et frais sont de la même école", async () => {
+    it("SUPER_ADMIN : plan accepté quand élève et frais sont de l'école sélectionnée", async () => {
         const s = await newStudent(schoolB);
         const f = await newFee(schoolB);
-        actAs(superAdmin);
+        // École A sélectionnée : l'élève de B est hors sélection (S6)
+        actAs(superAdminInA);
+        expect((await create(s, f)).status).toBe(403);
+        expect(await livePlans(s, f)).toHaveLength(0);
+        actAs(superAdminInB);
         expect((await create(s, f)).status).toBe(201);
         expect(await livePlans(s, f)).toHaveLength(1);
     });
@@ -335,7 +348,7 @@ describe("Plans historiques incohérents (élève et frais d'écoles différente
     it("création d'un plan incohérent : toujours interdite (API SUPER_ADMIN et SQL direct)", async () => {
         const s = await newStudent(schoolA);
         const f = await newFee(schoolB);
-        actAs(superAdmin);
+        actAs(superAdminInA);
         expect((await create(s, f)).status).toBe(403);
         await expect(prisma.paymentPlan.create({ data: { studentId: s, feeId: f, totalAmount: 1000, installments: 1, status: "CANCELLED" } })).rejects.toThrow(/même établissement/);
         expect(await prisma.paymentPlan.count({ where: { studentId: s, feeId: f } })).toBe(0);

@@ -4,6 +4,7 @@ import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/
 import { PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { appendNote } from "@/lib/finance/helpers";
 
@@ -46,14 +47,18 @@ export const POST = createApiHandler(
       const body = await request.json();
       const { paymentIds, notes, reconcileAllVerified } = body;
       const customNote = typeof notes === "string" && notes.trim() ? notes.trim().slice(0, 500) : null;
-      const activeSchoolId = getActiveSchoolId(session);
+      let activeSchoolId = getActiveSchoolId(session);
       const schoolAccess = ensureRequestedSchoolAccess(session, body.schoolId);
       if (schoolAccess) return schoolAccess;
+      // S6 : le super-admin rapproche dans l'école sélectionnée, et seulement elle
+      if (session.user.role === "SUPER_ADMIN") {
+        const scope = await resolveFinanceSchool(session, body.schoolId, "payments:reconcile");
+        if (!scope.ok) return scope.response;
+        activeSchoolId = scope.schoolId;
+      }
 
       if (reconcileAllVerified) {
-        const schoolId = session.user.role === "SUPER_ADMIN"
-          ? body.schoolId
-          : activeSchoolId;
+        const schoolId = activeSchoolId;
 
         if (!schoolId) {
           return NextResponse.json(
@@ -110,12 +115,10 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Un ou plusieurs paiements sont introuvables" }, { status: 404 });
       }
 
-      const schoolId = session.user.role === "SUPER_ADMIN"
-        ? paymentsToReconcile[0]?.fee.schoolId
-        : activeSchoolId;
+      const schoolId = activeSchoolId;
 
       for (const payment of paymentsToReconcile) {
-        if (session.user.role !== "SUPER_ADMIN" && payment.fee.schoolId !== schoolId) {
+        if (payment.fee.schoolId !== schoolId) {
           return NextResponse.json(
             { error: "Certains paiements n'appartiennent pas à votre établissement" },
             { status: 403 }
@@ -181,14 +184,18 @@ export const GET = createApiHandler(async (request, context) => {
       );
     }
 
-    const targetSchoolId = session.user.role === "SUPER_ADMIN" && schoolId
-      ? schoolId
-      : schoolId || activeSchoolId;
+    // S6 : sans école, le super-admin voyait les paiements de tous les établissements
+    let targetSchoolId = schoolId || activeSchoolId;
+    if (session.user.role === "SUPER_ADMIN") {
+      const scope = await resolveFinanceSchool(session, schoolId, "payments:reconcile-list");
+      if (!scope.ok) return scope.response;
+      targetSchoolId = scope.schoolId;
+    }
 
     const where = {
       status,
       reconciledAt: null,
-      fee: { schoolId: targetSchoolId || undefined },
+      fee: { schoolId: targetSchoolId },
     };
 
     // Audit M5 : liste paginée par curseur (createdAt : paidAt peut être nul)

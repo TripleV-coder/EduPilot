@@ -9,6 +9,7 @@ vi.mock("next-auth/providers/credentials", () => ({
 vi.mock("@/lib/prisma", () => ({
   default: {
     user: { findUnique: vi.fn(), update: vi.fn() },
+    school: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
   },
 }));
@@ -353,14 +354,20 @@ describe("callback jwt — vérification MFA (trigger update)", () => {
 });
 
 describe("callback jwt — changement d'école active", () => {
-  it("un SUPER_ADMIN choisit librement l'école (ou aucune)", async () => {
+  it("un SUPER_ADMIN choisit n'importe quelle école existante (ou aucune) ; une école inconnue le ramène à la vue globale (S6)", async () => {
     findUnique.mockResolvedValue(null);
+    const schoolFind = vi.mocked(prisma.school.findUnique);
+    schoolFind.mockResolvedValueOnce({ id: "any" } as never);
     let token = await jwt({ token: { id: "sa-1", role: "SUPER_ADMIN" }, trigger: "update", session: { schoolId: "any" } });
     expect(token.schoolId).toBe("any");
+    schoolFind.mockResolvedValueOnce(null);
+    token = await jwt({ token: { id: "sa-1", role: "SUPER_ADMIN", schoolId: "x" }, trigger: "update", session: { schoolId: "inconnue" } });
+    expect(token.schoolId).toBeNull();
     token = await jwt({ token: { id: "sa-1", role: "SUPER_ADMIN", schoolId: "x" }, trigger: "update", session: { schoolId: undefined } });
     expect(token.schoolId).toBeNull();
     expect(getAccessibleSchoolIdsForUser).not.toHaveBeenCalled();
     findUnique.mockReset();
+    schoolFind.mockReset();
   });
 
   it("un autre rôle ne peut basculer que vers une école accessible", async () => {

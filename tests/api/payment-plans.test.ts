@@ -30,6 +30,8 @@ vi.mock("@/lib/prisma", () => {
     scholarship: { findMany: vi.fn() },
     auditLog: { create: vi.fn() },
     notification: { create: vi.fn(), createMany: vi.fn() },
+    // S6 : école sélectionnée du super-admin vérifiée en base
+    school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: unknown) => Promise<unknown>)(prismaMock)

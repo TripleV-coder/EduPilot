@@ -7,7 +7,7 @@ import {
   resolveFinanceDateRange,
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -18,11 +18,10 @@ export const GET = createApiHandler(async (request, context) => {
   try {
     const session = context.session;
     const { searchParams } = new URL(request.url);
-    const requestedSchoolId = searchParams.get("schoolId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
-    const activeSchoolId = getActiveSchoolId(session);
-    const schoolId = requestedSchoolId || activeSchoolId;
+    // S6 : école explicite, vérifiée et dans le périmètre
+    const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "finance:report");
+    if (!scope.ok) return scope.response;
+    const schoolId = scope.schoolId;
     const academicYearId = searchParams.get("academicYearId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -109,11 +108,10 @@ export const POST = createApiHandler(async (request, context) => {
   try {
     const session = context.session;
     const { searchParams } = new URL(request.url);
-    const requestedSchoolId = searchParams.get("schoolId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
-    const activeSchoolId = getActiveSchoolId(session);
-    const schoolId = requestedSchoolId || activeSchoolId;
+    // S6 : école explicite, vérifiée et dans le périmètre
+    const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "finance:report");
+    if (!scope.ok) return scope.response;
+    const schoolId = scope.schoolId;
     const academicYearId = searchParams.get("academicYearId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");

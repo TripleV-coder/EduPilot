@@ -7,6 +7,7 @@ import { fcfaAmountSchema } from "@/lib/finance/money";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { assertReferenceFree, assertWithinAvailable, availableWithout, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 
 const paymentUpdateSchema = z.object({
@@ -105,6 +106,8 @@ export const PATCH = createApiHandler(
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.student.schoolId, "payments:update");
+      if (outOfScope) return outOfScope;
 
       const body = await request.json();
       const validatedData = paymentUpdateSchema.parse(body);
@@ -188,6 +191,8 @@ export const DELETE = createApiHandler(
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.student.schoolId, "payments:delete");
+      if (outOfScope) return outOfScope;
 
       // Sous verrou élève/frais : pas de recalcul concurrent perdu (lot 3b)
       const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, (tx) =>

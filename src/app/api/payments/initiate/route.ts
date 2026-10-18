@@ -9,6 +9,7 @@ import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { nanoid } from "nanoid";
@@ -116,6 +117,8 @@ export const POST = createApiHandler(
             if (fee.schoolId !== studentProfile.schoolId) {
                 return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
             }
+            const outOfScope = await superAdminTargetOutOfScope(session, fee.schoolId, "payments:initiate");
+            if (outOfScope) return outOfScope;
 
             if (session.user.role === "PARENT") {
                 const parentProfile = await prisma.parentProfile.findUnique({

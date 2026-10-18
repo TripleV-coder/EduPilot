@@ -66,7 +66,8 @@ describe("GET /api/finance/export", () => {
     vi.mocked(auth).mockResolvedValue(NO_SCHOOL_ROOT);
     const res = await GET(makeRequest("http://localhost/api/finance/export"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("ID d'établissement requis");
+    // S6 : sélection d'école exigée du super-admin
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
   });
 
   it("rejette une plage de dates invalide (400)", async () => {

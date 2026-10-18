@@ -16,7 +16,7 @@ import {
 } from "@/lib/finance/helpers";
 import { collectedByUtcMonth, summarizePaymentPlansInRange } from "@/lib/finance/stats-aggregates";
 import { computePlanlessExpected } from "@/lib/finance/expected-fees";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 
 function calculateGrowth(currentValue: number, previousValue: number): number {
@@ -37,22 +37,13 @@ export const GET = createApiHandler(
   async (request, context) => {
     const session = context.session;
     const url = new URL(request.url);
+    // S6 : école explicite et vérifiée (hors cache : le contrôle est audité)
+    const scope = await resolveFinanceSchool(session, url.searchParams.get("schoolId"), "finance:stats");
+    if (!scope.ok) return scope.response;
+    const schoolId = scope.schoolId;
     const cacheKey = generateCacheKey("/api/finance/stats", url.searchParams, cacheScope(session));
 
     const handler = async () => {
-      const activeSchoolId = getActiveSchoolId(session);
-      const requestedSchoolId = url.searchParams.get("schoolId");
-      const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-      if (schoolAccess) return schoolAccess;
-      let schoolId = requestedSchoolId;
-
-      if (!schoolId && activeSchoolId) {
-        schoolId = activeSchoolId;
-      }
-
-      if (!schoolId) {
-        return NextResponse.json({ error: "Établissement (schoolId) requis" }, { status: 400 });
-      }
 
       const period = url.searchParams.get("period") || "academic";
       const startDate = url.searchParams.get("startDate");

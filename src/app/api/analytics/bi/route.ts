@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { roundTo } from "@/lib/analytics/helpers";
 import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
 import { collectedByLocalMonth, latestSnapshotStats } from "@/lib/services/analytics/bi-aggregates";
@@ -29,18 +30,15 @@ function monthKey(date: Date): string {
 export const GET = createApiHandler(
     async (request, { session }) => {
         const { searchParams } = new URL(request.url);
-        const schoolId = searchParams.get("schoolId") ?? getActiveSchoolId(session);
+        let schoolId = searchParams.get("schoolId") ?? getActiveSchoolId(session);
+        // S6 : sans école, le super-admin recevait des indicateurs à zéro, présentés
+        // comme réels ; il doit désormais choisir une école existante.
+        if (session.user.role === "SUPER_ADMIN") {
+            const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "analytics:bi");
+            if (!scope.ok) return scope.response;
+            schoolId = scope.schoolId;
+        }
         if (!schoolId) {
-            if (session.user.role === "SUPER_ADMIN") {
-                return NextResponse.json({
-                    kpis: { studentCount: 0, collectionRate: 0, attendanceRate: 0, passRate: 0 },
-                    totalCollected: 0,
-                    monthly: [],
-                    methods: [],
-                    topSubjects: [],
-                    insight: null,
-                });
-            }
             return NextResponse.json({ error: "Établissement requis" }, { status: 400 });
         }
 

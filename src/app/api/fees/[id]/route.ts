@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 
 const FINANCE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] as const;
 // Sans valeur par défaut : un PATCH du seul montant ne doit pas remettre
@@ -29,6 +30,8 @@ export const PATCH = createApiHandler(
         if (!fee || !canAccessSchool(context.session, fee.schoolId)) {
             return NextResponse.json({ error: "Frais introuvable" }, { status: 404 });
         }
+        const outOfScope = await superAdminTargetOutOfScope(context.session, fee.schoolId, "fees:update");
+        if (outOfScope) return outOfScope;
 
         const parsed = updateFeeSchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {
@@ -75,6 +78,8 @@ export const DELETE = createApiHandler(
         if (!fee || !canAccessSchool(context.session, fee.schoolId)) {
             return NextResponse.json({ error: "Frais introuvable" }, { status: 404 });
         }
+        const outOfScope = await superAdminTargetOutOfScope(context.session, fee.schoolId, "fees:delete");
+        if (outOfScope) return outOfScope;
         if (fee._count.payments > 0) {
             return NextResponse.json(
                 { error: "Des paiements ont déjà été encaissés sur ce frais : il ne peut pas être supprimé." },

@@ -12,6 +12,7 @@ import {
     wouldWeigh,
 } from "@/lib/finance/collection";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
@@ -61,6 +62,8 @@ export const PUT = createApiHandler(
             ) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
+            const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.fee.schoolId, "finance-payments:update");
+            if (outOfScope) return outOfScope;
 
             if (["VERIFIED", "RECONCILED"].includes(existingPayment.status) && session.user.role !== "SUPER_ADMIN") {
                 return NextResponse.json({ error: "Ce paiement est verrouillé (Vérifié/Réconcilié) et ne peut être modifié." }, { status: 403 });
@@ -160,6 +163,8 @@ export const DELETE = createApiHandler(
             ) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
+            const outOfScope = await superAdminTargetOutOfScope(session, payment.fee.schoolId, "finance-payments:delete");
+            if (outOfScope) return outOfScope;
 
             if (["VERIFIED", "RECONCILED"].includes(payment.status) && session.user.role !== "SUPER_ADMIN") {
                 return NextResponse.json({ error: "Impossible de supprimer un paiement déjà vérifié ou réconcilié." }, { status: 403 });

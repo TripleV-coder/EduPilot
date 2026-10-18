@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { computePlanlessExpected } from "@/lib/finance/expected-fees";
 import { createNotifications } from "@/lib/services/notification.service";
 import { isSmsProviderConfigured } from "@/lib/notifications/sms-service";
@@ -20,10 +20,10 @@ const escapeHtml = (value: string) =>
  */
 export const POST = createApiHandler(
     async (_request, { session }) => {
-        const schoolId = getActiveSchoolId(session);
-        if (!schoolId) {
-            return NextResponse.json({ error: "Aucun établissement actif associé au compte." }, { status: 400 });
-        }
+        // S6 : école active vérifiée (existence, périmètre) et accès audité
+        const scope = await resolveFinanceSchool(session, null, "finance:reminders");
+        if (!scope.ok) return scope.response;
+        const schoolId = scope.schoolId;
 
         const now = new Date();
         const plans = await prisma.paymentPlan.findMany({

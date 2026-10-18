@@ -5,6 +5,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { paymentSchema } from "@/lib/validations/finance";
 import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 
@@ -65,6 +66,8 @@ export const POST = createApiHandler(
       if (fee.schoolId !== student.schoolId) {
         return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, fee.schoolId, "payments:cash");
+      if (outOfScope) return outOfScope;
 
       // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
       const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
