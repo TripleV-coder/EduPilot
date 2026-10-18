@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Session } from "next-auth";
+import type { Prisma } from "@prisma/client";
 import prisma from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
 import { runAsSystem } from "@/lib/db/db-context";
@@ -74,6 +75,15 @@ async function historicalPlan(studentId: string, feeId: string, total: number, c
         });
     } finally {
         for (const [table] of GUARDS) await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ENABLE TRIGGER USER`);
+    }
+}
+/** Paiement historique incohérent (antérieur au garde-fou des paiements, lot S1) : inséré garde-fous désactivés. */
+async function historicalPayment(data: Prisma.PaymentUncheckedCreateInput) {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "payments" DISABLE TRIGGER USER`);
+    try {
+        return await prisma.payment.create({ data });
+    } finally {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "payments" ENABLE TRIGGER USER`);
     }
 }
 /** Plan et échéances, pour vérifier qu'aucune écriture n'a eu lieu. */
@@ -351,7 +361,7 @@ describe("Plans historiques incohérents (élève et frais d'écoles différente
     it("recalcul : refusé avant toute écriture, statut et total payé inchangés", async () => {
         const { s, f, plan } = await legacyPlan();
         // Paiement validé historique (antérieur aux contrôles d'école)
-        await prisma.payment.create({ data: { studentId: s, feeId: f, amount: 20000, method: "CASH", status: "VERIFIED" } });
+        await historicalPayment({ studentId: s, feeId: f, amount: 20000, method: "CASH", status: "VERIFIED" });
         const before = await snapshot(plan.id);
         await expect(syncPaymentPlanLedger(prisma, s, f)).rejects.toBeInstanceOf(IncoherentPaymentPlanError);
         expect(await snapshot(plan.id)).toEqual(before);
@@ -385,8 +395,8 @@ describe("Plans historiques incohérents (élève et frais d'écoles différente
     it("confirmation en ligne : non validée (BLOCKED), paiement toujours en attente, tracé et signalé une seule fois", async () => {
         const { s, f, plan } = await legacyPlan();
         const reference = uniqueCode("PAY");
-        const payment = await prisma.payment.create({
-            data: { studentId: s, feeId: f, amount: 20000, method: "MOBILE_MONEY_MTN", status: "PENDING", reference, provider: "MOMO", providerTransactionId: uniqueCode("MTN") },
+        const payment = await historicalPayment({
+            studentId: s, feeId: f, amount: 20000, method: "MOBILE_MONEY_MTN", status: "PENDING", reference, provider: "MOMO", providerTransactionId: uniqueCode("MTN"),
         });
         const before = await snapshot(plan.id);
         const confirm = () => runAsSystem("test:3d", () =>

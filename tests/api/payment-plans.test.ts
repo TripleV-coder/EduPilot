@@ -415,6 +415,8 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValueOnce({
       id: planId,
       status: "ACTIVE",
+      student: { schoolId: FIXTURES.schoolA },
+      fee: { schoolId: FIXTURES.schoolA },
       installmentPayments: [
         { id: cuid("echeance1"), amount: 30000, dueDate: at(6), status: "PAID" },
         { id: cuid("echeance2"), amount: 30000, dueDate: at(7), status: "PAID" },

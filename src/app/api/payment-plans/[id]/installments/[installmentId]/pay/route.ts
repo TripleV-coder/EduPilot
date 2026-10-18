@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { assertReferenceFree, assertWithinAvailable, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { chronologicalCoverage } from "@/lib/finance/installment-coverage";
-import { CURRENT_PLAN_ORDER } from "@/lib/finance/helpers";
+import { CURRENT_PLAN_ORDER, assertCoherentPaymentPlan } from "@/lib/finance/helpers";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
@@ -95,11 +95,16 @@ export const POST = createApiHandler(
           select: {
             id: true,
             status: true,
+            student: { select: { schoolId: true } },
+            fee: { select: { schoolId: true } },
             installmentPayments: { select: { id: true, amount: true, dueDate: true, status: true } },
           },
         });
         if (!plan) return refuse(404, "Plan de paiement non trouvé");
         if (plan.id !== id) refuse(409, "Ce plan n'est plus le plan en vigueur pour ces frais : rechargez la page.");
+        // Plan incohérent : refus contrôlé (409) AVANT d'écrire le paiement,
+        // que la base refuserait aussi (garde-fou des paiements, lot S1)
+        assertCoherentPaymentPlan(plan);
         if (!["ACTIVE", "OVERDUE"].includes(plan.status)) refuse(400, "Plan de paiement non actif");
 
         const coverage = chronologicalCoverage(plan.installmentPayments, balance.settled);
