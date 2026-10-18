@@ -8,7 +8,7 @@ import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
-import { ONLINE_PAYMENT_TTL_MS } from "@/lib/finance/online-payments";
+import { ONLINE_PAYMENT_TTL_MS, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
 import { appendNote } from "@/lib/finance/helpers";
 
@@ -55,6 +55,7 @@ export const POST = createApiHandler(async (request, context) => {
             status: true,
             reference: true,
             notes: true,
+            provider: true,
             createdAt: true,
             studentId: true,
             student: { select: { schoolId: true } },
@@ -98,16 +99,10 @@ export const POST = createApiHandler(async (request, context) => {
         );
     }
 
-    // Création précédente incertaine : en créer une autre pourrait faire payer deux fois (lot 3b)
-    if (payment.notes?.includes(INIT_UNCERTAIN_NOTE)) {
-        return NextResponse.json(
-            {
-                error: "Ce paiement est en cours de vérification chez le fournisseur. Ne le relancez pas : il sera confirmé ou libéré automatiquement.",
-                code: "PAYMENT_INIT_UNCERTAIN",
-            },
-            { status: 409 }
-        );
-    }
+    // Essai déjà confié à un fournisseur (création incertaine comprise) : ni
+    // repris chez FedaPay s'il est ailleurs, ni recréé chez FedaPay (S3)
+    const started = startedAttemptConflict(payment, "FEDAPAY");
+    if (started) return NextResponse.json({ error: started.error, code: started.code }, { status: started.status });
 
     const amount = Number(payment.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -133,10 +128,19 @@ export const POST = createApiHandler(async (request, context) => {
         // processus s'arrête juste après, le webhook (merchant_reference)
         // retrouve quand même le paiement. Référence déterministe et paiement
         // toujours PENDING : sans effet si l'appel échoue.
-        await prisma.payment.update({
-            where: { id: payment.id },
+        // Prise conditionnelle : seul un paiement encore confié à aucun
+        // fournisseur est attribué à FedaPay (deux appels simultanés : un seul gagne)
+        const claimed = await prisma.payment.updateMany({
+            where: { id: payment.id, status: "PENDING", provider: null },
             data: { reference, method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" },
         });
+        if (claimed.count !== 1) {
+            const now = await prisma.payment.findUnique({ where: { id: payment.id }, select: { provider: true, notes: true } });
+            const conflict = (now && startedAttemptConflict(now, "FEDAPAY")) ?? {
+                status: 409 as const, code: "PAYMENT_ALREADY_STARTED" as const, error: "Ce paiement n'est plus en attente.",
+            };
+            return NextResponse.json({ error: conflict.error, code: conflict.code }, { status: conflict.status });
+        }
 
         const checkout = await createFedaPayCheckout({
             amount,

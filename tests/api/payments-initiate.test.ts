@@ -318,15 +318,14 @@ describe("POST /api/payments/initiate", () => {
     expect(PaymentProviderFactory.getProvider).toHaveBeenCalledWith("FEDAPAY");
   });
 
-  it("réutilise un paiement PENDING récent (idempotence)", async () => {
+  // S3 : un essai déjà confié à un fournisseur n'est ni modifié ni renvoyé.
+  // Avant, la reprise rappelait le fournisseur (seconde transaction pour la
+  // même dette) et pouvait réassocier l'essai à un autre fournisseur.
+  it("essai déjà lancé chez le même fournisseur : 409, aucun second appel, rien de modifié", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.findFirst).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD" })
-    );
-    // L'essai repris reçoit le rail courant (fournisseur interrogé à 24 h)
-    vi.mocked(prisma.payment.update).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD" })
+      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD", provider: "MOMO", notes: null })
     );
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
@@ -334,25 +333,18 @@ describe("POST /api/payments/initiate", () => {
       body: validBody(),
     }));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "PAYMENT_ALREADY_STARTED", paymentId: "cpay-existing" });
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
-    expect(providerMock.initiatePayment).toHaveBeenCalledWith(
-      50000,
-      "XOF",
-      expect.any(String),
-      "PAY-OLD",
-      expect.any(Object)
-    );
+    expect(vi.mocked(prisma.payment.update)).not.toHaveBeenCalled();
+    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
   });
 
-  it("met à jour la méthode d'un paiement PENDING existant quand le rail change", async () => {
+  it("essai lancé chez un autre fournisseur : 409, jamais réassocié, autre fournisseur non appelé", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.findFirst).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", method: "MOBILE_MONEY_MOOV", reference: "PAY-OLD" })
-    );
-    vi.mocked(prisma.payment.update).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", method: "MOBILE_MONEY_MTN", reference: "PAY-OLD" })
+      pendingPayment({ id: "cpay-existing", method: "MOBILE_MONEY_MTN", reference: "PAY-OLD", provider: "FEDAPAY", notes: null })
     );
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
@@ -360,13 +352,22 @@ describe("POST /api/payments/initiate", () => {
       body: validBody(),
     }));
 
-    expect(res.status).toBe(200);
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
-      data: { method: string; provider: string };
-    };
-    expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    expect(updateArgs.data.provider).toBe("MOMO");
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "PAYMENT_PROVIDER_CONFLICT", paymentId: "cpay-existing" });
+    expect(vi.mocked(prisma.payment.update)).not.toHaveBeenCalled();
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
+    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+  });
+
+  it("la reprise ne cherche que des essais en ligne (jamais un paiement manuel en attente)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
+
+    await POST(makeRequest("http://localhost:3000/api/payments/initiate", { method: "POST", body: validBody() }));
+
+    const where = (vi.mocked(prisma.payment.findFirst).mock.calls[0][0] as { where: Record<string, unknown> }).where;
+    expect(where).toMatchObject({ status: "PENDING", provider: { not: null } });
   });
 
   it("refus avéré du fournisseur : 500 et l'essai cesse de réserver (EXPIRED)", async () => {

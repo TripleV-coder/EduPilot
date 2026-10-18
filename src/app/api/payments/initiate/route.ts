@@ -12,7 +12,7 @@ import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { nanoid } from "nanoid";
-import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
+import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
 import { appendNote } from "@/lib/finance/helpers";
 
@@ -144,19 +144,18 @@ export const POST = createApiHandler(
             const outcome = await prisma.$transaction(async (tx) => {
                 await lockStudentFee(tx, studentId, feeId);
 
-                // Même demande répétée (double clic, retour arrière) : on reprend l'essai en cours
+                // Même demande répétée (double clic, retour arrière, autre opérateur) :
+                // l'essai en cours n'est ni modifié ni renvoyé (S3) — même
+                // fournisseur, ce serait une seconde transaction ; autre
+                // fournisseur, celui d'origine peut encore le confirmer
                 const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
                 const existing = await tx.payment.findFirst({
-                    where: { studentId, feeId, amount, status: "PENDING", createdAt: { gte: fiveMinutesAgo } },
+                    where: { studentId, feeId, amount, status: "PENDING", provider: { not: null }, createdAt: { gte: fiveMinutesAgo } },
                     orderBy: { createdAt: "desc" },
+                    select: { id: true, provider: true, notes: true },
                 });
-                if (existing) {
-                    const payment = await tx.payment.update({
-                        where: { id: existing.id },
-                        data: { method: newMethod, provider: resolvedProvider },
-                    });
-                    return { kind: "attempt" as const, payment, created: false };
-                }
+                const conflict = existing ? startedAttemptConflict(existing, resolvedProvider) : null;
+                if (existing && conflict) return { kind: "started" as const, conflict, paymentId: existing.id };
 
                 // Reste à payer : échéancier (bourses déduites) sinon frais, moins
                 // l'encaissé et les essais en ligne encore en attente
@@ -174,8 +173,20 @@ export const POST = createApiHandler(
                         reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
                     },
                 });
-                return { kind: "attempt" as const, payment, created: true };
+                return { kind: "attempt" as const, payment };
             });
+
+            if (outcome.kind === "started") {
+                logger.info("Paiement en ligne : essai déjà lancé, ni modifié ni renvoyé", {
+                    paymentId: outcome.paymentId,
+                    requestedProvider: resolvedProvider,
+                    code: outcome.conflict.code,
+                });
+                return NextResponse.json(
+                    { error: outcome.conflict.error, code: outcome.conflict.code, paymentId: outcome.paymentId },
+                    { status: outcome.conflict.status },
+                );
+            }
 
             if (outcome.kind === "refused") {
                 const balance = outcome.balance;
@@ -198,26 +209,6 @@ export const POST = createApiHandler(
                 );
             }
             const paymentRecord = outcome.payment;
-
-            if (!outcome.created) {
-                logger.info("Payment idempotency hit — returning/refreshing pending payment", {
-                    paymentId: paymentRecord.id,
-                    studentId,
-                    feeId
-                });
-                // Création incertaine chez le fournisseur : le rappeler pourrait
-                // créer une seconde transaction pour la même dette (lot 3b)
-                if (paymentRecord.notes?.includes(INIT_UNCERTAIN_NOTE)) {
-                    return NextResponse.json(
-                        {
-                            error: "Un paiement en ligne de ce montant est en cours de vérification chez le fournisseur. Ne le relancez pas : il sera confirmé ou libéré automatiquement.",
-                            code: "PAYMENT_INIT_UNCERTAIN",
-                            paymentId: paymentRecord.id,
-                        },
-                        { status: 409 }
-                    );
-                }
-            }
 
             const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
             let result: { paymentUrl: string; transactionId: string };

@@ -164,6 +164,7 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(prisma.payment.update).mockResolvedValue({ id: paymentId } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     const res = await post({ paymentId });
     const body = await res.json();
@@ -178,14 +179,17 @@ describe("POST /api/payments/fedapay/initiate", () => {
         customer: { firstname: "Awa", lastname: "Dossou", email: "awa@school.bj" },
       })
     );
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
+    // Prise conditionnelle (S3) : seul un paiement confié à aucun fournisseur est attribué à FedaPay
+    const claimArgs = vi.mocked(prisma.payment.updateMany).mock.calls[0][0] as {
+      where: Record<string, unknown>;
       data: { reference: string; method: string };
     };
-    expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    expect(updateArgs.data.reference).toBe("EDU-ref1");
-    expect(updateArgs.data).toMatchObject({ provider: "FEDAPAY" });
+    expect(claimArgs.where).toEqual({ id: paymentId, status: "PENDING", provider: null });
+    expect(claimArgs.data.method).toBe("MOBILE_MONEY_MTN");
+    expect(claimArgs.data.reference).toBe("EDU-ref1");
+    expect(claimArgs.data).toMatchObject({ provider: "FEDAPAY" });
     // Identifiant FedaPay rangé pour la réconciliation à 24 h
-    const idArgs = vi.mocked(prisma.payment.update).mock.calls[1][0] as { data: Record<string, unknown> };
+    const idArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as { data: Record<string, unknown> };
     expect(idArgs.data).toHaveProperty("providerTransactionId");
   });
 
@@ -211,12 +215,13 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(prisma.payment.update).mockResolvedValue({ id: paymentId } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     await post({ paymentId });
 
     // Si le processus s'arrête juste après la création chez FedaPay, le
     // webhook (merchant_reference) doit déjà retrouver le paiement.
-    const updateOrder = vi.mocked(prisma.payment.update).mock.invocationCallOrder[0];
+    const updateOrder = vi.mocked(prisma.payment.updateMany).mock.invocationCallOrder[0];
     const checkoutOrder = vi.mocked(createFedaPayCheckout).mock.invocationCallOrder[0];
     expect(updateOrder).toBeLessThan(checkoutOrder);
   });
@@ -235,6 +240,7 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(createFedaPayCheckout).mockRejectedValue(new Error("fedapay down"));
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     const res = await post({ paymentId });
 
@@ -242,14 +248,46 @@ describe("POST /api/payments/fedapay/initiate", () => {
     expect((await res.json()).error).toBe(
       "Échec de l'initialisation du paiement. Réessayez."
     );
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0]?.[0] as
+    const claimArgs = vi.mocked(prisma.payment.updateMany).mock.calls[0]?.[0] as
       | { data: Record<string, unknown> }
       | undefined;
-    expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" });
+    expect(claimArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" });
     // Résultat inconnu (lot 3b) : l'essai reste PENDING, repéré par une note, sans changement de statut
-    const marked = vi.mocked(prisma.payment.updateMany).mock.calls[0]?.[0] as { where: unknown; data: Record<string, unknown> };
+    const marked = vi.mocked(prisma.payment.updateMany).mock.calls[1]?.[0] as { where: unknown; data: Record<string, unknown> };
     expect(marked.where).toEqual({ id: paymentId, status: "PENDING" });
     expect(marked.data).not.toHaveProperty("status");
     expect(String(marked.data.notes)).toContain("Résultat de l'initialisation inconnu");
+  });
+
+  // S3 : un paiement déjà confié à un fournisseur n'est ni réattribué à FedaPay ni recréé chez lui
+  it.each([
+    ["MOMO", "PAYMENT_PROVIDER_CONFLICT"],
+    ["FEDAPAY", "PAYMENT_ALREADY_STARTED"],
+  ])("paiement déjà confié à %s : 409 %s, aucune transaction FedaPay, rien de modifié", async (provider, code) => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(paymentRecord({ provider }));
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe(code);
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
+    expect(prisma.payment.update).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("deux lancements simultanés : la prise conditionnelle perdue renvoie 409 sans appeler FedaPay", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique)
+      .mockResolvedValueOnce(paymentRecord())
+      .mockResolvedValueOnce({ provider: "FEDAPAY", notes: null } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ firstName: "Awa", lastName: "Dossou", email: "awa@school.bj" } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PAYMENT_ALREADY_STARTED");
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
   });
 });

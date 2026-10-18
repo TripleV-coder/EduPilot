@@ -119,15 +119,19 @@ describe("Doublons simultanés (verrou par élève et par frais)", () => {
         expect(pending).toBe(1);
     });
 
-    it("deux demandes identiques simultanées (double clic) : un seul essai créé", async () => {
+    // S3 : la seconde demande n'est plus renvoyée au fournisseur (avant : deux
+    // transactions chez lui pour un même essai, la première écrasée)
+    it("deux demandes identiques simultanées (double clic) : un seul essai, un seul appel au fournisseur", async () => {
         const feeId = await newFee(50000);
+        const callsBefore = initiatePayment.mock.calls.length;
 
-        const [a, b] = await Promise.all([initiateRequest(feeId, 50000), initiateRequest(feeId, 50000)]);
+        const results = await Promise.all([initiateRequest(feeId, 50000), initiateRequest(feeId, 50000)]);
 
-        expect(a.status).toBe(200);
-        expect(b.status).toBe(200);
-        expect((a.body as { paymentId: string }).paymentId).toBe((b.body as { paymentId: string }).paymentId);
+        expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+        const [ok, started] = results[0].status === 200 ? results : [results[1], results[0]];
+        expect(started.body).toMatchObject({ code: "PAYMENT_ALREADY_STARTED", paymentId: (ok.body as { paymentId: string }).paymentId });
         expect(await prisma.payment.count({ where: { feeId, studentId } })).toBe(1);
+        expect(initiatePayment.mock.calls.length - callsBefore).toBe(1);
     });
 
     it("l'essai garde le fournisseur et son identifiant pour la réconciliation", async () => {

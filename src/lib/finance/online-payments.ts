@@ -44,6 +44,7 @@ import {
     syncPaymentPlanLedger,
 } from "@/lib/finance/helpers";
 import { createNotifications } from "@/lib/services/notification.service";
+import { INIT_UNCERTAIN_NOTE } from "@/lib/finance/providers/init-error";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -103,9 +104,126 @@ export type ConfirmOutcome =
     | { outcome: "MISMATCH"; paymentId: string; reason: string }
     /** Plan incohérent : validation annulée en bloc, le paiement reste dans son état. */
     | { outcome: "BLOCKED"; paymentId: string; reason: string }
+    /** Notification d'un autre fournisseur, ou d'une autre transaction : aucune écriture financière (S3). */
+    | { outcome: "REJECTED"; paymentId: string; reason: string }
     | { outcome: "NOT_FOUND" };
 
 const BLOCKED_NOTE = "Validation bloquée : le plan de paiement associe un élève et des frais d'établissements différents. À examiner avant tout encaissement.";
+
+/**
+ * Identifiant reçu à la confirmation de même nature que celui enregistré à
+ * l'initiation (`providerTransactionId`), donc comparable (S3) :
+ * - FEDAPAY : l'identifiant de la transaction FedaPay, à l'initiation comme
+ *   dans le webhook ;
+ * - MOMO : l'initiation garde le X-Reference-Id (interrogé par la
+ *   réconciliation), le webhook transmet le financialTransactionId ;
+ * - FLUTTERWAVE, PAYSTACK : l'initiation garde notre référence, le webhook
+ *   transmet l'identifiant numérique du fournisseur.
+ * Un identifiant non comparable n'est ni comparé ni écrit : il remplacerait
+ * celui de l'initiation (il reste tracé dans la note de confirmation).
+ */
+const COMPARABLE_TRANSACTION_ID: Record<OnlineProvider, boolean> = {
+    FEDAPAY: true,
+    MOMO: false,
+    FLUTTERWAVE: false,
+    PAYSTACK: false,
+};
+
+/**
+ * Notification authentifiée qui ne correspond pas au paiement visé par sa
+ * référence : fournisseur différent, ou transaction différente de celle déjà
+ * enregistrée. Null si elle lui correspond.
+ */
+export function providerBindingMismatch(
+    payment: { provider: string | null; providerTransactionId: string | null },
+    provider: OnlineProvider,
+    receivedTransactionId: string | null | undefined,
+): string | null {
+    if (payment.provider !== provider) {
+        return payment.provider
+            ? `notification ${provider} pour un paiement initié chez ${payment.provider}`
+            : `notification ${provider} pour un paiement sans fournisseur en ligne`;
+    }
+    if (!COMPARABLE_TRANSACTION_ID[provider] || !payment.providerTransactionId) return null;
+    if (!receivedTransactionId) return "identifiant de transaction absent de la notification";
+    if (receivedTransactionId !== payment.providerTransactionId) {
+        return "identifiant de transaction différent de celui enregistré à l'initiation";
+    }
+    return null;
+}
+
+/** Identifiant à enregistrer à la validation : seulement s'il est comparable et encore inconnu. */
+function transactionIdToRecord(provider: OnlineProvider, stored: string | null, received: string | null | undefined) {
+    return COMPARABLE_TRANSACTION_ID[provider] && !stored && received ? received : null;
+}
+
+export interface StartedAttemptConflict {
+    status: 409;
+    code: "PAYMENT_INIT_UNCERTAIN" | "PAYMENT_PROVIDER_CONFLICT" | "PAYMENT_ALREADY_STARTED";
+    error: string;
+}
+
+/**
+ * Essai en ligne déjà confié à un fournisseur, ou en cours d'envoi (son
+ * fournisseur est fixé avant l'appel) : il n'est jamais renvoyé (S3). Ni chez
+ * un autre fournisseur — celui d'origine peut encore le confirmer, et sa
+ * confirmation serait alors refusée — ni chez le même — ce serait une seconde
+ * transaction pour la même dette. Rien ne prouve qu'un essai PENDING n'a pas
+ * été transmis : seul un refus prouvé avant envoi le fait passer en EXPIRED,
+ * et l'essai suivant est alors un nouveau paiement. Null si l'essai n'est
+ * encore confié à aucun fournisseur.
+ */
+export function startedAttemptConflict(
+    attempt: { provider: string | null; notes: string | null },
+    provider: string,
+): StartedAttemptConflict | null {
+    if (!attempt.provider) return null;
+    if (attempt.notes?.includes(INIT_UNCERTAIN_NOTE)) {
+        return {
+            status: 409,
+            code: "PAYMENT_INIT_UNCERTAIN",
+            error: "Un paiement en ligne de ce montant est en cours de vérification chez le fournisseur. Ne le relancez pas : il sera confirmé ou libéré automatiquement.",
+        };
+    }
+    if (attempt.provider !== provider) {
+        return {
+            status: 409,
+            code: "PAYMENT_PROVIDER_CONFLICT",
+            error: "Ce paiement a déjà été lancé chez un autre opérateur. Terminez-le là-bas ou attendez sa confirmation : il ne peut pas être repris ailleurs.",
+        };
+    }
+    return {
+        status: 409,
+        code: "PAYMENT_ALREADY_STARTED",
+        error: "Ce paiement a déjà été lancé. Terminez-le auprès de l'opérateur ou attendez sa confirmation : il n'est pas relancé, pour ne pas vous faire payer deux fois.",
+    };
+}
+
+const REJECTED_NOTE = "Confirmation refusée : notification d'un autre fournisseur ou d'une autre transaction. Paiement inchangé, à examiner.";
+
+/**
+ * Trace un refus sur le paiement (une seule fois, sans toucher à son statut)
+ * et prévient l'administration financière de l'école à la première occurrence.
+ */
+async function flagPaymentOnce(
+    paymentId: string,
+    schoolId: string,
+    note: string,
+    alert: { title: string; message: string },
+): Promise<void> {
+    const current = await prisma.payment.findUnique({ where: { id: paymentId }, select: { notes: true } });
+    // Écriture conditionnelle aux notes relues : une seule trace, une seule alerte
+    const updated = current && !current.notes?.includes(note)
+        ? await prisma.payment.updateMany({
+              where: { id: paymentId, notes: current.notes },
+              data: { notes: appendNote(current.notes, note) },
+          })
+        : { count: 0 };
+    if (updated.count === 1) {
+        await alertFinanceStaff(schoolId, alert.title, alert.message)
+            .catch((alertError) => logger.error("Alerte financière non envoyée", alertError, { paymentId }));
+    }
+}
 
 /** Montant d'un fournisseur ramené en FCFA ; null s'il est absent ou illisible. */
 export function parseProviderAmount(value: unknown, provider: OnlineProvider): number | null {
@@ -151,7 +269,10 @@ export async function confirmOnlinePayment(params: {
 }): Promise<ConfirmOutcome> {
     const payment = await prisma.payment.findUnique({
         where: { reference: params.reference },
-        select: { id: true, studentId: true, feeId: true, amount: true, status: true, notes: true, student: { select: { schoolId: true } } },
+        select: {
+            id: true, studentId: true, feeId: true, amount: true, status: true, notes: true,
+            provider: true, providerTransactionId: true, student: { select: { schoolId: true } },
+        },
     });
     if (!payment) return { outcome: "NOT_FOUND" };
     if (payment.status === "VERIFIED" || payment.status === "RECONCILED") {
@@ -159,6 +280,24 @@ export async function confirmOnlinePayment(params: {
     }
 
     const expected = Math.round(Number(payment.amount));
+    const rejectBinding = async (mismatch: string): Promise<ConfirmOutcome> => {
+        logger.error("Paiement en ligne : confirmation refusée, fournisseur ou transaction ne correspondent pas", new Error(mismatch), {
+            paymentId: payment.id,
+            provider: params.provider,
+            expectedProvider: payment.provider,
+            source: params.source,
+        });
+        await flagPaymentOnce(payment.id, payment.student.schoolId, REJECTED_NOTE, {
+            title: "Confirmation de paiement en ligne refusée",
+            message: `Une notification ${params.provider} visant le paiement de ${expected} FCFA (référence ${params.reference}) ne correspond pas à ce paiement (${mismatch}). Le paiement n'a pas été modifié : vérifiez le relevé du fournisseur.`,
+        });
+        return { outcome: "REJECTED", paymentId: payment.id, reason: mismatch };
+    };
+    // Avant tout le reste (même la note « à rapprocher ») : la notification
+    // doit viser ce paiement, chez ce fournisseur, pour cette transaction (S3)
+    const binding = providerBindingMismatch(payment, params.provider, params.providerTransactionId);
+    if (binding) return rejectBinding(binding);
+
     const reason = confirmationMismatch(expected, params.receivedAmount, params.receivedCurrency);
     if (reason) {
         // Aucune validation : le comptable rapproche à la main, l'écart est tracé
@@ -182,11 +321,15 @@ export async function confirmOnlinePayment(params: {
             // État relu sous verrou : une annulation manuelle concurrente est vue ici
             const current = await tx.payment.findUnique({
                 where: { id: payment.id },
-                select: { status: true, notes: true, cancellationSource: true },
+                select: { status: true, notes: true, cancellationSource: true, provider: true, providerTransactionId: true },
             });
             if (!current || !(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
                 return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
             }
+            // Revérifié sous verrou : une relance concurrente a pu changer de fournisseur
+            const lockedBinding = providerBindingMismatch(current, params.provider, params.providerTransactionId);
+            if (lockedBinding) return { outcome: "REJECTED" as const, paymentId: payment.id, reason: lockedBinding, alert: null };
+            const recordTransactionId = transactionIdToRecord(params.provider, current.providerTransactionId, params.providerTransactionId);
             const balance = await getFeeBalance(tx, payment.studentId, payment.feeId);
             const now = new Date();
             // Validation unique (idempotente) : en attente, expiré, ou annulé — une
@@ -197,7 +340,8 @@ export async function confirmOnlinePayment(params: {
                     status: "VERIFIED",
                     paidAt: now,
                     reconciledAt: now,
-                    ...(params.providerTransactionId ? { providerTransactionId: params.providerTransactionId } : {}),
+                    // Jamais de remplacement : seulement un identifiant comparable encore inconnu
+                    ...(recordTransactionId ? { providerTransactionId: recordTransactionId } : {}),
                 },
             });
             if (claimed.count !== 1) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
@@ -228,30 +372,20 @@ export async function confirmOnlinePayment(params: {
         if (!(error instanceof IncoherentPaymentPlanError)) throw error;
         // Rien n'a été validé (transaction annulée) : le paiement reste dans son
         // état et son montant réservé. Trace sur le paiement + alerte, une fois.
-        const current = await prisma.payment.findUnique({ where: { id: payment.id }, select: { notes: true } });
-        // Écriture conditionnelle aux notes relues : une seule trace, une seule alerte
-        const updated = current && !current.notes?.includes(BLOCKED_NOTE)
-            ? await prisma.payment.updateMany({
-                  where: { id: payment.id, notes: current.notes },
-                  data: { notes: appendNote(current.notes, BLOCKED_NOTE) },
-              })
-            : { count: 0 };
         logger.error("Paiement en ligne : validation bloquée, plan incohérent", error, {
             paymentId: payment.id,
             planId: error.planId,
             source: params.source,
             providerTransactionId: params.providerTransactionId ?? null,
         });
-        if (updated.count === 1) {
-            await alertFinanceStaff(
-                payment.student.schoolId,
-                "Paiement en ligne bloqué : plan incohérent",
-                `Le fournisseur a confirmé un paiement en ligne de ${expected} FCFA (référence ${params.reference}), mais le plan de paiement associe un élève et des frais d'établissements différents. Le paiement n'est pas comptabilisé tant que le plan n'a pas été examiné.`,
-            ).catch((alertError) => logger.error("Alerte financière non envoyée", alertError, { paymentId: payment.id }));
-        }
+        await flagPaymentOnce(payment.id, payment.student.schoolId, BLOCKED_NOTE, {
+            title: "Paiement en ligne bloqué : plan incohérent",
+            message: `Le fournisseur a confirmé un paiement en ligne de ${expected} FCFA (référence ${params.reference}), mais le plan de paiement associe un élève et des frais d'établissements différents. Le paiement n'est pas comptabilisé tant que le plan n'a pas été examiné.`,
+        });
         return { outcome: "BLOCKED", paymentId: payment.id, reason: INCOHERENT_PLAN_MESSAGE };
     }
 
+    if (result.outcome === "REJECTED") return rejectBinding(result.reason);
     if (result.alert) {
         logger.warn("Paiement en ligne : validé après une annulation manuelle ou d'origine inconnue", { paymentId: payment.id, source: params.source });
         await alertFinanceStaff(
@@ -329,6 +463,8 @@ export interface ReconcileReport {
     failed: number;
     /** Validation refusée car le plan est incohérent (écoles différentes) : reste en attente, signalé. */
     blocked: number;
+    /** Fournisseur ou transaction ne correspondant pas au paiement : reste en attente, signalé (S3). */
+    rejected: number;
 }
 
 /** Au-delà, un paiement toujours en attente est signalé à l'administration financière (jamais libéré). */
@@ -357,7 +493,7 @@ function amountFromRaw(provider: OnlineProvider, raw: unknown): { amount: number
  *   alertée une fois ; aucune libération automatique.
  */
 export async function reconcileStalePayments(verify: VerifyFn, now = new Date(), limit = 200): Promise<ReconcileReport> {
-    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0 };
+    const report: ReconcileReport = { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0, rejected: 0 };
     const stale = await prisma.payment.findMany({
         where: { status: "PENDING", deletedAt: null, createdAt: { lt: new Date(now.getTime() - ONLINE_PAYMENT_TTL_MS) } },
         select: {
@@ -407,6 +543,11 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
             // Plan incohérent : déjà noté et signalé, reste en attente et réservé
             if (result.outcome === "BLOCKED") {
                 report.blocked++;
+                continue;
+            }
+            // Fournisseur ou transaction incohérents : déjà noté et signalé, reste en attente
+            if (result.outcome === "REJECTED") {
+                report.rejected++;
                 continue;
             }
         } else if (verdict === "FAILED" && p.reference) {

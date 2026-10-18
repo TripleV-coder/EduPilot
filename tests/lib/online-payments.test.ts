@@ -3,6 +3,7 @@ import {
     confirmationMismatch,
     parseProviderAmount,
     parseProviderCurrency,
+    providerBindingMismatch,
     readProviderEvent,
 } from "@/lib/finance/online-payments";
 
@@ -75,5 +76,30 @@ describe("readProviderEvent", () => {
         expect(readProviderEvent({ data: { reference: "R", status: "abandoned" } }, "PAYSTACK").status).toBe("FAILED");
         expect(readProviderEvent({ data: { tx_ref: "R", status: "failed" } }, "FLUTTERWAVE").status).toBe("FAILED");
         expect(readProviderEvent({ data: { tx_ref: "R", status: "pending" } }, "FLUTTERWAVE").status).toBeNull();
+    });
+});
+
+describe("providerBindingMismatch (S3)", () => {
+    const fedapay = { provider: "FEDAPAY", providerTransactionId: "4242" };
+
+    it("même fournisseur, même transaction : conforme", () => {
+        expect(providerBindingMismatch(fedapay, "FEDAPAY", "4242")).toBeNull();
+    });
+
+    it("autre fournisseur, ou paiement sans fournisseur : refusé", () => {
+        expect(providerBindingMismatch(fedapay, "MOMO", "4242")).toContain("initié chez FEDAPAY");
+        expect(providerBindingMismatch({ provider: null, providerTransactionId: null }, "FEDAPAY", "1")).toContain("sans fournisseur");
+    });
+
+    it("FedaPay (identifiants comparables) : autre transaction ou identifiant absent refusés ; inconnu à l'initiation accepté", () => {
+        expect(providerBindingMismatch(fedapay, "FEDAPAY", "5151")).toContain("différent");
+        expect(providerBindingMismatch(fedapay, "FEDAPAY", null)).toContain("absent");
+        expect(providerBindingMismatch({ provider: "FEDAPAY", providerTransactionId: null }, "FEDAPAY", "7373")).toBeNull();
+    });
+
+    it("MoMo, Flutterwave, Paystack : identifiants de nature différente, jamais comparés", () => {
+        expect(providerBindingMismatch({ provider: "MOMO", providerTransactionId: "x-ref" }, "MOMO", "fin-123")).toBeNull();
+        expect(providerBindingMismatch({ provider: "FLUTTERWAVE", providerTransactionId: "PAY-1" }, "FLUTTERWAVE", "77")).toBeNull();
+        expect(providerBindingMismatch({ provider: "PAYSTACK", providerTransactionId: "PAY-2" }, "PAYSTACK", "88")).toBeNull();
     });
 });
