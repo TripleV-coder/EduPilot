@@ -39,6 +39,12 @@ describe("FinanceSchoolGate", () => {
         expect(screen.queryByText("Chiffres de l'école")).not.toBeInTheDocument();
     });
 
+    it("texte propre à la page (élèves) quand il est fourni", () => {
+        render(<FinanceSchoolGate description="Les dossiers des élèves appartiennent à chaque école."><p>Élèves</p></FinanceSchoolGate>);
+        expect(screen.getByText("Les dossiers des élèves appartiennent à chaque école.")).toBeInTheDocument();
+        expect(screen.queryByText("Élèves")).not.toBeInTheDocument();
+    });
+
     it("changement d'école en cours : les chiffres de l'école quittée disparaissent", () => {
         Object.assign(state, { schoolId: "a", switching: true });
         render(page);

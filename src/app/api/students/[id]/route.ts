@@ -7,7 +7,24 @@ import { strongPasswordSchema } from "@/lib/validations/auth";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
+import type { Session } from "next-auth";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { denyTargetOtherSchool, resolveSchoolScope, type SchoolScope } from "@/lib/api/school-scope";
+
+/**
+ * Super-admin (S6) : la fiche d'un élève se lit, se modifie et se supprime
+ * uniquement dans l'école sélectionnée. L'école est vérifiée AVANT toute
+ * lecture de l'élève : sans sélection, réponse 400 sans même chercher la fiche
+ * (aucun indice sur son existence). Autres rôles : null, contrôle inchangé.
+ */
+const STUDENTS_AUDIT = { action: "SCHOOL_SCOPE_ACCESS", entity: "STUDENTS" };
+const SCHOOL_REQUIRED = "Sélectionnez un établissement : les élèves sont propres à chaque école.";
+
+function superAdminSchool(session: Session, operation: string): Promise<SchoolScope> | null {
+  return session.user.role === "SUPER_ADMIN"
+    ? resolveSchoolScope(session, null, operation, STUDENTS_AUDIT, SCHOOL_REQUIRED)
+    : null;
+}
 
 const studentUpdateSchema = z.object({
   email: z.string().email("Email invalide").optional(),
@@ -29,6 +46,8 @@ export const GET = createApiHandler(
   async (request, context, t) => {
     const { id } = await context.params;
     const { session } = context;
+    const scope = await superAdminSchool(session, "students:read");
+    if (scope && !scope.ok) return scope.response;
 
     const student = await prisma.studentProfile.findUnique({
       where: { id },
@@ -79,6 +98,9 @@ export const GET = createApiHandler(
     if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
+    if (scope?.ok && student.user.schoolId !== scope.schoolId) {
+      return denyTargetOtherSchool(session, "students:read", STUDENTS_AUDIT);
+    }
 
     if (session.user.role === "PARENT") {
       const parentProfile = await prisma.parentProfile.findUnique({
@@ -118,6 +140,8 @@ export const GET = createApiHandler(
 export const PATCH = createApiHandler(
   async (request, { params, session }, t) => {
     const { id } = await params;
+    const scope = await superAdminSchool(session, "students:update");
+    if (scope && !scope.ok) return scope.response;
 
     const student = await prisma.studentProfile.findUnique({
       where: { id },
@@ -131,6 +155,9 @@ export const PATCH = createApiHandler(
     // Verify school access
     if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
+    }
+    if (scope?.ok && student.user.schoolId !== scope.schoolId) {
+      return denyTargetOtherSchool(session, "students:update", STUDENTS_AUDIT);
     }
 
     const body = await request.json();
@@ -257,6 +284,8 @@ export const PATCH = createApiHandler(
 export const DELETE = createApiHandler(
   async (request, { params, session }, t) => {
     const { id } = await params;
+    const scope = await superAdminSchool(session, "students:delete");
+    if (scope && !scope.ok) return scope.response;
 
     const student = await prisma.studentProfile.findUnique({
       where: { id },
@@ -270,6 +299,9 @@ export const DELETE = createApiHandler(
     // Verify school access
     if (!canAccessSchool(session, student.user.schoolId)) {
       return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
+    }
+    if (scope?.ok && student.user.schoolId !== scope.schoolId) {
+      return denyTargetOtherSchool(session, "students:delete", STUDENTS_AUDIT);
     }
 
     // Soft delete: deactivate user instead of permanently deleting all data

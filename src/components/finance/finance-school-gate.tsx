@@ -16,7 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
  * cache SWR purgé par SchoolProvider : rien de l'école quittée ne reste.
  * Les autres rôles ont toujours une école active : la page s'affiche comme avant.
  */
-export function FinanceSchoolGate({ children }: { children: React.ReactNode }) {
+const FINANCE_DESCRIPTION =
+    "Les paiements, frais et écritures appartiennent à chaque école. Sélectionnez celle que vous voulez consulter : les chiffres de plusieurs établissements ne sont jamais mélangés.";
+
+export function FinanceSchoolGate({ children, description = FINANCE_DESCRIPTION }: { children: React.ReactNode; description?: string }) {
     const { data: session } = useSession();
     const { schoolId, accessibleSchools, setActiveSchoolId, isSwitchingSchool } = useSchool();
     const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
@@ -36,10 +39,7 @@ export function FinanceSchoolGate({ children }: { children: React.ReactNode }) {
                 <h1 id="finance-school-required" className="text-xl font-semibold">
                     Choisissez un établissement
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                    Les paiements, frais et écritures appartiennent à chaque école. Sélectionnez celle que vous voulez consulter :
-                    les chiffres de plusieurs établissements ne sont jamais mélangés.
-                </p>
+                <p className="text-sm text-muted-foreground">{description}</p>
                 {accessibleSchools.length > 0 ? (
                     <Select onValueChange={(id) => void setActiveSchoolId(id)}>
                         <SelectTrigger aria-label="Établissement" className="mx-auto h-10 w-full max-w-xs">

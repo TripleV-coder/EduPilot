@@ -15,11 +15,13 @@ import { checkStudentQuota } from "@/lib/saas/quotas";
 
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveSchoolScope } from "@/lib/api/school-scope";
 import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 /** GET /api/students — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 /** Plafond de sécurité d'un effectif de classe (?classId=) : aucune classe réelle ne l'atteint. */
 const CLASS_ROSTER_MAX = 1000;
+const STUDENTS_AUDIT = { action: "SCHOOL_SCOPE_ACCESS", entity: "STUDENTS" };
 
 export const GET = createApiHandler(
   async (request, { session }) => {
@@ -43,9 +45,28 @@ export const GET = createApiHandler(
         pagination: { limit: cursorPage.limit, nextCursor: null, hasNextPage: false, ...(cursorPage.withTotal ? { total: 0 } : {}) },
       });
 
-    if (!academicYearId && session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
+    // École de la liste (S6, 2026-10-18). La liste ne mélange jamais deux
+    // écoles : le super-admin sans école sélectionnée recevait les élèves de
+    // TOUS les établissements, et un ?schoolId= était ignoré (super-admin :
+    // tout ; autres rôles : école active à la place de l'école demandée).
+    // Parent et élève : leurs propres fiches, dans l'école active (inchangé).
+    const familyRole = session.user.role === "PARENT" || session.user.role === "STUDENT";
+    let listSchoolId = getActiveSchoolId(session) ?? null;
+    if (!familyRole) {
+      const scope = await resolveSchoolScope(
+        session,
+        searchParams.get("schoolId"),
+        "students:list",
+        STUDENTS_AUDIT,
+        "Sélectionnez un établissement : les élèves sont propres à chaque école.",
+      );
+      if (!scope.ok) return scope.response;
+      listSchoolId = scope.schoolId;
+    }
+
+    if (!academicYearId && listSchoolId) {
       const currentYear = await prisma.academicYear.findFirst({
-        where: { schoolId: getActiveSchoolId(session), isCurrent: true },
+        where: { schoolId: listSchoolId, isCurrent: true },
         select: { id: true }
       });
       if (currentYear) {
@@ -85,8 +106,8 @@ export const GET = createApiHandler(
       where.id = studentProfile.id;
     }
 
-    if (session.user.role !== "SUPER_ADMIN") {
-      userFilter.schoolId = getActiveSchoolId(session);
+    if (listSchoolId) {
+      userFilter.schoolId = listSchoolId;
     }
 
     if (status) {
