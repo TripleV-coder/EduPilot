@@ -37,17 +37,20 @@ async function newFee(): Promise<string> {
   return fee.id;
 }
 
-/** Initie un paiement MoMo ; renvoie l'id du paiement et la référence transmise au fournisseur. */
+/**
+ * Essai MoMo HISTORIQUE (antérieur à S7 : compte global, sans compte d'école).
+ * Les nouveaux essais MoMo direct sont refusés aux écoles ; le webhook MoMo
+ * global ne sert plus qu'à rapprocher ces essais-là.
+ */
 async function initiateMomo(feeId: string): Promise<{ paymentId: string; externalId: string }> {
-  initiatePayment.mockResolvedValueOnce({ paymentUrl: "", transactionId: "7f3c2a10-uuid-renvoye-par-momo" });
-  const res = await callRoute(initiate, {
-    method: "POST",
-    path: "/api/payments/initiate",
-    body: { amount: 50000, feeId, studentId, provider: "MOMO", payerPhone: "0190000000" },
+  const externalId = `PAY-${uniqueCode("HIST")}`;
+  const payment = await prisma.payment.create({
+    data: {
+      studentId, feeId, amount: 50000, method: "MOBILE_MONEY_MTN", status: "PENDING",
+      provider: "MOMO", reference: externalId, providerTransactionId: "7f3c2a10-uuid-renvoye-par-momo",
+    },
   });
-  expect(res.status).toBe(200);
-  const externalId = initiatePayment.mock.calls.at(-1)?.[3] as string;
-  return { paymentId: (res.body as { paymentId: string }).paymentId, externalId };
+  return { paymentId: payment.id, externalId };
 }
 
 /**
@@ -97,7 +100,22 @@ beforeAll(async () => {
   actAs(sessionFor("ACCOUNTANT", schoolId));
 });
 
-describe("N7 — paiement Mobile Money : initiation → webhook signé → VERIFIED", () => {
+describe("S7 — MoMo direct n'encaisse plus pour une école (compte global)", () => {
+  it("nouvelle initiation MoMo : 503, aucun essai créé, fournisseur non appelé", async () => {
+    const feeId = await newFee();
+    const res = await callRoute(initiate, {
+      method: "POST",
+      path: "/api/payments/initiate",
+      body: { amount: 50000, feeId, studentId, provider: "MOMO", payerPhone: "0190000000" },
+    });
+    expect(res.status).toBe(503);
+    expect((res.body as { code: string }).code).toBe("ONLINE_PAYMENT_UNAVAILABLE");
+    expect(await prisma.payment.count({ where: { feeId } })).toBe(0);
+    expect(initiatePayment).not.toHaveBeenCalled();
+  });
+});
+
+describe("N7 — essai MoMo historique : webhook signé → VERIFIED", () => {
   it("rapproche le paiement confirmé par MoMo", async () => {
     const { paymentId, externalId } = await initiateMomo(await newFee());
 

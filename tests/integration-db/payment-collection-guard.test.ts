@@ -14,15 +14,17 @@ import { runAsSystem } from "@/lib/db/db-context";
  * réellement lancées en parallèle contre PostgreSQL.
  */
 const { initiatePayment } = vi.hoisted(() => ({ initiatePayment: vi.fn() }));
-vi.mock("@/lib/finance/factory", () => ({
-    PaymentProviderFactory: { getProvider: () => ({ initiatePayment }) },
-}));
-vi.mock("@/lib/finance/providers/momo", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@/lib/finance/providers/momo")>()),
-    isMomoConfigured: () => true,
-}));
+// S7 : l'essai en ligne part sur le compte FedaPay de l'école (client simulé)
+vi.mock("@/lib/payments/fedapay-account-client", async (importOriginal) => {
+    const { accountCheckoutFrom } = await import("./fixtures/payment-account");
+    return {
+        ...(await importOriginal<typeof import("@/lib/payments/fedapay-account-client")>()),
+        createAccountCheckout: accountCheckoutFrom((...args) => initiatePayment(...args)),
+    };
+});
 
 import { POST as cashPayment } from "@/app/api/payments/cash/route";
+import { ensureActiveSchoolAccount } from "./fixtures/payment-account";
 import { POST as createPayment } from "@/app/api/payments/route";
 import { POST as financePayment } from "@/app/api/finance/payments/route";
 import { PATCH as patchPayment, DELETE as cancelPayment } from "@/app/api/payments/[id]/route";
@@ -87,6 +89,7 @@ async function expectLedgerConsistent(studentId: string, feeId: string) {
 
 beforeAll(async () => {
     schoolId = (await createSchool("IT-3B")).id;
+    await ensureActiveSchoolAccount(schoolId);
     const mk = (role: "ACCOUNTANT" | "SCHOOL_ADMIN") =>
         prisma.user.create({ data: { email: `${uniqueCode(role.toLowerCase())}@integration.test`, password: "x", firstName: role, lastName: "3b", role, schoolId } });
     accountant = sessionFor("ACCOUNTANT", schoolId, (await mk("ACCOUNTANT")).id);
@@ -171,7 +174,7 @@ describe("B — Concurrence réelle contre PostgreSQL", () => {
         const f = await newFee(40000);
         const [counter, online] = await Promise.all([
             cash(s, f, 30000),
-            callRoute(initiate, json("/api/payments/initiate", { amount: 30000, feeId: f, studentId: s, provider: "MOMO", payerPhone: "0190000000" })),
+            callRoute(initiate, json("/api/payments/initiate", { amount: 30000, feeId: f, studentId: s, provider: "MTN", payerPhone: "0190000000" })),
         ]);
         expect([counter.status, online.status].filter((st) => st === 200)).toHaveLength(1);
         const balance = (await balanceOf(s, f))!;
@@ -232,7 +235,7 @@ describe("C — Réservations des paiements en ligne", () => {
         const f = await newFee(50000);
         const p = await pendingOnline(s, f, 20000);
         expect((await cash(s, f, 50000)).status).toBe(400);
-        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test"));
+        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test", { provider: "MOMO", paymentAccountId: null }));
         expect((await cash(s, f, 50000)).status).toBe(200);
     });
 
@@ -522,7 +525,7 @@ describe("E — Confirmation authentique après une annulation (lot 3b)", () => 
         const s = await newStudent();
         const f = await newFee(50000);
         const p = await onlinePayment(s, f, 50000);
-        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test"));
+        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test", { provider: "MOMO", paymentAccountId: null }));
         const before = await alertsFor(accountant.user.id);
         expect(await confirm(p.reference!, 50000)).toMatchObject({ outcome: "CONFIRMED" });
         expect(await alertsFor(accountant.user.id)).toBe(before);
@@ -532,7 +535,7 @@ describe("E — Confirmation authentique après une annulation (lot 3b)", () => 
         const s = await newStudent();
         const f = await newFee(50000);
         const p = await onlinePayment(s, f, 50000);
-        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test"));
+        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test", { provider: "MOMO", paymentAccountId: null }));
         expect(await confirm(p.reference!, 40000)).toMatchObject({ outcome: "MISMATCH" });
         expect(await confirm(p.reference!, 50000, "EUR")).toMatchObject({ outcome: "MISMATCH" });
         const after = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
@@ -546,7 +549,7 @@ describe("E — Confirmation authentique après une annulation (lot 3b)", () => 
         const f = await newFee(50000);
         await newPlan(s, f, 50000);
         const p = await onlinePayment(s, f, 50000);
-        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test"));
+        await runAsSystem("test:3b", () => failOnlinePayment(p.reference!, "test", { provider: "MOMO", paymentAccountId: null }));
         actAs(accountant);
         const [counter, confirmation] = await Promise.all([cash(s, f, 50000), confirm(p.reference!, 50000)]);
         // Le paiement annulé ne réservait rien : selon l'ordre, le guichet passe ou non

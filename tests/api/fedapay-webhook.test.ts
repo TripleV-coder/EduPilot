@@ -66,6 +66,8 @@ describe("POST /api/payments/fedapay/webhook", () => {
       receivedAmount: 50000,
       receivedCurrency: "XOF",
       providerTransactionId: "4242",
+      // Route globale : paiements historiques sans compte d'école seulement (S7)
+      paymentAccountId: null,
       source: "FedaPay txn 4242",
     });
   });

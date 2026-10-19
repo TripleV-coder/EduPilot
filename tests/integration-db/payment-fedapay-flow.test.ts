@@ -12,23 +12,27 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * Prisma et l'état des paiements sont réels. Aucune clé de production n'est
  * nécessaire, et aucune ne peut être utilisée par mégarde.
  */
-const { transactionCreate } = vi.hoisted(() => ({ transactionCreate: vi.fn() }));
-
-vi.mock("fedapay", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("fedapay")>();
-  return {
-    ...actual,
-    // Le réseau est coupé ; la vérification de signature (Webhook) reste réelle.
-    FedaPay: { setApiKey: vi.fn(), setEnvironment: vi.fn() },
-    Transaction: { create: transactionCreate },
-  };
+// S7 : l'essai part sur le compte FedaPay de l'école, par le client par requête.
+// Seul l'appel HTTP au fournisseur est simulé (fetch) ; la signature du webhook
+// est vérifiée par le vrai code du SDK officiel.
+const transactionCreate = vi.fn();
+const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+  const url = String(input);
+  const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  if (url.endsWith("/transactions") && init?.method === "POST") {
+    transactionCreate(JSON.parse(String(init.body)));
+    return ok({ "v1/transaction": { id: 4242, status: "pending" } });
+  }
+  return ok({ token: "tok_test", url: "https://sandbox.fedapay.com/checkout/tok_test" });
 });
+vi.stubGlobal("fetch", fetchMock);
 
 const { Webhook } = await import("fedapay");
 const { POST: initiate } = await import("@/app/api/payments/fedapay/initiate/route");
-const { POST: fedapayWebhook } = await import("@/app/api/payments/fedapay/webhook/route");
+const { POST: accountWebhook } = await import("@/app/api/payments/fedapay/webhook/[accountId]/route");
+const { activeSchoolAccount } = await import("./fixtures/payment-account");
+let account: { id: string; webhookSecret: string };
 
-const WEBHOOK_SECRET = "integration-fedapay-webhook-secret";
 
 let schoolId: string;
 let studentId: string;
@@ -46,11 +50,6 @@ async function newPendingPayment(): Promise<string> {
 
 /** Initie le paiement ; renvoie la référence transmise à FedaPay. */
 async function initiateFedaPay(paymentId: string): Promise<string> {
-  transactionCreate.mockResolvedValueOnce({
-    id: 4242,
-    generateToken: async () => ({ token: "tok_test", url: "https://sandbox.fedapay.com/checkout/tok_test" }),
-  });
-
   const res = await callRoute(initiate, {
     method: "POST",
     path: "/api/payments/fedapay/initiate",
@@ -66,14 +65,16 @@ async function initiateFedaPay(paymentId: string): Promise<string> {
  * en production — c'est aussi ce qui vérifie que la route déclare bien son
  * contexte système (audit M2).
  */
-async function deliverWebhook(event: Record<string, unknown>, secret = WEBHOOK_SECRET) {
+async function deliverWebhook(event: Record<string, unknown>, secret = account.webhookSecret) {
   const raw = JSON.stringify(event);
   const header = Webhook.generateTestHeaderString({ payload: raw, secret });
   actAs(null);
   try {
-    return await callRoute(fedapayWebhook, {
+    // Adresse de webhook du compte de l'école (S7)
+    return await callRoute(accountWebhook, {
       method: "POST",
-      path: "/api/payments/fedapay/webhook",
+      path: `/api/payments/fedapay/webhook/${account.id}`,
+      params: { accountId: account.id },
       rawBody: raw,
       headers: { "x-fedapay-signature": header },
     });
@@ -90,12 +91,9 @@ function approvedEvent(reference: string) {
 }
 
 beforeAll(async () => {
-  process.env.FEDAPAY_WEBHOOK_SECRET = WEBHOOK_SECRET;
-  process.env.FEDAPAY_SECRET_KEY = "sk_sandbox_integration";
-  process.env.FEDAPAY_ENVIRONMENT = "sandbox";
-
   const school = await createSchool("IT-FEDA");
   schoolId = school.id;
+  account = await activeSchoolAccount(schoolId);
 
   const studentUser = await prisma.user.create({
     data: {
@@ -129,8 +127,8 @@ beforeAll(async () => {
 
 beforeEach(() => {
   delete process.env.PAYMENTS_LIVE_ENABLED;
-  process.env.FEDAPAY_ENVIRONMENT = "sandbox";
-  process.env.FEDAPAY_SECRET_KEY = "sk_sandbox_integration";
+  delete process.env.FEDAPAY_ENVIRONMENT;
+  delete process.env.FEDAPAY_SECRET_KEY;
   transactionCreate.mockClear();
 });
 
@@ -181,7 +179,7 @@ describe("Lot 7 — FedaPay : initiation → webhook signé → VERIFIED", () =>
 
     const hook = await deliverWebhook({
       name: "transaction.canceled",
-      entity: { id: 4243, status: "canceled", merchant_reference: reference },
+      entity: { id: 4242, status: "canceled", merchant_reference: reference },
     });
 
     expect(hook.status).toBe(200);

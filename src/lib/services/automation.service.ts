@@ -6,6 +6,7 @@ import { createBulkNotifications } from "@/lib/services/notification.service";
 import { runInstallmentReminders } from "@/lib/finance/reminders";
 import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { reconcileStalePayments, type ReconcileReport } from "@/lib/finance/online-payments";
+import { verifyOnSchoolAccount } from "@/lib/payments/school-accounts";
 import { logger } from "@/lib/utils/logger";
 import { purgeExpiredRevokedSessions } from "@/lib/auth/session-revocation";
 
@@ -59,8 +60,12 @@ export class AutomationService {
     /** Réconciliation des paiements en ligne restés en attente plus de 24 h. */
     async reconcileOnlinePayments(): Promise<ReconcileReport> {
         try {
-            return await reconcileStalePayments((provider, transactionId) =>
-                PaymentProviderFactory.getProvider(provider).verifyPayment(transactionId),
+            // Compte de l'école du paiement (S7) ; configuration globale pour les
+            // seuls paiements historiques sans compte
+            return await reconcileStalePayments((provider, transactionId, paymentAccountId) =>
+                paymentAccountId
+                    ? verifyOnSchoolAccount(paymentAccountId, transactionId)
+                    : PaymentProviderFactory.getProvider(provider).verifyPayment(transactionId),
             );
         } catch (error) {
             logger.error("Réconciliation des paiements en ligne en échec", error as Error);

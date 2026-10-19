@@ -13,15 +13,17 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * compte et non sur celle de sa fiche. Seul l'appel au fournisseur est simulé.
  */
 const { initiatePayment } = vi.hoisted(() => ({ initiatePayment: vi.fn() }));
-vi.mock("@/lib/finance/factory", () => ({
-    PaymentProviderFactory: { getProvider: () => ({ initiatePayment }) },
-}));
-vi.mock("@/lib/finance/providers/momo", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@/lib/finance/providers/momo")>()),
-    isMomoConfigured: () => true,
-}));
+// S7 : l'essai en ligne part sur le compte FedaPay de l'école (client simulé)
+vi.mock("@/lib/payments/fedapay-account-client", async (importOriginal) => {
+    const { accountCheckoutFrom } = await import("./fixtures/payment-account");
+    return {
+        ...(await importOriginal<typeof import("@/lib/payments/fedapay-account-client")>()),
+        createAccountCheckout: accountCheckoutFrom((...args) => initiatePayment(...args)),
+    };
+});
 
 import { POST as cashPayment } from "@/app/api/payments/cash/route";
+import { ensureActiveSchoolAccount } from "./fixtures/payment-account";
 import { POST as createPayment } from "@/app/api/payments/route";
 import { POST as financePayment } from "@/app/api/finance/payments/route";
 import { POST as initiate } from "@/app/api/payments/initiate/route";
@@ -55,6 +57,9 @@ async function student(schoolOfProfile: string, schoolOfAccount: string) {
 
 beforeAll(async () => {
     [A, B] = [(await createSchool("SCOPE-A")).id, (await createSchool("SCOPE-B")).id];
+    // Chaque école encaisse sur son propre compte (S7)
+    await ensureActiveSchoolAccount(A);
+    await ensureActiveSchoolAccount(B);
     studentA = await student(A, A);
     studentB = await student(B, B);
     movedStudent = await student(A, B);
@@ -135,7 +140,7 @@ describe("Parent d'enfants dans deux écoles : paiement en ligne", () => {
         actAs(as("PARENT", A, [A, B], parentUser));
         const crossed = await callRoute(initiate, {
             method: "POST", path: "/api/payments/initiate",
-            body: { amount: 10000, feeId: feeB, studentId: studentA, provider: "MOMO", payerPhone: "0190000000" },
+            body: { amount: 10000, feeId: feeB, studentId: studentA, provider: "MTN", payerPhone: "0190000000" },
         });
         expect(crossed.status).toBe(403);
         expect(await paymentsOf(studentA, feeB)).toBe(0);
@@ -143,7 +148,7 @@ describe("Parent d'enfants dans deux écoles : paiement en ligne", () => {
 
         const legit = await callRoute(initiate, {
             method: "POST", path: "/api/payments/initiate",
-            body: { amount: 10000, feeId: feeA, studentId: studentA, provider: "MOMO", payerPhone: "0190000000" },
+            body: { amount: 10000, feeId: feeA, studentId: studentA, provider: "MTN", payerPhone: "0190000000" },
         });
         expect(legit.status).toBe(200);
     });

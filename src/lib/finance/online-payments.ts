@@ -152,6 +152,19 @@ export function providerBindingMismatch(
     return null;
 }
 
+/**
+ * Compte marchand de la notification ≠ compte lié au paiement (S7) : un
+ * événement du compte de l'école A ne vise jamais un paiement de l'école B, et
+ * l'ancienne configuration globale (null) ne valide plus un paiement lié à un
+ * compte d'école. Null si les deux correspondent.
+ */
+export function accountBindingMismatch(paymentAccountId: string | null, receivedAccountId: string | null): string | null {
+    if (paymentAccountId === receivedAccountId) return null;
+    if (!paymentAccountId) return "notification d'un compte marchand d'école pour un paiement de l'ancienne configuration globale";
+    if (!receivedAccountId) return "notification de l'ancienne configuration globale pour un paiement lié au compte marchand d'une école";
+    return "notification d'un autre compte marchand que celui du paiement";
+}
+
 /** Identifiant à enregistrer à la validation : seulement s'il est comparable et encore inconnu. */
 function transactionIdToRecord(provider: OnlineProvider, stored: string | null, received: string | null | undefined) {
     return COMPARABLE_TRANSACTION_ID[provider] && !stored && received ? received : null;
@@ -265,13 +278,19 @@ export async function confirmOnlinePayment(params: {
     /** Devise reçue ; null = non transmise (la transaction a été créée en XOF par EduPilot). */
     receivedCurrency: string | null;
     providerTransactionId?: string | null;
+    /**
+     * Compte marchand qui a émis la notification (S7) : celui de la route de
+     * webhook par compte, ou null pour l'ancienne configuration globale. Doit
+     * être exactement le compte lié au paiement.
+     */
+    paymentAccountId: string | null;
     source: string;
 }): Promise<ConfirmOutcome> {
     const payment = await prisma.payment.findUnique({
         where: { reference: params.reference },
         select: {
             id: true, studentId: true, feeId: true, amount: true, status: true, notes: true,
-            provider: true, providerTransactionId: true, student: { select: { schoolId: true } },
+            provider: true, providerTransactionId: true, paymentAccountId: true, student: { select: { schoolId: true } },
         },
     });
     if (!payment) return { outcome: "NOT_FOUND" };
@@ -295,7 +314,9 @@ export async function confirmOnlinePayment(params: {
     };
     // Avant tout le reste (même la note « à rapprocher ») : la notification
     // doit viser ce paiement, chez ce fournisseur, pour cette transaction (S3)
-    const binding = providerBindingMismatch(payment, params.provider, params.providerTransactionId);
+    const binding = providerBindingMismatch(payment, params.provider, params.providerTransactionId)
+        // Compte non transmis = ancienne configuration globale (jamais un compte d'école)
+        ?? accountBindingMismatch(payment.paymentAccountId, params.paymentAccountId ?? null);
     if (binding) return rejectBinding(binding);
 
     const reason = confirmationMismatch(expected, params.receivedAmount, params.receivedCurrency);
@@ -398,10 +419,23 @@ export async function confirmOnlinePayment(params: {
     return { outcome: "ALREADY_PROCESSED", paymentId: result.paymentId };
 }
 
-/** Échec confirmé par le fournisseur : l'essai est annulé (la dette reste due). */
-export async function failOnlinePayment(reference: string, source: string): Promise<number> {
+/**
+ * Échec confirmé par le fournisseur : l'essai est annulé (la dette reste due).
+ * Seulement si la notification vient du fournisseur ET du compte marchand du
+ * paiement (S7) : sinon aucune écriture (0).
+ */
+export async function failOnlinePayment(
+    reference: string,
+    source: string,
+    binding: { provider: OnlineProvider; paymentAccountId: string | null },
+): Promise<number> {
     const result = await prisma.payment.updateMany({
-        where: { reference, status: { in: ["PENDING", "EXPIRED"] satisfies PaymentStatus[] } },
+        where: {
+            reference,
+            provider: binding.provider,
+            paymentAccountId: binding.paymentAccountId,
+            status: { in: ["PENDING", "EXPIRED"] satisfies PaymentStatus[] },
+        },
         data: { status: "CANCELLED", cancellationSource: "PROVIDER" },
     });
     if (result.count > 0) logger.info("Paiement en ligne annulé par le fournisseur", { reference, source });
@@ -448,6 +482,8 @@ export function readProviderEvent(body: Record<string, unknown>, provider: Webho
 export type VerifyFn = (
     provider: OnlineProvider,
     transactionId: string,
+    /** Compte marchand du paiement (S7) : c'est lui qu'on interroge ; null = ancienne configuration globale. */
+    paymentAccountId: string | null,
 ) => Promise<{ status: "SUCCESS" | "FAILED" | "PENDING"; rawData: unknown }>;
 
 export interface ReconcileReport {
@@ -497,7 +533,7 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
     const stale = await prisma.payment.findMany({
         where: { status: "PENDING", deletedAt: null, createdAt: { lt: new Date(now.getTime() - ONLINE_PAYMENT_TTL_MS) } },
         select: {
-            id: true, reference: true, provider: true, providerTransactionId: true, amount: true, createdAt: true,
+            id: true, reference: true, provider: true, providerTransactionId: true, paymentAccountId: true, amount: true, createdAt: true,
             student: { select: { schoolId: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -510,7 +546,7 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
         let raw: unknown = null;
         if (provider && p.providerTransactionId) {
             try {
-                ({ status: verdict, rawData: raw } = await verify(provider, p.providerTransactionId));
+                ({ status: verdict, rawData: raw } = await verify(provider, p.providerTransactionId, p.paymentAccountId));
             } catch (error) {
                 // Fournisseur injoignable : résultat inconnu, pas un échec
                 logger.warn("Réconciliation : fournisseur injoignable", { paymentId: p.id, reason: (error as Error).message });
@@ -526,6 +562,7 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
                     receivedAmount: amount,
                     receivedCurrency: currency,
                     providerTransactionId: p.providerTransactionId,
+                    paymentAccountId: p.paymentAccountId,
                     source: `réconciliation ${provider}`,
                 });
             } catch (error) {
@@ -551,7 +588,10 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
                 continue;
             }
         } else if (verdict === "FAILED" && p.reference) {
-            report.cancelled += await failOnlinePayment(p.reference, `réconciliation ${provider}`);
+            report.cancelled += await failOnlinePayment(p.reference, `réconciliation ${provider}`, {
+                provider: provider as OnlineProvider,
+                paymentAccountId: p.paymentAccountId,
+            });
             continue;
         }
 

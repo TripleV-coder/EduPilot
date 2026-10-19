@@ -5,7 +5,8 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
-import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
+import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
+import { ONLINE_UNAVAILABLE_MESSAGE, resolveCollectingAccount } from "@/lib/payments/school-accounts";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { ONLINE_PAYMENT_TTL_MS, startedAttemptConflict } from "@/lib/finance/online-payments";
@@ -30,13 +31,6 @@ export const POST = createApiHandler(async (request, context) => {
     const liveBlocked = livePaymentsGuard();
     if (liveBlocked) return liveBlocked;
 
-    if (!isFedaPayConfigured()) {
-        return NextResponse.json(
-            { error: "Paiement en ligne non configuré.", code: "FEDAPAY_NOT_CONFIGURED" },
-            { status: 503 }
-        );
-    }
-
     const rate = await checkRateLimit(strictLimiter, `fedapay-initiate:${session.user.id}`);
     if (!rate.success) {
         return NextResponse.json({ error: "Trop de tentatives. Réessayez." }, { status: 429 });
@@ -59,7 +53,7 @@ export const POST = createApiHandler(async (request, context) => {
             createdAt: true,
             studentId: true,
             student: { select: { schoolId: true } },
-            fee: { select: { name: true } },
+            fee: { select: { name: true, schoolId: true } },
         },
     });
 
@@ -120,6 +114,14 @@ export const POST = createApiHandler(async (request, context) => {
         );
     }
 
+    // Compte marchand de l'école du frais (S7) : sans compte actif et valide,
+    // paiement en ligne indisponible pour cette école, aucune écriture.
+    const resolved = await resolveCollectingAccount(prisma, payment.fee.schoolId);
+    if (!resolved.ok) {
+        logger.warn("Paiement en ligne indisponible pour l'école", { schoolId: payment.fee.schoolId, reason: resolved.reason });
+        return NextResponse.json({ error: ONLINE_UNAVAILABLE_MESSAGE, code: "ONLINE_PAYMENT_UNAVAILABLE" }, { status: 503 });
+    }
+
     const reference = payment.reference ?? `EDU-${payment.id}`;
     const origin = new URL(request.url).origin;
 
@@ -132,7 +134,7 @@ export const POST = createApiHandler(async (request, context) => {
         // fournisseur est attribué à FedaPay (deux appels simultanés : un seul gagne)
         const claimed = await prisma.payment.updateMany({
             where: { id: payment.id, status: "PENDING", provider: null },
-            data: { reference, method: "MOBILE_MONEY_MTN", provider: "FEDAPAY" },
+            data: { reference, method: "MOBILE_MONEY_MTN", provider: "FEDAPAY", paymentAccountId: resolved.account.id },
         });
         if (claimed.count !== 1) {
             const now = await prisma.payment.findUnique({ where: { id: payment.id }, select: { provider: true, notes: true } });
@@ -142,7 +144,7 @@ export const POST = createApiHandler(async (request, context) => {
             return NextResponse.json({ error: conflict.error, code: conflict.code }, { status: conflict.status });
         }
 
-        const checkout = await createFedaPayCheckout({
+        const checkout = await createAccountCheckout(resolved.credentials, {
             amount,
             description: payment.fee?.name ? `Frais : ${payment.fee.name}` : "Frais scolaires",
             reference,

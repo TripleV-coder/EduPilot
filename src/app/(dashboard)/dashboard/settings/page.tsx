@@ -78,6 +78,13 @@ const ADMIN_SETTINGS: SettingItem[] = [
         accent: "brand",
     },
     {
+        icon: "money",
+        title: "Paiement en ligne",
+        desc: "Compte FedaPay propre à l'établissement",
+        href: "/dashboard/settings/payments",
+        accent: "brand",
+    },
+    {
         icon: "settings",
         title: "Modules de l'établissement",
         desc: "N'activer que ce dont l'école se sert",

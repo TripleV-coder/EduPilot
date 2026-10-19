@@ -18,20 +18,23 @@ import {
  */
 const { initiatePayment } = vi.hoisted(() => ({ initiatePayment: vi.fn() }));
 
-vi.mock("@/lib/finance/factory", () => ({
-    PaymentProviderFactory: { getProvider: () => ({ initiatePayment }) },
-}));
-vi.mock("@/lib/finance/providers/momo", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@/lib/finance/providers/momo")>()),
-    isMomoConfigured: () => true,
-}));
+// S7 : l'essai part sur le compte FedaPay de l'école (client simulé)
+vi.mock("@/lib/payments/fedapay-account-client", async (importOriginal) => {
+    const { accountCheckoutFrom } = await import("./fixtures/payment-account");
+    return {
+        ...(await importOriginal<typeof import("@/lib/payments/fedapay-account-client")>()),
+        createAccountCheckout: accountCheckoutFrom((...args) => initiatePayment(...args)),
+    };
+});
 
 import { POST as initiate } from "@/app/api/payments/initiate/route";
 import { POST as cashPayment } from "@/app/api/payments/cash/route";
 import { ProviderInitError } from "@/lib/finance/providers/init-error";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 import { failOnlinePayment } from "@/lib/finance/online-payments";
-import { POST as momoWebhook } from "@/app/api/payments/momo/webhook/route";
+import { POST as accountWebhook } from "@/app/api/payments/fedapay/webhook/[accountId]/route";
+import { Webhook } from "fedapay";
+import { activeSchoolAccount } from "./fixtures/payment-account";
 
 const WEBHOOK_SECRET = "integration-online-payments-secret";
 
@@ -47,7 +50,7 @@ function initiateRequest(feeId: string, amount: number) {
     return callRoute(initiate, {
         method: "POST",
         path: "/api/payments/initiate",
-        body: { amount, feeId, studentId, provider: "MOMO", payerPhone: "0190000000" },
+        body: { amount, feeId, studentId, provider: "MTN", payerPhone: "0190000000" },
     });
 }
 
@@ -59,20 +62,45 @@ async function initiateOk(feeId: string, amount: number): Promise<{ paymentId: s
     return { paymentId, reference: payment.reference! };
 }
 
+let account: { id: string; webhookSecret: string };
+
+/**
+ * Notification signée du compte FedaPay de l'école (S7). Garde la forme des
+ * événements de ce test (référence, montant, devise, statut) ; l'identifiant
+ * de transaction est celui enregistré à l'initiation.
+ */
 async function deliverMomo(event: Record<string, unknown>) {
-    const raw = JSON.stringify(event);
-    const signature = createHmac("sha256", WEBHOOK_SECRET).update(raw).digest("hex");
+    const payment = await prisma.payment.findUnique({ where: { reference: String(event.externalId) }, select: { providerTransactionId: true } });
+    const raw = JSON.stringify({
+        name: event.status === "SUCCESSFUL" ? "transaction.approved" : "transaction.declined",
+        entity: {
+            id: payment?.providerTransactionId ?? null,
+            merchant_reference: event.externalId,
+            amount: Number(event.amount),
+            currency: { iso: event.currency },
+        },
+    });
     actAs(null);
     try {
-        return await callRoute(momoWebhook, {
+        return await callRoute(accountWebhook, {
             method: "POST",
-            path: "/api/payments/momo/webhook",
+            path: `/api/payments/fedapay/webhook/${account.id}`,
+            params: { accountId: account.id },
             rawBody: raw,
-            headers: { "x-momo-signature": signature },
+            headers: { "x-fedapay-signature": Webhook.generateTestHeaderString({ payload: raw, secret: account.webhookSecret }) },
         });
     } finally {
         actAs(sessionFor("ACCOUNTANT", schoolId));
     }
+}
+
+/** Confirmation directe du fournisseur, avec le compte et la transaction de l'essai (S7). */
+async function confirmDirect(reference: string, source: string) {
+    const p = await prisma.payment.findUniqueOrThrow({ where: { reference }, select: { providerTransactionId: true, paymentAccountId: true } });
+    return runAsSystem("test", () => confirmOnlinePayment({
+        reference, provider: "FEDAPAY", receivedAmount: 50000, receivedCurrency: "XOF",
+        providerTransactionId: p.providerTransactionId, paymentAccountId: p.paymentAccountId, source,
+    }));
 }
 
 function success(externalId: string, amount: string, currency = "XOF") {
@@ -88,6 +116,7 @@ beforeAll(async () => {
     process.env.MOMO_WEBHOOK_SECRET = WEBHOOK_SECRET;
     const school = await createSchool("IT-PAY");
     schoolId = school.id;
+    account = await activeSchoolAccount(schoolId);
     const user = await prisma.user.create({
         data: {
             email: `${uniqueCode("eleve")}@integration.test`,
@@ -141,7 +170,8 @@ describe("Doublons simultanés (verrou par élève et par frais)", () => {
         const { paymentId } = await initiateOk(feeId, 50000);
 
         const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
-        expect(payment.provider).toBe("MOMO");
+        expect(payment.provider).toBe("FEDAPAY");
+        expect(payment.paymentAccountId).toBe(account.id);
         expect(payment.providerTransactionId).toBe("uuid-momo-42");
     });
 
@@ -245,10 +275,7 @@ describe("Confirmation : montant et devise contrôlés", () => {
     it("confirmations simultanées : validé une seule fois, compté une seule fois", async () => {
         const feeId = await newFee();
         const { paymentId, reference } = await initiateOk(feeId, 50000);
-        const confirm = (source: string) =>
-            runAsSystem("test", () =>
-                confirmOnlinePayment({ reference, provider: "MOMO", receivedAmount: 50000, receivedCurrency: "XOF", source }),
-            );
+        const confirm = (source: string) => confirmDirect(reference, source);
 
         const outcomes = await Promise.all([confirm("a"), confirm("b"), confirm("c")]);
 
@@ -281,9 +308,7 @@ describe("Confirmation : montant et devise contrôlés", () => {
         await age(paymentId);
         await prisma.payment.create({ data: { studentId, feeId, amount: 50000, method: "CASH", status: "VERIFIED" } });
 
-        const result = await runAsSystem("test", () =>
-            confirmOnlinePayment({ reference, provider: "MOMO", receivedAmount: 50000, receivedCurrency: "XOF", source: "test" }),
-        );
+        const result = await confirmDirect(reference, "test");
 
         expect(result).toMatchObject({ outcome: "CONFIRMED", overpaid: 50000 });
         const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
@@ -495,9 +520,9 @@ describe("Initialisation : refus avéré ou résultat inconnu (lot 3b)", () => {
     it("confirmation authentique après un échec signalé par le fournisseur : comptabilisée une seule fois, état antérieur noté", async () => {
         const feeId = await newFee(50000);
         const { paymentId, reference } = await initiateOk(feeId, 50000);
-        await runAsSystem("test", () => failOnlinePayment(reference, "test"));
+        await runAsSystem("test", () => failOnlinePayment(reference, "test", { provider: "FEDAPAY", paymentAccountId: account.id }));
         expect((await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).cancellationSource).toBe("PROVIDER");
-        const confirm = () => runAsSystem("test", () => confirmOnlinePayment({ reference, provider: "MOMO", receivedAmount: 50000, receivedCurrency: "XOF", source: "webhook MOMO" }));
+        const confirm = () => confirmDirect(reference, "webhook FedaPay");
         expect(await confirm()).toMatchObject({ outcome: "CONFIRMED", overpaid: 0 });
         expect(await confirm()).toMatchObject({ outcome: "ALREADY_PROCESSED" });
         const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });

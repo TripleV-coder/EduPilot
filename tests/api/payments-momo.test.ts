@@ -108,6 +108,7 @@ describe("POST /api/payments/momo/webhook (requireAuth: false)", () => {
       receivedAmount: 50000,
       receivedCurrency: "XOF",
       providerTransactionId: "ftn_1",
+      paymentAccountId: null,
       source: "MoMo txn ftn_1",
     });
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();

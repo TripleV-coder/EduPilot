@@ -115,6 +115,7 @@ model School {
   dataRetentionPolicies  DataRetentionPolicy[]
   evaluationTypes        EvaluationType[]
   fees                   Fee[]
+  paymentAccounts        SchoolPaymentAccount[]
   importTemplates        ImportTemplate[]
   leaderboard            Leaderboard[]
   mealTickets            MealTicket[]
@@ -280,6 +281,7 @@ model User {
   parentProfile                     ParentProfile?
   paymentsReceived                  Payment[]                   @relation("PaymentReceivedBy")
   paymentsReconciled                Payment[]                   @relation("PaymentReconciledBy")
+  paymentAccountsCreated            SchoolPaymentAccount[]      @relation("PaymentAccountCreatedBy")
   resourcesUploaded                 Resource[]
   sanctionsAssigned                 Sanction[]
   schoolEventsCreated               SchoolEvent[]
@@ -905,18 +907,18 @@ model Fee {
 }
 
 model Payment {
-  id               String         @id @default(cuid())
-  studentId        String
-  feeId            String
-  amount           Decimal        @db.Decimal(10, 2)
-  method           PaymentMethod
-  reference        String?        @unique
-  paidAt           DateTime?
-  receivedBy       String?
-  notes            String?
-  status           PaymentStatus  @default(PENDING)
-  reconciledAt     DateTime?
-  reconciledBy     String?
+  id                    String                     @id @default(cuid())
+  studentId             String
+  feeId                 String
+  amount                Decimal                    @db.Decimal(10, 2)
+  method                PaymentMethod
+  reference             String?                    @unique
+  paidAt                DateTime?
+  receivedBy            String?
+  notes                 String?
+  status                PaymentStatus              @default(PENDING)
+  reconciledAt          DateTime?
+  reconciledBy          String?
   /// Fournisseur du paiement en ligne (FEDAPAY, MOMO, FLUTTERWAVE, PAYSTACK)
   provider              String?
   /// Identifiant de la transaction chez le fournisseur : sert à lui redemander
@@ -927,20 +929,58 @@ model Payment {
   /// annulés avant son introduction (origine inconnue). Conservé si une
   /// confirmation authentique valide ensuite le paiement (trace).
   cancellationSource    PaymentCancellationSource?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  deletedAt        DateTime?
-  mealTickets      MealTicket[]
-  fee              Fee            @relation(fields: [feeId], references: [id], onDelete: Cascade)
-  receivedByUser   User?          @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
-  reconciledByUser User?          @relation("PaymentReconciledBy", fields: [reconciledBy], references: [id])
-  student          StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// Compte marchand de l'école qui a créé la transaction en ligne (S7).
+  /// Posé à l'initiation, jamais modifié (garde-fou en base). Null pour un
+  /// paiement manuel ou un paiement en ligne antérieur à S7 (compte global).
+  paymentAccountId      String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  deletedAt             DateTime?
+  mealTickets           MealTicket[]
+  fee                   Fee                        @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  receivedByUser        User?                      @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
+  reconciledByUser      User?                      @relation("PaymentReconciledBy", fields: [reconciledBy], references: [id])
+  student               StudentProfile             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paymentAccount        SchoolPaymentAccount?      @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
 
   @@index([studentId, feeId])
+  @@index([paymentAccountId])
   @@index([reference])
   @@index([status])
   @@index([deletedAt])
   @@map("payments")
+}
+
+/// Compte marchand propre à une école (S7, ADR-0011). Les fonds d'une école
+/// sont encaissés sur SON compte ; aucun compte global ne sert de repli.
+/// Secrets chiffrés (AES-256-GCM, clé PAYMENT_SECRETS_KEY), liés à l'école et
+/// au compte ; jamais renvoyés par l'API ni journalisés.
+model SchoolPaymentAccount {
+  id                      String                    @id @default(cuid())
+  schoolId                String
+  provider                String                    @default("FEDAPAY")
+  environment             PaymentAccountEnvironment
+  status                  PaymentAccountStatus      @default(INACTIVE)
+  /// Clé secrète API chiffrée
+  secretKeyCiphertext     String
+  /// Secret de signature du webhook de CE compte, chiffré séparément
+  webhookSecretCiphertext String
+  /// Version de la clé maîtresse qui a chiffré les deux secrets
+  encryptionKeyVersion    Int
+  /// 4 derniers caractères de la clé secrète, pour l'affichage
+  secretKeyLast4          String
+  lastVerifiedAt          DateTime?
+  activatedAt             DateTime?
+  revokedAt               DateTime?
+  createdById             String?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  school                  School                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  createdBy               User?                     @relation("PaymentAccountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  payments                Payment[]
+
+  @@index([schoolId, provider, environment, status])
+  @@map("school_payment_accounts")
 }
 
 model PaymentPlan {
@@ -3443,4 +3483,19 @@ model StudentFormula {
   @@index([studentId])
   @@index([periodId])
   @@map("student_formulas")
+}
+
+enum PaymentAccountEnvironment {
+  SANDBOX
+  LIVE
+}
+
+enum PaymentAccountStatus {
+  /// Enregistré, pas encore utilisé pour encaisser (à tester puis activer)
+  INACTIVE
+  /// Compte utilisé pour les nouveaux paiements en ligne de l'école
+  ACTIVE
+  /// Remplacé ou désactivé : plus aucun nouveau paiement ; ses paiements passés
+  /// restent rapprochables
+  REVOKED
 }

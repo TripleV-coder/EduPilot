@@ -97,13 +97,15 @@ export const POST = createApiHandler(async (req) => {
                 receivedAmount: event.amount,
                 receivedCurrency: event.currency,
                 providerTransactionId: event.providerTransactionId,
+                // Configuration globale : paiements historiques seulement (S7)
+                paymentAccountId: null,
                 source: `webhook ${provider}`,
             }));
             if (result.outcome === "NOT_FOUND") {
                 logger.warn("Webhook received for unknown transaction", { module: "api/payments/webhook", reference: event.reference });
             }
         } else if (event.status === "FAILED") {
-            await runAsSystem(SYSTEM_REASON, () => failOnlinePayment(event.reference!, `webhook ${provider}`));
+            await runAsSystem(SYSTEM_REASON, () => failOnlinePayment(event.reference!, `webhook ${provider}`, { provider, paymentAccountId: null }));
         }
 
         await invalidateByPath(CACHE_PATHS.payments).catch(() => { });

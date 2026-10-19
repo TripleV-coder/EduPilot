@@ -79,6 +79,8 @@ export const POST = createApiHandler(async (request) => {
                 receivedAmount: parseProviderAmount(event.amount, "MOMO"),
                 receivedCurrency: parseProviderCurrency(event.currency),
                 providerTransactionId: event.financialTransactionId,
+                // Configuration globale : paiements historiques seulement (S7)
+                paymentAccountId: null,
                 source: `MoMo txn ${event.financialTransactionId}`,
             }));
             logger.info("MoMo webhook: confirmation traitée", {
@@ -87,7 +89,7 @@ export const POST = createApiHandler(async (request) => {
                 outcome: result.outcome,
             });
         } else if (event.status === "FAILED") {
-            await runAsSystem("webhook:momo", () => failOnlinePayment(event.externalId, "webhook MoMo"));
+            await runAsSystem("webhook:momo", () => failOnlinePayment(event.externalId, "webhook MoMo", { provider: "MOMO", paymentAccountId: null }));
         }
 
         return NextResponse.json({ received: true });

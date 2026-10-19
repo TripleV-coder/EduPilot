@@ -102,6 +102,7 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
       receivedAmount: 50000,
       receivedCurrency: "XOF",
       providerTransactionId: "285959875",
+      paymentAccountId: null,
       source: "webhook FLUTTERWAVE",
     });
   });
@@ -140,7 +141,8 @@ describe("POST /api/payments/webhook (requireAuth: false)", () => {
 
     expect(res.status).toBe(200);
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
-      where: { reference: "PAY-1-ABC", status: { in: ["PENDING", "EXPIRED"] } },
+      // Même fournisseur et même compte (ici l'ancienne configuration globale) : S7
+      where: { reference: "PAY-1-ABC", provider: "FLUTTERWAVE", paymentAccountId: null, status: { in: ["PENDING", "EXPIRED"] } },
       data: { status: "CANCELLED", cancellationSource: "PROVIDER" },
     });
     expect(confirmOnlinePayment).not.toHaveBeenCalled();

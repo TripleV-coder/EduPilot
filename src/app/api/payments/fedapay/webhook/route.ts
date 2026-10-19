@@ -60,6 +60,9 @@ export const POST = createApiHandler(async (request) => {
                 receivedAmount: parseProviderAmount(event.entity?.amount, "FEDAPAY"),
                 receivedCurrency: parseProviderCurrency(event.entity?.currency),
                 providerTransactionId: fedapayId || null,
+                // Route globale : paiements historiques seulement ; ceux liés au
+                // compte d'une école passent par /webhook/<compte> (S7)
+                paymentAccountId: null,
                 source: `FedaPay txn ${fedapayId}`,
             }));
             logger.info("FedaPay webhook: confirmation traitée", { reference, fedapayId, outcome: result.outcome });
@@ -67,7 +70,7 @@ export const POST = createApiHandler(async (request) => {
         }
 
         if (CANCELLED.has(event.name)) {
-            const count = await runAsSystem("webhook:fedapay", () => failOnlinePayment(reference, "webhook FedaPay"));
+            const count = await runAsSystem("webhook:fedapay", () => failOnlinePayment(reference, "webhook FedaPay", { provider: "FEDAPAY", paymentAccountId: null }));
             return NextResponse.json({ received: true, cancelled: count });
         }
 

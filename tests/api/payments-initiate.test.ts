@@ -3,11 +3,13 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/finance/providers/momo", () => ({ isMomoConfigured: vi.fn() }));
-vi.mock("@/lib/payments/fedapay", () => ({ isFedaPayConfigured: vi.fn() }));
-vi.mock("@/lib/finance/factory", () => ({
-  PaymentProviderFactory: { getProvider: vi.fn() },
+// S7 : compte marchand de l'école (résolution et client testés sur une vraie
+// base : integration-db/school-payment-accounts)
+vi.mock("@/lib/payments/school-accounts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/payments/school-accounts")>()),
+  resolveCollectingAccount: vi.fn(),
 }));
+vi.mock("@/lib/payments/fedapay-account-client", () => ({ createAccountCheckout: vi.fn() }));
 // Verrou et solde : sémantique testée sur une vraie base (integration-db/online-payments)
 vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
@@ -30,9 +32,8 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import prisma from "@/lib/prisma";
-import { PaymentProviderFactory } from "@/lib/finance/factory";
-import { isMomoConfigured } from "@/lib/finance/providers/momo";
-import { isFedaPayConfigured } from "@/lib/payments/fedapay";
+import { resolveCollectingAccount } from "@/lib/payments/school-accounts";
+import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/initiate/route";
 import { ProviderInitError } from "@/lib/finance/providers/init-error";
@@ -44,11 +45,8 @@ function balance(overrides: Record<string, number> = {}) {
   return { ...b, remaining, available: Math.max(0, remaining - b.reserved) };
 }
 
-const providerMock = {
-  name: "MOMO",
-  initiatePayment: vi.fn(),
-  verifyPayment: vi.fn(),
-};
+const credentials = { accountId: "acct-a", environment: "SANDBOX" as const, secretKey: "sk_sandbox_synthetique" };
+const checkoutMock = vi.mocked(createAccountCheckout);
 
 function validBody(overrides: Record<string, unknown> = {}) {
   return {
@@ -87,29 +85,14 @@ function pendingPayment(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.MOMO_SUBSCRIPTION_KEY = "sk_test";
-  process.env.MOMO_API_USER = "user_test";
-  process.env.MOMO_API_KEY = "key_test";
-  process.env.FEDAPAY_SECRET_KEY = "sk_fedapay_test";
-  vi.mocked(isMomoConfigured).mockReturnValue(true);
-  vi.mocked(isFedaPayConfigured).mockReturnValue(true);
-  vi.mocked(PaymentProviderFactory.getProvider).mockReturnValue(providerMock as never);
+  vi.mocked(resolveCollectingAccount).mockResolvedValue({ ok: true, account: { id: "acct-a", schoolId: FIXTURES.schoolA } as never, credentials });
   vi.mocked(getFeeBalance).mockResolvedValue(balance());
   vi.mocked(prisma.payment.findFirst).mockResolvedValue(null as never);
-  vi.mocked(providerMock.initiatePayment).mockResolvedValue({
-    paymentUrl: "https://pay.example/x",
-    transactionId: "TXN-1",
-  });
+  checkoutMock.mockResolvedValue({ url: "https://pay.example/x", token: "tok", transactionId: "TXN-1" });
   vi.mocked(prisma.payment.update).mockResolvedValue({
     id: "cpay1",
     reference: "TXN-1",
   } as never);
-});
-afterEach(() => {
-  delete process.env.MOMO_SUBSCRIPTION_KEY;
-  delete process.env.MOMO_API_USER;
-  delete process.env.MOMO_API_KEY;
-  delete process.env.FEDAPAY_SECRET_KEY;
 });
 
 describe("POST /api/payments/initiate", () => {
@@ -122,10 +105,9 @@ describe("POST /api/payments/initiate", () => {
     expect(res.status).toBe(401);
   });
 
-  it("sans passerelle Mobile Money configurée : 503 explicite, aucun paiement créé (recette : 500)", async () => {
+  it("école sans compte marchand actif : 503 explicite, aucun paiement créé, aucun repli global (S7)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
-    vi.mocked(isMomoConfigured).mockReturnValue(false);
-    vi.mocked(isFedaPayConfigured).mockReturnValue(false);
+    vi.mocked(resolveCollectingAccount).mockResolvedValue({ ok: false, reason: "NO_ACTIVE_ACCOUNT" });
     mockTenant();
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
       method: "POST",
@@ -133,8 +115,11 @@ describe("POST /api/payments/initiate", () => {
     }));
     const body = await res.json();
     expect(res.status).toBe(503);
-    expect(body.code).toBe("PAYMENT_GATEWAY_NOT_CONFIGURED");
+    expect(body.code).toBe("ONLINE_PAYMENT_UNAVAILABLE");
     expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
+    // Compte cherché pour l'école DU FRAIS
+    expect(resolveCollectingAccount).toHaveBeenCalledWith(prisma, FIXTURES.schoolA);
   });
 
   it("refuse un rôle non autorisé (TEACHER)", async () => {
@@ -210,7 +195,7 @@ describe("POST /api/payments/initiate", () => {
     }));
 
     expect(res.status).toBe(403);
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("refuse à un PARENT le paiement d'un enfant non lié (403)", async () => {
@@ -226,7 +211,7 @@ describe("POST /api/payments/initiate", () => {
     }));
 
     expect(res.status).toBe(403);
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("refuse à un STUDENT de payer pour un autre compte (403)", async () => {
@@ -248,7 +233,7 @@ describe("POST /api/payments/initiate", () => {
     }));
 
     expect(res.status).toBe(403);
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("rejette un montant supérieur au montant du frais (400)", async () => {
@@ -261,10 +246,10 @@ describe("POST /api/payments/initiate", () => {
     }));
 
     expect(res.status).toBe(400);
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
-  it("initie un paiement MoMo direct (MOMO) et met à jour la référence", async () => {
+  it("initie le paiement sur le compte FedaPay de l'école et range l'identifiant de transaction à part", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
@@ -278,13 +263,13 @@ describe("POST /api/payments/initiate", () => {
     expect(res.status).toBe(200);
     expect(body.paymentUrl).toBe("https://pay.example/x");
     expect(body.transactionId).toBe("TXN-1");
-    expect(PaymentProviderFactory.getProvider).toHaveBeenCalledWith("MOMO");
     const createArgs = vi.mocked(prisma.payment.create).mock.calls[0][0] as {
       data: { status: string; method: string; amount: number };
     };
     expect(createArgs.data.status).toBe("PENDING");
     expect(createArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    expect(createArgs.data).toMatchObject({ provider: "MOMO" });
+    // S7 : lié au compte marchand de l'école, jamais à une clé globale
+    expect(createArgs.data).toMatchObject({ provider: "FEDAPAY", paymentAccountId: "acct-a" });
     expect(lockStudentFee).toHaveBeenCalledWith(prisma, FIXTURES.studentA, FIXTURES.feeA);
     // Audit N7 : la référence n'est jamais remplacée par l'identifiant du
     // fournisseur (les webhooks rapprochent par NOTRE référence) ; cet
@@ -294,28 +279,22 @@ describe("POST /api/payments/initiate", () => {
       where: { id: "cpay1" },
       data: { providerTransactionId: "TXN-1" },
     });
-    expect(providerMock.initiatePayment).toHaveBeenCalledWith(
-      50000,
-      "XOF",
-      "accountant@school.bj",
-      "PAY-123-ABC",
-      expect.objectContaining({ phone: "0190000000", network: "MTN" })
-    );
+    expect(checkoutMock).toHaveBeenCalledWith(credentials, expect.objectContaining({
+      amount: 50000,
+      reference: "PAY-123-ABC",
+      customer: expect.objectContaining({ email: "accountant@school.bj", phone: "0190000000" }),
+    }));
   });
 
-  it("retombe sur FedaPay quand MoMo direct n'est pas configuré", async () => {
+  it("MoMo direct, Flutterwave ou Paystack demandés : 503, rien créé (pas de compte par école pour eux)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
-    vi.mocked(isMomoConfigured).mockReturnValue(false);
     mockTenant();
-    vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
-
-    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
-      method: "POST",
-      body: validBody(),
-    }));
-
-    expect(res.status).toBe(200);
-    expect(PaymentProviderFactory.getProvider).toHaveBeenCalledWith("FEDAPAY");
+    for (const provider of ["MOMO", "FLUTTERWAVE", "PAYSTACK"]) {
+      const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", { method: "POST", body: validBody({ provider }) }));
+      expect(res.status, provider).toBe(503);
+    }
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   // S3 : un essai déjà confié à un fournisseur n'est ni modifié ni renvoyé.
@@ -325,7 +304,7 @@ describe("POST /api/payments/initiate", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.findFirst).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD", provider: "MOMO", notes: null })
+      pendingPayment({ id: "cpay-existing", reference: "PAY-OLD", provider: "FEDAPAY", notes: null })
     );
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
@@ -337,14 +316,14 @@ describe("POST /api/payments/initiate", () => {
     expect(await res.json()).toMatchObject({ code: "PAYMENT_ALREADY_STARTED", paymentId: "cpay-existing" });
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
     expect(vi.mocked(prisma.payment.update)).not.toHaveBeenCalled();
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("essai lancé chez un autre fournisseur : 409, jamais réassocié, autre fournisseur non appelé", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.findFirst).mockResolvedValue(
-      pendingPayment({ id: "cpay-existing", method: "MOBILE_MONEY_MTN", reference: "PAY-OLD", provider: "FEDAPAY", notes: null })
+      pendingPayment({ id: "cpay-existing", method: "MOBILE_MONEY_MTN", reference: "PAY-OLD", provider: "MOMO", notes: null })
     );
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
@@ -356,7 +335,7 @@ describe("POST /api/payments/initiate", () => {
     expect(await res.json()).toMatchObject({ code: "PAYMENT_PROVIDER_CONFLICT", paymentId: "cpay-existing" });
     expect(vi.mocked(prisma.payment.update)).not.toHaveBeenCalled();
     expect(vi.mocked(prisma.payment.create)).not.toHaveBeenCalled();
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("la reprise ne cherche que des essais en ligne (jamais un paiement manuel en attente)", async () => {
@@ -374,7 +353,7 @@ describe("POST /api/payments/initiate", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
-    vi.mocked(providerMock.initiatePayment).mockRejectedValue(new ProviderInitError("refusé (400)", "REFUSED"));
+    checkoutMock.mockRejectedValue(new ProviderInitError("refusé (400)", "REFUSED"));
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
       method: "POST",
@@ -394,7 +373,7 @@ describe("POST /api/payments/initiate", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockTenant();
     vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment());
-    vi.mocked(providerMock.initiatePayment).mockRejectedValue(new Error("provider down"));
+    checkoutMock.mockRejectedValue(new Error("provider down"));
 
     const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
       method: "POST",
@@ -440,7 +419,7 @@ describe("POST /api/payments/initiate", () => {
 
     expect(res.status).toBe(409);
     expect(body).toMatchObject({ code: "PAYMENT_IN_PROGRESS", reserved: 80000, available: 20000 });
-    expect(providerMock.initiatePayment).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("refuse une devise autre que le franc CFA (400)", async () => {

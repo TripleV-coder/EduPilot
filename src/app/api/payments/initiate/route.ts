@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { PaymentProviderFactory } from "@/lib/finance/factory";
-import { SupportedProvider } from "@/lib/finance/types";
-import { isMomoConfigured } from "@/lib/finance/providers/momo";
-import { isFedaPayConfigured } from "@/lib/payments/fedapay";
+import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
+import { ONLINE_UNAVAILABLE_MESSAGE, SCHOOL_PAYMENT_PROVIDER, resolveCollectingAccount } from "@/lib/payments/school-accounts";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
@@ -30,26 +28,23 @@ const initiateSchema = z.object({
 });
 
 /**
- * Résout le rail de paiement effectif. Les réseaux Mobile Money (MTN/Moov)
- * passent par MoMo direct si l'école a configuré l'API MTN, sinon par FedaPay
- * (agrégateur qui couvre MTN/Moov/Celtiis). Les autres providers sont honorés
- * tels quels.
+ * Rail de paiement d'une école (S7, ADR-0011) : FedaPay, sur le compte
+ * marchand de l'école, couvre les réseaux Mobile Money (MTN, Moov, Celtiis).
+ * MoMo direct, Flutterwave et Paystack n'existent qu'en configuration globale
+ * (un compte de la plateforme) : refusés pour les paiements des écoles.
  */
-function resolveProvider(requested: string): SupportedProvider {
+function resolveProvider(requested: string): typeof SCHOOL_PAYMENT_PROVIDER | null {
     const r = requested.toUpperCase();
-    if (r === "MTN" || r === "MOOV" || r === "MOBILE_MONEY") {
-        if (isMomoConfigured()) return "MOMO";
-        if (isFedaPayConfigured()) return "FEDAPAY";
-        return "FEDAPAY";
-    }
-    return r as SupportedProvider;
+    return r === "MTN" || r === "MOOV" || r === "MOBILE_MONEY" || r === "FEDAPAY" ? SCHOOL_PAYMENT_PROVIDER : null;
 }
 
-/** Rails en ligne dont les identifiants serveur sont requis pour initier un paiement. */
-function isRailConfigured(provider: SupportedProvider): boolean {
-    if (provider === "MOMO") return isMomoConfigured();
-    if (provider === "FEDAPAY") return isFedaPayConfigured();
-    return true;
+const onlineUnavailable = () =>
+    NextResponse.json({ error: ONLINE_UNAVAILABLE_MESSAGE, code: "ONLINE_PAYMENT_UNAVAILABLE" }, { status: 503 });
+
+function splitName(full: string | undefined): { firstname: string; lastname: string } {
+    const parts = (full || "EduPilot Élève").trim().split(/\s+/);
+    if (parts.length === 1) return { firstname: parts[0], lastname: "—" };
+    return { firstname: parts[0], lastname: parts.slice(1).join(" ") };
 }
 
 export const POST = createApiHandler(
@@ -71,17 +66,8 @@ export const POST = createApiHandler(
 
             const { amount, feeId, studentId, provider, payerPhone } = parsed.data;
             const resolvedProvider = resolveProvider(provider);
-            if (!isRailConfigured(resolvedProvider)) {
-                // Avant toute écriture : pas de paiement « en attente » orphelin.
-                return NextResponse.json(
-                    {
-                        error:
-                            "Le paiement Mobile Money en ligne n'est pas configuré. Pour un transfert déjà reçu, enregistrez-le avec sa référence de transaction.",
-                        code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
-                    },
-                    { status: 503 }
-                );
-            }
+            // Avant toute écriture : pas de paiement « en attente » orphelin.
+            if (!resolvedProvider) return onlineUnavailable();
 
             const [studentProfile, fee] = await Promise.all([
                 prisma.studentProfile.findUnique({
@@ -140,6 +126,14 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
             }
 
+            // Compte marchand de l'école du frais (jamais une valeur du navigateur),
+            // actif et déchiffrable dans l'environnement autorisé. Aucun repli.
+            const resolved = await resolveCollectingAccount(prisma, fee.schoolId);
+            if (!resolved.ok) {
+                logger.warn("Paiement en ligne indisponible pour l'école", { schoolId: fee.schoolId, reason: resolved.reason });
+                return onlineUnavailable();
+            }
+
             const newMethod = provider === "MOOV" ? "MOBILE_MONEY_MOOV" : "MOBILE_MONEY_MTN";
 
             // Verrou par élève et par frais : deux demandes simultanées ne
@@ -173,6 +167,7 @@ export const POST = createApiHandler(
                         studentId,
                         status: "PENDING",
                         provider: resolvedProvider,
+                        paymentAccountId: resolved.account.id,
                         reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
                     },
                 });
@@ -213,16 +208,18 @@ export const POST = createApiHandler(
             }
             const paymentRecord = outcome.payment;
 
-            const paymentProvider = PaymentProviderFactory.getProvider(resolvedProvider);
             let result: { paymentUrl: string; transactionId: string };
             try {
-                result = await paymentProvider.initiatePayment(
-                    Number(paymentRecord.amount),
-                    EXPECTED_CURRENCY,
-                    session.user.email!,
-                    paymentRecord.reference!,
-                    { paymentId: paymentRecord.id, phone: payerPhone, network: provider }
-                );
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                const checkout = await createAccountCheckout(resolved.credentials, {
+                    amount: Number(paymentRecord.amount),
+                    description: "Frais scolaires",
+                    reference: paymentRecord.reference!,
+                    // Retour du navigateur : page qui lit le statut en base (S4), jamais une API
+                    callbackUrl: `${appUrl}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(paymentRecord.reference!)}`,
+                    customer: { ...splitName(undefined), email: session.user.email!, phone: payerPhone || undefined },
+                });
+                result = { paymentUrl: checkout.url, transactionId: checkout.transactionId };
             } catch (error) {
                 // Demande jamais transmise au fournisseur (prouvé par le code) : aucune
                 // transaction n'existe, l'essai cesse de réserver (EXPIRED, toujours
