@@ -118,7 +118,11 @@ function RollCallPage() {
     >({});
     const [orderedStudentIds, setOrderedStudentIds] = useState<string[]>([]);
 
-    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR("/api/classes", fetcher);
+    // Enseignant : ses classes seulement (la seule est alors ouverte d'office)
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR(
+        session ? (session.user?.role === "TEACHER" ? "/api/classes?mine=1" : "/api/classes") : null,
+        fetcher,
+    );
     useEffect(() => {
         if (classesData)
             setClasses(

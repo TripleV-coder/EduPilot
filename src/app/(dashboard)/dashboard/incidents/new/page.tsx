@@ -127,7 +127,7 @@ export default function NewIncidentPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
             <PageShell>
                 <PageHeader
                     title="Signaler un incident"

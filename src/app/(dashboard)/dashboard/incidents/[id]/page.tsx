@@ -5,6 +5,7 @@ import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,7 +150,7 @@ export default function IncidentDetailsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
             <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger cet incident." onRetry={() => void mutate()} />
@@ -224,7 +225,9 @@ export default function IncidentDetailsPage() {
 
                     {/* Colonne Secondaire (Actions & Sanctions) */}
                     <div className="space-y-6">
+                        {/* Clôture et sanctions : rôles admis par l'API (pas la vie scolaire) */}
                         {!incident.isResolved && (
+                            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
                             <Card className="border-primary/20 bg-primary/5 shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="text-lg">Actions requises</CardTitle>
@@ -304,6 +307,7 @@ export default function IncidentDetailsPage() {
                                     </Dialog>
                                 </CardContent>
                             </Card>
+                            </RoleActionGuard>
                         )}
 
                         <Card className="border-border shadow-sm">

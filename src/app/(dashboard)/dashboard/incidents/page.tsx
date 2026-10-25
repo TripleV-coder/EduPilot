@@ -311,7 +311,7 @@ export default function IncidentsPage() {
     ];
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "PARENT", "STUDENT"]}>
             <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />

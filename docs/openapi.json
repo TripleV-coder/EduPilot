@@ -4590,7 +4590,7 @@
     "/api/attendance/alerts": {
       "get": {
         "summary": "GET /api/attendance/alerts",
-        "description": "Session requise.",
+        "description": "Session requise. Permissions : ATTENDANCE_READ.",
         "tags": [
           "attendance"
         ],
@@ -4608,6 +4608,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -4650,7 +4653,7 @@
       },
       "post": {
         "summary": "POST /api/attendance/bulk",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, STAFF.",
         "tags": [
           "attendance"
         ],
@@ -11945,7 +11948,7 @@
       },
       "post": {
         "summary": "POST /api/incidents",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, STAFF.",
         "tags": [
           "incidents"
         ],
@@ -13982,7 +13985,7 @@
     "/api/orientation": {
       "get": {
         "summary": "GET /api/orientation",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT, STUDENT.",
         "tags": [
           "orientation"
         ],
@@ -14000,6 +14003,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -18288,7 +18294,7 @@
     "/api/students": {
       "get": {
         "summary": "GET /api/students",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, PARENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, STAFF, PARENT.",
         "tags": [
           "students"
         ],

@@ -1,3 +1,4 @@
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -42,6 +43,12 @@ export const GET = createApiHandler(
     const where: Prisma.ClassWhereInput = {};
     if (schoolId) where.schoolId = schoolId;
     if (classLevelId) where.classLevelId = classLevelId;
+    // ?mine=1 : un enseignant ne voit que ses classes (appel). La feuille d'appel
+    // listait toutes les classes de l'école ; l'enregistrement, lui, est déjà
+    // refusé hors de ses classes (attendance/bulk).
+    if (searchParams.get("mine") === "1" && session.user.role === "TEACHER") {
+      where.id = { in: await taughtClassIds(session.user.id) };
+    }
     if (search) {
       where.name = { contains: search, mode: "insensitive" };
     }

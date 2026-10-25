@@ -10,6 +10,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
+import { incidentVisibilityWhere } from "@/lib/security/incident-visibility";
 
 /**
  * GET /api/incidents
@@ -44,34 +45,15 @@ export const GET = createApiHandler(
         };
       }
 
-      // Role-based filtering
-      const userRole = session.user.role;
-
-      if (userRole === "STUDENT") {
-        const studentProfile = await prisma.studentProfile.findUnique({
-          where: { userId: session.user.id },
-        });
-        if (studentProfile) {
-          where.studentId = studentProfile.id;
-        }
-      } else if (userRole === "PARENT") {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId: session.user.id },
-          include: { parentStudents: true },
-        });
-        if (parentProfile) {
-          where.studentId = { in: parentProfile.parentStudents.map(c => c.studentId) };
-        }
-      } else if (userRole === "TEACHER") {
-        // Teachers can see incidents they reported or for their students
-        where.OR = [
-          { reportedById: session.user.id },
-        ];
-      }
-      // Admins can see all
+      // Visibilité par rôle (élève, parent, enseignant), commune au détail :
+      // le filtre ?studentId s'y AJOUTE, il ne peut plus la remplacer (un parent
+      // lisait les incidents de n'importe quel élève de l'école)
+      const visibility = await incidentVisibilityWhere(session);
+      if (!visibility) return NextResponse.json(list.page([], (incident: { date: Date }) => incident.date, 0));
+      where.AND = [visibility];
 
       // Additional filters
-      if (studentId) where.studentId = studentId;
+      if (studentId) where.AND = [visibility, { studentId }];
       if (incidentType && incidentType !== "ALL") where.incidentType = incidentType as Prisma.BehaviorIncidentWhereInput["incidentType"];
       if (severity && severity !== "ALL") where.severity = severity as Prisma.BehaviorIncidentWhereInput["severity"];
       if (resolved !== null && resolved !== "ALL") where.isResolved = resolved === "true";
@@ -258,5 +240,7 @@ export const POST = createApiHandler(
       );
     }
   },
-  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },
+  // Vie scolaire (STAFF) : INCIDENT_CREATE dans la matrice ; école imposée par la
+  // RLS des incidents. Clôture et sanctions lui restent refusées (PATCH, sanctions)
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"] },
 );
