@@ -19,7 +19,8 @@ import {
 } from "@/lib/rate-limit";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
-import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
+import { assignedRoles } from "@/lib/rbac/permissions";
+import { getSchoolAccessForAssignedRoles, resolveActiveSchoolId } from "./school-access";
 import { getUserStatus, invalidateUserStatusCache } from "./user-status-cache";
 import { isSessionRevoked, revokeSession } from "./session-revocation";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
@@ -53,6 +54,7 @@ export interface AuthUser {
   primarySchoolId: string | null;
   schoolId: string | null;
   accessibleSchoolIds: string[];
+  schoolIdsByRole?: Partial<Record<UserRole, string[]>>;
   isTwoFactorEnabled: boolean;
   isTwoFactorAuthenticated: boolean;
   /** Compte créé par un tiers : mot de passe provisoire à remplacer (M1). */
@@ -235,16 +237,16 @@ export const authConfig: NextAuthConfig = {
           },
         });
 
-        const effectiveRoles = (user.roles && user.roles.length > 0) ? user.roles : [user.role];
+        const effectiveRoles = assignedRoles(user) as UserRole[];
         const organizationAccess = await getOrganizationAccessForUser(user.id);
-        const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+        const schoolAccess = await getSchoolAccessForAssignedRoles({
           userId: user.id,
-          role: user.role,
+          roles: effectiveRoles,
           primarySchoolId: user.schoolId,
         });
         const activeSchoolId = resolveActiveSchoolId({
           primarySchoolId: user.schoolId,
-          accessibleSchoolIds,
+          accessibleSchoolIds: schoolAccess.accessibleSchoolIds,
         });
 
         return {
@@ -260,7 +262,8 @@ export const authConfig: NextAuthConfig = {
           isOrganizationManager: organizationAccess.isOrganizationManager,
           primarySchoolId: user.schoolId,
           schoolId: activeSchoolId,
-          accessibleSchoolIds,
+          accessibleSchoolIds: schoolAccess.accessibleSchoolIds,
+          schoolIdsByRole: schoolAccess.schoolIdsByRole,
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
           mustChangePassword: user.mustChangePassword === true,
@@ -294,6 +297,7 @@ export const authConfig: NextAuthConfig = {
         token.primarySchoolId = authUser.primarySchoolId;
         token.schoolId = authUser.schoolId;
         token.accessibleSchoolIds = authUser.accessibleSchoolIds;
+        token.schoolIdsByRole = authUser.schoolIdsByRole;
         token.firstName = authUser.firstName;
         token.lastName = authUser.lastName;
         token.isTwoFactorEnabled = authUser.isTwoFactorEnabled;
@@ -388,21 +392,23 @@ export const authConfig: NextAuthConfig = {
           } else {
             const dbUser = await prisma.user.findUnique({
               where: { id: userId },
-              select: { schoolId: true, role: true },
+              select: { schoolId: true, role: true, roles: true },
             });
 
             if (dbUser) {
               const organizationAccess = await getOrganizationAccessForUser(userId);
-              const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+              const schoolAccess = await getSchoolAccessForAssignedRoles({
                 userId,
-                role: dbUser.role,
+                roles: assignedRoles(dbUser) as UserRole[],
                 primarySchoolId: dbUser.schoolId,
               });
+              const accessibleSchoolIds = schoolAccess.accessibleSchoolIds;
               token.primaryOrganizationId = organizationAccess.primaryOrganizationId;
               token.organizationIds = organizationAccess.organizationIds;
               token.isOrganizationManager = organizationAccess.isOrganizationManager;
               token.primarySchoolId = dbUser.schoolId;
               token.accessibleSchoolIds = accessibleSchoolIds;
+              token.schoolIdsByRole = schoolAccess.schoolIdsByRole;
 
               const requestedSchoolId =
                 typeof session.schoolId === "string" ? session.schoolId : null;
@@ -454,7 +460,7 @@ export const authConfig: NextAuthConfig = {
 
         // Rôle et permissions toujours ceux de la base, jamais ceux figés
         // dans le jeton ; un changement de rôle ne déconnecte pas.
-        const effectiveRoles = userStatus.roles.length > 0 ? userStatus.roles : [userStatus.role];
+        const effectiveRoles = assignedRoles(userStatus) as UserRole[];
         token.role = userStatus.role;
         token.roles = effectiveRoles;
         token.permissions = getRolePermissions(effectiveRoles);
@@ -466,6 +472,7 @@ export const authConfig: NextAuthConfig = {
           const { access } = userStatus;
           token.primarySchoolId = access.primarySchoolId;
           token.accessibleSchoolIds = access.accessibleSchoolIds;
+          token.schoolIdsByRole = access.schoolIdsByRole;
           token.organizationIds = access.organizationIds;
           token.primaryOrganizationId = access.primaryOrganizationId;
           token.isOrganizationManager = access.isOrganizationManager;
@@ -499,6 +506,7 @@ export const authConfig: NextAuthConfig = {
         session.user.primarySchoolId = token.primarySchoolId as string | null;
         session.user.schoolId = token.schoolId;
         session.user.accessibleSchoolIds = (token.accessibleSchoolIds as string[] | undefined) || [];
+        session.user.schoolIdsByRole = token.schoolIdsByRole as Record<string, string[]> | undefined;
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;

@@ -1,7 +1,8 @@
 import type { UserRole } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getOrganizationAccessForUser } from "@/lib/auth/organization-access";
-import { getAccessibleSchoolIdsForUser } from "@/lib/auth/school-access";
+import { assignedRoles } from "@/lib/rbac/permissions";
+import { getSchoolAccessForAssignedRoles } from "@/lib/auth/school-access";
 
 /**
  * État du compte relu à chaque requête authentifiée (callback `jwt`).
@@ -27,6 +28,7 @@ export const ACCESS_SAFETY_TTL_MS = 60_000;
 export interface UserAccess {
   primarySchoolId: string | null;
   accessibleSchoolIds: string[];
+  schoolIdsByRole: Partial<Record<UserRole, string[]>>;
   organizationIds: string[];
   primaryOrganizationId: string | null;
   isOrganizationManager: boolean;
@@ -44,6 +46,7 @@ export interface UserStatus {
 interface CachedAccess {
   marker: number | null;
   role: UserRole;
+  rolesKey: string;
   primarySchoolId: string | null;
   access: UserAccess;
   fetchedAt: number;
@@ -69,11 +72,14 @@ export async function getUserStatus(userId: string): Promise<UserStatus | null> 
   if (!user) return null;
 
   const marker = user.roleChangedAt ? user.roleChangedAt.getTime() : null;
+  const roles = assignedRoles(user) as UserRole[];
+  const rolesKey = [...roles].sort().join(",");
   const cached = accessCache.get(userId);
   const fresh =
     cached &&
     cached.marker === marker &&
     cached.role === user.role &&
+    cached.rolesKey === rolesKey &&
     cached.primarySchoolId === user.schoolId &&
     Date.now() - cached.fetchedAt < ACCESS_SAFETY_TTL_MS;
 
@@ -81,18 +87,19 @@ export async function getUserStatus(userId: string): Promise<UserStatus | null> 
   if (fresh) {
     access = cached.access;
   } else {
-    const [organizationAccess, accessibleSchoolIds] = await Promise.all([
+    const [organizationAccess, schoolAccess] = await Promise.all([
       getOrganizationAccessForUser(userId),
-      getAccessibleSchoolIdsForUser({ userId, role: user.role, primarySchoolId: user.schoolId }),
+      getSchoolAccessForAssignedRoles({ userId, roles, primarySchoolId: user.schoolId }),
     ]);
     access = {
       primarySchoolId: user.schoolId,
-      accessibleSchoolIds,
+      accessibleSchoolIds: schoolAccess.accessibleSchoolIds,
+      schoolIdsByRole: schoolAccess.schoolIdsByRole,
       organizationIds: organizationAccess.organizationIds,
       primaryOrganizationId: organizationAccess.primaryOrganizationId,
       isOrganizationManager: organizationAccess.isOrganizationManager,
     };
-    accessCache.set(userId, { marker, role: user.role, primarySchoolId: user.schoolId, access, fetchedAt: Date.now() });
+    accessCache.set(userId, { marker, role: user.role, rolesKey, primarySchoolId: user.schoolId, access, fetchedAt: Date.now() });
 
     // Borne la taille de la table
     if (accessCache.size > 1000) {

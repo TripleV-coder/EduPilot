@@ -333,6 +333,11 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.MEDICAL_READ,
     Permission.CANTEEN_READ,
     Permission.LIBRARY_READ,
+    // Présences : /api/attendance* exige ATTENDANCE_READ, pas le rôle.
+    // Sans ces droits, l'écran d'appel s'ouvre (bypass UI SUPER_ADMIN) puis 403.
+    Permission.ATTENDANCE_READ,
+    Permission.ATTENDANCE_CREATE,
+    Permission.ATTENDANCE_UPDATE,
   ],
 
   SCHOOL_ADMIN: [
@@ -534,6 +539,45 @@ export function roleSatisfies(
   return false;
 }
 
+/**
+ * Rôles effectivement exercés : `roles[]` s'il est renseigné, sinon le rôle
+ * principal. Le rôle principal est toujours conservé s'il manque dans la liste.
+ */
+export function assignedRoles(user: {
+  role?: string | null;
+  roles?: string[] | null;
+} | null | undefined): string[] {
+  if (!user) return [];
+  const listed = (user.roles ?? []).filter((role): role is string => Boolean(role));
+  if (listed.length > 0) {
+    return user.role && !listed.includes(user.role) ? [user.role, ...listed] : listed;
+  }
+  return user.role ? [user.role] : [];
+}
+
+/** Un des rôles assignés satisfait la liste (NETWORK_ADMIN → SCHOOL_ADMIN). */
+export function rolesSatisfy(
+  userRoles: readonly string[] | undefined | null,
+  allowedRoles: readonly string[],
+): boolean {
+  return (userRoles ?? []).some((role) => roleSatisfies(role, allowedRoles));
+}
+
+/**
+ * Une fonction (rôle) n'est exercée que dans les établissements que ce rôle
+ * ouvre. Sans carte `schoolIdsByRole`, on ne restreint pas davantage : les
+ * sessions anciennes gardent le périmètre union déjà calculé.
+ */
+export function roleAppliesAtSchool(
+  role: string,
+  schoolId: string | null | undefined,
+  schoolIdsByRole: Record<string, string[]> | undefined,
+): boolean {
+  if (!schoolIdsByRole) return true;
+  if (!schoolId) return false;
+  return (schoolIdsByRole[role] ?? []).includes(schoolId);
+}
+
 // ============================================
 // ROLE HIERARCHY (for inheritance)
 // ============================================
@@ -585,7 +629,8 @@ export function canManageRole(managerRole: UserRole, targetRole: UserRole): bool
 
   // P6: School-level admins can only manage roles STRICTLY below them in the hierarchy.
   // A SCHOOL_ADMIN cannot manage another SCHOOL_ADMIN; a DIRECTOR cannot manage another DIRECTOR.
-  if (["SCHOOL_ADMIN", "DIRECTOR"].includes(managerRole)) {
+  // NETWORK_ADMIN (patron de réseau) : mêmes règles, appliquées à son réseau.
+  if (["NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(managerRole)) {
     return targetRole !== "SUPER_ADMIN" && isHigherRole(managerRole, targetRole);
   }
 
@@ -602,6 +647,7 @@ export function canManageRole(managerRole: UserRole, targetRole: UserRole): bool
  */
 export const AUTHENTICATED_DASHBOARD_ROLES: UserRole[] = [
   "SUPER_ADMIN",
+  "NETWORK_ADMIN",
   "SCHOOL_ADMIN",
   "DIRECTOR",
   "TEACHER",
@@ -619,7 +665,7 @@ export const ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN"];
 /**
  * Roles that can access school management
  */
-export const SCHOOL_ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+export const SCHOOL_ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
 
 /**
  * Roles that can manage students

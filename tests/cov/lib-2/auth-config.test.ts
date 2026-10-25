@@ -38,10 +38,23 @@ vi.mock("@/lib/auth/organization-access", () => ({
   getOrganizationAccessForUser: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/school-access", () => ({
-  getAccessibleSchoolIdsForUser: vi.fn(),
-  resolveActiveSchoolId: vi.fn(),
-}));
+vi.mock("@/lib/auth/school-access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/school-access")>();
+  const getAccessibleSchoolIdsForUser = vi.fn();
+  return {
+    ...actual,
+    getAccessibleSchoolIdsForUser,
+    resolveActiveSchoolId: vi.fn(),
+    // Même calcul que le vrai module, mais sur la version simulée par rôle
+    getSchoolAccessForAssignedRoles: vi.fn(async (input: { userId: string; roles: string[]; primarySchoolId: string | null }) => {
+      const schoolIdsByRole: Record<string, string[]> = {};
+      for (const role of input.roles) {
+        schoolIdsByRole[role] = await getAccessibleSchoolIdsForUser({ userId: input.userId, role, primarySchoolId: input.primarySchoolId });
+      }
+      return { accessibleSchoolIds: [...new Set(Object.values(schoolIdsByRole).flat())], schoolIdsByRole };
+    }),
+  };
+});
 
 vi.mock("@/lib/utils/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 

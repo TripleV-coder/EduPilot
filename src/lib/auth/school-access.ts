@@ -30,6 +30,47 @@ export function getAccessibleSchoolIdsForUser(input: SchoolAccessInput) {
   return runAsSystem("auth:school-access", () => computeAccessibleSchoolIds(input));
 }
 
+/**
+ * Périmètre d'établissement par fonction assignée. L'union sert à changer
+ * d'école ; chaque permission sensible n'est utilisable que dans les écoles
+ * que les rôles qui l'accordent ouvrent (TEACHER+ACCOUNTANT : finance à
+ * l'école principale, pas aux rattachements d'enseignement).
+ */
+export async function getSchoolAccessForAssignedRoles(input: {
+  userId: string;
+  roles: UserRole[];
+  primarySchoolId: string | null;
+}): Promise<{ accessibleSchoolIds: string[]; schoolIdsByRole: Partial<Record<UserRole, string[]>> }> {
+  const roles = Array.from(new Set(input.roles.filter(Boolean)));
+  if (roles.length === 0) {
+    return {
+      accessibleSchoolIds: uniqueSchoolIds([input.primarySchoolId]),
+      schoolIdsByRole: {},
+    };
+  }
+
+  const entries = await Promise.all(
+    roles.map(async (role) => {
+      const ids = await getAccessibleSchoolIdsForUser({
+        userId: input.userId,
+        role,
+        primarySchoolId: input.primarySchoolId,
+      });
+      return [role, ids] as const;
+    }),
+  );
+
+  const schoolIdsByRole: Partial<Record<UserRole, string[]>> = {};
+  for (const [role, ids] of entries) {
+    schoolIdsByRole[role] = ids;
+  }
+
+  return {
+    accessibleSchoolIds: uniqueSchoolIds(...entries.map(([, ids]) => ids)),
+    schoolIdsByRole,
+  };
+}
+
 async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
   const { userId, role, primarySchoolId } = input;
 

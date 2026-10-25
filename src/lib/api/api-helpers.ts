@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { Permission, hasPermission, roleSatisfies } from "@/lib/rbac/permissions";
+import { Permission, hasPermission, roleSatisfies, roleAppliesAtSchool } from "@/lib/rbac/permissions";
 import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -211,6 +211,30 @@ type RouteHandler = (
     context: HandlerContext,
     t: TranslationFn,
 ) => Promise<NextResponse | Response>;
+
+function denyIfOutsideGrantingSchools(session: Session, options: HandlerOptions): NextResponse | null {
+    const byRole = session.user.schoolIdsByRole;
+    if (!byRole) return null;
+    const active = getActiveSchoolId(session);
+    if (!active) return null;
+    // Rôle principal seulement (cumul désactivé tant que les routes ne le gèrent pas)
+    const roles = [session.user.role];
+
+    if (options.requiredPermissions && options.requiredPermissions.length > 0) {
+        const ok = options.requiredPermissions.every((perm) =>
+            roles.some((role) => hasPermission(role as UserRole, perm) && roleAppliesAtSchool(role, active, byRole)),
+        );
+        if (!ok) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    if (options.allowedRoles && options.allowedRoles.length > 0) {
+        const granting = roles.filter((role) => roleSatisfies(role, options.allowedRoles!));
+        if (granting.length > 0 && !granting.some((role) => roleAppliesAtSchool(role, active, byRole))) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+    }
+    return null;
+}
 
 type RouteContext = { params?: Promise<Record<string, string>> };
 
@@ -489,19 +513,31 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             }
 
             if (options.allowedRoles && options.allowedRoles.length > 0 && session?.user) {
+                // Rôle PRINCIPAL seulement : les routes décident d'après lui
+                // (session.user.role) ; accepter un rôle secondaire à l'entrée
+                // donnait plus que chacun des rôles (escalade STAFF+TEACHER).
                 if (!roleSatisfies(session.user.role, options.allowedRoles)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
             }
 
             if (options.requiredPermissions && options.requiredPermissions.length > 0 && session?.user) {
-                const userRole = session.user.role;
+                const userRole = session.user.role as UserRole;
                 const hasAccess = options.requiredPermissions.every(
                     (perm: Permission) => hasPermission(userRole, perm)
                 );
                 if (!hasAccess) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
+            }
+
+            // Une fonction secondaire n'est exercée que dans les écoles que
+            // cette fonction ouvre (TEACHER+ACCOUNTANT : pas de finance au
+            // rattachement d'enseignement). Absent de schoolIdsByRole : sessions
+            // anciennes, le périmètre union déjà calculé s'applique.
+            if (options.requireAuth !== false && session?.user && session.user.role !== "SUPER_ADMIN") {
+                const scoped = denyIfOutsideGrantingSchools(session, options);
+                if (scoped) return scoped;
             }
 
             // Corps vérifié après les contrôles d'accès : une requête refusée

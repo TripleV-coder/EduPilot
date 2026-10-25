@@ -16,6 +16,7 @@ declare module "next-auth" {
       primarySchoolId: string | null;
       schoolId: string | null;
       accessibleSchoolIds?: string[];
+      schoolIdsByRole?: Record<string, string[]>;
       firstName: string;
       lastName: string;
       phone?: string | null;
@@ -37,6 +38,7 @@ declare module "next-auth" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;
@@ -58,6 +60,7 @@ declare module "@auth/core/adapters" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;
@@ -82,6 +85,7 @@ declare module "next-auth/jwt" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;

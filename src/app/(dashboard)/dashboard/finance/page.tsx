@@ -231,7 +231,7 @@ export default function FinanceDashboardPage() {
                     ]}
                     actions={
                         <RoleActionGuard
-                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}
+                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
                         >
                             <div className="flex flex-wrap gap-2">
                                 <Link href="/dashboard/finance/bulk-invoice">
