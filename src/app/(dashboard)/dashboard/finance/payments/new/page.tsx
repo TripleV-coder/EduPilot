@@ -122,7 +122,24 @@ export default function NewPaymentPage() {
 
         const searchStudents = async () => {
             try {
-                setStudents(await fetchStudentList<StudentOption>(`search=${encodeURIComponent(searchTerm)}&limit=10`));
+                // La liste porte la classe dans les inscriptions : sans cela, « Aucune classe » partout
+                const list = await fetchStudentList<StudentOption & { enrollments?: Array<{ status?: string; class?: { name?: string } | null }> }>(
+                    `search=${encodeURIComponent(searchTerm)}&limit=10`,
+                );
+                const mapped = list.map((stu) => ({
+                        ...stu,
+                        class: stu.class ?? (stu.enrollments?.find((e) => e.status === "ACTIVE") ?? stu.enrollments?.[0])?.class ?? null,
+                    }));
+                // Un seul élève trouvé (3 caractères au moins) : sélectionné d'office ; sa fiche
+                // (nom, matricule, classe) reste affichée pour vérification, × pour changer
+                if (mapped.length === 1 && searchTerm.trim().length >= 3) {
+                    setPinnedStudent(mapped[0]);
+                    setSelectedStudentId(mapped[0].id);
+                    setSearchTerm("");
+                    setStudents([]);
+                    return;
+                }
+                setStudents(mapped);
             } catch {
                 setError("Erreur lors de la recherche d'élèves.");
             }
@@ -331,7 +348,8 @@ export default function NewPaymentPage() {
                                             <button
                                                 type="button"
                                                 key={stu.id}
-                                                onClick={() => { setSelectedStudentId(stu.id); setSearchTerm(""); }}
+                                                // Épinglé : vider la recherche vidait aussi la fiche affichée (nom, matricule, classe)
+                                                onClick={() => { setPinnedStudent(stu); setSelectedStudentId(stu.id); setSearchTerm(""); }}
                                                 className="block w-full text-left p-3 border-b last:border-0 hover:bg-muted/50 focus-visible:bg-muted/50 cursor-pointer text-sm"
                                             >
                                                 <div className="font-medium">{stu.user?.firstName} {stu.user?.lastName}</div>
@@ -390,7 +408,9 @@ export default function NewPaymentPage() {
                                                 aria-label="Sélectionner une ligne tarifaire"
                                                 value={selectedFeeId}
                                                 onChange={e => setSelectedFeeId(e.target.value)}
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                                                // Plusieurs frais : liste dépliée, un seul clic pour choisir (au lieu d'ouvrir puis choisir)
+                                                size={fees.length > 1 ? Math.min(fees.length + 1, 6) : undefined}
+                                                className={`flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${fees.length > 1 ? "h-auto" : "h-10"}`}
                                                 required
                                                 disabled={!selectedStudentId}
                                             >
@@ -413,7 +433,7 @@ export default function NewPaymentPage() {
                                                 <p className="text-xs text-muted-foreground">
                                                     Facturé {fcfa(selectedBalance.billed)} · payé {fcfa(selectedBalance.paid)}
                                                     {selectedBalance.pending > 0
-                                                        ? ` · ${fcfa(selectedBalance.pending)} déjà déclarés, en attente de validation`
+                                                        ? ` · ${fcfa(selectedBalance.pending)} déjà en attente (paiement en ligne ou déclaré non encore confirmé)`
                                                         : ""}
                                                 </p>
                                             ) : null}

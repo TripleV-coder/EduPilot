@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { providerBoundEditRefusal } from "@/lib/finance/helpers";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -111,6 +112,8 @@ export const PATCH = createApiHandler(
 
       const body = await request.json();
       const validatedData = paymentUpdateSchema.parse(body);
+      const providerRefusal = providerBoundEditRefusal(existingPayment, validatedData);
+      if (providerRefusal) return NextResponse.json({ error: providerRefusal, code: "PROVIDER_BOUND_PAYMENT" }, { status: 409 });
 
       // Sous verrou élève/frais : état relu, nouveau montant plafonné (lot 3b)
       const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, async (tx, balance) => {

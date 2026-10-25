@@ -281,6 +281,21 @@ export function appendNote(current: string | null, line: string): string {
  * solde, paiement d'une échéance) : avec un doublon historique, toutes les
  * fonctions travaillent sur le même plan (lot 3d).
  */
+/**
+ * Paiement confié à un fournisseur en ligne : montant, référence et moyen sont
+ * ceux de l'essai transmis (la référence est la clé de son webhook, le montant
+ * celui qu'il confirmera). Les modifier à la main le rendait introuvable ou
+ * toujours « à rapprocher ». Renvoie le message de refus, ou null.
+ */
+export function providerBoundEditRefusal(
+    payment: { provider: string | null },
+    changes: { amount?: unknown; reference?: unknown; method?: unknown },
+): string | null {
+    if (!payment.provider) return null;
+    if (changes.amount === undefined && changes.reference === undefined && changes.method === undefined) return null;
+    return "Paiement en ligne : son montant, sa référence et son moyen sont fixés par le fournisseur et ne peuvent pas être modifiés.";
+}
+
 export const CURRENT_PLAN_ORDER = [{ createdAt: "desc" }, { id: "desc" }] satisfies Prisma.PaymentPlanOrderByWithRelationInput[];
 
 /**

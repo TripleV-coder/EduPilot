@@ -502,7 +502,10 @@ export async function getAdminDashboardData(
       orderBy: { createdAt: "desc" },
       include: { user: { select: { firstName: true, lastName: true } } }
     }),
-    prisma.payment.aggregate({
+    // En attente, par fournisseur : déclarés au guichet (sans fournisseur, à
+    // valider par l'économat) ≠ essais en ligne (le fournisseur les confirme)
+    prisma.payment.groupBy({
+      by: ["provider"],
       where: { status: "PENDING", fee: { schoolId }, deletedAt: null },
       _sum: { amount: true },
     }),
@@ -638,7 +641,8 @@ export async function getAdminDashboardData(
     passRate: roundTo(passRate),
     failureRate: roundTo(failureRate),
     dropoutRate: roundTo(dropoutRate),
-    pendingPayments: Number(pendingPayments._sum.amount || 0),
+    pendingPayments: pendingPayments.filter((row) => row.provider === null).reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0),
+    pendingOnlinePayments: pendingPayments.filter((row) => row.provider !== null).reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0),
     paymentsReceived: Number(paymentsReceived._sum.amount || 0),
     // Taux de recouvrement de l'année (attendu réel), null si rien n'est facturé.
     feeRecoveryRate: feeRecovery ? roundTo(feeRecovery.rate) : null,

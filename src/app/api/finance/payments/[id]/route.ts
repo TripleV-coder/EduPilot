@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { providerBoundEditRefusal } from "@/lib/finance/helpers";
 import prisma from "@/lib/prisma";
 import { PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -39,7 +40,7 @@ export const PUT = createApiHandler(
                 select: {
                     studentId: true,
                     feeId: true,
-                    paidAt: true, status: true,
+                    paidAt: true, status: true, provider: true,
                     student: {
                         select: { schoolId: true },
                     },
@@ -68,6 +69,8 @@ export const PUT = createApiHandler(
             if (["VERIFIED", "RECONCILED"].includes(existingPayment.status) && session.user.role !== "SUPER_ADMIN") {
                 return NextResponse.json({ error: "Ce paiement est verrouillé (Vérifié/Réconcilié) et ne peut être modifié." }, { status: 403 });
             }
+            const providerRefusal = providerBoundEditRefusal(existingPayment, validatedData);
+            if (providerRefusal) return NextResponse.json({ error: providerRefusal, code: "PROVIDER_BOUND_PAYMENT" }, { status: 409 });
 
             const nextStatus = validatedData.status;
             // Une seule transaction sous verrou élève/frais (lot 3b) : état relu,
