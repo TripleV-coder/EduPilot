@@ -10,6 +10,8 @@ node_modules
 npm-debug.log*
 README.md
 docs
+# …sauf la spécification servie par /api/docs (importée par le code)
+!docs/openapi.json
 e2e
 tests
 coverage
@@ -21,6 +23,9 @@ infrastructure
 scripts
 # …sauf les préchargements et l'entrée du conteneur, copiés par le Dockerfile.
 !scripts/server
+# …et les étapes de `npm run build` (instrumentation, retrait des .env,
+# contrôle des secrets de l'artefact)
+!scripts/build
 *.log
 logs
 .DS_Store

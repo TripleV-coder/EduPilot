@@ -35,7 +35,7 @@ elif [ -z "$MIGRATION_URL" ]; then
   exit 1
 else
   echo "[edupilot] Application des migrations en attente…"
-  DATABASE_URL="$MIGRATION_URL" node node_modules/prisma/build/index.js migrate deploy
+  DATABASE_URL="$MIGRATION_URL" node prisma-cli/node_modules/prisma/build/index.js migrate deploy
   echo "[edupilot] Migrations à jour."
 fi
 
