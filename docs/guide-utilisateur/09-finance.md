@@ -36,18 +36,26 @@ Un paiement passe par ces états :
 | Validé | l'argent est reçu |
 | Rapproché | rapproché d'un relevé bancaire |
 | Annulé | le paiement n'a pas abouti |
-| Expiré · à rapprocher | paiement en ligne resté sans confirmation après 24 h : à comparer avec le relevé du fournisseur |
+| Expiré · à rapprocher | demande de paiement en ligne jamais transmise au fournisseur : rien n'a été prélevé, à rapprocher si besoin |
 
 ## 9.3 Payer en ligne par Mobile Money ✅
-Le parent peut payer depuis l'application si l'école a configuré le paiement en ligne (MTN Mobile Money ou FedaPay, qui couvre MTN, Moov et Celtiis).
-- Le montant est plafonné au **reste à payer** : montant de l'échéancier s'il existe (bourses déduites), sinon montant du frais, moins ce qui est déjà validé ou rapproché.
-- Un paiement en ligne **en attente depuis moins de 24 h** réserve son montant : on ne peut pas relancer un second paiement qui dépasserait le reste à payer. Le message indique le montant encore payable. Passé 24 h, l'essai ne bloque plus rien.
-- Deux demandes envoyées **en même temps** (double clic, deux téléphones) ne créent jamais deux paiements pour le même reste à payer.
-- La confirmation du fournisseur est **vérifiée** : authenticité, **montant exact** et **devise (franc CFA)**. Un montant partiel, supérieur, absent ou une autre devise **ne valide rien** : le paiement reste visible avec la mention « À rapprocher » et l'écart constaté.
-- Une confirmation n'est prise en compte qu'**une fois**, même si elle arrive plusieurs fois.
-- **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur : payé au bon montant → validé ; échec → annulé ; incertain → « Expiré · à rapprocher ». Rien n'est supprimé.
-- Une confirmation **tardive** (après expiration) est encore acceptée si elle est authentique et au bon montant : l'argent a bien été reçu. Si la famille avait réglé autrement entre-temps, le **trop-perçu** est noté sur le paiement pour être traité.
-- Si le paiement en ligne n'est pas configuré, l'application le dit clairement. Un transfert déjà reçu s'enregistre alors à la main, avec sa référence.
+Le parent paie depuis *Paiements* (*Scolarité et paiements*), **enfant par enfant**.
+- **Un seul enfant** : sa situation s'affiche directement. **Plusieurs enfants** : on choisit l'enfant ; chacun garde son école, ses frais et son reste à payer. Rien n'est additionné entre enfants, même dans deux écoles différentes.
+- Pour chaque frais de l'année : montant, déjà payé (confirmé), en attente de confirmation, reste à payer, et les **échéances** s'il existe un échéancier. Seuls les frais qui concernent l'enfant apparaissent : son année, son niveau, et les frais facultatifs auxquels il est inscrit.
+- Trois façons de payer, selon ce qui existe vraiment :
+  - **la prochaine échéance** (seulement la plus ancienne non réglée, si un échéancier existe) ;
+  - **tout le solde** ;
+  - **un autre montant**, en francs CFA entiers, sans dépasser ce qui est payable maintenant.
+  Pour l'échéance et le solde, c'est l'application qui calcule le montant au moment du paiement, pas l'écran.
+- Le paiement se fait chez **FedaPay** (MTN, Moov, Celtiis), **sur le compte de l'école de l'enfant**. Chaque école a son propre compte : l'argent ne passe jamais par le compte d'une autre école ni par un compte commun. Si l'école n'a pas de compte actif, le paiement en ligne est indiqué **indisponible** et le parent règle à l'économat.
+- Un paiement **en attente réserve son montant**, quel que soit son âge : on ne peut pas payer deux fois la même somme. Tant qu'il attend, seul un « autre montant » reste possible, dans la limite de ce qui n'est pas réservé.
+- Deux demandes envoyées **en même temps** (double clic, deux onglets, deux téléphones) ne créent jamais deux paiements pour la même somme.
+- Si le fournisseur ne répond pas clairement au lancement, le paiement reste **en vérification** : ne pas le relancer, il sera vérifié automatiquement.
+- **Au retour de FedaPay**, la page affiche l'état **enregistré par l'école**, jamais celui annoncé par le navigateur : confirmé, en attente, en vérification ou non abouti. Elle se met à jour seule pendant quelques minutes, puis sur demande. Le paiement reste visible dans l'historique de l'enfant (bouton *Suivre*).
+- La confirmation du fournisseur est **vérifiée** : authenticité (secret du compte de l'école), **montant exact** et **devise (franc CFA)**. Sinon rien n'est validé et le paiement est marqué « À rapprocher ». Une confirmation n'est comptée qu'**une fois**.
+- **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur avec le compte de l'école : payé au bon montant → validé ; échec → annulé ; incertain → reste en attente ; au-delà de 48 h, l'école est alertée.
+- Le **reçu** PDF n'existe que pour un paiement **confirmé** (validé ou rapproché) ; il ne montre pas les notes internes de l'école.
+- Le **remboursement** d'un paiement en ligne se fait par l'école depuis son espace FedaPay ; il n'est pas automatisé dans l'application.
 
 ## 9.4 Plans de paiement (échéancier) ✅
 Un frais peut être payé en **2 à 12 mensualités**.
