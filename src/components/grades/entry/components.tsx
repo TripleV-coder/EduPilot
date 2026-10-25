@@ -171,15 +171,19 @@ export function TrendCell({
 export function ToggleAbsent({
     checked,
     onChange,
+    label = "Absent",
 }: {
     checked: boolean;
     onChange: (c: boolean) => void;
+    /** Nom accessible (axe button-name) : « Absent : <élève> » dans une liste. */
+    label?: string;
 }) {
     return (
         <button
             type="button"
             role="switch"
             aria-checked={checked}
+            aria-label={label}
             onClick={() => onChange(!checked)}
             className="grid place-items-center"
             style={{

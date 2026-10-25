@@ -79,6 +79,7 @@ const PerformanceBarChart = dynamic(() => import("@/components/charts/Performanc
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";
+import { FinanceSchoolGate } from "@/components/finance/finance-school-gate";
 import type { AcademicYear, Class, Period } from "@prisma/client";
 import type { PaginatedResponse } from "@/lib/types";
 
@@ -299,10 +300,17 @@ function AnalyticsContent() {
                     </TabsList>
 
                     <TabsContent value="bi" className="space-y-6">
-                        <AnalyticsBIBoard
-                            schoolId={activeSchoolId ?? undefined}
-                            academicYearId={academicYearId}
-                        />
+                        {/* Super-admin sans école : invitation à choisir, sans appel
+                            voué au refus (l'API exige toujours un établissement) */}
+                        <FinanceSchoolGate
+                            headingLevel="h2"
+                            description="Les indicateurs BI (recouvrement, assiduité, réussite) sont calculés pour une seule école. Sélectionnez celle que vous voulez consulter."
+                        >
+                            <AnalyticsBIBoard
+                                schoolId={activeSchoolId ?? undefined}
+                                academicYearId={academicYearId}
+                            />
+                        </FinanceSchoolGate>
                     </TabsContent>
 
                     <TabsContent value="overview" className="space-y-6">

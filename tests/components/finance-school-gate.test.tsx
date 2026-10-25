@@ -64,3 +64,16 @@ describe("FinanceSchoolGate", () => {
         expect(screen.getByText("Chiffres de l'école")).toBeInTheDocument();
     });
 });
+
+describe("FinanceSchoolGate — onglet BI des Analyses (2026-10-25)", () => {
+    it("titre de niveau 2 dans une page qui a déjà son h1 ; le tableau BI n'est pas monté (aucun appel voué au refus)", () => {
+        render(
+            <FinanceSchoolGate headingLevel="h2" description="Les indicateurs BI sont calculés pour une seule école.">
+                <p>Tableau BI</p>
+            </FinanceSchoolGate>,
+        );
+        expect(screen.getByRole("heading", { level: 2, name: "Choisissez un établissement" })).toBeInTheDocument();
+        expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+        expect(screen.queryByText("Tableau BI")).not.toBeInTheDocument();
+    });
+});

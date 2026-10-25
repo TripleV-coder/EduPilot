@@ -248,10 +248,13 @@ export function DashboardLayoutClient({
                             ref={mainRef}
                             id="main-content"
                             role="main"
-                            tabIndex={-1}
+                            // tabIndex 0 : zone défilante atteignable au clavier, même
+                            // sur une page sans lien ni bouton (axe
+                            // scrollable-region-focusable, /dashboard/orientation/me)
+                            tabIndex={0}
                             aria-label="Contenu principal"
                             className={cn(
-                                "dashboard-motion flex-1 overflow-y-auto w-full custom-scrollbar focus:outline-none print:overflow-visible print:p-0",
+                                "dashboard-motion flex-1 overflow-y-auto w-full custom-scrollbar focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-500)] print:overflow-visible print:p-0",
                                 density === "dense" ? "p-3 md:p-4" : "p-4 md:p-6"
                             )}
                         >

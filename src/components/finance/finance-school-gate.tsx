@@ -19,7 +19,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const FINANCE_DESCRIPTION =
     "Les paiements, frais et écritures appartiennent à chaque école. Sélectionnez celle que vous voulez consulter : les chiffres de plusieurs établissements ne sont jamais mélangés.";
 
-export function FinanceSchoolGate({ children, description = FINANCE_DESCRIPTION }: { children: React.ReactNode; description?: string }) {
+export function FinanceSchoolGate({
+    children,
+    description = FINANCE_DESCRIPTION,
+    headingLevel = "h1",
+}: {
+    children: React.ReactNode;
+    description?: string;
+    /** h2 dans une page qui a déjà son h1 (onglet BI des Analyses). */
+    headingLevel?: "h1" | "h2";
+}) {
+    const Heading = headingLevel;
     const { data: session } = useSession();
     const { schoolId, accessibleSchools, setActiveSchoolId, isSwitchingSchool } = useSchool();
     const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
@@ -36,9 +46,9 @@ export function FinanceSchoolGate({ children, description = FINANCE_DESCRIPTION 
     if (isSuperAdmin && !schoolId) {
         return (
             <section className="mx-auto max-w-lg space-y-4 px-4 py-16 text-center" aria-labelledby="finance-school-required">
-                <h1 id="finance-school-required" className="text-xl font-semibold">
+                <Heading id="finance-school-required" className="text-xl font-semibold">
                     Choisissez un établissement
-                </h1>
+                </Heading>
                 <p className="text-sm text-muted-foreground">{description}</p>
                 {accessibleSchools.length > 0 ? (
                     <Select onValueChange={(id) => void setActiveSchoolId(id)}>

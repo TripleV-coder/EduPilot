@@ -197,7 +197,9 @@ export function SegmentedToggle<T extends string>({
 }) {
     return (
         <div
-            className="flex gap-1 rounded-md p-1"
+            // flex-wrap : à 375 px, les options passent à la ligne au lieu
+            // d'être coupées (« Fériés » du calendrier débordait de 12 px)
+            className="flex max-w-full flex-wrap gap-1 rounded-md p-1"
             style={{
                 background: "var(--eduflow-surface-sunken)",
                 border: "1px solid var(--eduflow-border-subtle)",
@@ -209,8 +211,9 @@ export function SegmentedToggle<T extends string>({
                     <button
                         key={opt.value}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => onChange(opt.value)}
-                        className="flex items-center gap-1.5 px-3 py-1.5"
+                        className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--brand-500)]"
                         style={{
                             background: active ? "var(--eduflow-surface-card)" : "transparent",
                             border: 0,

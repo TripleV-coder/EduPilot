@@ -1079,6 +1079,7 @@ export default function GradesEntryPage() {
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <div className="flex items-center gap-2">
                                                                 <ToggleAbsent
+                                                                    label={`Absent : ${fullName}`}
                                                                     checked={g.isAbsent}
                                                                     onChange={(c) => {
                                                                         handleGradeChange(stu.id, "isAbsent", c);

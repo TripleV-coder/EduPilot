@@ -20,6 +20,8 @@ import { fr } from "date-fns/locale/fr";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
+// Composant partagé (onglets qui passent à la ligne à 375 px, aria-pressed)
+import { SegmentedToggle } from "@/components/grades/cahier/components";
 import { Permission } from "@/lib/rbac/permissions";
 import { formatDateShort } from "@/lib/utils/formatters";
 
@@ -1001,57 +1003,5 @@ function PublicHolidayListCard({ ph }: { ph: PublicHoliday }) {
                 </div>
             </div>
         </Card>
-    );
-}
-
-// ── Shared ──────────────────────────────────────────────────────────────────
-
-function SegmentedToggle<T extends string>({
-    value,
-    onChange,
-    options,
-}: {
-    value: T;
-    onChange: (v: T) => void;
-    options: { value: T; label: string; icon: IconName }[];
-}) {
-    return (
-        <div
-            className="flex gap-1 rounded-md p-1"
-            style={{
-                background: "var(--eduflow-surface-sunken)",
-                border: "1px solid var(--eduflow-border-subtle)",
-            }}
-        >
-            {options.map((opt) => {
-                const active = value === opt.value;
-                return (
-                    <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => onChange(opt.value)}
-                        className="flex items-center gap-1.5 px-3 py-1.5"
-                        style={{
-                            background: active ? "var(--eduflow-surface-card)" : "transparent",
-                            border: 0,
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                            fontSize: 12,
-                            fontWeight: active ? 700 : 500,
-                            color: active
-                                ? "var(--brand-700)"
-                                : "var(--eduflow-text-secondary)",
-                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
-                            transition:
-                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                        }}
-                    >
-                        <Icon name={opt.icon} size={13} />
-                        {opt.label}
-                    </button>
-                );
-            })}
-        </div>
     );
 }
