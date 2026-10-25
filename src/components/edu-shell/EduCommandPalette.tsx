@@ -8,6 +8,7 @@ import { Icon, type IconName } from "@/components/edu";
 import { navForRole, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 import { useSchool } from "@/components/providers/school-provider";
 import { isPageAllowedByModules } from "@/lib/modules/catalog";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 type Action = {
@@ -31,8 +32,9 @@ function roleQuickActions(role: string | undefined | null): Action[] {
             ];
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
+        case "NETWORK_ADMIN":
             return [
-                { id: "qa-finance", label: "Encaisser un paiement", hint: "Finance scolarité", icon: "money", href: "/dashboard/finance", category: "Action", keywords: "paiement encaissement" },
+                { id: "qa-finance", label: "Encaisser un paiement", hint: "Finance scolarité", icon: "money", href: "/dashboard/finance/payments/new", category: "Action", keywords: "paiement encaissement" },
                 { id: "qa-students", label: "Voir les effectifs", hint: "Liste des élèves", icon: "users", href: "/dashboard/students", category: "Action", keywords: "élèves effectifs" },
             ];
         case "PARENT":
@@ -52,6 +54,11 @@ function roleQuickActions(role: string | undefined | null): Action[] {
         default:
             return [];
     }
+}
+
+/** Recherche élèves : uniquement les rôles admis sur /dashboard/students (PageGuard). */
+function canSearchStudents(role: string | undefined | null): boolean {
+    return roleSatisfies(role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT"]);
 }
 
 const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | undefined | null): Action[] => [
@@ -109,7 +116,9 @@ function buildActions(
     role: string | undefined | null,
     router: ReturnType<typeof useRouter>,
     enabledModules: string[],
+    assigned?: Array<string | undefined | null> | null,
 ): Action[] {
+    void assigned; // cumul de rôles désactivé : menu du rôle principal
     const navItems = navForRole(role).map<Action>((n, i) => ({
         id: `nav-${i}-${n.href}`,
         label: n.label,
@@ -133,6 +142,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const router = useRouter();
     const { data: session } = useSession();
     const role = session?.user?.role ?? null;
+    const assigned = session?.user?.roles;
     const { enabledModules } = useSchool();
 
     const [query, setQuery] = React.useState("");
@@ -142,8 +152,8 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const triggerRef = React.useRef<HTMLElement | null>(null);
 
     const actions = React.useMemo(
-        () => buildActions(role, router, enabledModules),
-        [role, router, enabledModules],
+        () => buildActions(role, router, enabledModules, assigned),
+        [role, assigned, router, enabledModules],
     );
 
     const filtered = React.useMemo(() => {
@@ -162,7 +172,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
             arr.push(item);
             map.set(item.category, arr);
         }
-        if (query.trim()) {
+        if (query.trim() && canSearchStudents(role)) {
             map.set("Recherche", [
                 {
                     id: "search-students",
@@ -174,7 +184,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
             ]);
         }
         return Array.from(map.entries());
-    }, [filtered, query]);
+    }, [filtered, query, role]);
 
     const flat = React.useMemo(
         () => grouped.flatMap(([, items]) => items),

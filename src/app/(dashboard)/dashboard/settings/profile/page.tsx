@@ -13,6 +13,7 @@ import { Avatar, Button, Card, Icon, Input, SaveStatus } from "@/components/edu"
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { useAutoSave } from "@/hooks/use-autosave";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 interface ProfileData {
     firstName?: string;
@@ -336,6 +337,22 @@ export default function ProfileSettingsPage() {
                             disabled={saving || !firstName.trim() || !lastName.trim()}
                         >
                             {saving ? "Enregistrement…" : "Enregistrer maintenant"}
+                        </Button>
+                    </div>
+                </Card>
+
+                {/* Déconnexion visible : elle n'était offerte que par la palette de
+                    commandes (Ctrl+K), introuvable sur téléphone ou poste partagé */}
+                <Card padding={0}>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                        <div className="min-w-0">
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>Session</div>
+                            <div style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Sur un appareil partagé, déconnectez-vous en partant.
+                            </div>
+                        </div>
+                        <Button variant="secondary" onClick={() => void signOutAndPurge({ callbackUrl: "/login" })}>
+                            Se déconnecter
                         </Button>
                     </div>
                 </Card>

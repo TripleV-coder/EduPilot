@@ -19,7 +19,7 @@ describe("role-nav — parcours 5–8 actions par rôle", () => {
             expect(count).toBeLessThanOrEqual(8);
         }
         // Personnel : seuls les liens que ses droits servent (accueil, vie scolaire, paramètres).
-        expect(linkCount("STAFF")).toBe(3);
+        expect(linkCount("STAFF")).toBe(5); // Accueil, Appel, Incidents, Vie scolaire, Paramètres
     });
 
     it("défaut sûr : offeredLevels vide → navigation complète du rôle", () => {
@@ -43,5 +43,11 @@ describe("role-nav — parcours 5–8 actions par rôle", () => {
         for (const role of ["ACCOUNTANT", "STAFF"]) {
             expect(navForRole(role).some((l) => l.href === "/dashboard/ai")).toBe(false);
         }
+    });
+
+    it("le responsable de réseau a la navigation de la direction, pas celle du personnel", () => {
+        const hrefs = (role: string) => navGroupsForRole(role).flatMap((g) => g.links.map((l) => l.href));
+        expect(hrefs("NETWORK_ADMIN")).toEqual(hrefs("SCHOOL_ADMIN"));
+        expect(hrefs("NETWORK_ADMIN")).toContain("/dashboard/finance");
     });
 });

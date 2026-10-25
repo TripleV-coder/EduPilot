@@ -213,8 +213,8 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                 </div>
             </div>
 
-            <div className="grid gap-3.5" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
-                <div className="flex flex-col gap-3.5">
+            <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
+                <div className="flex min-w-0 flex-col gap-3.5">
                     {/* Subjects */}
                     <div
                         className="rounded-xl p-4"
@@ -318,7 +318,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                 </div>
 
                 {/* Right column */}
-                <div className="flex flex-col gap-3.5">
+                <div className="flex min-w-0 flex-col gap-3.5">
                     <div
                         className="rounded-xl p-4"
                         style={{ background: "var(--eduflow-surface-card)", border: "1px solid var(--eduflow-border-subtle)" }}

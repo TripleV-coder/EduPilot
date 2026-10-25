@@ -88,6 +88,8 @@ export default function GradesEntryPage() {
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [typeId, setTypeId] = useState("");
     const [periodId, setPeriodId] = useState("");
+    // Listes de référence chargées : une liste vide s'explique (pas de menu vide muet)
+    const [refsLoaded, setRefsLoaded] = useState({ periods: false, types: false });
     const [maxGrade, setMaxGrade] = useState(20);
     const [coefficient, setCoefficient] = useState(1);
     // Règles de saisie de l'établissement : précision des notes, motif d'absence
@@ -153,6 +155,7 @@ export default function GradesEntryPage() {
                     const d = await perRes.json();
                     const list: PeriodOption[] = Array.isArray(d) ? d : d.data || [];
                     setPeriods(list);
+                    setRefsLoaded((prev) => ({ ...prev, periods: true }));
                     // Période en cours d'après la date du jour : rien à choisir d'habitude.
                     const now = Date.now();
                     const current = list.find(
@@ -164,6 +167,7 @@ export default function GradesEntryPage() {
                     const d = await typRes.json();
                     const list: EvalTypeOption[] = Array.isArray(d) ? d : d.data || [];
                     setEvalTypes(list);
+                    setRefsLoaded((prev) => ({ ...prev, types: true }));
                     let remembered: string | null = null;
                     try {
                         remembered = localStorage.getItem(LAST_TYPE_KEY);
@@ -787,6 +791,13 @@ export default function GradesEntryPage() {
                                     }))}
                                 />
                             </div>
+                            {(refsLoaded.periods && periods.length === 0) || (refsLoaded.types && evalTypes.length === 0) ? (
+                                <p role="note" className="mt-2 text-sm" style={{ color: "var(--eduflow-warning-800)" }}>
+                                    {refsLoaded.periods && periods.length === 0 ? "Aucune période n'est encore configurée. " : ""}
+                                    {refsLoaded.types && evalTypes.length === 0 ? "Aucun type d'évaluation n'est encore configuré. " : ""}
+                                    La direction les crée dans Paramètres (Périodes, Types d&apos;évaluation) ; la saisie sera possible ensuite.
+                                </p>
+                            ) : null}
 
                             <div
                                 className="mt-4"

@@ -20,14 +20,21 @@ import { ROLE_LABELS, isActiveLink, visibleNavGroups, type NavCounts } from "./r
 export function EduSidebar() {
     const pathname = usePathname() || "/dashboard";
     const { data: session } = useSession();
-    const { isOpen, isMobileOpen, setIsMobileOpen } = useSidebar();
+    const { isOpen: desktopOpen, setIsOpen, isMobileOpen, setIsMobileOpen } = useSidebar();
+    // Tiroir mobile toujours déployé : replié (rail de 72 px), il masquait les
+    // libellés et le choix de l'établissement sur téléphone
+    const isOpen = desktopOpen || isMobileOpen;
     const role = session?.user?.role ?? "STAFF";
+    const assigned = session?.user?.roles;
     const schoolCtx = useSchool();
     const offeredLevels = schoolCtx.offeredLevels;
     const enabledModules = schoolCtx.enabledModules;
     const groups = React.useMemo(
-        () => visibleNavGroups(role, offeredLevels, enabledModules),
-        [role, offeredLevels, enabledModules]
+        () => visibleNavGroups(role, offeredLevels, enabledModules, assigned, {
+            activeSchoolId: schoolCtx.schoolId,
+            schoolIdsByRole: session?.user?.schoolIdsByRole,
+        }),
+        [role, assigned, offeredLevels, enabledModules, schoolCtx.schoolId, session?.user?.schoolIdsByRole]
     );
 
     const { data: counts } = useSWR<NavCounts>(
@@ -37,6 +44,13 @@ export function EduSidebar() {
     );
 
     const sidebarWidth = isOpen ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
+
+    // Changement d'établissement : personnel rattaché à plusieurs écoles (réseau,
+    // enseignant multi-écoles, direction avec annexes). Il n'existait que dans
+    // Analyses ; les familles naviguent par enfant, sans école active à choisir.
+    const switchableSchools =
+        role !== "PARENT" && role !== "STUDENT" && role !== "SUPER_ADMIN" ? schoolCtx.accessibleSchools.filter((s) => s.isActive) : [];
+    const canSwitchSchool = switchableSchools.length > 1;
 
     // Le voile se ferme au clic ; le menu mobile doit aussi se fermer au clavier.
     React.useEffect(() => {
@@ -64,7 +78,7 @@ export function EduSidebar() {
             <aside
                 aria-label="Menu latéral"
                 className={cn(
-                    "eduflow-scope fixed left-0 top-0 z-40 flex h-screen flex-col gap-1 border-r transition-[width,padding,transform] duration-300",
+                    "eduflow-scope fixed left-0 top-0 z-40 flex h-[calc(100vh-var(--consent-banner-h,0px))] flex-col gap-1 border-r transition-[width,padding,transform] duration-300",
                     // Façon Google Classroom : liens collés au bord gauche,
                     // élément actif en pastille arrondie à droite.
                     isOpen ? "py-4 pl-0 pr-3" : "items-center px-0 py-3",
@@ -150,19 +164,54 @@ export function EduSidebar() {
                     )}
                     style={{ borderColor: "var(--eduflow-border-subtle)" }}
                 >
-                    <Avatar name={schoolCtx?.schoolName ?? "École"} size="sm" />
+                    {canSwitchSchool && !isOpen ? (
+                        // Barre repliée (défaut) : l'école active reste changeable en deux gestes
+                        <button
+                            type="button"
+                            onClick={() => setIsOpen(true)}
+                            aria-label={`Changer d'établissement (école active : ${schoolCtx.schoolName ?? "inconnue"})`}
+                            title="Changer d'établissement"
+                            className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)]"
+                        >
+                            <Avatar name={schoolCtx?.schoolName ?? "École"} size="sm" />
+                        </button>
+                    ) : (
+                        <Avatar name={schoolCtx?.schoolName ?? "École"} size="sm" />
+                    )}
                     {isOpen ? (
                         <div className="min-w-0 flex-1">
-                            <div
-                                className="truncate"
-                                style={{
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    color: "var(--eduflow-text-primary)",
-                                }}
-                            >
-                                {schoolCtx?.schoolName ?? "Établissement"}
-                            </div>
+                            {canSwitchSchool ? (
+                                <select
+                                    aria-label="Établissement actif"
+                                    value={schoolCtx.schoolId ?? ""}
+                                    disabled={schoolCtx.isSwitchingSchool}
+                                    onChange={(e) => void schoolCtx.setActiveSchoolId(e.target.value)}
+                                    className="w-full truncate rounded-md border bg-transparent py-0.5 pr-1"
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "var(--eduflow-text-primary)",
+                                        borderColor: "var(--eduflow-border-subtle)",
+                                    }}
+                                >
+                                    {switchableSchools.map((school) => (
+                                        <option key={school.id} value={school.id}>
+                                            {school.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div
+                                    className="truncate"
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "var(--eduflow-text-primary)",
+                                    }}
+                                >
+                                    {schoolCtx?.schoolName ?? "Établissement"}
+                                </div>
+                            )}
                             <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
                                 {schoolCtx?.currentPeriodName
                                     ? `${schoolCtx.currentPeriodName}`

@@ -10,7 +10,7 @@
  * Usage : <CookieBanner /> dans le layout racine (src/app/layout.tsx)
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 const CONSENT_KEY = "edupilot_cookie_consent";
@@ -26,6 +26,24 @@ export function CookieBanner() {
     }, []);
      
 
+    // Hauteur publiée (--consent-banner-h) tant que le bandeau est affiché : la
+    // coque de l'application et les barres fixées en bas se placent au-dessus.
+    // Sans cela il masquait « Enregistrer l'appel » et la navigation mobile.
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const node = ref.current;
+        if (!visible || !node) return;
+        const root = document.documentElement;
+        const publish = () => root.style.setProperty("--consent-banner-h", `${Math.ceil(node.getBoundingClientRect().height)}px`);
+        publish();
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(publish) : null;
+        observer?.observe(node);
+        return () => {
+            observer?.disconnect();
+            root.style.removeProperty("--consent-banner-h");
+        };
+    }, [visible]);
+
     function accept() {
         localStorage.setItem(CONSENT_KEY, CONSENT_VERSION);
         setVisible(false);
@@ -35,6 +53,7 @@ export function CookieBanner() {
 
     return (
         <div
+            ref={ref}
             role="region"
             aria-labelledby="cookie-banner-title"
             aria-live="polite"

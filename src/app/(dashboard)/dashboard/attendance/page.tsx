@@ -587,8 +587,8 @@ function RollCallPage() {
                 {/* Sticky save bar — full-width pill, brand-tinted shadow */}
                 {selectedClassId && filteredIds.length > 0 ? (
                     <div
-                        className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
-                        style={{ pointerEvents: saving ? "none" : "auto" }}
+                        className="fixed left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
+                        style={{ bottom: "calc(1.5rem + var(--consent-banner-h, 0px))", pointerEvents: saving ? "none" : "auto" }}
                     >
                         <button
                             type="button"

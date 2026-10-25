@@ -219,7 +219,7 @@ export function DashboardLayoutClient({
                 className={cn(
                     // Coque d'application : l'écran ne défile pas, seul <main> défile.
                     // Barre latérale et barre du haut restent donc toujours en place.
-                    "relative isolate flex h-dvh w-full overflow-hidden text-foreground bg-background print:h-auto print:overflow-visible",
+                    "relative isolate flex h-[calc(100dvh-var(--consent-banner-h,0px))] w-full overflow-hidden text-foreground bg-background print:h-auto print:overflow-visible",
                     density === "dense" ? "ui-density-dense" : "ui-density-comfort",
                     isFocusMode && "ui-focus-mode"
                 )}
@@ -227,7 +227,7 @@ export function DashboardLayoutClient({
                 {!isFocusMode && <div className="contents print:hidden">{sidebar}</div>}
                 <div
                     className={cn(
-                        "flex-1 flex flex-col h-dvh min-w-0 w-full transition-[margin-left] duration-200 relative bg-muted/10 print:ml-0 print:h-auto print:bg-white",
+                        "flex-1 flex flex-col h-[calc(100dvh-var(--consent-banner-h,0px))] min-w-0 w-full transition-[margin-left] duration-200 relative bg-muted/10 print:ml-0 print:h-auto print:bg-white",
                         !isFocusMode && (isOpen ? "md:ml-[220px]" : "md:ml-[72px]"),
                         isFocusMode && "md:ml-0"
                     )}

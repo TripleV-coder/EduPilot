@@ -47,8 +47,9 @@ export const AI_ASSISTANT_NAV_LINK: NavLink = {
  */
 const AI_ASSISTANT_ROLES = new Set(["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]);
 
-export function canUseAiAssistant(role: string | undefined | null): boolean {
-    return Boolean(role && AI_ASSISTANT_ROLES.has(role));
+export function canUseAiAssistant(role: string | string[] | undefined | null): boolean {
+    const roles = Array.isArray(role) ? role : [role];
+    return roles.some((item) => Boolean(item && AI_ASSISTANT_ROLES.has(item)));
 }
 
 export interface NavCounts {
@@ -70,7 +71,7 @@ export interface NavCounts {
 export const ROLE_LABELS: Record<string, string> = {
     SUPER_ADMIN: "Super Admin",
     NETWORK_ADMIN: "Admin réseau",
-    SCHOOL_ADMIN: "Direction",
+    SCHOOL_ADMIN: "Administration",
     DIRECTOR: "Direction",
     TEACHER: "Enseignant",
     STUDENT: "Élève",
@@ -87,6 +88,46 @@ export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
     return rawNavGroupsForRole(role)
         .map((group) => ({ ...group, links: group.links.filter((link) => link !== AI_ASSISTANT_NAV_LINK || canUseAiAssistant(role)) }))
         .filter((group) => group.links.length > 0);
+}
+
+/**
+ * Navigation des fonctions réellement accordées. Le rôle principal vient en
+ * tête (accueil) ; les doublons d'href sont fusionnés. Une carte
+ * schoolIdsByRole masque les liens d'une fonction hors de son établissement.
+ */
+export function navGroupsForAssignedRoles(
+    roles: Array<string | undefined | null>,
+    primaryRole?: string | null,
+    schoolScope?: { activeSchoolId?: string | null; schoolIdsByRole?: Record<string, string[]> },
+): NavGroup[] {
+    const unique: string[] = [];
+    const add = (role: string | undefined | null) => {
+        if (!role || unique.includes(role)) return;
+        unique.push(role);
+    };
+    add(primaryRole ?? undefined);
+    for (const role of roles) add(role);
+    const visible = unique.filter((role) => {
+        if (!schoolScope?.schoolIdsByRole) return true;
+        const ids = schoolScope.schoolIdsByRole[role];
+        if (!ids) return true;
+        const active = schoolScope.activeSchoolId;
+        return Boolean(active && ids.includes(active));
+    });
+    if (visible.length <= 1) return navGroupsForRole(visible[0] ?? primaryRole ?? unique[0]);
+
+    const seen = new Set<string>();
+    const links: NavLink[] = [];
+    for (const role of visible) {
+        for (const group of navGroupsForRole(role)) {
+            for (const link of group.links) {
+                if (seen.has(link.href)) continue;
+                seen.add(link.href);
+                links.push(link);
+            }
+        }
+    }
+    return links.length ? [{ links }] : navGroupsForRole(primaryRole);
 }
 
 function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
@@ -109,6 +150,10 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
 
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
+        // Le responsable de réseau a les droits d'administration de l'école
+        // active (roleSatisfies) : il tombait sur la navigation du personnel
+        // de vie scolaire, sans Élèves, Notes ni Finance.
+        case "NETWORK_ADMIN":
             return [
                 {
                     links: [
@@ -194,7 +239,10 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                 {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
+                        // Vie scolaire : appel et incidents (ATTENDANCE_CREATE, INCIDENT_CREATE).
                         // Élèves et annonces : routes fermées au personnel (STAFF) côté API.
+                        { icon: "check", label: "Appel", href: "/dashboard/attendance", matchPrefix: true, requiresModule: "attendance" },
+                        { icon: "warning", label: "Incidents", href: "/dashboard/incidents", matchPrefix: true },
                         { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true, requiresModule: "schedule" },
                         AI_ASSISTANT_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
@@ -211,6 +259,14 @@ export function navForRole(role: string | undefined | null): NavLink[] {
     return navGroupsForRole(role).flatMap((g) => g.links);
 }
 
+export function navForAssignedRoles(
+    roles: Array<string | undefined | null>,
+    primaryRole?: string | null,
+    schoolScope?: { activeSchoolId?: string | null; schoolIdsByRole?: Record<string, string[]> },
+): NavLink[] {
+    return navGroupsForAssignedRoles(roles, primaryRole, schoolScope).flatMap((g) => g.links);
+}
+
 /**
  * Groupes visibles pour un rôle compte tenu des cycles offerts par l'école.
  * Défaut sûr : tant que offeredLevels est vide, tout est affiché.
@@ -218,8 +274,13 @@ export function navForRole(role: string | undefined | null): NavLink[] {
 export function visibleNavGroups(
     role: string | undefined | null,
     offeredLevels: string[] | undefined | null,
-    enabledModules?: string[] | null
+    enabledModules?: string[] | null,
+    assigned?: Array<string | undefined | null> | null,
+    schoolScope?: { activeSchoolId?: string | null; schoolIdsByRole?: Record<string, string[]> },
 ): NavGroup[] {
+    // Cumul de rôles désactivé : menu du rôle principal (comme la garde serveur)
+    void assigned;
+    void schoolScope;
     const groups = navGroupsForRole(role);
     const filterCycle = Boolean(offeredLevels && offeredLevels.length > 0);
     // Tant que les modules ne sont pas connus (session en cours de chargement),
