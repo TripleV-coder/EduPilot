@@ -19,6 +19,7 @@ import { GET as listAccounts, POST as createAccount } from "@/app/api/schools/[i
 import { POST as accountAction } from "@/app/api/schools/[id]/payment-accounts/[accountId]/route";
 import { GET as onlineStatus } from "@/app/api/payments/online-status/route";
 import { reconcileStalePayments } from "@/lib/finance/online-payments";
+import { POST as verifyProvider } from "@/app/api/payments/[id]/verify-provider/route";
 import { verifyOnSchoolAccount } from "@/lib/payments/school-accounts";
 import { runAsSystem } from "@/lib/db/db-context";
 
@@ -418,5 +419,84 @@ describe("Rapprochement et disponibilité", () => {
         const c = await callRoute(onlineStatus, { path: "/api/payments/online-status" });
         expect(c.body).toMatchObject({ available: false });
         expect(text(c.body)).toContain("économat");
+    });
+});
+
+describe("TD-025 — vérification manuelle d'un paiement en attente (rapprochement prouvé, par l'école)", () => {
+    const motif = "Famille au guichet : débit annoncé sur son téléphone";
+    const verify = (k: "A" | "B", paymentId: string, body: object = { justification: motif }, role: UserRole = "SCHOOL_ADMIN") => {
+        actAs(role === "SCHOOL_ADMIN" ? admin(k) : as(role, fx[k].schoolId, role === "PARENT" ? fx[k].parentId : fx[k].adminId));
+        return callRoute(verifyProvider, { method: "POST", path: `/api/payments/${paymentId}/verify-provider`, params: { id: paymentId }, body });
+    };
+    const pendingFor = async (k: "A" | "B") => {
+        const res = await initiateFor(k);
+        expect(res.status).toBe(200);
+        return prisma.payment.findUniqueOrThrow({ where: { id: (res.body as { paymentId: string }).paymentId } });
+    };
+    const providerCalls = (txId: string | null) => calls.filter((c) => txId && c.url.endsWith(`/transactions/${txId}`));
+
+    it("payé chez le fournisseur : interrogé avec la clé de SON école, validé, motif noté et audité", async () => {
+        const p = await pendingFor("A");
+        fedapayStatus = { [p.providerTransactionId!]: "approved" };
+        calls.length = 0;
+        const res = await verify("A", p.id);
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ outcome: "CONFIRMED" });
+        expect(providerCalls(p.providerTransactionId).map((c) => c.auth)).toEqual([`Bearer ${fx.A.secretKey}`]);
+        const after = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
+        expect(after.status).toBe("VERIFIED");
+        expect(after.notes).toContain(motif);
+        const audit = await prisma.auditLog.findFirst({ where: { entityId: p.id, action: "PAYMENT_PROVIDER_VERIFY" } });
+        expect(audit?.userId).toBe(fx.A.adminId);
+        expect(audit?.schoolId).toBe(fx.A.schoolId);
+        expect(text(audit?.newValues)).toContain(motif);
+    });
+
+    it("échec définitif chez le fournisseur : annulé, réservation libérée", async () => {
+        const p = await pendingFor("A");
+        fedapayStatus = { [p.providerTransactionId!]: "declined" };
+        const res = await verify("A", p.id);
+        expect(res.body).toMatchObject({ outcome: "CANCELLED" });
+        expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("CANCELLED");
+    });
+
+    it("toujours en attente chez le fournisseur : rien ne change, montant toujours réservé", async () => {
+        const p = await pendingFor("A");
+        fedapayStatus = { [p.providerTransactionId!]: "pending" };
+        const res = await verify("A", p.id);
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ outcome: "STILL_PENDING", reason: "PROVIDER_PENDING" });
+        const after = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
+        expect(after.status).toBe("PENDING");
+        expect(after.notes).toContain("toujours en attente");
+    });
+
+    it("sans identifiant fournisseur : non interrogeable (409), aucun appel, montant réservé", async () => {
+        const p = await pendingFor("A");
+        await prisma.payment.update({ where: { id: p.id }, data: { providerTransactionId: null } });
+        calls.length = 0;
+        const res = await verify("A", p.id);
+        expect(res.status).toBe(409);
+        expect(res.body).toMatchObject({ outcome: "NOT_VERIFIABLE", reason: "NO_TRANSACTION_ID" });
+        expect(calls.length).toBe(0);
+        expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("PENDING");
+    });
+
+    it("souveraineté : l'administration de B ne voit pas le paiement de A (404), aucun appel au fournisseur", async () => {
+        const p = await pendingFor("A");
+        calls.length = 0;
+        const res = await verify("B", p.id);
+        expect(res.status).toBe(404);
+        expect(calls.length).toBe(0);
+        expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("PENDING");
+    });
+
+    it("rôles : parent et super-admin refusés (403) ; motif trop court refusé (400) ; aucun appel", async () => {
+        const p = await pendingFor("A");
+        calls.length = 0;
+        expect((await verify("A", p.id, { justification: motif }, "PARENT")).status).toBe(403);
+        expect((await verify("A", p.id, { justification: motif }, "SUPER_ADMIN")).status).toBe(403);
+        expect((await verify("A", p.id, { justification: "court" })).status).toBe(400);
+        expect(calls.length).toBe(0);
     });
 });

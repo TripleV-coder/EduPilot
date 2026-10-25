@@ -632,3 +632,93 @@ async function alertFinanceStaff(schoolId: string, title: string, message: strin
         staff.map(({ id }) => ({ userId: id, type: "PAYMENT" as const, title, message, link: "/dashboard/finance/reconciliation" })),
     );
 }
+
+/** Résultat d'une vérification manuelle auprès du fournisseur (TD-025). */
+export type ManualVerifyOutcome =
+    | { outcome: "CONFIRMED" | "ALREADY_PROCESSED" }
+    | { outcome: "CANCELLED" }
+    | { outcome: "STILL_PENDING"; reason: "PROVIDER_PENDING" | "PROVIDER_UNREACHABLE" | "MISMATCH" | "BLOCKED" | "REJECTED" | "VALIDATION_ERROR" }
+    | { outcome: "NOT_VERIFIABLE"; reason: "NOT_FOUND" | "NOT_PENDING" | "NOT_ONLINE" | "LEGACY_ACCOUNT" | "NO_TRANSACTION_ID" };
+
+/**
+ * TD-025 — vérification manuelle d'UN paiement en ligne resté en attente,
+ * déclenchée par l'administration de l'école avec justification. Mêmes règles
+ * que la réconciliation automatique, sans attendre 24 h et sans libération
+ * arbitraire :
+ * - le fournisseur est interrogé sur le compte marchand DE L'ÉCOLE du paiement
+ *   (ancienne configuration globale : refusé, jamais de repli global) ;
+ * - payé → validé seulement si montant, devise, fournisseur et transaction
+ *   correspondent (confirmOnlinePayment) ;
+ * - échec DÉFINITIF chez le fournisseur → annulé, réservation libérée ;
+ * - tout le reste (en attente, injoignable, écart) → inchangé et réservé.
+ * Sans identifiant fournisseur, rien n'est interrogeable : le montant reste
+ * réservé (une absence d'information ne vaut jamais échec).
+ * Chaque essai ajoute une note datée (auteur, motif, verdict).
+ */
+export async function verifyPendingPayment(
+    paymentId: string,
+    verify: VerifyFn,
+    actor: { id: string; label: string },
+    justification: string,
+): Promise<ManualVerifyOutcome> {
+    const p = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        select: { id: true, status: true, reference: true, provider: true, providerTransactionId: true, paymentAccountId: true, deletedAt: true },
+    });
+    if (!p || p.deletedAt) return { outcome: "NOT_VERIFIABLE", reason: "NOT_FOUND" };
+    if (p.status !== "PENDING") return { outcome: "NOT_VERIFIABLE", reason: "NOT_PENDING" };
+    const provider = p.provider as OnlineProvider | null;
+    if (!provider || !p.reference) return { outcome: "NOT_VERIFIABLE", reason: "NOT_ONLINE" };
+    if (!p.paymentAccountId) return { outcome: "NOT_VERIFIABLE", reason: "LEGACY_ACCOUNT" };
+    if (!p.providerTransactionId) return { outcome: "NOT_VERIFIABLE", reason: "NO_TRANSACTION_ID" };
+
+    const trace = async (verdict: string) => {
+        const line = `Vérification manuelle auprès de ${provider} le ${new Date().toISOString()} par ${actor.label} : ${verdict}. Motif : ${justification}`;
+        const current = await prisma.payment.findUnique({ where: { id: p.id }, select: { notes: true } });
+        await prisma.payment.update({ where: { id: p.id }, data: { notes: appendNote(current?.notes ?? null, line) } });
+    };
+
+    let verdict: "SUCCESS" | "FAILED" | "PENDING";
+    let raw: unknown = null;
+    try {
+        ({ status: verdict, rawData: raw } = await verify(provider, p.providerTransactionId, p.paymentAccountId));
+    } catch (error) {
+        logger.warn("Vérification manuelle : fournisseur injoignable", { paymentId: p.id, reason: (error as Error).message });
+        await trace("fournisseur injoignable, paiement inchangé et réservé");
+        return { outcome: "STILL_PENDING", reason: "PROVIDER_UNREACHABLE" };
+    }
+
+    if (verdict === "SUCCESS") {
+        const { amount, currency } = amountFromRaw(provider, raw);
+        let result: ConfirmOutcome;
+        try {
+            result = await confirmOnlinePayment({
+                reference: p.reference,
+                provider,
+                receivedAmount: amount,
+                receivedCurrency: currency,
+                providerTransactionId: p.providerTransactionId,
+                paymentAccountId: p.paymentAccountId,
+                source: `vérification manuelle ${provider}`,
+            });
+        } catch (error) {
+            logger.error("Vérification manuelle : validation impossible", error, { paymentId: p.id });
+            await trace("payé chez le fournisseur, validation impossible : paiement inchangé et réservé");
+            return { outcome: "STILL_PENDING", reason: "VALIDATION_ERROR" };
+        }
+        if (result.outcome === "CONFIRMED" || result.outcome === "ALREADY_PROCESSED") {
+            await trace("payé, montant et devise conformes : validé");
+            return { outcome: result.outcome };
+        }
+        if (result.outcome === "NOT_FOUND") return { outcome: "NOT_VERIFIABLE", reason: "NOT_FOUND" };
+        await trace(`payé mais non validé (${result.outcome}) : paiement inchangé et réservé`);
+        return { outcome: "STILL_PENDING", reason: result.outcome };
+    }
+    if (verdict === "FAILED") {
+        await failOnlinePayment(p.reference, `vérification manuelle ${provider}`, { provider, paymentAccountId: p.paymentAccountId });
+        await trace("échec définitif chez le fournisseur : annulé, réservation libérée");
+        return { outcome: "CANCELLED" };
+    }
+    await trace("toujours en attente chez le fournisseur : paiement inchangé et réservé");
+    return { outcome: "STILL_PENDING", reason: "PROVIDER_PENDING" };
+}

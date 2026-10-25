@@ -250,7 +250,29 @@ Relevés au nettoyage du 2026-09-18 (déclarations jamais lues).
   Boutons Clôturer / Rouvrir sur la page Années académiques.
 
 
-## TD-025 — Paiements en ligne sans issue définitive : aucune libération manuelle *(ouvert, à traiter avant la mise en production)*
+## TD-025 — Paiements en ligne sans issue définitive : aucune libération manuelle *(résolu pour l'essentiel le 2026-10-25 ; deux réserves ci-dessous)*
+
+**Décision (2026-10-25) : rapprochement manuel prouvé, par l'école.** Le
+comptable ou l'administration de l'école (pas le super-admin) déclenche
+`POST /api/payments/<id>/verify-provider` depuis *Finance › Rapprochement*
+(« Interroger le fournisseur »), avec un motif obligatoire. Le fournisseur est
+interrogé sur le compte marchand de l'école du paiement
+(`verifyPendingPayment`, mêmes règles que la réconciliation quotidienne) :
+validé seulement si montant, devise, fournisseur et transaction correspondent ;
+annulé seulement sur échec définitif ; sinon rien ne change et le montant reste
+réservé. Note datée sur le paiement et entrée `PAYMENT_PROVIDER_VERIFY` au
+journal d'audit à chaque essai. **Aucun bouton de libération sans preuve.**
+Tests : `tests/integration-db/school-payment-accounts.test.ts` (bloc TD-025).
+
+Réserves restantes :
+- **Essai sans identifiant fournisseur** : rien n'est interrogeable ; le montant
+  reste réservé (choix assumé : une absence d'information ne vaut jamais
+  échec). Résolution par le support du fournisseur, hors application.
+- **Codes d'erreur du fournisseur** garantissant qu'aucune transaction n'a été
+  créée : à confirmer pendant la recette FedaPay sandbox (bloquée faute
+  d'identifiants).
+
+Historique de la dette :
 
 Lot 3b (audit paiements du 2026-10-17). Un paiement en ligne dont le résultat
 reste inconnu (fournisseur injoignable, réponse d'erreur à la création, essai
