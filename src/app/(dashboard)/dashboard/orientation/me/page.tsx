@@ -200,7 +200,20 @@ const MENTIONS = [
 const FR_NUM = (v: number | null, digits = 1): string =>
     v === null ? "—" : v.toFixed(digits).replace(".", ",");
 
+// Garde AVANT le chargement : le contenu (et son appel à /api/orientation/me)
+// n'est monté que pour un élève ; un autre rôle voit le refus, sans 403 en console.
 export default function OrientationMePage() {
+    return (
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["STUDENT"]}
+        >
+            <OrientationMeContent />
+        </PageGuard>
+    );
+}
+
+function OrientationMeContent() {
     const thresholds = useSchoolThresholds();
     const [data, setData] = useState<MeData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -233,10 +246,7 @@ export default function OrientationMePage() {
     }, [data]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["STUDENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     greeting="Mon orientation post-BEPC"
@@ -851,7 +861,7 @@ export default function OrientationMePage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

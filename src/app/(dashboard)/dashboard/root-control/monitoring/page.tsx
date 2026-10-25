@@ -11,11 +11,21 @@ import { formatAge, formatBytes, useRootMonitoring } from "@/hooks/use-root-moni
 
 
 
+// Garde AVANT le chargement : useRootMonitoring n'interroge /api/root/monitoring
+// que pour le super-admin ; un autre rôle voit le refus, sans 403 en console.
 export default function RootMonitoringPage() {
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootMonitoringContent />
+        </PageGuard>
+    );
+}
+
+function RootMonitoringContent() {
     const { data, loading, error } = useRootMonitoring();
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Monitoring root (infrastructure)"
@@ -236,6 +246,6 @@ export default function RootMonitoringPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
