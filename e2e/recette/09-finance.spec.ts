@@ -108,7 +108,7 @@ test("02 · encaissements au guichet : espèces, Mobile Money, chèque, partiel,
             await pause(compta, 1500);
             await page.getByText(/Ismaël/).first().click();
             await pause(compta, 1500);
-            const lignes = page.getByRole("combobox", { name: /ligne tarifaire/i }).first();
+            const lignes = page.getByRole("combobox", { name: /ligne tarifaire/i }).or(page.getByRole("listbox", { name: /ligne tarifaire/i })).first();
             const options = (await lignes.evaluate((e) => e.tagName)) === "SELECT" ? await lignes.locator("option").allInnerTexts() : [];
             constat(compta, "Lignes proposées pour Ismaël (scolarité soldée)", options.join(" | "));
             if (!options.some((o) => /scolarité 6ème/i.test(o))) return; // la scolarité soldée n'est plus proposée : trop-perçu impossible
@@ -248,7 +248,9 @@ test("06 · cagnotte de classe : création, diffusion, contribution d'une famill
             await dir.page.getByLabel(/titre de la cagnotte/i).fill("Sortie pédagogique à Ouidah");
             await dir.page.getByLabel(/description/i).fill("Visite du musée d'histoire et de la Porte du Non-Retour, car et déjeuner compris.");
             await choose(dir, dir.page, /classe concernée/i, "6ème A");
-            await dir.page.getByLabel(/date limite/i).fill("2026-10-20");
+            // Date relative : la date fixe « 2026-10-20 » était passée à la recette du
+            // 2026-10-25, et l'application refuse (à raison) une date limite passée
+            await dir.page.getByLabel(/date limite/i).fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
             await dir.page.getByRole("spinbutton", { name: /objectif/i }).fill("150000");
             await dir.page.getByRole("spinbutton", { name: /familles attendues/i }).fill("4");
             await dir.page.getByRole("button", { name: /créer la cagnotte/i }).click();
@@ -289,9 +291,13 @@ test("06 · cagnotte de classe : création, diffusion, contribution d'une famill
 test("07 · finance consolidée du réseau et de la plateforme", async ({ browser }) => {
     const chef = await acteur(browser, "07-finance-consolidee", "admin-cocotiers", "Direction Les Cocotiers (chef d'organisation)");
     try {
-        await step(chef, "Pilotage de l'organisation : deux sites", async () => {
+        // Règle S5 (ca8b27c, 2026-10-18) : le propriétaire d'organisation (ici
+        // administrateur d'école) gère l'organisation mais ne voit PAS les données
+        // consolidées des écoles voisines, réservées au responsable de réseau.
+        await step(chef, "Pilotage de l'organisation : vue consolidée réservée au responsable de réseau", async () => {
             await explorePage(chef, "/dashboard/organization");
-            await expect(chef.page.getByText(/annexe primaire/i).first(), "l'annexe doit apparaître dans le pilotage du réseau").toBeVisible();
+            await expect(chef.page.getByText(/vue consolidée réservée au responsable de réseau/i).first(), "explication au lieu d'une erreur").toBeVisible();
+            await expect(chef.page.getByText(/accès organisation refusé/i), "pas d'erreur de chargement").toHaveCount(0);
         });
     } finally {
         await chef.close();

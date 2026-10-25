@@ -318,9 +318,11 @@ test("05 · direction : évaluations, statistiques, export, analyses", async ({ 
             await pause(dir, 2500);
             await scrollThrough(dir);
         });
-        await step(dir, "« Nouvelle évaluation »", async () => {
+        // Depuis 7261d3c (2026-10-14), seul l'enseignant de la matière crée ses
+        // évaluations : la direction consulte, elle ne crée pas.
+        await step(dir, "« Nouvelle évaluation » réservée à l'enseignant de la matière", async () => {
             await goto(dir, "/dashboard/grades");
-            await expectEffect(dir, page.getByRole("button", { name: /nouvelle évaluation/i }), "« Nouvelle évaluation »");
+            await expect(page.getByRole("button", { name: /nouvelle évaluation/i }), "pas de création par la direction").toHaveCount(0);
         });
         await step(dir, "Export des notes", async () => {
             await goto(dir, "/dashboard/grades");
@@ -343,12 +345,13 @@ test("05 · direction : évaluations, statistiques, export, analyses", async ({ 
 test("06 · examens en ligne : création par l'enseignant, passage par l'élève", async ({ browser }) => {
     const prof = await acteur(browser, "06-examens-en-ligne", "prof-maths", "Koffi Dossou (enseignant)");
     try {
-        await step(prof, "Nouvel examen « Quiz — fractions » (30 min, publié)", async () => {
+        // L'examen est désormais créé en brouillon (questions ajoutées ensuite, puis
+        // publication) : l'interrupteur « Publier maintenant » n'existe plus.
+        await step(prof, "Nouvel examen « Quiz — fractions » (30 min, brouillon)", async () => {
             await goto(prof, "/dashboard/exams/new");
             await prof.page.getByLabel(/^titre/i).fill("Quiz — fractions");
             await choose(prof, prof.page, /matière et classe/i, /Mathématiques.*6ème A|6ème A.*Mathématiques/);
             await prof.page.getByLabel(/durée/i).fill("30");
-            await prof.page.getByRole("switch", { name: /publier maintenant/i }).click();
             await prof.page.getByRole("button", { name: /créer l'examen/i }).click();
             await prof.page.waitForURL((u) => !u.pathname.endsWith("/new"), { timeout: 20_000 });
         }, { critical: true });

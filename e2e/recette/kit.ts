@@ -574,7 +574,10 @@ const rxEscape = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * native (<select>) ou Radix (bouton combobox + options).
  */
 export async function choose(actor: Actor, scope: Page | Locator, name: RegExp | string, option: string | RegExp) {
-    const combo = scope.getByRole("combobox", { name: typeof name === "string" ? new RegExp(rxEscape(name), "i") : name }).first();
+    // Liste fermée (combobox) ou dépliée (<select size>, rôle listbox : lignes
+    // tarifaires de l'encaissement depuis a856c65) : même sélection d'option
+    const label = typeof name === "string" ? new RegExp(rxEscape(name), "i") : name;
+    const combo = scope.getByRole("combobox", { name: label }).or(scope.getByRole("listbox", { name: label })).first();
     await combo.waitFor({ state: "visible", timeout: 20_000 });
     await expect(combo).toBeEnabled({ timeout: 20_000 });
     const tag = await combo.evaluate((e) => e.tagName);
