@@ -16,6 +16,12 @@ vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
   lockStudentFee: vi.fn(),
   getFeeBalance: vi.fn(),
 }));
+// Frais applicables à l'enfant : sémantique testée sur une vraie base
+// (integration-db/parent-payment-journey)
+vi.mock("@/lib/finance/family-finance", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/family-finance")>()),
+  isFeeApplicableToStudent: vi.fn(async () => true),
+}));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     studentProfile: { findUnique: vi.fn() },
@@ -37,6 +43,8 @@ import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { getFeeBalance, lockStudentFee } from "@/lib/finance/online-payments";
 import { POST } from "@/app/api/payments/initiate/route";
 import { ProviderInitError } from "@/lib/finance/providers/init-error";
+import { CircuitOpenError } from "@/lib/resilience/errors";
+import { isFeeApplicableToStudent } from "@/lib/finance/family-finance";
 
 /** Rien encore payé par défaut : reste à payer = montant du frais. */
 function balance(overrides: Record<string, number> = {}) {
@@ -430,5 +438,69 @@ describe("POST /api/payments/initiate", () => {
     }));
     expect(res.status).toBe(400);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("famille : un frais qui ne concerne pas l'enfant est refusé (409), sans écriture ni appel", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT"));
+    mockTenant();
+    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue({ parentStudents: [{ studentId: FIXTURES.studentA }] } as never);
+    vi.mocked(isFeeApplicableToStudent).mockResolvedValueOnce(false);
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", { method: "POST", body: validBody() }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "FEE_NOT_APPLICABLE" });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
+  });
+
+  it("montant libre sans montant : 400 AMOUNT_REQUIRED", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    const { amount: _omit, ...body } = validBody();
+    void _omit;
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", { method: "POST", body }));
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("solde complet : montant recalculé par le serveur, celui de la requête ignoré", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(getFeeBalance).mockResolvedValue(balance({ settled: 30000 }));
+    vi.mocked(prisma.payment.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment({ amount: 70000 }) as never);
+    checkoutMock.mockResolvedValue({ url: "https://process.fedapay.com/x", token: "t", transactionId: "1" });
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody({ amount: 1, mode: "FULL_BALANCE" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(vi.mocked(prisma.payment.create).mock.calls[0][0]).toMatchObject({ data: { amount: 70000 } });
+  });
+
+  it("solde complet avec un essai en attente : 409 PAYMENT_IN_PROGRESS, aucun essai créé", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(getFeeBalance).mockResolvedValue(balance({ reserved: 10000 }));
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", {
+      method: "POST",
+      body: validBody({ mode: "FULL_BALANCE" }),
+    }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "PAYMENT_IN_PROGRESS" });
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
+  });
+
+  it("fournisseur en pause (circuit ouvert) : message pour la famille, sans nom de service interne", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockTenant();
+    vi.mocked(prisma.payment.create).mockResolvedValue(pendingPayment() as never);
+    checkoutMock.mockRejectedValue(new ProviderInitError("circuit", "REFUSED", undefined, { cause: new CircuitOpenError("payment-fedapay", 30_000) }));
+    const res = await POST(makeRequest("http://localhost:3000/api/payments/initiate", { method: "POST", body: validBody() }));
+    const body = await res.json();
+    expect(res.status).toBe(503);
+    expect(body.code).toBe("ONLINE_PAYMENT_PAUSED");
+    expect(body.error).toContain("Aucun montant n'a été prélevé");
+    expect(JSON.stringify(body)).not.toMatch(/payment-fedapay|circuit/i);
+    expect(res.headers.get("Retry-After")).toBe("30");
   });
 });

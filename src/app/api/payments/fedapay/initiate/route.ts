@@ -8,7 +8,7 @@ import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { ONLINE_UNAVAILABLE_MESSAGE, resolveCollectingAccount } from "@/lib/payments/school-accounts";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
-import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
+import { ServiceUnavailableError, onlinePaymentPausedResponse } from "@/lib/resilience/errors";
 import { ONLINE_PAYMENT_TTL_MS, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
 import { appendNote } from "@/lib/finance/helpers";
@@ -123,7 +123,9 @@ export const POST = createApiHandler(async (request, context) => {
     }
 
     const reference = payment.reference ?? `EDU-${payment.id}`;
-    const origin = new URL(request.url).origin;
+    // Adresse publique configurée, comme /api/payments/initiate : jamais l'en-tête
+    // Host de la requête (adresse interne derrière un proxy, ou falsifiable)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     try {
         // Référence enregistrée AVANT la création chez FedaPay : si le
@@ -148,7 +150,7 @@ export const POST = createApiHandler(async (request, context) => {
             amount,
             description: payment.fee?.name ? `Frais : ${payment.fee.name}` : "Frais scolaires",
             reference,
-            callbackUrl: `${origin}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
+            callbackUrl: `${appUrl}/dashboard/finance/retour-paiement?ref=${encodeURIComponent(reference)}`,
             customer: {
                 firstname: payer.firstName ?? "Parent",
                 lastname: payer.lastName ?? "EduPilot",
@@ -169,9 +171,9 @@ export const POST = createApiHandler(async (request, context) => {
 
         return NextResponse.json({ url: checkout.url, reference });
     } catch (error) {
-        if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
+        if (error instanceof ServiceUnavailableError) return onlinePaymentPausedResponse(error);
         if (error instanceof ProviderInitError && error.cause instanceof ServiceUnavailableError) {
-            return serviceUnavailableResponse(error.cause);
+            return onlinePaymentPausedResponse(error.cause);
         }
         // Le paiement reste PENDING (réservé). Résultat inconnu : la transaction a
         // pu être créée — identifiant conservé s'il est connu, essai repéré (lot 3b)

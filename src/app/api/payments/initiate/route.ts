@@ -5,7 +5,7 @@ import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { ONLINE_UNAVAILABLE_MESSAGE, SCHOOL_PAYMENT_PROVIDER, resolveCollectingAccount } from "@/lib/payments/school-accounts";
 import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
-import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
+import { ServiceUnavailableError, onlinePaymentPausedResponse } from "@/lib/resilience/errors";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { z } from "zod";
@@ -14,10 +14,18 @@ import { nanoid } from "nanoid";
 import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
 import { appendNote } from "@/lib/finance/helpers";
+import { currentPlanInstallments, intentAmount, isFeeApplicableToStudent } from "@/lib/finance/family-finance";
 
 const initiateSchema = z.object({
-    // FCFA entiers, strictement positifs (avant : NaN et centimes passaient)
-    amount: fcfaAmountSchema,
+    // FCFA entiers, strictement positifs (avant : NaN et centimes passaient).
+    // Exigé pour un montant libre ; ignoré pour une intention calculée.
+    amount: fcfaAmountSchema.optional(),
+    /**
+     * Intention du payeur (parcours parent) : montant libre, prochaine
+     * échéance ou tout le solde disponible. Pour les deux dernières, le montant
+     * est recalculé par le serveur sous verrou, jamais lu dans la requête.
+     */
+    mode: z.enum(["AMOUNT", "NEXT_INSTALLMENT", "FULL_BALANCE"]).default("AMOUNT"),
     // Seul le franc CFA est accepté : un autre code est refusé, jamais converti
     currency: z.literal(EXPECTED_CURRENCY).optional(),
     feeId: z.string(),
@@ -64,7 +72,10 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Données de requête invalides", details: parsed.error.format() }, { status: 400 });
             }
 
-            const { amount, feeId, studentId, provider, payerPhone } = parsed.data;
+            const { amount: requestedAmount, mode, feeId, studentId, provider, payerPhone } = parsed.data;
+            if (mode === "AMOUNT" && requestedAmount === undefined) {
+                return NextResponse.json({ error: "Montant requis", code: "AMOUNT_REQUIRED" }, { status: 400 });
+            }
             const resolvedProvider = resolveProvider(provider);
             // Avant toute écriture : pas de paiement « en attente » orphelin.
             if (!resolvedProvider) return onlineUnavailable();
@@ -126,6 +137,18 @@ export const POST = createApiHandler(
                 return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
             }
 
+            // Famille : seulement un frais qui concerne l'enfant (son année, son
+            // niveau, facultatif souscrit) — l'identifiant envoyé ne prouve rien
+            if (
+                (session.user.role === "PARENT" || session.user.role === "STUDENT") &&
+                !(await isFeeApplicableToStudent(prisma, studentId, feeId))
+            ) {
+                return NextResponse.json(
+                    { error: "Ces frais ne concernent pas cet élève pour l'année en cours.", code: "FEE_NOT_APPLICABLE" },
+                    { status: 409 },
+                );
+            }
+
             // Compte marchand de l'école du frais (jamais une valeur du navigateur),
             // actif et déchiffrable dans l'environnement autorisé. Aucun repli.
             const resolved = await resolveCollectingAccount(prisma, fee.schoolId);
@@ -140,6 +163,19 @@ export const POST = createApiHandler(
             // peuvent pas réserver deux fois le même reste à payer.
             const outcome = await prisma.$transaction(async (tx) => {
                 await lockStudentFee(tx, studentId, feeId);
+
+                // Intention calculée : montant relu sous le verrou, au moment de l'essai
+                let amount: number;
+                if (mode === "AMOUNT") {
+                    amount = requestedAmount!;
+                } else {
+                    const current = await getFeeBalance(tx, studentId, feeId);
+                    if (!current) return { kind: "refused" as const, balance: null, amount: 0 };
+                    const plan = mode === "NEXT_INSTALLMENT" ? await currentPlanInstallments(tx, studentId, feeId) : null;
+                    const intent = intentAmount(mode, current, plan?.installmentPayments ?? null);
+                    if ("error" in intent) return { kind: "intent" as const, error: intent.error, balance: current };
+                    amount = intent.amount;
+                }
 
                 // Même demande répétée (double clic, retour arrière, autre opérateur) :
                 // l'essai en cours n'est ni modifié ni renvoyé (S3) — même
@@ -157,7 +193,7 @@ export const POST = createApiHandler(
                 // Reste à payer : échéancier (bourses déduites) sinon frais, moins
                 // l'encaissé et les essais en ligne encore en attente
                 const balance = await getFeeBalance(tx, studentId, feeId);
-                if (!balance || amount > balance.available) return { kind: "refused" as const, balance };
+                if (!balance || amount > balance.available) return { kind: "refused" as const, balance, amount };
 
                 const payment = await tx.payment.create({
                     data: {
@@ -186,8 +222,22 @@ export const POST = createApiHandler(
                 );
             }
 
+            if (outcome.kind === "intent") {
+                const balance = outcome.balance;
+                const messages = {
+                    PAYMENT_IN_PROGRESS: `Un paiement en ligne de ${balance.reserved} FCFA attend la confirmation du fournisseur pour ces frais. Attendez son résultat avant de régler une échéance ou le solde.`,
+                    NOTHING_DUE: "Rien n'est à régler sur ces frais pour le moment.",
+                    NO_INSTALLMENT_DUE: "Aucune échéance n'est à régler sur ces frais.",
+                } as const;
+                return NextResponse.json(
+                    { error: messages[outcome.error], code: outcome.error, remaining: balance.remaining, reserved: balance.reserved, available: balance.available },
+                    { status: 409 },
+                );
+            }
+
             if (outcome.kind === "refused") {
                 const balance = outcome.balance;
+                const amount = outcome.amount;
                 if (!balance) return NextResponse.json({ error: "Frais introuvables" }, { status: 404 });
                 if (balance.reserved > 0 && amount <= balance.remaining) {
                     return NextResponse.json(
@@ -282,11 +332,14 @@ export const POST = createApiHandler(
             return NextResponse.json({
                 paymentUrl: result.paymentUrl,
                 transactionId: result.transactionId,
-                paymentId: paymentRecord.id
+                paymentId: paymentRecord.id,
+                // Suivi de l'essai par la page de retour (statut lu en base, S4)
+                reference: paymentRecord.reference,
+                amount: Math.round(Number(paymentRecord.amount)),
             });
 
         } catch (error) {
-            if (error instanceof ServiceUnavailableError) return serviceUnavailableResponse(error);
+            if (error instanceof ServiceUnavailableError) return onlinePaymentPausedResponse(error);
             logger.error("Payment initiation failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/initiate" });
             return NextResponse.json({ error: "Payment initiation failed" }, { status: 500 });
         }

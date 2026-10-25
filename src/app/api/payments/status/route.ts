@@ -4,6 +4,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { getOwnStudentIds } from "@/lib/auth/family-scope";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { publicPaymentStatus } from "@/lib/finance/family-finance";
 
 /**
  * GET /api/payments/status?ref=… — statut d'un paiement en ligne, lu en base
@@ -18,15 +19,6 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
  */
 const STAFF_ROLES = ["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] as const;
 
-type PublicStatus = "CONFIRMED" | "PENDING" | "FAILED" | "UNDER_REVIEW";
-
-function publicStatus(status: string, notes: string | null): PublicStatus {
-    if (status === "VERIFIED" || status === "RECONCILED") return "CONFIRMED";
-    if (status === "CANCELLED" || status === "EXPIRED") return "FAILED";
-    // En attente : résultat inconnu ou bloqué → « en vérification », jamais « échoué »
-    if (notes && /(incertain|inconnu|bloquée|refusée)/i.test(notes)) return "UNDER_REVIEW";
-    return "PENDING";
-}
 
 export const GET = createApiHandler(async (request, { session }) => {
     const reference = new URL(request.url).searchParams.get("ref")?.trim();
@@ -58,7 +50,7 @@ export const GET = createApiHandler(async (request, { session }) => {
 
     return NextResponse.json({
         reference,
-        status: publicStatus(payment.status, payment.notes),
+        status: publicPaymentStatus(payment.status, payment.notes),
         amount: Math.round(Number(payment.amount)),
         feeName: payment.fee.name,
         paidAt: payment.status === "VERIFIED" || payment.status === "RECONCILED" ? payment.paidAt : null,

@@ -83,6 +83,14 @@ function unwrapTransaction(body: Record<string, unknown>): Record<string, unknow
     return (wrapped && typeof wrapped === "object" ? wrapped : body) as Record<string, unknown>;
 }
 
+function isHttpsUrl(value: string): boolean {
+    try {
+        return new URL(value).protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 export interface FedaPayAccountCheckout {
     url: string;
     token: string;
@@ -126,6 +134,9 @@ export async function createAccountCheckout(
         const token = typeof tokenBody.token === "string" ? tokenBody.token : "";
         const url = typeof tokenBody.url === "string" ? tokenBody.url : "";
         if (!url) throw new Error("réponse sans lien de paiement");
+        // Le navigateur sera redirigé vers ce lien : https exigé. Pas de liste
+        // de domaines, la documentation FedaPay n'en publie pas (liens courts compris)
+        if (!isHttpsUrl(url)) throw new Error("lien de paiement non sécurisé (https exigé)");
         return { url, token, transactionId };
     } catch (error) {
         throw new ProviderInitError(`[FedaPay ${credentials.accountId}] jeton de paiement : ${(error as Error).message}`, "UNKNOWN", transactionId, { cause: error });

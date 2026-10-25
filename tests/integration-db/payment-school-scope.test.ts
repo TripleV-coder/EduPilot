@@ -23,6 +23,7 @@ vi.mock("@/lib/payments/fedapay-account-client", async (importOriginal) => {
 });
 
 import { POST as cashPayment } from "@/app/api/payments/cash/route";
+import { enrollInCurrentYear } from "./fixtures/enrollment";
 import { ensureActiveSchoolAccount } from "./fixtures/payment-account";
 import { POST as createPayment } from "@/app/api/payments/route";
 import { POST as financePayment } from "@/app/api/finance/payments/route";
@@ -62,6 +63,9 @@ beforeAll(async () => {
     await ensureActiveSchoolAccount(B);
     studentA = await student(A, A);
     studentB = await student(B, B);
+    // Inscriptions de l'année : la famille ne paie que les frais qui concernent l'enfant
+    await enrollInCurrentYear(studentA, A);
+    await enrollInCurrentYear(studentB, B);
     movedStudent = await student(A, B);
     feeA = (await prisma.fee.create({ data: { schoolId: A, name: "Scolarité A", amount: 50000 } })).id;
     feeB = (await prisma.fee.create({ data: { schoolId: B, name: "Scolarité B", amount: 50000 } })).id;

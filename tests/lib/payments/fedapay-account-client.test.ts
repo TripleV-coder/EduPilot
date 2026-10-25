@@ -54,6 +54,14 @@ describe("createAccountCheckout", () => {
         }
     });
 
+    it("lien de paiement non https : résultat inconnu avec l'identifiant (la transaction existe), jamais renvoyé au navigateur", async () => {
+        const fetchMock = vi.fn(async (url: string | URL | Request) =>
+            String(url).includes("/token") ? json({ token: "tok", url: "http://process.fedapay.com/x" }) : json({ "v1/transaction": { id: 303 } }),
+        );
+        await expect(createAccountCheckout(A, { amount: 1, description: "a", reference: "R", callbackUrl: "u", customer }, fetchMock as never))
+            .rejects.toMatchObject({ name: "ProviderInitError", outcome: "UNKNOWN", providerTransactionId: "303" });
+    });
+
     it("refus HTTP à la création : résultat inconnu (UNKNOWN), jamais un refus présumé", async () => {
         const fetchMock = vi.fn(async () => json({ message: "erreur" }, 422));
         await expect(createAccountCheckout(A, { amount: 1, description: "a", reference: "R", callbackUrl: "u", customer }, fetchMock as never))

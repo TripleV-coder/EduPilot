@@ -11,6 +11,7 @@ import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import prisma from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
+import { enrollInCurrentYear } from "./fixtures/enrollment";
 import { POST as initiate } from "@/app/api/payments/initiate/route";
 import { POST as accountWebhook } from "@/app/api/payments/fedapay/webhook/[accountId]/route";
 import { POST as globalWebhook } from "@/app/api/payments/fedapay/webhook/route";
@@ -75,6 +76,8 @@ async function schoolFixture(label: string): Promise<SchoolFixture> {
     const student = await prisma.studentProfile.create({ data: { userId: studentUser.id, schoolId: school.id, matricule: uniqueCode("S7") } });
     const parentProfile = await prisma.parentProfile.create({ data: { userId: parentUser.id, updatedAt: new Date() } });
     await prisma.parentStudent.create({ data: { parentId: parentProfile.id, studentId: student.id, relationship: "PARENT" } });
+    // Inscription de l'année : la famille ne paie que les frais qui concernent l'enfant
+    await enrollInCurrentYear(student.id, school.id);
     const fee = await prisma.fee.create({ data: { schoolId: school.id, name: `Scolarité ${label}`, amount: 500000 } });
     return {
         schoolId: school.id, adminId: adminUser.id, parentId: parentUser.id, studentId: student.id, feeId: fee.id,

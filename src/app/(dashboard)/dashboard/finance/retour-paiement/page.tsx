@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -34,14 +34,34 @@ const MESSAGES: Record<PaymentStatus["status"], { title: string; text: string }>
 const formatFcfa = (amount: number) =>
     new Intl.NumberFormat("fr-BJ", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(amount);
 
+/** Relecture toutes les 5 s, au plus 60 fois (≈ 5 min) ; ensuite à la demande. */
+const POLL_MS = 5000;
+const MAX_POLLS = 60;
+
 function PaymentReturn() {
     const reference = useSearchParams().get("ref");
-    const { data, error } = useSWR<PaymentStatus>(
+    const polls = useRef(0);
+    const [exhausted, setExhausted] = useState(false);
+    const { data, error, mutate, isValidating } = useSWR<PaymentStatus>(
         reference ? `/api/payments/status?ref=${encodeURIComponent(reference)}` : null,
         fetcher,
-        // Tant que ce n'est pas terminé, relecture toutes les 5 s
-        { refreshInterval: (latest) => (latest && (latest.status === "CONFIRMED" || latest.status === "FAILED") ? 0 : 5000) },
+        {
+            refreshInterval: (latest) => {
+                if (latest && (latest.status === "CONFIRMED" || latest.status === "FAILED")) return 0;
+                if (polls.current >= MAX_POLLS) return 0;
+                return POLL_MS;
+            },
+            onSuccess: () => {
+                polls.current += 1;
+                if (polls.current >= MAX_POLLS) setExhausted(true);
+            },
+        },
     );
+    const checkAgain = () => {
+        polls.current = 0;
+        setExhausted(false);
+        void mutate();
+    };
 
     if (!reference) return <p>Référence de paiement absente. Consultez vos paiements dans « Scolarité et paiements ».</p>;
     if (error) return <p>Ce paiement est introuvable ou ne vous concerne pas.</p>;
@@ -55,6 +75,17 @@ function PaymentReturn() {
             <p className="text-sm text-muted-foreground">
                 {data.feeName} · {formatFcfa(data.amount)} · référence {data.reference}
             </p>
+            {exhausted && (data.status === "PENDING" || data.status === "UNDER_REVIEW") ? (
+                <div className="space-y-2">
+                    <p className="text-sm">
+                        Toujours aucune confirmation. Vous pouvez fermer cette page : le paiement reste suivi et apparaîtra
+                        dans l&apos;historique de votre enfant dès qu&apos;il sera confirmé.
+                    </p>
+                    <button type="button" className="underline" onClick={checkAgain} disabled={isValidating}>
+                        {isValidating ? "Vérification…" : "Vérifier à nouveau"}
+                    </button>
+                </div>
+            ) : null}
         </div>
     );
 }

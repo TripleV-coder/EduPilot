@@ -5,6 +5,8 @@ import { Block, ColorCards, Empty, Figures, HomeHeader, HomePage, MODULE, QuickA
 
 export interface ParentPayment {
     id: string;
+    /** Enfant concerné : « Payer » ouvre directement sa situation. */
+    studentId?: string;
     childName: string;
     label: string;
     amount: number;
@@ -13,6 +15,8 @@ export interface ParentPayment {
 }
 
 export interface ParentChild {
+    /** Identifiant de fiche élève : le clic ouvre ce dossier, jamais la liste. */
+    studentId?: string;
     name: string;
     myAverage: number;
     myRank: number | null;
@@ -47,7 +51,7 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
     const overdue = data.overdueCount ?? payments.filter((p) => p.state === "overdue").length;
     const dueNote = overdue > 0
         ? `${overdue} paiement(s) en retard`
-        : payments.length ? `${payments.length} paiement(s) en attente` : "rien en attente";
+        : payments.length ? `${payments.length} échéance(s) à venir` : "rien à régler";
     return (
         <HomePage>
             <HomeHeader
@@ -80,7 +84,10 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                                     color: p.state === "overdue" ? MODULE.pink : MODULE.orange,
                                     name: p.label,
                                     detail: `${p.childName} · ${formatFcfa(p.amount)} FCFA${p.state === "overdue" ? " · en retard" : p.dueDate ? ` · avant le ${new Date(p.dueDate).toLocaleDateString("fr-FR")}` : ""}`,
-                                    action: { href: "/dashboard/finance", label: "Payer" },
+                                    action: {
+                                        href: p.studentId ? `/dashboard/finance?enfant=${encodeURIComponent(p.studentId)}` : "/dashboard/finance",
+                                        label: "Payer",
+                                    },
                                 }))}
                             />
                         </Block>
@@ -98,14 +105,16 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                         />
                     </Block>
                     <Block id="parent-children" title="Mes enfants" link={{ href: "/dashboard/students", label: "Voir le détail" }}>
+                        {/* Dossier plutôt que finances : la carte montre notes et présence ;
+                            « Payer » reste sur la liste À surveiller. L'API vérifie le lien parent-enfant. */}
                         <ColorCards
                             items={children.map((c) => ({
-                                key: c.name,
+                                key: c.studentId ?? c.name,
                                 title: c.name,
                                 meta: c.myAverage > 0 ? `Moyenne ${decimal(c.myAverage, 2)}/20${c.myRank ? ` · ${c.myRank}ᵉ` : ""}` : "Pas encore de moyenne",
                                 footLabel: "Présence",
                                 footValue: c.attendanceRate === null ? "—" : `${decimal(c.attendanceRate)} %`,
-                                href: "/dashboard/students",
+                                href: c.studentId ? `/dashboard/students/${c.studentId}` : "/dashboard/students",
                             }))}
                         />
                     </Block>
