@@ -27,7 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Permission } from "@/lib/rbac/permissions";
-import { incidentCreateSchema, IncidentFormValues } from "@/lib/validations/incident";
+import { incidentFormSchema, IncidentFormValues } from "@/lib/validations/forms/incident-form";
 import { Save, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -74,8 +74,8 @@ export default function NewIncidentPage() {
 
     // severity (.default) rend le type d'entrée ≠ type de sortie : trois
     // génériques au lieu d'un cast du resolver.
-    const form = useForm<z.input<typeof incidentCreateSchema>, unknown, IncidentFormValues>({
-        resolver: zodResolver(incidentCreateSchema),
+    const form = useForm<z.input<typeof incidentFormSchema>, unknown, IncidentFormValues>({
+        resolver: zodResolver(incidentFormSchema),
         defaultValues: {
             studentId: "",
             incidentType: "OTHER",

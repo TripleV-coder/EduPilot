@@ -253,7 +253,12 @@ export default function OrganizationDashboardPage() {
   const selectedOrganization =
     organizations.find((organization) => organization.id === requestedOrganizationId) || organizations[0] || null;
 
-  const organizationOverviewKey = selectedOrganization
+  // Vue consolidée (données des écoles du réseau) : réservée au responsable de
+  // réseau par l'API (S5, ca8b27c). Le propriétaire d'organisation gère
+  // l'organisation sans voir les données des écoles voisines : pas d'appel
+  // voué au refus, une explication à la place (recette du 2026-10-25).
+  const canSeeConsolidated = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "NETWORK_ADMIN";
+  const organizationOverviewKey = selectedOrganization && canSeeConsolidated
     ? `/api/analytics/organization/overview?organizationId=${encodeURIComponent(selectedOrganization.id)}`
     : null;
 
@@ -381,7 +386,18 @@ export default function OrganizationDashboardPage() {
         </Card>
       ) : null}
 
-      {overviewLoading || !overview ? (
+      {!canSeeConsolidated ? (
+        <Card className="border-border/60 bg-card shadow-sm">
+          <CardContent className="space-y-2 py-8 text-center text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Vue consolidée réservée au responsable de réseau</p>
+            <p>
+              Les indicateurs comparés des sites (effectifs, moyennes, finances) contiennent les données de chaque école. Ils
+              sont réservés au responsable de réseau. En tant que propriétaire, vous gérez l&apos;organisation ; chaque
+              école consulte ses propres données.
+            </p>
+          </CardContent>
+        </Card>
+      ) : overviewLoading || !overview ? (
         <Card className="border-border/60 bg-card shadow-sm">
           <CardContent className="py-14">
             <EmptyState label="Chargement des indicateurs organisation..." />
