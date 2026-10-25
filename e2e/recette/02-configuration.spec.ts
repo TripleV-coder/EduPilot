@@ -186,13 +186,15 @@ async function configure(admin: Actor, ecole: Ecole, cfg: Config) {
     );
 
     for (const t of cfg.typesEvaluation) {
-        await step(admin, `Type d'évaluation « ${t.name} » (poids ${t.coef}${t.max ? `, ${t.max} max par période` : ""})`, async () => {
+        // Le champ « Coefficient (poids) » a été retiré par 7261d3c (2026-10-14) : le
+        // rôle d'un type dans la moyenne se règle par « Rôle dans la moyenne » et
+        // par la formule des Règles de l'établissement.
+        await step(admin, `Type d'évaluation « ${t.name} »${t.max ? ` (${t.max} max par période)` : ""}`, async () => {
             await goto(admin, "/dashboard/settings/evaluation-types");
             await page.getByRole("button", { name: /nouveau type/i }).click();
             const d = page.getByRole("dialog", { name: /nouveau type d'évaluation/i });
             await d.getByLabel("Nom", { exact: true }).fill(t.name);
             await d.getByLabel("Code", { exact: true }).fill(t.code);
-            await d.getByLabel("Coefficient (poids)").fill(String(t.coef));
             if (t.max) await d.getByLabel(/nb max/i).fill(String(t.max));
             await d.getByRole("button", { name: /^créer$/i }).click();
             await expect(d).toBeHidden({ timeout: 20_000 });
@@ -221,7 +223,10 @@ async function configure(admin: Actor, ecole: Ecole, cfg: Config) {
     await step(admin, "Structure cycles / niveaux / séries : ajout d'un cycle", async () => {
         await goto(admin, "/dashboard/settings/levels");
         await scrollThrough(admin);
-        await page.getByRole("button", { name: /ajouter un cycle/i }).click();
+        // Lien vers la page dédiée aux cycles offerts (et non plus un bouton) :
+        // l'utilisateur y trouve le formulaire d'ajout (vérifié ci-dessous)
+        await page.getByRole("link", { name: /ajouter un cycle/i }).click();
+        await page.waitForURL(/\/dashboard\/settings\/cycles/);
         await pause(admin, 1500);
         const opened = (await page.getByRole("dialog").count()) > 0 || (await page.locator("main form").count()) > 0;
         expect(opened, "le bouton « Ajouter un cycle » doit ouvrir un formulaire").toBe(true);

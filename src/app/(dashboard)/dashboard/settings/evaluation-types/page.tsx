@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -228,7 +229,8 @@ export default function EvaluationTypesPage() {
                             <Settings2 className="w-5 h-5" />
                             <p className="text-sm">
                                 Ces types d'évaluation seront proposés aux enseignants lors de la création d'une nouvelle note.
-                                Le &quot;Poids (Coefficient)&quot; est utilisé pour le calcul des moyennes pondérées.
+                                Le « Rôle dans la moyenne » indique comment chaque type compte ; la formule de calcul se règle dans{" "}
+                                <Link href="/dashboard/settings/grading" className="underline underline-offset-2">Règles de l&apos;établissement</Link>.
                             </p>
                         </div>
 
