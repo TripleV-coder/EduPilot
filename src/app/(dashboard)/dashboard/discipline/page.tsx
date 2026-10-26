@@ -9,7 +9,6 @@ import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
 
 import {
     Avatar,
@@ -221,7 +220,9 @@ export default function DisciplinePage() {
 
     return (
         <PageGuard
-            permission={Permission.INCIDENT_READ}
+            // Garde par rôle, comme les pages d'incidents et /api/incidents : la
+            // matrice ne donne INCIDENT_READ qu'à TEACHER et STAFF, et la direction
+            // (SCHOOL_ADMIN, DIRECTOR) recevait « Accès refusé » (recette 2026-10-26)
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <PageShell>
