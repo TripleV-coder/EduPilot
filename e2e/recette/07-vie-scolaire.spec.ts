@@ -257,7 +257,8 @@ test("05 · incident signalé par un enseignant, sanction puis clôture par la d
             await scrollThrough(dir);
         });
         await step(dir, "Sanction : retenue le mercredi après-midi", async () => {
-            await dir.page.getByRole("button", { name: /nouvelle sanction disciplinaire/i }).click();
+            // Bouton « Assigner une sanction » ; « Nouvelle sanction disciplinaire » est le titre de la fenêtre
+            await dir.page.getByRole("button", { name: /assigner une sanction|nouvelle sanction disciplinaire/i }).click();
             await pause(dir, 800);
             await choose(dir, dir.page, /type de sanction/i, /retenue|consigne/i);
             await dir.page.getByLabel("Description de la sanction").fill("Retenue de 2 heures, travail écrit sur le respect des règles de la classe.");
@@ -268,7 +269,8 @@ test("05 · incident signalé par un enseignant, sanction puis clôture par la d
             await expect(dir.page.getByText(/retenue/i).first()).toBeVisible();
         });
         await step(dir, "Clôture du dossier avec conclusions", async () => {
-            await dir.page.getByRole("button", { name: /clôturer le dossier/i }).click();
+            // Bouton « Clore l'incident » ; « Clôturer le dossier » est le titre de la fenêtre
+            await dir.page.getByRole("button", { name: /clore l'incident|clôturer le dossier/i }).click();
             await dir.page.getByLabel("Notes de clôture de l'incident").fill("Entretien avec le tuteur le 29/09. Engagement écrit de l'élève. Dossier clos.");
             await dir.page.getByRole("button", { name: /confirmer la clôture/i }).click();
             await pause(dir, 2000);

@@ -43,7 +43,9 @@ test("01 · décisions de promotion de fin d'année", async ({ browser }) => {
             await scrollThrough(dir);
         }, { critical: true });
         await step(dir, "Kate, Ismaël, Divine admis ; Junior redouble", async () => {
-            for (const k of ["eleve-kate", "eleve-ismael", "eleve-divine"]) await decision(dir, k, /promouvoir/i);
+            // Sous le seuil, l'admission passe par « Racheter » (repêchage) : règles de calcul
+            // en vigueur depuis octobre (absence non justifiée comptée 0), Divine a 8,00/20
+            for (const k of ["eleve-kate", "eleve-ismael", "eleve-divine"]) await decision(dir, k, /promouvoir|racheter/i);
             await decision(dir, "eleve-junior", /redoubler/i);
             await expect(page.getByText(/admis\s*:\s*3/i).first()).toBeVisible();
             await expect(page.getByText(/redouble\s*:\s*1/i).first()).toBeVisible();

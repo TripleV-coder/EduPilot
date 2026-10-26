@@ -53,8 +53,9 @@ test("01 · conseil de classe de la 6ème A (1er trimestre)", async ({ browser }
             await pause(dir, 1000);
         });
         await step(dir, "Clôture du conseil", async () => {
-            await page.getByRole("button", { name: /clôturer le conseil/i }).click();
-            const confirmer = page.getByRole("dialog").getByRole("button", { name: /clôturer|confirmer/i });
+            // « Clôturer le conseil » renommé « Valider le conseil » (7261d3c, 2026-10-14)
+            await page.getByRole("button", { name: /valider le conseil|clôturer le conseil/i }).click();
+            const confirmer = page.getByRole("dialog").getByRole("button", { name: /clôturer|confirmer|valider/i });
             if (await confirmer.isVisible().catch(() => false)) await confirmer.click();
             await pause(dir, 2500);
             await expect(page.getByText(/clôtur/i).first()).toBeVisible();
