@@ -212,7 +212,16 @@ export const POST = createApiHandler(
       });
 
       if (existingEmail) {
-        return NextResponse.json({ error: "Un utilisateur existe déjà avec cet email" }, { status: 400 });
+        // Message neutre : il n'affirme pas qu'un compte existe, il oriente vers
+        // le code d'invitation (l'enseignant d'une autre école garde son compte).
+        return NextResponse.json(
+          {
+            error:
+              "Cette adresse ne peut pas servir à créer un compte. Si l'enseignant utilise déjà EduPilot dans une autre école, remettez-lui un code d'invitation (Enseignants › Enseignants d'autres établissements).",
+            code: "EMAIL_UNAVAILABLE",
+          },
+          { status: 400 },
+        );
       }
 
       // N31 : jamais de mot de passe partagé. Sans mot de passe choisi par

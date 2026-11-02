@@ -63,6 +63,29 @@ const PERSONAL_SETTINGS: SettingItem[] = [
 ];
 
 const ADMIN_SETTINGS: SettingItem[] = [
+    // Équipe et organisation : le menu de la direction est limité à 8 entrées ;
+    // ces écrans n'étaient plus atteignables que par leur adresse.
+    {
+        icon: "users",
+        title: "Enseignants",
+        desc: "Équipe pédagogique, invitations d'enseignants d'autres écoles",
+        href: "/dashboard/teachers",
+        accent: "brand",
+    },
+    {
+        icon: "school",
+        title: "Classes",
+        desc: "Classes, effectifs et professeurs principaux",
+        href: "/dashboard/classes",
+        accent: "info",
+    },
+    {
+        icon: "clock",
+        title: "Emploi du temps",
+        desc: "Créneaux, salles et disponibilités des enseignants",
+        href: "/dashboard/schedule",
+        accent: "success",
+    },
     {
         icon: "calendar",
         title: "Années académiques",

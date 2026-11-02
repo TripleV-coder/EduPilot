@@ -14,6 +14,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { useAutoSave } from "@/hooks/use-autosave";
 import { signOutAndPurge } from "@/lib/pwa/sign-out";
+import { MySchoolsCard } from "@/components/teachers/my-schools-card";
 
 interface ProfileData {
     firstName?: string;
@@ -24,7 +25,7 @@ interface ProfileData {
 }
 
 export default function ProfileSettingsPage() {
-    const { status, update: updateSession } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const {
         data: profileData,
         error: profileError,
@@ -340,6 +341,9 @@ export default function ProfileSettingsPage() {
                         </Button>
                     </div>
                 </Card>
+
+                {/* Enseignant : écoles supplémentaires par code d'invitation */}
+                {session?.user?.role === "TEACHER" ? <MySchoolsCard /> : null}
 
                 {/* Déconnexion visible : elle n'était offerte que par la palette de
                     commandes (Ctrl+K), introuvable sur téléphone ou poste partagé */}

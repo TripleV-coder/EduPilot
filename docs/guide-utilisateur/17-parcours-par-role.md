@@ -106,7 +106,7 @@ Le tout premier compte est créé à l'installation d'EduPilot, sur la page d'in
 
 **Mettre le service en maintenance** ✅ : *Maintenance* → activer avec un message personnalisé. Les utilisateurs voient le message ; rien n'est perdu.
 
-**Rattacher un enseignant à plusieurs écoles** ✅ (aujourd'hui) : depuis la fiche de l'enseignant, rubrique *Établissements*. C'est **le seul rôle** qui le peut aujourd'hui. 🔧 Voir 17.7 pour le fonctionnement prévu, où l'école invite elle-même l'enseignant.
+**Rattacher un enseignant à plusieurs écoles** ✅ : depuis la fiche de l'enseignant, rubrique *Établissements*. Les écoles peuvent aussi le faire elles-mêmes, par code d'invitation (17.7).
 
 ### Ce qu'il ne fait pas ✅
 Il **ne saisit pas de notes** : c'est réservé à l'enseignant de la matière.
@@ -126,9 +126,8 @@ Créé par l'administrateur de la plateforme. Mot de passe provisoire, puis prem
 - Comparer les écoles du réseau dans les analyses, en passant de l'une à l'autre avec le sélecteur d'école de la page *Analyses*.
 - Créer des comptes de tous les rôles d'école (17.1).
 
-### 🔧 Ce qui manque
-- Son **menu n'est pas encore adapté** : il reçoit le menu par défaut (*Accueil*, *Vie scolaire*, *Paramètres*), alors que ses droits sont ceux d'une direction élargie. Ses autres écrans restent accessibles par leur adresse ou par les liens des pages, mais pas depuis le menu.
-- Le sélecteur d'école n'existe que dans *Analyses* (voir 17.12).
+### Son menu ✅
+Celui de la direction (élèves, notes et bulletins, appel, finance, messages, paramètres), appliqué à l'école ouverte. Le **sélecteur d'école** du menu le fait passer d'une école de son réseau à l'autre.
 
 ---
 
@@ -318,19 +317,15 @@ Pour un élève précis, dans une matière et une période : ne pas compter une 
 - Approuver lui-même une correction.
 - Changer les règles de calcul de l'école.
 
-### S'il enseigne dans plusieurs écoles 🔧 (en cours de construction)
-Fonctionnement **actuel** :
-- seul l'administrateur de la plateforme peut le rattacher à une autre école ;
-- une fois rattaché, il garde un **seul compte**, mais il n'a pas de moyen simple de changer d'école dans son menu : il travaille dans son école principale.
-
-Fonctionnement **prévu** (décidé, en cours de réalisation) :
-1. Son compte est toujours créé par sa première école, comme aujourd'hui.
-2. Une deuxième école qui l'embauche **ne recrée pas** de compte. Son directeur génère un **code d'invitation enseignant** (10 caractères, à usage unique, valable 7 jours) et le remet à l'enseignant.
-3. L'enseignant, connecté, saisit ce code dans *Mon compte → Mes établissements*. L'école B s'ajoute à ses écoles.
-4. Un **sélecteur d'école**, en haut de l'écran, lui permet de passer d'une école à l'autre. Dans chaque école, il ne voit que les classes que cette école lui a attribuées.
-5. Il peut **quitter** une école (sauf son école principale), et une école peut le **retirer**. Ses cours dans cette école lui sont alors retirés ; l'historique des notes reste intact.
-6. Le directeur de B ne voit que ce qui concerne son école : rien sur l'autre école. S'il crée par erreur un compte avec un e-mail déjà utilisé, un message neutre l'oriente vers le code d'invitation, sans révéler si le compte existe.
-7. L'enseignant indique lui-même ses **disponibilités** (jours et heures), dans *Mes disponibilités*, une seule fois pour toutes ses écoles, sans nommer d'école. Chaque école les voit pour construire son emploi du temps.
+### S'il enseigne dans plusieurs écoles ✅
+1. Son compte est créé par sa première école : c'est son **école principale**.
+2. Une deuxième école qui l'embauche **ne recrée pas** de compte. Sa direction ouvre *Enseignants* → *Enseignants d'autres établissements* → **Créer un code** : un code de 10 caractères (ex. K7M2Q-PRXA9), à usage unique, valable 7 jours, **affiché une seule fois**. Elle le remet à l'enseignant.
+3. L'enseignant, connecté, ouvre *Mon profil* → **Mes établissements**, saisit le code → **Rejoindre**. L'école s'ajoute à ses écoles. Les essais de code sont limités (10 par quart d'heure).
+4. Le **sélecteur d'école** du menu lui permet de passer d'une école à l'autre (bouton **Ouvrir** dans *Mes établissements*). Dans chaque école, il ne voit que les classes que cette école lui a attribuées.
+5. Il peut **quitter** une école (sauf son école principale) ; la direction peut le **retirer** (*Retirer* dans la même rubrique). Ses cours dans cette école lui sont alors retirés ; l'historique des notes reste intact. Chaque arrivée et chaque départ sont tracés.
+6. La direction de B ne voit que ce qui concerne son école. Si elle tente de créer un compte avec l'e-mail d'un enseignant déjà inscrit ailleurs, un message neutre l'oriente vers le code d'invitation.
+7. L'enseignant tient lui-même ses **disponibilités** (*Mon profil* → *Mes disponibilités*) : une seule grille pour toutes ses écoles, sans nommer d'école. Chaque école la voit pour construire son emploi du temps.
+8. Un code non utilisé peut être **révoqué** ; au plus 20 codes circulent en même temps par école.
 
 ---
 
@@ -504,9 +499,9 @@ Voir les notes ou le dossier d'un autre élève ; voir le classement nominatif d
 | Qui | Plusieurs écoles possibles ? | Comment il passe de l'une à l'autre |
 |---|---|---|
 | Administrateur de la plateforme | toutes les écoles | ✅ choisit l'école étudiée dans *Analyses* et dans les écrans de gestion |
-| Responsable de réseau | les écoles de son réseau | ✅ sélecteur de la page *Analyses* ; 🔧 pas encore dans la barre du haut |
-| Enseignant | oui (rattachements) | 🔧 sélecteur en cours de construction (17.7) |
-| Parent | oui (enfants dans plusieurs écoles) | 🔧 le même sélecteur lui servira |
+| Responsable de réseau | les écoles de son réseau | ✅ sélecteur d'école du menu et de la page *Analyses* |
+| Enseignant | oui (rattachements, code d'invitation) | ✅ sélecteur d'école et *Mes établissements* (17.7) |
+| Parent | oui (enfants dans plusieurs écoles) | ✅ il navigue **par enfant** : chaque enfant ouvre sa propre école, sans école active à choisir |
 | Autres rôles | une seule école | — |
 
 Garanties déjà en place ✅ :
@@ -520,8 +515,5 @@ Garanties déjà en place ✅ :
 
 | Rôle | Manque | Effet |
 |---|---|---|
-| Responsable de réseau | pas de menu propre (menu par défaut) | ses écrans ne sont pas proposés dans le menu |
-| Administration, direction | pas d'entrée *Enseignants*, *Classes*, *Emploi du temps* dans le menu | *Enseignants* n'est plus atteignable que par son adresse une fois l'école installée |
-| Personnel | menu réduit à 3 entrées | discipline, badges, transport, clubs et imports absents du menu et de la recherche rapide |
-| Enseignant, parent | pas de sélecteur d'école | en cours de construction (17.7, 17.12) |
+| Personnel | badges, transport, clubs et imports absents du menu | atteignables par leur adresse ou les modules ; son menu offre accueil, appel, élèves, annonces, incidents, vie scolaire, paramètres |
 | Plateforme | installation sans jeton | à faire avant l'ouverture au public (17.3) |

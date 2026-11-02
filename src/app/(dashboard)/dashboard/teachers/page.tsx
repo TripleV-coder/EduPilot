@@ -23,6 +23,7 @@ import {
 } from "@/components/edu";
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { TeacherInvitationsPanel } from "@/components/teachers/teacher-invitations-panel";
 import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
@@ -396,6 +397,8 @@ export default function TeachersPage() {
                         ]}
                     />
                 ) : null}
+
+                <TeacherInvitationsPanel onMembersChanged={() => void mutateTeachers()} />
             </PageShell>
 
             <ConfirmActionDialog
