@@ -336,6 +336,8 @@ jobs:
       APP_DATABASE_URL: postgresql://edupilot_app:edupilot-app-fresh-password@localhost:5432/edupilot_fresh
       NEXTAUTH_URL: http://localhost:3100
       NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
+      # Installation : le premier super-administrateur exige ce jeton en production
+      INITIAL_SETUP_TOKEN: ci-initial-setup-token-0123456789abcdef
       TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       SKIP_ENV_VALIDATION: "true"
       AUTH_TRUST_HOST: "true"

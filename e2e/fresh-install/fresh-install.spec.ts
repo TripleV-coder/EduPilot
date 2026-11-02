@@ -107,6 +107,10 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await root.locator("#email").fill(SUPER_ADMIN.email);
         await root.locator("#password").fill(SUPER_ADMIN.password);
         await root.locator("#confirmPassword").fill(SUPER_ADMIN.password);
+        // Jeton d'installation (exigé en production, fourni par l'exploitant)
+        if (await root.locator("#setupToken").isVisible().catch(() => false)) {
+            await root.locator("#setupToken").fill(process.env.INITIAL_SETUP_TOKEN ?? "");
+        }
         await root.getByRole("button", { name: /compléter l'installation/i }).click();
         await root.waitForURL(/\/login/, { timeout: 30_000 });
         await login(root, SUPER_ADMIN.email, SUPER_ADMIN.password);

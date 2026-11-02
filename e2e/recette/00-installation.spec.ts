@@ -125,6 +125,10 @@ test("02 · installation : création du super-administrateur", async ({ browser 
             "Création du super-administrateur",
             async () => {
                 await root.page.locator("#confirmPassword").fill(ROOT.password);
+                // Jeton d'installation (exigé en production, fourni par l'exploitant)
+                if (await root.page.locator("#setupToken").isVisible().catch(() => false)) {
+                    await root.page.locator("#setupToken").fill(process.env.INITIAL_SETUP_TOKEN ?? "");
+                }
                 await root.page.getByRole("button", { name: /compléter l'installation/i }).click();
                 await root.page.waitForURL(/\/login/, { timeout: 30_000 });
                 etat.setAccount("root", { email: ROOT.email, password: ROOT.password, role: "SUPER_ADMIN", name: `${ROOT.firstName} ${ROOT.lastName}` });

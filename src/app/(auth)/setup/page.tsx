@@ -18,6 +18,8 @@ const setupSchema = z
         email: z.string().email("Email invalide").toLowerCase().trim(),
         password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
         confirmPassword: z.string(),
+        // Exigé par le serveur en production (vérifié là-bas, jamais ici)
+        setupToken: z.string().trim().optional(),
     })
     .refine((data) => data.password === data.confirmPassword, {
         message: "Les mots de passe ne correspondent pas",
@@ -32,6 +34,8 @@ export default function SetupPage() {
     const [isChecking, setIsChecking] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [setupNeeded, setSetupNeeded] = useState<boolean | null>(null);
+    const [tokenRequired, setTokenRequired] = useState(false);
+    const [locked, setLocked] = useState(false);
 
     const {
         register,
@@ -47,6 +51,8 @@ export default function SetupPage() {
                 const response = await fetch("/api/auth/initial-setup");
                 const data = await response.json();
                 setSetupNeeded(data.setupNeeded);
+                setTokenRequired(Boolean(data.tokenRequired));
+                setLocked(Boolean(data.locked));
                 if (data.setupNeeded === false) {
                     router.replace("/login");
                 }
@@ -126,7 +132,33 @@ export default function SetupPage() {
                         </div>
                     )}
 
+                    {locked ? (
+                        <div role="alert" className="mb-8 rounded-lg border border-border bg-muted/40 p-4 text-sm">
+                            <p className="m-0 font-semibold">Installation verrouillée</p>
+                            <p className="m-0 mt-1 text-muted-foreground">
+                                Le jeton d&apos;installation n&apos;est pas configuré sur le serveur. L&apos;exploitant doit
+                                définir la variable INITIAL_SETUP_TOKEN (24 caractères au moins), puis redémarrer l&apos;application.
+                            </p>
+                        </div>
+                    ) : null}
+
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+                        {tokenRequired && !locked ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="setupToken">Jeton d&apos;installation</Label>
+                                <Input
+                                    id="setupToken"
+                                    type="password"
+                                    autoComplete="off"
+                                    {...register("setupToken")}
+                                    aria-describedby="setupToken-help"
+                                />
+                                <p id="setupToken-help" className="text-xs text-muted-foreground">
+                                    Fourni par l&apos;exploitant du serveur (variable INITIAL_SETUP_TOKEN). Il empêche qu&apos;un
+                                    inconnu crée le compte administrateur avant vous.
+                                </p>
+                            </div>
+                        ) : null}
                         {/* Section Administrateur */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-2 border-b border-border pb-2">
@@ -220,7 +252,7 @@ export default function SetupPage() {
                             type="submit"
                             className="w-full h-12 text-lg font-medium mt-8"
                             size="lg"
-                            disabled={isLoading}
+                            disabled={isLoading || locked}
                         >
                             {isLoading ? (
                                 <>

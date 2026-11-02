@@ -50,11 +50,14 @@ DATABASE_URL="postgresql://edupilot_app:recette-app-role@127.0.0.1:5434/edupilot
   UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= RATE_LIMIT_RELAXED=true \
   EMAIL_PROVIDER=smtp SMTP_HOST=127.0.0.1 SMTP_PORT=1026 SMTP_SECURE=false SMTP_USER=recette SMTP_PASS=recette \
   EMAIL_FROM="EduPilot <no-reply@recette.edupilot.test>" SMS_WEBHOOK_URL=http://127.0.0.1:8027/sms \
+  INITIAL_SETUP_TOKEN=recette-jeton-installation-2026 \
   npm run start -- -p 3100 &
 
 # 4. Recette complète (plusieurs heures), puis rapport (vidéos converties en MP4)
+#    Le même jeton est saisi par le scénario 00 sur /setup.
 rm -rf recette-videos
-E2E_BASE_URL=http://localhost:3100 npx playwright test -c playwright.recette.config.ts
+INITIAL_SETUP_TOKEN=recette-jeton-installation-2026 \
+  E2E_BASE_URL=http://localhost:3100 npx playwright test -c playwright.recette.config.ts
 node e2e/recette/rapport.mjs
 ```
 
