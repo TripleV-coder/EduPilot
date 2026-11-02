@@ -36,6 +36,15 @@ type StatusAction = { year: AcademicYear; action: "close" | "reopen"; activeEnro
 const isLocked = (year: AcademicYear) => year.status === "CLOSED" || year.status === "ARCHIVED";
 
 export default function AcademicSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+            <AcademicSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function AcademicSettingsPageContent() {
     const [years, setYears] = useState<AcademicYear[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -137,7 +146,7 @@ export default function AcademicSettingsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+        <>
             <div className="space-y-6 max-w-5xl mx-auto pb-24">
                 <PageHeader
                     title="Années académiques"
@@ -314,6 +323,6 @@ export default function AcademicSettingsPage() {
                     </DialogContent>
                 </Dialog>
             </div>
-        </PageGuard>
+        </>
     );
 }

@@ -11,6 +11,15 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function RootMaintenancePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootMaintenancePageContent />
+        </PageGuard>
+    );
+}
+
+function RootMaintenancePageContent() {
     const [isMaintenance, setIsMaintenance] = useState(false);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
@@ -101,7 +110,7 @@ export default function RootMaintenancePage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Mode maintenance globale"
@@ -223,6 +232,6 @@ export default function RootMaintenancePage() {
                     </Card>
                 </div>
             </div>
-        </PageGuard>
+        </>
     );
 }

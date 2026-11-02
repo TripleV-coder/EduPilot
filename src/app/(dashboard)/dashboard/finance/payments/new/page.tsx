@@ -44,6 +44,15 @@ type PaymentRecord = {
 };
 
 export default function NewPaymentPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <NewPaymentPageContent />
+        </PageGuard>
+    );
+}
+
+function NewPaymentPageContent() {
     const [students, setStudents] = useState<StudentOption[]>([]);
     const [fees, setFees] = useState<FeeBalance[]>([]);
     const [pinnedStudent, setPinnedStudent] = useState<StudentOption | null>(null);
@@ -279,7 +288,7 @@ export default function NewPaymentPage() {
     const selectedBalance = fees.find(f => f.feeId === selectedFeeId);
 
     return (
-        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
@@ -529,6 +538,6 @@ export default function NewPaymentPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

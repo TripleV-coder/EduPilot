@@ -45,6 +45,15 @@ type TicketSummary = {
 };
 
 export default function CanteenPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]} >
+            <CanteenPageContent />
+        </PageGuard>
+    );
+}
+
+function CanteenPageContent() {
     const [menus, setMenus] = useState<MenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -139,9 +148,7 @@ export default function CanteenPage() {
     };
 
     return (
-        <PageGuard
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Cantine & restauration"
@@ -516,7 +523,7 @@ export default function CanteenPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

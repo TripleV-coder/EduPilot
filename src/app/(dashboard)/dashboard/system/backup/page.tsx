@@ -39,6 +39,15 @@ type BackupData = {
 };
 
 export default function SystemBackupPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.SYSTEM_BACKUP_CREATE, Permission.SYSTEM_BACKUP_VIEW]} roles={["SUPER_ADMIN"]}>
+            <SystemBackupPageContent />
+        </PageGuard>
+    );
+}
+
+function SystemBackupPageContent() {
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
     const [isGenerating, setIsGenerating] = useState(false);
@@ -70,7 +79,7 @@ export default function SystemBackupPage() {
         : "Aucune";
 
     return (
-        <PageGuard permission={[Permission.SYSTEM_BACKUP_CREATE, Permission.SYSTEM_BACKUP_VIEW]} roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Sauvegardes système"
@@ -210,7 +219,7 @@ export default function SystemBackupPage() {
                     </>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

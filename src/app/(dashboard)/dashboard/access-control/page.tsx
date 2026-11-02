@@ -43,6 +43,15 @@ type ScanLogEntry = {
 };
 
 export default function AccessControlPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]} >
+            <AccessControlPageContent />
+        </PageGuard>
+    );
+}
+
+function AccessControlPageContent() {
     const [loading, setLoading] = useState(true);
     const [preview, setPreview] = useState<PreviewStudent>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -126,10 +135,7 @@ export default function AccessControlPage() {
     }, [loadLogs, loadScanPoints]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="QR badge & contrôle d'accès"
@@ -547,6 +553,6 @@ export default function AccessControlPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

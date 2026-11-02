@@ -81,6 +81,15 @@ const FR_DATE_RANGE = (a: string, b: string): string => {
 const PERIOD_COLOR_BY_SEQ = ["brand", "info", "success", "warning"] as const;
 
 export default function AcademicConfigPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <AcademicConfigPageContent />
+        </PageGuard>
+    );
+}
+
+function AcademicConfigPageContent() {
     const [data, setData] = useState<ConfigData | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -149,10 +158,7 @@ export default function AcademicConfigPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/settings">
@@ -590,7 +596,7 @@ export default function AcademicConfigPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

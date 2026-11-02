@@ -33,6 +33,15 @@ type EvalType = {
 };
 
 export default function SubjectsSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SUBJECT_CREATE}>
+            <SubjectsSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function SubjectsSettingsPageContent() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [evalTypes, setEvalTypes] = useState<EvalType[]>([]);
     const [subjectCategories, setSubjectCategories] = useState<Array<{ id: string; name: string; code: string }>>([]);
@@ -148,7 +157,7 @@ export default function SubjectsSettingsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SUBJECT_CREATE}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Matières & évaluations"
@@ -398,6 +407,6 @@ export default function SubjectsSettingsPage() {
                     </TabsContent>
                 </Tabs>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

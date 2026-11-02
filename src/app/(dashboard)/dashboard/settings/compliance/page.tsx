@@ -49,6 +49,15 @@ type ComplianceDashboardData = {
 };
 
 export default function ComplianceDashboardPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <ComplianceDashboardPageContent />
+        </PageGuard>
+    );
+}
+
+function ComplianceDashboardPageContent() {
     const [data, setData] = useState<ComplianceDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -83,7 +92,7 @@ export default function ComplianceDashboardPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="RGPD & conformité"
@@ -269,6 +278,6 @@ export default function ComplianceDashboardPage() {
                     </>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

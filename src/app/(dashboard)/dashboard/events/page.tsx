@@ -72,6 +72,15 @@ const TYPE_VARIANT: Record<EventType, "brand" | "info" | "success" | "warning" |
 };
 
 export default function EventsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <EventsPageContent />
+        </PageGuard>
+    );
+}
+
+function EventsPageContent() {
     const { data: session } = useSession();
     const isDirectorOrAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
@@ -164,10 +173,7 @@ export default function EventsPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Agenda & événements"
@@ -384,7 +390,7 @@ export default function EventsPage() {
                     </div>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

@@ -82,6 +82,15 @@ type IncidentStats = {
 };
 
 export default function IncidentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "PARENT", "STUDENT"]}>
+            <IncidentsPageContent />
+        </PageGuard>
+    );
+}
+
+function IncidentsPageContent() {
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -311,7 +320,7 @@ export default function IncidentsPage() {
     ];
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "PARENT", "STUDENT"]}>
+        <>
             <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />
@@ -541,6 +550,6 @@ export default function IncidentsPage() {
                     )}
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

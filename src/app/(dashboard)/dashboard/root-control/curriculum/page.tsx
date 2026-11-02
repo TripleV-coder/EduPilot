@@ -24,6 +24,15 @@ type CurriculumResponse = {
 };
 
 export default function RootCurriculumPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootCurriculumPageContent />
+        </PageGuard>
+    );
+}
+
+function RootCurriculumPageContent() {
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
     const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
     const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -124,7 +133,7 @@ export default function RootCurriculumPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <ConfirmActionDialog
                 open={pendingRemoveId !== null}
                 onOpenChange={(open) => { if (!open) setPendingRemoveId(null); }}
@@ -303,6 +312,6 @@ export default function RootCurriculumPage() {
                     />
                 ) : null}
             </div>
-        </PageGuard>
+        </>
     );
 }

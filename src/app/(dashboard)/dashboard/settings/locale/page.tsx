@@ -60,6 +60,15 @@ const CURRENCY_OPTIONS = [
 ];
 
 export default function LocaleSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <LocaleSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function LocaleSettingsPageContent() {
     const { data: profileData, mutate, error: loadError, mutate: reloadPage } = useSWR<ProfileResponse>(
         "/api/user/profile",
         fetcher
@@ -116,7 +125,7 @@ export default function LocaleSettingsPage() {
     const saving = saveStatus === "saving";
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <PageShell className="max-w-4xl pb-12">
                 <PageHeader
                     title="Langue & région"
@@ -219,7 +228,7 @@ export default function LocaleSettingsPage() {
                     </div>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

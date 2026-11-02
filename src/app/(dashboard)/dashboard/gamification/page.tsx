@@ -89,6 +89,15 @@ interface ApiAchievement {
 }
 
 export default function GamificationPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <GamificationPageContent />
+        </PageGuard>
+    );
+}
+
+function GamificationPageContent() {
     const { data: session, status } = useSession();
     const role = session?.user?.role ?? null;
     const canListStudents = role !== null && !["STUDENT", "PARENT"].includes(role);
@@ -168,10 +177,7 @@ export default function GamificationPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Gamification & récompenses"
@@ -350,7 +356,7 @@ export default function GamificationPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

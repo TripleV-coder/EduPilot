@@ -96,6 +96,15 @@ const CHANNEL_GUIDANCE: {
 ];
 
 export default function WhatsAppPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <WhatsAppPageContent />
+        </PageGuard>
+    );
+}
+
+function WhatsAppPageContent() {
     const [status, setStatus] = useState<ChannelStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [verifyOpen, setVerifyOpen] = useState(false);
@@ -119,10 +128,7 @@ export default function WhatsAppPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="WhatsApp Business · canal #1 au Bénin"
@@ -629,6 +635,6 @@ export default function WhatsAppPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

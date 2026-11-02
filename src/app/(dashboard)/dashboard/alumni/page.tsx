@@ -53,6 +53,15 @@ const FIELD_VARIANT: Record<AlumniField, "brand" | "info" | "warning" | "success
 type Filter = "all" | AlumniField;
 
 export default function AlumniPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]} >
+            <AlumniPageContent />
+        </PageGuard>
+    );
+}
+
+function AlumniPageContent() {
     const [filter, setFilter] = useState<Filter>("all");
     const [data, setData] = useState<AlumniResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -99,10 +108,7 @@ export default function AlumniPage() {
         [a.currentRole, a.company].filter(Boolean).join(" · ") || "Profil à compléter";
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Réseau Alumni"
@@ -249,6 +255,6 @@ export default function AlumniPage() {
                     .alumni-grid { grid-template-columns: minmax(0, 1fr) !important; }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

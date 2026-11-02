@@ -108,6 +108,15 @@ const FR_DATE_LONG = (iso: string) => {
 const ALL_STUDENTS = "ALL";
 
 export default function BulletinsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <BulletinsPageContent />
+        </PageGuard>
+    );
+}
+
+function BulletinsPageContent() {
     const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
@@ -264,10 +273,7 @@ export default function BulletinsPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3 print:hidden">
                     <Link href="/dashboard/grades">
@@ -572,7 +578,7 @@ export default function BulletinsPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

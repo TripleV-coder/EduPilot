@@ -37,6 +37,15 @@ type DataRequest = {
 };
 
 export default function RootDataRequestsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootDataRequestsPageContent />
+        </PageGuard>
+    );
+}
+
+function RootDataRequestsPageContent() {
     const [requests, setRequests] = useState<DataRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -89,7 +98,7 @@ export default function RootDataRequestsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Conformité RGPD / demandes"
@@ -222,6 +231,6 @@ export default function RootDataRequestsPage() {
                     </CardContent>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

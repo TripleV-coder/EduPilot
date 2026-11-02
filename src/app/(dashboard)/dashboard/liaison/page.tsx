@@ -78,6 +78,15 @@ const FR_DATE = (iso: string): string => {
 };
 
 export default function LiaisonPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]} >
+            <LiaisonPageContent />
+        </PageGuard>
+    );
+}
+
+function LiaisonPageContent() {
     const [data, setData] = useState<LiaisonData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -167,10 +176,7 @@ export default function LiaisonPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title={
@@ -574,7 +580,7 @@ export default function LiaisonPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

@@ -72,6 +72,15 @@ function readUrlParam(name: string): string | null {
 }
 
 export default function GradesEntryPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <GradesEntryPageContent />
+        </PageGuard>
+    );
+}
+
+function GradesEntryPageContent() {
     const { isFocusMode } = useSidebar();
     const { data: session } = useSession();
     const isTeacher = session?.user?.role === "TEACHER";
@@ -617,10 +626,7 @@ export default function GradesEntryPage() {
     const className = classes.find((c) => c.id === selectedClass)?.name ?? "";
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_CREATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell
                 className="pb-32"
             >
@@ -1266,7 +1272,7 @@ export default function GradesEntryPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

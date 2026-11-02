@@ -53,6 +53,20 @@ type BorrowingRecord = {
 type Tab = "catalogue" | "borrowings";
 
 export default function LibraryPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard
+            // Garde par rôle : la permission exigée était REPORT_VIEW (rapports),
+            // que l'élève n'a pas — il ne pouvait ni consulter ni emprunter, alors
+            // que l'API d'emprunt lui est destinée (recette du 2026-10-26).
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <LibraryPageContent />
+        </PageGuard>
+    );
+}
+
+function LibraryPageContent() {
     const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState<Tab>("catalogue");
 
@@ -170,12 +184,7 @@ export default function LibraryPage() {
     const availableCount = books.filter((b) => b.available !== false).length;
 
     return (
-        <PageGuard
-            // Garde par rôle : la permission exigée était REPORT_VIEW (rapports),
-            // que l'élève n'a pas — il ne pouvait ni consulter ni emprunter, alors
-            // que l'API d'emprunt lui est destinée (recette du 2026-10-26).
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Bibliothèque & fonds"
@@ -520,7 +529,7 @@ export default function LibraryPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

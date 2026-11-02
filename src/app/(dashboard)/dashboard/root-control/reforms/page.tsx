@@ -61,6 +61,15 @@ type ConfigOption = {
 };
 
 export default function ReformsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <ReformsPageContent />
+        </PageGuard>
+    );
+}
+
+function ReformsPageContent() {
     const [loaded, setLoaded] = useState(false);
     // Échec du chargement initial : distinct de l'erreur d'enregistrement,
     // il masque les éditeurs (sinon « Enregistrer » écraserait la
@@ -158,7 +167,7 @@ export default function ReformsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Gestion des réformes nationales"
@@ -357,6 +366,6 @@ export default function ReformsPage() {
                 </Tabs>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

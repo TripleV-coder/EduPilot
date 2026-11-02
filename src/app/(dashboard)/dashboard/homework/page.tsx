@@ -40,6 +40,15 @@ type HomeworkItem = {
 type HomeworkResponse = { data?: HomeworkItem[] };
 
 export default function HomeworkPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <HomeworkPageContent />
+        </PageGuard>
+    );
+}
+
+function HomeworkPageContent() {
     const lang = useUiLang();
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
@@ -131,10 +140,7 @@ export default function HomeworkPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title={pick(lang, "Devoirs", "Homework")}
@@ -366,7 +372,7 @@ export default function HomeworkPage() {
                 isConfirmLoading={isDeleteConfirmLoading}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

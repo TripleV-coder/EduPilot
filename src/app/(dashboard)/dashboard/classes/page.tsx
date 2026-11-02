@@ -60,6 +60,15 @@ const CYCLE_FILTERS: { value: string; label: string }[] = [
 ];
 
 export default function ClassesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <ClassesPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassesPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedCycle, setSelectedCycle] = useState<string>("ALL");
@@ -168,10 +177,7 @@ export default function ClassesPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.CLASS_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Classes"
@@ -376,7 +382,7 @@ export default function ClassesPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

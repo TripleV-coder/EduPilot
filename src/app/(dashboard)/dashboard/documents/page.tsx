@@ -26,6 +26,15 @@ type Student = {
 };
 
 export default function DocumentGeneratorPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <DocumentGeneratorPageContent />
+        </PageGuard>
+    );
+}
+
+function DocumentGeneratorPageContent() {
     const [selectedStudent, setSelectedStudent] = useState("");
     const [selectedDoc, setSelectedDoc] = useState("CERTIFICATE_ENROLLMENT");
     const [generating, setGenerating] = useState(false);
@@ -72,7 +81,7 @@ export default function DocumentGeneratorPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Générateur de documents"
@@ -200,6 +209,6 @@ export default function DocumentGeneratorPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

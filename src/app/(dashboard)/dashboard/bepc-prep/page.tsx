@@ -96,6 +96,15 @@ const REVISION_PLAN: { day: string; activity: string; duration: string }[] = [
 ];
 
 export default function BepcPrepPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]} >
+            <BepcPrepPageContent />
+        </PageGuard>
+    );
+}
+
+function BepcPrepPageContent() {
     const thresholds = useSchoolThresholds();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -193,10 +202,7 @@ export default function BepcPrepPage() {
     const mention = mentionFromAvg(generalAvg, thresholds);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
-        >
+        <>
             <CycleGuard requires="SECONDARY_COLLEGE">
             <PageShell>
                 <PageHeader
@@ -614,7 +620,7 @@ export default function BepcPrepPage() {
                 }
             `}</style>
             </CycleGuard>
-        </PageGuard>
+        </>
     );
 }
 

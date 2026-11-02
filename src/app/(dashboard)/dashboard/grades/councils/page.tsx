@@ -103,6 +103,15 @@ const FR_EVENT_DATE = (iso: string): string => {
 };
 
 export default function CouncilsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <CouncilsPageContent />
+        </PageGuard>
+    );
+}
+
+function CouncilsPageContent() {
     const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
@@ -220,10 +229,7 @@ export default function CouncilsPage() {
           ];
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/grades">
@@ -790,7 +796,7 @@ export default function CouncilsPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

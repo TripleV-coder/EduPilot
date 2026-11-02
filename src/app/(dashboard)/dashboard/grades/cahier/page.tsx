@@ -43,6 +43,15 @@ import {
 // découpe (P3.1, 2026-06-11). Logique inchangée.
 
 export default function CahierDeNotesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <CahierDeNotesPageContent />
+        </PageGuard>
+    );
+}
+
+function CahierDeNotesPageContent() {
     // Règles de calcul de l'établissement (même calcul que le bulletin)
     const { data: rulesData } = useSWR<{ settings?: { calculation?: CalculationRules } }>("/api/config/grading", fetcher);
     const calcRules = rulesData?.settings?.calculation;
@@ -252,10 +261,7 @@ export default function CahierDeNotesPage() {
     }
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <PageHeader
@@ -905,7 +911,7 @@ export default function CahierDeNotesPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

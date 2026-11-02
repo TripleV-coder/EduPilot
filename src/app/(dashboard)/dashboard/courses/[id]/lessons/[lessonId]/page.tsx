@@ -53,6 +53,15 @@ type LessonDetail = {
 };
 
 export default function LessonViewerPage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <LessonViewerPageContent />
+        </PageGuard>
+    );
+}
+
+function LessonViewerPageContent() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
@@ -96,17 +105,17 @@ export default function LessonViewerPage() {
 
     if (isLoading) {
         return (
-            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <>
                 <PageShell>
                     <PageLoading label="Chargement de votre leçon…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (error || !lesson) {
         return (
-            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <>
                 <PageShell>
                     <PageError
                         message="Nous n'avons pas pu charger le contenu de cette leçon."
@@ -116,12 +125,12 @@ export default function LessonViewerPage() {
                         <Button variant="outline">Retour au cours</Button>
                     </Link>
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <>
             <PageShell className="max-w-5xl pb-20">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between">
@@ -292,6 +301,6 @@ export default function LessonViewerPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

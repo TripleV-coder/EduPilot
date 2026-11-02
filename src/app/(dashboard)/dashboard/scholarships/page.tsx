@@ -115,6 +115,15 @@ function periodLabel(start: string, end: string | null): string {
 }
 
 export default function ScholarshipsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]} >
+            <ScholarshipsPageContent />
+        </PageGuard>
+    );
+}
+
+function ScholarshipsPageContent() {
     const [scholarships, setScholarships] = useState<Scholarship[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -216,10 +225,7 @@ export default function ScholarshipsPage() {
     }, [scholarships]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Bourses & aides scolaires"
@@ -649,6 +655,6 @@ export default function ScholarshipsPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

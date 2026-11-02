@@ -37,6 +37,15 @@ type PerformanceStats = {
 };
 
 export default function PerformancesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <PerformancesPageContent />
+        </PageGuard>
+    );
+}
+
+function PerformancesPageContent() {
     const thresholds = useSchoolThresholds();
     const [stats, setStats] = useState<PerformanceStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -132,7 +141,7 @@ export default function PerformancesPage() {
     };
 
     return (
-        <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Performances pédagogiques"
@@ -390,6 +399,6 @@ export default function PerformancesPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

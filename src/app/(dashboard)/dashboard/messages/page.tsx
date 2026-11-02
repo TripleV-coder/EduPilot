@@ -105,6 +105,15 @@ function fmtDayLabel(iso: string): string {
 }
 
 export default function MessagesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <MessagesPageContent />
+        </PageGuard>
+    );
+}
+
+function MessagesPageContent() {
     const { data: session } = useSession();
     const myId = session?.user?.id;
 
@@ -339,7 +348,7 @@ export default function MessagesPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Messagerie"
@@ -840,7 +849,7 @@ export default function MessagesPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

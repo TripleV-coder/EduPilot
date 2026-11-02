@@ -57,6 +57,15 @@ function formatTimestamp(iso: string): string {
 }
 
 export default function AuditLogsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+            <AuditLogsPageContent />
+        </PageGuard>
+    );
+}
+
+function AuditLogsPageContent() {
     const [logs, setLogs] = useState<AuditLogRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -132,7 +141,7 @@ export default function AuditLogsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Journal d'audit"
@@ -299,7 +308,7 @@ export default function AuditLogsPage() {
                     )}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

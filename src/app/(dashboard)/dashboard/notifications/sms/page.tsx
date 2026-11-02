@@ -69,6 +69,15 @@ function interpolatePreview(body: string): string {
 }
 
 export default function TemplatesPage() {
+  // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+  return (
+    <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+      <TemplatesPageContent />
+    </PageGuard>
+  );
+}
+
+function TemplatesPageContent() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,29 +190,26 @@ export default function TemplatesPage() {
 
   if (loading) {
     return (
-      <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+      <>
         <PageShell className="eduflow-scope pb-12">
           <PageLoading label="Chargement des modèles…" />
         </PageShell>
-      </PageGuard>
+      </>
     );
   }
 
   if (error) {
     return (
-      <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+      <>
         <PageShell className="eduflow-scope pb-12">
           <PageError message={error} onRetry={() => void loadTemplates()} />
         </PageShell>
-      </PageGuard>
+      </>
     );
   }
 
   return (
-    <PageGuard
-      permission={Permission.SCHOOL_READ}
-      roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
-    >
+    <>
       <PageShell className="eduflow-scope pb-12">
         <PageHeader
           title="Modèles de communication"
@@ -514,6 +520,6 @@ export default function TemplatesPage() {
           }
         }
       `}</style>
-    </PageGuard>
+    </>
   );
 }

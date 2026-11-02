@@ -22,6 +22,15 @@ import type { ClassSubjectWithTeacher } from "@/lib/types";
 import { Spinner } from "@/components/edu";
 
 export default function NewExamPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <NewExamPageContent />
+        </PageGuard>
+    );
+}
+
+function NewExamPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -64,7 +73,7 @@ export default function NewExamPage() {
   };
 
   return (
-    <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+    <>
       <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger les matières : la création d'un examen n'est pas possible pour l'instant." onRetry={() => void reloadPage()} />
@@ -141,6 +150,6 @@ export default function NewExamPage() {
           </div>
         </form>
       </PageShell>
-    </PageGuard>
+    </>
   );
 }

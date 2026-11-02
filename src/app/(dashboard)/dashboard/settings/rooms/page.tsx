@@ -439,6 +439,15 @@ function EditRoomDialog({
 }
 
 export default function RoomsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <RoomsPageContent />
+        </PageGuard>
+    );
+}
+
+function RoomsPageContent() {
     const { data, error, isLoading, mutate } = useSWR<ConfigOption[]>(
         `/api/config-options?category=${ROOM_CATEGORY}&activeOnly=false`,
         fetcher
@@ -552,7 +561,7 @@ export default function RoomsPage() {
     );
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -709,6 +718,6 @@ export default function RoomsPage() {
                 onSave={handleEdit}
                 busy={busy}
             />
-        </PageGuard>
+        </>
     );
 }

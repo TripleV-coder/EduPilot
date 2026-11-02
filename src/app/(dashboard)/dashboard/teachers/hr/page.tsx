@@ -81,6 +81,15 @@ function subjectsList(t: Teacher): string {
 }
 
 export default function TeachersHRPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <TeachersHRPageContent />
+        </PageGuard>
+    );
+}
+
+function TeachersHRPageContent() {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -132,10 +141,7 @@ export default function TeachersHRPage() {
     }, [filter, partitioned, teachers]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/teachers" style={{ textDecoration: "none" }}>
@@ -609,6 +615,6 @@ export default function TeachersHRPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

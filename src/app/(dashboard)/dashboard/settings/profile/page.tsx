@@ -25,6 +25,15 @@ interface ProfileData {
 }
 
 export default function ProfileSettingsPage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <ProfileSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function ProfileSettingsPageContent() {
     const { data: session, status, update: updateSession } = useSession();
     const {
         data: profileData,
@@ -97,7 +106,7 @@ export default function ProfileSettingsPage() {
 
     if (status === "loading" || profileLoading) {
         return (
-            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <>
                 <PageShell className="max-w-4xl pb-12">
                     <PageHeader
                         title="Mon profil"
@@ -109,13 +118,13 @@ export default function ProfileSettingsPage() {
                     />
                     <PageLoading label="Chargement du profil…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (profileError) {
         return (
-            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <>
                 <PageShell className="max-w-4xl pb-12">
                     <PageHeader
                         title="Mon profil"
@@ -126,12 +135,12 @@ export default function ProfileSettingsPage() {
                     />
                     <PageError message="Impossible de charger ton profil. Réessaie plus tard." />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <PageShell className="max-w-4xl pb-12">
                 <PageHeader
                     title="Mon profil"
@@ -361,6 +370,6 @@ export default function ProfileSettingsPage() {
                     </div>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

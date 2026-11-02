@@ -74,6 +74,15 @@ type CourseFormValues = z.infer<typeof courseSchema>;
 type CourseFormControl = Control<z.input<typeof courseSchema>, unknown, CourseFormValues>;
 
 export default function NewCoursePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <NewCoursePageContent />
+        </PageGuard>
+    );
+}
+
+function NewCoursePageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,7 +173,7 @@ export default function NewCoursePage() {
     }
 
     return (
-        <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Créer un nouveau cours"
@@ -361,7 +370,7 @@ export default function NewCoursePage() {
                     </form>
                 </Form>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

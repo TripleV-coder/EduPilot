@@ -33,6 +33,15 @@ type CourseItem = {
 };
 
 export default function CoursesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[ Permission.CLASS_READ, Permission.SUBJECT_READ, Permission.SCHEDULE_READ, ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <CoursesPageContent />
+        </PageGuard>
+    );
+}
+
+function CoursesPageContent() {
     const { data: session } = useSession();
     const [courses, setCourses] = useState<CourseItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -142,14 +151,7 @@ export default function CoursesPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={[
-                Permission.CLASS_READ,
-                Permission.SUBJECT_READ,
-                Permission.SCHEDULE_READ,
-            ]}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Mes cours et apprentissages"
@@ -544,6 +546,6 @@ export default function CoursesPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

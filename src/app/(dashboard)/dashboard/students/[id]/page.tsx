@@ -76,6 +76,15 @@ type StudentDetail = {
 };
 
 export default function StudentDetailPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT"]}>
+            <StudentDetailPageContent />
+        </PageGuard>
+    );
+}
+
+function StudentDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -160,7 +169,7 @@ export default function StudentDetailPage() {
   const currentEnrollment = student?.enrollments?.find((e) => e.status === "ACTIVE");
 
   return (
-    <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT"]}>
+    <>
       <PageShell>
       {/* Perf (2026-09-18) : entrée en CSS. L'animation ne joue toujours que
           lorsqu'on arrive depuis la liste (`fromListTransition`). */}
@@ -433,6 +442,6 @@ export default function StudentDetailPage() {
         )}
       </div>
       </PageShell>
-    </PageGuard>
+    </>
   );
 }

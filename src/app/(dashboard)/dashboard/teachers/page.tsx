@@ -46,6 +46,15 @@ type TeachersResponse = {
 };
 
 export default function TeachersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <TeachersPageContent />
+        </PageGuard>
+    );
+}
+
+function TeachersPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedStatus, setSelectedStatus] = useState("ALL");
@@ -149,10 +158,7 @@ export default function TeachersPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.TEACHER_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Enseignants"
@@ -419,7 +425,7 @@ export default function TeachersPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

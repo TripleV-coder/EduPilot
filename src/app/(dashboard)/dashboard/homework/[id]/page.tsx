@@ -55,6 +55,15 @@ type HomeworkDetail = {
 };
 
 export default function HomeworkDetailPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <HomeworkDetailPageContent />
+        </PageGuard>
+    );
+}
+
+function HomeworkDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
@@ -196,7 +205,7 @@ export default function HomeworkDetailPage() {
   }
 
   return (
-    <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+    <>
       <div className="space-y-6 max-w-5xl mx-auto pb-10">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/homework">
@@ -447,6 +456,6 @@ export default function HomeworkDetailPage() {
         </Card>
         )}
       </div>
-    </PageGuard>
+    </>
   );
 }

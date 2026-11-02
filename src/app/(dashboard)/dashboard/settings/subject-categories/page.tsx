@@ -59,6 +59,15 @@ const defaultValues: SubjectCategoryFormInput = {
 };
 
 export default function SubjectCategoriesSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <SubjectCategoriesSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function SubjectCategoriesSettingsPageContent() {
   const { data, isLoading, mutate } = useSWR<SubjectCategory[]>("/api/subject-categories?activeOnly=false", fetcher, {
     revalidateOnFocus: false,
   });
@@ -224,7 +233,7 @@ export default function SubjectCategoriesSettingsPage() {
     ];
 
   return (
-    <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+    <>
       <div className="flex h-full flex-col gap-6">
         <PageHeader
           title="Catégories de matières"
@@ -441,6 +450,6 @@ export default function SubjectCategoriesSettingsPage() {
           onConfirm={() => void deleteCategory()}
         />
       </div>
-    </PageGuard>
+    </>
   );
 }

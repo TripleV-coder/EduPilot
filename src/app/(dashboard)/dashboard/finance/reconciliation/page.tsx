@@ -49,6 +49,15 @@ type PendingPaymentsResponse = {
 };
 
 export default function FinanceReconciliationPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FinanceReconciliationPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceReconciliationPageContent() {
     // TD-025 : vérification d'un paiement en ligne en attente, motif obligatoire
     const [verifyTarget, setVerifyTarget] = useState<PendingPayment | null>(null);
     const [justification, setJustification] = useState("");
@@ -137,7 +146,7 @@ export default function FinanceReconciliationPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Réconciliation bancaire"
@@ -344,6 +353,6 @@ export default function FinanceReconciliationPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </PageGuard>
+        </>
     );
 }

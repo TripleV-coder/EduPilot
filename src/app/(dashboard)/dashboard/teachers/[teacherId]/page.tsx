@@ -74,6 +74,15 @@ function toDateInputValue(value?: string | Date | null) {
 }
 
 export default function TeacherDetailPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <TeacherDetailPageContent />
+        </PageGuard>
+    );
+}
+
+function TeacherDetailPageContent() {
   const params = useParams<{ teacherId: string }>();
   const teacherId = params?.teacherId;
   const router = useRouter();
@@ -256,7 +265,7 @@ export default function TeacherDetailPage() {
   };
 
   return (
-    <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+    <>
       <PageShell>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/teachers">
@@ -592,6 +601,6 @@ export default function TeacherDetailPage() {
           </>
         )}
       </PageShell>
-    </PageGuard>
+    </>
   );
 }

@@ -25,6 +25,15 @@ type ClassLevel = {
 };
 
 export default function ClassLevelsSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+            <ClassLevelsSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassLevelsSettingsPageContent() {
     const [levels, setLevels] = useState<ClassLevel[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -94,7 +103,7 @@ export default function ClassLevelsSettingsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Niveaux d'étude"
@@ -234,6 +243,6 @@ export default function ClassLevelsSettingsPage() {
                     )}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

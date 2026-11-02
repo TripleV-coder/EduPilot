@@ -44,6 +44,15 @@ function fmtBytes(n: number | null): string {
 }
 
 export default function OfflinePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <OfflinePageContent />
+        </PageGuard>
+    );
+}
+
+function OfflinePageContent() {
     const [online, setOnline] = useState<boolean>(true);
     const [lastSync, setLastSync] = useState<Date>(() => new Date());
     const [storage, setStorage] = useState<StorageInfo>({ used: null, quota: null });
@@ -120,7 +129,7 @@ export default function OfflinePage() {
             : 0;
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 {!online ? (
                     <div
@@ -489,6 +498,6 @@ export default function OfflinePage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

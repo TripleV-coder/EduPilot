@@ -92,6 +92,15 @@ const ROLE_VARIANTS: Record<string, "brand" | "info" | "success" | "warning" | "
 };
 
 export default function UsersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.USER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]} >
+            <UsersPageContent />
+        </PageGuard>
+    );
+}
+
+function UsersPageContent() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("ALL");
@@ -219,10 +228,7 @@ export default function UsersPage() {
     ];
 
     return (
-        <PageGuard
-            permission={Permission.USER_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Utilisateurs et comptes"
@@ -488,7 +494,7 @@ export default function UsersPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

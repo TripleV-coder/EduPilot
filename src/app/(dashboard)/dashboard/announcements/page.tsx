@@ -73,6 +73,15 @@ const ROLE_OPTIONS: { id: string; label: string }[] = [
 ];
 
 export default function AnnouncementsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "STUDENT", "PARENT"]} >
+            <AnnouncementsPageContent />
+        </PageGuard>
+    );
+}
+
+function AnnouncementsPageContent() {
     const { data: session } = useSession();
     const isDirectorOrAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
@@ -194,10 +203,7 @@ export default function AnnouncementsPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell className="max-w-5xl pb-12">
                 <PageHeader
                     title="Fil d'annonces"
@@ -461,7 +467,7 @@ export default function AnnouncementsPage() {
                 isConfirmLoading={isDeleteConfirmLoading}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

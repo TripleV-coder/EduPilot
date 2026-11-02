@@ -31,6 +31,15 @@ import { submitInscription } from "@/lib/students/inscription-submit";
 // de la découpe en steps (P3.1, 2026-06-11). Logique inchangée.
 
 export default function InscriptionPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.STUDENT_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <InscriptionPageContent />
+        </PageGuard>
+    );
+}
+
+function InscriptionPageContent() {
     const router = useRouter();
     const [step, setStep] = useState<StepIndex>(0);
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -205,10 +214,7 @@ export default function InscriptionPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.STUDENT_CREATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/students">
@@ -497,6 +503,6 @@ export default function InscriptionPage() {
 
                 {loading_spinner_placeholder(submitting)}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

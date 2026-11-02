@@ -41,6 +41,15 @@ type ParentUser = {
 const PAGE_SIZE = 30;
 
 export default function ParentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.USER_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <ParentsPageContent />
+        </PageGuard>
+    );
+}
+
+function ParentsPageContent() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 300);
@@ -152,10 +161,7 @@ export default function ParentsPage() {
     };
 
     return (
-        <PageGuard
-            permission={[Permission.USER_READ]}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Parents"
@@ -444,7 +450,7 @@ export default function ParentsPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

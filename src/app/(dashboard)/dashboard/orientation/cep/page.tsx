@@ -68,6 +68,15 @@ const FR_INT = (v: number | null): string =>
     v === null ? "—" : Math.round(v).toString();
 
 export default function OrientationCepPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <OrientationCepPageContent />
+        </PageGuard>
+    );
+}
+
+function OrientationCepPageContent() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [years, setYears] = useState<YearOption[]>([]);
     const [selectedClass, setSelectedClass] = useState("");
@@ -125,10 +134,7 @@ export default function OrientationCepPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <CycleGuard requires="PRIMARY">
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
@@ -603,7 +609,7 @@ export default function OrientationCepPage() {
                 }
             `}</style>
             </CycleGuard>
-        </PageGuard>
+        </>
     );
 }
 

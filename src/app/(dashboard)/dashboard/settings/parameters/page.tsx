@@ -44,6 +44,15 @@ const SECTION_ICONS: Record<string, IconName> = {
 const fr = (n: number) => String(n).replace(".", ",");
 
 export default function SchoolParametersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF"]}>
+            <SchoolParametersPageContent />
+        </PageGuard>
+    );
+}
+
+function SchoolParametersPageContent() {
     const { data, error, isLoading, mutate } = useSWR<ParametersResponse>("/api/config/parameters", fetcher);
     const [draft, setDraft] = useState<Values | null>(null);
     const [saving, setSaving] = useState(false);
@@ -112,7 +121,7 @@ export default function SchoolParametersPage() {
     })).filter(({ section, params }) => params.length > 0 || section.title.toLowerCase().includes(q));
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF"]}>
+        <>
             <PageShell className="max-w-4xl pb-28">
                 <PageHeader
                     title="Paramètres de l'établissement"
@@ -237,7 +246,7 @@ export default function SchoolParametersPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

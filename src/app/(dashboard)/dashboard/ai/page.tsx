@@ -16,6 +16,15 @@ type Message = {
 };
 
 export default function AiAssistantPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <AiAssistantPageContent />
+        </PageGuard>
+    );
+}
+
+function AiAssistantPageContent() {
     const { data: session } = useSession();
     const { enabledModules } = useSchool();
     const aiOff = enabledModules.length > 0 && !enabledModules.includes("ai");
@@ -191,10 +200,7 @@ export default function AiAssistantPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell className="eduflow-scope max-w-[1000px] pb-6">
                 <div style={{ minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column", gap: 16 }}>
                 {aiOff ? (
@@ -515,7 +521,7 @@ export default function AiAssistantPage() {
                 </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

@@ -111,6 +111,15 @@ type SubjectGradeRow = {
 };
 
 export default function ClassDetailsPage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <ClassDetailsPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassDetailsPageContent() {
     const { data: session } = useSession();
     const params = useParams();
     const classId = params.id as string;
@@ -226,17 +235,17 @@ export default function ClassDetailsPage() {
 
     if (loading) {
         return (
-            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <>
                 <PageShell>
                     <PageLoading label="Chargement de la classe…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (!classData && !loading) {
         return (
-            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <>
                 <PageShell>
                     <PageEmpty
                         icon="school"
@@ -245,12 +254,12 @@ export default function ClassDetailsPage() {
                         actions={[{ label: "Retour aux classes", href: "/dashboard/classes" }]}
                     />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title={`Classe : ${classData?.name}`}
@@ -605,6 +614,6 @@ export default function ClassDetailsPage() {
                     </TabsContent>
                 </Tabs>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

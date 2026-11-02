@@ -47,6 +47,15 @@ const COMPETENCE_OPTIONS = [
 ];
 
 export default function CompetencesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <CompetencesPageContent />
+        </PageGuard>
+    );
+}
+
+function CompetencesPageContent() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [selectedClass, setSelectedClass] = useState("");
@@ -107,10 +116,7 @@ export default function CompetencesPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Évaluations par compétences"
@@ -530,7 +536,7 @@ export default function CompetencesPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

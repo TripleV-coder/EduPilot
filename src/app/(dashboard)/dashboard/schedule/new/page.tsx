@@ -37,6 +37,15 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function NewSchedulePage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHEDULE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <NewSchedulePageContent />
+        </PageGuard>
+    );
+}
+
+function NewSchedulePageContent() {
     const router = useRouter();
     const { toast } = useToast();
 
@@ -165,16 +174,16 @@ export default function NewSchedulePage() {
 
     if (loading) {
         return (
-            <PageGuard permission={Permission.SCHEDULE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <>
                 <PageShell className="max-w-4xl pb-12">
                     <PageLoading label="Chargement des classes…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard permission={Permission.SCHEDULE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <>
             <PageShell className="max-w-4xl pb-12">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/schedule">
@@ -316,6 +325,6 @@ export default function NewSchedulePage() {
                     </CardContent>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

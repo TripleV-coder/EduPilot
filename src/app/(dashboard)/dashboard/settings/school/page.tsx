@@ -50,6 +50,15 @@ const EMPTY: SchoolProfile = {
 };
 
 export default function SchoolIdentityPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <SchoolIdentityPageContent />
+        </PageGuard>
+    );
+}
+
+function SchoolIdentityPageContent() {
     const { schoolId } = useSchool();
     const { data: school, isLoading, mutate } = useSWR<SchoolProfile>(
         schoolId ? `/api/schools/${schoolId}` : null,
@@ -211,10 +220,7 @@ export default function SchoolIdentityPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <div className="space-y-4 pb-12">
                 <PageHeader
                     title="Paramètres"
@@ -533,7 +539,7 @@ export default function SchoolIdentityPage() {
                     </form>
                 </div>
             </div>
-        </PageGuard>
+        </>
     );
 }
 

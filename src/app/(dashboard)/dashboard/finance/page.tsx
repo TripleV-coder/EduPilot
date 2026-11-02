@@ -111,6 +111,15 @@ const PAYMENT_STATUS: Record<string, { label: string; variant: "success" | "warn
 };
 
 export default function FinanceDashboardPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]} >
+            <FinanceDashboardPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceDashboardPageContent() {
     const { data: session } = useSession();
     const { schoolId: activeSchoolId } = useSchool();
     // Le parent a sa propre vue (ParentFinanceView) : aucune requête du tableau
@@ -224,10 +233,7 @@ export default function FinanceDashboardPage() {
     if (session?.user?.role === "PARENT") return <ParentFinanceView />;
 
     return (
-        <PageGuard
-            permission={[Permission.FINANCE_READ]}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Finances"
@@ -690,7 +696,7 @@ export default function FinanceDashboardPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

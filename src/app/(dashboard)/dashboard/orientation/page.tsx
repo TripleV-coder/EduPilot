@@ -87,6 +87,15 @@ const POST_BAC_OPTIONS = [
 ];
 
 export default function OrientationPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
+            <OrientationPageContent />
+        </PageGuard>
+    );
+}
+
+function OrientationPageContent() {
     const [orientations, setOrientations] = useState<Orientation[]>([]);
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState<StudentRecord[]>([]);
@@ -335,7 +344,7 @@ export default function OrientationPage() {
     });
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Orientation scolaire & universitaire"
@@ -655,6 +664,6 @@ export default function OrientationPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

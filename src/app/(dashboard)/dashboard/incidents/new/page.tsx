@@ -65,6 +65,15 @@ const SEVERITIES = [
 ];
 
 export default function NewIncidentPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+            <NewIncidentPageContent />
+        </PageGuard>
+    );
+}
+
+function NewIncidentPageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,7 +136,7 @@ export default function NewIncidentPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Signaler un incident"
@@ -324,6 +333,6 @@ export default function NewIncidentPage() {
                     </CardContent>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

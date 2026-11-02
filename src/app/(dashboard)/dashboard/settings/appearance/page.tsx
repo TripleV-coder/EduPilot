@@ -62,6 +62,15 @@ const THEMES: { id: ThemeValue; title: string; description: string; icon: IconNa
 ];
 
 export default function AppearanceSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <AppearanceSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function AppearanceSettingsPageContent() {
     const {
         data: profileData,
         mutate,
@@ -144,7 +153,7 @@ export default function AppearanceSettingsPage() {
     };
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <PageShell className="max-w-5xl pb-12">
                 <PageHeader
                     title="Apparence & affichage"
@@ -276,7 +285,7 @@ export default function AppearanceSettingsPage() {
                     </div>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

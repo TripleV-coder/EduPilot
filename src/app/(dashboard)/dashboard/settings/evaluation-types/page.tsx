@@ -77,6 +77,15 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 }
 
 export default function EvaluationTypesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_CREATE]}>
+            <EvaluationTypesPageContent />
+        </PageGuard>
+    );
+}
+
+function EvaluationTypesPageContent() {
     const { data: types, isLoading, error, mutate } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -188,7 +197,7 @@ export default function EvaluationTypesPage() {
     }
 
     return (
-        <PageGuard permission={[Permission.EVALUATION_CREATE]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -393,6 +402,6 @@ export default function EvaluationTypesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </PageGuard>
+        </>
     );
 }

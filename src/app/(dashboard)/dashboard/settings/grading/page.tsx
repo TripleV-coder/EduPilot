@@ -71,6 +71,15 @@ function describeIssue(path: PropertyKey[], message: string): string {
 }
 
 export default function GradingRulesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <GradingRulesPageContent />
+        </PageGuard>
+    );
+}
+
+function GradingRulesPageContent() {
     const { data, error, isLoading, mutate } = useSWR<RulesResponse>("/api/config/grading", fetcher);
     const [draft, setDraft] = useState<GradingSettings | null>(null);
     const [saving, setSaving] = useState(false);
@@ -144,7 +153,7 @@ export default function GradingRulesPage() {
     const periodLetter = periodsCount === 2 ? "S" : "T";
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell className="max-w-4xl pb-28">
                 <PageHeader
                     title="Règles de l'établissement"
@@ -434,7 +443,7 @@ export default function GradingRulesPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

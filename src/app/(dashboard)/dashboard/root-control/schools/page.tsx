@@ -98,6 +98,15 @@ type OrganizationOption = {
 };
 
 export default function RootSchoolsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootSchoolsPageContent />
+        </PageGuard>
+    );
+}
+
+function RootSchoolsPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -271,7 +280,7 @@ export default function RootSchoolsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -793,6 +802,6 @@ export default function RootSchoolsPage() {
                     </DialogContent>
                 </Dialog>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

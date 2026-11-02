@@ -33,6 +33,15 @@ type AuditLog = {
 };
 
 export default function RootLogsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootLogsPageContent />
+        </PageGuard>
+    );
+}
+
+function RootLogsPageContent() {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +72,7 @@ export default function RootLogsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Journal d'infrastructure"
@@ -185,6 +194,6 @@ export default function RootLogsPage() {
                     </CardContent>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

@@ -43,6 +43,15 @@ type ExamData = {
 };
 
 export default function TakeExamPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["STUDENT"]}>
+            <TakeExamPageContent />
+        </PageGuard>
+    );
+}
+
+function TakeExamPageContent() {
     const params = useParams();
     const { toast } = useToast();
     const id = params.id as string;
@@ -214,7 +223,7 @@ export default function TakeExamPage() {
     const progress = ((currentQuestionIndex + 1) / exam.questions.length) * 100;
 
     return (
-        <PageGuard roles={["STUDENT"]}>
+        <>
             <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
@@ -327,6 +336,6 @@ export default function TakeExamPage() {
                     ))}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

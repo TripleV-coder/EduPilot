@@ -45,6 +45,15 @@ const defaultPreferences: NotificationPreferences = {
 };
 
 export default function NotificationsSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <NotificationsSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function NotificationsSettingsPageContent() {
   const { data: profileData, mutate, error: profileError } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
     revalidateOnFocus: false,
   });
@@ -111,7 +120,7 @@ export default function NotificationsSettingsPage() {
   };
 
   return (
-    <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+    <>
       <div className="space-y-6 max-w-4xl mx-auto">
         <PageHeader
           title="Préférences de notifications"
@@ -253,6 +262,6 @@ export default function NotificationsSettingsPage() {
           </Button>
         </div>
       </div>
-    </PageGuard>
+    </>
   );
 }

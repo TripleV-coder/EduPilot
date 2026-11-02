@@ -46,6 +46,15 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function AppointmentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
+            <AppointmentsPageContent />
+        </PageGuard>
+    );
+}
+
+function AppointmentsPageContent() {
     const { data: session } = useSession();
     const role = session?.user?.role || "";
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -110,7 +119,7 @@ export default function AppointmentsPage() {
     const [requesting, setRequesting] = useState(false);
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Agenda des rendez-vous"
@@ -306,6 +315,6 @@ export default function AppointmentsPage() {
                     ) : null}
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

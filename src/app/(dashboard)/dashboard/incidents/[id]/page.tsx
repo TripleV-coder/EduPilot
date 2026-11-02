@@ -57,6 +57,15 @@ const SANCTION_TYPES = [
 ];
 
 export default function IncidentDetailsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+            <IncidentDetailsPageContent />
+        </PageGuard>
+    );
+}
+
+function IncidentDetailsPageContent() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -150,7 +159,7 @@ export default function IncidentDetailsPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+        <>
             <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger cet incident." onRetry={() => void mutate()} />
@@ -342,6 +351,6 @@ export default function IncidentDetailsPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

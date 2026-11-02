@@ -85,6 +85,15 @@ const CHANNELS = [
 ];
 
 export default function NotificationsCenterPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <NotificationsCenterPageContent />
+        </PageGuard>
+    );
+}
+
+function NotificationsCenterPageContent() {
     const [activeCat, setActiveCat] = useState("all");
     const [data, setData] = useState<FeedData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -174,7 +183,7 @@ export default function NotificationsCenterPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Centre de notifications"
@@ -463,7 +472,7 @@ export default function NotificationsCenterPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 

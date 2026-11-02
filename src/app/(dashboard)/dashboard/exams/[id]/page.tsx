@@ -39,6 +39,15 @@ type ExamDetail = {
 };
 
 export default function ExamDetailPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <ExamDetailPageContent />
+        </PageGuard>
+    );
+}
+
+function ExamDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
@@ -89,7 +98,7 @@ export default function ExamDetailPage() {
   }
 
   return (
-    <PageGuard permission={[Permission.EVALUATION_READ, Permission.GRADE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+    <>
       <PageShell>
                 {loadError ? (
                     <PageError message="Impossible de charger cet examen." onRetry={() => void reloadPage()} />
@@ -220,6 +229,6 @@ export default function ExamDetailPage() {
           />
         )}
       </PageShell>
-    </PageGuard>
+    </>
   );
 }

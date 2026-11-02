@@ -17,6 +17,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 
 import OrientationMePage from "@/app/(dashboard)/dashboard/orientation/me/page";
 import RootMonitoringPage from "@/app/(dashboard)/dashboard/root-control/monitoring/page";
+import MedicalPage from "@/app/(dashboard)/dashboard/medical/page";
+import BackupPage from "@/app/(dashboard)/dashboard/system/backup/page";
 
 const calls = (fetchMock: ReturnType<typeof vi.fn>, path: string) =>
     fetchMock.mock.calls.filter(([url]) => String(url).includes(path)).length;
@@ -57,5 +59,20 @@ describe("Garde avant chargement", () => {
         session.role = "SUPER_ADMIN";
         render(<RootMonitoringPage />);
         await waitFor(() => expect(calls(fetchMock, "/api/root/monitoring")).toBeGreaterThanOrEqual(1));
+    });
+
+    // TD-024 : 94 pages chargeaient avant leur garde ; deux exemples de la conversion.
+    it("santé : un comptable voit le refus, sans aucun appel d'API", async () => {
+        session.role = "ACCOUNTANT";
+        render(<MedicalPage />);
+        expect(await screen.findByText("Accès refusé")).toBeInTheDocument();
+        expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/")).length).toBe(0);
+    });
+
+    it("sauvegardes : un enseignant voit le refus, sans aucun appel d'API", async () => {
+        session.role = "TEACHER";
+        render(<BackupPage />);
+        expect(await screen.findByText("Accès refusé")).toBeInTheDocument();
+        expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/")).length).toBe(0);
     });
 });

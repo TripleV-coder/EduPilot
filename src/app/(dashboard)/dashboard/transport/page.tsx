@@ -45,6 +45,15 @@ type TransportData = {
 type DirectionFilter = "all" | "outbound" | "return";
 
 export default function TransportPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]} >
+            <TransportPageContent />
+        </PageGuard>
+    );
+}
+
+function TransportPageContent() {
     const [data, setData] = useState<TransportData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -71,10 +80,7 @@ export default function TransportPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Transport scolaire"
@@ -465,6 +471,6 @@ export default function TransportPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

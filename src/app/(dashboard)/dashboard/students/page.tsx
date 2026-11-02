@@ -52,6 +52,15 @@ type ClassesResponse = { data?: ClassOption[]; classes?: ClassOption[] };
 const PAGE_SIZE = 30;
 
 export default function StudentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={[ "SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT", ]} >
+            <StudentsPageContent />
+        </PageGuard>
+    );
+}
+
+function StudentsPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
@@ -194,19 +203,7 @@ export default function StudentsPage() {
         : "Supprimer cet élève ?";
 
     return (
-        <PageGuard
-            permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]}
-            roles={[
-                "SUPER_ADMIN",
-                "SCHOOL_ADMIN",
-                "DIRECTOR",
-                "TEACHER",
-                "ACCOUNTANT",
-                "STAFF",
-                "PARENT",
-                "STUDENT",
-            ]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title={pageTitle}
@@ -539,7 +536,7 @@ export default function StudentsPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

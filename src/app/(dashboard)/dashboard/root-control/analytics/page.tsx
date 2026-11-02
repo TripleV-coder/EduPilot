@@ -40,6 +40,15 @@ type RootAnalyticsData = {
 };
 
 export default function RootAnalyticsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootAnalyticsPageContent />
+        </PageGuard>
+    );
+}
+
+function RootAnalyticsPageContent() {
     const [period, setPeriod] = useState("30d");
     const [data, setData] = useState<RootAnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -74,7 +83,7 @@ export default function RootAnalyticsPage() {
         new Intl.NumberFormat("fr-BJ", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(amount);
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -208,6 +217,6 @@ export default function RootAnalyticsPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

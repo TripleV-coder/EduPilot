@@ -31,6 +31,15 @@ type Fee = {
 };
 
 export default function FeesManagementPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FeesManagementPageContent />
+        </PageGuard>
+    );
+}
+
+function FeesManagementPageContent() {
     const [fees, setFees] = useState<Fee[]>([]);
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
@@ -159,7 +168,7 @@ export default function FeesManagementPage() {
     };
 
     return (
-        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
@@ -330,6 +339,6 @@ export default function FeesManagementPage() {
                     onConfirm={confirmDelete}
                 />
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

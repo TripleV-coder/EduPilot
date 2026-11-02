@@ -45,6 +45,15 @@ type NoticeSummary = {
 const fcfa = (amount: number) => `${Math.round(amount).toLocaleString("fr-FR")} FCFA`;
 
 export default function PaymentNoticesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FEE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <PaymentNoticesPageContent />
+        </PageGuard>
+    );
+}
+
+function PaymentNoticesPageContent() {
     const [selectedLevel, setSelectedLevel] = useState("");
     const [selectedFee, setSelectedFee] = useState("");
     const [summary, setSummary] = useState<NoticeSummary | null>(null);
@@ -137,7 +146,7 @@ export default function PaymentNoticesPage() {
     const listsError = levels.error || fees.error;
 
     return (
-        <PageGuard permission={[Permission.FEE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Avis de paiement"
@@ -285,6 +294,6 @@ export default function PaymentNoticesPage() {
                     </div>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
