@@ -146,6 +146,7 @@ Pour chaque série (A1 à G3, EA, MIA, HR) : les disciplines **indispensables**,
 | Examens et orientation | matière forte, mention « Bien » au CEP, candidats à risque ou confiants, points forts de l'orientation |
 | Compétences | seuils Acquis / En cours, valeur enregistrée de chaque niveau |
 | Finance | rappel avant échéance, retard critique, échéance minimum |
+| Discipline | gravité d'incident à partir de laquelle l'attestation de bonne conduite est refusée (par défaut : « grave ») |
 | Communication et services | signature du carnet de liaison, code parent, tickets de cantine, durée d'un prêt de bibliothèque |
 
 **Comment faire :**

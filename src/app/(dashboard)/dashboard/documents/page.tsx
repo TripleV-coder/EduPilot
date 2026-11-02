@@ -49,7 +49,11 @@ export default function DocumentGeneratorPage() {
                 }),
             });
 
-            if (!res.ok) throw new Error("Échec de la génération");
+            if (!res.ok) {
+                // Refus motivé (ex. incidents graves sur l'année) : affiché tel quel.
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error ?? "Erreur lors de la génération du document.");
+            }
 
             const payload = await res.json();
             const link = document.createElement("a");
@@ -60,8 +64,8 @@ export default function DocumentGeneratorPage() {
             document.body.removeChild(link);
 
             toast.success("Document généré avec succès.");
-        } catch {
-            toast.error("Erreur lors de la génération du document.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur lors de la génération du document.");
         } finally {
             setGenerating(false);
         }
