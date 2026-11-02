@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { EXAM_TIME_EXPIRED_ERROR, isSubmissionTooLate } from "@/lib/exams/timing";
 
 const submitExamSchema = z.object({
   answers: z.array(z.object({
@@ -56,6 +57,11 @@ export const POST = createApiHandler(
 
     if (examSession.submittedAt) {
       return NextResponse.json({ error: "Examen déjà soumis" }, { status: 400 });
+    }
+
+    // Durée contrôlée côté serveur (TD-023) : départ fixé par /start.
+    if (isSubmissionTooLate(examSession.startedAt, examSession.examTemplate.duration)) {
+      return NextResponse.json(EXAM_TIME_EXPIRED_ERROR, { status: 409 });
     }
 
     // Auto-grade MCQ and TRUE_FALSE

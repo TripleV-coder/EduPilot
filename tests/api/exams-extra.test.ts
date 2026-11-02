@@ -438,6 +438,7 @@ describe("POST /api/exams/sessions/[id]/submit", () => {
       student: { schoolId: FIXTURES.schoolA, user: { id: studentUserId } },
       examTemplate: {
         title: "Examen de maths",
+        duration: 60,
         totalPoints: 20,
         passingScore: 10,
         questions: [
@@ -498,6 +499,19 @@ describe("POST /api/exams/sessions/[id]/submit", () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Examen déjà soumis");
+  });
+
+  it("refuse une soumission après l'échéance + la marge (TD-023, 409)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("STUDENT", { id: studentUserId }));
+    // Durée 60 min, départ il y a 62 min
+    mockSessionLookups(examSessionFixture({ startedAt: new Date(Date.now() - 62 * 60_000) }));
+    const res = await POST_SUBMIT_SESSION(
+      makeRequest(sessionRoute, { method: "POST", body: { answers: [] } }),
+      sessionRouteParams
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("EXAM_TIME_EXPIRED");
+    expect(prisma.examAnswer.createMany).not.toHaveBeenCalled();
   });
 
   it("retourne 400 sur questions dupliquées", async () => {
