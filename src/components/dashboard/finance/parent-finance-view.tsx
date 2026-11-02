@@ -526,15 +526,17 @@ function PaymentHistory({ payments }: { payments: ChildData["payments"] }) {
                                 </span>
                                 <div className="min-w-0">
                                     <div className={homeStyles.name}>
-                                        {payment.feeName} · {formatFcfa(payment.amount)}
+                                        {payment.isRefund
+                                            ? `Remboursement · ${payment.feeName} · ${formatFcfa(Math.abs(payment.amount))}`
+                                            : `${payment.feeName} · ${formatFcfa(payment.amount)}`}
                                     </div>
                                     <div className={homeStyles.detail}>
                                         {formatDate(payment.paidAt ?? payment.date)} · {METHOD_LABELS[payment.method] ?? payment.method}
                                         {payment.reference ? ` · réf. ${payment.reference}` : ""}
                                     </div>
                                     <div className="mt-1">
-                                        <Badge variant={badge.variant} size="sm">
-                                            {badge.label}
+                                        <Badge variant={payment.isRefund ? "info" : badge.variant} size="sm">
+                                            {payment.isRefund ? "Remboursé par l'établissement" : badge.label}
                                         </Badge>
                                     </div>
                                 </div>

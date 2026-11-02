@@ -385,16 +385,39 @@ export async function syncPaymentPlanLedger(
     },
     orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
     select: {
+      id: true,
       amount: true,
       paidAt: true,
       createdAt: true,
+      refundOfId: true,
     },
   });
 
-  const paymentQueue = payments.map((payment) => ({
-    remaining: Number(payment.amount),
-    paidAt: getEffectivePaymentDate(payment),
-  }));
+  // Remboursements (extournes, montants négatifs) : déduits du paiement qu'ils
+  // annulent, puis des paiements les plus récents si celui-ci n'est plus
+  // encaissé. Sans cela, la file ci-dessous les ignorait et une échéance
+  // remboursée restait « payée ».
+  const paymentQueue = payments
+    .filter((payment) => Number(payment.amount) > 0)
+    .map((payment) => ({
+      id: payment.id,
+      remaining: Number(payment.amount),
+      paidAt: getEffectivePaymentDate(payment),
+    }));
+  for (const refund of payments.filter((payment) => Number(payment.amount) < 0)) {
+    let toDeduct = -Number(refund.amount);
+    const target = paymentQueue.find((entry) => entry.id === refund.refundOfId);
+    if (target) {
+      const taken = Math.min(target.remaining, toDeduct);
+      target.remaining -= taken;
+      toDeduct -= taken;
+    }
+    for (let i = paymentQueue.length - 1; i >= 0 && toDeduct > 0; i--) {
+      const taken = Math.min(paymentQueue[i].remaining, toDeduct);
+      paymentQueue[i].remaining -= taken;
+      toDeduct -= taken;
+    }
+  }
 
   const tolerance = 0.0001;
   let paymentIndex = 0;

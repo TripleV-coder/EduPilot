@@ -934,10 +934,17 @@ model Payment {
   /// Posé à l'initiation, jamais modifié (garde-fou en base). Null pour un
   /// paiement manuel ou un paiement en ligne antérieur à S7 (compte global).
   paymentAccountId      String?
+  /// Remboursement : écriture d'extourne, montant NÉGATIF, liée au paiement
+  /// remboursé. Tous les totaux (encaissé, reste à payer, statistiques) sont
+  /// ainsi nets sans traitement particulier ; l'échéancier déduit chaque
+  /// remboursement du paiement qu'il annule. Null pour un paiement ordinaire.
+  refundOfId            String?
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
   deletedAt             DateTime?
   mealTickets           MealTicket[]
+  refundOf              Payment?                   @relation("PaymentRefunds", fields: [refundOfId], references: [id], onDelete: Restrict)
+  refunds               Payment[]                  @relation("PaymentRefunds")
   fee                   Fee                        @relation(fields: [feeId], references: [id], onDelete: Cascade)
   receivedByUser        User?                      @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
   reconciledByUser      User?                      @relation("PaymentReconciledBy", fields: [reconciledBy], references: [id])
@@ -946,6 +953,7 @@ model Payment {
 
   @@index([studentId, feeId])
   @@index([paymentAccountId])
+  @@index([refundOfId])
   @@index([reference])
   @@index([status])
   @@index([deletedAt])

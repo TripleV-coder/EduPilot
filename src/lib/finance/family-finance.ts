@@ -232,6 +232,8 @@ export type FamilyPaymentView = {
     date: Date;
     paidAt: Date | null;
     receiptAvailable: boolean;
+    /** Remboursement (montant négatif) : sans reçu de paiement. */
+    isRefund: boolean;
 };
 
 export type ChildFinance = {
@@ -324,6 +326,7 @@ export async function getChildFinance(db: Db, studentId: string): Promise<ChildF
             notes: true,
             paidAt: true,
             createdAt: true,
+            refundOfId: true,
             fee: { select: { name: true } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -359,7 +362,8 @@ export async function getChildFinance(db: Db, studentId: string): Promise<ChildF
                 online: p.provider !== null,
                 date: p.createdAt,
                 paidAt: SETTLED_STATUSES.includes(p.status) ? p.paidAt : null,
-                receiptAvailable: status === "CONFIRMED",
+                receiptAvailable: status === "CONFIRMED" && !p.refundOfId,
+                isRefund: p.refundOfId !== null,
             };
         }),
         online: account.ok

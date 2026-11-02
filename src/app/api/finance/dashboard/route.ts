@@ -94,6 +94,7 @@ const financeDashboard = memoizeAsync(
         createdAt: true,
         status: true,
         method: true,
+        refundOfId: true,
         student: {
           select: {
             id: true,

@@ -14,6 +14,7 @@ import { useSchool } from "@/components/providers/school-provider";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { ParentFinanceView } from "@/components/dashboard/finance/parent-finance-view";
+import { RefundPaymentDialog, type RefundablePayment } from "@/components/finance/refund-payment-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -56,6 +57,8 @@ type Payment = {
     amount: number;
     status: string;
     createdAt: string;
+    /** Remboursement : ligne négative liée au paiement remboursé. */
+    refundOfId: string | null;
     student: { user: { firstName: string; lastName: string } };
     fee: { name: string };
 };
@@ -118,6 +121,10 @@ export default function FinanceDashboardPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
     const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
     const [reminding, setReminding] = useState(false);
+    const [refundTarget, setRefundTarget] = useState<RefundablePayment | null>(null);
+    const canRefund = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "NETWORK_ADMIN"].includes(
+        session?.user?.role ?? "",
+    );
 
     const { data: academicYears } = useSWR<AcademicYear[]>(
         schoolId ? `/api/academic-years?schoolId=${schoolId}` : null,
@@ -359,12 +366,15 @@ export default function FinanceDashboardPage() {
                                     <ul className="m-0 list-none p-0">
                                         {dashData.recentPayments.slice(0, 6).map((p, i) => {
                                             const status = PAYMENT_STATUS[p.status] ?? PAYMENT_STATUS.PENDING;
+                                            const isRefund = Boolean(p.refundOfId);
+                                            const refundable =
+                                                canRefund && !isRefund && p.amount > 0 && (p.status === "VERIFIED" || p.status === "RECONCILED");
                                             return (
                                                 <li
                                                     key={p.id}
                                                     className="grid items-center gap-3 py-2.5"
                                                     style={{
-                                                        gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                                                        gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
                                                         borderTop: i > 0 ? "1px solid var(--eduflow-border-subtle)" : "none",
                                                     }}
                                                 >
@@ -385,15 +395,42 @@ export default function FinanceDashboardPage() {
                                                     <span className="eduflow-tabular text-sm font-semibold">
                                                         {formatCurrency(p.amount)}
                                                     </span>
-                                                    <Badge variant={status.variant} size="sm">
-                                                        {status.label}
+                                                    <Badge variant={isRefund ? "neutral" : status.variant} size="sm">
+                                                        {isRefund ? "Remboursement" : status.label}
                                                     </Badge>
+                                                    {refundable ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            aria-label={`Rembourser le paiement de ${p.student.user.firstName} ${p.student.user.lastName}`}
+                                                            onClick={() =>
+                                                                setRefundTarget({
+                                                                    id: p.id,
+                                                                    amount: p.amount,
+                                                                    studentName: `${p.student.user.firstName} ${p.student.user.lastName}`,
+                                                                    feeName: p.fee.name,
+                                                                })
+                                                            }
+                                                        >
+                                                            Rembourser
+                                                        </Button>
+                                                    ) : (
+                                                        <span aria-hidden="true" />
+                                                    )}
                                                 </li>
                                             );
                                         })}
                                     </ul>
                                 )}
                             </Block>
+                            <RefundPaymentDialog
+                                payment={refundTarget}
+                                open={refundTarget !== null}
+                                onOpenChange={(open) => {
+                                    if (!open) setRefundTarget(null);
+                                }}
+                                onRefunded={() => void Promise.all([mutateDash(), mutatePlans()])}
+                            />
                             <Block id="fin-overdue" title="Impayés à relancer">
                                 <div className="mb-3 flex justify-end">
                                     <Button

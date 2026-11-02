@@ -96,7 +96,8 @@ export const GET = createApiHandler(async (request, context) => {
     if (userRole !== "SUPER_ADMIN" && !canAccessSchool(session, payment.fee.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
-    if (payment.deletedAt || !RECEIPT_STATUSES.has(payment.status)) {
+    // Un remboursement (extourne, montant négatif) n'a pas de reçu de paiement.
+    if (payment.deletedAt || !RECEIPT_STATUSES.has(payment.status) || payment.refundOfId) {
       return NextResponse.json(
         { error: "Reçu disponible seulement pour un paiement confirmé.", code: "RECEIPT_NOT_AVAILABLE" },
         { status: 409 }

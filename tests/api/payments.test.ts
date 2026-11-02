@@ -24,6 +24,8 @@ vi.mock("@/lib/prisma", () => {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      // Remboursements déjà faits (refundedTotal) : aucun par défaut
+      aggregate: vi.fn().mockResolvedValue({ _sum: { amount: null } }),
     },
     parentProfile: { findFirst: vi.fn(), findUnique: vi.fn() },
     studentProfile: { findFirst: vi.fn(), findUnique: vi.fn() },

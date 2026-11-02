@@ -56,7 +56,7 @@ Le parent paie depuis *Paiements* (*Scolarité et paiements*), **enfant par enfa
 - **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur avec le compte de l'école : payé au bon montant → validé ; échec → annulé ; incertain → reste en attente ; au-delà de 48 h, l'école est alertée.
 - **Sans attendre**, le comptable ou l'administration de l'école peut ouvrir *Finance › Rapprochement* et cliquer sur **Interroger le fournisseur** devant un paiement en ligne en attente, en indiquant un motif (par exemple : la famille présente un débit sur son téléphone). Les règles sont les mêmes : validé seulement si le fournisseur confirme le bon montant, annulé seulement s'il déclare un échec définitif, sinon rien ne change et le montant reste réservé. Le motif, l'auteur et la réponse sont conservés sur le paiement et dans le journal. Il n'existe **aucun moyen de libérer un montant sans réponse du fournisseur**. Un paiement pour lequel le fournisseur n'a jamais donné de numéro de transaction ne peut pas être interrogé : il faut alors vérifier dans l'espace FedaPay de l'école.
 - Le **reçu** PDF n'existe que pour un paiement **confirmé** (validé ou rapproché) ; il ne montre pas les notes internes de l'école.
-- Le **remboursement** d'un paiement en ligne se fait par l'école depuis son espace FedaPay ; il n'est pas automatisé dans l'application.
+- Le **remboursement** d'un paiement en ligne se rend depuis l'espace FedaPay de l'école, puis s'enregistre dans EduPilot (voir 9.8 bis) pour que le reste à payer soit juste.
 
 ## 9.4 Plans de paiement (échéancier) ✅
 Un frais peut être payé en **2 à 12 mensualités**.
@@ -91,6 +91,18 @@ Une échéance non payée passe automatiquement « en retard ». Les jours sont 
 - *Rapports financiers* : revenus, impayés, prévisions.
 - *Export financier* : extractions pour la comptabilité. Les contenus dangereux pour un tableur sont neutralisés.
 
+## 9.8 bis Rembourser un paiement ✅
+Pour un départ d'élève, un trop-perçu, une activité annulée…
+- Qui : le **comptable** ou la **direction**.
+- Où : *Finance › Derniers paiements* → bouton **Rembourser** sur un paiement validé.
+- On saisit le **montant** (tout ou partie, en FCFA entiers), le **mode** (espèces, Mobile Money, virement, chèque…), le **motif** (obligatoire) et, si on l'a, une référence.
+- Le remboursement apparaît en **négatif** sur le compte de l'élève : le **reste à payer** et les **échéances** sont recalculés aussitôt (une échéance déjà soldée peut redevenir due).
+- On ne peut jamais rembourser plus que ce qui a été payé, même en plusieurs fois.
+- La famille et l'élève reçoivent une notification avec le montant et le motif ; la ligne figure dans leur historique, sans reçu de paiement.
+- Chaque remboursement est inscrit au journal d'audit.
+- Un paiement remboursé ne peut plus être annulé ni réduit en dessous du montant remboursé. Pour corriger une erreur, on annule d'abord le remboursement.
+- Paiement en ligne : l'argent se rend depuis l'espace du fournisseur ; EduPilot en garde la trace.
+
 ## 9.9 Cagnottes ✅
 *Cagnottes & pots communs* : sortie scolaire, fournitures partagées, cadeau collectif.
 - 100 % transparent, sans frais.
@@ -118,4 +130,3 @@ Une échéance non payée passe automatiquement « en retard ». Les jours sont 
 ## 9.12 Points sensibles encore ouverts 🔧
 - Le **numéro de reçu** est aujourd'hui un extrait d'identifiant. Il n'y a pas de numérotation continue (0001, 0002…), souvent exigée pour les pièces comptables.
 - La **suppression définitive** d'un compte élève par l'administrateur de la plateforme efface aussi ses paiements. Les pièces comptables doivent normalement être conservées.
-- Le **remboursement** d'un trop-perçu se traite encore hors de l'application (décision à prendre).
