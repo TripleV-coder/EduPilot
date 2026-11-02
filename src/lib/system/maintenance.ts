@@ -29,9 +29,15 @@ let cache: { state: MaintenanceState; at: number } | null = null;
  * Lit l'état du mode maintenance (avec cache TTL en mémoire).
  * En cas d'erreur de base, on considère le service comme accessible (fail-open)
  * pour ne jamais verrouiller toute la plateforme sur un incident transitoire.
+ *
+ * `fresh` ignore le cache : le layout du dashboard s'en sert à chaque rendu
+ * complet. Le rendu des pages et les routes API n'ont pas la même copie de ce
+ * module, donc l'invalidation faite par la route d'écriture ne l'atteint pas ;
+ * avec le cache, l'utilisateur voyait encore le dashboard (et des erreurs 503)
+ * jusqu'à 15 s après l'activation, au lieu de l'écran de maintenance.
  */
-export async function getMaintenanceState(): Promise<MaintenanceState> {
-    if (cache && Date.now() - cache.at < TTL_MS) return cache.state;
+export async function getMaintenanceState(options: { fresh?: boolean } = {}): Promise<MaintenanceState> {
+    if (!options.fresh && cache && Date.now() - cache.at < TTL_MS) return cache.state;
 
     try {
         const settings = await prisma.systemSetting.findMany({
