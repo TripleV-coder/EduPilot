@@ -45,7 +45,7 @@ Le directeur des études (censeur) :
 Gère les frais, les paiements, les plans de paiement, les bourses, les rapports financiers et la comptabilité. Consulte les élèves pour retrouver une famille.
 
 ### Personnel (secrétariat, surveillance, vie scolaire)
-Consulte les élèves et les comptes. Selon les modules activés, il intervient sur :
+Consulte les élèves (liste et fiche : vue 360°, présences, discipline) et le fil d'annonces, **sans les modifier**. Il ne voit ni les notes, ni la santé, ni les finances, et n'a pas l'assistant IA. Il fait l'appel et signale les incidents. Selon les modules activés, il intervient aussi sur :
 - la vie scolaire et la discipline ;
 - les badges et le contrôle d'accès ;
 - le transport ;

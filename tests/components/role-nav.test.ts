@@ -18,8 +18,8 @@ describe("role-nav — parcours 5–8 actions par rôle", () => {
             expect(count).toBeGreaterThanOrEqual(5);
             expect(count).toBeLessThanOrEqual(8);
         }
-        // Personnel : seuls les liens que ses droits servent (accueil, vie scolaire, paramètres).
-        expect(linkCount("STAFF")).toBe(5); // Accueil, Appel, Incidents, Vie scolaire, Paramètres
+        // Personnel : vie scolaire + consultation des élèves et des annonces (TD-022), sans IA.
+        expect(linkCount("STAFF")).toBe(7); // Accueil, Appel, Élèves, Annonces, Incidents, Vie scolaire, Paramètres
     });
 
     it("défaut sûr : offeredLevels vide → navigation complète du rôle", () => {

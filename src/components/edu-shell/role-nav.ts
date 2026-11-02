@@ -240,8 +240,10 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
                         // Vie scolaire : appel et incidents (ATTENDANCE_CREATE, INCIDENT_CREATE).
-                        // Élèves et annonces : routes fermées au personnel (STAFF) côté API.
+                        // Élèves et annonces : consultation seule (TD-022). Pas d'assistant IA.
                         { icon: "check", label: "Appel", href: "/dashboard/attendance", matchPrefix: true, requiresModule: "attendance" },
+                        { icon: "users", label: "Élèves", href: "/dashboard/students", matchPrefix: true, requiresModule: "students" },
+                        { icon: "bell", label: "Annonces", href: "/dashboard/announcements", matchPrefix: true, requiresModule: "messaging" },
                         { icon: "warning", label: "Incidents", href: "/dashboard/incidents", matchPrefix: true },
                         { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true, requiresModule: "schedule" },
                         AI_ASSISTANT_NAV_LINK,

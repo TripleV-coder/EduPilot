@@ -196,7 +196,7 @@ export default function AnnouncementsPage() {
     return (
         <PageGuard
             permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF", "STUDENT", "PARENT"]}
         >
             <PageShell className="max-w-5xl pb-12">
                 <PageHeader

@@ -27,7 +27,7 @@ Les journaux de passage sont effacés après la durée fixée par l'école (chap
 ## 13.6 Documents et attestations ✅
 *Générateur de documents* : certificats de scolarité et attestations en PDF. Le module « Documents » permet aussi aux familles de **déposer des pièces** (dossier d'inscription…).
 - Le **certificat de scolarité** exige une inscription sur l'année.
-- L'**attestation de bonne conduite** exige une inscription et **aucun incident** de la gravité choisie par l'école (paramètres › *Discipline*, par défaut « grave ») sur l'année scolaire. Sinon, l'application explique le refus et le nombre d'incidents en cause. Le texte de l'attestation dit exactement ce qui a été vérifié.
+- L'**attestation de bonne conduite** exige une inscription et **aucun incident** de la gravité choisie par l'école (paramètres › *Discipline*, par défaut « majeur ») sur l'année scolaire. Sinon, l'application explique le refus et le nombre d'incidents en cause. Le texte de l'attestation dit exactement ce qui a été vérifié.
 
 ## 13.7 Signature électronique ✅ (module à activer)
 Signature des documents et attestations par les personnes habilitées. Chaque signature est horodatée et vérifiable.

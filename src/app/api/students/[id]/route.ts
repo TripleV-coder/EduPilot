@@ -133,7 +133,8 @@ export const GET = createApiHandler(
   },
   {
     requireAuth: true,
-    allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"],
+    // STAFF : consultation (secrétariat, surveillance), sans écriture (TD-022)
+    allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT"],
   }
 );
 

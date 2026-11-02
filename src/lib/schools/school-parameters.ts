@@ -183,7 +183,7 @@ export const PARAMETER_SECTIONS = [
             p(
                 "conductCertificateBlockingSeverity",
                 "Attestation de bonne conduite refusée à partir d'un incident",
-                "gravité (1 faible · 2 moyenne · 3 grave · 4 critique · 5 jamais)",
+                "gravité (1 mineur · 2 moyen · 3 majeur · 4 critique · 5 jamais)",
                 1,
                 5,
                 3,

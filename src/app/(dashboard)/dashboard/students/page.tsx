@@ -202,6 +202,7 @@ export default function StudentsPage() {
                 "DIRECTOR",
                 "TEACHER",
                 "ACCOUNTANT",
+                "STAFF",
                 "PARENT",
                 "STUDENT",
             ]}

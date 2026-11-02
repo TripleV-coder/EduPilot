@@ -24,6 +24,9 @@ import { StudentGradesTab } from "@/components/students/student-grades-tab";
 import { StudentAttendanceTab } from "@/components/students/student-attendance-tab";
 import { StudentPerformanceDashboard } from "@/components/students/student-performance-dashboard";
 import { StudentAiPrediction } from "@/components/students/student-ai-prediction";
+import { StudentDisciplineTab } from "@/components/students/student-discipline-tab";
+import { StudentHealthTab } from "@/components/students/student-health-tab";
+import { StudentFinanceTab } from "@/components/students/student-finance-tab";
 import {
   StudentRiskCard,
   StudentOrientationAction,
@@ -82,9 +85,23 @@ export default function StudentDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [fromListTransition, setFromListTransition] = useState(false);
   const { data: sessionData } = useSession();
-  const canSignBulletin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "NETWORK_ADMIN"].includes(
-    sessionData?.user?.role ?? "",
-  );
+  const role = sessionData?.user?.role ?? "";
+  const canSignBulletin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "NETWORK_ADMIN"].includes(role);
+  // Onglets montés seulement pour les rôles que leur API accepte : jamais un
+  // onglet qui ne mène qu'à un refus.
+  const DIRECTION = ["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
+  const tabs = {
+    // Notes : GRADE_READ (le personnel administratif ne l'a pas, TD-022)
+    grades: role !== "STAFF",
+    // Incidents : direction, enseignants, personnel de vie scolaire
+    discipline: [...DIRECTION, "TEACHER", "STAFF"].includes(role),
+    // Santé : direction, infirmerie, secrétariat, famille (secret médical)
+    health: [...DIRECTION, "NURSE", "SECRETARY", "PARENT", "STUDENT"].includes(role),
+    // Situation financière : direction et comptable
+    finance: [...DIRECTION, "ACCOUNTANT"].includes(role),
+    // Analyses IA : pas pour le personnel administratif (décision TD-022)
+    ai: [...DIRECTION, "TEACHER", "PARENT", "STUDENT"].includes(role),
+  };
 
   const fetchStudent = async () => {
     setLoading(true);
@@ -143,7 +160,7 @@ export default function StudentDetailPage() {
   const currentEnrollment = student?.enrollments?.find((e) => e.status === "ACTIVE");
 
   return (
-    <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT"]}>
+    <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT"]}>
       <PageShell>
       {/* Perf (2026-09-18) : entrée en CSS. L'animation ne joue toujours que
           lorsqu'on arrive depuis la liste (`fromListTransition`). */}
@@ -225,30 +242,40 @@ export default function StudentDetailPage() {
                   <UserCircle className="h-3.5 w-3.5" />
                   Vue 360°
                 </TabsTrigger>
-                <TabsTrigger value="scolarite" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <GraduationCap className="h-3.5 w-3.5" />
-                  Scolarité
-                </TabsTrigger>
+                {tabs.grades ? (
+                  <TabsTrigger value="scolarite" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    Scolarité
+                  </TabsTrigger>
+                ) : null}
                 <TabsTrigger value="presences" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                   <CalendarCheck className="h-3.5 w-3.5" />
                   Présences
                 </TabsTrigger>
-                <TabsTrigger value="discipline" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Discipline
-                </TabsTrigger>
-                <TabsTrigger value="sante" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <HeartPulse className="h-3.5 w-3.5" />
-                  Santé
-                </TabsTrigger>
-                <TabsTrigger value="finances" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <Banknote className="h-3.5 w-3.5" />
-                  Finances
-                </TabsTrigger>
-                <TabsTrigger value="suivi" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <Activity className="h-3.5 w-3.5" />
-                  Suivi & IA
-                </TabsTrigger>
+                {tabs.discipline ? (
+                  <TabsTrigger value="discipline" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    Discipline
+                  </TabsTrigger>
+                ) : null}
+                {tabs.health ? (
+                  <TabsTrigger value="sante" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <HeartPulse className="h-3.5 w-3.5" />
+                    Santé
+                  </TabsTrigger>
+                ) : null}
+                {tabs.finance ? (
+                  <TabsTrigger value="finances" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <Banknote className="h-3.5 w-3.5" />
+                    Finances
+                  </TabsTrigger>
+                ) : null}
+                {tabs.ai ? (
+                  <TabsTrigger value="suivi" className="gap-2 text-[11px] font-bold tracking-tight py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <Activity className="h-3.5 w-3.5" />
+                    Suivi & IA
+                  </TabsTrigger>
+                ) : null}
               </TabsList>
 
               {/* Vue 360° tab */}
@@ -290,7 +317,7 @@ export default function StudentDetailPage() {
                   </CardContent>
                 </Card>
 
-                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
                   <StudentRiskCard studentId={id} />
                 </RoleActionGuard>
 
@@ -314,6 +341,7 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Scolarité tab */}
+              {tabs.grades ? (
               <TabsContent value="scolarite" className="mt-0">
                 <div className="space-y-6">
                   {currentEnrollment && (
@@ -348,6 +376,7 @@ export default function StudentDetailPage() {
                   />
                 </div>
               </TabsContent>
+              ) : null}
 
               {/* Présences tab */}
               <TabsContent value="presences" className="mt-0">
@@ -355,51 +384,41 @@ export default function StudentDetailPage() {
               </TabsContent>
 
               {/* Discipline tab */}
-              <TabsContent value="discipline" className="mt-0">
-                <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-5">
-                      <ShieldAlert className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                      <p className="text-sm font-bold text-muted-foreground">Aucun incident disciplinaire signalé.</p>
-                      <p className="text-xs text-muted-foreground mt-1">L&apos;historique des sanctions et mérites apparaîtra ici.</p>
-                   </div>
-                </Card>
-              </TabsContent>
+              {tabs.discipline ? (
+                <TabsContent value="discipline" className="mt-0">
+                  <StudentDisciplineTab studentId={id} />
+                </TabsContent>
+              ) : null}
 
               {/* Santé tab */}
-              <TabsContent value="sante" className="mt-0">
-                <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-5">
-                      <HeartPulse className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                      <p className="text-sm font-bold text-muted-foreground">Dossier médical vide.</p>
-                      <p className="text-xs text-muted-foreground mt-1">Les allergies, traitements et passages infirmerie seront listés ici.</p>
-                   </div>
-                </Card>
-              </TabsContent>
+              {tabs.health ? (
+                <TabsContent value="sante" className="mt-0">
+                  <StudentHealthTab studentId={id} />
+                </TabsContent>
+              ) : null}
 
               {/* Finances tab */}
-              <TabsContent value="finances" className="mt-0">
-                <Card className="border-none shadow-none bg-muted/20 min-h-[300px] flex items-center justify-center">
-                   <div className="text-center p-5">
-                      <Banknote className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                      <p className="text-sm font-bold text-muted-foreground">État financier non disponible.</p>
-                      <p className="text-xs text-muted-foreground mt-1">Consultez l&apos;historique des paiements et les bourses dans le module Finance.</p>
-                   </div>
-                </Card>
-              </TabsContent>
+              {tabs.finance ? (
+                <TabsContent value="finances" className="mt-0">
+                  <StudentFinanceTab studentId={id} />
+                </TabsContent>
+              ) : null}
 
               {/* Suivi & IA tab */}
+              {tabs.ai ? (
               <TabsContent value="suivi" className="mt-0 space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <StudentPerformanceDashboard studentId={id} />
                   <StudentAiPrediction studentId={id} />
                 </div>
-                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+                <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <StudentOrientationAction studentId={id} />
                     <StudentInterventionPlan studentId={id} />
                   </div>
                 </RoleActionGuard>
               </TabsContent>
+              ) : null}
             </Tabs>
           </>
         )}

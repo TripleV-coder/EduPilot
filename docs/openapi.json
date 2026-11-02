@@ -18314,7 +18314,7 @@
     "/api/students/{id}": {
       "get": {
         "summary": "GET /api/students/{id}",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, PARENT, STUDENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, STAFF, PARENT, STUDENT.",
         "tags": [
           "students"
         ],

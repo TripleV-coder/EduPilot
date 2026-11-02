@@ -7,15 +7,12 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import type { IncidentSeverity } from "@prisma/client";
 import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
+import { incidentSeverityLabel } from "@/lib/labels/incidents";
 
 /** Gravités dans l'ordre du paramètre « discipline » (1 → 4 ; 5 = jamais bloquant). */
 const SEVERITY_ORDER: IncidentSeverity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const SEVERITY_LABEL: Record<IncidentSeverity, string> = {
-    LOW: "faible",
-    MEDIUM: "moyenne",
-    HIGH: "grave",
-    CRITICAL: "critique",
-};
+/** Libellé de gravité, le même que partout dans l'application (Mineur → Critique). */
+const severityWord = (severity: IncidentSeverity) => incidentSeverityLabel(severity).toLowerCase();
 
 const generateSchema = z.object({
     documentType: z.enum(["CERTIFICATE_ENROLLMENT", "BEHAVIOR_REPORT"]),
@@ -86,7 +83,7 @@ export const POST = createApiHandler(async (request, context) => {
             // Le texte n'affirme que ce qui a été vérifié.
             conductClause =
                 threshold <= SEVERITY_ORDER.length
-                    ? `N'a fait l'objet d'aucun incident de gravité ${SEVERITY_LABEL[blocking[0]]} ou plus durant l'année scolaire ${enrollment.academicYear.name}.`
+                    ? `N'a fait l'objet d'aucun incident de gravité « ${severityWord(blocking[0])} » ou plus durant l'année scolaire ${enrollment.academicYear.name}.`
                     : `A fait preuve d'une bonne conduite durant l'année scolaire ${enrollment.academicYear.name}.`;
             if (blocking.length > 0 && threshold <= SEVERITY_ORDER.length) {
                 const year = enrollment.academicYear;
@@ -101,7 +98,7 @@ export const POST = createApiHandler(async (request, context) => {
                 if (incidents.length > 0) {
                     return NextResponse.json(
                         {
-                            error: `Attestation de bonne conduite impossible : ${incidents.length} incident${incidents.length > 1 ? "s" : ""} de gravité ${SEVERITY_LABEL[blocking[0]]} ou plus sur l'année ${year.name}.`,
+                            error: `Attestation de bonne conduite impossible : ${incidents.length} incident${incidents.length > 1 ? "s" : ""} de gravité « ${severityWord(blocking[0])} » ou plus sur l'année ${year.name}.`,
                             code: "CONDUCT_INCIDENTS",
                             incidents: incidents.length,
                         },
