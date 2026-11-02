@@ -97,6 +97,13 @@ Une échéance non payée passe automatiquement « en retard ». Les jours sont 
 - Les contributions vont de 1 à 100 000 000 FCFA (entiers).
 - Les contributeurs apparaissent par leurs initiales.
 - Une cagnotte peut être ouverte, clôturée ou annulée.
+- **Une contribution déclarée par une famille est « en attente »** : elle n'entre pas dans le total collecté tant que l'école n'a pas vérifié la somme.
+  - La famille remet l'argent au secrétariat, ou paie par Mobile Money et indique la référence.
+  - Le **comptable** ou la **direction** ouvre la cagnotte : la carte *À valider* liste chaque déclaration avec le nom de la famille, la référence et le montant.
+  - *Somme reçue* : la contribution est comptée, le journal public l'affiche comme reçue, la famille est prévenue.
+  - *Rejeter* : un motif est obligatoire (par exemple « aucune somme reçue à ce nom ») ; la famille le reçoit dans sa notification et le voit sur la cagnotte.
+  - Quand le comptable encaisse lui-même au guichet pour une famille, la contribution est comptée tout de suite.
+- Chaque décision est inscrite au journal d'audit (auteur, date, motif).
 
 ## 9.10 Portefeuille de l'école ✅
 *Wallet école* : solde consolidé des comptes Mobile Money et bancaires de l'école. Aucune vérification d'identité fictive n'y est simulée.

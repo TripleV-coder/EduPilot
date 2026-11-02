@@ -32,6 +32,10 @@ type CagnotteRow = {
     status: CagnotteStatus;
     myContributionFcfa: string;
     hasContributed: boolean;
+    /** Montant déclaré par le visiteur, pas encore vérifié (TD-019). */
+    myPendingFcfa: string;
+    /** Contributions à valider (renseigné pour le comptable et la direction). */
+    pendingCount: number;
     lastContributionAt: string | null;
     recentInitials: string[];
 };
@@ -65,7 +69,7 @@ export default function CagnottePage() {
     return (
         <PageGuard
             permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "TEACHER"]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "TEACHER"]}
         >
             <CagnottePageContent />
         </PageGuard>
@@ -242,9 +246,21 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                     borderBottom: "1px solid var(--border-subtle)",
                 }}
             >
-                <Badge variant={tone} size="sm">
-                    J−{c.daysLeft}
-                </Badge>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <Badge variant={tone} size="sm">
+                        J−{c.daysLeft}
+                    </Badge>
+                    {c.pendingCount > 0 ? (
+                        <Badge variant="warning" size="sm">
+                            {c.pendingCount} à valider
+                        </Badge>
+                    ) : null}
+                    {Number(c.myPendingFcfa) > 0 ? (
+                        <Badge variant="warning" size="sm">
+                            Votre contribution est en attente de vérification
+                        </Badge>
+                    ) : null}
+                </div>
                 <h2
                     className="eduflow-display"
                     style={{

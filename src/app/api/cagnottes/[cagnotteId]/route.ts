@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import {
+    CAGNOTTE_REVIEWER_ROLES,
+    canReviewCagnotte,
+    contributionVisibleTo,
+    summarizeContributions,
+} from "@/lib/cagnotte/contributions";
 
 // ─── GET /api/cagnottes/[cagnotteId] — détail + journal transparent ───────
 export const GET = createApiHandler(
@@ -41,14 +47,10 @@ export const GET = createApiHandler(
         }
 
         const viewerId = session.user.id;
-        const raisedFcfa = cagnotte.contributions.reduce<bigint>(
-            (sum, x) => sum + x.amountFcfa,
-            BigInt(0),
-        );
-        const myContribution = cagnotte.contributions
-            .filter((x) => x.parentUserId === viewerId)
-            .reduce<bigint>((sum, x) => sum + x.amountFcfa, BigInt(0));
-        const participantIds = new Set(cagnotte.contributions.map((x) => x.parentUserId));
+        const viewer = { id: viewerId, role: session.user.role };
+        const canReview = canReviewCagnotte(session.user.role);
+        // TD-019 : seul le confirmé compte comme collecté.
+        const summary = summarizeContributions(cagnotte.contributions, viewerId);
 
         const daysLeft = Math.max(
             0,
@@ -69,10 +71,15 @@ export const GET = createApiHandler(
                   "Organisateur"
                 : "Organisateur",
             targetFcfa: cagnotte.targetFcfa.toString(),
-            raisedFcfa: raisedFcfa.toString(),
-            myContributionFcfa: myContribution.toString(),
-            hasContributed: myContribution > BigInt(0),
-            participantCount: participantIds.size,
+            raisedFcfa: summary.raisedFcfa.toString(),
+            myContributionFcfa: summary.myConfirmedFcfa.toString(),
+            myPendingFcfa: summary.myPendingFcfa.toString(),
+            hasContributed: summary.myConfirmedFcfa + summary.myPendingFcfa > BigInt(0),
+            participantCount: summary.participantCount,
+            canReview,
+            // File de validation : visible de l'école seulement.
+            pendingCount: canReview ? summary.pendingCount : 0,
+            pendingFcfa: canReview ? summary.pendingFcfa.toString() : "0",
             expectedParticipants: cagnotte.expectedParticipants,
             deadline: cagnotte.deadline.toISOString(),
             daysLeft,
@@ -87,9 +94,19 @@ export const GET = createApiHandler(
                     : "Système",
                 createdAt: j.createdAt.toISOString(),
             })),
-            contributions: cagnotte.contributions.map((x) => ({
+            // Confirmées pour tous ; en attente ou rejetées pour l'école et l'auteur.
+            contributions: cagnotte.contributions.filter((x) => contributionVisibleTo(x, viewer)).map((x) => ({
                 id: x.id,
                 isMine: x.parentUserId === viewerId,
+                status: x.status,
+                // Le nom complet et la référence servent à l'école pour vérifier
+                // l'encaissement ; les familles ne voient que des initiales.
+                parentName:
+                    canReview && x.status === "PENDING"
+                        ? `${x.parent?.firstName ?? ""} ${x.parent?.lastName ?? ""}`.trim() || null
+                        : null,
+                paymentRef: canReview || x.parentUserId === viewerId ? x.paymentRef : null,
+                reviewNote: x.parentUserId === viewerId || canReview ? x.reviewNote : null,
                 // Affichage pseudonymisé : initiales seulement, montant visible
                 // (journal 100% transparent, identités protégées).
                 initials: `${(x.parent?.firstName ?? "?").slice(0, 1)}${(x.parent?.lastName ?? "?").slice(0, 1)}`.toUpperCase(),
@@ -98,5 +115,5 @@ export const GET = createApiHandler(
             })),
         });
     },
-    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"] }
+    { allowedRoles: [...CAGNOTTE_REVIEWER_ROLES, "TEACHER", "PARENT"] }
 );

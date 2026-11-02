@@ -5271,10 +5271,68 @@
         }
       }
     },
+    "/api/cagnottes/{cagnotteId}/contributions/{contributionId}": {
+      "patch": {
+        "summary": "PATCH /api/cagnottes/{cagnotteId}/contributions/{contributionId}",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES.",
+        "tags": [
+          "cagnottes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "cagnotteId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "contributionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/cagnottes/{cagnotteId}/contributions": {
       "post": {
         "summary": "POST /api/cagnottes/{cagnotteId}/contributions",
-        "description": "Session requise. Rôles : PARENT, SCHOOL_ADMIN, DIRECTOR, SUPER_ADMIN.",
+        "description": "Session requise. Rôles : PARENT, ...CAGNOTTE_REVIEWER_ROLES.",
         "tags": [
           "cagnottes"
         ],
@@ -5321,7 +5379,7 @@
     "/api/cagnottes/{cagnotteId}": {
       "get": {
         "summary": "GET /api/cagnottes/{cagnotteId}",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT.",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES, TEACHER, PARENT.",
         "tags": [
           "cagnottes"
         ],
@@ -5368,7 +5426,7 @@
     "/api/cagnottes": {
       "get": {
         "summary": "GET /api/cagnottes",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT, TEACHER, PARENT.",
         "tags": [
           "cagnottes"
         ],

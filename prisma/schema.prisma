@@ -293,6 +293,7 @@ model User {
   organizationMemberships           OrganizationMembership[]
   cagnottesHosted                   Cagnotte[]                  @relation("CagnotteHost")
   cagnotteContributions             CagnotteContribution[]      @relation("CagnotteContributions")
+  cagnotteContributionReviews       CagnotteContribution[]      @relation("CagnotteContributionReviews")
   cagnotteJournalActions            CagnotteJournalEntry[]      @relation("CagnotteJournalActor")
   wellbeingReportsFiled             WellbeingReport[]           @relation("WellbeingReporter")
   wellbeingReportsAbout             WellbeingReport[]           @relation("WellbeingReportedAbout")
@@ -2702,9 +2703,19 @@ enum CagnotteStatus {
   CANCELLED
 }
 
+/// Contribution déclarée par une famille : elle ne compte dans la collecte
+/// qu'une fois confirmée par le comptable ou la direction (TD-019).
+enum CagnotteContributionStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 enum CagnotteJournalKind {
   CREATED
+  CONTRIBUTION_DECLARED
   CONTRIBUTION_PAID
+  CONTRIBUTION_REJECTED
   CONTRIBUTION_REFUNDED
   CLOSED
   DISBURSED
@@ -2737,17 +2748,23 @@ model Cagnotte {
 }
 
 model CagnotteContribution {
-  id           String   @id @default(cuid())
+  id           String                     @id @default(cuid())
   cagnotteId   String
   parentUserId String
   amountFcfa   BigInt
   paymentRef   String?
-  paidAt       DateTime @default(now())
-  createdAt    DateTime @default(now())
+  paidAt       DateTime                   @default(now())
+  createdAt    DateTime                   @default(now())
+  status       CagnotteContributionStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
 
-  cagnotte Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
-  parent   User     @relation("CagnotteContributions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  cagnotte   Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
+  parent     User     @relation("CagnotteContributions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("CagnotteContributionReviews", fields: [reviewedById], references: [id], onDelete: SetNull)
 
+  @@index([cagnotteId, status])
   @@index([cagnotteId, paidAt])
   @@index([parentUserId])
   @@map("cagnotte_contributions")
