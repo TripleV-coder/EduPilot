@@ -40,6 +40,8 @@ vi.mock("@/lib/services/analytics-sync", () => ({ persistStudentAnalyticsSnapsho
 vi.mock("@/lib/services/ai-predictive", () => ({ generateStudentPredictions: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive/predict-failure", () => ({ predictFailureRisk: vi.fn() }));
 vi.mock("@/lib/ai/external-client", () => ({ callExternalAI: vi.fn() }));
+// Périmètre enseignant (TD-020) couvert par ai-governance-access.test.ts : ici l'enseignant enseigne à l'élève.
+vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/utils/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 import prisma from "@/lib/prisma";

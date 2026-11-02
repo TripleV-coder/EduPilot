@@ -4,7 +4,7 @@ import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { predictFailureRisk } from "@/lib/ai/n8n-client";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
-import { roleSatisfies } from "@/lib/rbac/permissions";
+import { aiStudentAccessDenied } from "@/lib/ai/student-access";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 export const POST = createApiHandler(async (request, context) => {
@@ -49,11 +49,9 @@ export const POST = createApiHandler(async (request, context) => {
         const accessError = ensureSchoolAccess(session, student.schoolId);
         if (accessError) return accessError;
 
-        // Only Teachers and Admins can predict failure risk (Privacy)
-        const allowedRoles = ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR", "SUPER_ADMIN"];
-        if (!roleSatisfies(session.user.role, allowedRoles)) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
+        // Direction : toute l'école ; enseignant : ses classes (TD-020). Jamais la famille.
+        const denied = await aiStudentAccessDenied(session, student);
+        if (denied) return NextResponse.json({ error: denied }, { status: 403 });
 
         // Format data
         const predictionPayload = {

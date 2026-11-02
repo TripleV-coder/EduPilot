@@ -11,9 +11,10 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { findUnique: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
-    parentStudent: { findUnique: vi.fn() },
+    parentStudent: { findFirst: vi.fn() },
   },
 }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn() }));
 vi.mock("@/lib/ai/n8n-client", () => ({
   analyzeStudentPerformance: vi.fn(),
   predictFailureRisk: vi.fn(),
@@ -29,6 +30,7 @@ import prisma from "@/lib/prisma";
 import { analyzeStudentPerformance, predictFailureRisk, chatWithAI } from "@/lib/ai/n8n-client";
 import { aiService } from "@/lib/ai/ai-service";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { POST as analyzePOST } from "@/app/api/ai/analyze/route";
 import { POST as predictPOST } from "@/app/api/ai/predict-failure/route";
 import { POST as chatbotPOST } from "@/app/api/ai/chatbot/route";
@@ -57,6 +59,8 @@ beforeEach(() => {
   vi.mocked(analyzeStudentPerformance).mockResolvedValue({ summary: "ok" } as never);
   vi.mocked(predictFailureRisk).mockResolvedValue({ risk: "LOW" } as never);
   vi.mocked(chatWithAI).mockResolvedValue({ reply: "Bonjour" } as never);
+  // Par défaut l'enseignant enseigne à l'élève ; le refus est testé explicitement.
+  vi.mocked(teacherTeachesStudent).mockResolvedValue(true);
 });
 
 describe("POST /api/ai/analyze", () => {
@@ -109,29 +113,35 @@ describe("POST /api/ai/analyze", () => {
     expect((await analyzePOST(req("analyze", { studentId: "stu-1" }))).status).toBe(200);
   });
 
-  it("un parent sans profil est refusé (403)", async () => {
-    asRole("PARENT");
+  it("un parent non lié à l'élève est refusé (403)", async () => {
+    asRole("PARENT", { id: "u-par" });
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord() as never);
-    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValueOnce(null as never);
+    vi.mocked(prisma.parentStudent.findFirst).mockResolvedValueOnce(null as never);
     expect((await analyzePOST(req("analyze", { studentId: "stu-1" }))).status).toBe(403);
+    expect(vi.mocked(prisma.parentStudent.findFirst).mock.calls[0][0]).toEqual({
+      where: { studentId: "stu-1", parent: { userId: "u-par" } },
+      select: { id: true },
+    });
   });
 
-  it("un parent non lié à l'élève est refusé (403)", async () => {
-    asRole("PARENT");
+  it("un enseignant hors des classes de l'élève est refusé (TD-020, 403)", async () => {
+    asRole("TEACHER", { id: "u-prof" });
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord() as never);
-    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValueOnce({ id: "par-1" } as never);
-    vi.mocked(prisma.parentStudent.findUnique).mockResolvedValueOnce(null as never);
+    vi.mocked(teacherTeachesStudent).mockResolvedValueOnce(false);
     expect((await analyzePOST(req("analyze", { studentId: "stu-1" }))).status).toBe(403);
-    expect(vi.mocked(prisma.parentStudent.findUnique).mock.calls[0][0]).toEqual({
-      where: { parentId_studentId: { parentId: "par-1", studentId: "stu-1" } },
-    });
+    expect(analyzeStudentPerformance).not.toHaveBeenCalled();
+  });
+
+  it("refuse les rôles non pédagogiques (comptable, 403)", async () => {
+    asRole("ACCOUNTANT");
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord() as never);
+    expect((await analyzePOST(req("analyze", { studentId: "stu-1" }))).status).toBe(403);
   });
 
   it("un parent lié à l'élève obtient l'analyse", async () => {
     asRole("PARENT");
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord() as never);
-    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValueOnce({ id: "par-1" } as never);
-    vi.mocked(prisma.parentStudent.findUnique).mockResolvedValueOnce({ parentId: "par-1" } as never);
+    vi.mocked(prisma.parentStudent.findFirst).mockResolvedValueOnce({ id: "ps-1" } as never);
     const res = await analyzePOST(req("analyze", { studentId: "stu-1" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ summary: "ok" });

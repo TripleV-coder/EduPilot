@@ -31,9 +31,11 @@ vi.mock("@/lib/services/analytics-sync", () => ({ persistStudentAnalyticsSnapsho
 vi.mock("@/lib/services/ai-predictive", () => ({ generateStudentPredictions: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive/predict-failure", () => ({ predictFailureRisk: vi.fn() }));
 vi.mock("@/lib/ai/external-client", () => ({ callExternalAI: vi.fn() }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { governanceService } from "@/lib/ai/governance-service";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 
 type Req = Parameters<typeof governanceService.execute>[0];
 const SCHOOL = "school-a";
@@ -93,8 +95,12 @@ describe("gouvernance IA — périmètre élève", () => {
     expect(await code(svc.ensureStudentScope(req({ userRole: "NETWORK_ADMIN" }), student))).toBe("OK");
   });
 
-  it("caractérisation : un enseignant est limité à son école, pas à ses classes", async () => {
+  it("un enseignant n'analyse que les élèves de ses classes (TD-020)", async () => {
+    vi.mocked(teacherTeachesStudent).mockResolvedValueOnce(false);
+    expect(await code(svc.ensureStudentScope(req({ userRole: "TEACHER" }), student))).toBe("FORBIDDEN");
+    vi.mocked(teacherTeachesStudent).mockResolvedValueOnce(true);
     expect(await code(svc.ensureStudentScope(req({ userRole: "TEACHER" }), student))).toBe("OK");
+    expect(teacherTeachesStudent).toHaveBeenLastCalledWith(expect.any(String), student.id);
   });
 });
 

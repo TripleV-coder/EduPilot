@@ -15,6 +15,7 @@ import { templateThresholdsForSchool } from "./school-template-thresholds";
 import { callExternalAI } from "./external-client";
 import { appEnv } from "@/lib/env";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import {
   generateAppreciation,
   generateActionPlan,
@@ -344,6 +345,16 @@ class GovernanceService {
           "FORBIDDEN"
         );
       }
+    }
+
+    // TD-020 : un enseignant n'analyse que les élèves de SES classes, comme
+    // pour les analyses de classe (ensureClassScope).
+    if (request.userRole === "TEACHER" && !(await teacherTeachesStudent(request.userId, student.id))) {
+      throw new AIServiceError(
+        "Accès refusé : cet élève n'est pas dans vos classes",
+        403,
+        "FORBIDDEN"
+      );
     }
 
     if (request.userRole === "STUDENT" && student.userId !== request.userId) {

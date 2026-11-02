@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { analyzeStudentPerformance } from "@/lib/ai/n8n-client";
 import { studentAlias } from "@/lib/ai/pii";
+import { aiStudentAccessDenied } from "@/lib/ai/student-access";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { checkRateLimit, getClientIdentifier, strictLimiter } from "@/lib/rate-limit";
@@ -50,25 +51,10 @@ export const POST = createApiHandler(async (request, context) => {
         const accessError = ensureSchoolAccess(session, student.schoolId);
         if (accessError) return accessError;
 
-        // Check role access (Parent/Student strict check)
-        if (session.user.role === "STUDENT" && session.user.id !== student.userId) {
-            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-        }
-        if (session.user.role === "PARENT") {
-            const parentProfile = await prisma.parentProfile.findUnique({
-                where: { userId: session.user.id },
-                select: { id: true },
-            });
-            if (!parentProfile) {
-                return NextResponse.json({ error: "Profil parent non trouvé" }, { status: 403 });
-            }
-            const isParentOf = await prisma.parentStudent.findUnique({
-                where: { parentId_studentId: { parentId: parentProfile.id, studentId } },
-            });
-            if (!isParentOf) {
-                return NextResponse.json({ error: "Accès refusé : vous n'êtes pas le parent de cet élève" }, { status: 403 });
-            }
-        }
+        // Direction : toute l'école ; enseignant : ses classes (TD-020) ;
+        // parent : ses enfants ; élève : lui-même ; autres rôles : refusé.
+        const denied = await aiStudentAccessDenied(session, student, { allowFamily: true });
+        if (denied) return NextResponse.json({ error: denied }, { status: 403 });
 
         // Format data for AI — PII scrubbing : on n'envoie jamais le nom réel
         // de l'élève à n8n/LLM externe, seulement ses initiales (cf. lib/ai/pii)
