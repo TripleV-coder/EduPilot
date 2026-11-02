@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
 import { BookOpen, Users, AlertCircle, CheckCircle, Plus, GraduationCap, Clock, CreditCard } from "lucide-react";
-import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -27,6 +26,8 @@ import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
+import { ClassRoster } from "@/components/classes/class-roster";
+import { useSession } from "next-auth/react";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -110,6 +111,7 @@ type SubjectGradeRow = {
 };
 
 export default function ClassDetailsPage() {
+    const { data: session } = useSession();
     const params = useParams();
     const classId = params.id as string;
 
@@ -423,20 +425,7 @@ export default function ClassDetailsPage() {
                     </TabsContent>
 
                     <TabsContent value="students">
-                        <Card className="border-dashed border-2 shadow-none bg-muted/10">
-                            <CardContent className="py-20 text-center">
-                                <Users className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Liste des élèves</h3>
-                                <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-                                    Les élèves inscrits apparaîtront ici. Pour inscrire un élève, rendez-vous dans le module Inscriptions ou Importation.
-                                </p>
-                                <div className="mt-6 flex justify-center gap-4">
-                                    <Link href="/dashboard/students/inscription">
-                                        <Button variant="outline">Inscrire un élève</Button>
-                                    </Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <ClassRoster classId={classId} canEnroll={session?.user?.role !== "TEACHER"} />
                     </TabsContent>
 
                     <TabsContent value="schedule" className="space-y-6">
