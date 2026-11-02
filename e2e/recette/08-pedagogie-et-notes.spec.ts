@@ -363,8 +363,18 @@ test("06 · examens en ligne : création par l'enseignant, passage par l'élève
             etat.set("url:exam-fractions", `/dashboard/exams/${id}`);
             await goto(prof, `/dashboard/exams/${id}`);
             await scrollThrough(prof);
-            const ajouter = prof.page.getByRole("button", { name: /ajouter une question|nouvelle question/i }).first();
-            await expect(ajouter, "l'enseignant doit pouvoir ajouter des questions").toBeVisible({ timeout: 8000 });
+            // L'éditeur affiche directement le formulaire (« Ajouter la question ») :
+            // le scénario ajoute une vraie question puis publie l'examen, sans quoi
+            // le passage du quiz par l'élève ne peut pas être éprouvé.
+            await prof.page.getByLabel("Type de question").selectOption("TRUE_FALSE");
+            await prof.page.getByLabel("Énoncé").fill("1/2 + 1/4 = 3/4");
+            await prof.page.getByRole("radio", { name: "Vrai" }).check();
+            const ajouter = prof.page.getByRole("button", { name: /ajouter la question|ajouter une question/i }).first();
+            await expect(ajouter, "l'enseignant doit pouvoir ajouter des questions").toBeEnabled({ timeout: 8000 });
+            await ajouter.click();
+            await expect(prof.page.getByText("1/2 + 1/4 = 3/4").first(), "la question est enregistrée").toBeVisible({ timeout: 10_000 });
+            await prof.page.getByRole("button", { name: /publier l'examen/i }).click();
+            await expect(prof.page.getByText(/^publié$/i).first(), "l'examen est publié").toBeVisible({ timeout: 10_000 });
         });
         await step(prof, "Planning des examens et convocations", async () => {
             await explorePage(prof, "/dashboard/exams/planning");
@@ -406,6 +416,13 @@ test("07 · cours en ligne et ressources pédagogiques", async ({ browser }) => 
             await pause(prof, 800);
             const titre2 = prof.page.getByLabel("Titre du module 2");
             if (await titre2.isVisible().catch(() => false)) await titre2.fill("Cellule animale et végétale");
+            // Règle du formulaire : chaque module comporte au moins une leçon (le
+            // scénario créait un module 2 vide, refusé). Modules en accordéon : une
+            // fois le 2 déplié, ses champs sont les seuls visibles.
+            await prof.page.getByRole("button", { name: "Déplier le module" }).click();
+            await prof.page.getByRole("button", { name: /ajouter une leçon/i }).click();
+            await prof.page.getByLabel("Titre de la leçon 1").fill("Comparer les deux cellules");
+            await prof.page.getByLabel("Contenu de la leçon 1").fill("La cellule végétale possède une paroi et des chloroplastes ; la cellule animale n'en a pas.");
             await prof.page.getByRole("button", { name: /enregistrer le cours/i }).click();
             await pause(prof, 3000);
             const messages = await prof.page.locator('[role="alert"], [data-sonner-toast], [aria-invalid="true"]').allInnerTexts().catch(() => []);

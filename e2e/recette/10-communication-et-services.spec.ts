@@ -100,7 +100,10 @@ test("02 · cahier de liaison et messagerie parent ↔ enseignant", async ({ bro
     try {
         await step(parent, "Cahier de liaison de Kate", async () => explorePage(parent, "/dashboard/liaison"));
         await step(parent, "« Mot au professeur »", async () => {
-            await expectEffect(parent, parent.page.getByRole("button", { name: /mot au professeur/i }), "« Mot au professeur »");
+            // Le bouton place le curseur dans « Compose un mot » (formulaire déjà
+            // affiché) : effet vérifié directement ; l'envoi est l'étape suivante.
+            await parent.page.getByRole("button", { name: /mot au professeur/i }).click();
+            await expect(parent.page.getByPlaceholder(/écrire un mot/i), "la saisie du mot est prête").toBeFocused();
         });
         await step(parent, "Mot au professeur principal (Koffi Dossou)", async () => {
             await goto(parent, "/dashboard/liaison");
@@ -328,7 +331,7 @@ test("05 · cantine, transport, bibliothèque, clubs", async ({ browser }) => {
     try {
         await step(kate, "Emprunter « Un piège sans fin »", async () => {
             await explorePage(kate, "/dashboard/library");
-            const ligne = kate.page.locator("tr, li, article, [data-slot=card]").filter({ hasText: "Un piège sans fin" }).first();
+            const ligne = kate.page.getByText("Un piège sans fin", { exact: false }).first().locator("xpath=ancestor::*[.//button][1]"); // carte = premier ancêtre portant un bouton (les cartes ne sont ni tr, ni li, ni article)
             await ligne.getByRole("button", { name: /emprunter|réserver/i }).click();
             await pause(kate, 2000);
             await kate.page.getByRole("button", { name: /mes emprunts|emprunts en cours/i }).first().click();
@@ -340,7 +343,7 @@ test("05 · cantine, transport, bibliothèque, clubs", async ({ browser }) => {
         });
         await step(kate, "S'inscrire au club de débat", async () => {
             await explorePage(kate, "/dashboard/clubs");
-            const ligne = kate.page.locator("tr, li, article, [data-slot=card]").filter({ hasText: "Club de débat" }).first();
+            const ligne = kate.page.getByText("Club de débat", { exact: false }).first().locator("xpath=ancestor::*[.//button][1]"); // carte = premier ancêtre portant un bouton (les cartes ne sont ni tr, ni li, ni article)
             await ligne.getByRole("button", { name: /rejoindre|s'inscrire|inscription/i }).click();
             await pause(kate, 2000);
         });
@@ -408,7 +411,8 @@ test("06 · alumni, orientation, assistant IA", async ({ browser }) => {
     try {
         await step(primaire, "Orientation CEP : module « Orientation » non activé dans cette annexe (configuration respectée)", async () => {
             await explorePage(primaire, "/dashboard/orientation/cep");
-            await expect(primaire.page.getByText(/module « orientation » non activé/i)).toBeVisible();
+            // \s : les guillemets français de l'application sont entourés d'espaces insécables
+            await expect(primaire.page.getByText(/module\s*«\s*orientation\s*»\s*non activé/i)).toBeVisible();
         });
     } finally {
         await primaire.close();
@@ -417,6 +421,10 @@ test("06 · alumni, orientation, assistant IA", async ({ browser }) => {
     try {
         await step(sj, "Orientation CEP (cycle primaire offert, module actif)", async () => explorePage(sj, "/dashboard/orientation/cep"));
         await step(sj, "« Inscrire au CEP »", async () => {
+            // « Inscrire au CEP » n'apparaît qu'une fois une classe de CM2 choisie
+            // et la session préparée (on inscrit les élèves d'une classe)
+            await choose(sj, sj.page, /classe \(cm2\)/i, /CM2/);
+            await sj.page.getByRole("button", { name: /^préparer$/i }).click();
             await expectEffect(sj, sj.page.getByRole("button", { name: /inscrire au cep/i }), "« Inscrire au CEP »");
         });
     } finally {
@@ -438,7 +446,9 @@ test("07 · import CSV d'élèves (Saint-Joseph)", async ({ browser }) => {
     try {
         await step(dir, "Import : choix du type « Élèves »", async () => {
             await explorePage(dir, "/dashboard/import");
-            await page.locator("main").getByText(/^élèves$/i).first().click();
+            // La carte de type est un bouton (« Élèves — Importez votre base… ») ; le
+            // premier texte « Élèves » est le lien du fil d'Ariane vers la liste.
+            await page.locator("main").getByRole("button", { name: /^élèves/i }).first().click();
             await pause(dir, 1000);
         });
         await step(dir, "Dépôt du fichier CSV (3 lignes dont 1 sans nom)", async () => {

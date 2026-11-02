@@ -313,11 +313,17 @@ test("06 · infirmerie et dossier médical", async ({ browser }) => {
             await champs.getByRole("button", { name: /enregistrer|sauvegarder|valider/i }).last().click();
             await pause(dir, 2000);
         });
-        await step(dir, "Passage à l'infirmerie", async () => {
-            const passage = dir.page.getByRole("button", { name: /passage|visite|consultation|nouvelle/i }).first();
-            await expect(passage, "bouton pour enregistrer un passage à l'infirmerie").toBeVisible({ timeout: 10_000 });
-            await passage.click();
+        // Le module Santé tient un dossier médical (groupe sanguin, allergies,
+        // traitements, vaccinations, contacts) ; il n'a pas de journal des
+        // passages à l'infirmerie (manque fonctionnel signalé, pas un défaut).
+        await step(dir, "Dossier médical enregistré : groupe sanguin et allergie relus après rechargement", async () => {
+            await goto(dir, "/dashboard/medical");
+            await dir.page.getByRole("textbox", { name: /rechercher un élève/i }).fill(eleve("eleve-kate").nom);
             await pause(dir, 1500);
+            await dir.page.getByText(eleve("eleve-kate").nom).first().click();
+            await pause(dir, 2000);
+            await expect(dir.page.getByText(/^O\s?\+$/).first()).toBeVisible();
+            await expect(dir.page.getByText("Arachides").first()).toBeVisible();
         });
     } finally {
         await dir.close();
@@ -388,7 +394,9 @@ test("08 · cellule d'écoute (signalements) et rendez-vous parent-école", asyn
             await choose(prof, prof.page, /catégorie/i, /./);
             await prof.page.getByRole("textbox", { name: /description du signalement/i }).fill("Élève de Tle D isolée, pleure en classe depuis une semaine, résultats en chute.");
             await prof.page.getByRole("button", { name: /ouvrir le dossier|envoyer le signalement/i }).click();
-            await prof.page.waitForURL((u) => !u.pathname.endsWith("/new"), { timeout: 20_000 });
+            // Hors cellule d'écoute, l'auteur ne lit pas les dossiers : il reste
+            // sur la page, avec une confirmation de transmission.
+            await expect(prof.page.getByText(/signalement transmis à la cellule d'écoute/i)).toBeVisible();
         });
     } finally {
         await prof.close();
@@ -401,7 +409,9 @@ test("08 · cellule d'écoute (signalements) et rendez-vous parent-école", asyn
             await choose(gloria, gloria.page, /catégorie/i, /./);
             await gloria.page.getByRole("textbox", { name: /description du signalement/i }).fill("Moqueries répétées sur les réseaux sociaux par des élèves de la classe.");
             await gloria.page.getByRole("button", { name: /ouvrir le dossier|envoyer le signalement/i }).click();
-            await gloria.page.waitForURL((u) => !u.pathname.endsWith("/new"), { timeout: 20_000 });
+            // Hors cellule d'écoute, l'auteur ne lit pas les dossiers : il reste
+            // sur la page, avec une confirmation de transmission.
+            await expect(gloria.page.getByText(/signalement transmis à la cellule d'écoute/i)).toBeVisible();
         });
     } finally {
         await gloria.close();
@@ -416,7 +426,12 @@ test("08 · cellule d'écoute (signalements) et rendez-vous parent-école", asyn
             await dir.page.getByRole("button", { name: /ouvrir le dossier/i }).click();
             await dir.page.waitForURL((u) => !u.pathname.endsWith("/new"), { timeout: 20_000 });
         });
-        await step(dir, "Cellule d'écoute : dossiers reçus", async () => explorePage(dir, "/dashboard/wellbeing"));
+        await step(dir, "Cellule d'écoute : dossiers reçus (enseignante, élève anonyme, direction)", async () => {
+            await explorePage(dir, "/dashboard/wellbeing");
+            await expect
+                .poll(async () => dir.page.locator('main a[href*="/dashboard/wellbeing/"]:not([href$="/new"])').count(), { message: "les trois signalements sont reçus" })
+                .toBeGreaterThanOrEqual(3);
+        });
         await step(dir, "Dossier : prise en charge", async () => {
             await dir.page.locator('main a[href*="/dashboard/wellbeing/"]:not([href$="/new"])').first().click();
             await dir.page.waitForURL(/wellbeing\/[^/]+$/);

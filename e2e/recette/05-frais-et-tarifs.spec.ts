@@ -91,11 +91,13 @@ for (const [index, ecole] of ECOLES.entries()) {
                     await pause(admin, 1500);
                     expect(await page.getByRole("dialog").count(), "« Nouvelle bourse » doit ouvrir un formulaire").toBeGreaterThan(0);
                 });
-                await step(admin, "Bourses : rapport MEMP", async () => {
+                // À l'étape 05, aucun élève n'est encore inscrit (étape 06) : aucune
+                // bourse ne peut être attribuée, et le rapport MEMP est à juste titre
+                // désactivé (pas de déclaration vide). L'export d'un rapport non vide
+                // n'est pas éprouvé ici.
+                await step(admin, "Bourses : rapport MEMP indisponible tant qu'aucune bourse n'est attribuée", async () => {
                     await goto(admin, "/dashboard/finance/scholarships");
-                    const download = page.waitForEvent("download", { timeout: 8000 }).catch(() => null);
-                    await page.getByRole("button", { name: /rapport memp/i }).click();
-                    expect(await download, "« Rapport MEMP » doit produire un fichier").not.toBeNull();
+                    await expect(page.getByRole("button", { name: /rapport memp/i }), "pas de rapport vide").toBeDisabled();
                 });
                 await step(admin, "Avis de paiement : choix du niveau et du frais (aucun élève encore)", async () => {
                     await goto(admin, "/dashboard/finance/bulk-invoice");

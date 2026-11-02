@@ -130,33 +130,37 @@ test("04 · module coupé puis rétabli (Finance à La Rosée)", async ({ browse
     }
 });
 
-test("05 · cycle retiré puis rétabli (Lycée à Saint-Joseph)", async ({ browser }) => {
+test("05 · retrait d'un cycle qui contient des classes (Lycée à Saint-Joseph)", async ({ browser }) => {
     const admin = await openActor(browser, { etape: ETAPE, scenario: "05-cycle-retire-puis-retabli", name: "admin-saint-joseph", label: "Direction Saint-Joseph" });
     const page = admin.page;
-    const toggleLycee = async () => {
-        await goto(admin, "/dashboard/settings/cycles");
-        await page.getByRole("button", { name: /^Lycée \(second cycle\)/i }).click();
-        await page.getByRole("button", { name: /^enregistrer$/i }).click();
-        await pause(admin, 2500);
-    };
     try {
         await step(admin, "Connexion", async () => loginToDashboard(admin, etat.account("admin-saint-joseph")), { critical: true });
         await step(admin, "Menu avec les trois cycles", async () => {
             await goto(admin, "/dashboard");
             await pause(admin, 2500);
         });
-        await step(admin, "Cycle « Lycée » retiré", toggleLycee);
-        await step(admin, "Menu et création de classe sans le lycée", async () => {
-            await goto(admin, "/dashboard");
-            await pause(admin, 2000);
+        // Saint-Joseph a des classes de Seconde à Terminale (étape 03) : la règle
+        // interdit de retirer un cycle qui contient encore des classes (409), et la
+        // page doit le dire clairement.
+        await step(
+            admin,
+            "Retrait du cycle « Lycée » refusé tant qu'il contient des classes",
+            async () => {
+                await goto(admin, "/dashboard/settings/cycles");
+                await page.getByRole("button", { name: /^Lycée \(second cycle\)/i }).click();
+                await page.getByRole("button", { name: /^enregistrer$/i }).click();
+                await expect(page.getByRole("alert").filter({ hasText: /impossible de retirer un cycle/i })).toBeVisible();
+            },
+            { refusAttendu: true },
+        );
+        await step(admin, "Le lycée reste proposé à la création de classe", async () => {
             await goto(admin, "/dashboard/classes/new");
             await page.getByLabel("Sélectionner le niveau d'étude").click();
             await pause(admin, 1500);
             const niveaux = await page.getByRole("option").allInnerTexts();
             await page.keyboard.press("Escape");
-            expect(niveaux.join(" "), "plus de niveau du lycée proposé").not.toMatch(/Seconde|Première|Terminale/);
+            expect(niveaux.join(" "), "le cycle n'a pas été retiré").toMatch(/Seconde|Terminale/);
         });
-        await step(admin, "Cycle « Lycée » rétabli", toggleLycee);
     } finally {
         await admin.close();
     }
