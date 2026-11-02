@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { FieldErrors } from "react-hook-form";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -117,6 +118,27 @@ export default function NewCoursePage() {
             });
     }, []);
 
+    // Envoi invalide : les messages peuvent être dans un module replié, hors de
+    // vue — l'enseignant cliquait sur « Enregistrer » sans rien voir (recette du
+    // 2026-10-26, « aucun message »). Le premier problème est annoncé ici.
+    function onInvalid(errors: FieldErrors<z.input<typeof courseSchema>>) {
+        const moduleIndex = Array.isArray(errors.modules) ? errors.modules.findIndex((m) => m) : -1;
+        const moduleError = moduleIndex >= 0 ? errors.modules?.[moduleIndex] : undefined;
+        const detail =
+            errors.title?.message ??
+            errors.description?.message ??
+            errors.classSubjectId?.message ??
+            errors.modules?.message ??
+            (moduleError
+                ? `Module ${moduleIndex + 1} : ${moduleError.title?.message ?? moduleError.lessons?.message ?? moduleError.lessons?.root?.message ?? "une leçon est incomplète (titre ou contenu)"}`
+                : undefined);
+        toast({
+            title: "Le cours n'est pas enregistré",
+            description: detail ? `${detail}.` : "Corrigez les champs signalés.",
+            variant: "destructive",
+        });
+    }
+
     async function onSubmit(values: CourseFormValues) {
         setIsSubmitting(true);
         try {
@@ -155,7 +177,7 @@ export default function NewCoursePage() {
                 />
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
                         {/* Course Basic Info */}
                         <Card className="border-border shadow-sm">
                             <CardHeader>

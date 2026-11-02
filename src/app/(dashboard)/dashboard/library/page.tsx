@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
 import { formatDateNumeric } from "@/lib/utils/formatters";
 import {
     Dialog,
@@ -172,7 +171,9 @@ export default function LibraryPage() {
 
     return (
         <PageGuard
-            permission={Permission.REPORT_VIEW}
+            // Garde par rôle : la permission exigée était REPORT_VIEW (rapports),
+            // que l'élève n'a pas — il ne pouvait ni consulter ni emprunter, alors
+            // que l'API d'emprunt lui est destinée (recette du 2026-10-26).
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
         >
             <PageShell>
