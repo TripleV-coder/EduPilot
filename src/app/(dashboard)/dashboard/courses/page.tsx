@@ -5,6 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 
+import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
@@ -24,6 +25,11 @@ type CourseProgress = {
 
 type LessonItem = { id: string; title: string; order?: number; isCompleted?: boolean };
 type ModuleItem = { id: string; title: string; order?: number; lessons?: LessonItem[] };
+/** Réponse de GET /api/courses/[id] (champs utilisés par la liste). */
+type CourseDetail = {
+    modules?: { id: string; title: string; order?: number; lessons?: { id: string; title: string; order?: number }[] }[];
+    completedLessons?: { lessonId: string }[];
+};
 type CourseItem = {
     id: string;
     title: string;
@@ -49,10 +55,13 @@ function CoursesPageContent() {
     const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
     const [modules, setModules] = useState<Record<string, ModuleItem[]>>({});
     const [modulesLoading, setModulesLoading] = useState<string | null>(null);
+    const [moduleErrors, setModuleErrors] = useState<Record<string, string | null>>({});
     const [completingLesson, setCompletingLesson] = useState<string | null>(null);
     const canCreateCourse = ["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
     );
+    // Seul un élève termine une leçon (la route exige un profil élève).
+    const isStudent = session?.user?.role === "STUDENT";
 
     // La progression n'existe que pour l'élève (route réservée au rôle STUDENT).
     const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: CourseProgress[] }>(
@@ -64,6 +73,33 @@ function CoursesPageContent() {
         for (const p of progressData.progress) progressMap[p.courseId] = p;
     }
 
+    const loadModules = async (courseId: string) => {
+        setModulesLoading(courseId);
+        setModuleErrors((prev) => ({ ...prev, [courseId]: null }));
+        try {
+            // Le détail du cours porte ses modules, leurs leçons et, pour l'élève,
+            // les leçons qu'il a terminées (GET /api/modules n'existe pas : 405).
+            const res = await fetch(`/api/courses/${courseId}`, { credentials: "include" });
+            const data = (await res.json().catch(() => ({}))) as CourseDetail & { error?: string };
+            if (!res.ok) throw new Error(data.error || "Impossible de charger les modules de ce cours.");
+            const done = new Set((data.completedLessons ?? []).map((c) => c.lessonId));
+            const mods: ModuleItem[] = (data.modules ?? []).map((m) => ({
+                id: m.id,
+                title: m.title,
+                order: m.order,
+                lessons: (m.lessons ?? []).map((l) => ({ id: l.id, title: l.title, order: l.order, isCompleted: done.has(l.id) })),
+            }));
+            setModules((prev) => ({ ...prev, [courseId]: mods }));
+        } catch (err) {
+            setModuleErrors((prev) => ({
+                ...prev,
+                [courseId]: err instanceof Error ? err.message : "Impossible de charger les modules de ce cours.",
+            }));
+        } finally {
+            setModulesLoading(null);
+        }
+    };
+
     const toggleCourse = async (courseId: string) => {
         if (selectedCourseId === courseId) {
             setSelectedCourseId(null);
@@ -71,34 +107,7 @@ function CoursesPageContent() {
         }
         setSelectedCourseId(courseId);
         if (modules[courseId]) return;
-        setModulesLoading(courseId);
-        try {
-            const res = await fetch(`/api/modules?courseId=${courseId}`, {
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            const mods: ModuleItem[] = Array.isArray(data) ? data : data.modules ?? [];
-            const modsWithLessons = await Promise.all(
-                mods.map(async (m) => {
-                    try {
-                        const lr = await fetch(`/api/modules/${m.id}/lessons`, {
-                            credentials: "include",
-                        });
-                        if (!lr.ok) return m;
-                        const ld = await lr.json();
-                        return { ...m, lessons: Array.isArray(ld) ? ld : ld.lessons ?? [] };
-                    } catch {
-                        return m;
-                    }
-                })
-            );
-            setModules((prev) => ({ ...prev, [courseId]: modsWithLessons }));
-        } catch {
-            setModules((prev) => ({ ...prev, [courseId]: [] }));
-        } finally {
-            setModulesLoading(null);
-        }
+        await loadModules(courseId);
     };
 
     const completeLesson = async (lessonId: string, courseId: string) => {
@@ -108,7 +117,10 @@ function CoursesPageContent() {
                 method: "POST",
                 credentials: "include",
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error || "La leçon n'a pas pu être marquée comme terminée.");
+            }
             setModules((prev) => ({
                 ...prev,
                 [courseId]: (prev[courseId] ?? []).map((m) => ({
@@ -120,8 +132,8 @@ function CoursesPageContent() {
             }));
             mutateProgress();
             trackUxEvent("lesson_completed", { lessonId, courseId });
-        } catch {
-            // silent
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "La leçon n'a pas pu être marquée comme terminée.");
         } finally {
             setCompletingLesson(null);
         }
@@ -437,6 +449,15 @@ function CoursesPageContent() {
                                                         Chargement des modules…
                                                     </span>
                                                 </div>
+                                            ) : moduleErrors[course.id] ? (
+                                                <div className="flex flex-wrap items-center gap-3" role="alert">
+                                                    <p style={{ margin: 0, fontSize: 12, color: "var(--eduflow-danger-700)" }}>
+                                                        {moduleErrors[course.id]}
+                                                    </p>
+                                                    <Button variant="secondary" size="sm" onClick={() => void loadModules(course.id)}>
+                                                        Réessayer
+                                                    </Button>
+                                                </div>
                                             ) : modules[course.id]?.length === 0 ? (
                                                 <p
                                                     style={{
@@ -449,6 +470,13 @@ function CoursesPageContent() {
                                                 </p>
                                             ) : (
                                                 <div className="flex flex-col gap-2">
+                                                    <Link
+                                                        href={`/dashboard/courses/${course.id}`}
+                                                        className="self-start text-xs font-semibold"
+                                                        style={{ color: "var(--brand-700)" }}
+                                                    >
+                                                        Ouvrir le cours complet →
+                                                    </Link>
                                                     {modules[course.id]?.map((mod) => (
                                                         <div
                                                             key={mod.id}
@@ -480,7 +508,9 @@ function CoursesPageContent() {
                                                                             key={lesson.id}
                                                                             className="flex items-center justify-between py-1.5"
                                                                         >
-                                                                            <span
+                                                                            <Link
+                                                                                href={`/dashboard/courses/${course.id}/lessons/${lesson.id}`}
+                                                                                className="hover:underline"
                                                                                 style={{
                                                                                     fontSize: 12,
                                                                                     color:
@@ -488,8 +518,8 @@ function CoursesPageContent() {
                                                                                 }}
                                                                             >
                                                                                 {lesson.title}
-                                                                            </span>
-                                                                            {lesson.isCompleted ? (
+                                                                            </Link>
+                                                                            {!isStudent ? null : lesson.isCompleted ? (
                                                                                 <Badge
                                                                                     variant="success"
                                                                                     size="sm"

@@ -106,7 +106,7 @@ export default function RootDashboard() {
 
         {/* Sans ce cas, une panne affichait un réseau à 0 établissement. */}
         {error ? (
-          <PageError
+          <PageError error={error}
             message="Impossible de charger les métriques réseau."
             onRetry={() => void mutate()}
           />

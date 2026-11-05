@@ -346,7 +346,7 @@ export default function CalendarPage() {
                             ) : null}
 
                             {eventsError || holidaysError || publicHolidaysError ? (
-                                <PageError message="Une partie du calendrier n'a pas pu être chargée." />
+                                <PageError error={publicHolidaysError} message="Une partie du calendrier n'a pas pu être chargée." />
                             ) : null}
                         </div>
                     </div>
@@ -821,7 +821,7 @@ function ListView({
 
             {loading ? <PageLoading label="Chargement…" /> : null}
 
-            {error ? <PageError message={error} /> : null}
+            {error ? <PageError error={error} message={error} /> : null}
 
             {isEmpty ? (
                 <PageEmpty

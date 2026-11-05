@@ -287,7 +287,7 @@ function FinanceDashboardPageContent() {
                 </FilterBar>
 
                 {dashError ? (
-                    <PageError
+                    <PageError error={dashError}
                         message="Impossible de récupérer les indicateurs financiers."
                         onRetry={() => void mutateDash()}
                     />

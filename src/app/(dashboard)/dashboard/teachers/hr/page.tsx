@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -117,6 +119,10 @@ function TeachersHRPageContent() {
         load();
     }, []);
 
+    const { data: session } = useSession();
+    // Paie : personnel de l'école (le super-admin n'y a pas accès, souveraineté).
+    const canOpenPayroll = roleSatisfies(session?.user?.role, ["SCHOOL_ADMIN", "DIRECTOR"]);
+
     const partitioned = useMemo(() => {
         const titulaires: Teacher[] = [];
         const vacataires: Teacher[] = [];
@@ -167,9 +173,13 @@ function TeachersHRPageContent() {
                     ]}
                     actions={
                         <>
-                            <Button variant="secondary" icon="download" disabled>
-                                Fiche de paie
-                            </Button>
+                            {canOpenPayroll ? (
+                                <Link href="/dashboard/staff/payroll" style={{ textDecoration: "none" }}>
+                                    <Button variant="secondary" icon="download">
+                                        Fiches de paie
+                                    </Button>
+                                </Link>
+                            ) : null}
                             <Link
                                 href="/dashboard/teachers/new"
                                 style={{ textDecoration: "none" }}

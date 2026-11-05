@@ -101,7 +101,7 @@ function ExamDetailPageContent() {
     <>
       <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger cet examen." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger cet examen." onRetry={() => void reloadPage()} />
                 ) : null}
 
         <div className="flex items-center gap-4">

@@ -188,7 +188,7 @@ function ReformsPageContent() {
                 )}
 
                 {loadError ? (
-                    <PageError message={loadError} onRetry={() => void loadConfigs()} />
+                    <PageError error={loadError} message={loadError} onRetry={() => void loadConfigs()} />
                 ) : !loaded ? (
                     <PageLoading label="Chargement des réformes…" />
                 ) : (

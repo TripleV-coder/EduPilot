@@ -88,7 +88,14 @@ function NotificationsSettingsPageContent() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    const validatedPreferences = notificationPreferencesSchema.parse(preferences);
+    // Validation dans le try : un échec laissait le bouton bloqué sur « Enregistrement… ».
+    const parsed = notificationPreferencesSchema.safeParse(preferences);
+    if (!parsed.success) {
+      setIsSaving(false);
+      toast.error("Préférences invalides : vérifiez les choix puis réessayez.");
+      return;
+    }
+    const validatedPreferences = parsed.data;
 
     const currentPreferences =
       profileData?.preferences && typeof profileData.preferences === "object"
@@ -136,7 +143,7 @@ function NotificationsSettingsPageContent() {
             la personne croyait ses réglages perdus, ou les réenregistrait
             par-dessus les vrais. */}
         {profileError ? (
-          <PageError
+          <PageError error={profileError}
             message="Impossible de charger vos préférences."
             onRetry={() => void mutate()}
           />

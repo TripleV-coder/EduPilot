@@ -209,7 +209,7 @@ export default function RootPlansPage() {
                     </div>
                 </div>
 
-                {error ? <PageError message="Impossible de charger les formules." onRetry={() => void mutate()} /> : null}
+                {error ? <PageError error={error} message="Impossible de charger les formules." onRetry={() => void mutate()} /> : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <MetricCardPro label="Formules" value={plans.length} hint="Catalogue complet" icon={Zap} tone="primary" />

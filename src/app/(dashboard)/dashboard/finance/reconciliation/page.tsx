@@ -159,7 +159,7 @@ function FinanceReconciliationPageContent() {
                 />
 
             {loadError ? (
-                <PageError message="Impossible de charger les paiements à rapprocher." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger les paiements à rapprocher." onRetry={() => void reloadPage()} />
             ) : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

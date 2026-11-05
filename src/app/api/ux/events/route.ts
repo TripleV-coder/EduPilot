@@ -34,7 +34,7 @@ export const POST = createApiHandler(async (request, context) => {
     const parsed = uxEventSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid telemetry payload" }, { status: 400 });
+      return NextResponse.json({ error: "Événement de mesure invalide." }, { status: 400 });
     }
 
     // sendBeacon n'envoie pas toujours les cookies de session : auth best-effort

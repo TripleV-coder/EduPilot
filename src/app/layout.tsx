@@ -77,14 +77,23 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "@/components/ui/toaster";
+import { headers } from "next/headers";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    // Nonce CSP de la requête (src/proxy.ts) : seul un script porteur du nonce s'exécute.
+    const nonce = (await headers()).get("x-nonce") ?? undefined;
     return (
-        <html lang="fr" className={`${figtree.variable} ${eduflowMono.variable}`}>
+        // suppressHydrationWarning : la classe « dark » est posée par le script
+        // de démarrage avant l'hydratation (thème mémorisé, sans éclair).
+        <html lang="fr" className={`${figtree.variable} ${eduflowMono.variable}`} suppressHydrationWarning>
+            <head>
+                <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+            </head>
             <body className="font-body antialiased">
                 <SkipToContent />
                 <SessionProvider>

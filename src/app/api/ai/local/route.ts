@@ -83,7 +83,7 @@ export const GET = createApiHandler(async (request, context) => {
     } catch (error) {
     logger.error("AI status error:", error as Error);
     return NextResponse.json(
-      { error: "Failed to get AI status" },
+      { error: "État du service d'IA indisponible." },
       { status: 500 }
     );
   }
@@ -202,7 +202,7 @@ export const POST = createApiHandler(async (request, context) => {
 
     logger.error("AI local API error:", error as Error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Erreur interne du service d'IA." },
       { status: 500 }
     );
   }

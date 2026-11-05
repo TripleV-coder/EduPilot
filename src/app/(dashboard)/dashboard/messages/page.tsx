@@ -378,7 +378,7 @@ function MessagesPageContent() {
                 />
 
                 {error ? (
-                    <PageError message={error} onRetry={() => void refresh()} />
+                    <PageError error={error} message={error} onRetry={() => void refresh()} />
                 ) : null}
 
                 {composing ? (

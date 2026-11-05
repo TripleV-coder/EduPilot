@@ -102,7 +102,7 @@ function LeavesContent() {
     }
 
     if (isLoading) return <PageLoading label="Chargement des congés…" />;
-    if (error) return <PageError message="Impossible de charger les demandes de congé." />;
+    if (error) return <PageError error={error} message="Impossible de charger les demandes de congé." />;
     if (!data) return null;
 
     const { canManage, requests } = data;

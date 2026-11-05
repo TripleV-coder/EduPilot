@@ -37,6 +37,7 @@ import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { StudentProfile360 } from "@/components/students/student-profile-360";
 import { ParentLinkCodeDialog } from "@/components/students/parent-link-code-dialog";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { FetchError } from "@/lib/http-error";
 
 type StudentDetail = {
   id: string;
@@ -91,6 +92,9 @@ function StudentDetailPageContent() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Erreur d'origine (code HTTP) : un refus ou une fiche non rattachée ne
+  // s'affiche plus comme une panne à « réessayer » (audit AUD-12).
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [fromListTransition, setFromListTransition] = useState(false);
   const { data: sessionData } = useSession();
@@ -114,16 +118,22 @@ function StudentDetailPageContent() {
 
   const fetchStudent = async () => {
     setLoading(true);
+    // Un nouvel essai efface l'erreur précédente (elle restait affichée après un succès).
+    setError(null);
+    setLoadError(null);
     try {
       const r = await fetch("/api/students/" + id, { credentials: "include" });
       if (!r.ok) {
-        if (r.status === 404) throw new Error("Élève introuvable");
-        throw new Error("Erreur de chargement");
+        const body = (await r.json().catch(() => ({}))) as { error?: string };
+        if (r.status === 404) throw new FetchError(404, "Élève introuvable, ou fiche non rattachée à votre compte.");
+        if (r.status === 403) throw new FetchError(403, body.error || "Vous n'avez pas accès à cette fiche.");
+        throw new FetchError(r.status, body.error || "Erreur de chargement de la fiche élève.");
       }
       const d = await r.json();
       setStudent(d);
     } catch (e) {
       setError(getErrorMessage(e));
+      setLoadError(e);
     } finally {
       setLoading(false);
     }
@@ -230,7 +240,7 @@ function StudentDetailPageContent() {
           }
         />
 
-        {error && <PageError message={error} onRetry={fetchStudent} />}
+        {error && <PageError error={loadError} message={error} onRetry={fetchStudent} />}
         
         {loading && !error && <PageLoading label="Chargement de la fiche élève…" />}
         

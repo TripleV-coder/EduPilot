@@ -285,7 +285,7 @@ function TeacherDetailPageContent() {
         </div>
 
         {error ? (
-          <PageError message="Impossible de charger la fiche enseignant." onRetry={() => mutate(`/api/teachers/${teacherId}`)} />
+          <PageError error={error} message="Impossible de charger la fiche enseignant." onRetry={() => mutate(`/api/teachers/${teacherId}`)} />
         ) : null}
 
         {isLoading || !teacher ? (

@@ -82,7 +82,7 @@ function FamilyFinance() {
     const router = useRouter();
     const pathname = usePathname();
 
-    if (error) return <PageError message="Impossible de charger la situation de vos enfants." onRetry={() => void mutate()} />;
+    if (error) return <PageError error={error} message="Impossible de charger la situation de vos enfants." onRetry={() => void mutate()} />;
     if (isLoading || !data) return <PageLoading label="Chargement de vos enfants…" />;
 
     const children = data.children;
@@ -160,7 +160,7 @@ function ChildPanel({ studentId, onChanged }: { studentId: string; onChanged: ()
         return () => window.removeEventListener("pageshow", onShow);
     }, [mutate]);
 
-    if (error) return <PageError message="Impossible de charger la situation de cet enfant." onRetry={() => void mutate()} />;
+    if (error) return <PageError error={error} message="Impossible de charger la situation de cet enfant." onRetry={() => void mutate()} />;
     if (isLoading || !data) return <PageLoading label="Chargement de la situation…" />;
 
     const { child, totals, online } = data;

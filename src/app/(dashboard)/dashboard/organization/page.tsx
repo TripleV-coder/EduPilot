@@ -299,7 +299,7 @@ export default function OrganizationDashboardPage() {
   if (organizationsError) {
     return (
       <div className="mx-auto max-w-4xl py-16">
-        <PageError
+        <PageError error={organizationsError}
           message="Impossible de charger la liste des organisations."
           onRetry={() => void reloadOrganizations()}
         />

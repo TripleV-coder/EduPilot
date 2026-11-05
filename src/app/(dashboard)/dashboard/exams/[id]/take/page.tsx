@@ -226,7 +226,7 @@ function TakeExamPageContent() {
         <>
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 {/* Header with Timer */}

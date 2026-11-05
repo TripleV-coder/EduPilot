@@ -186,7 +186,7 @@ export default function LMSPage() {
                 {/* Sans ce cas, une panne affichait « aucun devoir » à un
                     élève qui en avait. */}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les devoirs."
                         onRetry={() => void mutate()}
                     />

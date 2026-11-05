@@ -248,7 +248,7 @@ function ScholarshipsPageContent() {
                     }
                 />
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 <div
                     style={{

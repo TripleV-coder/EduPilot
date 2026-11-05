@@ -8,10 +8,11 @@ import { logger } from "@/lib/utils/logger";
 
 export default function DashboardError({
     error,
-    reset,
+    retry,
 }: {
     error: Error & { digest?: string };
-    reset: () => void;
+    /** Recharge les données du segment puis le ré-affiche (Next ≥ 16.3 ; `reset` ré-affichait sans recharger). */
+    retry: () => void;
 }) {
     useEffect(() => {
         logger.error("Erreur de rendu interceptée", error, {
@@ -36,7 +37,7 @@ export default function DashboardError({
 
             <div className="flex flex-col sm:flex-row gap-4">
                 <Button
-                    onClick={() => reset()}
+                    onClick={() => retry()}
                     variant="default"
                     className="gap-2"
                 >

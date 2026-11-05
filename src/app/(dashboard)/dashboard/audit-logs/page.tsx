@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
@@ -124,7 +125,10 @@ function AuditLogsPageContent() {
         setExporting(true);
         try {
             const res = await fetch("/api/audit-logs/export");
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error || "L'export du journal a échoué. Réessayez.");
+            }
             const csv = await res.text();
             const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
@@ -133,8 +137,8 @@ function AuditLogsPageContent() {
             a.download = `audit_logs_${new Date().toISOString().split("T")[0]}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch {
-            // Silent — page header already shows the count, error state is rare here.
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "L'export du journal a échoué. Réessayez.");
         } finally {
             setExporting(false);
         }

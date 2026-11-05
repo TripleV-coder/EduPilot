@@ -106,7 +106,7 @@ export const POST = createApiHandler(
                     !canAccessSchool(session, fee.schoolId)
                 )
             ) {
-                return NextResponse.json({ error: "Forbidden: cross-tenant access denied" }, { status: 403 });
+                return NextResponse.json({ error: "Cet élève ne relève pas de votre établissement." }, { status: 403 });
             }
 
             // Intégrité (lot 3f) : un parent d'enfants dans deux écoles ne peut
@@ -129,12 +129,12 @@ export const POST = createApiHandler(
 
                 const childrenIds = parentProfile?.parentStudents.map((child) => child.studentId) ?? [];
                 if (!childrenIds.includes(studentId)) {
-                    return NextResponse.json({ error: "Forbidden: not your child" }, { status: 403 });
+                    return NextResponse.json({ error: "Cet élève n'est pas rattaché à votre compte parent." }, { status: 403 });
                 }
             }
 
             if (session.user.role === "STUDENT" && studentProfile.userId !== session.user.id) {
-                return NextResponse.json({ error: "Forbidden: you can only pay for your own account" }, { status: 403 });
+                return NextResponse.json({ error: "Vous ne pouvez payer que pour votre propre compte." }, { status: 403 });
             }
 
             // Famille : seulement un frais qui concerne l'enfant (son année, son
@@ -341,7 +341,7 @@ export const POST = createApiHandler(
         } catch (error) {
             if (error instanceof ServiceUnavailableError) return onlinePaymentPausedResponse(error);
             logger.error("Payment initiation failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/initiate" });
-            return NextResponse.json({ error: "Payment initiation failed" }, { status: 500 });
+            return NextResponse.json({ error: "Le paiement n'a pas pu être préparé. Réessayez plus tard ou réglez à l'économat." }, { status: 500 });
         }
     },
     { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "STUDENT"] }

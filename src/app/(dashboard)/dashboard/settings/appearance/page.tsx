@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
+import { isThemeValue, persistTheme, readStoredTheme, type ThemeValue } from "@/lib/theme";
 import { PageGuard } from "@/components/guard/page-guard";
 import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
@@ -13,26 +14,11 @@ import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 
-type ThemeValue = "light" | "dark" | "system";
 type DisplayMode = "comfort" | "dense" | "focus";
 
 type ProfileResponse = {
     preferences?: Record<string, unknown> | null;
 };
-
-function applyTheme(theme: ThemeValue) {
-    const root = document.documentElement;
-    if (theme === "dark") {
-        root.classList.add("dark");
-        return;
-    }
-    if (theme === "light") {
-        root.classList.remove("dark");
-        return;
-    }
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    root.classList.toggle("dark", prefersDark);
-}
 
 const DISPLAY_MODES: { id: DisplayMode; title: string; description: string; icon: IconName }[] = [
     {
@@ -93,14 +79,11 @@ function AppearanceSettingsPageContent() {
                 ? (profileData.preferences.appearance as Record<string, unknown>)
                 : null;
         const serverTheme = appearance?.theme;
-        return serverTheme === "light" || serverTheme === "dark" || serverTheme === "system"
-            ? serverTheme
-            : "system";
+        // Profil d'abord, puis le choix mémorisé sur cet appareil : « système »
+        // par défaut écrasait le thème choisi depuis la barre du haut.
+        if (isThemeValue(serverTheme)) return serverTheme;
+        return readStoredTheme() ?? "system";
     }, [profileData]);
-
-    useEffect(() => {
-        applyTheme(selectedTheme);
-    }, [selectedTheme]);
 
     const persistPreferences = async (partialAppearance: Record<string, unknown>) => {
         const currentPreferences =
@@ -137,7 +120,7 @@ function AppearanceSettingsPageContent() {
     };
 
     const handleThemeChange = async (nextTheme: ThemeValue) => {
-        applyTheme(nextTheme);
+        persistTheme(nextTheme);
         await persistPreferences({ theme: nextTheme });
     };
 
@@ -167,7 +150,7 @@ function AppearanceSettingsPageContent() {
                 {/* Sans ce cas, une panne affichait le thème par défaut : la
                     personne croyait son choix perdu. */}
                 {profileError ? (
-                    <PageError
+                    <PageError error={profileError}
                         message="Impossible de charger vos préférences d'affichage."
                         onRetry={() => void mutate()}
                     />

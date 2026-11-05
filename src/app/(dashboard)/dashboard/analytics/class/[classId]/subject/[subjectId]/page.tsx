@@ -103,7 +103,7 @@ export default function SubjectAnalyticsPage() {
         return (
             <PageGuard permission={Permission.ANALYTICS_VIEW}>
                 <PageShell>
-                    <PageError message="Erreur de chargement des données analytiques." onRetry={() => window.location.reload()} />
+                    <PageError error={error} message="Erreur de chargement des données analytiques." onRetry={() => window.location.reload()} />
                 </PageShell>
             </PageGuard>
         );

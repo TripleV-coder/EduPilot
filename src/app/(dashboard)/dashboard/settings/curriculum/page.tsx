@@ -180,7 +180,7 @@ function CurriculumConfigPageContent() {
                 />
 
             {loadError ? (
-                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
             ) : null}
 
                 {/* Class selector */}

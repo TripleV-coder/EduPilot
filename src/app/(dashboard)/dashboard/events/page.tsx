@@ -193,7 +193,7 @@ function EventsPageContent() {
                     }
                 />
 
-                {error ? <PageError message={error} onRetry={fetchEvents} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={fetchEvents} /> : null}
 
                 {successMsg ? (
                     <Card

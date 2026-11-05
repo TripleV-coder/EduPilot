@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { FieldErrors } from "react-hook-form";
@@ -84,6 +85,8 @@ export default function NewCoursePage() {
 
 function NewCoursePageContent() {
     const router = useRouter();
+    const { data: session } = useSession();
+    const role = session?.user?.role;
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [mySubjects, setMySubjects] = useState<ClassSubjectWithTeacher[]>([]);
@@ -117,15 +120,23 @@ function NewCoursePageContent() {
     });
 
     useEffect(() => {
+        if (!role) return;
+        // L'enseignant choisit parmi SES matières ; la direction parmi celles de
+        // l'école (me/subjects lui renvoyait une liste vide : création impossible).
+        const endpoint = role === "TEACHER" ? "/api/me/subjects" : "/api/class-subjects";
         // Sur une erreur, le corps { error } arrivait dans l'état et
         // `mySubjects.map` faisait planter la page.
-        fetch("/api/me/subjects")
-            .then(res => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        fetch(endpoint)
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error((data as { error?: string }).error || "Impossible de charger les matières.");
+                return data;
+            })
             .then(data => setMySubjects(Array.isArray(data) ? data : []))
-            .catch(() => {
-                toast({ title: "Matières indisponibles", description: "Impossible de charger vos matières. Rechargez la page.", variant: "destructive" });
+            .catch((err: unknown) => {
+                toast({ title: "Matières indisponibles", description: err instanceof Error ? err.message : "Impossible de charger les matières. Rechargez la page.", variant: "destructive" });
             });
-    }, []);
+    }, [role, toast]);
 
     // Envoi invalide : les messages peuvent être dans un module replié, hors de
     // vue — l'enseignant cliquait sur « Enregistrer » sans rien voir (recette du

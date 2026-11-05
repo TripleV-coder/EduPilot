@@ -227,7 +227,7 @@ export default function DisciplinePage() {
         >
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 <PageHeader

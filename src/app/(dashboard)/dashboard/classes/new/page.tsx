@@ -177,7 +177,7 @@ export default function NewClassPage() {
                             <Form {...form}>
                                 {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
                                 {loadError ? (
-                                    <PageError message="Impossible de charger les données nécessaires à la création d'une classe." onRetry={() => void reloadOptions()} />
+                                    <PageError error={loadError} message="Impossible de charger les données nécessaires à la création d'une classe." onRetry={() => void reloadOptions()} />
                                 ) : null}
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                     <FormField

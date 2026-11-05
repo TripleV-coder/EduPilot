@@ -231,7 +231,7 @@ function ParentsPageContent() {
 
                 {loading ? <PageLoading label="Chargement des parents…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les parents."
                         onRetry={() => void mutateParents()}
                     />

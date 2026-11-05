@@ -162,7 +162,7 @@ function IncidentDetailsPageContent() {
         <>
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger cet incident." onRetry={() => void mutate()} />
+                    <PageError error={loadError} message="Impossible de charger cet incident." onRetry={() => void mutate()} />
                 ) : null}
 
                 <PageHeader

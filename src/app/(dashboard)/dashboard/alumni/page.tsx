@@ -128,7 +128,7 @@ function AlumniPageContent() {
                     }
                 />
 
-                {error ? <PageError message={error} onRetry={load} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={load} /> : null}
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }} className="kpi-grid">
                     <MetricCard label="Anciens élèves" value={loading ? "…" : String(data?.total ?? 0)} icon="users" variant="neutral" />

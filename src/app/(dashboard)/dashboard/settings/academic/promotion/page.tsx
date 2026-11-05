@@ -238,7 +238,7 @@ function PromotionEngineContent() {
         />
 
             {loadError ? (
-                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
             ) : null}
       </div>
 
@@ -288,7 +288,7 @@ function PromotionEngineContent() {
             </CardHeader>
             <CardContent className="p-4">
               {yearsError ? (
-                <PageError message="Impossible de charger les années académiques." onRetry={() => void reloadYears()} />
+                <PageError error={yearsError} message="Impossible de charger les années académiques." onRetry={() => void reloadYears()} />
               ) : !academicYears ? (
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

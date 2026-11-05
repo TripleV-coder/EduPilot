@@ -357,6 +357,6 @@ describe("/api/ai/local", () => {
     vi.mocked(aiService.processChat).mockRejectedValueOnce(new Error("secret"));
     const res = await post("chat", { message: "a" });
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "Internal server error" });
+    expect(await res.json()).toEqual({ error: "Erreur interne du service d'IA." });
   });
 });

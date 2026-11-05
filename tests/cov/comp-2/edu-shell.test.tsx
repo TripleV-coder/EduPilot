@@ -13,6 +13,10 @@ const sidebar = vi.hoisted(() => ({
     isMobileOpen: false,
     toggle: (() => {}) as () => void,
     setIsMobileOpen: ((_v: boolean) => {}) as (v: boolean) => void,
+    // Comme le vrai contexte : le thème choisi est appliqué au document.
+    setThemePreference: (async (theme: string) => {
+        document.documentElement.classList.toggle("dark", theme === "dark");
+    }) as (theme: "light" | "dark" | "system") => Promise<void>,
 }));
 vi.mock("@/components/dashboard/DashboardLayoutClient", () => ({
     useSidebar: () => sidebar,

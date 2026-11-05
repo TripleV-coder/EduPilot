@@ -8,10 +8,11 @@ import { logger } from "@/lib/utils/logger";
 
 export default function FinanceError({
     error,
-    reset,
+    retry,
 }: {
     error: Error & { digest?: string };
-    reset: () => void;
+    /** Recharge les données du segment puis le ré-affiche (Next ≥ 16.3 ; `reset` ré-affichait sans recharger). */
+    retry: () => void;
 }) {
     useEffect(() => {
         logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/finance", digest: error.digest });
@@ -29,7 +30,7 @@ export default function FinanceError({
                 Une erreur est survenue lors du chargement des données financières. Veuillez réessayer.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-                <Button onClick={() => reset()} variant="default" className="gap-2">
+                <Button onClick={() => retry()} variant="default" className="gap-2">
                     <RefreshCcw className="w-4 h-4" />
                     Réessayer
                 </Button>

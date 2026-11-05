@@ -159,7 +159,7 @@ function PaymentNoticesPageContent() {
                 />
 
                 {listsError ? (
-                    <PageError
+                    <PageError error={listsError}
                         message={getErrorMessage(listsError)}
                         onRetry={() => {
                             void levels.mutate();

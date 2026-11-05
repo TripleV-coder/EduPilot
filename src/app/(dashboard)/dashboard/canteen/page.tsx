@@ -244,7 +244,7 @@ function CanteenPageContent() {
                 {view === "menu" ? (
                     <div className="flex flex-col gap-4">
                         {loading ? <PageLoading label="Chargement du menu…" /> : null}
-                        {error ? <PageError message={error} onRetry={() => void fetchMenus()} /> : null}
+                        {error ? <PageError error={error} message={error} onRetry={() => void fetchMenus()} /> : null}
                         {!loading && !error && menus.length === 0 ? (
                             <PageEmpty
                                 icon="book"

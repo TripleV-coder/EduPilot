@@ -95,7 +95,7 @@ function AttendanceContent() {
     }
 
     if (isLoading) return <PageLoading label="Chargement de la présence…" />;
-    if (error) return <PageError message="Impossible de charger la présence du personnel." />;
+    if (error) return <PageError error={error} message="Impossible de charger la présence du personnel." />;
     if (!data) return null;
 
     const { summary, canManage, roster } = data;

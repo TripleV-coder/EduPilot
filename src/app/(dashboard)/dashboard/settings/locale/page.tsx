@@ -137,7 +137,7 @@ function LocaleSettingsPageContent() {
                 />
 
             {loadError ? (
-                <PageError message="Impossible de charger vos préférences de langue." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger vos préférences de langue." onRetry={() => void reloadPage()} />
             ) : null}
 
                 <Card padding={0}>

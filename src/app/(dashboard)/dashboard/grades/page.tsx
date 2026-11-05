@@ -251,7 +251,7 @@ function GradesContent() {
                         statistique disponible », que l'enseignant pouvait lire
                         comme « aucune note saisie ». */}
                     {statsError ? (
-                        <PageError
+                        <PageError error={statsError}
                             message="Impossible de calculer les statistiques."
                             onRetry={() => void reloadStats()}
                         />

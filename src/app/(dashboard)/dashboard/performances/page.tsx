@@ -220,7 +220,7 @@ function PerformancesPageContent() {
 
                 {loading ? <PageLoading label="Chargement des performances…" /> : null}
 
-                {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={() => window.location.reload()} /> : null}
 
                 {!loading && !error && stats ? (
                     <div className="space-y-6">

@@ -62,7 +62,7 @@ export default function SchoolsPage() {
 
                 {isLoading ? <PageLoading label="Chargement des établissements…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message={error.message || "Erreur de chargement des établissements"}
                         onRetry={() => void mutate()}
                     />

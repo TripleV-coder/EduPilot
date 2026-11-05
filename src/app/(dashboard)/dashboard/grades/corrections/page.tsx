@@ -113,7 +113,7 @@ export default function GradeCorrectionsPage() {
                         </div>
                     </div>
                     <div className="grid gap-3 px-5 py-5">
-                        {error ? <PageError message="Impossible de charger les réclamations." onRetry={() => void mutate()} /> : null}
+                        {error ? <PageError error={error} message="Impossible de charger les réclamations." onRetry={() => void mutate()} /> : null}
                         {isLoading ? <p style={{ margin: 0, fontSize: 13 }}>Chargement…</p> : null}
                         {data && data.data.length === 0 ? (
                             <p style={{ margin: 0, fontSize: 13, color: "var(--eduflow-text-secondary)" }}>

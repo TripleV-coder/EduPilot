@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import * as React from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -124,7 +125,7 @@ function AccountingPageContent() {
             if (!res.ok) throw new Error(body.error || "Impossible d'ouvrir l'exercice");
             await mutate();
         } catch (err) {
-            window.alert(err instanceof Error ? err.message : "Impossible d'ouvrir l'exercice");
+            toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir l'exercice");
         } finally {
             setOpening(false);
         }

@@ -94,7 +94,7 @@ export default function RolesPermissionsPage() {
                     chaque rôle : un écran d'établissement vide, alors que rien
                     ne l'était. */}
                 {roleCountsError ? (
-                    <PageError
+                    <PageError error={roleCountsError}
                         message="Impossible de charger le nombre d'utilisateurs par rôle."
                         onRetry={() => void reloadRoleCounts()}
                     />

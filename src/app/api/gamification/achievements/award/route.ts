@@ -17,7 +17,7 @@ export const POST = createApiHandler(async (request, context) => {
     try {
         const parsed = awardSchema.safeParse(await request.json());
         if (!parsed.success) {
-            return NextResponse.json({ error: "Missing userId or achievementCode" }, { status: 400 });
+            return NextResponse.json({ error: "Indiquez l'élève et le badge à attribuer." }, { status: 400 });
         }
         const { userId, achievementCode } = parsed.data;
 

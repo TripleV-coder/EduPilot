@@ -104,7 +104,7 @@ function SystemBackupPageContent() {
                 {/* Sans ce cas, une panne affichait « aucune sauvegarde » —
                     exactement ce qu'on ne veut pas croire à tort. */}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger la liste des sauvegardes."
                         onRetry={() => void reloadBackups()}
                     />

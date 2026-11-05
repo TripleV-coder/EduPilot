@@ -295,7 +295,7 @@ function StudentsPageContent() {
 
                 {loading ? <PageLoading label="Chargement des élèves…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les élèves."
                         onRetry={() => void mutateStudents()}
                     />

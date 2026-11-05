@@ -10,6 +10,7 @@ import { fetcher } from "@/lib/fetcher";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 import { ModuleGuard } from "@/components/guard/module-guard";
 import { SchoolScopedContent } from "@/components/dashboard/school-scoped-content";
+import { isThemeValue, persistTheme, readStoredTheme, type ThemeValue } from "@/lib/theme";
 
 type SidebarContextType = {
     isOpen: boolean;
@@ -21,6 +22,8 @@ type SidebarContextType = {
     setDensity: (density: "comfort" | "dense") => void;
     isFocusMode: boolean;
     toggleFocusMode: () => void;
+    /** Applique, mémorise et enregistre sur le profil le thème choisi. */
+    setThemePreference: (theme: ThemeValue) => Promise<void>;
 };
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -81,30 +84,48 @@ export function DashboardLayoutClient({
             currentPreferences.appearance && typeof currentPreferences.appearance === "object"
                 ? currentPreferences.appearance
                 : {};
-        const nextPreferences = {
-            ...currentPreferences,
-            appearance: {
-                ...currentAppearance,
-                density: nextDensity,
-                focusMode: nextFocusMode,
-                displayMode: nextFocusMode ? "focus" : nextDensity,
-            },
+        const nextAppearance = {
+            ...currentAppearance,
+            density: nextDensity,
+            focusMode: nextFocusMode,
+            displayMode: nextFocusMode ? "focus" : nextDensity,
         };
+        await saveAppearance(currentPreferences, nextAppearance);
+    };
 
+    /**
+     * Enregistre la seule section « appearance » : le serveur fusionne les clés
+     * de premier niveau, et renvoyer toutes les préférences (copie peut-être
+     * périmée) écrasait consentements et notifications changés ailleurs.
+     */
+    const saveAppearance = async (currentPreferences: Record<string, unknown>, nextAppearance: Record<string, unknown>) => {
         if (profileData) {
-            void mutateProfile({ ...profileData, preferences: nextPreferences }, false);
+            void mutateProfile({ ...profileData, preferences: { ...currentPreferences, appearance: nextAppearance } }, false);
         }
-
         try {
             await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ preferences: nextPreferences }),
+                body: JSON.stringify({ preferences: { appearance: nextAppearance } }),
             });
             void mutateProfile();
         } catch {
-            // Keep the local preference even if server persistence fails.
+            // La préférence locale reste appliquée si l'enregistrement échoue.
         }
+    };
+
+    /** Thème choisi depuis la barre du haut : appliqué, mémorisé et enregistré sur le profil. */
+    const setThemePreference = async (theme: ThemeValue) => {
+        persistTheme(theme);
+        const currentPreferences =
+            profileData?.preferences && typeof profileData.preferences === "object"
+                ? profileData.preferences
+                : {};
+        const currentAppearance =
+            currentPreferences.appearance && typeof currentPreferences.appearance === "object"
+                ? currentPreferences.appearance
+                : {};
+        await saveAppearance(currentPreferences, { ...currentAppearance, theme });
     };
 
     useEffect(() => {
@@ -130,6 +151,13 @@ export function DashboardLayoutClient({
         if (!appearance) {
             hasLoadedPreferencesRef.current = true;
             return;
+        }
+
+        // Le thème du profil suit le compte d'un appareil à l'autre : appliqué et
+        // mémorisé pour que le script de démarrage le reprenne au prochain chargement.
+        const serverTheme = (appearance as Record<string, unknown>).theme;
+        if (isThemeValue(serverTheme) && serverTheme !== readStoredTheme()) {
+            persistTheme(serverTheme);
         }
 
         const savedDensity = localStorage.getItem("edupilot-density");
@@ -179,8 +207,9 @@ export function DashboardLayoutClient({
             setDensity: setDensityMode,
             isFocusMode,
             toggleFocusMode,
+            setThemePreference,
         }),
-        [isOpen, isMobileOpen, density, isFocusMode]
+        [isOpen, isMobileOpen, density, isFocusMode, profileData]
     );
 
     useEffect(() => {

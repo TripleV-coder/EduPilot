@@ -223,7 +223,7 @@ function AnnouncementsPageContent() {
                     }
                 />
 
-                {error ? <PageError message={error} onRetry={() => void fetchAnnouncements()} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={() => void fetchAnnouncements()} /> : null}
 
                 {successMsg ? (
                     <Card

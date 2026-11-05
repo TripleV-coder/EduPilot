@@ -202,7 +202,7 @@ function TemplatesPageContent() {
     return (
       <>
         <PageShell className="eduflow-scope pb-12">
-          <PageError message={error} onRetry={() => void loadTemplates()} />
+          <PageError error={error} message={error} onRetry={() => void loadTemplates()} />
         </PageShell>
       </>
     );

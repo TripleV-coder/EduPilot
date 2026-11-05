@@ -422,7 +422,7 @@ describe("Primitives Radix habillées", () => {
         fireEvent.click(screen.getByRole("button", { name: "Ouvrir le panneau" }));
         const dialog = await screen.findByRole("dialog", { name: "Détails élève" });
         expect(dialog).toHaveAccessibleDescription("Informations complètes");
-        fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+        fireEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     });
 });

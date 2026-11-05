@@ -7,10 +7,11 @@ import { logger } from "@/lib/utils/logger";
 
 export default function DashboardError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  /** Recharge les données du segment puis le ré-affiche (Next ≥ 16.3 ; `reset` ré-affichait sans recharger). */
+    retry: () => void;
 }) {
   useEffect(() => {
     logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/dashboard-root", digest: error.digest });
@@ -28,7 +29,7 @@ export default function DashboardError({
             {error.message || "Une erreur inattendue est survenue. Veuillez réessayer."}
           </p>
         </div>
-        <Button onClick={reset} variant="outline" className="gap-2">
+        <Button onClick={() => retry()} variant="outline" className="gap-2">
           <RefreshCw className="w-4 h-4" aria-hidden="true" />
           Réessayer
         </Button>

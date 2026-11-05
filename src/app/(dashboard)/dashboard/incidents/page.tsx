@@ -323,7 +323,7 @@ function IncidentsPageContent() {
         <>
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger les statistiques d'incidents." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 <PageHeader

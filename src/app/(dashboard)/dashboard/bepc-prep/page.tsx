@@ -304,7 +304,7 @@ function BepcPrepPageContent() {
                     </div>
                 </Card>
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 <div
                     style={{

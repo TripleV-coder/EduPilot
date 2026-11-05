@@ -292,7 +292,7 @@ function UsersPageContent() {
 
                 {loading ? <PageLoading label="Chargement des utilisateurs…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les utilisateurs."
                         onRetry={() => void mutateUsers()}
                     />

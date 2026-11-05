@@ -207,7 +207,7 @@ function HomeworkPageContent() {
 
                 {isLoading ? <PageLoading label="Chargement des devoirs…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les devoirs."
                         onRetry={() => void mutateHomework()}
                     />

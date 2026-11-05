@@ -162,7 +162,7 @@ function GradingRulesPageContent() {
                 />
 
                 {error ? (
-                    <PageError message="Impossible de charger les règles de l'établissement." onRetry={() => void mutate()} />
+                    <PageError error={error} message="Impossible de charger les règles de l'établissement." onRetry={() => void mutate()} />
                 ) : null}
                 {!error && (isLoading || !draft) ? (
                     <Card padding={20}>

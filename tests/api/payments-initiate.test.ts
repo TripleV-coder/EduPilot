@@ -369,7 +369,7 @@ describe("POST /api/payments/initiate", () => {
     }));
 
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Payment initiation failed");
+    expect((await res.json()).error).toBe("Le paiement n'a pas pu être préparé. Réessayez plus tard ou réglez à l'économat.");
     // Aucune transaction créée : l'essai ne réserve plus le montant
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
       where: { id: "cpay1", status: "PENDING" },

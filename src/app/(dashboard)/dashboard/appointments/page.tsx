@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -87,9 +88,15 @@ function AppointmentsPageContent() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus }),
             });
-            if (res.ok) void mutate();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                toast.error(body.error || "Le rendez-vous n'a pas été mis à jour. Réessayez.");
+                return;
+            }
+            toast.success("Rendez-vous mis à jour.");
+            void mutate();
         } catch {
-            // silencieux — l'état SWR reste inchangé
+            toast.error("Connexion impossible : le rendez-vous n'a pas été mis à jour.");
         }
     };
 
@@ -180,7 +187,7 @@ function AppointmentsPageContent() {
 
                     {isLoading ? <PageLoading label="Chargement des rendez-vous…" /> : null}
                     {error ? (
-                        <PageError
+                        <PageError error={error}
                             message={error.message || "Erreur de récupération des rendez-vous"}
                             onRetry={() => void mutate()}
                         />

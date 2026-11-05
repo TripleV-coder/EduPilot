@@ -162,7 +162,7 @@ function PayrollContent() {
     }
 
     if (isLoading) return <PageLoading label="Chargement de la paie…" />;
-    if (error) return <PageError message="Impossible de charger la paie du personnel." />;
+    if (error) return <PageError error={error} message="Impossible de charger la paie du personnel." />;
     if (!data) return null;
 
     // Vue employé : ses propres fiches.

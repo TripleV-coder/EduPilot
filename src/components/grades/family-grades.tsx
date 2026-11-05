@@ -153,7 +153,7 @@ export function FamilyGrades({ role }: { role: "STUDENT" | "PARENT" }) {
             ) : null}
 
             {loading && !noChild ? <PageLoading label="Chargement des notes…" /> : null}
-            {error ? <PageError message="Impossible de charger les notes." onRetry={() => void mutate()} /> : null}
+            {error ? <PageError error={error} message="Impossible de charger les notes." onRetry={() => void mutate()} /> : null}
             {noChild ? (
                 <PageEmpty icon="users" title={pick(lang, "Aucun enfant rattaché", "No linked child")} description="Rattachez votre enfant avec le code remis par l'établissement." />
             ) : null}

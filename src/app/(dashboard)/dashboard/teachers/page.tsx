@@ -230,7 +230,7 @@ function TeachersPageContent() {
 
                 {loading ? <PageLoading label="Chargement des enseignants…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les enseignants."
                         onRetry={() => void mutateTeachers()}
                     />

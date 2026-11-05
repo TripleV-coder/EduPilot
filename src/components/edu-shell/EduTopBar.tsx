@@ -9,7 +9,6 @@ import { Avatar, Button, Icon } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { useCommandPalette } from "@/components/edu-shell/CommandPaletteProvider";
 import { fetcher } from "@/lib/fetcher";
-import { toggleLightDark } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 
@@ -18,7 +17,7 @@ const iconBtnClass =
 
 export function EduTopBar() {
     const { data: session } = useSession();
-    const { toggle, setIsMobileOpen } = useSidebar();
+    const { toggle, setIsMobileOpen, setThemePreference } = useSidebar();
     const { open: openPalette } = useCommandPalette();
     const [isMac, setIsMac] = React.useState(false);
     const [isOnline, setIsOnline] = React.useState(true);
@@ -28,12 +27,18 @@ export function EduTopBar() {
         setIsMac(/(Mac|iPhone|iPad|iPod)/i.test(navigator.userAgent));
         setIsOnline(navigator.onLine);
         setIsDark(document.documentElement.classList.contains("dark"));
+        // L'icône suit le thème réel, même appliqué ailleurs (profil, autre onglet, système).
+        const themeObserver = new MutationObserver(() =>
+            setIsDark(document.documentElement.classList.contains("dark")),
+        );
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
         const onOnline = () => setIsOnline(true);
         const onOffline = () => setIsOnline(false);
         window.addEventListener("online", onOnline);
         window.addEventListener("offline", onOffline);
         return () => {
+            themeObserver.disconnect();
             window.removeEventListener("online", onOnline);
             window.removeEventListener("offline", onOffline);
         };
@@ -45,7 +50,10 @@ export function EduTopBar() {
     const { data: notifs } = useSWR<{ unreadCount?: number }>(
         session?.user ? "/api/notifications?unread=true&limit=1" : null,
         fetcher,
-        { revalidateOnFocus: false, dedupingInterval: 60000, shouldRetryOnError: false }
+        // Compteur rafraîchi chaque minute tant que l'onglet est visible (SWR suspend
+        // l'intervalle onglet masqué) et au retour sur l'onglet : il restait figé
+        // à sa première lecture pendant toute la session.
+        { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 15_000, shouldRetryOnError: false }
     );
     const unreadCount = notifs?.unreadCount ?? 0;
 
@@ -58,8 +66,10 @@ export function EduTopBar() {
     };
 
     const handleThemeToggle = () => {
-        const next = toggleLightDark();
+        const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
         setIsDark(next === "dark");
+        // Appliqué tout de suite, mémorisé pour les prochains chargements et enregistré sur le profil
+        void setThemePreference(next);
     };
 
     const searchButton = (

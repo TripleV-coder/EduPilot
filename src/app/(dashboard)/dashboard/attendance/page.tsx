@@ -300,7 +300,7 @@ function RollCallPage() {
         >
             <PageShell className="pb-32">
                 {loadError ? (
-                    <PageError message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 <PageHeader

@@ -76,7 +76,7 @@ function NewExamPageContent() {
     <>
       <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger les matières : la création d'un examen n'est pas possible pour l'instant." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger les matières : la création d'un examen n'est pas possible pour l'instant." onRetry={() => void reloadPage()} />
                 ) : null}
 
         <div className="flex items-center gap-4">
