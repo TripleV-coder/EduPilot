@@ -184,6 +184,42 @@ const ADMIN_SETTINGS: SettingItem[] = [
         href: "/dashboard/settings/roles",
         accent: "brand",
     },
+    // Pages de paramétrage qui n'avaient aucun point d'entrée
+    {
+        icon: "arrowUp",
+        title: "Promotion de fin d'année",
+        desc: "Passage des élèves dans la classe supérieure",
+        href: "/dashboard/settings/academic/promotion",
+        accent: "warning",
+    },
+    {
+        icon: "pencil",
+        title: "Types d'évaluation",
+        desc: "Interrogations, devoirs, compositions et plafonds",
+        href: "/dashboard/settings/evaluation-types",
+        accent: "info",
+    },
+    {
+        icon: "book",
+        title: "Matières par classe",
+        desc: "Coefficients et enseignants de chaque classe",
+        href: "/dashboard/settings/class-subjects",
+        accent: "success",
+    },
+    {
+        icon: "book",
+        title: "Programmes",
+        desc: "Programmes officiels par niveau",
+        href: "/dashboard/settings/curriculum",
+        accent: "neutral",
+    },
+    {
+        icon: "grid",
+        title: "Cycles, niveaux et séries",
+        desc: "Vue d'ensemble de la structure",
+        href: "/dashboard/settings/levels",
+        accent: "info",
+    },
 ];
 
 export default function SettingsPage() {

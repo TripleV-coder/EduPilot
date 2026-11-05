@@ -10,6 +10,8 @@ import { useSchool } from "@/components/providers/school-provider";
 import { isPageAllowedByModules } from "@/lib/modules/catalog";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { signOutAndPurge } from "@/lib/pwa/sign-out";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { SERVICE_CATALOG, filterServices } from "@/lib/navigation/service-catalog";
 
 type Action = {
     id: string;
@@ -143,7 +145,8 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const { data: session } = useSession();
     const role = session?.user?.role ?? null;
     const assigned = session?.user?.roles;
-    const { enabledModules } = useSchool();
+    const { enabledModules, offeredLevels } = useSchool();
+    const { canAccess } = useRBAC();
 
     const [query, setQuery] = React.useState("");
     const [activeIndex, setActiveIndex] = React.useState(0);
@@ -156,14 +159,40 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
         [role, assigned, router, enabledModules],
     );
 
+    // Tous les services accessibles (mêmes règles que la page « Tous les services ») :
+    // proposés à la recherche seulement, pour garder la liste par défaut courte.
+    const serviceActions = React.useMemo<Action[]>(() => {
+        const navHrefs = new Set(actions.map((a) => a.href).filter(Boolean));
+        return filterServices(SERVICE_CATALOG, {
+            canAccess: (check) =>
+                canAccess({
+                    roles: check.roles ? [...check.roles] : undefined,
+                    permission: Array.isArray(check.permission) ? [...check.permission] : (check.permission as string | undefined),
+                }),
+            enabledModules,
+            offeredLevels,
+            isPageAllowedByModules,
+        })
+            .filter((s) => !navHrefs.has(s.href))
+            .map((s) => ({
+                id: `svc-${s.href}`,
+                label: s.label,
+                hint: s.group,
+                icon: s.icon,
+                href: s.href,
+                keywords: `${s.description} ${s.group}`,
+                category: "Navigation" as const,
+            }));
+    }, [actions, canAccess, enabledModules, offeredLevels]);
+
     const filtered = React.useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return actions;
-        return actions.filter((a) => {
+        return [...actions, ...serviceActions].filter((a) => {
             const hay = `${a.label} ${a.hint ?? ""} ${a.keywords ?? ""}`.toLowerCase();
             return hay.includes(q);
         });
-    }, [actions, query]);
+    }, [actions, serviceActions, query]);
 
     const grouped = React.useMemo(() => {
         const map = new Map<Action["category"], Action[]>();

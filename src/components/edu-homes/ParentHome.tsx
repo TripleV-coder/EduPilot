@@ -97,6 +97,8 @@ export function ParentHome({ userName, schoolName, periodName, data }: ParentHom
                             actions={[
                                 { href: "/dashboard/finance", label: "Payer en ligne", icon: "money", color: MODULE.orange },
                                 { href: "/dashboard/students", label: "Mes enfants", icon: "users", color: MODULE.blue },
+                                { href: "/dashboard/grades", label: "Notes & bulletins", icon: "pencil", color: MODULE.purple },
+                                { href: "/dashboard/homework", label: "Devoirs", icon: "book", color: MODULE.green },
                                 { href: "/dashboard/liaison", label: "Cahier de liaison", icon: "book", color: MODULE.purple },
                                 { href: "/dashboard/schedule", label: "Emploi du temps", icon: "calendar", color: MODULE.green },
                                 { href: "/dashboard/notifications", label: "Notifications", icon: "bell", color: MODULE.pink },

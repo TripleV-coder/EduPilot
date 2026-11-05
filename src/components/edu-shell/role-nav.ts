@@ -42,6 +42,17 @@ export const AI_ASSISTANT_NAV_LINK: NavLink = {
 };
 
 /**
+ * Annuaire de toutes les autres fonctions (src/lib/navigation/service-catalog.ts) :
+ * le menu garde ses actions clés, aucune page n'est plus sans point d'entrée.
+ */
+export const SERVICES_NAV_LINK: NavLink = {
+    icon: "grid",
+    label: "Tous les services",
+    href: "/dashboard/services",
+    matchPrefix: true,
+};
+
+/**
  * Rôles admis sur /dashboard/ai (garde de la page et gouvernance IA). Le lien
  * n'est montré qu'à eux : le comptable et le personnel tombaient sur « Accès refusé ».
  */
@@ -81,53 +92,13 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 /**
- * Source de vérité : navigation groupée par rôle, limitée à 5–8 actions clés.
+ * Source de vérité : navigation groupée par rôle, 5 à 8 actions clés + « Tous les services ».
  */
 export function navGroupsForRole(role: string | undefined | null): NavGroup[] {
     // Aucun lien vers une page que la garde refuse à ce rôle.
     return rawNavGroupsForRole(role)
         .map((group) => ({ ...group, links: group.links.filter((link) => link !== AI_ASSISTANT_NAV_LINK || canUseAiAssistant(role)) }))
         .filter((group) => group.links.length > 0);
-}
-
-/**
- * Navigation des fonctions réellement accordées. Le rôle principal vient en
- * tête (accueil) ; les doublons d'href sont fusionnés. Une carte
- * schoolIdsByRole masque les liens d'une fonction hors de son établissement.
- */
-export function navGroupsForAssignedRoles(
-    roles: Array<string | undefined | null>,
-    primaryRole?: string | null,
-    schoolScope?: { activeSchoolId?: string | null; schoolIdsByRole?: Record<string, string[]> },
-): NavGroup[] {
-    const unique: string[] = [];
-    const add = (role: string | undefined | null) => {
-        if (!role || unique.includes(role)) return;
-        unique.push(role);
-    };
-    add(primaryRole ?? undefined);
-    for (const role of roles) add(role);
-    const visible = unique.filter((role) => {
-        if (!schoolScope?.schoolIdsByRole) return true;
-        const ids = schoolScope.schoolIdsByRole[role];
-        if (!ids) return true;
-        const active = schoolScope.activeSchoolId;
-        return Boolean(active && ids.includes(active));
-    });
-    if (visible.length <= 1) return navGroupsForRole(visible[0] ?? primaryRole ?? unique[0]);
-
-    const seen = new Set<string>();
-    const links: NavLink[] = [];
-    for (const role of visible) {
-        for (const group of navGroupsForRole(role)) {
-            for (const link of group.links) {
-                if (seen.has(link.href)) continue;
-                seen.add(link.href);
-                links.push(link);
-            }
-        }
-    }
-    return links.length ? [{ links }] : navGroupsForRole(primaryRole);
 }
 
 function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
@@ -143,6 +114,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "chart", label: "Analyses réseau", href: "/dashboard/analytics", matchPrefix: true },
                         { icon: "bell", label: "Alertes", href: "/dashboard/notifications", countKey: "networkAlerts", matchPrefix: true },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                         { icon: "settings", label: "Configuration", href: "/dashboard/settings", matchPrefix: true },
                     ],
                 },
@@ -164,6 +136,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "money", label: "Finance", href: "/dashboard/finance", countKey: "finance", matchPrefix: true, requiresModule: "finance" },
                         { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "notifications", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
                 },
@@ -181,6 +154,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
                         { icon: "bell", label: "Messages", href: "/dashboard/messages", countKey: "teacherMessages", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                     ],
                 },
             ];
@@ -191,12 +165,14 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                     links: [
                         { icon: "home", label: "Accueil", href: "/dashboard" },
                         { icon: "users", label: "Mes enfants", href: "/dashboard/students", countKey: "children", matchPrefix: true, requiresModule: "students" },
-                        { icon: "book", label: "Cahier de liaison", href: "/dashboard/liaison", matchPrefix: true, requiresModule: "messaging" },
+                        // Notes et bulletin officiel : la page les servait aux familles mais rien n'y menait.
+                        { icon: "pencil", label: "Notes & bulletins", href: "/dashboard/grades", matchPrefix: true, requiresModule: "grades" },
+                        { icon: "book", label: "Devoirs", href: "/dashboard/homework", matchPrefix: true, requiresModule: "schedule" },
                         { icon: "check", label: "Assiduité", href: "/dashboard/attendance", matchPrefix: true, requiresModule: "attendance" },
                         { icon: "money", label: "Paiements", href: "/dashboard/finance", countKey: "pendingPayments", matchPrefix: true, requiresModule: "finance" },
-                        { icon: "calendar", label: "Emploi du temps", href: "/dashboard/schedule", matchPrefix: true, requiresModule: "schedule" },
-                        // Notifications : la cloche de la barre du haut y mène déjà (budget 5–8 entrées).
-                        AI_ASSISTANT_NAV_LINK,
+                        { icon: "sms", label: "Cahier de liaison", href: "/dashboard/liaison", matchPrefix: true, requiresModule: "messaging" },
+                        // Emploi du temps et Assistant IA : accueil parent, barre du haut et « Tous les services ».
+                        SERVICES_NAV_LINK,
                         { icon: "settings", label: "Mon compte", href: "/dashboard/settings", matchPrefix: true },
                     ],
                 },
@@ -214,6 +190,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "sparkle", label: "Mon orientation", href: "/dashboard/orientation/me", matchPrefix: true },
                         { icon: "sms", label: "Messagerie", href: "/dashboard/messages", matchPrefix: true, requiresModule: "messaging" },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                     ],
                 },
             ];
@@ -228,6 +205,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "money", label: "Portefeuille", href: "/dashboard/wallet", matchPrefix: true, requiresModule: "finance" },
                         { icon: "cards", label: "Comptabilité OHADA", href: "/dashboard/accounting", matchPrefix: true, requiresModule: "finance" },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
                 },
@@ -247,6 +225,7 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
                         { icon: "warning", label: "Incidents", href: "/dashboard/incidents", matchPrefix: true },
                         { icon: "calendar", label: "Vie scolaire", href: "/dashboard/calendar", matchPrefix: true, requiresModule: "schedule" },
                         AI_ASSISTANT_NAV_LINK,
+                        SERVICES_NAV_LINK,
                         { icon: "settings", label: "Paramètres", href: "/dashboard/settings", matchPrefix: true },
                     ],
                 },
@@ -259,14 +238,6 @@ function rawNavGroupsForRole(role: string | undefined | null): NavGroup[] {
  */
 export function navForRole(role: string | undefined | null): NavLink[] {
     return navGroupsForRole(role).flatMap((g) => g.links);
-}
-
-export function navForAssignedRoles(
-    roles: Array<string | undefined | null>,
-    primaryRole?: string | null,
-    schoolScope?: { activeSchoolId?: string | null; schoolIdsByRole?: Record<string, string[]> },
-): NavLink[] {
-    return navGroupsForAssignedRoles(roles, primaryRole, schoolScope).flatMap((g) => g.links);
 }
 
 /**
