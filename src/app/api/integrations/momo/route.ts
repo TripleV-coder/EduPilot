@@ -36,5 +36,7 @@ export const GET = createApiHandler(
                   ],
         });
     },
-    { requireAuth: true }
+    // État de configuration et variables manquantes : finance et direction
+    // seulement (la route était ouverte à tout compte connecté).
+    { requireAuth: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
 );

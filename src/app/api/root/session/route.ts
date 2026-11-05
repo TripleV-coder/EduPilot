@@ -22,6 +22,7 @@ export const GET = createApiHandler(
 
   return NextResponse.json({ isRoot });
     },
-    {},
+    // Question réservée au super-admin : les autres rôles n'ont rien à y apprendre.
+    { allowedRoles: ["SUPER_ADMIN"] },
 );
 

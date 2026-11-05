@@ -32,5 +32,6 @@ export const GET = createApiHandler(
             accountsPath: `/api/schools/${schoolId}/payment-accounts`,
         });
     },
-    { requireAuth: true }
+    // Statut du compte marchand : finance et direction seulement.
+    { requireAuth: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] }
 );

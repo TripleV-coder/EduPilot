@@ -7793,7 +7793,7 @@
     "/api/config/setup-status": {
       "get": {
         "summary": "GET /api/config/setup-status",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
         "tags": [
           "config"
         ],
@@ -7811,6 +7811,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12145,7 +12148,7 @@
     "/api/integrations/fedapay": {
       "get": {
         "summary": "GET /api/integrations/fedapay",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "integrations"
         ],
@@ -12163,6 +12166,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12176,7 +12182,7 @@
     "/api/integrations/momo": {
       "get": {
         "summary": "GET /api/integrations/momo",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "integrations"
         ],
@@ -12194,6 +12200,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12207,7 +12216,7 @@
     "/api/integrations/whatsapp": {
       "get": {
         "summary": "GET /api/integrations/whatsapp",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
         "tags": [
           "integrations"
         ],
@@ -12225,6 +12234,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12666,7 +12678,7 @@
     "/api/me/subjects": {
       "get": {
         "summary": "GET /api/me/subjects",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
         "tags": [
           "me"
         ],
@@ -12684,6 +12696,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16649,7 +16664,7 @@
     "/api/root/session": {
       "get": {
         "summary": "GET /api/root/session",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
@@ -16667,6 +16682,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -17610,7 +17628,7 @@
     "/api/settings/configs": {
       "get": {
         "summary": "GET /api/settings/configs",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN.",
         "tags": [
           "settings"
         ],
@@ -17628,6 +17646,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -19265,40 +19286,6 @@
       },
       "post": {
         "summary": "POST /api/system/backup",
-        "description": "Session requise. Rôles : SUPER_ADMIN.",
-        "tags": [
-          "system"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/system/clean-logs": {
-      "get": {
-        "summary": "GET /api/system/clean-logs",
         "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "system"

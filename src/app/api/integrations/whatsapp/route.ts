@@ -51,5 +51,7 @@ export const GET = createApiHandler(
             costPerMessage: null,
         });
     },
-    { requireAuth: true }
+    // Configuration et nombre d'abonnés : direction seulement (la route était
+    // ouverte à tout compte connecté, parents et élèves compris).
+    { requireAuth: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] }
 );

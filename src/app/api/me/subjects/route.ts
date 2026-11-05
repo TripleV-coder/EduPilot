@@ -34,4 +34,8 @@ export const GET = createApiHandler(
 
     return NextResponse.json(subjects);
   },
+  // Appelée par la saisie de notes et le cahier de l'enseignant, et par les
+  // pages « corrections » et « nouveau cours » ouvertes à la direction (liste
+  // vide pour elle). Familles, comptabilité et vie scolaire n'en ont pas l'usage.
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] },
 );
