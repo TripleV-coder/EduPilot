@@ -1,5 +1,6 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
@@ -35,8 +36,11 @@ type Book = {
     id: string;
     title: string;
     author?: string;
-    isbn?: string;
-    available?: boolean;
+    isbn?: string | null;
+    category?: string | null;
+    location?: string | null;
+    /** Exemplaires disponibles (entier, comme en base). */
+    available?: number;
     quantity?: number;
 };
 
@@ -181,7 +185,7 @@ function LibraryPageContent() {
         session?.user?.role || ""
     );
 
-    const availableCount = books.filter((b) => b.available !== false).length;
+    const availableCount = books.filter((b) => (b.available ?? 0) > 0).length;
 
     return (
         <>
@@ -303,7 +307,9 @@ function LibraryPageContent() {
                             }}
                         >
                             {books.map((book) => {
-                                const available = book.available !== false;
+                                // `available` est un nombre d'exemplaires : `!== false` affichait
+                                // « Disponible » même à 0 exemplaire restant.
+                                const available = (book.available ?? 0) > 0;
                                 return (
                                     <Card
                                         key={book.id}
@@ -371,7 +377,7 @@ function LibraryPageContent() {
                                         >
                                             {available ? (
                                                 <Badge variant="success" size="sm" dot>
-                                                    Disponible
+                                                    {book.quantity && book.quantity > 1 ? `${book.available}/${book.quantity} disponibles` : "Disponible"}
                                                 </Badge>
                                             ) : (
                                                 <Badge variant="warning" size="sm">
@@ -388,6 +394,25 @@ function LibraryPageContent() {
                                                 Emprunter
                                             </Button>
                                         </div>
+                                        {isAdmin ? (
+                                            <div className="mt-3">
+                                                <ResourceActions
+                                                    endpoint={`/api/library/books/${book.id}`}
+                                                    resourceLabel={`L'ouvrage « ${book.title} »`}
+                                                    fields={[
+                                                        { name: "title", label: "Titre", type: "text", required: true, maxLength: 200 },
+                                                        { name: "author", label: "Auteur", type: "text", required: true, maxLength: 120 },
+                                                        { name: "isbn", label: "ISBN (facultatif)", type: "text", maxLength: 20 },
+                                                        { name: "category", label: "Catégorie (facultatif)", type: "text", maxLength: 80 },
+                                                        { name: "location", label: "Rayon (facultatif)", type: "text", maxLength: 80 },
+                                                        { name: "quantity", label: "Nombre d'exemplaires (0 pour retirer du rayon)", type: "number", required: true, min: 0, integer: true },
+                                                    ]}
+                                                    initial={{ title: book.title, author: book.author ?? "", isbn: book.isbn ?? null, category: book.category ?? null, location: book.location ?? null, quantity: book.quantity ?? 1 }}
+                                                    onChanged={() => void fetchBooks()}
+                                                    deleteDescription="Un ouvrage déjà prêté garde son historique : la suppression sera refusée, mettez alors son nombre d'exemplaires à 0."
+                                                />
+                                            </div>
+                                        ) : null}
                                     </Card>
                                 );
                             })}

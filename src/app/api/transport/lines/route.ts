@@ -81,6 +81,10 @@ export const GET = createApiHandler(
                     driverName: line.buses[0]?.driverName ?? null,
                     status: status.label,
                     statusVariant: status.variant,
+                    // Code brut et état : modification de la ligne depuis l'écran
+                    statusCode: line.status,
+                    direction: line.direction,
+                    isActive: line.isActive,
                     note: line.note,
                     studentCount: line._count.students,
                 };

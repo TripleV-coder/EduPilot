@@ -86,6 +86,17 @@ export class CanteenService {
     }
 
     /**
+     * Supprime le menu d'un jour (aucune donnée n'y est rattachée : les tickets
+     * ne dépendent pas du menu). Renvoie false si aucun menu n'existait.
+     */
+    async deleteMenu(schoolId: string, date: Date): Promise<boolean> {
+        const { count } = await prisma.canteenMenu.deleteMany({
+            where: { schoolId, date: utcCalendarDay(date) },
+        });
+        return count > 0;
+    }
+
+    /**
      * Achète un ticket repas pour un utilisateur.
      */
     async purchaseTicket(userId: string, schoolId: string, balance: number = 1, paymentId?: string) {

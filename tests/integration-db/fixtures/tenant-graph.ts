@@ -105,6 +105,12 @@ export async function seedTenantGraph(prefix: string) {
   });
   const alumni = await prisma.alumni.create({ data: { schoolId, firstName: "Ancien", lastName: prefix, graduationYear: 2020 } });
 
+  // Ressources adressées par les routes [id] ajoutées le 2026-11-05 (modification/suppression)
+  const schedule = await prisma.schedule.create({ data: { classId: klass.id, classSubjectId: classSubject.id, dayOfWeek: 1, startTime: "08:00", endTime: "09:00" } });
+  const calendarEvent = await prisma.schoolCalendarEvent.create({ data: { schoolId, academicYearId: year.id, name: "Rentrée", type: "RENTREE", startDate: day("2025-09-08") } });
+  const book = await prisma.book.create({ data: { schoolId, title: "Le Petit Prince", author: "Saint-Exupéry" } });
+  const transportLine = await prisma.transportLine.create({ data: { schoolId, number: "L1", label: "Ganhi → Campus" } });
+  const scanPoint = await prisma.scanPoint.create({ data: { schoolId, name: "Portail" } });
   return {
     schoolId,
     adminId: admin.id,
@@ -123,6 +129,8 @@ export async function seedTenantGraph(prefix: string) {
       resource: resource.id, scholarship: scholarship.id, signature: signature.id, leave: leave.id, payroll: payroll.id,
       student: student.id, studentUser: studentUser.id, subjectCategory: subjectCategory.id, teacher: teacher.id,
       teacherUser: teacherUser.id, availability: availability.id, wellbeingReport: wellbeingReport.id,
+      evaluation: evaluation.id, year: year.id, classLevel: classLevel.id, schedule: schedule.id,
+      calendarEvent: calendarEvent.id, book: book.id, transportLine: transportLine.id, scanPoint: scanPoint.id,
     },
   };
 }

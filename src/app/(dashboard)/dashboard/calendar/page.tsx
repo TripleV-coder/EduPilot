@@ -19,6 +19,8 @@ import { startOfWeek } from "date-fns/startOfWeek";
 import { fr } from "date-fns/locale/fr";
 
 import { fetcher } from "@/lib/fetcher";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { PageGuard } from "@/components/guard/page-guard";
 // Composant partagé (onglets qui passent à la ligne à 375 px, aria-pressed)
 import { SegmentedToggle } from "@/components/grades/cahier/components";
@@ -121,10 +123,14 @@ export default function CalendarPage() {
         "month"
     );
 
+    // Corriger ou retirer un évènement : direction (seule la création existait)
+    const { canAccess } = useRBAC();
+    const canManageEvents = canAccess({ roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
     const {
         data: eventsRaw,
         error: eventsError,
         isLoading: eventsLoading,
+        mutate: mutateEvents,
     } = useSWR<CalendarEvent[] | { events: CalendarEvent[] }>(
         "/api/calendar/events",
         fetcher
@@ -363,7 +369,7 @@ export default function CalendarPage() {
                     >
                         {events.length > 0
                             ? events.map((ev) => (
-                                  <EventListCard key={ev.id} event={ev} />
+                                  <EventListCard key={ev.id} event={ev} manage={canManageEvents ? () => void mutateEvents() : undefined} />
                               ))
                             : null}
                     </ListView>
@@ -838,7 +844,8 @@ function ListView({
     );
 }
 
-function EventListCard({ event }: { event: CalendarEvent }) {
+/** `manage` : rechargement après modification (absent = lecture seule). */
+function EventListCard({ event, manage }: { event: CalendarEvent; manage?: () => void }) {
     const variant: "brand" | "info" | "success" | "warning" | "neutral" =
         event.type ? EVENT_TYPE_VARIANT[event.type] ?? "brand" : "brand";
     return (
@@ -878,6 +885,21 @@ function EventListCard({ event }: { event: CalendarEvent }) {
                     </Badge>
                 ) : null}
             </div>
+            {manage ? (
+                <div className="mt-3">
+                    <ResourceActions
+                        endpoint={`/api/calendar/events/${event.id}`}
+                        resourceLabel={`L'évènement « ${event.title} »`}
+                        fields={[
+                            { name: "name", label: "Intitulé", type: "text", required: true, maxLength: 160 },
+                            { name: "startDate", label: "Début", type: "date", required: true },
+                            { name: "endDate", label: "Fin (facultatif)", type: "date" },
+                        ]}
+                        initial={{ name: event.title, startDate: event.startDate, endDate: event.endDate ?? null }}
+                        onChanged={manage}
+                    />
+                </div>
+            ) : null}
         </Card>
     );
 }

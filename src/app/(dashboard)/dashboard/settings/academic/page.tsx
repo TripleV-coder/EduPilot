@@ -18,6 +18,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useRBAC } from "@/lib/hooks/use-rbac";
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
@@ -57,6 +58,8 @@ function AcademicSettingsPageContent() {
     const { canAccess } = useRBAC();
     const canClose = canAccess({ permission: Permission.ACADEMIC_YEAR_CLOSE });
     const canReopen = canAccess({ roles: ["SUPER_ADMIN", "SCHOOL_ADMIN"], permission: Permission.ACADEMIC_YEAR_CLOSE });
+    // Corriger le nom ou les dates d'une année ouverte ; supprimer une année vide
+    const canEditYear = canAccess({ permission: Permission.ACADEMIC_YEAR_UPDATE });
 
     const fetchYears = async () => {
         setLoading(true);
@@ -262,7 +265,21 @@ function AcademicSettingsPageContent() {
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {canEditYear && !isLocked(year) ? (
+                                            <ResourceActions
+                                                endpoint={`/api/academic-years/${year.id}`}
+                                                resourceLabel={`L'année ${year.name}`}
+                                                fields={[
+                                                    { name: "name", label: "Nom (ex. 2025-2026)", type: "text", required: true, maxLength: 20 },
+                                                    { name: "startDate", label: "Début", type: "date", required: true },
+                                                    { name: "endDate", label: "Fin", type: "date", required: true },
+                                                ]}
+                                                initial={{ name: year.name, startDate: year.startDate, endDate: year.endDate }}
+                                                onChanged={() => void fetchYears()}
+                                                deleteDescription={`L'année ${year.name} sera supprimée avec ses périodes vides. Si elle porte des inscriptions, des notes ou des frais, la suppression sera refusée : une année qui a servi se clôture.`}
+                                            />
+                                        ) : null}
                                         {isLocked(year) ? (
                                             canReopen && year.status === "CLOSED" && (
                                                 <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ year, action: "reopen" })}>

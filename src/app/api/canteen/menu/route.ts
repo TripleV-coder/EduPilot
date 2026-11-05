@@ -19,7 +19,7 @@ export const GET = createApiHandler(async (request, context) => {
                 const dateParam = url.searchParams.get("date");
                 const date = dateParam ? new Date(dateParam) : new Date();
                 const menu = await canteenService.getMenu(getActiveSchoolId(session)!, date);
-                return NextResponse.json(menu || { message: "No menu found for this date" });
+                return NextResponse.json(menu || { message: "Aucun menu pour ce jour." });
             },
             { ttl: CACHE_TTL_MEDIUM, key: cacheKey }
         );
@@ -61,4 +61,21 @@ export const POST = createApiHandler(async (request, context) => {
         return NextResponse.json({ error: "Impossible de mettre à jour le menu" }, { status: 500 });
     }
 
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
+
+/**
+ * DELETE /api/canteen/menu?date=AAAA-MM-JJ — retirer le menu d'un jour. Un menu
+ * se corrigeait (nouvel enregistrement à la même date) mais ne se retirait pas.
+ */
+export const DELETE = createApiHandler(async (request, context) => {
+    const schoolId = getActiveSchoolId(context.session);
+    if (!schoolId) return NextResponse.json({ error: "Aucun établissement associé" }, { status: 403 });
+    const dateParam = new URL(request.url).searchParams.get("date");
+    const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? new Date(`${dateParam}T00:00:00.000Z`) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+        return NextResponse.json({ error: "Indiquez la date du menu (AAAA-MM-JJ)." }, { status: 400 });
+    }
+    const deleted = await canteenService.deleteMenu(schoolId, date);
+    if (!deleted) return NextResponse.json({ error: "Aucun menu à cette date." }, { status: 404 });
+    return NextResponse.json({ success: true });
 }, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

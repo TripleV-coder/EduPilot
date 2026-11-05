@@ -15,6 +15,8 @@ import { ContributionReviewQueue } from "@/components/cagnotte/contribution-revi
 import { SubLabel } from "@/components/edu-homes/_shared";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { ResourceActions } from "@/components/shared/resource-actions";
+import { toast } from "sonner";
 
 type JournalRow = {
     id: string;
@@ -62,6 +64,8 @@ type CagnotteDetail = {
     myPendingFcfa: string;
     hasContributed: boolean;
     canReview: boolean;
+    /** Organisateur ou école. */
+    canManage?: boolean;
     pendingCount: number;
     pendingFcfa: string;
     participantCount: number;
@@ -107,6 +111,31 @@ function CagnotteDetailContent() {
         fetcher,
         { revalidateOnFocus: false },
     );
+
+    const [statusBusy, setStatusBusy] = React.useState(false);
+    // Clôturer / rouvrir : statut tracé dans le journal public de la cagnotte
+    const changeStatus = async (status: "OPEN" | "CLOSED") => {
+        if (!data) return;
+        setStatusBusy(true);
+        try {
+            const res = await fetch(`/api/cagnottes/${data.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status }),
+            });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                toast.error(body.error || "Le statut de la cagnotte n'a pas changé.");
+                return;
+            }
+            toast.success(status === "CLOSED" ? "Cagnotte clôturée." : "Cagnotte rouverte.");
+            await mutate();
+        } catch {
+            toast.error("Connexion impossible : le statut n'a pas changé.");
+        } finally {
+            setStatusBusy(false);
+        }
+    };
 
     const [amount, setAmount] = React.useState("");
     const [paymentRef, setPaymentRef] = React.useState("");
@@ -199,8 +228,43 @@ function CagnotteDetailContent() {
                             variant={data.status === "OPEN" ? "brand" : "neutral"}
                             icon={data.status === "OPEN" ? undefined : "check"}
                         >
-                            {data.status === "OPEN" ? `J−${data.daysLeft}` : "Clôturée"}
+                            {data.status === "OPEN" ? `J−${data.daysLeft}` : data.status === "CANCELLED" ? "Annulée" : "Clôturée"}
                         </Badge>
+                        {data.canManage ? (
+                            <>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    loading={statusBusy}
+                                    onClick={() => void changeStatus(data.status === "OPEN" ? "CLOSED" : "OPEN")}
+                                >
+                                    {data.status === "OPEN" ? "Clôturer" : "Rouvrir"}
+                                </Button>
+                                {data.status === "OPEN" ? (
+                                    <ResourceActions
+                                        endpoint={`/api/cagnottes/${data.id}`}
+                                        resourceLabel={`La cagnotte « ${data.title} »`}
+                                        fields={[
+                                            { name: "title", label: "Titre", type: "text", required: true, maxLength: 160 },
+                                            { name: "description", label: "Description (facultatif)", type: "textarea", maxLength: 2000 },
+                                            { name: "targetFcfa", label: "Objectif (FCFA)", type: "number", required: true, min: 1, integer: true },
+                                            { name: "deadline", label: "Échéance", type: "date", required: true },
+                                            { name: "expectedParticipants", label: "Familles attendues (facultatif)", type: "number", min: 1, integer: true },
+                                        ]}
+                                        initial={{
+                                            title: data.title,
+                                            description: data.description,
+                                            targetFcfa: Number(data.targetFcfa),
+                                            deadline: data.deadline,
+                                            expectedParticipants: data.expectedParticipants,
+                                        }}
+                                        onChanged={() => void mutate()}
+                                        onDeleted={() => router.push("/dashboard/cagnotte")}
+                                        deleteDescription="Une cagnotte qui a reçu des contributions ne se supprime pas : clôturez-la, son journal reste visible des familles."
+                                    />
+                                ) : null}
+                            </>
+                        ) : null}
                     </div>
                 }
             />

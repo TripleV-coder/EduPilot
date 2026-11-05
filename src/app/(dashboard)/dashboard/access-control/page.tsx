@@ -1,5 +1,6 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { useCallback, useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -189,7 +190,31 @@ function AccessControlPageContent() {
                                 >
                                     <Icon name="check" size={12} color="var(--eduflow-success-600)" />
                                     <strong>{p.name}</strong>
-                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>{p.type}{p.location ? ` · ${p.location}` : ""}</span>
+                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>{p.type}{p.location ? ` · ${p.location}` : ""}{p.isActive ? "" : " · désactivé"}</span>
+                                    <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                                        <ResourceActions
+                                            endpoint={`/api/access-control/scan-points/${p.id}`}
+                                            resourceLabel={`Le point « ${p.name} »`}
+                                            fields={[
+                                                { name: "name", label: "Nom", type: "text", required: true, maxLength: 80 },
+                                                {
+                                                    name: "type", label: "Type", type: "select",
+                                                    options: [
+                                                        { value: "GATE", label: "Portail" },
+                                                        { value: "CANTEEN", label: "Cantine" },
+                                                        { value: "TRANSPORT", label: "Transport" },
+                                                        { value: "LIBRARY", label: "Bibliothèque" },
+                                                        { value: "INFIRMARY", label: "Infirmerie" },
+                                                    ],
+                                                },
+                                                { name: "location", label: "Emplacement (facultatif)", type: "text", maxLength: 120 },
+                                                { name: "isActive", label: "Point actif", type: "checkbox" },
+                                            ]}
+                                            initial={{ name: p.name, type: p.type, location: p.location, isActive: p.isActive }}
+                                            onChanged={() => void loadScanPoints()}
+                                            deleteDescription={`Un point qui a déjà enregistré des passages garde son journal : la suppression sera refusée, désactivez-le plutôt.`}
+                                        />
+                                    </RoleActionGuard>
                                 </div>
                             ))}
                         </div>

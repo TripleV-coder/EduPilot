@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { formatDateLong } from "@/lib/utils/formatters";
 import {
     Dialog,
@@ -72,6 +73,29 @@ function CanteenPageContent() {
         mainCourse: "",
         dessert: "",
     });
+
+    const [removingMenuDate, setRemovingMenuDate] = useState<string | null>(null);
+    const [pendingMenuDate, setPendingMenuDate] = useState<string | null>(null);
+    // Un menu se corrigeait (même date) mais ne se retirait pas
+    const removeMenu = async (date: string) => {
+        setRemovingMenuDate(date);
+        try {
+            const day = new Date(date).toISOString().slice(0, 10);
+            const res = await fetch(`/api/canteen/menu?date=${day}`, { method: "DELETE" });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                toast.error(body.error || "Le menu n'a pas été retiré.");
+                return;
+            }
+            toast.success("Menu retiré.");
+            setPendingMenuDate(null);
+            await fetchMenus();
+        } catch {
+            toast.error("Connexion impossible : le menu n'a pas été retiré.");
+        } finally {
+            setRemovingMenuDate(null);
+        }
+    };
 
     const fetchMenus = async () => {
         setLoading(true);
@@ -305,6 +329,18 @@ function CanteenPageContent() {
                                                 tag="Dessert"
                                             />
                                         ) : null}
+                                        <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+                                            <div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    loading={removingMenuDate === menu.date}
+                                                    onClick={() => setPendingMenuDate(menu.date)}
+                                                >
+                                                    Retirer ce menu
+                                                </Button>
+                                            </div>
+                                        </RoleActionGuard>
                                     </div>
                                 </Card>
                             ))}
@@ -522,6 +558,16 @@ function CanteenPageContent() {
                         ))}
                     </div>
                 ) : null}
+                <ConfirmActionDialog
+                    open={pendingMenuDate !== null}
+                    onOpenChange={(open) => (open ? null : setPendingMenuDate(null))}
+                    title="Retirer le menu de ce jour ?"
+                    description="Les familles ne le verront plus. Les tickets déjà achetés ne sont pas touchés."
+                    confirmLabel="Retirer"
+                    variant="destructive"
+                    isConfirmLoading={removingMenuDate !== null}
+                    onConfirm={() => (pendingMenuDate ? removeMenu(pendingMenuDate) : undefined)}
+                />
             </PageShell>
         </>
     );

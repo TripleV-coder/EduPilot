@@ -1,5 +1,6 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -27,6 +28,9 @@ type TransportLine = {
     statusVariant: Variant;
     note: string | null;
     studentCount: number;
+    statusCode?: string;
+    direction?: string;
+    isActive?: boolean;
 };
 
 type TransportData = {
@@ -62,6 +66,12 @@ function TransportPageContent() {
     const [lineNumber, setLineNumber] = useState("");
     const [lineLabel, setLineLabel] = useState("");
     const [savingLine, setSavingLine] = useState(false);
+
+    // Rechargement après modification ou suppression d'une ligne
+    const reloadLines = async () => {
+        const res = await fetch("/api/transport/lines");
+        if (res.ok) setData(await res.json());
+    };
 
     useEffect(() => {
         const load = async () => {
@@ -420,6 +430,28 @@ function TransportPageContent() {
                                                 <Badge variant={l.statusVariant} size="sm" dot>
                                                     {l.status}
                                                 </Badge>
+                                                <ResourceActions
+                                                    endpoint={`/api/transport/lines/${l.id}`}
+                                                    resourceLabel={`La ligne ${l.number}`}
+                                                    fields={[
+                                                        { name: "number", label: "Numéro", type: "text", required: true, maxLength: 20 },
+                                                        { name: "label", label: "Trajet", type: "text", required: true, maxLength: 120 },
+                                                        {
+                                                            name: "status", label: "État", type: "select",
+                                                            options: [
+                                                                { value: "ON_TIME", label: "À l'heure" },
+                                                                { value: "DELAYED", label: "En retard" },
+                                                                { value: "INCIDENT", label: "Incident" },
+                                                                { value: "INACTIVE", label: "Hors service" },
+                                                            ],
+                                                        },
+                                                        { name: "note", label: "Message aux familles (facultatif)", type: "textarea", maxLength: 500 },
+                                                        { name: "isActive", label: "Ligne active", type: "checkbox" },
+                                                    ]}
+                                                    initial={{ number: l.number, label: l.label, status: l.statusCode ?? "ON_TIME", note: l.note, isActive: l.isActive ?? true }}
+                                                    onChanged={() => void reloadLines()}
+                                                    deleteDescription={`La ligne ${l.number} sera supprimée. Si des élèves y sont inscrits, la suppression sera refusée : désactivez-la plutôt.`}
+                                                />
                                             </div>
                                         ))
                                     )}
