@@ -28,6 +28,8 @@ import {
 import { computeAnnualAverages, gradedEvaluations, toDisplay, type GradeRecord } from "@/lib/academic/average-engine";
 import type { CalculationRules } from "@/lib/academic/grading-rules";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
+import { EvaluationActions } from "@/components/evaluations/evaluation-actions";
 import { fetcher } from "@/lib/fetcher";
 import {
     ExpandedEvalGrades,
@@ -68,6 +70,11 @@ function CahierDeNotesPageContent() {
 
     const [students, setStudents] = useState<Student[]>([]);
     const [evaluations, setEvaluations] = useState<EvaluationData[]>([]);
+    // Rechargement après correction ou suppression d'une évaluation
+    const [reloadKey, setReloadKey] = useState(0);
+    // Corriger/supprimer : enseignant (le serveur vérifie que la matière est la sienne)
+    const { data: session } = useSession();
+    const isTeacher = session?.user?.role === "TEACHER";
     const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
     // Calculs adaptés par l'enseignant pour des élèves précis
     const [studentFormulas, setStudentFormulas] = useState<
@@ -141,7 +148,7 @@ function CahierDeNotesPageContent() {
             }
         };
         fetchCahierData();
-    }, [selectedClass, selectedPeriod, selectedSubject, selectedType]);
+    }, [selectedClass, selectedPeriod, selectedSubject, selectedType, reloadKey]);
 
     const filteredStudents = useMemo(() => {
         if (!searchQuery.trim()) return students;
@@ -647,6 +654,21 @@ function CahierDeNotesPageContent() {
                                                                         >
                                                                             Modifier les notes (correction, recomposition, absence justifiée)
                                                                         </Link>
+                                                                        {isTeacher ? (
+                                                                            <div className="mt-2">
+                                                                                <EvaluationActions
+                                                                                    evaluation={{
+                                                                                        id: ev.id,
+                                                                                        title: ev.title,
+                                                                                        date: ev.date,
+                                                                                        maxGrade: ev.maxGrade,
+                                                                                        coefficient: ev.coefficient,
+                                                                                        gradedCount: ev.stats.graded,
+                                                                                    }}
+                                                                                    onChanged={() => setReloadKey((k) => k + 1)}
+                                                                                />
+                                                                            </div>
+                                                                        ) : null}
                                                                     </div>
                                                                     <ExpandedEvalGrades
                                                                         ev={ev}

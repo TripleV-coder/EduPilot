@@ -10,6 +10,7 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useRBAC } from "@/lib/hooks/use-rbac";
 import { WeeklyTimetableGrid } from "@/components/schedule/weekly-timetable-grid";
+import { ScheduleSlotManager, type ManagedSlot } from "@/components/schedule/schedule-slot-manager";
 
 import { Button, Card, Icon, type IconName } from "@/components/edu";
 import { pick, useUiLang } from "@/lib/i18n/ui-lang";
@@ -49,6 +50,8 @@ export default function SchedulePage() {
     } = useSWR<ScheduleItem[]>("/api/schedules", fetcher);
     const { canAccess } = useRBAC();
     const canCreate = canAccess({ permission: Permission.SCHEDULE_CREATE, roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
+    // Modifier/supprimer un créneau : direction (seule la création existait)
+    const canManage = canAccess({ permission: Permission.SCHEDULE_UPDATE, roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
 
     // Filtres tirés des créneaux visibles : chaque rôle ne voit que ses classes
     // et ses enseignants, sans appeler /api/classes ni /api/teachers (403 pour
@@ -195,6 +198,12 @@ export default function SchedulePage() {
                         />
                     </Card>
                 )}
+                {canManage && !loadingSchedules && !schedulesError ? (
+                    <ScheduleSlotManager
+                        slots={filteredSchedules as unknown as ManagedSlot[]}
+                        onChanged={() => void reloadSchedules()}
+                    />
+                ) : null}
             </PageShell>
         </PageGuard>
     );

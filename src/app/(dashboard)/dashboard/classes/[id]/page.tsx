@@ -28,6 +28,9 @@ import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
 import { ClassRoster } from "@/components/classes/class-roster";
 import { useSession } from "next-auth/react";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { ClassEditDialog } from "@/components/classes/class-edit-dialog";
+import { Pencil } from "lucide-react";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -47,6 +50,9 @@ const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart"
 type ClassData = {
     id: string;
     name: string;
+    classLevelId: string;
+    capacity: number | null;
+    mainTeacherId: string | null;
     classLevel: { name: string, level: string };
     _count: { enrollments: number };
 };
@@ -135,6 +141,10 @@ function ClassDetailsPageContent() {
     const [isAssigning, setIsAssigning] = useState(false);
     const [assigningLoading, setAssigningLoading] = useState(false);
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+    const [editOpen, setEditOpen] = useState(false);
+    // Modifier la classe : direction (CLASS_UPDATE) ; l'enseignant consulte.
+    const { canAccess } = useRBAC();
+    const canEditClass = canAccess({ permission: Permission.CLASS_UPDATE });
 
     const { data: schedules } = useSWR<ScheduleSlot[]>(classId ? `/api/schedules?classId=${classId}` : null, fetcher);
     const { data: classStats } = useSWR<ClassAnalytics>(classId ? `/api/analytics/class/${classId}` : null, fetcher);
@@ -270,17 +280,41 @@ function ClassDetailsPageContent() {
                         { label: classData?.name || "Détails" },
                     ]}
                     actions={
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
-                        >
-                            <CreditCard className="h-4 w-4" />
-                            Cartes scolaires
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {canEditClass && classData ? (
+                                <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditOpen(true)}>
+                                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                                    Modifier
+                                </Button>
+                            ) : null}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
+                            >
+                                <CreditCard className="h-4 w-4" />
+                                Cartes scolaires
+                            </Button>
+                        </div>
                     }
                 />
+
+                {canEditClass && classData ? (
+                    <ClassEditDialog
+                        value={{
+                            id: classData.id,
+                            name: classData.name,
+                            classLevelId: classData.classLevelId,
+                            capacity: classData.capacity ?? null,
+                            mainTeacherId: classData.mainTeacherId ?? null,
+                        }}
+                        teachers={availableTeachers}
+                        open={editOpen}
+                        onOpenChange={setEditOpen}
+                        onSaved={(updated) => setClassData((prev) => (prev ? { ...prev, ...(updated as Partial<ClassData>) } : prev))}
+                    />
+                ) : null}
 
                 {error && (
                     <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">

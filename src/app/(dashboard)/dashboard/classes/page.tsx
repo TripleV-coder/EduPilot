@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { Permission } from "@/lib/rbac/permissions";
+import { useRBAC } from "@/lib/hooks/use-rbac";
 import { t } from "@/lib/i18n";
 
 import {
@@ -69,6 +70,9 @@ export default function ClassesPage() {
 }
 
 function ClassesPageContent() {
+    // Supprimer une classe : direction seulement (CLASS_DELETE) ; l'enseignant consulte.
+    const { canAccess } = useRBAC();
+    const canDeleteClass = canAccess({ permission: Permission.CLASS_DELETE });
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedCycle, setSelectedCycle] = useState<string>("ALL");
@@ -160,7 +164,11 @@ function ClassesPageContent() {
             const res = await fetch(`/api/classes/${pendingDelete.id}`, {
                 method: "DELETE",
             });
-            if (!res.ok) throw new Error("Erreur lors de la suppression");
+            if (!res.ok) {
+                // 409 : la classe porte encore des élèves, matières, créneaux… (le message dit quoi retirer)
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error || "Erreur lors de la suppression");
+            }
             toast({ title: "Succès", description: "La classe a été supprimée." });
             setDeleteDialogOpen(false);
             setPendingDelete(null);
@@ -227,7 +235,7 @@ function ClassesPageContent() {
 
                 {loading ? <PageLoading label="Chargement des classes…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les classes."
                         onRetry={() => void mutateClasses()}
                     />
@@ -253,7 +261,7 @@ function ClassesPageContent() {
                                 key={cls.id}
                                 cls={cls}
                                 index={i}
-                                onRequestDelete={(e) => requestDelete(e, cls.id, cls.name)}
+                                onRequestDelete={canDeleteClass ? (e) => requestDelete(e, cls.id, cls.name) : undefined}
                             />
                         ))}
                     </div>
@@ -349,13 +357,15 @@ function ClassesPageContent() {
                                             <Button aria-label={`Voir la classe ${cls.name}`} variant="ghost" size="sm" icon="search">
                                             </Button>
                                         </Link>
-                                        <Button aria-label={`Supprimer la classe ${cls.name}`}
-                                            variant="ghost"
-                                            size="sm"
-                                            icon="x"
-                                            onClick={(e) => requestDelete(e, cls.id, cls.name)}
-                                        >
-                                        </Button>
+                                        {canDeleteClass ? (
+                                            <Button aria-label={`Supprimer la classe ${cls.name}`}
+                                                variant="ghost"
+                                                size="sm"
+                                                icon="x"
+                                                onClick={(e) => requestDelete(e, cls.id, cls.name)}
+                                            >
+                                            </Button>
+                                        ) : null}
                                     </div>
                                 ),
                             },
@@ -396,7 +406,8 @@ function ClassCard({
 }: {
     cls: ClassItem;
     index: number;
-    onRequestDelete: (e: React.MouseEvent) => void;
+    /** Absent : pas d'entrée « Supprimer » (rôle sans CLASS_DELETE). */
+    onRequestDelete?: (e: React.MouseEvent) => void;
 }) {
     const cycleLabel = cls.classLevel?.level
         ? CYCLE_LABELS[cls.classLevel.level] || cls.classLevel.level
@@ -434,14 +445,16 @@ function ClassCard({
                     >
                         Ouvrir la classe
                     </Link>
-                    <button
-                        type="button"
-                        onClick={onRequestDelete}
-                        className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
-                        style={{ color: "var(--eduflow-danger-700)" }}
-                    >
-                        Supprimer
-                    </button>
+                    {onRequestDelete ? (
+                        <button
+                            type="button"
+                            onClick={onRequestDelete}
+                            className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--eduflow-danger-50)]"
+                            style={{ color: "var(--eduflow-danger-700)" }}
+                        >
+                            Supprimer
+                        </button>
+                    ) : null}
                 </PopoverContent>
             </Popover>
         </div>
