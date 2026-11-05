@@ -24,6 +24,22 @@ export const POST = createApiHandler(
             );
         }
 
+        // Appartenance d'abord : une cagnotte d'une autre école répond 404 quel
+        // que soit le corps envoyé (rien n'est validé ni révélé avant).
+        const cagnotte = await prisma.cagnotte.findFirst({
+            where: { id: cagnotteId, schoolId },
+            select: { id: true, status: true, title: true },
+        });
+        if (!cagnotte) {
+            return NextResponse.json({ error: "Cagnotte introuvable" }, { status: 404 });
+        }
+        if (cagnotte.status !== "OPEN") {
+            return NextResponse.json(
+                { error: "Cette cagnotte n'accepte plus de contributions." },
+                { status: 409 },
+            );
+        }
+
         let body: unknown;
         try {
             body = await request.json();
@@ -71,20 +87,6 @@ export const POST = createApiHandler(
                     { status: 404 },
                 );
             }
-        }
-
-        const cagnotte = await prisma.cagnotte.findFirst({
-            where: { id: cagnotteId, schoolId },
-            select: { id: true, status: true, title: true },
-        });
-        if (!cagnotte) {
-            return NextResponse.json({ error: "Cagnotte introuvable" }, { status: 404 });
-        }
-        if (cagnotte.status !== "OPEN") {
-            return NextResponse.json(
-                { error: "Cette cagnotte n'accepte plus de contributions." },
-                { status: 409 },
-            );
         }
 
         const cleanRef = paymentRef ? sanitizePlainText(paymentRef).slice(0, 80) : null;
