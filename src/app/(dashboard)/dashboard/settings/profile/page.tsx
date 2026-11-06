@@ -270,7 +270,7 @@ function ProfileSettingsPageContent() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -308,7 +308,7 @@ function ProfileSettingsPageContent() {
                                 <div
                                     className="mt-1.5 flex items-center gap-1.5"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >

@@ -275,7 +275,7 @@ function AnnouncementsPageContent() {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
@@ -338,7 +338,7 @@ function AnnouncementsPageContent() {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
@@ -530,7 +530,7 @@ function AnnouncementCard({
                             </h2>
                             <div
                                 className="mt-1 flex flex-wrap items-center gap-2"
-                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 <Badge variant="neutral" size="sm">
                                     {typeLabel}
@@ -598,14 +598,14 @@ function AnnouncementCard({
             >
                 <div className="flex items-center gap-2">
                     <Avatar name={authorName} size="xs" />
-                    <span style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
+                    <span style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
                         Par <strong style={{ color: "var(--eduflow-text-primary)" }}>{authorName}</strong>
                     </span>
                 </div>
                 {announcement.publishedAt ? (
                     <span
                         className="eduflow-mono"
-                        style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                        style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                     >
                         {new Date(announcement.publishedAt).toLocaleDateString("fr-FR", {
                             day: "numeric",
@@ -678,7 +678,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

@@ -37,7 +37,7 @@ export function CostTile({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--brand-700)",
                     fontWeight: 600,
                 }}
@@ -57,7 +57,7 @@ export function CostTile({
                 {value}
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--brand-700)",
                         marginLeft: 4,
                     }}
@@ -89,7 +89,7 @@ export function Field({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -155,7 +155,7 @@ export function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

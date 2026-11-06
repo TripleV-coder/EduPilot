@@ -126,7 +126,7 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: `var(--${tone}-700)`,
                 }}
@@ -161,7 +161,7 @@ function Kpi({
             {hint ? (
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: `var(--${tone}-800)`,
                         marginTop: 6,
                         lineHeight: 1.5,
@@ -289,11 +289,11 @@ function VoiceNotifsContent() {
                 className="vn-grid"
             >
                 <Card padding={20}>
-                    <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Langues & modèle de message</p>
+                    <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Langues & modèle de message</p>
                     <div
                         style={{
                             marginTop: 4,
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text-tertiary)",
                             lineHeight: 1.5,
                         }}
@@ -352,7 +352,7 @@ function VoiceNotifsContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--text-tertiary)",
                                             }}
                                         >
@@ -380,7 +380,7 @@ function VoiceNotifsContent() {
                             border: "1px solid var(--border-subtle)",
                         }}
                     >
-                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu · {active.label}</p>
+                        <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu · {active.label}</p>
                         <p
                             style={{
                                 fontSize: 13,
@@ -495,7 +495,7 @@ function VoiceNotifsContent() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--text-tertiary)",
                                                         marginTop: 2,
                                                     }}
@@ -534,7 +534,7 @@ function VoiceNotifsContent() {
                                                 display: "flex",
                                                 gap: 16,
                                                 marginTop: 10,
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--text-tertiary)",
                                                 flexWrap: "wrap",
                                             }}

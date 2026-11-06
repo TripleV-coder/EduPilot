@@ -397,7 +397,7 @@ function OrientationCepPageContent() {
                                     <div key={c.cycle}>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 color: `var(--eduflow-${c.color}-700)`,
                                                 marginBottom: 6,
@@ -431,7 +431,7 @@ function OrientationCepPageContent() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -468,7 +468,7 @@ function OrientationCepPageContent() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -579,7 +579,7 @@ function OrientationCepPageContent() {
                                                         <td
                                                             style={{
                                                                 padding: "12px 14px",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color:
                                                                     "var(--eduflow-text-secondary)",
                                                             }}
@@ -631,7 +631,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

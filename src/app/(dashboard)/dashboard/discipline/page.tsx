@@ -410,7 +410,7 @@ export default function DisciplinePage() {
                                                     {klass ? (
                                                         <span
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color:
                                                                     "var(--eduflow-text-tertiary)",
                                                             }}
@@ -435,7 +435,7 @@ export default function DisciplinePage() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 3,
@@ -473,7 +473,7 @@ export default function DisciplinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
                             {weeklyTrend.length > 0 ? (
                                 <>
                                     <Sparkline
@@ -483,7 +483,7 @@ export default function DisciplinePage() {
                                     />
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 4,
                                         }}
@@ -524,7 +524,7 @@ export default function DisciplinePage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
                             {statsLoading ? (
                                 <div
                                     style={{

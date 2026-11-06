@@ -94,7 +94,7 @@ export function EduTopBar() {
             <kbd
                 aria-hidden
                 suppressHydrationWarning
-                className="hidden rounded-md border border-[var(--eduflow-border-subtle)] bg-[var(--eduflow-surface-card)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--eduflow-text-secondary)] md:inline"
+                className="hidden rounded-md border border-[var(--eduflow-border-subtle)] bg-[var(--eduflow-surface-card)] px-1.5 py-0.5 text-xs font-semibold text-[var(--eduflow-text-secondary)] md:inline"
                 style={{ fontFamily: "var(--eduflow-font-mono, monospace)" }}
             >
                 {isMac ? "⌘K" : "Ctrl+K"}
@@ -182,7 +182,7 @@ export function EduTopBar() {
                 />
                 <div className="hidden md:block">
                     <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>{userName}</div>
-                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                         {ROLE_LABELS[role] ?? role}
                     </div>
                 </div>

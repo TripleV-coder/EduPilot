@@ -267,7 +267,7 @@ function TemplatesPageContent() {
                     <div
                       style={{
                         padding: "10px 14px",
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: "var(--eduflow-text-tertiary)",
                         background: "var(--eduflow-surface-sunken)",
@@ -348,7 +348,7 @@ function TemplatesPageContent() {
                   <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                     {active.name}
                   </h2>
-                  <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                     Multi-canaux · {active.autoTrigger ?? "Déclenché manuellement"}
                   </div>
                 </div>
@@ -401,7 +401,7 @@ function TemplatesPageContent() {
                     <div
                       style={{
                         marginTop: 10,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         display: "flex",
                         justifyContent: "space-between",
@@ -418,7 +418,7 @@ function TemplatesPageContent() {
                             border: 0,
                             background: "transparent",
                             color: "var(--brand-700)",
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 600,
                             cursor: "pointer",
                           }}
@@ -437,7 +437,7 @@ function TemplatesPageContent() {
                           type="button"
                           onClick={() => setDraft((currentBody || "") + " " + v)}
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             padding: "3px 8px",
                             borderRadius: 6,
                             background: "var(--brand-50)",
@@ -477,7 +477,7 @@ function TemplatesPageContent() {
                       >
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                             marginBottom: 6,
                           }}

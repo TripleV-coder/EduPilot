@@ -83,7 +83,7 @@ export function StudentHealthTab({ studentId }: { studentId: string }) {
           : data.allergies.map((a) => (
               <div key={a.id} className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{a.allergen}</span>
-                <Badge variant="outline" className="text-[11px]">{a.severity}</Badge>
+                <Badge variant="outline" className="text-xs">{a.severity}</Badge>
                 {a.reaction ? <span className="text-muted-foreground">· {a.reaction}</span> : null}
                 {a.treatment ? <span className="text-muted-foreground">· conduite : {a.treatment}</span> : null}
               </div>

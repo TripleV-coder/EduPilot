@@ -441,7 +441,7 @@ function WalletHero({
                     <div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 opacity: 0.7,
                             }}
@@ -506,7 +506,7 @@ function WalletHero({
                                     <KindIcon size={18} strokeWidth={1.75} />
                                 </div>
                                 <div style={{ fontSize: 12, fontWeight: 700 }}>{acc.name}</div>
-                                <div style={{ fontSize: 11, opacity: 0.6 }}>
+                                <div style={{ fontSize: 12, opacity: 0.6 }}>
                                     {acc.accountRef ?? KIND_LABEL[acc.kind]}
                                 </div>
                                 <div
@@ -533,7 +533,7 @@ function WalletHero({
 function HeroStat({ label, value, color }: { label: string; value: string; color: string }) {
     return (
         <div>
-            <div style={{ fontSize: 11, opacity: 0.7 }}>{label}</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>{label}</div>
             <div
                 className="tabular"
                 style={{
@@ -569,7 +569,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                     </h2>
                     <p
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text-tertiary)",
                             margin: "2px 0 0",
                         }}
@@ -619,7 +619,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             <div
                                                 className="tabular"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--text-tertiary)",
                                                     fontFamily:
                                                         "var(--eduflow-font-mono, monospace)",
@@ -640,7 +640,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             {tx.reference ? (
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--text-tertiary)",
                                                         marginTop: 2,
                                                         fontFamily:
@@ -652,7 +652,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             ) : null}
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: `var(--${tone}-700)`,
                                                     marginTop: 2,
                                                 }}
@@ -683,7 +683,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
                                             </span>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--text-tertiary)",
                                                 }}
                                             >
@@ -704,7 +704,7 @@ function TransactionsCard({ transactions }: { transactions: TxRow[] }) {
 function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[] }) {
     return (
         <Card>
-            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
+            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Décaissements programmés · 48h</p>
             <div style={{ marginTop: 10 }}>
                 {disbursements.length === 0 ? (
                     <div
@@ -751,7 +751,7 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
                             </div>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--text-tertiary)",
                                     marginTop: 2,
                                 }}

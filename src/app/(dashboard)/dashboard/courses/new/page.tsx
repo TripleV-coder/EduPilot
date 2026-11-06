@@ -413,7 +413,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.type`}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-[11px] font-bold">
+                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-xs font-bold">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>

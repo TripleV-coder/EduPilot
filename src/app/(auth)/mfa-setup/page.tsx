@@ -162,7 +162,7 @@ export default function MfaSetupPage() {
                     <div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 8,
@@ -445,7 +445,7 @@ export default function MfaSetupPage() {
                     </button>
                     <span
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                         }}
                     >

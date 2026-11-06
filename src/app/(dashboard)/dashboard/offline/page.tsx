@@ -168,7 +168,7 @@ function OfflinePageContent() {
                             </div>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-warning-800)",
                                 }}
                             >
@@ -257,7 +257,7 @@ function OfflinePageContent() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
                             <div
                                 style={{
                                     marginTop: 10,
@@ -417,7 +417,7 @@ function OfflinePageContent() {
                                     ) : (
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--brand-700)",
                                                 marginTop: 10,
                                                 lineHeight: 1.5,
@@ -433,7 +433,7 @@ function OfflinePageContent() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
                             <div
                                 style={{
                                     marginTop: 8,
@@ -476,7 +476,7 @@ function OfflinePageContent() {
                             </div>
                             <p
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                     marginTop: 12,
                                     lineHeight: 1.5,

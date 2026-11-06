@@ -305,7 +305,7 @@ function TeachersPageContent() {
                                                 <div className="text-[13px] font-semibold">{fullName}</div>
                                                 {teacher.user?.email ? (
                                                     <div
-                                                        className="truncate text-[11px]"
+                                                        className="truncate text-xs"
                                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
                                                         {teacher.user.email}
@@ -499,7 +499,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -555,7 +555,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

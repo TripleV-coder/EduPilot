@@ -54,7 +54,7 @@ export function Chip({ children, active, count, icon, onClick, disabled }: ChipP
                 <span
                     className="eduflow-tabular"
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         padding: "0 6px",
                         height: 16,
                         borderRadius: "var(--eduflow-radius-full)",

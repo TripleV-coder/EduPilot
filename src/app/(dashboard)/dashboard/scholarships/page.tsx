@@ -363,7 +363,7 @@ function ScholarshipsPageContent() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -433,7 +433,7 @@ function ScholarshipsPageContent() {
                                                                     {klass ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                             }}
@@ -472,7 +472,7 @@ function ScholarshipsPageContent() {
                                                             </span>{" "}
                                                             <span
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                 }}
@@ -482,7 +482,7 @@ function ScholarshipsPageContent() {
                                                             {s.percentage ? (
                                                                 <div
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color:
                                                                             "var(--eduflow-text-tertiary)",
                                                                     }}
@@ -505,7 +505,7 @@ function ScholarshipsPageContent() {
                                                                 padding: "12px 14px",
                                                                 color:
                                                                     "var(--eduflow-text-secondary)",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 maxWidth: 220,
                                                                 overflow: "hidden",
                                                                 textOverflow: "ellipsis",
@@ -543,7 +543,7 @@ function ScholarshipsPageContent() {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                     Répartition par type · {compactAmount(totalBudget)} FCFA
                                 </p>
                                 {distribution.length === 0 ? (

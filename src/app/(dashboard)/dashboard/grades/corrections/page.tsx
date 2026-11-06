@@ -179,7 +179,7 @@ function CorrectionCard({ row, canDecide, onDecided }: { row: CorrectionRow; can
             {canDecide && row.status === "PENDING" ? (
                 <div className="flex flex-wrap items-end gap-2">
                     <label className="block" style={{ flex: "1 1 220px" }}>
-                        <span style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                        <span style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                             Commentaire (obligatoire pour refuser)
                         </span>
                         <input
@@ -290,7 +290,7 @@ function ProposalForm({ onCreated }: { onCreated: () => void }) {
     };
     const label: React.CSSProperties = {
         display: "block",
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         marginBottom: 4,
         color: "var(--eduflow-text-tertiary)",

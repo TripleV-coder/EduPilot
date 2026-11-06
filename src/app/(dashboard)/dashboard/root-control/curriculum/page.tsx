@@ -223,13 +223,13 @@ function RootCurriculumPageContent() {
                         <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="text-sm font-bold">Contenu du programme</CardTitle>
-                                <CardDescription className="text-[11px]">Liste des matières et coefficients pour cette classe.</CardDescription>
+                                <CardDescription className="text-xs">Liste des matières et coefficients pour cette classe.</CardDescription>
                             </div>
                             <Badge variant="secondary" className="font-bold">Consolidé</Badge>
                         </CardHeader>
                         <CardContent className="p-0">
                             <table className="w-full text-sm">
-                                <thead className="bg-muted/10 text-muted-foreground font-bold text-[11px] border-b">
+                                <thead className="bg-muted/10 text-muted-foreground font-bold text-xs border-b">
                                     <tr>
                                         <th className="px-6 py-3 text-left">Matière</th>
                                         <th className="px-6 py-3 text-center">Code</th>
@@ -290,7 +290,7 @@ function RootCurriculumPageContent() {
                                 </tbody>
                                 <tfoot className="bg-muted/20 font-bold">
                                     <tr>
-                                        <td colSpan={2} className="px-6 py-3 text-right text-[11px]">Somme des Coefficients</td>
+                                        <td colSpan={2} className="px-6 py-3 text-right text-xs">Somme des Coefficients</td>
                                         <td className="px-6 py-3 text-center">{curriculumData?.totalCoefficients || 0}</td>
                                         <td></td>
                                     </tr>

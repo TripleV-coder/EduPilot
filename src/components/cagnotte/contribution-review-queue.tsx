@@ -84,7 +84,7 @@ export function ContributionReviewQueue({
                     <h2 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
                         À valider · {pending.length}
                     </h2>
-                    <p style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", margin: "2px 0 0" }}>
+                    <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", margin: "2px 0 0" }}>
                         Déclarées par les familles, hors du total tant qu&apos;elles ne sont pas confirmées
                     </p>
                 </div>
@@ -123,7 +123,7 @@ export function ContributionReviewQueue({
                                     <div style={{ fontSize: 13, fontWeight: 600 }}>
                                         {c.parentName ?? c.initials}
                                     </div>
-                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {FR_DATETIME.format(new Date(c.paidAt))}
                                         {c.paymentRef ? ` · Réf. ${c.paymentRef}` : " · sans référence"}
                                     </div>

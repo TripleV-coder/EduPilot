@@ -183,7 +183,7 @@ function ClassLevelsSettingsPageContent() {
                                     <div className="space-y-2">
                                         <Label htmlFor="sequence">Séquence (Ordre)</Label>
                                         <Input id="sequence" name="sequence" type="number" min="1" required />
-                                        <p className="text-[11px] text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
+                                        <p className="text-xs text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
                                     </div>
                                 </div>
 

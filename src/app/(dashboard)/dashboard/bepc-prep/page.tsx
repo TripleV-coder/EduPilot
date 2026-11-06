@@ -240,7 +240,7 @@ function BepcPrepPageContent() {
                         <div style={{ minWidth: 200 }}>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     opacity: 0.85,
                                 }}
@@ -336,7 +336,7 @@ function BepcPrepPageContent() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -460,7 +460,7 @@ function BepcPrepPageContent() {
                                             ))}
                                             <p
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     marginTop: 10,
                                                     lineHeight: 1.55,
@@ -475,7 +475,7 @@ function BepcPrepPageContent() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={20} color="var(--brand-600)" />
@@ -518,7 +518,7 @@ function BepcPrepPageContent() {
                                     </Badge>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 10,
                                             lineHeight: 1.55,
@@ -531,7 +531,7 @@ function BepcPrepPageContent() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={18} color="var(--brand-600)" />
@@ -584,7 +584,7 @@ function BepcPrepPageContent() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--eduflow-text-tertiary)",
                                                         }}
                                                     >
@@ -638,7 +638,7 @@ function ExamRow({ exam, hasBorder }: { exam: ExamItem; hasBorder: boolean }) {
         >
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{exam.title}</div>
-                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 1 }}>
+                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 1 }}>
                     {exam.classSubject.subject.name} · {exam.classSubject.class.name} ·{" "}
                     {exam._count.questions} question{exam._count.questions !== 1 ? "s" : ""} ·{" "}
                     {exam.duration} min
@@ -673,7 +673,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
             </div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     opacity: 0.75,
                 }}
             >
@@ -692,7 +692,7 @@ function ReadinessStat({ label, value }: { label: string; value: string }) {
             >
                 {value}
             </div>
-            <div style={{ fontSize: 11, opacity: 0.75,}}>
+            <div style={{ fontSize: 12, opacity: 0.75,}}>
                 {label}
             </div>
         </div>

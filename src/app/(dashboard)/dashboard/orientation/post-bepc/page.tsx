@@ -542,7 +542,7 @@ function OrientationPostBepcPageContent() {
                                                         style={{
                                                             padding: "10px 14px",
                                                             textAlign: "left",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
@@ -759,14 +759,14 @@ function OrientationPostBepcPageContent() {
                                                     }}
                                                 >
                                                     <span
-                                                        style={{ fontSize: 11, fontWeight: 500 }}
+                                                        style={{ fontSize: 12, fontWeight: 500 }}
                                                     >
                                                         {d.label}
                                                     </span>
                                                     <span
                                                         className="tabular"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color: `var(--eduflow-${d.color}-700)`,
                                                             fontVariantNumeric: "tabular-nums",
@@ -813,7 +813,7 @@ function OrientationPostBepcPageContent() {
                                                 display: "flex",
                                                 alignItems: "center",
                                                 gap: 8,
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 opacity: 0.85,
                                                 marginBottom: 8,
@@ -938,7 +938,7 @@ function Kpi({
         <Card padding={14}>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -994,7 +994,7 @@ function SeriesLegend() {
                         3 bacs · 11 séries + DT (Diplôme de Technicien) — source DOB / MEMP
                     </p>
                 </div>
-                <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, flexWrap: "wrap" }}>
                     {[
                         { l: "Littéraire", c: "brand" },
                         { l: "Scientifique", c: "info" },
@@ -1051,7 +1051,7 @@ function SeriesLegend() {
                             </span>
                             <span
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                     color: `var(--eduflow-${s.c}-800)`,
                                 }}
@@ -1061,7 +1061,7 @@ function SeriesLegend() {
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-secondary)",
                                 marginTop: 6,
                                 lineHeight: 1.5,
@@ -1071,7 +1071,7 @@ function SeriesLegend() {
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginTop: 6,
                                 fontWeight: 600,
@@ -1117,7 +1117,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

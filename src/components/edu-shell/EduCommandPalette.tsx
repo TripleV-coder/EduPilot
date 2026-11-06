@@ -367,7 +367,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                     <kbd
                         aria-hidden
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 600,
                             padding: "2px 6px",
                             borderRadius: 6,
@@ -403,7 +403,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                 <div
                                     style={{
                                         padding: "10px 16px 4px",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: "var(--text-tertiary)",
                                     }}
@@ -480,7 +480,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                                     <span
                                                         style={{
                                                             display: "block",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--text-tertiary)",
                                                             marginTop: 1,
                                                             overflow: "hidden",
@@ -496,7 +496,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                                 <kbd
                                                     aria-hidden
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 600,
                                                         padding: "2px 6px",
                                                         borderRadius: 6,
@@ -524,7 +524,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                         background: "var(--surface-sunken)",
                         display: "flex",
                         gap: 16,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text-tertiary)",
                     }}
                 >

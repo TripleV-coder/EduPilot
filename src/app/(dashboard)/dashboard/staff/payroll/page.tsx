@@ -214,7 +214,7 @@ function PayrollContent() {
                             <li key={s.userId} className="flex flex-wrap items-center gap-3 px-5 py-3">
                                 <div className="min-w-0 flex-1">
                                     <div style={{ fontSize: 14, fontWeight: 600 }}>{s.name}</div>
-                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{formatUserRoleLabel(s.role)}</div>
+                                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{formatUserRoleLabel(s.role)}</div>
                                 </div>
                                 {entry ? (
                                     <>
@@ -265,7 +265,7 @@ function PayrollContent() {
 function PeriodPicker({ period, setPeriod }: { period: string; setPeriod: (p: string) => void }) {
     return (
         <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>Période</span>
+            <span style={{ fontSize: 12, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>Période</span>
             <input
                 type="month"
                 value={period}
@@ -352,7 +352,7 @@ function LineEditor({
     );
 }
 
-const editorLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" };
+const editorLabel: React.CSSProperties = { fontSize: 12, fontWeight: 600,color: "var(--eduflow-text-tertiary)" };
 const editorInput: React.CSSProperties = {
     height: 40, padding: "0 12px", borderRadius: "var(--eduflow-radius-input)",
     border: "1px solid var(--eduflow-border-default)", background: "var(--eduflow-surface-card)",

@@ -492,7 +492,7 @@ function FinanceDashboardPageContent() {
                                         </h2>
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -533,7 +533,7 @@ function FinanceDashboardPageContent() {
                                                             key={h}
                                                             style={{
                                                                 padding: "10px 16px",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 fontWeight: 700,
                                                                 color: "var(--eduflow-text-tertiary)",
                                                             }}
@@ -585,7 +585,7 @@ function FinanceDashboardPageContent() {
                                                                 </div>
                                                                 <div
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color: "var(--eduflow-text-tertiary)",
                                                                     }}
                                                                 >
@@ -645,7 +645,7 @@ function FinanceDashboardPageContent() {
                                                                 <span
                                                                     className="eduflow-tabular"
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         fontWeight: 600,
                                                                         color: "var(--eduflow-text-secondary)",
                                                                     }}
@@ -725,7 +725,7 @@ function FilterPill({
         >
             <span
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 500,
                     color: "var(--eduflow-text-tertiary)",
                 }}

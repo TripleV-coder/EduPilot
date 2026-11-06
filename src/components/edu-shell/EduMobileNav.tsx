@@ -160,7 +160,7 @@ export function EduMobileNav() {
                             <Icon name={item.icon} size={20} color={color} />
                             <span
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: active ? 700 : 600,
                                     letterSpacing: "-0.005em",
                                 }}

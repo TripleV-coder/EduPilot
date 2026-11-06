@@ -29,7 +29,7 @@ export function ExpandedEvalGrades({
             <div
                 className="flex flex-wrap items-center gap-5 border-b px-5 py-2"
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-secondary)",
                     borderColor: "var(--eduflow-border-subtle)",
                     background: "var(--eduflow-surface-card)",
@@ -102,7 +102,7 @@ export function ExpandedEvalGrades({
                                             </span>
                                         </div>
                                     </Td>
-                                    <Td className="eduflow-mono" style={{ fontSize: 11 }}>
+                                    <Td className="eduflow-mono" style={{ fontSize: 12 }}>
                                         {stu.matricule}
                                     </Td>
                                     <Td center>
@@ -110,7 +110,7 @@ export function ExpandedEvalGrades({
                                             grade.isAbsent ? (
                                                 <span
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontStyle: "italic",
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
@@ -153,7 +153,7 @@ export function ExpandedEvalGrades({
                                         ) : (
                                             <span
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -261,7 +261,7 @@ export function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -319,7 +319,7 @@ export function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -416,7 +416,7 @@ export function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 width,

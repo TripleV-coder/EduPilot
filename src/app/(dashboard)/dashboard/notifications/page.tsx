@@ -291,7 +291,7 @@ function NotificationsCenterPageContent() {
                                             <span
                                                 className="tabular"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     fontWeight: 700,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
@@ -342,7 +342,7 @@ function NotificationsCenterPageContent() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 10,
                                         lineHeight: 1.5,
@@ -504,7 +504,7 @@ function NotifGroup({
                 </h2>
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -599,7 +599,7 @@ function NotifRow({
                         </span>
                         <span
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                                 whiteSpace: "nowrap",
                                 fontVariantNumeric: "tabular-nums",
@@ -660,7 +660,7 @@ function PreviewCard({ preview }: { preview: NonNullable<Preview> }) {
                 </h2>
                 <p
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: `var(--eduflow-${preview.accent}-800)`,
                         margin: "4px 0 0",
                     }}

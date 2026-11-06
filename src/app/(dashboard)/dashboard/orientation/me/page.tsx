@@ -363,7 +363,7 @@ function OrientationMeContent() {
                                                     {rec.strengths[0] ? (
                                                         <p
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color: "var(--eduflow-success-700, #047857)",
                                                                 margin: "6px 0 0",
                                                             }}
@@ -374,7 +374,7 @@ function OrientationMeContent() {
                                                     {rec.warnings[0] ? (
                                                         <p
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color: "var(--eduflow-warning-700, #b45309)",
                                                                 margin: "2px 0 0",
                                                             }}
@@ -420,7 +420,7 @@ function OrientationMeContent() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         opacity: 0.85,
                                         marginBottom: 12,
@@ -494,7 +494,7 @@ function OrientationMeContent() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -582,7 +582,7 @@ function OrientationMeContent() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -648,7 +648,7 @@ function OrientationMeContent() {
                                     {strongSubjects.length === 0 ? (
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color:
                                                     "var(--eduflow-text-tertiary)",
                                                 margin: 0,
@@ -760,7 +760,7 @@ function OrientationMeContent() {
                                                 <span
                                                     className="tabular"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-secondary)",
                                                         fontVariantNumeric: "tabular-nums",
@@ -772,7 +772,7 @@ function OrientationMeContent() {
                                                     <span
                                                         style={{
                                                             marginLeft: "auto",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-success-700)",
@@ -802,7 +802,7 @@ function OrientationMeContent() {
                                     {careers.length === 0 ? (
                                         <span
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -818,7 +818,7 @@ function OrientationMeContent() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 12,
                                         lineHeight: 1.55,
@@ -870,7 +870,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     opacity: 0.7,
                 }}
             >

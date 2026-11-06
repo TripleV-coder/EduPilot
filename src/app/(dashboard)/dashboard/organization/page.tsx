@@ -76,7 +76,7 @@ function SummaryCard({
     <Card className="border-border/60 bg-card shadow-sm">
       <CardContent className="flex items-start justify-between p-5">
         <div className="space-y-1">
-          <p className="text-[11px] font-bold text-muted-foreground">
+          <p className="text-xs font-bold text-muted-foreground">
             {title}
           </p>
           <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
@@ -104,14 +104,14 @@ function PerformanceComparisonChart({ sites }: { sites: OrganizationSiteSummary[
             <Activity className="w-4 h-4 text-primary" />
             Moyennes par Établissement
         </CardTitle>
-        <CardDescription className="text-[11px]">Comparaison consolidée de la performance académique.</CardDescription>
+        <CardDescription className="text-xs">Comparaison consolidée de la performance académique.</CardDescription>
       </CardHeader>
       <CardContent className="h-[300px] pt-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-            <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
+            <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
             <RechartsTooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} cursor={{ fill: 'hsl(var(--muted)/0.4)' }} />
             <Bar dataKey="average" radius={[4, 4, 0, 0]} barSize={40}>
               {data.map((entry, index) => (
@@ -177,7 +177,7 @@ function ComparisonTable({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
+              <thead className="bg-muted/30 text-xs font-bold text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Référence</th>
                   <th className="px-4 py-3 text-center">Moyenne réseau</th>
@@ -451,13 +451,13 @@ export default function OrganizationDashboardPage() {
             <div className="lg:col-span-1">
                 <Card className="border-border/60 bg-foreground text-background shadow-sm h-full">
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-bold text-background/70">Périmètre de comparaison</CardTitle>
+                        <CardTitle className="text-xs font-bold text-background/70">Périmètre de comparaison</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
                         <div className="space-y-1">
                             <p className="text-xs text-background/70 font-bold">Année</p>
                             <p className="text-xl font-bold">{overview.reference.academicYearName}</p>
-                            <p className="text-[11px] text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
+                            <p className="text-xs text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-xs text-background/70 font-bold">Période</p>
@@ -467,7 +467,7 @@ export default function OrganizationDashboardPage() {
                             <p className="text-xs text-background/70 mb-2">Exclusion automatique</p>
                             <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-lg font-bold border-background/30 bg-background/5 text-background">{overview.reference.nonComparableSiteCount}</Badge>
-                                <span className="text-[11px] text-background/70 font-medium">Sites non comparables</span>
+                                <span className="text-xs text-background/70 font-medium">Sites non comparables</span>
                             </div>
                         </div>
                     </CardContent>
@@ -488,7 +488,7 @@ export default function OrganizationDashboardPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
+                  <thead className="bg-muted/30 text-xs font-bold text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 text-left">Site</th>
                       <th className="px-4 py-3 text-center">Statut</th>

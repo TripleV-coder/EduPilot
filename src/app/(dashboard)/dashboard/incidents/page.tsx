@@ -246,7 +246,7 @@ function IncidentsPageContent() {
                 return (
                     <div className="flex flex-col gap-1.5">
                         <span className="font-medium text-foreground">{getTypeLabel(row.original.incidentType)}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border w-fit uppercase ${sev.color}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border w-fit uppercase ${sev.color}`}>
                             {sev.label}
                         </span>
                     </div>
@@ -517,7 +517,7 @@ function IncidentsPageContent() {
                             </Select>
                             {activeFiltersCount > 0 && (
                                 <>
-                                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
                                         {activeFiltersCount} filtre{activeFiltersCount > 1 ? "s" : ""}
                                     </span>
                                     <Button variant="ghost" size="sm" className="touch-target" onClick={resetFilters}>

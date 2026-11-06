@@ -133,7 +133,7 @@ export default function RootUsersPage() {
                                                     <div>
                                                         <p className="font-medium text-foreground text-sm flex items-center gap-2">
                                                             {user.firstName} {user.lastName}
-                                                            {!user.isActive && <Badge variant="destructive" className="h-4 text-[11px] px-1">Suspendu</Badge>}
+                                                            {!user.isActive && <Badge variant="destructive" className="h-4 text-xs px-1">Suspendu</Badge>}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                                                             <Mail className="w-3 h-3" /> {user.email}
@@ -151,7 +151,7 @@ export default function RootUsersPage() {
                                                         ADMIN ÉTABLISSEMENT
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="secondary" className="font-normal text-[11px]">
+                                                    <Badge variant="secondary" className="font-normal text-xs">
                                                         {formatUserRoleLabel(user.role)}
                                                     </Badge>
                                                 )}

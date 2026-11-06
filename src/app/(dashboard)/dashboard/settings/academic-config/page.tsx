@@ -336,7 +336,7 @@ function AcademicConfigPageContent() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color:
                                                 "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
@@ -423,7 +423,7 @@ function AcademicConfigPageContent() {
                                                     </div>
                                                     <span
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -533,7 +533,7 @@ function AcademicConfigPageContent() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -701,7 +701,7 @@ function PeriodDetail({ label, value }: { label: string; value: string }) {
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                     fontWeight: 600,
                 }}

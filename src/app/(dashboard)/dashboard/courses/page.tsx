@@ -332,7 +332,7 @@ function CoursesPageContent() {
                                                 <p
                                                     style={{
                                                         margin: "4px 0 0",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
                                                 >
@@ -358,7 +358,7 @@ function CoursesPageContent() {
                                             <span
                                                 className="flex items-center gap-1.5"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -381,7 +381,7 @@ function CoursesPageContent() {
                                                 <div
                                                     className="flex items-center justify-between"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
                                                 >
@@ -555,7 +555,7 @@ function CoursesPageContent() {
                                                                     <p
                                                                         style={{
                                                                             margin: "4px 0 0",
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color:
                                                                                 "var(--eduflow-text-tertiary)",
                                                                         }}

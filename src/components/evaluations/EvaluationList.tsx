@@ -71,7 +71,7 @@ export function EvaluationList({ evaluations, isLoading }: { evaluations: Evalua
                   <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
                   <Badge
                     className={cn(
-                      "px-2 py-0 text-[11px] font-semibold",
+                      "px-2 py-0 text-xs font-semibold",
                       hasGrades
                         ? "bg-[var(--eduflow-success-50)] text-[var(--eduflow-success-700)]"
                         : "bg-muted text-muted-foreground"

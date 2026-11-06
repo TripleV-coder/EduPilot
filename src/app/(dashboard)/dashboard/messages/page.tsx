@@ -567,7 +567,7 @@ function MessagesPageContent() {
                                                     </span>
                                                     <span
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                             whiteSpace: "nowrap",
@@ -578,7 +578,7 @@ function MessagesPageContent() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: c.unreadCount > 0
                                                             ? "var(--eduflow-text-primary)"
                                                             : "var(--eduflow-text-tertiary)",
@@ -600,7 +600,7 @@ function MessagesPageContent() {
                                                         borderRadius: 9,
                                                         background: "var(--brand-600)",
                                                         color: "#fff",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         display: "grid",
                                                         placeItems: "center",
@@ -654,7 +654,7 @@ function MessagesPageContent() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -775,7 +775,7 @@ function MessagesPageContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -825,7 +825,7 @@ function MessagesPageContent() {
                                         </SubLabel>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 6,
                                                 lineHeight: 1.6,
@@ -916,7 +916,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                         padding: "4px 12px",
                         borderRadius: 12,
                         background: "var(--eduflow-surface-card)",
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         border: "1px solid var(--eduflow-border-subtle)",
                     }}
@@ -947,7 +947,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     {m.subject && !m.subject.startsWith("Re:") ? (
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 4,
@@ -978,7 +978,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     </div>
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                             marginTop: 4,
                             textAlign: fromMe ? "right" : "left",

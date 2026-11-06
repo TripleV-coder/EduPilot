@@ -221,7 +221,7 @@ function ExamsPageContent() {
                                         <div
                                             className="mt-1 flex flex-wrap items-center gap-2"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -343,7 +343,7 @@ function Stat({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: "var(--eduflow-text-tertiary)",
                 }}

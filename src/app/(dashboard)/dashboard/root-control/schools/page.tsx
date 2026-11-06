@@ -398,15 +398,15 @@ function RootSchoolsPageContent() {
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
-                                                    <p className="text-[11px] text-muted-foreground">
+                                                    <p className="text-xs text-muted-foreground">
                                                         Choisis un site principal pour créer une annexe avec ses propres accès.
                                                     </p>
                                                     {selectedParentSchool?.organization ? (
-                                                        <p className="text-[11px] text-primary">
+                                                        <p className="text-xs text-primary">
                                                             Le site hérite de l&apos;organisation {selectedParentSchool.organization.name}.
                                                         </p>
                                                     ) : selectedParentSchool ? (
-                                                        <p className="text-[11px] text-muted-foreground">
+                                                        <p className="text-xs text-muted-foreground">
                                                             Cette annexe restera hors organisation tant que le site principal n&apos;est pas lui-même rattaché.
                                                         </p>
                                                     ) : null}
@@ -428,7 +428,7 @@ function RootSchoolsPageContent() {
                                                             <SelectItem value="EXISTING">Rattacher à une organisation existante</SelectItem>
                                                         </SelectContent>
                                                     </Select>
-                                                    <p className="text-[11px] text-muted-foreground">
+                                                    <p className="text-xs text-muted-foreground">
                                                         Utilise une organisation pour gérer plusieurs sites indépendants avec un cockpit transverse.
                                                     </p>
                                                 </div>
@@ -476,7 +476,7 @@ function RootSchoolsPageContent() {
                                                             <Label htmlFor="assign-org-admin" className="text-sm font-medium">
                                                                 Donner aussi un accès chef d&apos;organisation
                                                             </Label>
-                                                            <p className="text-[11px] text-muted-foreground">
+                                                            <p className="text-xs text-muted-foreground">
                                                                 L&apos;administrateur créé pourra piloter et comparer les sites de cette organisation.
                                                             </p>
                                                         </div>
@@ -550,7 +550,7 @@ function RootSchoolsPageContent() {
                                                         <Lock className="w-3 h-3 text-muted-foreground" /> Mot de passe temporaire
                                                     </Label>
                                                     <Input id="admin-password" name="adminPassword" type="password" autoComplete="new-password" className="h-11 focus-visible:ring-primary" />
-                                                    <p className="text-[11px] text-muted-foreground">Laisser vide pour générer un mot de passe provisoire unique. Changement obligatoire à la première connexion.</p>
+                                                    <p className="text-xs text-muted-foreground">Laisser vide pour générer un mot de passe provisoire unique. Changement obligatoire à la première connexion.</p>
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -638,17 +638,17 @@ function RootSchoolsPageContent() {
                                                     <div>
                                                         <p className="font-bold text-foreground text-sm">{school.name}</p>
                                                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                            <Badge variant="secondary" className="font-mono text-[11px]">{school.code}</Badge>
-                                                            <Badge variant="outline" className="text-[11px]">
+                                                            <Badge variant="secondary" className="font-mono text-xs">{school.code}</Badge>
+                                                            <Badge variant="outline" className="text-xs">
                                                                 {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}
                                                             </Badge>
                                                             {school.organization?.name ? (
-                                                                <Badge variant="outline" className="text-[11px]">
+                                                                <Badge variant="outline" className="text-xs">
                                                                     {school.organization.name}
                                                                 </Badge>
                                                             ) : null}
                                                             {school.parentSchool?.name ? (
-                                                                <span className="text-[11px] text-muted-foreground">
+                                                                <span className="text-xs text-muted-foreground">
                                                                     Rattaché à {school.parentSchool.name}
                                                                 </span>
                                                             ) : null}

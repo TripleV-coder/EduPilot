@@ -74,7 +74,7 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
         ].map(([label, value]) => (
           <Card key={label as string} className="border-none bg-muted/20 shadow-none">
             <CardContent className="p-4">
-              <p className="text-[11px] font-bold text-muted-foreground">{label}</p>
+              <p className="text-xs font-bold text-muted-foreground">{label}</p>
               <p className="mt-1 text-base font-bold tabular-nums">{money(value as number)}</p>
             </CardContent>
           </Card>
@@ -84,7 +84,7 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
       <div className="overflow-x-auto rounded-lg border border-border/60">
         <table className="w-full min-w-[520px] text-[13px]">
           <caption className="sr-only">Situation par frais</caption>
-          <thead className="bg-muted/30 text-left text-[11px] font-bold text-muted-foreground">
+          <thead className="bg-muted/30 text-left text-xs font-bold text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-2">Frais</th>
               <th scope="col" className="px-3 py-2 text-right">Facturé</th>

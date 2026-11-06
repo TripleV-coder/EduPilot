@@ -559,7 +559,7 @@ function CahierDeNotesPageContent() {
                                                                         <div
                                                                             className="mt-1 flex flex-wrap items-center gap-2"
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                             }}
@@ -611,7 +611,7 @@ function CahierDeNotesPageContent() {
                                                                         </p>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -633,7 +633,7 @@ function CahierDeNotesPageContent() {
                                                                         </span>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -700,7 +700,7 @@ function CahierDeNotesPageContent() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -745,7 +745,7 @@ function CahierDeNotesPageContent() {
                                                         <div className="flex flex-col items-center gap-0.5">
                                                             <span
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--brand-700)",
                                                                     fontWeight: 700,
                                                                     maxWidth: "100%",
@@ -758,7 +758,7 @@ function CahierDeNotesPageContent() {
                                                             <span
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-secondary)",
                                                                     maxWidth: "100%",
                                                                 }}
@@ -768,7 +768,7 @@ function CahierDeNotesPageContent() {
                                                             <span
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                 }}
                                                             >
@@ -811,7 +811,7 @@ function CahierDeNotesPageContent() {
                                                             <p
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                     margin: 0,
                                                                 }}
@@ -835,7 +835,7 @@ function CahierDeNotesPageContent() {
                                                             {student.missingCount > 0 ? (
                                                                 <div
                                                                     title="Note absente alors que les camarades sont notés : saisir la note ou indiquer l'absence (justifiée ou non)"
-                                                                    style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-warning-700)" }}
+                                                                    style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-warning-700)" }}
                                                                 >
                                                                     {student.missingCount} à justifier
                                                                 </div>
@@ -881,7 +881,7 @@ function CahierDeNotesPageContent() {
                                                                         grade.isAbsent ? (
                                                                             <span
                                                                                 style={{
-                                                                                    fontSize: 11,
+                                                                                    fontSize: 12,
                                                                                     fontWeight: 700,
                                                                                     color:
                                                                                         "var(--eduflow-danger-700)",

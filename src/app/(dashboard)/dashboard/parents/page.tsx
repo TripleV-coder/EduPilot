@@ -307,7 +307,7 @@ function ParentsPageContent() {
                                                     {fullName}
                                                 </div>
                                                 <div
-                                                    className="truncate text-[11px]"
+                                                    className="truncate text-xs"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     {parent.email}
@@ -522,7 +522,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

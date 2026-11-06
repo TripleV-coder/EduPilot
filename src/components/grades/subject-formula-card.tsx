@@ -94,7 +94,7 @@ export function SubjectFormulaCard({ classSubjectId }: { classSubjectId: string 
                         <h3 className="eduflow-display" style={{ fontSize: 15, margin: 0 }}>
                             Calcul de la moyenne · {data.subject}
                         </h3>
-                        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {own ? "Votre formule pour cette matière" : "Formule de l'établissement"} :{" "}
                             <code>{data.effectiveFormula}</code>
                         </p>
@@ -129,7 +129,7 @@ export function SubjectFormulaCard({ classSubjectId }: { classSubjectId: string 
                             Exemple : interrogations 12 et 15, devoirs 14 et 10, composition 9 → formule de l&apos;école :{" "}
                             <strong>{example(data.schoolFormula)}</strong> ; votre formule : <strong>{example(draft)}</strong>
                         </p>
-                        <p style={{ margin: 0, fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <p style={{ margin: 0, fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             Le changement s&apos;applique aux périodes dont le conseil n&apos;est pas encore validé. Il est enregistré
                             dans l&apos;historique.
                         </p>

@@ -338,7 +338,7 @@ function TeachersHRPageContent() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -414,7 +414,7 @@ function TeachersHRPageContent() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color:
                                                                                 "var(--eduflow-text-tertiary)",
                                                                         }}
@@ -445,7 +445,7 @@ function TeachersHRPageContent() {
                                                             </div>
                                                             <div
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                     marginTop: 2,

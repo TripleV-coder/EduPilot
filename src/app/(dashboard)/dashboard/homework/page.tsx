@@ -246,7 +246,7 @@ function HomeworkPageContent() {
                                         <div className="text-[13px] font-semibold">{hw.title}</div>
                                         {hw.createdBy ? (
                                             <div
-                                                className="mt-0.5 text-[11px]"
+                                                className="mt-0.5 text-xs"
                                                 style={{ color: "var(--eduflow-text-tertiary)" }}
                                             >
                                                 Par {hw.createdBy.firstName} {hw.createdBy.lastName}
@@ -264,7 +264,7 @@ function HomeworkPageContent() {
                                             {hw.classSubject?.subject?.name || "—"}
                                         </span>
                                         <span
-                                            className="text-[11px]"
+                                            className="text-xs"
                                             style={{ color: "var(--eduflow-text-tertiary)" }}
                                         >
                                             {hw.classSubject?.class?.name || "—"}

@@ -187,12 +187,12 @@ function AlumniPageContent() {
                                     <Avatar name={`${a.firstName} ${a.lastName}`} size="md" />
                                     <div>
                                         <div style={{ fontSize: 14, fontWeight: 700 }}>{a.firstName} {a.lastName}</div>
-                                        <div style={{ fontSize: 11, color: "var(--brand-700)", fontWeight: 600 }}>
+                                        <div style={{ fontSize: 12, color: "var(--brand-700)", fontWeight: 600 }}>
                                             BAC {a.graduationYear}{a.series ? ` · Série ${a.series}` : ""}
                                         </div>
-                                        <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>{jobLine(a)}</div>
+                                        <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>{jobLine(a)}</div>
                                         {a.isMentor ? (
-                                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                            <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                                                 Mentor{a.mentorTopic ? ` · ${a.mentorTopic}` : ""}
                                             </div>
                                         ) : null}
@@ -208,7 +208,7 @@ function AlumniPageContent() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Membres par promotion</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Membres par promotion</p>
                             <div style={{ marginTop: 8 }}>
                                 {!loading && (data?.promotions.length ?? 0) === 0 ? (
                                     <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", padding: "8px 0" }}>
@@ -239,7 +239,7 @@ function AlumniPageContent() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Mentorat</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Mentorat</p>
                             <p style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", lineHeight: 1.55, margin: "6px 0 0" }}>
                                 Marque un ancien élève comme « mentor » lors de l'ajout pour le proposer aux élèves
                                 en orientation. Les mentors disponibles sont comptés ci-dessus.

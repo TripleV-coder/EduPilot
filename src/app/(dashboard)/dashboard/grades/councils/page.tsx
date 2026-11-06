@@ -487,7 +487,7 @@ function CouncilsPageContent() {
                                                             style={{
                                                                 padding: "8px 14px",
                                                                 textAlign: "left",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 fontWeight: 700,
                                                                 color:
                                                                     "var(--eduflow-text-tertiary)",
@@ -655,7 +655,7 @@ function CouncilsPageContent() {
                                         {council.participants.length === 0 ? (
                                             <p
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                     margin: 0,
                                                 }}
@@ -682,7 +682,7 @@ function CouncilsPageContent() {
                                     {council.participants.length > 12 ? (
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 10,
                                             }}
@@ -773,7 +773,7 @@ function CouncilsPageContent() {
                                             <div
                                                 style={{
                                                     marginTop: 6,
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -813,7 +813,7 @@ function StatTile({
     const fg = `var(--eduflow-${tone}-800)`;
     return (
         <div style={{ padding: 10, background: bg, borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: fg, fontWeight: 600 }}>{label}</div>
+            <div style={{ fontSize: 12, color: fg, fontWeight: 600 }}>{label}</div>
             <div
                 className="eduflow-display tabular"
                 style={{
@@ -850,7 +850,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

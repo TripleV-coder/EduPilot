@@ -408,7 +408,7 @@ function ExamsPlanningPageContent() {
                                                 slotIdx === 0
                                                     ? "1px solid var(--eduflow-border-subtle)"
                                                     : "none",
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             color:
                                                 "var(--eduflow-text-tertiary)",
@@ -469,7 +469,7 @@ function ExamsPlanningPageContent() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color: `var(--eduflow-${color}-800)`,
                                                                             marginTop: 4,
                                                                         }}
@@ -479,7 +479,7 @@ function ExamsPlanningPageContent() {
                                                                     {e.title ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color: `var(--eduflow-${color}-800)`,
                                                                                 opacity: 0.7,
                                                                             }}
@@ -490,7 +490,7 @@ function ExamsPlanningPageContent() {
                                                                     <div
                                                                         style={{
                                                                             marginTop: 6,
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color: `var(--eduflow-${color}-700)`,
                                                                             fontWeight: 600,
                                                                             fontVariantNumeric:

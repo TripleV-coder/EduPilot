@@ -31,7 +31,7 @@ export function DebtAgingChart({ data }: DebtAgingChartProps) {
         <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data} layout="vertical" margin={{ left: 20, right: 40 }}>
                 <XAxis type="number" hide />
-                <YAxis dataKey="range" type="category" tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                <YAxis dataKey="range" type="category" tick={{ fontSize: 12, fontWeight: 'bold' }} />
                 <Tooltip {...FR_TOOLTIP_STYLE} />
                 <Bar dataKey="amount" radius={[0, 4, 4, 0]} barSize={32}>
                     {data.map((entry, index) => (

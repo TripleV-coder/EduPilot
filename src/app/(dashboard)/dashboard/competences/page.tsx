@@ -335,7 +335,7 @@ function CompetencesPageContent() {
                                                     textAlign: "left",
                                                     background:
                                                         "var(--eduflow-surface-sunken)",
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     fontWeight: 700,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
@@ -351,7 +351,7 @@ function CompetencesPageContent() {
                                                             padding: "12px 14px",
                                                             background:
                                                                 "var(--eduflow-surface-sunken)",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color: `var(--eduflow-${STATUS_META[k].color}-700)`,
                                                             textAlign: "center",
@@ -446,7 +446,7 @@ function CompetencesPageContent() {
                             className="insight-grid"
                         >
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -470,7 +470,7 @@ function CompetencesPageContent() {
                                 </p>
                             </Card>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -500,7 +500,7 @@ function CompetencesPageContent() {
                                     border: "1px solid var(--eduflow-danger-200)",
                                 }}
                             >
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -558,7 +558,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

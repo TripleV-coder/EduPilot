@@ -73,7 +73,7 @@ export function StepDocuments() {
                                 <div style={{ fontSize: 13, fontWeight: 600 }}>{d.label}</div>
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 2,
                                     }}

@@ -264,7 +264,7 @@ function WellbeingReportContent() {
                                         <div style={{ fontSize: 12, fontWeight: 600 }}>{a.kind}</div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -331,7 +331,7 @@ function WellbeingReportContent() {
                                             borderRadius: "50%",
                                             display: "grid",
                                             placeItems: "center",
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             background: isCurrent
                                                 ? "var(--brand-600)"
@@ -363,7 +363,7 @@ function WellbeingReportContent() {
                                         <span
                                             style={{
                                                 display: "block",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -382,7 +382,7 @@ function WellbeingReportContent() {
                             padding: 12,
                             borderRadius: 10,
                             background: "var(--eduflow-surface-sunken)",
-                            fontSize: 11,
+                            fontSize: 12,
                             lineHeight: 1.55,
                             color: "var(--eduflow-text-secondary)",
                         }}

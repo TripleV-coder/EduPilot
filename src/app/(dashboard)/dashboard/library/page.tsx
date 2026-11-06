@@ -362,7 +362,7 @@ function LibraryPageContent() {
                                                     <div
                                                         className="eduflow-mono"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--eduflow-text-tertiary)",
                                                             marginTop: 4,
                                                         }}
@@ -446,7 +446,7 @@ function LibraryPageContent() {
                                                 </div>
                                                 {rec.book.author ? (
                                                     <div
-                                                        className="text-[11px] italic"
+                                                        className="text-xs italic"
                                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
                                                         {rec.book.author}

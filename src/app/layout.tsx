@@ -76,7 +76,6 @@ export const metadata: Metadata = {
     },
 };
 
-import { Toaster } from "@/components/ui/toaster";
 import { headers } from "next/headers";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
@@ -106,7 +105,6 @@ export default async function RootLayout({
                             </div>
                             <WebVitalsReporter />
                             <CookieBanner />
-                            <Toaster />
                             <SonnerToaster position="top-right" richColors closeButton />
                             <ServiceWorkerRegister />
                         </SchoolProvider>

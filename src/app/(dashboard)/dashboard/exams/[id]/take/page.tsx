@@ -237,7 +237,7 @@ function TakeExamPageContent() {
                         </Link>
                         <div>
                             <h1 className="text-lg font-bold truncate max-w-[200px] sm:max-w-md">{exam.title}</h1>
-                            <p className="text-[11px] text-muted-foreground font-bold tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
+                            <p className="text-xs text-muted-foreground font-bold tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
                         </div>
                     </div>
                     

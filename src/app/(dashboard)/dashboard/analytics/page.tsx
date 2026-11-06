@@ -334,7 +334,7 @@ function AnalyticsContent() {
                             ].map((kpi, i) => (
                                 <Card key={i} className="dashboard-block kpi-card border-border bg-card">
                                     <CardHeader className="pb-2">
-                                        <div className="text-[11px] font-bold text-muted-foreground">{kpi.label}</div>
+                                        <div className="text-xs font-bold text-muted-foreground">{kpi.label}</div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className={cn("text-3xl metric-serif", kpi.color, overviewLoading && "opacity-60")}>{kpi.value}</div>
@@ -375,7 +375,7 @@ function AnalyticsContent() {
                             <CardHeader>
                                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                                     Carte thermique des performances
-                                    <Badge variant="outline" className="text-[11px]">Par classe & matière</Badge>
+                                    <Badge variant="outline" className="text-xs">Par classe & matière</Badge>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

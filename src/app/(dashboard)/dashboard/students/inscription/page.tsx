@@ -469,7 +469,7 @@ function InscriptionPageContent() {
                         </Button>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >

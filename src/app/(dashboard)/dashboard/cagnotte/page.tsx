@@ -274,7 +274,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                 </h2>
                 <p
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text-tertiary)",
                         margin: 0,
                     }}
@@ -336,7 +336,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                     style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text-tertiary)",
                         gap: 8,
                     }}
@@ -374,7 +374,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                                     background: `var(--${tone}-600)`,
                                     border: "2px solid var(--surface-card)",
                                     color: "#fff",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     display: "grid",
                                     placeItems: "center",
@@ -393,7 +393,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                                     background: "var(--surface-sunken)",
                                     border: "2px solid var(--surface-card)",
                                     color: "var(--text-secondary)",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     display: "grid",
                                     placeItems: "center",
@@ -427,7 +427,7 @@ function CagnotteCard({ cagnotte: c, canBroadcast }: { cagnotte: CagnotteRow; ca
                         <div>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: `var(--${paidTone}-700)`,
                                     fontWeight: 700,
                                 }}

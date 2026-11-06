@@ -388,7 +388,7 @@ function NewPaymentPageContent() {
                                         <div>
                                             <h4 className="font-bold text-sm">{selectedStudent?.user?.firstName} {selectedStudent?.user?.lastName}</h4>
                                             <p className="text-xs text-muted-foreground">Mat: {selectedStudent?.matricule}</p>
-                                            <span className="inline-block mt-1 text-[11px] bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
+                                            <span className="inline-block mt-1 text-xs bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
                                                 {selectedStudent?.class?.name || "Classe N/A"}
                                             </span>
                                         </div>
@@ -463,7 +463,7 @@ function NewPaymentPageContent() {
                                                 />
                                                 <Banknote className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                                             </div>
-                                            <p className="text-[11px] text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
+                                            <p className="text-xs text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
                                         </div>
 
                                         <div className="space-y-2">
@@ -495,7 +495,7 @@ function NewPaymentPageContent() {
                                                     onChange={e => setPayerPhone(e.target.value)}
                                                     placeholder="Ex: 22990000000"
                                                 />
-                                                <p className="text-[11px] text-muted-foreground">
+                                                <p className="text-xs text-muted-foreground">
                                                     Transfert déjà reçu : saisissez sa référence ci-dessous, il sera encaissé directement.
                                                     Sinon, une demande de paiement est envoyée sur ce numéro.
                                                 </p>

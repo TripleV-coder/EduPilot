@@ -353,7 +353,7 @@ function CagnotteDetailContent() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -403,7 +403,7 @@ function CagnotteDetailContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -484,7 +484,7 @@ function CagnotteDetailContent() {
                             >
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: "var(--eduflow-success-700)",
                                     }}
@@ -546,7 +546,7 @@ function CagnotteDetailContent() {
                                 </Button>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         lineHeight: 1.5,
                                         margin: 0,
@@ -593,7 +593,7 @@ function CagnotteDetailContent() {
                                         borderRadius: "50%",
                                         background: "var(--brand-600)",
                                         color: "#fff",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         display: "grid",
                                         placeItems: "center",
@@ -601,7 +601,7 @@ function CagnotteDetailContent() {
                                 >
                                     {c.initials}
                                 </div>
-                                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                     {c.isMine ? "Vous" : "Famille"} ·{" "}
                                     {FR_DATETIME.format(new Date(c.paidAt))}
                                     {c.status === "PENDING" ? (

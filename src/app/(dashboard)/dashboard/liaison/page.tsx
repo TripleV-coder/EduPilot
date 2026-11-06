@@ -388,7 +388,7 @@ function LiaisonPageContent() {
                                                     </span>
                                                     <span
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -422,7 +422,7 @@ function LiaisonPageContent() {
                                                 </p>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 6,
@@ -558,7 +558,7 @@ function LiaisonPageContent() {
                                     {composeStatus ? (
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-secondary)",
                                                 marginTop: 4,
                                             }}
@@ -614,7 +614,7 @@ function RecapTile({
             </div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: `var(--eduflow-${tone}-800)`,
                     fontWeight: 600,
                 }}

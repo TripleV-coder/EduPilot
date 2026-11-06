@@ -249,7 +249,7 @@ function MedicalRecordsPageContent() {
                                             <div className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
                                                 <span>{student.matricule ?? "—"}</span>
                                                 {className(student) && (
-                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-[11px] font-bold">
+                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-xs font-bold">
                                                         {className(student)}
                                                     </span>
                                                 )}
@@ -334,7 +334,7 @@ function MedicalRecordsPageContent() {
                                                                 onChange={(e) => setFormData({ ...formData, conditions: e.target.value })}
                                                                 className="border-warning/30 focus-visible:ring-warning/30"
                                                             />
-                                                            <p className="text-[11px] text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
+                                                            <p className="text-xs text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
                                                         </div>
 
                                                         <div className="space-y-2">
@@ -468,7 +468,7 @@ function MedicalRecordsPageContent() {
                                                                                 <p className="font-medium text-sm text-foreground">
                                                                                     {contact.name}
                                                                                     {contact.isPrimary && (
-                                                                                        <span className="ml-2 text-[11px] font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
+                                                                                        <span className="ml-2 text-xs font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
                                                                                     )}
                                                                                 </p>
                                                                                 <p className="text-xs text-muted-foreground">{contact.relationship}</p>

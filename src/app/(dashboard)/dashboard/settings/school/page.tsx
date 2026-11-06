@@ -346,7 +346,7 @@ function SchoolIdentityPageContent() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                     marginTop: 12,
                                                     overflow: "hidden",
@@ -360,7 +360,7 @@ function SchoolIdentityPageContent() {
                                                 <label
                                                     className="inline-flex items-center gap-1 rounded-md cursor-pointer transition-colors"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 600,
                                                         padding: "6px 10px",
                                                         background: "var(--eduflow-surface-card)",
@@ -385,7 +385,7 @@ function SchoolIdentityPageContent() {
                                                     disabled={!form.logo}
                                                     className="rounded-md transition-colors"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 600,
                                                         padding: "6px 10px",
                                                         background: "transparent",
@@ -547,7 +547,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
             }}
@@ -573,7 +573,7 @@ function Field({
             <div className="flex items-center justify-between">
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: "var(--eduflow-text-secondary)",
                     }}
@@ -581,7 +581,7 @@ function Field({
                     {label}{required && <span style={{ color: "var(--eduflow-danger-600)" }}> *</span>}
                 </span>
                 {hint && (
-                    <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                    <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                         {hint}
                     </span>
                 )}

@@ -420,7 +420,7 @@ function TransportPageContent() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -481,7 +481,7 @@ function TransportPageContent() {
                                         />
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--brand-800)",
                                                 lineHeight: 1.55,
                                             }}

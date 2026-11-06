@@ -11,7 +11,6 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { toast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
 
 import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
@@ -224,14 +223,10 @@ function RollCallPage() {
             toast({
                 title: t("attendance.toasts.savedTitle"),
                 description: t("attendance.toasts.savedDescription"),
-                action: (
-                    <ToastAction
-                        altText={t("attendance.toasts.viewAnalytics")}
-                        onClick={() => router.push("/dashboard/analytics")}
-                    >
-                        {t("attendance.toasts.viewAnalytics")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("attendance.toasts.viewAnalytics"),
+                    onClick: () => router.push("/dashboard/analytics"),
+                },
             });
         } catch {
             toast({
@@ -423,7 +418,7 @@ function RollCallPage() {
                                     background: "var(--brand-50)",
                                     borderColor: "var(--brand-100)",
                                     color: "var(--brand-800)",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                 }}
                             >
@@ -495,7 +490,7 @@ function RollCallPage() {
                                                                 className="eduflow-mono"
                                                                 style={{
                                                                     width: 24,
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                     fontWeight: 600,
                                                                 }}
@@ -516,7 +511,7 @@ function RollCallPage() {
                                                                 <div
                                                                     className="eduflow-mono"
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color: "var(--eduflow-text-tertiary)",
                                                                     }}
                                                                 >
@@ -715,7 +710,7 @@ function StatsStrip({
                     <div key={item.key} className="px-2 text-center">
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: `var(--eduflow-${item.tone}-700)`,
                             }}
@@ -735,7 +730,7 @@ function StatsStrip({
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -766,7 +761,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -819,7 +814,7 @@ function FieldDate({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -867,7 +862,7 @@ function Th({
         <th
             style={{
                 padding: "10px 20px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",

@@ -305,7 +305,7 @@ function AiAssistantPageContent() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 10,
@@ -506,7 +506,7 @@ function AiAssistantPageContent() {
                             style={{
                                 marginTop: 10,
                                 textAlign: "center",
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                                 display: "flex",
                                 alignItems: "center",
@@ -609,7 +609,7 @@ function MessageBubble({
                 </div>
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         padding: "0 6px",
                         fontWeight: 500,

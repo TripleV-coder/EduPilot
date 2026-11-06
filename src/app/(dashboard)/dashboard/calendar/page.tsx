@@ -505,7 +505,7 @@ function WeekdayHeader() {
                     key={d}
                     className="px-2 py-2 text-center"
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: i >= 5 ? "var(--brand-700)" : "var(--eduflow-text-tertiary)",
                     }}
@@ -594,7 +594,7 @@ function MonthGrid({
                                 <span
                                     className="eduflow-tabular"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
@@ -622,7 +622,7 @@ function DayDot({ dot }: { dot: DotEntry }) {
             className="block truncate"
             title={dot.label}
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 padding: "2px 6px",
                 borderRadius: 6,
@@ -702,7 +702,7 @@ function CalendarLegend() {
                 <span
                     key={it.label}
                     className="flex items-center gap-1.5"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                 >
                     <span
                         style={{
@@ -774,7 +774,7 @@ function UpcomingEventRow({
                 </div>
                 <div
                     className="mt-0.5 flex flex-wrap items-center gap-2"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                 >
                     <span style={{ textTransform: "capitalize" }}>{labelInDays}</span>
                     {event.location ? (
@@ -936,7 +936,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                         {days ? (
                             <span
                                 className="eduflow-tabular"
-                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 {days} j.
                             </span>
@@ -960,7 +960,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                         {HOLIDAY_LABEL[holiday.type] ?? holiday.type}
                     </Badge>
                     {holiday.academicYear?.name ? (
-                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {holiday.academicYear.name}
                         </span>
                     ) : null}

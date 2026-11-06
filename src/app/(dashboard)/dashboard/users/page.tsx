@@ -408,7 +408,7 @@ function UsersPageContent() {
                                                             <div
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                 }}
@@ -601,7 +601,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -657,7 +657,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -706,7 +706,7 @@ function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",

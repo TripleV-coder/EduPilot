@@ -879,7 +879,7 @@ function GradesEntryPageContent() {
                                     </h3>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -891,7 +891,7 @@ function GradesEntryPageContent() {
                                         <p
                                             aria-live="polite"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -902,7 +902,7 @@ function GradesEntryPageContent() {
                                         <p
                                             aria-live="polite"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -937,7 +937,7 @@ function GradesEntryPageContent() {
                                         background: "var(--brand-50)",
                                         borderColor: "var(--brand-100)",
                                         color: "var(--brand-800)",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                     }}
                                 >
@@ -1044,7 +1044,7 @@ function GradesEntryPageContent() {
                                                                         <div
                                                                             className="eduflow-mono"
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color: "var(--eduflow-text-tertiary)",
                                                                             }}
                                                                         >
@@ -1098,7 +1098,7 @@ function GradesEntryPageContent() {
                                                                 {g.isAbsent ? (
                                                                     <label
                                                                         className="inline-flex items-center gap-1"
-                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                                                                         title="Justifiée : exclue du calcul. Non justifiée : comptée 0 (modifiable si l'élève recompose)."
                                                                     >
                                                                         <input
@@ -1116,7 +1116,7 @@ function GradesEntryPageContent() {
                                                                 {g.isAbsent && !g.isExcused && unjustifiedCountsZero ? (
                                                                     <span
                                                                         role="note"
-                                                                        style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-danger-600)" }}
+                                                                        style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-danger-600)" }}
                                                                     >
                                                                         compte 0 — cochez « justifiée » si l&apos;élève a un justificatif
                                                                     </span>
@@ -1125,7 +1125,7 @@ function GradesEntryPageContent() {
                                                                     <button
                                                                         type="button"
                                                                         className="underline"
-                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                                                                         aria-label={`Adapter le calcul pour ${fullName}`}
                                                                         onClick={() => {
                                                                             setAdjusting({ id: stu.id, name: fullName });
@@ -1149,7 +1149,7 @@ function GradesEntryPageContent() {
                                                                             padding: "0 8px",
                                                                             borderRadius: 8,
                                                                             border: `1px solid ${excuseReasonRequired && !(g.excuseReason ?? "").trim() ? "var(--eduflow-danger-600)" : "var(--eduflow-border-default)"}`,
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                         }}
                                                                     />
                                                                 ) : null}

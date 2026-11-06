@@ -13,9 +13,8 @@ import { trackUxEvent } from "@/lib/ux/telemetry";
 import { DataTable } from "@/components/ui/data-table";
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, EmptyStateAction } from "@/components/ui/empty-state";
-import { Toaster } from "@/components/ui/toaster";
-import { ToastAction } from "@/components/ui/toast";
 import { toast } from "@/hooks/use-toast";
+import { Toaster as SonnerToaster } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CardSkeleton, ChartSkeleton, PageSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-page";
@@ -245,19 +244,15 @@ describe("EmptyState", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-describe("Toaster / Toast", () => {
-    it("affiche un toast avec titre, description et action, et le ferme", async () => {
+describe("toast (sonner, système unique)", () => {
+    it("affiche un toast avec titre, description et action", async () => {
         const onUndo = vi.fn();
-        render(<Toaster />);
+        render(<SonnerToaster />);
         act(() => {
             toast({
                 title: "Note enregistrée",
                 description: "La moyenne a été recalculée.",
-                action: (
-                    <ToastAction altText="Annuler la saisie" onClick={onUndo}>
-                        Annuler
-                    </ToastAction>
-                ),
+                action: { label: "Annuler", onClick: onUndo },
             });
         });
         expect(await screen.findByText("Note enregistrée")).toBeInTheDocument();
@@ -266,14 +261,12 @@ describe("Toaster / Toast", () => {
         expect(onUndo).toHaveBeenCalled();
     });
 
-    it("toast destructif sans titre ni description, fermeture par la croix", async () => {
-        render(<Toaster />);
+    it("toast destructif sans texte : message d'erreur par défaut", async () => {
+        render(<SonnerToaster />);
         act(() => {
             toast({ variant: "destructive" });
         });
-        const close = await screen.findByRole("button");
-        expect(close).toHaveAttribute("toast-close", "");
-        fireEvent.click(close);
+        expect(await screen.findByText("Une erreur est survenue.")).toBeInTheDocument();
     });
 });
 

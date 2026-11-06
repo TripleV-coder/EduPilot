@@ -304,7 +304,7 @@ function GamificationPageContent() {
                                 Badges disponibles
                             </h2>
                         </div>
-                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
+                        <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
                         <div className="flex flex-col gap-3">
                             {SHOWCASE_ACHIEVEMENTS.map((a) => (
                                 <div
@@ -339,7 +339,7 @@ function GamificationPageContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -423,7 +423,7 @@ function LeaderboardRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -444,7 +444,7 @@ function LeaderboardRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
                     }}
@@ -474,7 +474,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

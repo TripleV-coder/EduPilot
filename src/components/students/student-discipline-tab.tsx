@@ -80,7 +80,7 @@ export function StudentDisciplineTab({ studentId }: { studentId: string }) {
                   <div className="flex items-center gap-2">
                     <ShieldAlert className="h-4 w-4 text-muted-foreground" aria-hidden />
                     <span className="text-sm font-semibold">{incidentTypeLabel(incident.incidentType)}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${SEVERITY_TONE[incident.severity]}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${SEVERITY_TONE[incident.severity]}`}>
                       {incidentSeverityLabel(incident.severity)}
                     </span>
                   </div>
@@ -88,11 +88,11 @@ export function StudentDisciplineTab({ studentId }: { studentId: string }) {
                 </div>
                 <p className="text-[13px] leading-relaxed text-foreground/80">{incident.description}</p>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="text-[11px]">
+                  <Badge variant="outline" className="text-xs">
                     {incident.isResolved ? "Clôturé" : "En cours"}
                   </Badge>
                   {incident.sanctions.map((sanction) => (
-                    <Badge key={sanction.id} variant="secondary" className="text-[11px]">
+                    <Badge key={sanction.id} variant="secondary" className="text-xs">
                       {sanctionTypeLabel(sanction.type)}
                       {sanction.isServed ? " · effectuée" : ""}
                     </Badge>

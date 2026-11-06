@@ -458,7 +458,7 @@ function Section({ icon, title, subtitle, children }: { icon: IconName; title: s
                     <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         {title}
                     </h2>
-                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
+                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
                 </div>
             </div>
             <div className="grid gap-4 px-5 py-5">{children}</div>
@@ -492,7 +492,7 @@ function Example({ children }: { children: React.ReactNode }) {
 
 const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
     color: "var(--eduflow-text-tertiary)",
     marginBottom: 6,
@@ -548,7 +548,7 @@ function Choice({
                         <span style={{ minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{o.label}</span>
                             {o.help ? (
-                                <span style={{ display: "block", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{o.help}</span>
+                                <span style={{ display: "block", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{o.help}</span>
                             ) : null}
                         </span>
                     </label>
@@ -564,7 +564,7 @@ function Toggle({ checked, onChange, label, help }: { checked: boolean; onChange
             <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: 3 }} />
             <span style={{ minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{label}</span>
-                {help ? <span style={{ display: "block", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{help}</span> : null}
+                {help ? <span style={{ display: "block", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{help}</span> : null}
             </span>
         </label>
     );

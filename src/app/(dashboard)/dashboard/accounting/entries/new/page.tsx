@@ -135,7 +135,7 @@ function NewJournalEntryContent() {
     };
 
     const fieldLabel: React.CSSProperties = {
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         color: "var(--eduflow-text-tertiary)",
         marginBottom: 6,

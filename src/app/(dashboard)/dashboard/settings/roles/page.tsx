@@ -141,7 +141,7 @@ export default function RolesPermissionsPage() {
                                     </span>
                                     <span
                                         className="font-mono"
-                                        style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                        style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                                     >
                                         {counts[d.role] ?? 0}
                                     </span>
@@ -176,7 +176,7 @@ export default function RolesPermissionsPage() {
                             <p
                                 className="m-0"
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                     marginTop: 2,
                                 }}
@@ -194,7 +194,7 @@ export default function RolesPermissionsPage() {
                                             className="text-left font-bold"
                                             style={{
                                                 padding: "10px 16px",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -253,7 +253,7 @@ function TogglePill({ state }: { state: CellState }) {
         return (
             <span
                 className="inline-block font-mono"
-                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                 aria-label="Non applicable"
                 title="Non applicable à ce module"
             >

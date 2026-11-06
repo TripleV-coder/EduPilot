@@ -176,7 +176,7 @@ function RootDataRequestsPageContent() {
                                             <TableCell>
                                                 <p className="font-medium text-sm text-foreground">
                                                     {req.user.firstName} {req.user.lastName}
-                                                    <Badge variant="secondary" className="ml-2 text-[11px]">{req.user.role}</Badge>
+                                                    <Badge variant="secondary" className="ml-2 text-xs">{req.user.role}</Badge>
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">{req.user.email}</p>
                                             </TableCell>

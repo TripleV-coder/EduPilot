@@ -324,7 +324,7 @@ function WhatsAppPageContent() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -369,7 +369,7 @@ function WhatsAppPageContent() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
                                                 }}
@@ -441,7 +441,7 @@ function WhatsAppPageContent() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     opacity: 0.85,
                                                 }}
                                             >
@@ -477,7 +477,7 @@ function WhatsAppPageContent() {
                                         >
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     fontWeight: 700,
                                                     marginBottom: 4,
@@ -501,7 +501,7 @@ function WhatsAppPageContent() {
                                             </span>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 6,
@@ -526,7 +526,7 @@ function WhatsAppPageContent() {
                                             Payé ! Merci 🙏
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
@@ -550,7 +550,7 @@ function WhatsAppPageContent() {
                                         >
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     fontWeight: 700,
                                                     marginBottom: 4,
@@ -561,7 +561,7 @@ function WhatsAppPageContent() {
                                             ✅ Paiement reçu — reçu Flutterwave #FLW-882104. Merci !
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
@@ -574,7 +574,7 @@ function WhatsAppPageContent() {
                                 </Card>
 
                                 <Card>
-                                    <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
+                                    <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
                                     <div
                                         style={{
                                             display: "flex",
@@ -618,7 +618,7 @@ function WhatsAppPageContent() {
                                     </div>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 12,
                                             lineHeight: 1.5,

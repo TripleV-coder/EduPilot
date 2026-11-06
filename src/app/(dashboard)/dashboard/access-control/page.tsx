@@ -264,7 +264,7 @@ function AccessControlPageContent() {
                     className="qr-grid"
                 >
                     <Card padding={20}>
-                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                        <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
                             {preview ? `${preview.firstName} ${preview.lastName.toUpperCase()}` : "aucun élève"}
                         </p>
@@ -311,7 +311,7 @@ function AccessControlPageContent() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         opacity: 0.85,
                                     }}
@@ -331,7 +331,7 @@ function AccessControlPageContent() {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 opacity: 0.75,
                                             }}
                                         >
@@ -363,7 +363,7 @@ function AccessControlPageContent() {
                                         <div
                                             className="eduflow-mono"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 opacity: 0.85,
                                                 marginTop: 6,
                                                 fontFamily:
@@ -410,7 +410,7 @@ function AccessControlPageContent() {
                                     )}
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "#0F172A",
                                             lineHeight: 1.4,
                                         }}
@@ -467,7 +467,7 @@ function AccessControlPageContent() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -517,7 +517,7 @@ function AccessControlPageContent() {
                                     <span
                                         className="eduflow-mono"
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             fontFamily:
                                                 "var(--font-mono, ui-monospace, monospace)",
@@ -546,7 +546,7 @@ function AccessControlPageContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color:
                                                     "var(--eduflow-text-tertiary)",
                                             }}

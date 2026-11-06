@@ -72,7 +72,7 @@ export function ParentLinkCodeDialog({ studentId }: { studentId: string }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-[11px] font-bold gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs font-bold gap-2">
                     <KeyRound className="h-3.5 w-3.5" />
                     Code parent
                 </Button>

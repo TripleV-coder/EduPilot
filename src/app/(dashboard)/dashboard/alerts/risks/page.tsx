@@ -158,7 +158,7 @@ function AlertsRisksContent() {
         actions={
           <div className="flex items-center gap-2">
            <Select value={classId} onValueChange={setClassId}>
-            <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-[11px] font-bold">
+            <SelectTrigger aria-label="Filtrer par classe" className="w-[220px] h-9 text-xs font-bold">
               <SelectValue placeholder="Toutes les classes" />
             </SelectTrigger>
             <SelectContent>
@@ -170,11 +170,11 @@ function AlertsRisksContent() {
               ))}
             </SelectContent>
            </Select>
-           <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold" onClick={() => setClassId("all")}>
+           <Button type="button" variant="outline" size="sm" className="h-9 text-xs font-bold" onClick={() => setClassId("all")}>
              <Filter className="w-3.5 h-3.5 mr-2" />
              {t("common.reset")} filtres
            </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9 text-[11px] font-bold">
+          <Button type="button" variant="outline" size="sm" className="h-9 text-xs font-bold">
              <Download className="w-3.5 h-3.5 mr-2" />
              {t("common.export")}
            </Button>
@@ -210,27 +210,27 @@ function AlertsRisksContent() {
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-destructive animate-pulse mt-0.5" />
                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-bold leading-none">Risque Critique</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">Absences au-delà du seuil d&apos;alerte et moyenne sous le seuil de passage.</p>
+                                <p className="text-xs font-bold leading-none">Risque Critique</p>
+                                <p className="text-xs text-muted-foreground mt-1">Absences au-delà du seuil d&apos;alerte et moyenne sous le seuil de passage.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-warning mt-0.5" />
                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-bold leading-none">Vigilance Accrue</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">Un seul des deux seuils est franchi.</p>
+                                <p className="text-xs font-bold leading-none">Vigilance Accrue</p>
+                                <p className="text-xs text-muted-foreground mt-1">Un seul des deux seuils est franchi.</p>
                              </div>
                           </div>
                           <div className="flex items-start gap-3">
                              <div className="w-3 h-3 rounded-full bg-success mt-0.5" />
                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-bold leading-none">Zone de Stabilité</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">Élèves sans risque majeur identifié.</p>
+                                <p className="text-xs font-bold leading-none">Zone de Stabilité</p>
+                                <p className="text-xs text-muted-foreground mt-1">Élèves sans risque majeur identifié.</p>
                              </div>
                           </div>
                        </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground italic leading-relaxed">
+                    <p className="text-xs text-muted-foreground italic leading-relaxed">
                       * Survolez un point pour voir l&apos;élève, ses absences et sa moyenne. Les élèves sans moyenne ou sans appel ne sont pas placés.
                     </p>
                  </div>
@@ -242,7 +242,7 @@ function AlertsRisksContent() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted/50 text-muted-foreground font-bold text-[11px]">
+                  <thead className="bg-muted/50 text-muted-foreground font-bold text-xs">
                     <tr>
                       <th className="px-4 py-3 text-left">Élève</th>
                       <th className="px-4 py-3 text-left">Classe</th>
@@ -290,12 +290,12 @@ function AlertsRisksContent() {
                         <tr key={row.studentId} className="hover:bg-background/50 transition-colors">
                           <td className="px-4 py-3 font-bold">{row.name}</td>
                           <td className="px-4 py-3">{row.className}</td>
-                          <td className="px-4 py-3 text-[11px] text-muted-foreground">
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
                             {row.factors.length > 0 ? row.factors.slice(0, 2).join(" · ") : "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[11px] font-bold border",
+                              "px-2 py-0.5 rounded-full text-xs font-bold border",
                               row.status === "CRITICAL" ? "bg-destructive/10 text-destructive border-destructive/20" :
                               row.status === "HIGH" ? "bg-warning/10 text-warning border-warning/20" :
                               row.status === "MEDIUM" ? "bg-primary/10 text-primary border-primary/20" :
@@ -309,10 +309,10 @@ function AlertsRisksContent() {
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
                               <Link href={`/dashboard/students/${row.studentId}`} onClick={() => markStudentTransition(row.studentId)}>
-                                <Button variant="outline" size="sm" className="h-7 text-[11px] font-bold">Profil</Button>
+                                <Button variant="outline" size="sm" className="h-7 text-xs font-bold">Profil</Button>
                               </Link>
                               <Link href={`/dashboard/messages?studentId=${row.studentId}`}>
-                                <Button variant="outline" size="sm" className="h-7 text-[11px] font-bold">Parents</Button>
+                                <Button variant="outline" size="sm" className="h-7 text-xs font-bold">Parents</Button>
                               </Link>
                             </div>
                           </td>
@@ -331,7 +331,7 @@ function AlertsRisksContent() {
            <Card className="border-none shadow-none bg-muted/20">
               <CardHeader className="p-4 border-b border-border/50 flex flex-row items-center justify-between">
                 <CardTitle className="text-xs font-bold text-muted-foreground">Alertes prioritaires</CardTitle>
-                <span className="h-5 px-1.5 rounded bg-destructive text-white text-[11px] font-bold flex items-center">{topAlerts.length}</span>
+                <span className="h-5 px-1.5 rounded bg-destructive text-white text-xs font-bold flex items-center">{topAlerts.length}</span>
               </CardHeader>
               <CardContent className="p-0">
                  <div className="divide-y divide-border/50">
@@ -343,17 +343,17 @@ function AlertsRisksContent() {
                     topAlerts.map((alert) => (
                       <div key={alert.studentId} className="p-4 space-y-3 hover:bg-background/40 transition-colors">
                         <div className="flex justify-between items-start gap-2">
-                          <span className="text-[11px] font-bold text-muted-foreground">{alert.className}</span>
-                          <span className="text-[11px] font-bold text-destructive">{STATUS_LABEL[alert.status]} · {alert.riskScore} pts</span>
+                          <span className="text-xs font-bold text-muted-foreground">{alert.className}</span>
+                          <span className="text-xs font-bold text-destructive">{STATUS_LABEL[alert.status]} · {alert.riskScore} pts</span>
                         </div>
                         <div>
                           <p className="text-xs font-bold text-foreground leading-tight">{alert.name}</p>
-                          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                             Présence {alert.attendanceRate != null ? `${alert.attendanceRate.toFixed(1)}%` : "N/A"} · Moyenne {alert.averageGrade != null ? `${alert.averageGrade.toFixed(2)}/20` : "N/A"}
                           </p>
                         </div>
                         <Link href={`/dashboard/students/${alert.studentId}`} onClick={() => markStudentTransition(alert.studentId)}>
-                          <Button variant="outline" size="sm" className="w-full h-7 text-[11px] font-bold tracking-tight group">
+                          <Button variant="outline" size="sm" className="w-full h-7 text-xs font-bold tracking-tight group">
                             {t("appActions.viewRecord")}
                             <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
                           </Button>
@@ -366,11 +366,11 @@ function AlertsRisksContent() {
            </Card>
            
            <Card className="border-none shadow-none bg-success/10 border border-success/20 p-4 space-y-4">
-              <h3 className="text-[11px] font-bold text-success">Action rapide</h3>
+              <h3 className="text-xs font-bold text-success">Action rapide</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Besoin d&apos;une synthèse pour un conseil de classe ? L&apos;assistant IA peut générer un rapport complet des élèves à risque.
               </p>
-              <Button asChild className="w-full h-8 text-[11px] font-bold bg-success hover:bg-success/90">
+              <Button asChild className="w-full h-8 text-xs font-bold bg-success hover:bg-success/90">
                 <Link href="/dashboard/ai">Générer Rapport IA</Link>
               </Button>
            </Card>

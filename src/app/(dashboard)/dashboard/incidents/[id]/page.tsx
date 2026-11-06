@@ -36,7 +36,6 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
 import type { Sanction } from "@/lib/types";
 
@@ -101,11 +100,10 @@ function IncidentDetailsPageContent() {
             toast({
                 title: t("incidentDetails.toasts.resolvedTitle"),
                 description: t("incidentDetails.toasts.resolvedDescription"),
-                action: (
-                    <ToastAction altText={t("incidentDetails.toasts.backToListAlt")} onClick={() => router.push("/dashboard/incidents")}>
-                        {t("incidentDetails.toasts.viewList")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("incidentDetails.toasts.viewList"),
+                    onClick: () => router.push("/dashboard/incidents"),
+                },
             });
             setResolveDialogOpen(false);
             mutate();
@@ -137,11 +135,10 @@ function IncidentDetailsPageContent() {
             toast({
                 title: t("incidentDetails.toasts.sanctionAddedTitle"),
                 description: t("incidentDetails.toasts.sanctionAddedDescription"),
-                action: (
-                    <ToastAction altText={t("incidentDetails.toasts.refreshAlt")} onClick={() => mutate()}>
-                        {t("incidentDetails.toasts.refresh")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("incidentDetails.toasts.refresh"),
+                    onClick: () => void mutate(),
+                },
             });
             setSanctionDialogOpen(false);
 
@@ -338,7 +335,7 @@ function IncidentDetailsPageContent() {
                                                     {sanction.endDate && <p>Au {new Date(sanction.endDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p>}
                                                 </div>
                                                 {sanction.description && <p className="mt-2 text-foreground/80">{sanction.description}</p>}
-                                                <p className="text-[11px] text-muted-foreground text-right pt-2 border-t border-border mt-2">
+                                                <p className="text-xs text-muted-foreground text-right pt-2 border-t border-border mt-2">
                                                     Par: {sanction.assignedBy?.firstName} {sanction.assignedBy?.lastName}
                                                 </p>
                                             </div>

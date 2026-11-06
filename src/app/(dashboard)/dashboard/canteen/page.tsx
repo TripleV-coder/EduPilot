@@ -377,7 +377,7 @@ function CanteenPageContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
@@ -400,7 +400,7 @@ function CanteenPageContent() {
                                         </span>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
@@ -439,7 +439,7 @@ function CanteenPageContent() {
                                             <div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
@@ -488,7 +488,7 @@ function CanteenPageContent() {
                                     <div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginBottom: 8,
@@ -618,7 +618,7 @@ function DishRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,

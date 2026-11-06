@@ -68,7 +68,7 @@ function RootLogsPageContent() {
         const label = formatAction(action, entity);
         const colorClass = getAuditLogActionClass(action);
 
-        return <Badge className={cn("font-semibold text-[11px] shadow-sm tracking-normal", colorClass)}>{label}</Badge>;
+        return <Badge className={cn("font-semibold text-xs shadow-sm tracking-normal", colorClass)}>{label}</Badge>;
     };
 
     return (
@@ -119,7 +119,7 @@ function RootLogsPageContent() {
                         ) : logs.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-muted/50 text-muted-foreground font-bold text-[11px] border-b border-border/50">
+                                    <thead className="bg-muted/50 text-muted-foreground font-bold text-xs border-b border-border/50">
                                         <tr>
                                             <th className="px-6 py-4">Action & Entité</th>
                                             <th className="px-6 py-4">Utilisateur</th>
@@ -141,17 +141,17 @@ function RootLogsPageContent() {
                                                         <div className="flex items-center w-full max-w-full truncate gap-2 flex-wrap">
                                                             {getActionBadge(log.action, log.entity)}
                                                         </div>
-                                                        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">ID: {log.entityId || "N/A"}</span>
+                                                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">ID: {log.entityId || "N/A"}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
+                                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                                                             {log.user.firstName[0]}{log.user.lastName[0]}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-bold">{log.user.firstName} {log.user.lastName}</span>
-                                                            <span className="text-[11px] text-muted-foreground">{log.user.email}</span>
+                                                            <span className="text-xs text-muted-foreground">{log.user.email}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -174,7 +174,7 @@ function RootLogsPageContent() {
                                                             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                                             {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true, locale: fr })}
                                                         </div>
-                                                        <span className="text-[11px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded self-start">
+                                                        <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded self-start">
                                                             IP: {log.ipAddress || "0.0.0.0"}
                                                         </span>
                                                     </div>

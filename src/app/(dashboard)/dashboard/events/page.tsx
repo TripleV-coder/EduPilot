@@ -279,7 +279,7 @@ function EventsPageContent() {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
@@ -532,7 +532,7 @@ function EventCard({
             >
                 <span
                     className="flex items-center gap-1.5"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                 >
                     <Icon name="calendar" size={12} />
                     {formatter.format(start)}
@@ -540,7 +540,7 @@ function EventCard({
                 {event.location ? (
                     <span
                         className="flex items-center gap-1.5"
-                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                     >
                         <Icon name="school" size={12} />
                         {event.location}
@@ -549,7 +549,7 @@ function EventCard({
                 {event.maxParticipants ? (
                     <span
                         className="flex items-center gap-1.5"
-                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                     >
                         <Icon name="users" size={12} />
                         <span className="eduflow-tabular">
@@ -574,7 +574,7 @@ function EventCard({
                     />
                     <span
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                         }}
                     >
@@ -668,7 +668,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

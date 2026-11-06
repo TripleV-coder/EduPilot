@@ -287,12 +287,12 @@ function SubjectsSettingsPageContent() {
                                                 <div>
                                                     <h3 className="font-bold text-base flex items-center gap-2">
                                                         {subject.name}
-                                                        {!subject.isActive && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Inactif</span>}
+                                                        {!subject.isActive && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Inactif</span>}
                                                     </h3>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{subject.code}</span>
                                                         {subject.category && (
-                                                            <span className="text-[11px] bg-primary/10 text-primary dark:bg-primary/20 px-1.5 py-0.5 rounded">
+                                                            <span className="text-xs bg-primary/10 text-primary dark:bg-primary/20 px-1.5 py-0.5 rounded">
                                                                 {subject.category}
                                                             </span>
                                                         )}

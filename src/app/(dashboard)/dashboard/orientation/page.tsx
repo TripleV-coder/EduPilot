@@ -631,11 +631,11 @@ function OrientationPageContent() {
                                                                     Série suggérée: {seriesLabel}
                                                                 </span>
                                                                 {topRec.isValidated ? (
-                                                                    <span className="text-[11px] text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <CheckCircle2 className="w-3 h-3" /> Validé
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-[11px] text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <AlertCircle className="w-3 h-3" /> Non-validé
                                                                     </span>
                                                                 )}

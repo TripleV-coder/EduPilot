@@ -194,7 +194,7 @@ function AppearanceSettingsPageContent() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -238,7 +238,7 @@ function AppearanceSettingsPageContent() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >

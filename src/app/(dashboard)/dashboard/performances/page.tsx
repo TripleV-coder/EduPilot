@@ -349,7 +349,7 @@ function PerformancesPageContent() {
                                                 <YAxis 
                                                     type="category" 
                                                     dataKey="name" 
-                                                    tick={{ fontSize: 10 }} 
+                                                    tick={{ fontSize: 12 }} 
                                                     width={140} 
                                                     axisLine={false} 
                                                     tickLine={false}

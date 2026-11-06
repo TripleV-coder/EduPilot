@@ -261,7 +261,7 @@ function Section({ icon, title, subtitle, children }: { icon: IconName; title: s
                     <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         {title}
                     </h2>
-                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
+                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
                 </div>
             </div>
             <div className="px-5 py-5">{children}</div>
@@ -335,13 +335,13 @@ function NumberField({
                     <button
                         type="button"
                         onClick={onReset}
-                        style={{ fontSize: 11, color: "var(--brand-700)", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}
+                        style={{ fontSize: 12, color: "var(--brand-700)", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}
                     >
                         Revenir à {typeof defaultValue === "number" ? fr(defaultValue) : "l'origine"}
                     </button>
                 ) : null}
             </div>
-            <p id={helpId} style={{ margin: "4px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+            <p id={helpId} style={{ margin: "4px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                 {info.help ? `${info.help} ` : ""}
                 Entre {fr(info.min)} et {fr(info.max)} · origine : {typeof defaultValue === "number" ? fr(defaultValue) : "—"}
             </p>

@@ -239,7 +239,7 @@ function SecuritySettingsPageContent() {
                                 <p
                                     style={{
                                         margin: "2px 0 0",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -410,7 +410,7 @@ function SecuritySettingsPageContent() {
                                 <p
                                     style={{
                                         margin: "0 0 12px",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -459,7 +459,7 @@ function SecuritySettingsPageContent() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >

@@ -55,11 +55,11 @@ export function RiskMatrix({ students, absenceAlert, passingGrade }: RiskMatrixP
         </div>
 
         {/* Labels Quadrants */}
-        <div className="absolute top-2 left-2 text-[11px] font-bold text-destructive tracking-tighter">Moyenne sous {fr(passingGrade, Number.isInteger(passingGrade) ? 0 : 2)}</div>
-        <div className="absolute bottom-2 right-2 text-[11px] font-bold text-destructive tracking-tighter">Absences &gt; {fr(absenceAlert)} %</div>
+        <div className="absolute top-2 left-2 text-xs font-bold text-destructive tracking-tighter">Moyenne sous {fr(passingGrade, Number.isInteger(passingGrade) ? 0 : 2)}</div>
+        <div className="absolute bottom-2 right-2 text-xs font-bold text-destructive tracking-tighter">Absences &gt; {fr(absenceAlert)} %</div>
         
-        <div className="absolute top-4 right-4 text-[11px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
-        <div className="absolute bottom-4 left-4 text-[11px] font-bold text-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
+        <div className="absolute top-4 right-4 text-xs font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">RISQUE CRITIQUE</div>
+        <div className="absolute bottom-4 left-4 text-xs font-bold text-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">STABILITÉ</div>
 
         {/* Points */}
         {placed.map((s) => {
@@ -83,10 +83,10 @@ export function RiskMatrix({ students, absenceAlert, passingGrade }: RiskMatrixP
             </TooltipTrigger>
             <TooltipContent className="p-2 space-y-1">
               <p className="text-xs font-bold">{s.name}</p>
-              <p className="text-[11px] text-muted-foreground">{s.className}</p>
+              <p className="text-xs text-muted-foreground">{s.className}</p>
               <div className="flex gap-2 mt-1">
-                <span className="text-[11px] font-medium px-1 bg-muted rounded">Absences : {fr(s.absenceRate, 1)} %</span>
-                <span className="text-[11px] font-medium px-1 bg-muted rounded">Moyenne : {fr(s.average, 2)}/20</span>
+                <span className="text-xs font-medium px-1 bg-muted rounded">Absences : {fr(s.absenceRate, 1)} %</span>
+                <span className="text-xs font-medium px-1 bg-muted rounded">Moyenne : {fr(s.average, 2)}/20</span>
               </div>
             </TooltipContent>
           </Tooltip>

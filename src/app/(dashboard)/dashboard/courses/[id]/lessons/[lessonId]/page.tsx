@@ -200,7 +200,7 @@ function LessonViewerPageContent() {
                                     <Button variant="ghost" className="w-full sm:w-auto gap-2 group">
                                         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                                         <div className="text-left">
-                                            <p className="text-[11px] font-bold text-muted-foreground">Précédent</p>
+                                            <p className="text-xs font-bold text-muted-foreground">Précédent</p>
                                             <p className="text-sm truncate max-w-[150px]">{prevLesson.title}</p>
                                         </div>
                                     </Button>
@@ -234,7 +234,7 @@ function LessonViewerPageContent() {
                                 <Link href={`/dashboard/courses/${id}/lessons/${nextLesson.id}`} className="w-full sm:w-auto">
                                     <Button variant="ghost" className="w-full sm:w-auto gap-2 group text-right">
                                         <div className="text-right">
-                                            <p className="text-[11px] font-bold text-muted-foreground">Suivant</p>
+                                            <p className="text-xs font-bold text-muted-foreground">Suivant</p>
                                             <p className="text-sm truncate max-w-[150px]">{nextLesson.title}</p>
                                         </div>
                                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -253,7 +253,7 @@ function LessonViewerPageContent() {
                             <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
                                 {lesson.module.course.modules.map((m) => (
                                     <div key={m.id} className="space-y-1">
-                                        <p className="text-[11px] font-bold text-muted-foreground px-2 py-2 mt-2">{m.title}</p>
+                                        <p className="text-xs font-bold text-muted-foreground px-2 py-2 mt-2">{m.title}</p>
                                         {m.lessons.map((l) => {
                                             const isActive = l.id === lessonId;
                                             return (
@@ -293,7 +293,7 @@ function LessonViewerPageContent() {
                                     <span>{Math.round(((currentIndex + 1) / allLessons.length) * 100)}%</span>
                                 </div>
                                 <Progress value={((currentIndex + 1) / allLessons.length) * 100} className="h-2" />
-                                <p className="text-[11px] text-muted-foreground italic">
+                                <p className="text-xs text-muted-foreground italic">
                                     {lesson.isCompleted ? "Leçon validée ✓" : "Leçon en cours..."}
                                 </p>
                             </CardContent>

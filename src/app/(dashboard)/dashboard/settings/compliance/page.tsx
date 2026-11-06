@@ -252,7 +252,7 @@ function ComplianceDashboardPageContent() {
                                                             <span className="block text-xs text-muted-foreground">{req.user?.email}</span>
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <span className="bg-secondary/10 text-secondary text-[11px] px-2 py-1 rounded-full font-medium">
+                                                            <span className="bg-secondary/10 text-secondary text-xs px-2 py-1 rounded-full font-medium">
                                                                 {req.requestType}
                                                             </span>
                                                         </td>
@@ -260,7 +260,7 @@ function ComplianceDashboardPageContent() {
                                                             {new Date(req.requestedAt).toLocaleDateString('fr-FR')}
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <span className={`text-[11px] px-2 py-1 rounded-full uppercase font-medium ${req.status === 'PENDING' ? 'bg-warning/10 text-warning' :
+                                                            <span className={`text-xs px-2 py-1 rounded-full uppercase font-medium ${req.status === 'PENDING' ? 'bg-warning/10 text-warning' :
                                                                 req.status === 'COMPLETED' ? 'bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]' :
                                                                     'bg-destructive/10 text-destructive'
                                                                 }`}>

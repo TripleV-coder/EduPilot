@@ -441,7 +441,7 @@ function BulletinsPageContent() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -621,10 +621,10 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                         >
                             {schoolName}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {[schoolAddr, schoolMemp].filter(Boolean).join(" · ")}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {[schoolPhone && `Tél ${schoolPhone}`, schoolEmail]
                                 .filter(Boolean)
                                 .join(" · ") || " "}
@@ -641,13 +641,13 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     >
                         {periodSubtitle}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                         {generatedLabel}
                     </div>
                     <div
                         className="eduflow-mono"
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                             marginTop: 4,
                             fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
@@ -675,7 +675,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
                         {bulletin.student.lastName.toUpperCase()} {bulletin.student.firstName}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
                         {bulletin.student.dateOfBirth
                             ? `née/né le ${FR_DATE_SHORT(bulletin.student.dateOfBirth)}`
                             : " "}
@@ -685,7 +685,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>
                         {bulletin.class.name} · {bulletin.classSize} élèves
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
                         {bulletin.class.level}
                     </div>
                 </CardCell>
@@ -702,7 +702,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     >
                         {bulletin.student.matricule}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}>
+                    <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
                         Année {bulletin.academicYear}
                     </div>
                 </CardCell>
@@ -713,7 +713,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                 style={{
                     width: "100%",
                     borderCollapse: "collapse",
-                    fontSize: 11,
+                    fontSize: 12,
                     marginBottom: 20,
                 }}
             >
@@ -734,7 +734,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 style={{
                                     padding: "8px 10px",
                                     textAlign: "left",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                 }}
                             >
@@ -819,7 +819,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                     style={{
                                         padding: "9px 10px",
                                         color: "var(--eduflow-text-tertiary)",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                     }}
                                     className="tabular"
                                 >
@@ -830,7 +830,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 <td
                                     style={{
                                         padding: "9px 10px",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-secondary)",
                                         fontStyle: "italic",
                                     }}
@@ -889,7 +889,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                                 {bulletin.rank ? `${bulletin.rank} / ${bulletin.classSize}` : "—"}
                             </strong>
                             {bulletin.promotionRank !== null && bulletin.promotionSize !== null ? (
-                                <div style={{ fontSize: 11 }}>
+                                <div style={{ fontSize: 12 }}>
                                     Rang promotion : {bulletin.promotionRank} / {bulletin.promotionSize}
                                 </div>
                             ) : null}
@@ -918,7 +918,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
 
             {/* Calculs adaptés par l'enseignant pour cet élève : toujours expliqués */}
             {bulletin.subjects.some((s) => s.adaptedFormula || (s.excludedGrades ?? 0) > 0) ? (
-                <div style={{ fontSize: 11, color: "var(--eduflow-text-secondary)", margin: "-8px 0 16px" }}>
+                <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)", margin: "-8px 0 16px" }}>
                     {bulletin.subjects
                         .filter((s) => s.adaptedFormula || (s.excludedGrades ?? 0) > 0)
                         .map((s) => (
@@ -952,7 +952,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                 >
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: "var(--eduflow-text-tertiary)",
                         }}
@@ -962,7 +962,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     <div
                         style={{
                             marginTop: 8,
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-secondary)",
                             lineHeight: 1.7,
                         }}
@@ -999,7 +999,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                 >
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: "var(--eduflow-text-tertiary)",
                         }}
@@ -1042,7 +1042,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                             borderTop: "1px solid var(--eduflow-border-strong, #CBD5E1)",
                         }}
                     >
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {s.l}
                         </div>
                         <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>
@@ -1063,7 +1063,7 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     borderTop: "1px solid var(--eduflow-border-subtle, #E2E8F0)",
                     display: "flex",
                     justifyContent: "space-between",
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -1090,7 +1090,7 @@ function CardCell({ label, children }: { label: string; children: React.ReactNod
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: "var(--eduflow-text-tertiary)",
                 }}
@@ -1146,7 +1146,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

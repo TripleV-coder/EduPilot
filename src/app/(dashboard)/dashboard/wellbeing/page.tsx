@@ -379,7 +379,7 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: `var(--${tone}-700)`,
                 }}
@@ -414,7 +414,7 @@ function Kpi({
             {hint ? (
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: `var(--${tone}-800)`,
                         marginTop: 6,
                         lineHeight: 1.5,
@@ -447,7 +447,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                     </h2>
                     <p
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text-tertiary)",
                             margin: "2px 0 0",
                         }}
@@ -499,7 +499,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--text-secondary)",
                                         marginTop: 2,
                                     }}
@@ -508,7 +508,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--text-tertiary)",
                                         marginTop: 2,
                                     }}
@@ -552,7 +552,7 @@ function ClimatePulseCard({
 }) {
     return (
         <Card padding={20}>
-            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
+            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Climat scolaire · pulse anonyme hebdomadaire</p>
             {weeks.length === 0 ? (
                 <p
                     style={{
@@ -593,7 +593,7 @@ function ClimatePulseCard({
                                 <div
                                     className="tabular"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: b.isCurrent
                                             ? "var(--success-700)"
@@ -617,7 +617,7 @@ function ClimatePulseCard({
                                 />
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--text-tertiary)",
                                     }}
                                 >
@@ -656,7 +656,7 @@ function ClimatePulseCard({
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--text-secondary)",
                                                 marginTop: 2,
                                             }}

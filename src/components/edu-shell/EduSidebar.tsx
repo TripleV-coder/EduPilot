@@ -111,7 +111,7 @@ export function EduSidebar() {
                             >
                                 EduPilot
                             </div>
-                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: -1 }}>
+                            <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: -1 }}>
                                 {ROLE_LABELS[role] ?? role}
                             </div>
                         </div>
@@ -212,7 +212,7 @@ export function EduSidebar() {
                                     {schoolCtx?.schoolName ?? "Établissement"}
                                 </div>
                             )}
-                            <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                 {schoolCtx?.currentPeriodName
                                     ? `${schoolCtx.currentPeriodName}`
                                     : "Année en cours"}
@@ -270,7 +270,7 @@ function SidebarLink({
                 <span
                     className="eduflow-tabular"
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 600,
                         padding: "1px 7px",
                         borderRadius: "var(--eduflow-radius-full)",

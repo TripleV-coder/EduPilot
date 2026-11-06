@@ -328,7 +328,7 @@ function Section({
                 <div>
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: "var(--brand-700)",
                         }}

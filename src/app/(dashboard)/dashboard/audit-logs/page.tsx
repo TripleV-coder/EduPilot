@@ -236,7 +236,7 @@ function AuditLogsPageContent() {
                                                 key={h}
                                                 className="px-4 py-2.5 text-left font-bold"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -256,7 +256,7 @@ function AuditLogsPageContent() {
                                             <tr key={log.id} style={{ borderTop: "1px solid var(--eduflow-border-subtle)" }}>
                                                 <td
                                                     className="px-4 py-3 font-mono"
-                                                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     {formatTimestamp(log.createdAt)}
                                                 </td>
@@ -267,7 +267,7 @@ function AuditLogsPageContent() {
                                                             style={{
                                                                 background: "var(--eduflow-brand-100)",
                                                                 color: "var(--eduflow-brand-800)",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                             }}
                                                         >
                                                             {log.user ? initials(log.user.firstName, log.user.lastName) : "SY"}
@@ -279,7 +279,7 @@ function AuditLogsPageContent() {
                                                     <span
                                                         className="font-mono inline-block px-2 py-0.5 rounded-md"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             background: palette.bg,
                                                             color: palette.fg,
                                                         }}
@@ -342,7 +342,7 @@ function CategoryChip({
             <span
                 className="font-mono"
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: active ? "var(--eduflow-brand-700)" : "var(--eduflow-text-tertiary)",
                 }}
             >

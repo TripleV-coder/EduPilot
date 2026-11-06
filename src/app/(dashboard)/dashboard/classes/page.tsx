@@ -504,7 +504,7 @@ function CyclePills({
                         <span
                             className="eduflow-tabular"
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 600,
                                 opacity: active ? 0.85 : 0.6,
                             }}
@@ -584,7 +584,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
